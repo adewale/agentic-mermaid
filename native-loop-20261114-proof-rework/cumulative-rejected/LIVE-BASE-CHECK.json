@@ -1,0 +1,29 @@
+{
+  "liveMain": "ffb61697993be98dcb779305c25afa2c1c77a00f",
+  "parent": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+  "sourceHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "prRecordedBase": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+  "changedFiles": [
+    ".github/workflows/ci.yml",
+    "bun.lock",
+    "package.json",
+    "src/__tests__/zenuml-browser.test.ts"
+  ],
+  "scope": "Playwright/Chromium CI toolchain, lock organization and missing-module ZenUML test. Root and Astra independently reviewed actual four patches; no runtime source/shared-proof intervention.",
+  "retainedRuntimeComparison": {
+    "evidence": "9d97b6645d2926f15efcfa473d3d283126098c7c",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "main": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+    "relabeledAsLiveMain": false
+  },
+  "ci": {
+    "run": 43553008254,
+    "status": "completed",
+    "conclusion": "failure",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "actualCheckout": "637f01a9a9a9e683db9dc713388f8fe11dc8353b",
+    "base": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+    "qualifiesLiveMainCombination": false
+  },
+  "next": "Future actual browser/browser-site/payload and dependency/build qualification must bind changed Main environment. No integration, version edit, build, render, timing or manual CI performed for this base check."
+}

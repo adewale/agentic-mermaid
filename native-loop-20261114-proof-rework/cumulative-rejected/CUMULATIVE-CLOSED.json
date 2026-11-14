@@ -1,0 +1,22 @@
+{
+  "status": "withdrawn-unqualified",
+  "sourceBase": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "sourceManifest": "cumulative-source/SOURCE-MANIFEST.json",
+  "sourceManifestSha256": "406ff2a331593f75fbef2ed5620bd7029d2d87429e623d0bc8cf0e2f0a0fe861",
+  "currentSourceExactFrozen": true,
+  "frozenFiles": 13,
+  "finalCandidateProducts": {
+    "marked": 4,
+    "unmarked": 2,
+    "allReturned": true,
+    "allSvgExact4cdd": true
+  },
+  "proofGoalRestored": false,
+  "originalMaxOperations": 400000,
+  "builds": 0,
+  "timingRuns": 0,
+  "sourceCommits": 0,
+  "ownProbeWorkers": [],
+  "indexUntouched": true,
+  "scope": "Final sourceBun functional probes and parent frozen builtNode unmarked controls; no new build, timing, broad corpus or final owning-suite qualification."
+}

@@ -1,0 +1,141 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/paint-certification.test.ts:
+2651 |   parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
+2652 |   parser.write(result.svg).close()
+2653 |   for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
+2654 |   const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
+2655 |   expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
+2656 |   expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
+                                                                          ^
+error: agentic chain300
+
+  {
++   "attempts": 1,
+    "checks": {
++     "labels": 300,
++     "markers": 0,
+      "maxOcclusionPairs": 100000,
+      "maxOperations": 400000,
++     "occlusionPairs": 0,
++     "operations": 400000,
++     "primitives": 902,
+    },
+-   "issues": [],
++   "coverage": {
++     "conditional": 586,
++     "fallbackText": 0,
++     "measured": 899,
++     "preparedText": 300,
++     "unmeasured": 0,
++   },
++   "issues": [
++     {
++       "code": "CONDITIONAL_PAINT",
++       "message": "586 primitives depend on unresolved paint or interaction state",
++     },
++     {
++       "code": "OUTPUT_SCOPE",
++       "message": "Emitted document context or marker resource differs from retained paint evidence",
++     },
++     {
++       "code": "CHECK_BUDGET",
++       "message": "Occlusion checking reached its 100000-pair or 400000-operation limit",
++     },
++   ],
++   "limitations": [
++     "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
++     "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.",
++   ],
+    "outputDigest": "fnv1a64:f35a06eeedcba3b4",
+-   "status": "passed",
++   "repairs": [],
++   "scope": "native-scene",
++   "status": "unverified",
++   "unit": "px",
++   "version": 1,
++   "viewport": {
++     "height": 25502.00000000011,
++     "width": 177.525,
++     "x": 0,
++     "y": 0,
++   },
+  }
+
+- Expected  - 2
++ Received  + 42
+
+      at <anonymous> (/workspace/agentic-mermaid/src/__tests__/paint-certification.test.ts:2656:68)
+(fail) public agentic chain300 repeated labels and markers complete proof within the original allowance [1382.34ms]
+2651 |   parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
+2652 |   parser.write(result.svg).close()
+2653 |   for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
+2654 |   const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
+2655 |   expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
+2656 |   expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
+                                                                          ^
+error: elk chain300
+
+  {
++   "attempts": 1,
+    "checks": {
++     "labels": 300,
++     "markers": 0,
+      "maxOcclusionPairs": 100000,
+      "maxOperations": 400000,
++     "occlusionPairs": 0,
++     "operations": 400000,
++     "primitives": 902,
+    },
+-   "issues": [],
++   "coverage": {
++     "conditional": 525,
++     "fallbackText": 0,
++     "measured": 899,
++     "preparedText": 300,
++     "unmeasured": 0,
++   },
++   "issues": [
++     {
++       "code": "CONDITIONAL_PAINT",
++       "message": "525 primitives depend on unresolved paint or interaction state",
++     },
++     {
++       "code": "OUTPUT_SCOPE",
++       "message": "Emitted document context or marker resource differs from retained paint evidence",
++     },
++     {
++       "code": "CHECK_BUDGET",
++       "message": "Occlusion checking reached its 100000-pair or 400000-operation limit",
++     },
++   ],
++   "limitations": [
++     "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
++     "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.",
++   ],
+    "outputDigest": "fnv1a64:e50408574ac8b030",
+-   "status": "passed",
++   "repairs": [],
++   "scope": "native-scene",
++   "status": "unverified",
++   "unit": "px",
++   "version": 1,
++   "viewport": {
++     "height": 25502,
++     "width": 177.525,
++     "x": 0,
++     "y": 0,
++   },
+  }
+
+- Expected  - 2
++ Received  + 42
+
+      at <anonymous> (/workspace/agentic-mermaid/src/__tests__/paint-certification.test.ts:2656:68)
+(fail) public elk chain300 repeated labels and markers complete proof within the original allowance [2826.07ms]
+
+ 0 pass
+ 663 filtered out
+ 2 fail
+ 1204 expect() calls
+Ran 2 tests across 1 file. [4.69s]

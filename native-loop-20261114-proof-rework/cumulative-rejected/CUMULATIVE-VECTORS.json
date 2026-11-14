@@ -1,0 +1,158 @@
+[
+  {
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": null,
+    "producerOperations": 146246,
+    "producerExhausted": false,
+    "status": "passed",
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 231803,
+      "maxOperations": 400000,
+      "markers": 99
+    }
+  },
+  {
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": null,
+    "producerOperations": 146246,
+    "producerExhausted": false,
+    "status": "passed",
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 231803,
+      "maxOperations": 400000,
+      "markers": 99
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": null,
+    "producerOperations": 399995,
+    "producerExhausted": true,
+    "status": "unverified",
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 902
+    },
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": null,
+    "producerOperations": 399996,
+    "producerExhausted": true,
+    "status": "unverified",
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 902
+    },
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    }
+  },
+  {
+    "id": "diagnostic:unmarked100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": true,
+    "producerOperations": 141367,
+    "producerExhausted": false,
+    "status": "passed",
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 715,
+      "maxOcclusionPairs": 100000,
+      "operations": 165827,
+      "maxOperations": 400000,
+      "markers": 0
+    }
+  },
+  {
+    "id": "diagnostic:unmarked100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "nonCertificationReceiptExact": true,
+    "producerOperations": 141367,
+    "producerExhausted": false,
+    "status": "passed",
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 715,
+      "maxOcclusionPairs": 100000,
+      "operations": 165827,
+      "maxOperations": 400000,
+      "markers": 0
+    }
+  }
+]

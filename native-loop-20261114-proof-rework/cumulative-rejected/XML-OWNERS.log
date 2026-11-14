@@ -1,0 +1,11 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/scene-svg-writer.test.ts:
+(pass) typed Scene SVG writer > actual XML construction preserves malformed raw context, scalars and empty boundaries: generic [38.74ms]
+(pass) typed Scene SVG writer > actual XML construction preserves malformed raw context, scalars and empty boundaries: native [8.71ms]
+
+ 2 pass
+ 87 filtered out
+ 0 fail
+ 196 expect() calls
+Ran 2 tests across 1 file. [127.00ms]

@@ -1,0 +1,120 @@
+{
+  "sourceRevision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+  "entrySha256": "735d7a0dd72efadccc760e90dd20a484b1233778926613811de100108814c552",
+  "packageSha256": "184f9523e4051f4eb5555f3b03ba6b93727e1adc1f5898092234376ccf029832",
+  "runtime": "v24.19.0",
+  "environment": {
+    "AGENTIC_MERMAID_ELK_CACHE": "0",
+    "AGENTIC_MERMAID_SCENE_ASSERTIONS": "0"
+  },
+  "boundary": "Two untimed built public SVG+entire receipt calls. Existing SDK bytes reused; no performance sampling or timing.",
+  "rows": [
+    {
+      "backend": "agentic",
+      "returned": true,
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "sourceSha256": "9a89c2c0cd84d4e1e85a03c98e8e158f7091e0f57164215c3f9e68e454ad408f",
+      "svgSha256": "7b899c95f76f6f2d55ffc073acb5e3267d1c411a24428bd35268dc43c7fc54ba",
+      "productSha256": "411179d61890936b1090c1ece7630de609819f2aa7baff84121cddbb7774fc2a",
+      "actualEndpoints": 99,
+      "endpointsExact": true,
+      "actualMarkerReferences": 0,
+      "labelsComplete": true,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 170.115,
+          "height": 8522
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 299,
+          "unmeasured": 0,
+          "preparedText": 100,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 302,
+          "labels": 100,
+          "occlusionPairs": 715,
+          "maxOcclusionPairs": 100000,
+          "operations": 156431,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:2fb0cbf8526fcb7b"
+      }
+    },
+    {
+      "backend": "elk",
+      "returned": true,
+      "options": {
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "sourceSha256": "9a89c2c0cd84d4e1e85a03c98e8e158f7091e0f57164215c3f9e68e454ad408f",
+      "svgSha256": "7b899c95f76f6f2d55ffc073acb5e3267d1c411a24428bd35268dc43c7fc54ba",
+      "productSha256": "e38520fc0e698c1f2c67ffd2e8ad06132d9957b060701be538bce4efaaffdf22",
+      "actualEndpoints": 99,
+      "endpointsExact": true,
+      "actualMarkerReferences": 0,
+      "labelsComplete": true,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 170.115,
+          "height": 8522
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 299,
+          "unmeasured": 0,
+          "preparedText": 100,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 302,
+          "labels": 100,
+          "occlusionPairs": 715,
+          "maxOcclusionPairs": 100000,
+          "operations": 156431,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:2fb0cbf8526fcb7b"
+      }
+    }
+  ]
+}

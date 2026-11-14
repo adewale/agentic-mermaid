@@ -1,0 +1,67 @@
+[
+  {
+    "path": "src/__tests__/paint-certification.test.ts",
+    "bytes": 409288,
+    "sha256": "d949134b131929e1bb629a8cee83cdd2a394f9e3ef46b80408761ae1cbd898fa"
+  },
+  {
+    "path": "src/__tests__/scene-svg-writer.test.ts",
+    "bytes": 67135,
+    "sha256": "41f5784dfd616a1b51e24f43e01df27c775f101028d53048ae493e7daa7796bd"
+  },
+  {
+    "path": "src/renderer.ts",
+    "bytes": 35439,
+    "sha256": "2eddd57271b86356f4132feeb18f980b305530912c35f320c962d9aac9047109"
+  },
+  {
+    "path": "src/scene/bounds.ts",
+    "bytes": 43282,
+    "sha256": "af97ee1a049803cefede2a6a40c176a43af2ebe30043b069e3f6688338011434"
+  },
+  {
+    "path": "src/scene/drawing.ts",
+    "bytes": 3400,
+    "sha256": "bfb25d4bae1335bf4d991fa7ef615c28507f385a7d13abc3d391f88e88c42bda"
+  },
+  {
+    "path": "src/scene/emission-context.ts",
+    "bytes": 40346,
+    "sha256": "f958831458e40ced8aa831e9549d455b6897802be8a8a6b84f41774915e81d63"
+  },
+  {
+    "path": "src/scene/group-emission.ts",
+    "bytes": 31242,
+    "sha256": "353820cf82a1ee856d6391fb9e8c3c1528c62e5d1097ed82553b2c784025b08d"
+  },
+  {
+    "path": "src/scene/inspection.ts",
+    "bytes": 24467,
+    "sha256": "ccbdffc7c01801215a6e476da89ec16c11e6e3d213c480428fdfa3eec44b3a0f"
+  },
+  {
+    "path": "src/scene/native-drawing.ts",
+    "bytes": 22939,
+    "sha256": "a59eaca9eecb33bd23a2628a2db1a1cf9358008ab0307ec734b353177931f537"
+  },
+  {
+    "path": "src/scene/native-paint-emission.ts",
+    "bytes": 77426,
+    "sha256": "709230ad71c580d11da0b2b2acc04e1146fca69f73ea7c7258635cc5af1cc1f5"
+  },
+  {
+    "path": "src/scene/scene-validation-core.ts",
+    "bytes": 102981,
+    "sha256": "1c51f5af33c52c35e338a3fb4349f07d827452f7455b23e835640ae5c84a81d5"
+  },
+  {
+    "path": "src/scene/svg-writer.ts",
+    "bytes": 95678,
+    "sha256": "f4ed75af0ffea2ff0e18c2f25fac74c1b8cfd3128c62365e749af541d74c1fbc"
+  },
+  {
+    "path": "src/scene/native-polyline.ts",
+    "bytes": 8803,
+    "sha256": "9eade61ec18e9032d013bd6fca7d63068fe73ae5ad7ee03e681d1828a06d8703"
+  }
+]

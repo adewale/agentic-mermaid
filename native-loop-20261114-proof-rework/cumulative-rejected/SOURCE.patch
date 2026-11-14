@@ -1,0 +1,1732 @@
+diff --git a/src/__tests__/paint-certification.test.ts b/src/__tests__/paint-certification.test.ts
+index 96afa5cf..55778e96 100644
+--- a/src/__tests__/paint-certification.test.ts
++++ b/src/__tests__/paint-certification.test.ts
+@@ -2626,6 +2626,8 @@ const proofCapacityCases = [
+   { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
+   { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
+   { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'chain300', source: proofCapacityChain(300, true), labels: Array.from({ length: 300 }, (_, index) => `Node ${index}`) },
++  { name: 'unmarked100', source: proofCapacityChain(100, true).replaceAll(' --> ', ' --- '), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
+ ]
+ test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
+   const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+@@ -2643,19 +2645,33 @@ console.log(JSON.stringify(renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'),
+     const from = tag.attributes['data-from'], to = tag.attributes['data-to']
+     if (from && to && ['line', 'polyline', 'path'].includes(tag.local)) {
+       carriers.push([from.value, to.value])
+-      expect(tag.attributes['marker-end']?.value, `${backend} ${name} actual marker`).toMatch(/^url\(#.+\)$/)
++      if (name === 'unmarked100') expect(tag.attributes['marker-end']).toBeUndefined()
++      else expect(tag.attributes['marker-end']?.value, `${backend} ${name} actual marker`).toMatch(/^url\(#.+\)$/)
+     }
+   })
+   parser.on('text', value => { if (text !== undefined) text += value })
+   parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
+   parser.write(result.svg).close()
+   for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
+-  const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
++  const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->|---)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
+   expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
+   expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
+     status: 'passed', outputDigest: renderedSvgDigest(result.svg),
+     checks: { maxOperations: 400000, maxOcclusionPairs: 100000 }, issues: [],
+   })
++  if (name === 'chain100' || name === 'chain300') {
++    const capacityProof = result.receipt.layoutCertification
++    if (!capacityProof || !('checks' in capacityProof)) throw new Error('Expected graphical paint checks')
++    expect(capacityProof.checks.markers).toBe(name === 'chain100' ? 99 : 299)
++    expect(capacityProof.checks.occlusionPairs).toBe(name === 'chain100' ? 814 : 2010)
++  }
++  if (name === 'chain300') {
++    expect(result.receipt.layoutCertification?.coverage).toMatchObject({ measured: 899, unmeasured: 0, preparedText: 300, fallbackText: 0, conditional: 0 })
++    const proof = result.receipt.layoutCertification
++    if (!proof || !('checks' in proof)) throw new Error('Expected graphical paint checks')
++    expect(proof.checks).toMatchObject({ primitives: 902, markers: 299 })
++    expect(proof.checks.occlusionPairs).toBeGreaterThan(0)
++  }
+ }, 30000)
+ 
+ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+diff --git a/src/__tests__/scene-svg-writer.test.ts b/src/__tests__/scene-svg-writer.test.ts
+index ce75a12e..5f484b8f 100644
+--- a/src/__tests__/scene-svg-writer.test.ts
++++ b/src/__tests__/scene-svg-writer.test.ts
+@@ -7,7 +7,7 @@ import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnl
+ import { validateSceneDoc } from '../scene/scene-validation.ts'
+ import { preparePixelText } from '../shared/prepared-text.ts'
+ import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, readSvgRectanglePaintWrite, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+-import { bindNativeGroupEmission, captureNativeGroupParse, consumeWrittenNativeGroupEmission } from '../scene/group-emission.ts'
++import { bindNativeGroupEmission, captureNativeGroupParse, consumeWrittenNativeGroupEmission, createGeneratedNativeGroup } from '../scene/group-emission.ts'
+ import { createNativePaintEmission, createOriginalNativePaintEmission } from '../scene/native-paint-emission.ts'
+ import { tipAnchoredArrow, serializeMarkerResources } from '../scene/marker-resources.ts'
+ import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
+@@ -268,7 +268,13 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
+     expect(value.proof).toMatchObject({ status: 'unverified', coverage: { conditional: 1 }, issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
+   })
+ 
+-  test.each(['actual', 'borrowed-fields', 'post-init-reflection'] as const)('actual Native group opening retains receiver custody under %s', mode => {
++  test.each(['actual', 'borrowed-fields', 'post-init-reflection', 'invalid-quote', 'invalid-artwork'] as const)('actual Native group opening retains receiver custody under %s', mode => {
++    if (mode === 'invalid-quote' || mode === 'invalid-artwork') {
++      const work = createNativeXmlWork(400000), literal = mode === 'invalid-quote' ? 'bad"' : '"><rect x="1" y="1" width="9" height="9" />'
++      expect(createGeneratedNativeGroup([{ name: 'data-label', literal }], { id: 'actual-group', role: 'group' }, work.pay)).toBeUndefined()
++      if (mode === 'invalid-artwork') expect(() => marks.group({ id: 'actual-group', role: 'group', open: `<g data-label="${literal}">`, close: '</g>', children: [] })).toThrow()
++      return
++    }
+     const work = createNativeXmlWork(400000), capture = work.capture()
+     const shell = marks.group({ id: 'actual-group', role: 'group', open: '<g class="wrap">', close: '</g>', children: [] }, work.pay)
+     if (mode !== 'post-init-reflection') Object.freeze(shell)
+@@ -732,8 +738,8 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
+     }
+   })
+ 
+-  test('actual XML construction preserves malformed raw context, scalars and empty boundaries', () => {
+-    const capture = createSvgXmlCapture(() => true)
++  test.each(['generic', 'native'] as const)('actual XML construction preserves malformed raw context, scalars and empty boundaries: %s', captureMode => {
++    const capture = captureMode === 'native' ? createNativeXmlWork(400000).capture() : createSvgXmlCapture(() => true)
+     const actualXml = (svg: string): boolean => {
+       let valid = true
+       const parser = new SaxesParser({ xmlns: true })
+@@ -851,7 +857,7 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
+       const prototype = mode === 'isolated-scalar' || mode === 'attrs-slice' ? String.prototype : Array.prototype
+       const key = mode.endsWith('iterator') ? Symbol.iterator : mode.endsWith('push') ? 'push' : mode === 'additional-every' ? 'every' : mode === 'actual-join' ? 'join' : mode === 'attrs-slice' ? 'slice' : 'charCodeAt'
+       const descriptor = Object.getOwnPropertyDescriptor(prototype, key)!
+-      const local = createSvgXmlCapture(() => true)
++      const local = captureMode === 'native' ? createNativeXmlWork(400000).capture() : createSvgXmlCapture(() => true)
+       let actual = '', accepted = false
+       const replacement = mode.endsWith('iterator') ? function* (this: unknown[]) {
+         for (let index = 0; index < this.length; index++) {
+diff --git a/src/renderer.ts b/src/renderer.ts
+index b48d2d84..d5b821d3 100644
+--- a/src/renderer.ts
++++ b/src/renderer.ts
+@@ -464,6 +464,20 @@ function renderEdge<T>(
+     })
+   }
+ 
++  if (marks.polylineConnector && lineStyle !== 'invisible' && labels.length === 0 && edge.source !== edge.target && edge.labelPosition === undefined) {
++    const routed = carrierPaint.polyline?.points ?? edge.points, coordinates: number[] = []
++    for (let index = 0; index < routed.length; index++) { coordinates.push(routed[index]!.x, routed[index]!.y) }
++    const data: Array<[string, string]> = []
++    for (const key of Object.keys(attributes.data ?? {})) data.push([key, attributes.data![key]!])
++    const result = marks.polylineConnector({
++      id: sceneId, identityId, from: edge.source, to: edge.target,
++      relationship: connectorSemantics.relationship.kind, direction: connectorSemantics.relationship.direction,
++      lineStyle, coordinates, classNames: authoredClassNames, className: attributes.className!, data,
++      color: paint.stroke, width: paint.strokeWidth, ...(effectiveDashArray ? { dash: effectiveDashArray } : {}),
++      ...(startMarker ? { startMarker: startMarker.id } : {}), ...(endMarker ? { endMarker: endMarker.id } : {}),
++    })
++    if (result !== undefined) return result
++  }
+   return marks.connector({
+     id: sceneId,
+     role: 'edge',
+@@ -581,6 +595,23 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
+   // data-semantic-shape names the Mermaid v11 `@{ shape }` id when the drawn
+   // geometry is a mapping of it, so agents can explain the semantic shape
+   // even when the geometry is approximate (repo #44).
++  if (marks.groupAttributes) {
++    const semanticShape = node.semanticShape ? [{ name: 'data-semantic-shape', literal: escapeAttr(node.semanticShape) }] : []
++    const interaction = includeInteraction && node.href ? [{ name: 'data-href', literal: escapeAttr(node.href) }, { name: 'role', literal: 'link' }, { name: 'tabindex', literal: '0' }] : []
++    const floatingNote = node.floatingNoteId === undefined ? [] : [{ name: 'data-floating-note-id', literal: escapeAttr(node.floatingNoteId) }]
++    return marks.groupAttributes({
++      id: `node:${node.id}`,
++      role: node.shape === 'state-note' ? 'note' : 'node',
++      openAttributes: [
++        { name: 'class', literal: classAttr },
++        { name: 'data-id', literal: escapeAttr(node.id) },
++        { name: 'data-label', literal: escapeDisplayAttr(node.label) },
++        { name: 'data-shape', literal: node.shape },
++        ...semanticShape, ...interaction, ...floatingNote,
++      ],
++      close: '</g>', children, channels,
++    })
++  }
+   const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
+   const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
+   const floatingNote = node.floatingNoteId === undefined ? '' : ` data-floating-note-id="${escapeAttr(node.floatingNoteId)}"`
+diff --git a/src/scene/bounds.ts b/src/scene/bounds.ts
+index d96a433d..bb6625f5 100644
+--- a/src/scene/bounds.ts
++++ b/src/scene/bounds.ts
+@@ -1,3 +1,4 @@
++import type { NativePolylinePaintNode } from './native-polyline.ts'
+ import { tryParseCssColor } from '../shared/color-math.ts'
+ import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
+ import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
+@@ -628,7 +629,7 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
+   return Math.min(half, reach)
+ }
+ 
+-function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
++function connectorPaintBounds(node: ConnectorMark | NativePolylinePaintNode, transform?: SceneTransform, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+   const geometry = (actualRoute ?? node.route).geometry
+   const local = geometryBounds(geometry)
+   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(actualRoute ?? node.route))
+@@ -675,11 +676,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, a
+ /** Conservative painted bounds, independent of legacy layout/hit envelopes.
+  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
+  * retain their world-space width. Unknown artwork is wholly unmeasured. */
+-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
++export function nodePaintBounds(node: SceneNode | NativePolylinePaintNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+   return paintBounds(node, parentTransform, documentFont, actualTextPaint, actualRoute)
+ }
+ 
+-function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
++function paintBounds(node: SceneNode | NativePolylinePaintNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+   const transform = composedTransform(parentTransform, node.transform)
+   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
+   let local: AxisAlignedBox | undefined
+diff --git a/src/scene/drawing.ts b/src/scene/drawing.ts
+index 6e7a679f..8d22fa96 100644
+--- a/src/scene/drawing.ts
++++ b/src/scene/drawing.ts
+@@ -1,13 +1,19 @@
++import type { NativePolylineContent } from './native-polyline.ts'
+ import type { PositionedDiagram, RenderContext } from '../types.ts'
+ import type { SceneDoc, SceneNode } from './ir.ts'
+ import * as marks from './marks.ts'
+ 
+ /** One lowering program, with a consumer selected before any marks are built. */
+ export interface DrawingDocument<T> extends Omit<SceneDoc, 'parts'> { parts: T[] }
++export interface DrawingGroupAttribute { readonly name: string; readonly literal: string }
++export type DrawingAttributeGroupInput<T> = Omit<Parameters<typeof marks.group>[0], 'children' | 'open'> & { children: Array<{ node: T; indent: number }>; openAttributes: readonly DrawingGroupAttribute[] }
++
+ export type DrawingFactory<T> = {
+   [K in 'image' | 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
+ } & {
+   group(fields: Omit<Parameters<typeof marks.group>[0], 'children'> & { children: Array<{ node: T; indent: number }> }): T
++  groupAttributes?(fields: DrawingAttributeGroupInput<T>): T
++  polylineConnector?(content: NativePolylineContent): T | undefined
+   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T
+ }
+ export type DrawingProducer<P extends PositionedDiagram = PositionedDiagram> = <T>(factory: DrawingFactory<T>, context: RenderContext<P>) => DrawingDocument<T>
+diff --git a/src/scene/emission-context.ts b/src/scene/emission-context.ts
+index 46311718..3b49c015 100644
+--- a/src/scene/emission-context.ts
++++ b/src/scene/emission-context.ts
+@@ -1,3 +1,4 @@
++import type { NativePolylinePaintNode, NativePolylineNode } from './native-polyline.ts'
+ import { createInlineColorAttributeResolverForVariables, SVG_STYLE_DECLARATIONS } from '../theme.ts'
+ import { isHexColor, tryParseCssColor } from '../shared/color-math.ts'
+ import { safeCssFontFamily } from '../shared/css-font.ts'
+@@ -32,7 +33,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+   const documents: Array<{ node: DocumentMark; svg: string }> = []
+   let nativeDefinitions: WeakSet<DocumentMark> | undefined
+   const texts: Array<{ node: TextMark; svg: string }> = []
+-  const leaves: Array<{ node: SceneNode; svg: string }> = []
++  const leaves: Array<{ node: SceneNode | NativePolylinePaintNode | NativePolylineNode; svg: string }> = []
+   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
+   type NativeGroup = { readonly svg: string; readonly tags?: readonly SvgStartTagToken[]; readonly plain?: true; readonly fractional?: boolean; readonly opacity: string | undefined; readonly transform: string | undefined; readonly matrix: AffineMatrix | undefined }
+   const nativeGroups = new WeakMap<Extract<SceneNode, { kind: 'group' }>, NativeGroup>()
+@@ -291,7 +292,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+     }
+     return true
+   }
+-  const connector = (node: ConnectorMark, captured: boolean): void => {
++  const connector = (node: ConnectorMark | NativePolylinePaintNode, captured: boolean): void => {
+       if (!reserve(3)) return
+       if (node.lineStyle === 'invisible' || !node.markers.start && !node.markers.end && node.markers.mid.length === 0) return
+       hasMarkedConnector = true
+@@ -339,11 +340,11 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+       } else if (documentPosition !== 'inside') uncertain = true
+       documents.push({ node, svg })
+     },
+-    connector(node: ConnectorMark): void { connector(node, false) },
+-    capturedConnector(node: ConnectorMark): void { connector(node, true) },
++    connector(node: ConnectorMark | NativePolylinePaintNode): void { connector(node, false) },
++    capturedConnector(node: ConnectorMark | NativePolylinePaintNode): void { connector(node, true) },
+     /** Call only for an owned captured leaf. A hint requests an actual write;
+      * it grants no geometry or paint authority by itself. */
+-    hint(node: SceneNode): boolean {
++    hint(node: SceneNode | NativePolylinePaintNode | NativePolylineNode): boolean {
+       if (!reserve(2)) return false
+       if (node.kind === 'connector') {
+         const reference = (marker: MarkerDescriptor | undefined): void => {
+@@ -375,7 +376,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+     /** Observe only an admitted owned leaf's actual write. The writer's
+      * private receipt closes its structure and actual transform emission;
+      * it grants no geometry authority. A later leaf can activate this domain. */
+-    leaf(node: SceneNode, svg: string): void {
++    leaf(node: SceneNode | NativePolylinePaintNode | NativePolylineNode, svg: string): void {
+       if (!reserve(2)) return
+       if (node.kind === 'text') texts.push({ node, svg })
+       else if (node.kind !== 'document' && node.kind !== 'group') leaves.push({ node, svg })
+diff --git a/src/scene/group-emission.ts b/src/scene/group-emission.ts
+index 77af74a3..28f106a0 100644
+--- a/src/scene/group-emission.ts
++++ b/src/scene/group-emission.ts
+@@ -1,3 +1,5 @@
++import { escapeAttr } from '../multiline-utils.ts'
++import { hasDomSvgIdentityRole } from './identity.ts'
+ import { xmlLiteralSpan } from '../shared/xml-literal.ts'
+ import { decodeXML } from 'entities'
+ import { visitSvgFirstTagAttributes, visitSvgStartTagsFresh, svgClassHasTokenFresh, type SvgStartTagToken, type SvgAttributeToken } from '../svg-structure.ts'
+@@ -16,6 +18,7 @@ type Visitor = typeof visitSvgFirstTagAttributes
+ // Private operands are pinned before any ambient sealing callback can see
+ // them. Keep their exact literal receiver; a freeze return is no authority.
+ const groupDefine = Object.defineProperties, groupSlot = Object.defineProperty, groupPrevent = Object.preventExtensions
++const groupFreeze = Object.freeze
+ const groupDescriptor = Object.getOwnPropertyDescriptor, groupOwn = Object.hasOwn, groupExtensible = Object.isExtensible
+ function attributeRecord(name: string, value: string, quote: '"' | "'", nameStart: number, valueStart: number, valueEnd: number): SvgAttributeToken {
+   return groupPrevent(groupDefine({}, {
+@@ -93,9 +96,12 @@ class ParsedNativeGroup {
+   readonly #source: string
+   readonly #plain: PlainGroupInput | undefined
+   readonly #node: object | undefined
+-  constructor(issuer: object, source: string, plain: PlainGroupInput | undefined, node?: object) {
++  readonly #generatedXml: boolean | undefined
++  readonly #generatedMono: boolean | undefined
++  constructor(issuer: object, source: string, plain: PlainGroupInput | undefined, node?: object, generated?: { xml: boolean; mono: boolean }) {
+     if (issuer !== nativeGroupParseIssuer) throw new TypeError('Native group facts require their actual lexer')
+     this.#source = source; this.#plain = plain; this.#node = node
++    this.#generatedXml = generated?.xml; this.#generatedMono = generated?.mono
+   }
+   static opening(value: unknown, node: object, pay: Pay): string | undefined {
+     if (!pay(2) || !value || typeof value !== 'object' || !(#source in value)
+@@ -103,23 +109,24 @@ class ParsedNativeGroup {
+     return value.#source
+   }
+   static validateOpening(value: unknown, node: object, literal: (value: string) => boolean, pay: Pay): boolean {
+-    if (!pay(4) || !value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid
++    if (!pay(4) || !value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid && value.#generatedXml === undefined
+       || value.#node !== node || groupEmission.get(node)?.nativeParse !== value) return false
+-    if (value.#plain.xml !== undefined) return pay(1) && value.#plain.xml
+-    for (let index = 0; index < value.#plain.attributes.length; index++) {
+-      if (!pay(1) || !literal(value.#plain.attributes[index]!.value)) return false
++    if (value.#generatedXml !== undefined) return pay(1) && value.#generatedXml
++    if (value.#plain!.xml !== undefined) return pay(1) && value.#plain!.xml
++    for (let index = 0; index < value.#plain!.attributes.length; index++) {
++      if (!pay(1) || !literal(value.#plain!.attributes[index]!.value)) return false
+     }
+     return true
+   }
+   static context(value: unknown, node: GroupMark, source: string | undefined, pay: Pay): NativePlainGroupContext | undefined {
+-    if (!value || typeof value !== 'object' || !(#source in value) || value.#node !== node || !value.#plain?.valid
++    if (!value || typeof value !== 'object' || !(#source in value) || value.#node !== node || !value.#plain?.valid && value.#generatedXml === undefined
+       || !(source === undefined ? pay(8) : pay(source.length * 2 + 8) && value.#source === source) || groupEmission.get(node)?.nativeParse !== value) return undefined
+     // The strict plain lexer already checked every name, duplicate and exact
+     // quote/separator boundary. Context needs only the actual class literal;
+     // plain groups cannot carry paint, style, transforms or nested markup.
+-    let mono = false
++    let mono = value.#generatedMono ?? false
+     const plain = value.#plain
+-    for (let index = 0; index < plain.attributes.length; index++) {
++    for (let index = 0; plain && index < plain.attributes.length; index++) {
+       if (!pay(2)) return undefined
+       if (plain.attributes[index]!.name === 'class') {
+         const raw = plain.attributes[index]!.value
+@@ -136,10 +143,11 @@ class ParsedNativeGroup {
+   }
+ 
+   static validate(value: unknown, source: string, literal: (value: string) => boolean, pay: Pay): boolean {
+-    if (!value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid || !value.#node || groupEmission.get(value.#node)?.nativeParse !== value) return false
++    if (!value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid && value.#generatedXml === undefined || !value.#node || groupEmission.get(value.#node)?.nativeParse !== value) return false
+     if (!pay(source.length * 2 + 4) || value.#source !== source) return false
+-    for (let index = 0; index < value.#plain.attributes.length; index++) {
+-      if (!pay(1) || !literal(value.#plain.attributes[index]!.value)) return false
++    if (value.#generatedXml !== undefined) return pay(1) && value.#generatedXml
++    for (let index = 0; index < value.#plain!.attributes.length; index++) {
++      if (!pay(1) || !literal(value.#plain!.attributes[index]!.value)) return false
+     }
+     return true
+   }
+@@ -230,6 +238,7 @@ export function bindNativeGroupEmission(node: GroupMark, open: string, pay: Pay)
+   }
+   const ownOpen = Object.getOwnPropertyDescriptor(node, 'open')
+   if (!ownOpen || ownOpen.value !== open || ownOpen.writable || ownOpen.configurable || Object.isExtensible(node)) return undefined
++  if (prior.nativeParse && nativeGroupOpeningOf(prior.nativeParse, node, pay) === open) return prior.nativeParse
+   const parsed = captureNativeGroupParse(node, pay, node)
+   if (!parsed || !pay(12)) return undefined
+   groupEmission.set(node, emissionRecord(open, prior.opacity, prior.style, prior.matrix, parsed))
+@@ -407,3 +416,77 @@ export function captureNativeGroupParse(fields: GroupFields, pay: Pay, node?: ob
+ export function freshNativeGroupTags(source: string, pay: Pay): readonly SvgStartTagToken[] | undefined {
+   return collectNativeGroup(source, pay)?.materialize(pay)
+ }
++
++/** Generate plain group bytes from ordered logical attributes. The source and
++ * XML result belong to this write, not to a separately supplied open string. */
++export function createGeneratedNativeGroup(
++  input: readonly { readonly name: string; readonly literal: string }[],
++  fallback: { readonly id: string; readonly role: GroupMark['role'] },
++  pay: Pay,
++): { readonly open: string; readonly identity: NonNullable<GroupMark['identity']>; readonly shell: GroupMark; bind(node: GroupMark): boolean } | undefined {
++  if (!hasDomSvgIdentityRole(fallback.role) || !pay(12 + input.length * 2)) return undefined
++  const names = { __proto__: null } as unknown as Record<string, true>
++  let id = fallback.id, classes: string[] = [], from: string | undefined, to: string | undefined, mono = false
++  let open = '<g', xml = true, hasId = false, hasRole = false
++  const append = (name: string, value: string, validated?: string): boolean => {
++    if (!pay(value.length + 10)) return false
++    if (value !== validated) for (let cursor = 0; cursor < value.length;) {
++      const span = xmlLiteralSpan(value, cursor, true)
++      if (!span) { xml = false; return false }
++      cursor += span
++    }
++    open += ` ${name}="${value}"`
++    return true
++  }
++  for (let index = 0; index < input.length; index++) {
++    const item = input[index]!, name = item.name, literal = item.literal
++    if (typeof name !== 'string' || typeof literal !== 'string' || !pay(name.length + literal.length + 12)) return undefined
++    if (!plainGroupName(name) || names[name]) return undefined
++    names[name] = true
++    // The escaped-input boundary is checked before semantic identity rewriting.
++    for (let cursor = 0; cursor < literal.length;) {
++      const span = xmlLiteralSpan(literal, cursor, true)
++      if (!span) return undefined
++      cursor += span
++    }
++    let value = literal
++    const actual = name === 'data-id' || name === 'class' || name === 'data-from' || name === 'data-to' ? decodeXML(literal) : undefined
++    if (name === 'data-id') { id = actual!; hasId = true; if (!pay(4)) return undefined; value = escapeAttr(id) }
++    if (name === 'data-role') { hasRole = true; if (!pay(4)) return undefined; value = escapeAttr(fallback.role) }
++    if (name === 'class') { classes = actual!.split(/\s+/).filter(Boolean); mono = svgClassHasTokenFresh(actual!, 'mono') }
++    if (name === 'data-from') { from = actual; if (!pay(4)) return undefined; value = escapeAttr(from!) }
++    if (name === 'data-to') { to = actual; if (!pay(4)) return undefined; value = escapeAttr(to!) }
++    if (!append(name, value, literal)) return undefined
++  }
++  if (!hasId && (!pay(4) || !append('data-id', escapeAttr(id)))) return undefined
++  if (!hasRole && (!pay(4) || !append('data-role', escapeAttr(fallback.role)))) return undefined
++  open += '>'
++  if (!xml) return undefined
++  const source = open
++  // This is the one generated write operand, not a Scene constructor followed
++  // by another reflective capture of its fresh identity/owner/empty roster.
++  if (!pay(classes.length + 34)) return undefined
++  if (groupFreeze(classes) !== classes) return undefined
++  const identityInput = { id, role: fallback.role, ...(classes.length ? { classNames: classes } : {}), ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }) }
++  const identity = groupFreeze(identityInput)
++  const ownerInput = { id, role: fallback.role }, owner = groupFreeze(ownerInput)
++  const children: GroupMark['children'] = [], retainedChildren = groupFreeze(children)
++  const shellInput: GroupMark = { kind: 'group', id: fallback.id, role: fallback.role, open, close: '</g>', children, join: '\n', channels: undefined, identity, owner }
++  const shell = groupFreeze(shellInput)
++  if (identity !== identityInput || owner !== ownerInput || retainedChildren !== children || shell !== shellInput
++    || groupExtensible(classes) || groupExtensible(identity) || groupExtensible(owner) || groupExtensible(children) || groupExtensible(shell)) return undefined
++  return { open, identity, shell, bind(node) {
++    if (!pay(20)) return false
++    const slot = groupDescriptor(node, 'open')
++    if (!slot || !groupOwn(slot, 'value') || slot.value !== source || slot.writable || slot.configurable || groupExtensible(node)
++      || node.transform !== undefined || node.paint !== undefined || node.close !== '</g>' || node.join !== '\n') return false
++    // Generic inspection can still request a complete fresh roster. Ordinary
++    // native context/XML consume only this completed actual-written source.
++    const parsed = groupPrevent(groupDefine(new ParsedNativeGroup(nativeGroupParseIssuer, source, undefined, node, { xml, mono }), {
++      open: { value: source, enumerable: true }, firstName: { value: 'g', enumerable: true },
++      materialize: { value: (work: Pay) => freshNativeGroupTags(source, work), enumerable: true },
++    })) as NativeGroupParse
++    groupEmission.set(node, emissionRecord(source, undefined, false, undefined, parsed))
++    return true
++  } }
++}
+diff --git a/src/scene/inspection.ts b/src/scene/inspection.ts
+index 2f95a60a..f8df5a6f 100644
+--- a/src/scene/inspection.ts
++++ b/src/scene/inspection.ts
+@@ -1,3 +1,4 @@
++import type { NativePolylinePaintNode } from './native-polyline.ts'
+ import { readSvgTextPaintWrite, readSvgGeometryWrite, readSvgGeometryProjection, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
+ import { isAdmittedSceneDocument } from './scene-admission-state.ts'
+ import { tryParseCssColor } from '../shared/color-math.ts'
+@@ -131,7 +132,7 @@ export function shapeSurfacePaint(node: Pick<ShapeMark, 'paint' | 'childPaints'>
+   return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
+ }
+ 
+-function nonPainting(node: SceneNode, actualTextPaint?: MarkPaint): boolean {
++function nonPainting(node: SceneNode | NativePolylinePaintNode, actualTextPaint?: MarkPaint): boolean {
+   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
+   if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text), actualTextPaint ?? node.paint)
+   if (node.kind === 'connector') return node.lineStyle === 'invisible'
+@@ -173,7 +174,7 @@ type TextDetails = (text: string, block: Extract<SceneNode, { kind: 'text' }>['b
+  * Leaves must already pass the drawing factory's bounded admission. No group
+  * or SceneDoc is built or retained by this API. */
+ export interface NativePaintEntry {
+-  readonly node: Exclude<SceneNode, { kind: 'group' }>
++  readonly node: (Exclude<SceneNode, { kind: 'group' }> | NativePolylinePaintNode)
+   readonly key?: string
+   readonly parentMatrix?: AffineMatrix
+   readonly ancestors?: readonly SceneOwner[]
+@@ -247,10 +248,13 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
+   return recorder.finish()
+ }
+ 
+-function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze, actualRoute?: ConnectorMark['route']): NativePaintSource {
++function nativePaintSource(node: (Exclude<SceneNode, { kind: 'group' }> | NativePolylinePaintNode), actualTextPaint?: MarkPaint, freeze = textPaintFreeze, actualRoute?: ConnectorMark['route']): NativePaintSource | undefined {
+   switch (node.kind) {
+     case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
+-    case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: actualRoute ?? node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
++    case 'connector': {
++      const route = actualRoute ?? node.route
++      return route && freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
++    }
+     case 'text': return freeze({ kind: node.kind, paint: actualTextPaint ?? node.paint })
+     case 'image':
+     case 'document': return freeze({ kind: node.kind })
+@@ -266,7 +270,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+   }
+   const primitives: ScenePaintGeometry[] = []
+   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
+-  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite, actualRoute?: ConnectorMark['route']): void => {
++  const leaf = (semanticNode: (Exclude<SceneNode, { kind: 'group' }> | NativePolylinePaintNode), key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: (Exclude<SceneNode, { kind: 'group' }> | NativePolylinePaintNode), pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite, actualRoute?: ConnectorMark['route']): void => {
+     const node = servedNode ?? semanticNode
+     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
+     const source = native || servedNode ? nativePaintSource(node, actualTextPaint, freeze, actualRoute) : undefined
+@@ -284,7 +288,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+       owner: native && ancestors.includes(owner) ? owner : ownerSnapshot(owner),
+       ancestors,
+       order: primitives.length, coverage: status,
+-      ...(conditional || node.visibility === 'conditional' || !Number.isFinite(groupOpacity) ? { visibility: 'conditional' as const } : {}),
++      ...(conditional || native && node.kind === 'connector' && !source || node.visibility === 'conditional' || !Number.isFinite(groupOpacity) ? { visibility: 'conditional' as const } : {}),
+       ...(groupOpacity < 1 ? { groupOpacity } : {}),
+       ...(measured ? { bounds: freeze(bounds!) } : {}),
+       ...(!hidden && !measured ? { reason: node.kind === 'image' ? 'raster-paint-unavailable' : node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
+@@ -293,7 +297,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+     if (source) nativeSources.set(primitive, source)
+     if (actualPaintWrite) hasActualPaint = true
+     if (actualPaintWrite) textPaintApply(textPaintPut, nativeTextPaintWrites, [primitive, actualPaintWrite])
+-    if (!native) sources.set(primitive, semanticNode)
++    if (!native) sources.set(primitive, semanticNode as Exclude<SceneNode, { kind: 'group' }>)
+     if (servedNode && primitive.visibility !== 'conditional') sceneWriteOccurrences.add(primitive)
+     if (pathAuthority && primitive.visibility !== 'conditional') scenePathOccurrences.add(primitive)
+     worldMatrices.set(primitive, matrix)
+@@ -324,7 +328,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+         text: freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
+       })
+       if (source) nativeSources.set(inline, source)
+-      if (!native) sources.set(inline, semanticNode)
++      if (!native) sources.set(inline, semanticNode as Exclude<SceneNode, { kind: 'group' }>)
+       worldMatrices.set(inline, matrix)
+       append(inline)
+       if (hidden) coverage.nonPainting++
+diff --git a/src/scene/native-drawing.ts b/src/scene/native-drawing.ts
+index c96959a7..cb4945fc 100644
+--- a/src/scene/native-drawing.ts
++++ b/src/scene/native-drawing.ts
+@@ -1,3 +1,5 @@
++import { boundedUtf8ByteLength } from '../shared/utf8.ts'
++import type { NativePolylinePaintNode } from './native-polyline.ts'
+ import { isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+ import { pageRectFor } from './drawing-page.ts'
+ import { isOwnedFamily } from '../experimental/owned-family.ts'
+@@ -8,17 +10,17 @@ import type { FamilyLayoutResult } from '../agent/families.ts'
+ import { textMeasurementCacheIdentity } from '../text-measurement-profile.ts'
+ import { sceneAssertionsEnabled } from './assertions.ts'
+ import type { StyleSpec } from './style-registry.ts'
+-import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
++import type { DrawingDocument, DrawingFactory, DrawingProducer, DrawingAttributeGroupInput } from './drawing.ts'
+ import type { PositionedDiagram, RenderContext } from '../types.ts'
+ import type { SceneDoc, SceneNode } from './ir.ts'
+ import * as marks from './marks.ts'
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+-import { indentLines, transferSceneNodeSerialization } from './serialization.ts'
++import { indentLines, transferSceneNodeSerialization, admitWritableSceneNode } from './serialization.ts'
+ import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
+ import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
+ import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
+ import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
+-import { retainedGroupEmission } from './group-emission.ts'
++import { retainedGroupEmission, createGeneratedNativeGroup } from './group-emission.ts'
+ import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+ import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
+ 
+@@ -29,7 +31,7 @@ interface FragmentData {
+   readonly depth: number
+   readonly prepared: boolean
+ }
+-type LeafNode = Exclude<SceneNode, { kind: 'group' }>
++type LeafNode = Exclude<SceneNode, { kind: 'group' }> | NativePolylinePaintNode
+ interface GroupFragment extends FragmentData {
+   readonly kind: 'group'
+   readonly children: readonly Fragment[]
+@@ -64,6 +66,24 @@ function appendPrivate<T>(values: T[], value: T): void {
+   Object.defineProperty(values, values.length, { value, enumerable: true, writable: true, configurable: true })
+ }
+ 
++/** Exhausted proof work may decline typed construction, but delivery still
++ * obeys the existing per-fragment byte limit before growing its opening. */
++function materializeGroupAttributes(input: DrawingAttributeGroupInput<unknown>['openAttributes'], close: string): string {
++  const limit = SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode
++  if (typeof close !== 'string') throw new TypeError('Native group close must be a string')
++  let size = 3 + boundedUtf8ByteLength(close, limit), open = '<g'
++  for (let index = 0; index < input.length; index++) {
++    const item = input[index]!, name = item.name, literal = item.literal
++    if (typeof name !== 'string' || typeof literal !== 'string') throw new TypeError('Native group attributes require string operands')
++    size += 4 + boundedUtf8ByteLength(name, Math.max(0, limit - size))
++    if (size <= limit) size += boundedUtf8ByteLength(literal, limit - size)
++    if (size > limit) throw new RangeError('Native group has an oversized SVG serialization')
++    open += ` ${name}="${literal}"`
++  }
++  if (size > limit) throw new RangeError('Native group has an oversized SVG serialization')
++  return open + '>'
++}
++
+ /** Feed each emitted occurrence to inspection without copying its descendants
+  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
+ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite) => boolean | SvgTextPaintWrite, documentFont?: string, geometryCapture?: SvgXmlCapture): ScenePaintGeometryInspection {
+@@ -144,32 +164,16 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+   const validator = createNativeSceneValidator(header, { groupValidation: emission.groupValidation })
+   const ownedFragments = new WeakSet<object>()
+   const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
+-  const leaf = (node: LeafNode): Fragment => {
++  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>): Fragment => {
+     const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink), xml)
+     const svg = captured.svg
+     return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, geometryPaint: captured.geometryPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
+       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
+         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
+   }
+-  const factory: DrawingFactory<Fragment> = {
+-    image: fields => leaf(marks.image(fields)),
+-    shape: fields => leaf(marks.shape(fields)),
+-    text: fields => leaf(marks.text(fields)),
+-    connector: fields => leaf(marks.connector(fields)),
+-    documentOpen: (fields, svg) => {
+-      const captured = emission.snapshot(fields)
+-      if (captured) {
+-        emittedHeader = Object.freeze({ family, width: captured.width, height: captured.height, colors: captured.colors, transparent: captured.transparent })
+-        emittedHeader = emission.header(emittedHeader, svg)
+-      }
+-      else emission.uncertain()
+-      return leaf(marks.documentOpen(fields, svg))
+-    },
+-    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
+-    documentText: fields => leaf(marks.documentText(fields)),
+-    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
+-    documentClose: () => leaf(marks.documentClose()),
+-    group(fields) {
++  const group = (rawFields: Parameters<DrawingFactory<Fragment>['group']>[0], generatedInput?: DrawingAttributeGroupInput<Fragment>['openAttributes']): Fragment => {
++      const generated = generatedInput ? createGeneratedNativeGroup(generatedInput, rawFields, emission.groupRegistration) : undefined
++      const fields = generatedInput ? { ...rawFields, open: generated?.open ?? materializeGroupAttributes(generatedInput, rawFields.close) } : rawFields
+       const submittedChildren = Object.getOwnPropertyDescriptor(fields, 'children')
+       if (!submittedChildren || !Object.hasOwn(submittedChildren, 'value')) emission.uncertain()
+       const { children: inputChildren, ...shellFields } = fields
+@@ -194,18 +198,21 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+       }
+       if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+       if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
+-      const shell = marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
++      const shell: Extract<SceneNode, { kind: 'group' }> = generated ? admitWritableSceneNode(generated.shell) : marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
+       if (!closeLeaves) validator.node(shell)
+       validator.depth(depth)
+-      const capturedShell = emission.snapshot(shell)
++      const capturedShell = generated ? shell : emission.snapshot(shell)
+       if (!capturedShell) emission.uncertain()
++      if (generated && capturedShell && !generated.bind(capturedShell)) emission.uncertain()
+       // The private producer validates the exact closed shell it will write.
+       // That validation issues its lexer operands for context and XML too;
+       // generic drawing retains the original pre-snapshot observations.
+       if (closeLeaves) {
+         if (capturedShell) {
+-          if (!emission.groupRegistration(4)) emission.uncertain()
+-          transferSceneNodeSerialization(shell, capturedShell)
++          if (!generated) {
++            if (!emission.groupRegistration(4)) emission.uncertain()
++            transferSceneNodeSerialization(shell, capturedShell)
++          }
+         }
+         validator.node(capturedShell ?? shell)
+       }
+@@ -242,7 +249,37 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+       return ownFragment({ kind: 'group', svg, xmlWrite, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
+         conditional: !capturedShell || writtenShell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
+         nodeCount, depth, prepared: !/<\s*text/i.test(writtenShell.open + writtenShell.close) && prepared })
++  }
++  const factory: DrawingFactory<Fragment> = {
++    image: fields => leaf(marks.image(fields)),
++    shape: fields => leaf(marks.shape(fields)),
++    text: fields => leaf(marks.text(fields)),
++    connector: fields => leaf(marks.connector(fields)),
++    polylineConnector: closeLeaves ? content => {
++      const captured = emission.polyline(content, (node, receiver) => validator.writePolyline(node, xml, receiver), xml)
++      if (!captured) return undefined
++      return ownFragment({ kind: 'leaf', node: captured.paintNode, svg: captured.svg, xmlWrite: captured.xmlWrite!, conditional: captured.conditional, nodeCount: 1, depth: 0, prepared: true })
++    } : undefined,
++    documentOpen: (fields, svg) => {
++      const captured = emission.snapshot(fields)
++      if (captured) {
++        emittedHeader = Object.freeze({ family, width: captured.width, height: captured.height, colors: captured.colors, transparent: captured.transparent })
++        emittedHeader = emission.header(emittedHeader, svg)
++      }
++      else emission.uncertain()
++      return leaf(marks.documentOpen(fields, svg))
+     },
++    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
++    documentText: fields => leaf(marks.documentText(fields)),
++    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
++    documentClose: () => leaf(marks.documentClose()),
++    group: fields => group(fields),
++    groupAttributes: closeLeaves ? (fields: DrawingAttributeGroupInput<Fragment>) => {
++      const { openAttributes, ...rest } = fields
++      const plain = rest.transform === undefined && rest.paint === undefined && rest.owner === undefined && rest.channels === undefined && rest.visibility === undefined && rest.close === '</g>' && (rest.join === undefined || rest.join === '\n')
++      const open = plain ? '' : materializeGroupAttributes(openAttributes, rest.close)
++      return group({ ...rest, open }, plain ? openAttributes : undefined)
++    } : undefined,
+     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
+   }
+   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
+diff --git a/src/scene/native-paint-emission.ts b/src/scene/native-paint-emission.ts
+index c8654252..fc49954e 100644
+--- a/src/scene/native-paint-emission.ts
++++ b/src/scene/native-paint-emission.ts
+@@ -1,3 +1,4 @@
++import { buildNativePolyline, type NativePolylineContent, type NativePolylineNode, type NativePolylinePaintNode } from './native-polyline.ts'
+ import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
+ import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark, MarkerDescriptor } from './ir.ts'
+ import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
+@@ -8,7 +9,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
+ import { safeCssFontFamily } from '../shared/css-font.ts'
+ import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
+ import { transferSceneNodeSerialization } from './serialization.ts'
+-import { createNativeXmlWork, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, readSvgRectanglePaintWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
++import { createNativeXmlWork, consumeSvgNativePolylineWrite, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, readSvgRectanglePaintWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
+ import { connectorContourSemantics } from './connector-geometry.ts'
+ import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
+ import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+@@ -20,11 +21,14 @@ import { computeMarkerPaintEvidence, type MarkerPaintEvidence } from './marker-p
+ 
+ export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+ 
+-type Leaf = Exclude<SceneNode, { kind: 'group' }>
++type SceneLeaf = Exclude<SceneNode, { kind: 'group' }>
++type Leaf = SceneLeaf | NativePolylinePaintNode
++type LeafResult<T extends Leaf> = { node: T; paintNode: T; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; geometryPaint?: true; conditional: boolean }
+ export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver; readonly markerPaint?: (marker: MarkerDescriptor) => unknown }
+ const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
+ const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
+ const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has, textPaintFreeze = Object.freeze
++const textPaintPrevent = Object.preventExtensions
+ const textPaintPrototype = Object.prototype, textPaintKeys = Reflect.ownKeys
+ const textPaintDescriptor = Object.getOwnPropertyDescriptor, textPaintProto = Object.getPrototypeOf
+ const textPaintExtensible = Object.isExtensible, textPaintOwn = Object.hasOwn, textPaintDefine = Object.defineProperty
+@@ -171,8 +175,10 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+   // These private links never pass through a caller-dispatched collection or
+   // sealing helper. A later occurrence still validates and binds its resource
+   // to the actual definition bytes in finish().
+-  interface ClosedMarkerOperand { readonly value: object; readonly depth: number; readonly prior: ClosedMarkerOperand | undefined }
++  interface ClosedMarkerOperand { readonly value: object; readonly depth: number; readonly prior: ClosedMarkerOperand | undefined; detached?: MarkerDescriptor; definition?: SvgXmlWrite; definitionSource?: object; contentUsed?: boolean }
+   interface ClosingDeclarations { readonly source: object; head: ClosedMarkerOperand | undefined; deferred: boolean }
++  let contentMarkersUsed = false
++  let detachingResource = false
+   let closedMarkerOperands: ClosedMarkerOperand | undefined
+   let closingDeclarations: ClosingDeclarations | undefined, completedDeclarations: ClosingDeclarations | undefined
+   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
+@@ -234,11 +240,11 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+       const retained = Object.preventExtensions(value)
+       if (retained !== value || textPaintExtensible(value)) throw failed
+     }
+-    const prototype = close ? textPaintProto(value) : Object.getPrototypeOf(value)
++    const prototype = close || detachingResource ? textPaintProto(value) : Object.getPrototypeOf(value)
+     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
+     // The object-entry visit covers constant prototype/reflection work. Key
+     // slots and subsequent descriptor/copy visits are distinct paid work.
+-    const keys = close ? textPaintKeys(value) as readonly string[] : Object.getOwnPropertyNames(value)
++    const keys = close || detachingResource ? textPaintKeys(value) as readonly string[] : Object.getOwnPropertyNames(value)
+     if (!pay(keys.length)) throw failed
+     if (close) {
+       // The original field visit covered descriptor observation and a native
+@@ -250,6 +256,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+       if (Array.isArray(value)) Object.defineProperty(value, 'length', { writable: false })
+     }
+     const deferredProjection = deferredTerminalProjectionInput(value)
++    if (detachingResource && deferredProjection) throw failed
+     if (closingDeclarations && deferredProjection) closingDeclarations.deferred = true
+     // Pay before reading caller data and reuse each descriptor if the typed
+     // constructor declines, so fallback cannot repeat uncharged proxy work.
+@@ -260,7 +267,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+     // field can acquire immutable authority through this constructor.
+     // A point shortcut may not skip leaf/geometry custody or a text plan's
+     // required child instructions. Exact x/y slots already prove point custody.
+-    if (!close && !planningText && (context === undefined || context === 'point')
++    if (!close && !detachingResource && !planningText && (context === undefined || context === 'point')
+       && !deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+       if (!pay()) throw failed
+       x = Object.getOwnPropertyDescriptor(value, 'x')
+@@ -290,14 +297,14 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+     let arrayLength: PropertyDescriptor | undefined
+     for (let index = 0; index < keys.length; index++) {
+       const key = keys[index]!
+-      if (close && typeof key !== 'string') throw failed
++      if ((close || detachingResource) && typeof key !== 'string') throw failed
+       // This property visit owns descriptor retention and scalar assignment;
+       // a primitive needs no second visit or numeric formatting/replay.
+       let descriptor: PropertyDescriptor | undefined
+       if (index < inspected) descriptor = index === 0 ? x : y
+       else {
+         if (!close && !pay()) throw failed
+-        descriptor = close ? textPaintDescriptor(value, key) : Object.getOwnPropertyDescriptor(value, key)
++        descriptor = close || detachingResource ? textPaintDescriptor(value, key) : Object.getOwnPropertyDescriptor(value, key)
+       }
+       if (!descriptor) continue
+       if (close && (descriptor.writable || descriptor.configurable)) throw failed
+@@ -360,7 +367,12 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+         // below retain their ordinary observable definition operations.
+         textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child, writable: false, configurable: false }, enumerable: true } as PropertyDescriptor)
+       }
+-      if (!close) Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
++      if (!close && detachingResource) {
++        textPaintDefine(result, key, { __proto__: null, value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false } as PropertyDescriptor)
++        if (!pay()) throw failed
++        const actual = textPaintDescriptor(result, key)
++        if (!actual || !textPaintOwn(actual, 'value') || actual.value !== copied || actual.writable || actual.configurable) throw failed
++      } else if (!close) Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
+       else if (copied !== descriptor.value) throw failed
+     }
+     const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
+@@ -369,7 +381,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+     if (Array.isArray(value)) {
+       if (!arrayLength || !Object.hasOwn(arrayLength, 'value')) throw failed
+       if (context === 'points' && ownedPointSlots !== arrayLength.value) throw failed
+-      if (!close) Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
++      if (!close) (detachingResource ? textPaintDefine : Object.defineProperty)(result, 'length', { __proto__: null, value: arrayLength.value, writable: false } as PropertyDescriptor)
+     }
+     if (deferredProjection && !close) {
+       if (planningText) { if (!pay()) throw failed; planningText.pure = false }
+@@ -392,7 +404,8 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+       if (!pay(2)) throw failed
+       textPaintApply(textPaintPut, planningText!.plans, [result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight }])
+     }
+-    const retained = close ? result : Object.preventExtensions(result)
++    const retained = close ? result : detachingResource ? textPaintPrevent(result) : Object.preventExtensions(result)
++    if (detachingResource && (retained !== result || textPaintExtensible(result))) throw failed
+     // Only the actual local capture receiver can reuse its document role.
+     // Foreign preventExtensions returns keep their original getter path.
+     if (context === 'leaf' && kind === 'document' && retained === result && pay(3)) {
+@@ -613,6 +626,139 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+     for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
+     return na === nb
+   }
++  const emitLeaf = (node: SceneLeaf, write: (node: SceneLeaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: SceneLeaf; paintNode: SceneLeaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; geometryPaint?: true; conditional: boolean } => {
++      const serialize = (source: SceneLeaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
++        const written = write(source, sink)
++        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
++        const record = xml.read(written, source)
++        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
++        return { svg: record.svg, xmlWrite: written }
++      }
++      let captured: SceneLeaf | undefined
++      try { captured = copy(node, 0, new Set(), 'leaf', closeLeaves) as SceneLeaf } catch { /* Strict mutable fallback. */ }
++      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
++      transferSceneNodeSerialization(node, captured)
++      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
++      // Eligibility is decided before validation/writing can observe inherited
++      // caller hooks. Unsupported rectangles retain their legacy inspection.
++      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry, closeLeaves && actualCapture === xml) : undefined
++      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
++      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
++      // Constant custody is separate from variable projection work. The writer
++      // reserves the entire token stream before allocating its first point.
++      const directRectangle = !!rectangle && actualCapture === xml
++      const directGeometry = !compound && supported && actualCapture === xml
++      let reserved = supported && !directGeometry && pay(192)
++      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
++      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
++      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
++      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
++        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
++        if (source !== geometry || received) { invalid = true; return }
++        received = true
++        // The writer's fresh rectangle record owns actual optional radii too.
++        // Seal it before later attribute hooks can change Object.prototype.
++        served = rectangle && written ? inertRectangleRecord(written) : written
++      }, { reserveProjection: (source: Geometry, operations: number) => {
++        if (source !== geometry || projectionReserved) { invalid = true; return false }
++        projectionReserved = true
++        return pay(operations)
++      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
++        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
++        textPaintReceived = true; textPaint = fact
++      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
++        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
++        attributesReceived = true
++        attributes = written
++      } : undefined }) : undefined
++      const { svg, xmlWrite } = serialize(captured, sink)
++      if (closeLeaves && captured.kind === 'document' && captured.element === 'definitions'
++        && completedDeclarations?.source === captured && !completedDeclarations.deferred
++        && actualCapture === xml && xmlWrite && pay()) {
++        closedMarkerOperands = completedDeclarations.head
++        for (let operand = closedMarkerOperands; operand && !operand.definition; operand = operand.prior) {
++          if (!pay(4)) break
++          operand.definition = xmlWrite; operand.definitionSource = captured
++        }
++      }
++      if (directRectangle && geometry && captured.kind === 'shape') {
++        const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
++        served = actual && inertRectangleRecord(actual)
++        reserved = received = !!served
++        if (rectangle!.writtenPaint) {
++          const paint = readSvgRectanglePaintWrite(xml, xmlWrite, captured, geometry, captured.paint, pay)
++          if (paint) rectangle!.paint = paint
++          else {
++            // Unsupported/foreign paint retains the original defensive field
++            // inventory. No additional write or caller getter is replayed.
++            const fallback = rectanglePaint(captured.paint)
++            if (!fallback) { if (pay()) capturedLeaves.set(captured, captured); return { node: captured, paintNode: captured, svg, xmlWrite, conditional: false } }
++            rectangle!.paint = fallback
++            if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, fallback, pay)) invalid = true
++          }
++        } else if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
++      } else if (directGeometry && geometry) {
++        if (pay(4)) served = readSvgGeometryWrite(xml, xmlWrite, captured, geometry)
++        reserved = received = !!served
++      }
++      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
++      if (pay()) capturedLeaves.set(captured, captured)
++      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
++      if (!supported) return retained
++      if (compound && captured.kind === 'shape' && geometry) {
++        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
++        // Missing fresh callbacks or mismatched bytes cannot create the new
++        // compound projection; existing general compound proofs stay intact.
++        if (!projection) return retained
++        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
++        return paintNode ? { ...retained, paintNode } : retained
++      }
++      // A cached serialization, missing/duplicate receipt, failed capture or
++      // unsupported numeric projection cannot borrow another write's proof.
++      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
++      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
++        if (!directRectangle && (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes))) return { ...retained, conditional: true }
++        // A rectangle has extent, not a line's start/end topology. Never
++        // borrow the line-collapse branch or pre-write radii for served ink.
++        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
++        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
++        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
++      }
++      if (served === geometry) return retained
++      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
++      // The recorder already produces the reduced Native paint source. Give
++      // it this exact write instead of first copying every complete mark slot
++      // onto another SceneNode merely to replace its route. The actual route
++      // allocation and its readonly value checks remain funded here.
++      if (closeLeaves && directGeometry && captured.kind === 'connector' && served.kind === 'polyline') {
++        const projection = readSvgGeometryProjection(xml, xmlWrite, captured, geometry)
++        if (!projection || !pay(96)) return { ...retained, conditional: true }
++        return { ...retained, geometryPaint: true, conditional: projection.collapsed }
++      }
++      if (!pay(48)) return { ...retained, conditional: true }
++      // A path receipt owns only the actual d literal. Keep the already paid,
++      // immutable routing metadata; the certifier measures actual d segments.
++      const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
++        ? replaceField(captured.route.geometry, 'd', served.d) : undefined
++      if (served.kind === 'path' && !path) return { ...retained, conditional: true }
++      const projection = served.kind === 'polyline' ? directGeometry && geometry ? readSvgGeometryProjection(xml, xmlWrite, captured, geometry) : writtenPolylineProjectionOf(served) : undefined
++      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
++      if (!frozen) return { ...retained, conditional: true }
++      const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
++      const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
++      const collapsed = !start || !end || (frozen.kind === 'polyline'
++        ? projection!.collapsed
++        : start.x === end.x && start.y === end.y)
++      if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
++      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
++      // Rebuild directions from served coordinates, never round unit tangents.
++      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
++      if (!contours) return { ...retained, conditional: true }
++      const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
++        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
++      const paintNode = replaceField(captured, 'route', route)
++      return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
++  }
+   return {
+     xml,
+     snapshot,
+@@ -760,7 +906,14 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+               if (!pay(3)) break
+               const marker = Object.getOwnPropertyDescriptor(markers, String(index))
+               if (!marker || !Object.hasOwn(marker, 'value')) uncertain = true
+-              else references.push(marker.value)
++              else {
++                let declaration = marker.value
++                if (contentMarkersUsed) for (let operand = closedMarkerOperands; operand; operand = operand.prior) {
++                  if (!pay(2)) break
++                  if (operand.contentUsed && operand.value === marker.value && operand.definitionSource === node && operand.definition === xmlWrite) { declaration = operand.detached; break }
++                }
++                references.push(declaration)
++              }
+             }
+           }
+         }
+@@ -830,132 +983,66 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+       } else emissionContext.invalidateFractionalCircle()
+       return work.exhausted() ? false : actualTextPaint ?? true
+     },
+-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; geometryPaint?: true; conditional: boolean } {
+-      const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
+-        const written = write(source, sink)
+-        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
+-        const record = xml.read(written, source)
+-        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
+-        return { svg: record.svg, xmlWrite: written }
+-      }
+-      let captured: Leaf | undefined
+-      try { captured = copy(node, 0, new Set(), 'leaf', closeLeaves) as Leaf } catch { /* Strict mutable fallback. */ }
+-      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
+-      transferSceneNodeSerialization(node, captured)
+-      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
+-      // Eligibility is decided before validation/writing can observe inherited
+-      // caller hooks. Unsupported rectangles retain their legacy inspection.
+-      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry, closeLeaves && actualCapture === xml) : undefined
+-      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
+-      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
+-      // Constant custody is separate from variable projection work. The writer
+-      // reserves the entire token stream before allocating its first point.
+-      const directRectangle = !!rectangle && actualCapture === xml
+-      const directGeometry = !compound && supported && actualCapture === xml
+-      let reserved = supported && !directGeometry && pay(192)
+-      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
+-      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
+-      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
+-      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
+-        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
+-        if (source !== geometry || received) { invalid = true; return }
+-        received = true
+-        // The writer's fresh rectangle record owns actual optional radii too.
+-        // Seal it before later attribute hooks can change Object.prototype.
+-        served = rectangle && written ? inertRectangleRecord(written) : written
+-      }, { reserveProjection: (source: Geometry, operations: number) => {
+-        if (source !== geometry || projectionReserved) { invalid = true; return false }
+-        projectionReserved = true
+-        return pay(operations)
+-      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
+-        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
+-        textPaintReceived = true; textPaint = fact
+-      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
+-        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
+-        attributesReceived = true
+-        attributes = written
+-      } : undefined }) : undefined
+-      const { svg, xmlWrite } = serialize(captured, sink)
+-      if (closeLeaves && captured.kind === 'document' && captured.element === 'definitions'
+-        && completedDeclarations?.source === captured && !completedDeclarations.deferred
+-        && actualCapture === xml && xmlWrite && pay()) closedMarkerOperands = completedDeclarations.head
+-      if (directRectangle && geometry && captured.kind === 'shape') {
+-        const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
+-        served = actual && inertRectangleRecord(actual)
+-        reserved = received = !!served
+-        if (rectangle!.writtenPaint) {
+-          const paint = readSvgRectanglePaintWrite(xml, xmlWrite, captured, geometry, captured.paint, pay)
+-          if (paint) rectangle!.paint = paint
+-          else {
+-            // Unsupported/foreign paint retains the original defensive field
+-            // inventory. No additional write or caller getter is replayed.
+-            const fallback = rectanglePaint(captured.paint)
+-            if (!fallback) { if (pay()) capturedLeaves.set(captured, captured); return { node: captured, paintNode: captured, svg, xmlWrite, conditional: false } }
+-            rectangle!.paint = fallback
+-            if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, fallback, pay)) invalid = true
++    leaf: emitLeaf,
++    polyline(content: NativePolylineContent, write: (node: NativePolylineNode, receiver: object) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture) {
++      if (!closeLeaves || actualCapture !== xml) return undefined
++      const node = buildNativePolyline(content, pay, id => {
++        for (let operand = closedMarkerOperands; operand; operand = operand.prior) {
++          if (!pay(2)) return undefined
++          if (!operand.definition || !xml.read(operand.definition, operand.definitionSource)) continue
++          if (!pay(3)) return undefined
++          const sourceId = textPaintDescriptor(operand.value, 'id')
++          if (!sourceId || !textPaintOwn(sourceId, 'value') || sourceId.value !== id) continue
++          if (!operand.detached) {
++            detachingResource = true
++            try { operand.detached = copy(operand.value) as MarkerDescriptor }
++            catch { return undefined }
++            finally { detachingResource = false }
+           }
+-        } else if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
+-      } else if (directGeometry && geometry) {
+-        if (pay(4)) served = readSvgGeometryWrite(xml, xmlWrite, captured, geometry)
+-        reserved = received = !!served
+-      }
+-      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
+-      if (pay()) capturedLeaves.set(captured, captured)
+-      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
+-      if (!supported) return retained
+-      if (compound && captured.kind === 'shape' && geometry) {
+-        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
+-        // Missing fresh callbacks or mismatched bytes cannot create the new
+-        // compound projection; existing general compound proofs stay intact.
+-        if (!projection) return retained
+-        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
+-        return paintNode ? { ...retained, paintNode } : retained
+-      }
+-      // A cached serialization, missing/duplicate receipt, failed capture or
+-      // unsupported numeric projection cannot borrow another write's proof.
+-      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
+-      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
+-        if (!directRectangle && (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes))) return { ...retained, conditional: true }
+-        // A rectangle has extent, not a line's start/end topology. Never
+-        // borrow the line-collapse branch or pre-write radii for served ink.
+-        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
+-        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
+-        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
++          if (operand.detached.id === id) return operand.detached
++        }
++        return undefined
++      })
++      if (!node) return undefined
++      for (let operand = closedMarkerOperands; operand; operand = operand.prior) {
++        if (!pay(2)) break
++        if (operand.detached && (operand.detached === node.markers.start || operand.detached === node.markers.end)) { operand.contentUsed = true; contentMarkersUsed = true }
+       }
+-      if (served === geometry) return retained
+-      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
+-      // The recorder already produces the reduced Native paint source. Give
+-      // it this exact write instead of first copying every complete mark slot
+-      // onto another SceneNode merely to replace its route. The actual route
+-      // allocation and its readonly value checks remain funded here.
+-      if (closeLeaves && directGeometry && captured.kind === 'connector' && served.kind === 'polyline') {
+-        const projection = readSvgGeometryProjection(xml, xmlWrite, captured, geometry)
+-        if (!projection || !pay(96)) return { ...retained, conditional: true }
+-        return { ...retained, geometryPaint: true, conditional: projection.collapsed }
++      // Reserve the full final receiver/route and fixed conditional fallback
++      // before the write, which can deny subsequent geometric proof work.
++      if (!pay(64)) return undefined
++      const receiver = { __proto__: null } as unknown as NativePolylinePaintNode
++      const written = write(node, receiver)
++      if (typeof written === 'string') throw new TypeError('Native content requires its actual XML write')
++      const record = xml.read(written, receiver)
++      if (!record) throw new TypeError('Native content XML belongs to another receiver')
++      const empty = textPaintProto(receiver) === null && textPaintExtensible(receiver) && textPaintKeys(receiver).length === 0
++      const actual = empty ? consumeSvgNativePolylineWrite(xml, written, receiver, node, pay) : undefined
++      const complete = actual !== undefined && !work.exhausted()
++      const geometry = complete ? actual.geometry : textPaintFreeze({ kind: 'polyline' as const, points: textPaintFreeze([]) as unknown as [] })
++      const contours = complete ? actual.projection.contours : textPaintFreeze([])
++      const startTangent = contours[0]?.startTangent, endTangent = contours[contours.length - 1]?.endTangent
++      const routeInput = { geometry, ownership: 'layout' as const, closed: false, bendRadius: 0, labelAnchors: textPaintFreeze([]), contours, startTangent, endTangent }
++      const route = textPaintFreeze(routeInput)
++      const target = empty ? receiver : { __proto__: null } as unknown as NativePolylinePaintNode
++      let valid = complete && route === routeInput && !textPaintExtensible(route)
++      // The final receiver receives fixed readonly slots directly. No second
++      // Scene-shaped wrapper or key inventory is constructed for transfer.
++      const slot: PropertyDescriptor = { __proto__: null, value: undefined, enumerable: true, writable: false, configurable: false } as PropertyDescriptor
++      const field = (key: string, value: unknown): void => {
++        slot.value = value
++        try { textPaintDefine(target, key, slot) } finally { slot.value = undefined }
++        const actual = textPaintDescriptor(target, key)
++        if (!actual || !textPaintOwn(actual, 'value') || actual.value !== value || actual.writable || actual.configurable) valid = false
+       }
+-      if (!pay(48)) return { ...retained, conditional: true }
+-      // A path receipt owns only the actual d literal. Keep the already paid,
+-      // immutable routing metadata; the certifier measures actual d segments.
+-      const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
+-        ? replaceField(captured.route.geometry, 'd', served.d) : undefined
+-      if (served.kind === 'path' && !path) return { ...retained, conditional: true }
+-      const projection = served.kind === 'polyline' ? directGeometry && geometry ? readSvgGeometryProjection(xml, xmlWrite, captured, geometry) : writtenPolylineProjectionOf(served) : undefined
+-      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
+-      if (!frozen) return { ...retained, conditional: true }
+-      const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
+-      const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
+-      const collapsed = !start || !end || (frozen.kind === 'polyline'
+-        ? projection!.collapsed
+-        : start.x === end.x && start.y === end.y)
+-      if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
+-      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
+-      // Rebuild directions from served coordinates, never round unit tangents.
+-      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
+-      if (!contours) return { ...retained, conditional: true }
+-      const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
+-        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
+-      const paintNode = replaceField(captured, 'route', route)
+-      return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
++      field('kind', 'connector'); field('id', node.id); field('role', node.role); field('lineStyle', node.lineStyle)
++      field('endpoints', complete ? actual.endpoints : node.endpoints); field('route', route)
++      field('stroke', complete ? actual.stroke : node.stroke); field('markers', node.markers)
++      field('labels', textPaintFreeze([])); field('identity', complete ? actual.identity : node.identity)
++      const paintNode = textPaintPrevent(target)
++      valid &&= paintNode === target && !textPaintExtensible(target)
++      if (valid) capturedLeaves.set(target, target)
++      return { node: target, paintNode: target, svg: record.svg, xmlWrite: written, conditional: !valid || !!actual?.projection.collapsed }
+     },
+     finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, output: string | SvgXmlWrite, unrecordedPaint = false): void {
+       // An issued inspection cannot be resealed with another document. Nor can
+diff --git a/src/scene/scene-validation-core.ts b/src/scene/scene-validation-core.ts
+index 706b4752..4b04cd18 100644
+--- a/src/scene/scene-validation-core.ts
++++ b/src/scene/scene-validation-core.ts
+@@ -1,3 +1,5 @@
++import type { NativePolylineNode } from './native-polyline.ts'
++import { writeNativePolylineSvg } from './svg-writer.ts'
+ import { isInlinePng } from '../shared/inline-png.ts'
+ /** Runtime admission checks for the Scene contract.
+  *
+@@ -780,7 +782,7 @@ function validateNodeSerialization(value: SceneNode, path: string, state: Valida
+   return serialized
+ }
+ 
+-function validateNode(value: unknown, path: string, state: ValidationState, depth: number, enclosing?: SceneOwner): void {
++function validateNode(value: unknown, path: string, state: ValidationState, depth: number, enclosing?: SceneOwner, polyline?: NativePolylineNode): void {
+   if (depth > MAX_SCENE_DEPTH) {
+     add(state.diagnostics, 'SCENE_BOUNDS', path, `exceeds maximum nesting depth ${MAX_SCENE_DEPTH}`)
+     return
+@@ -1078,6 +1080,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
+     return
+   }
+ 
++  // A separate native content entry owns only an open, visible, unlabelled
++  // polyline. It never grants this narrower shape to arbitrary Scene input.
++  if (polyline && (value !== polyline || value.transform !== undefined || value.lineStyle === 'invisible')) {
++    add(state.diagnostics, 'SCENE_DOCUMENT', path, 'native polyline content has unsupported topology')
++    return
++  }
+   // Connector
+   if (!['solid', 'dotted', 'dashed', 'thick', 'invisible'].includes(String(value.lineStyle))) {
+     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.lineStyle`, 'has an unknown line style')
+@@ -1090,7 +1098,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
+         state.endpointReferences.push({ id: value.endpoints[field] as string, path: `${path}.endpoints.${field}` })
+       }
+     }
+-    for (const field of ['start', 'end'] as const) {
++    if (!polyline) for (const field of ['start', 'end'] as const) {
+       const endpoint = value.endpoints[field]
+       if (record(endpoint)) {
+         if (endpoint.point !== undefined) validatePoint(endpoint.point, `${path}.endpoints.${field}.point`, state.diagnostics, state.budget, state.external)
+@@ -1110,12 +1118,32 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
+       }
+     }
+   } else add(state.diagnostics, 'SCENE_REFERENCE', `${path}.endpoints`, 'must be a typed endpoint object')
+-  if (record(value.relationship)) boundedString(value.relationship.kind, `${path}.relationship.kind`, state.diagnostics, { max: 4096 })
++  if (polyline) {
++    boundedString(polyline.relationshipKind, `${path}.relationship.kind`, state.diagnostics, { max: 4096 })
++    if (!['forward', 'reverse', 'bidirectional', 'undirected'].includes(polyline.direction)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.relationship.direction`, 'has an unknown connector direction')
++  } else if (record(value.relationship)) boundedString(value.relationship.kind, `${path}.relationship.kind`, state.diagnostics, { max: 4096 })
+   else add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.relationship`, 'must be a typed relationship')
+-  if (record(value.relationship) && !['forward', 'reverse', 'bidirectional', 'undirected', 'self'].includes(String(value.relationship.direction))) {
++  if (!polyline && record(value.relationship) && !['forward', 'reverse', 'bidirectional', 'undirected', 'self'].includes(String(value.relationship.direction))) {
+     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.relationship.direction`, 'has an unknown connector direction')
+   }
+-  if (record(value.route)) {
++  if (polyline) {
++    const coordinates = polyline.coordinates
++    if (!Array.isArray(coordinates) || coordinates.length < 4 || coordinates.length % 2) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.route.geometry`, 'must contain at least two complete points')
++    else {
++      const count = Math.min(coordinates.length / 2, MAX_SCENE_NODES, Math.max(0, MAX_SCENE_POINTS - state.budget.points + 1))
++      for (let index = 0; index < count; index++) {
++        consumePointBudget(state.budget, `${path}.route.geometry.points[${index}]`, state.diagnostics)
++        finite(coordinates[index * 2], `${path}.route.geometry.points[${index}].x`, state.diagnostics)
++        finite(coordinates[index * 2 + 1], `${path}.route.geometry.points[${index}].y`, state.diagnostics)
++      }
++      // Default route/hit share their point collection. Preserve the omitted
++      // endpoint, contour and tangent quota without constructing those copies.
++      let start = false, end = false
++      for (let index = 2; index < coordinates.length && !start; index += 2) start = coordinates[index] !== coordinates[0] || coordinates[index + 1] !== coordinates[1]
++      for (let index = coordinates.length - 4; index >= 0 && !end; index -= 2) end = coordinates[index] !== coordinates[coordinates.length - 2] || coordinates[index + 1] !== coordinates[coordinates.length - 1]
++      for (let index = 0; index < 4 + Number(start) * 2 + Number(end) * 2; index++) consumePointBudget(state.budget, path, state.diagnostics)
++    }
++  } else if (record(value.route)) {
+     validateGeometry(value.route.geometry, `${path}.route.geometry`, state.diagnostics, false, 0, state.budget, state.external)
+     if (state.external && record(value.route.geometry) && value.route.geometry.kind === 'path' && !Array.isArray(value.route.geometry.points)) {
+       add(state.diagnostics, 'SCENE_BOUNDS', `${path}.route.geometry.points`, 'external connector paths require deterministic routed points')
+@@ -1190,7 +1218,8 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
+       }
+     }
+   } else add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke`, 'must be a typed connector stroke')
+-  if (record(value.hit)) {
++  if (polyline) { /* The fixed stroke hit has no additional point array. */ }
++  else if (record(value.hit)) {
+     validateGeometry(value.hit.geometry, `${path}.hit.geometry`, state.diagnostics, false, 0, state.budget, state.external)
+     finite(value.hit.strokeWidth, `${path}.hit.strokeWidth`, state.diagnostics, { nonNegative: true })
+     if (typeof value.hit.closed !== 'boolean') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.hit.closed`, 'must be boolean')
+@@ -1287,7 +1316,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
+   // A native mark is transient: its source fields above were checked and
+   // its derived payload never escapes admission. Only the exact registered
+   // getter is trusted; full Scenes and explicit checks materialize it.
+-  if (!state.external && !state.crossChecks
++  if (polyline || !state.external && !state.crossChecks
+     && state.native && deferredTerminalProjectionInput(value) !== undefined) return
+   if (record(value.terminalProjection)) {
+     if (!['native', 'emulated', 'projected', 'lossy', 'unsupported'].includes(String(value.terminalProjection.realization))) {
+@@ -1479,6 +1508,7 @@ export interface NativeSceneValidator {
+   /** Rejects invalid source fields before writing; groups must have children: []. */
+   node(node: SceneNode, depth?: number, sink?: SvgGeometryWriteSink): string
+   write(node: SceneNode, capture: SvgXmlCapture, depth?: number, sink?: SvgGeometryWriteSink): SvgXmlWrite
++  writePolyline(node: NativePolylineNode, capture: SvgXmlCapture, receiver: object, depth?: number): SvgXmlWrite
+   depth(depth: number): void
+   enclosure(artworkId: string, owner: SceneOwner): void
+   /** Checks the full composed group limit without recounting its child bytes. */
+@@ -1549,6 +1579,21 @@ export function createNativeSceneValidator(
+       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+       return written!
+     },
++    writePolyline(node, capture, receiver, nesting = 0) {
++      open(); depth(nesting)
++      const path = `scene.parts[${state.nodeCount}]`
++      if (node.kind !== 'connector') add(diagnostics, 'SCENE_DOCUMENT', path, 'native polyline content requires a connector')
++      else validateNode(node, path, state, nesting, undefined, node)
++      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
++      let written: SvgXmlWrite | undefined
++      try {
++        written = writeNativePolylineSvg(node, capture, receiver)
++        if (boundedUtf8ByteLength(written.svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) add(diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
++      } catch (error) { add(diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error)) }
++      if (state.aggregateBudgets && written !== undefined) consumeStringBudget(state.budget, 'serializationBytes', 'serializationExceeded', written.svg, path, diagnostics, MAX_AGGREGATE_SERIALIZATION_BYTES, 'Scene serializations')
++      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
++      return written!
++    },
+     depth,
+     enclosure(artworkId, owner) {
+       open()
+diff --git a/src/scene/svg-writer.ts b/src/scene/svg-writer.ts
+index 1e271411..2472a02e 100644
+--- a/src/scene/svg-writer.ts
++++ b/src/scene/svg-writer.ts
+@@ -1,3 +1,6 @@
++import { decodeXML } from 'entities'
++import type { MarkerDescriptor } from './ir.ts'
++import type { NativePolylineNode } from './native-polyline.ts'
+ import { xmlLiteralSpan } from '../shared/xml-literal.ts'
+ // ============================================================================
+ // The default backend's SVG writer: each shape, text and connector mark's
+@@ -66,6 +69,8 @@ function xmlRange(value: string, start: number, end = value.length): string {
+   return result
+ }
+ function xmlAsciiLetter(character: string): boolean { return character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' }
++const nativeXmlMap = Map, nativeXmlGet = Map.prototype.get, nativeXmlSet = Map.prototype.set
++const nativeXmlSetType = Set, nativeXmlHas = Set.prototype.has, nativeXmlAdd = Set.prototype.add, nativeXmlClear = Set.prototype.clear
+ type XmlProjectionResult = string | XmlProjection | undefined
+ interface XmlCaptureState {
+   readonly nativeComposition: boolean
+@@ -92,7 +97,7 @@ interface WrittenRectangle {
+   count: number
+   valid: boolean
+ }
+-interface WrittenGeometry { readonly source: Geometry; served: Geometry | undefined; valid: boolean; received: boolean; reserved: boolean; projection?: WrittenPolylineProjection }
++interface WrittenGeometry { source: object | undefined; served: Geometry | undefined; valid: boolean; received: boolean; reserved: boolean; projection?: WrittenPolylineProjection }
+ interface XmlWriteFact {
+   readonly capture: SvgXmlCapture
+   readonly record: SvgXmlWriteRecord
+@@ -124,7 +129,7 @@ export function createNativeXmlWork(maxOperations: number) {
+ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture { return createXmlCapture(work, false) }
+ 
+ function createXmlCapture(work: (operations: number) => boolean, nativeComposition: boolean): SvgXmlCapture {
+-  const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>()
++  const names = nativeComposition ? new nativeXmlMap<string, boolean>() : new Map<string, boolean>(), attributes = nativeComposition ? new nativeXmlMap<string, boolean>() : new Map<string, boolean>(), texts = nativeComposition ? new nativeXmlMap<string, boolean>() : new Map<string, boolean>()
+   let exhausted = false
+   const pay = (count: number): boolean => {
+     // The private Native meter already validates and admits this exact count.
+@@ -165,7 +170,7 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+   const literal = (value: string, attribute: boolean): boolean => {
+     if (!pay(2)) return false
+     const cache = attribute ? attributes : texts
+-    const retained = cache.get(value)
++    const retained = nativeComposition ? xmlFactApply(nativeXmlGet, cache, [value]) as boolean | undefined : cache.get(value)
+     if (retained !== undefined) return retained
+     if (!pay(value.length + 2)) return false
+     let valid = true
+@@ -174,12 +179,13 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+       if (!span) { valid = false; break }
+       index += span
+     }
+-    cache.set(value, valid)
++    if (nativeComposition) xmlFactApply(nativeXmlSet, cache, [value, valid])
++    else cache.set(value, valid)
+     return valid
+   }
+   const name = (value: string): boolean => {
+     if (!pay(2)) return false
+-    const retained = names.get(value)
++    const retained = nativeComposition ? xmlFactApply(nativeXmlGet, names, [value]) as boolean | undefined : names.get(value)
+     if (retained !== undefined) return retained
+     if (!pay(value.length + 2)) return false
+     let valid = value === 'xml:space'
+@@ -190,7 +196,8 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+         if (!xmlAsciiLetter(character) && !(character >= '0' && character <= '9') && character !== '_' && character !== '.' && character !== '-') { valid = false; break }
+       }
+     }
+-    names.set(value, valid)
++    if (nativeComposition) xmlFactApply(nativeXmlSet, names, [value, valid])
++    else names.set(value, valid)
+     return valid
+   }
+   let preparedChecked = false
+@@ -390,16 +397,42 @@ class ActualGeometryWrite {
+     if (issuer !== geometryWriteIssuer) throw new TypeError('Actual geometry requires its writer')
+     this.#capture = capture; this.#write = write; this.#node = node; this.#xml = xml
+   }
+-  static geometry(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined {
++  static geometry(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: object): Geometry | undefined {
+     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+     const actual = XmlLeafWrite.geometry(value.#xml)
+     return actual?.valid && actual.received && actual.source === source ? actual.served : undefined
+   }
+-  static projection(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined {
++  static projection(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: object): WrittenPolylineProjection | undefined {
+     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+     const actual = XmlLeafWrite.geometry(value.#xml)
+     return actual?.valid && actual.received && actual.source === source && actual.projection ? { contours: actual.projection.contours, collapsed: actual.projection.collapsed } : undefined
+   }
++  static polyline(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, receiver: object, input: NativePolylineNode, pay: (count?: number) => boolean): { geometry: Extract<Geometry, { kind: 'polyline' }>; projection: WrittenPolylineProjection; stroke: ConnectorMark['stroke']; endpoints: ConnectorMark['endpoints']; identity: NonNullable<ConnectorMark['identity']> } | undefined {
++    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== receiver) return undefined
++    const actual = XmlLeafWrite.geometry(value.#xml), attributes = XmlLeafWrite.polylineAttributes(value.#xml)
++    if (XmlLeafWrite.polylineInput(value.#xml) !== input || actual?.source !== input || !actual.valid || !actual.received || actual.served?.kind !== 'polyline' || !actual.projection || !attributes || !pay(24)) return undefined
++    const read = (name: string): string | undefined => {
++      const escaped = attributes[name]
++      if (escaped === undefined) return undefined
++      if (!pay(escaped.length + 2)) return undefined
++      return decodeXML(escaped)
++    }
++    if (read('fill') !== 'none' || attributes.transform !== undefined || attributes['marker-mid'] !== undefined || read('data-role') !== 'edge') return undefined
++    const start = read('marker-start'), end = read('marker-end')
++    if (start !== (input.markers.start ? `url(#${input.markers.start.id})` : undefined) || end !== (input.markers.end ? `url(#${input.markers.end.id})` : undefined)) return undefined
++    const id = read('data-id'), from = read('data-from'), to = read('data-to'), color = read('stroke'), width = read('stroke-width')
++    if (id === undefined || from === undefined || to === undefined || color === undefined || width === undefined) return undefined
++    const lineCap = read('stroke-linecap') ?? 'butt', lineJoin = read('stroke-linejoin') ?? 'miter', miterLimit = +(read('stroke-miterlimit') ?? '4')
++    if (!['butt', 'round', 'square'].includes(lineCap) || !['arcs', 'bevel', 'miter', 'miter-clip', 'round'].includes(lineJoin) || !Number.isFinite(miterLimit)) return undefined
++    const dash = read('stroke-dasharray'), offset = read('stroke-dashoffset'), opacity = read('stroke-opacity'), pathLength = read('pathLength'), paintOrder = read('paint-order'), vectorEffect = read('vector-effect'), style = read('style')
++    if (vectorEffect !== undefined && vectorEffect !== 'non-scaling-stroke' || style !== undefined && style !== 'mix-blend-mode:normal' && style !== 'mix-blend-mode:multiply') return undefined
++    const stroke: ConnectorMark['stroke'] = writtenFactFreeze({ __proto__: null, color, width, lineCap: lineCap as ConnectorMark['stroke']['lineCap'], lineJoin: lineJoin as ConnectorMark['stroke']['lineJoin'], miterLimit, nonScaling: vectorEffect === 'non-scaling-stroke',
++      ...(dash === undefined ? {} : { dash: writtenFactFreeze({ __proto__: null, array: dash, ...(offset === undefined ? {} : { offset }) }) }), ...(opacity === undefined ? {} : { opacity }), ...(pathLength === undefined ? {} : { pathLength: +pathLength }), ...(paintOrder === undefined ? {} : { paintOrder }), ...(style === undefined ? {} : { mixBlendMode: style === 'mix-blend-mode:multiply' ? 'multiply' as const : 'normal' as const }) })
++    const endpoints = writtenFactFreeze({ __proto__: null, from, to }), identity = writtenFactFreeze({ __proto__: null, id, role: 'edge' as const, from, to })
++    const result = { geometry: actual.served, projection: actual.projection, stroke, endpoints, identity }
++    XmlLeafWrite.releasePolyline(value.#xml)
++    return result
++  }
+   static rectangle(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined {
+     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+     const actual = XmlLeafWrite.rectangle(value.#xml)
+@@ -447,8 +480,9 @@ class ActualGeometryWrite {
+ }
+ const actualWrittenProjection = ActualGeometryWrite.projection, actualWrittenGeometry = ActualGeometryWrite.geometry, actualWrittenRectangle = ActualGeometryWrite.rectangle, matchesWrittenRectangle = ActualGeometryWrite.matches, actualWrittenRectanglePaint = ActualGeometryWrite.rectanglePaint
+ function geometryFact(write: SvgXmlWrite | undefined): unknown { return write && (xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined)?.geometry }
+-export function readSvgGeometryProjection(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined { return actualWrittenProjection(geometryFact(write), capture, write, node, source) }
+-export function readSvgGeometryWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined { return actualWrittenGeometry(geometryFact(write), capture, write, node, source) }
++export function consumeSvgNativePolylineWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, receiver: object, input: NativePolylineNode, pay: (count?: number) => boolean) { return ActualGeometryWrite.polyline(geometryFact(write), capture, write, receiver, input, pay) }
++export function readSvgGeometryProjection(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: object): WrittenPolylineProjection | undefined { return actualWrittenProjection(geometryFact(write), capture, write, node, source) }
++export function readSvgGeometryWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: object): Geometry | undefined { return actualWrittenGeometry(geometryFact(write), capture, write, node, source) }
+ export function readSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined { return actualWrittenRectangle(geometryFact(write), capture, write, node, source) }
+ export function readSvgRectanglePaintWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, paint: MarkPaint, pay: (operations: number) => boolean): MarkPaint | undefined { return actualWrittenRectanglePaint(geometryFact(write), capture, write, node, source, paint, pay) }
+ export function matchesSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean { return matchesWrittenRectangle(geometryFact(write), capture, write, node, source, served, paint, pay) }
+@@ -491,20 +525,66 @@ class XmlLeafWrite {
+   valid = true
+   #paintPrepared = false
+   #complete = false
++  #polylineInput: object | undefined
++  #polylineAttributes: Record<string, string> | undefined
++  beginPolyline(input: object): boolean {
++    if (!this.beginGeometry(input) || !this.#state.pay(2)) return false
++    this.#polylineInput = input; this.#polylineAttributes = { __proto__: null } as unknown as Record<string, string>
++    return true
++  }
++  static polylineInput(xml: XmlLeafWrite): object | undefined { return xml.#polylineInput }
++  static polylineAttributes(xml: XmlLeafWrite): Record<string, string> | undefined { return xml.valid ? xml.#polylineAttributes : undefined }
++  static releasePolyline(xml: XmlLeafWrite): void { xml.#polylineInput = undefined; xml.#polylineAttributes = undefined; if (xml.#geometry) xml.#geometry.source = undefined }
++  #recordPolylineAttribute(name: string, escaped: unknown): void {
++    if (!this.#polylineAttributes) return
++    switch (name) {
++      case 'class': case 'fill': case 'stroke': case 'stroke-width': case 'stroke-opacity': case 'stroke-dasharray': case 'stroke-dashoffset':
++      case 'stroke-linecap': case 'stroke-linejoin': case 'stroke-miterlimit': case 'pathLength': case 'paint-order': case 'vector-effect': case 'style':
++      case 'marker-start': case 'marker-end': case 'marker-mid': case 'transform': case 'data-id': case 'data-role': case 'data-from': case 'data-to':
++        if (typeof escaped !== 'string' || !this.#state.pay(1)) { this.valid = false; return }
++        this.#polylineAttributes[name] = escaped
++    }
++  }
++  #nativeNames: Set<string> | undefined
++  #nativeFixed = 0
++  #nativePrepared = false
++  #nativePreparedCount = 0
++  #nativeContent: string | undefined
++  #lastAttribute: string | undefined
++  #paintFields: XmlList<{ field: keyof MarkPaint; literal: string }> | undefined
++  #nativeAttribute(name: string, value: string | boolean, fixed = false, numeric = false): void {
++    if (!this.valid) return
++    const bit = fixedAttributeBit(name)
++    this.valid = this.#state.pay(bit ? 1 : 2)
++    if (!this.valid) return
++    if (bit ? this.#nativeFixed & bit : this.#nativeNames && xmlFactApply(nativeXmlHas, this.#nativeNames, [name])) { this.valid = false; return }
++    if (numeric) this.valid = value === true
++    else this.valid = typeof value === 'string' && (fixed || this.#state.name(name)) && this.#state.literal(value, true)
++    if (!this.valid) return
++    if (bit) this.#nativeFixed |= bit
++    else {
++      if (!this.#nativeNames) {
++        if (!this.#state.pay(1)) { this.valid = false; return }
++        this.#nativeNames = new nativeXmlSetType<string>()
++      }
++      xmlFactApply(nativeXmlAdd, this.#nativeNames, [name])
++    }
++    this.#lastAttribute = numeric ? undefined : value as string
++  }
+   #geometry: WrittenGeometry | undefined
+   static geometry(xml: XmlLeafWrite): WrittenGeometry | undefined { return xml.#geometry }
+-  beginGeometry(source: Geometry): boolean {
++  beginGeometry(source: object): boolean {
+     if (!this.#state.nativeComposition || !this.#state.pay(8)) return false
+     this.#geometry = { source, served: undefined, valid: true, received: false, reserved: false }
+     return true
+   }
+-  reserveGeometry(source: Geometry, operations: number): boolean {
++  reserveGeometry(source: object, operations: number): boolean {
+     const actual = this.#geometry
+     if (!actual || actual.source !== source || actual.reserved) { if (actual) actual.valid = false; return false }
+     actual.reserved = true
+     return this.#state.pay(operations)
+   }
+-  geometryWritten(source: Geometry, served: Geometry | undefined, projection?: WrittenPolylineProjection): void {
++  geometryWritten(source: object, served: Geometry | undefined, projection?: WrittenPolylineProjection): void {
+     const actual = this.#geometry
+     if (!actual || actual.source !== source || actual.received) { if (actual) actual.valid = false; return }
+     actual.received = true; actual.served = served; actual.projection = projection
+@@ -517,6 +597,7 @@ class XmlLeafWrite {
+     this.#rectangle = { source, x: +x, y: +y, width: +width, height: +height, rx: rx === undefined ? undefined : +rx, ry: ry === undefined ? undefined : +ry, attributes: { __proto__: null } as unknown as Record<string, string>, count: 0, valid: true }
+   }
+   numericPoints(value: string, valid: boolean): void {
++    if (this.#state.nativeComposition) { this.#nativeAttribute('points', valid, true, true); return }
+     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['numeric-attribute', 'points', valid] }
+   }
+   reserveScalarWork(operations: number): boolean { return this.#state.pay(operations) }
+@@ -536,12 +617,24 @@ class XmlLeafWrite {
+   }
+   static markComplete(xml: XmlLeafWrite): void { xml.#complete = true }
+   static completed(xml: XmlLeafWrite | undefined): boolean { return xml !== undefined && xml.#complete }
+-  constructor(state: XmlCaptureState) { this.#state = state; this.valid = state.pay(1); this.#events = this.valid ? xmlList() : undefined }
++  constructor(state: XmlCaptureState) { this.#state = state; this.valid = state.pay(1); this.#events = this.valid && !state.nativeComposition ? xmlList() : undefined }
+   list<T>(): XmlList<T> | undefined { return this.#state.pay(1) ? xmlList<T>() : undefined }
+   element(name: string): void {
++    if (this.#state.nativeComposition) {
++      if (!this.valid || !this.#state.pay(2)) { this.valid = false; return }
++      if (this.#nativeNames) xmlFactApply(nativeXmlClear, this.#nativeNames, [])
++      this.#nativeFixed = 0; this.#nativePrepared = false; this.#lastAttribute = undefined
++      if (name !== 'rect' && name !== 'circle' && name !== 'ellipse' && name !== 'line' && name !== 'polygon' && name !== 'polyline' && name !== 'path' && name !== 'text') this.valid = false
++      return
++    }
+     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
+   }
+   attribute(name: string, escaped: unknown, fixed = false, numeric = false): void {
++    this.#recordPolylineAttribute(name, escaped)
++    if (this.#state.nativeComposition) {
++      if (typeof escaped !== 'string') { this.valid = false; return }
++      this.#nativeAttribute(name, fixed && numeric ? true : escaped, fixed, fixed && numeric); return
++    }
+     if (this.valid) {
+       this.valid = typeof escaped === 'string' && this.#state.pay(1)
+       if (this.valid) this.#events![this.#events!.length++] = fixed && this.#state.nativeComposition && numeric
+@@ -550,6 +643,17 @@ class XmlLeafWrite {
+     }
+   }
+   recordPaintField(field: keyof MarkPaint): void {
++    if (this.#state.nativeComposition) {
++      if (!this.valid) return
++      if (!this.#state.pay(1) || this.#lastAttribute === undefined) { this.valid = false; return }
++      if (!this.#paintFields) {
++        if (!this.#state.pay(1)) { this.valid = false; return }
++        this.#paintFields = xmlList()
++      }
++      this.#paintFields[this.#paintFields.length++] = { field, literal: this.#lastAttribute }
++      this.#lastAttribute = undefined
++      return
++    }
+     if (!this.valid) return
+     this.valid = this.#state.pay(1)
+     if (!this.valid) return
+@@ -558,12 +662,29 @@ class XmlLeafWrite {
+     this.#events![index] = [event[0], event[1], event[2], field]
+   }
+   text(content: string): void {
++    if (this.#state.nativeComposition) {
++      this.#lastAttribute = undefined
++      if (this.valid) this.valid = typeof content === 'string' && this.#state.pay(2) && this.#state.literal(content, false)
++      return
++    }
+     if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['text', content] }
+   }
+   prepared(written: PreparedSingleLineWrite): void {
+     if (!this.valid) return
+     const { x, y, dy, textLength, content } = written
+     this.valid = typeof x === 'string' && typeof y === 'string' && typeof dy === 'string' && typeof textLength === 'string' && typeof content === 'string' && this.#state.pay(5)
++    if (this.#state.nativeComposition) {
++      this.#lastAttribute = undefined
++      this.valid &&= this.#state.pay(2) && this.#state.prepared() && this.#state.pay(2) && !(this.#nativeFixed & 127) && !this.#nativePrepared
++      if (this.valid) {
++        this.#nativePrepared = true; this.#nativePreparedCount++; this.#nativeFixed |= 127
++        this.valid = this.#state.literal(x, true) && this.#state.literal(y, true) && this.#state.literal(dy, true)
++          && this.#state.literal(textLength, true) && this.#state.literal(content, false)
++        this.#nativeContent = content
++      }
++      for (let i = 0; i < written.additionalAttributes.length; i++) { const attribute = written.additionalAttributes[i]!; this.attribute(attribute.name, attribute.value) }
++      return
++    }
+     if (this.valid) this.#events![this.#events!.length++] = ['prepared', x, y, dy, textLength, content]
+     for (let i = 0; i < written.additionalAttributes.length; i++) { const attribute = written.additionalAttributes[i]!; this.attribute(attribute.name, attribute.value) }
+   }
+@@ -573,6 +694,19 @@ class XmlLeafWrite {
+   static paint(xml: XmlLeafWrite): MarkPaint | undefined {
+     if (!xml.valid || !xml.#paintPrepared || !xml.#state.pay(1)) return undefined
+     const paint = { __proto__: null } as MarkPaint
++    if (xml.#state.nativeComposition) {
++      for (let i = 0; i < (xml.#paintFields?.length ?? 0); i++) {
++        if (!xml.#state.pay(2)) return undefined
++        const { field, literal } = xml.#paintFields![i]!
++        if (!xml.#state.pay(2 + literal.length)) return undefined
++        for (let j = 0; j < literal.length; j++) if (literal[j] === '&') return undefined
++        textPaintDefine(paint, field, { value: literal, enumerable: true, writable: false, configurable: false })
++      }
++      const content = xml.#nativeContent
++      if (xml.#nativePreparedCount !== 1 || content === undefined || !xml.#state.pay(content.length + 3)) return undefined
++      for (let j = 0; j < content.length; j++) if (content[j] === '<') return undefined
++      return textPaintFreeze(paint)
++    }
+     let prepared = false
+     for (let i = 0; i < xml.#events!.length; i++) {
+       if (!xml.#state.pay(2)) return undefined
+@@ -593,6 +727,7 @@ class XmlLeafWrite {
+   }
+   check(): boolean {
+     if (!this.valid || !this.#state.pay(1)) return false
++    if (this.#state.nativeComposition) return true
+     const attributes = new Set<string>()
+     let fixedNames = 0, preparedSeen = false
+     for (let i = 0; i < this.#events!.length; i++) {
+@@ -1189,7 +1324,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
+   return write
+ }
+ 
+-function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number, capture?: SvgXmlCapture): { svg: string; transformed: boolean; xml?: XmlLeafWrite; complete: boolean } | undefined {
++function connectorInlineLabelSvg(node: Pick<ConnectorMark, 'id' | 'transform'>, label: ConnectorLabelDescriptor, index: number, capture?: SvgXmlCapture): { svg: string; transformed: boolean; xml?: XmlLeafWrite; complete: boolean } | undefined {
+   if (label.visual?.kind !== 'inline') return undefined
+   if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
+     throw new TypeError(`Connector "${node.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
+@@ -1221,6 +1356,33 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
+   return { svg, transformed: out.transformed, xml: out.xml, complete }
+ }
+ 
++function connectorStrokeAttributes(out: SvgWriter, stroke: ConnectorMark['stroke'], markers: ConnectorMark['markers'], dash: ConnectorMark['stroke']['dash'], midMarker: MarkerDescriptor | undefined, pointerEvents: 'stroke' | 'none', transform: SceneTransform | undefined): void {
++  out.fixedAttribute('stroke', stroke.color)
++  if (stroke.opacity !== undefined) out.fixedAttribute('stroke-opacity', stroke.opacity)
++  out.fixedAttribute('stroke-width', stroke.width)
++  if (dash) out.fixedAttribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
++  if (dash?.offset !== undefined) out.fixedAttribute('stroke-dashoffset', dash.offset)
++  if (stroke.lineCap !== 'butt') out.fixedAttribute('stroke-linecap', stroke.lineCap)
++  if (stroke.lineJoin !== 'miter') out.fixedAttribute('stroke-linejoin', stroke.lineJoin)
++  if (stroke.miterLimit !== 4) out.fixedAttribute('stroke-miterlimit', stroke.miterLimit)
++  if (stroke.pathLength !== undefined) out.fixedAttribute('pathLength', stroke.pathLength)
++  if (stroke.paintOrder !== undefined) out.fixedAttribute('paint-order', stroke.paintOrder)
++  if (stroke.nonScaling) out.fixedAttribute('vector-effect', 'non-scaling-stroke')
++  if (stroke.mixBlendMode) out.fixedAttribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
++  if (markers.start) out.fixedAttribute('marker-start', `url(#${markers.start.id})`)
++  if (midMarker) out.fixedAttribute('marker-mid', `url(#${midMarker.id})`)
++  if (markers.end) out.fixedAttribute('marker-end', `url(#${markers.end.id})`)
++  if (pointerEvents === 'none') out.fixedAttribute('pointer-events', 'none')
++  transformAttribute(out, transform)
++}
++function connectorPaintAttributes(out: SvgWriter, node: ConnectorMark, stroke: ConnectorMark['stroke'], markers: ConnectorMark['markers'], dash: ConnectorMark['stroke']['dash'], midMarker: MarkerDescriptor | undefined): void {
++  connectorStrokeAttributes(out, stroke, markers, dash, midMarker, node.hit.pointerEvents, node.transform)
++  out.fixedAttribute('data-relationship', node.relationship.kind)
++  out.fixedAttribute('data-direction', node.relationship.direction)
++  identityAttributes(out, node.identity, node.accessibility)
++  out.close()
++}
++
+ /** A connector is one marker carrier element plus any labels it owns; an
+  * invisible connector draws its labels without the carrier. SVG defaults
+  * (butt caps, miter joins, limit 4) are left implicit. */
+@@ -1240,27 +1402,7 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
+     if (!sink) out.ownedGeometry = out.xml?.beginGeometry(geometry) ?? false
+     geometryAttributes(out, geometry, sink)
+     if (geometry.kind !== 'line') out.fixedAttribute('fill', 'none')
+-    out.fixedAttribute('stroke', stroke.color)
+-    if (stroke.opacity !== undefined) out.fixedAttribute('stroke-opacity', stroke.opacity)
+-    out.fixedAttribute('stroke-width', stroke.width)
+-    if (dash) out.fixedAttribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
+-    if (dash?.offset !== undefined) out.fixedAttribute('stroke-dashoffset', dash.offset)
+-    if (stroke.lineCap !== 'butt') out.fixedAttribute('stroke-linecap', stroke.lineCap)
+-    if (stroke.lineJoin !== 'miter') out.fixedAttribute('stroke-linejoin', stroke.lineJoin)
+-    if (stroke.miterLimit !== 4) out.fixedAttribute('stroke-miterlimit', stroke.miterLimit)
+-    if (stroke.pathLength !== undefined) out.fixedAttribute('pathLength', stroke.pathLength)
+-    if (stroke.paintOrder !== undefined) out.fixedAttribute('paint-order', stroke.paintOrder)
+-    if (stroke.nonScaling) out.fixedAttribute('vector-effect', 'non-scaling-stroke')
+-    if (stroke.mixBlendMode) out.fixedAttribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
+-    if (markers.start) out.fixedAttribute('marker-start', `url(#${markers.start.id})`)
+-    if (midMarker) out.fixedAttribute('marker-mid', `url(#${midMarker.id})`)
+-    if (markers.end) out.fixedAttribute('marker-end', `url(#${markers.end.id})`)
+-    if (node.hit.pointerEvents === 'none') out.fixedAttribute('pointer-events', 'none')
+-    transformAttribute(out, node.transform)
+-    out.fixedAttribute('data-relationship', node.relationship.kind)
+-    out.fixedAttribute('data-direction', node.relationship.direction)
+-    identityAttributes(out, node.identity, node.accessibility)
+-    out.close()
++    connectorPaintAttributes(out, node, stroke, markers, dash, midMarker)
+   }
+   for (let index = 0; index < node.labels.length; index++) {
+     const label = connectorInlineLabelSvg(node, node.labels[index]!, index, capture)
+@@ -1275,6 +1417,87 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
+   return capture ? finishXmlLeaf(capture, node, out.value, out.xml, complete, inline!) : out.value
+ }
+ 
++/** The private content entry has no input Scene point graph. These exact
++ * numeric operands produce both markup and its single served point buffer. */
++export function writeNativePolylineSvg(node: NativePolylineNode, capture: SvgXmlCapture, receiver: object): SvgXmlWrite {
++  const out = new SvgWriter(capture), source = node, coordinates = source.coordinates
++  const { stroke, markers } = node
++  const dash = stroke.dash, midMarker = markers.mid[0]
++  out.element('polyline')
++  out.ownedGeometry = out.xml?.beginPolyline(source) ?? false
++  hooks(out, node.attributes)
++  const count = coordinates.length / 2
++  let normalized = false
++  for (let index = 0; index < coordinates.length; index++) normalized ||= longPointDecimal(`${coordinates[index]}`)
++  let valid = Number.isInteger(count) && count >= 2 && !!out.xml?.reserveGeometry(source, count * 20 + 64)
++  const points: ScenePoint[] | undefined = valid ? [] : undefined
++  let markup = '', previous: ScenePoint | undefined, firstTangent: ScenePoint | undefined, lastTangent: ScenePoint | undefined
++  let scalarLiteral = ''
++  const scalar = (value: number): number => {
++    const raw = `${value}`, literal = normalized ? formatSvgNumber(value) : raw
++    let understood = typeof value === 'number' && Number.isFinite(value) && typeof literal === 'string' && literal.length > 0
++      && value >= -SCENE_VALIDATION_LIMITS.maxExtent && value <= SCENE_VALIDATION_LIMITS.maxExtent
++    if (normalized) {
++      understood &&= !!out.xml?.reserveScalarWork(literal.length + 1)
++      for (let index = 0; understood && index < literal.length; index++) {
++        const character = literal[index]!
++        if (!(character >= '0' && character <= '9') && character !== '-' && character !== '+' && character !== '.' && character !== 'e' && character !== 'E') understood = false
++      }
++    }
++    const served = understood ? +literal : NaN
++    valid &&= understood && served >= -SCENE_VALIDATION_LIMITS.maxExtent && served <= SCENE_VALIDATION_LIMITS.maxExtent
++    scalarLiteral = literal
++    return served
++  }
++  for (let index = 0; index < count; index++) {
++    const x = scalar(coordinates[index * 2]!), xLiteral = scalarLiteral
++    const y = scalar(coordinates[index * 2 + 1]!), yLiteral = scalarLiteral
++    markup += `${index ? ' ' : ''}${xLiteral},${yLiteral}`
++    if (!valid) continue
++    const input = { x, y }, point = writtenFactFreeze(input)
++    if (point !== input || !closedWrittenSlot(point, 'x', x) || !closedWrittenSlot(point, 'y', y)) { valid = false; continue }
++    writtenFactDefine(points, index, { __proto__: null, value: point, enumerable: true, writable: false, configurable: false } as PropertyDescriptor)
++    if (previous) {
++      const tangent = connectorUnitTangent(previous, point)
++      if (tangent) {
++        const tx = tangent.x, ty = tangent.y, sealed = writtenFactFreeze(tangent)
++        if (sealed !== tangent || !closedWrittenSlot(sealed, 'x', tx) || !closedWrittenSlot(sealed, 'y', ty)) { valid = false; continue }
++        firstTangent ??= sealed; lastTangent = sealed
++      }
++    }
++    if (!closedWrittenSlot(points!, String(index), point)) { valid = false; continue }
++    previous = point
++  }
++  out.numericPoints(markup, valid)
++  let served: Geometry | undefined, projection: WrittenPolylineProjection | undefined
++  if (valid && points?.length === count) {
++    writtenFactDefine(points, 'length', { __proto__: null, writable: false } as PropertyDescriptor)
++    writtenFactSeal(points)
++    const start = points[0]!, end = points[count - 1]!
++    const input = { start, end, closed: false, ...(firstTangent ? { startTangent: firstTangent } : {}), ...(lastTangent ? { endTangent: lastTangent } : {}) }
++    const contour = writtenFactFreeze(input), list = [contour], contours = writtenFactFreeze(list)
++    if (contour === input && contours === list && closedWrittenSlot(points, 'length', count) && closedWrittenSlot(contour, 'start', start)
++      && closedWrittenSlot(contour, 'end', end) && closedWrittenSlot(contour, 'closed', false)
++      && (!firstTangent || closedWrittenSlot(contour, 'startTangent', firstTangent)) && (!lastTangent || closedWrittenSlot(contour, 'endTangent', lastTangent))
++      && closedWrittenSlot(contours, '0', contour) && closedWrittenSlot(contours, 'length', 1)) {
++      served = createActualWrittenPolyline(points, contours, !firstTangent)
++      projection = { contours, collapsed: !firstTangent }
++    }
++  }
++  out.xml?.geometryWritten(source, served, projection)
++  out.fixedAttribute('fill', 'none')
++  connectorStrokeAttributes(out, stroke, markers, dash, midMarker, 'stroke', undefined)
++  out.fixedAttribute('data-relationship', node.relationshipKind)
++  out.fixedAttribute('data-direction', node.direction)
++  identityAttributes(out, node.identity, undefined)
++  out.fixedAttribute('role', 'graphics-symbol')
++  out.fixedAttribute('aria-roledescription', 'relation')
++  out.fixedAttribute('aria-label', node.accessibilityLabel)
++  out.close()
++  xmlFactApply(xmlFactSet, writtenLeafContexts, [receiver, { svg: out.value, context: writtenFactFreeze({ transformed: out.transformed }) }])
++  return finishXmlLeaf(capture, receiver, out.value, out.xml, true)
++}
++
+ /** Path for a header band with rounded top corners and a square bottom. */
+ export function topRoundedRectPath(x: number, y: number, width: number, height: number, radius: number): string {
+   const r = clampRadius(radius, width / 2, height)
