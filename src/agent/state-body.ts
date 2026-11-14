@@ -56,11 +56,10 @@ import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndA
 import {
   matchNoteLine, matchNoteOpen, matchFloatingNote, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, readStateStatements, stateStatementEnds, lexedStateText, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
+  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, matchStateClassShorthand,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
-import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { resolveStateIdentities, type StateIdentities } from '../state/identity.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
@@ -409,7 +408,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- standalone class shorthand: `A:::hot` ---
-    const shorthand = parseClassShorthandStatement(line)
+    const shorthand = matchStateClassShorthand(line)
     if (shorthand) {
       if (!compositeIds.has(shorthand.id)) {
         const node = ensureState(scope, shorthand.id)
@@ -569,7 +568,13 @@ function applyStateBodyOwnership(root: StateNode[], states: ReadonlyMap<string, 
  *  upstream. Such a state is written `state "X" as X`, which Mermaid draws,
  *  and read back as the bare declaration (parseStateBody). */
 function hasBareSpelling(id: string): boolean {
-  return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
+  return !/-|^(?:state|note|scale|classDef|class|style|stateDiagram)$/i.test(id) && !startsWithMermaidKeyword(id)
+}
+
+/** Mermaid's lexer reads `default`, `click` and `href` as keywords wherever
+ *  no word character follows them, so `default.x` is `default` and `.x`. */
+function startsWithMermaidKeyword(id: string): boolean {
+  return /^(?:default|click|href)(?!\w)/i.test(id)
 }
 
 /** Whether `id` is a keyword Mermaid's lexer reads as one only before a blank
@@ -1012,14 +1017,14 @@ function validId(value: unknown, field: string): Result<string, MutationError> {
 }
 
 /** A state name a typed edit introduces. Our reader also takes hyphenated
- * names and the words `default`, `click` and `href`, but pinned Mermaid
- * cannot read them as states (verify reports `state_endpoint_name`), so an
+ * names and names starting with the words `default`, `click` and `href`,
+ * but pinned Mermaid cannot read them as states (verify reports `state_endpoint_name`), so an
  * edit never writes a new one. */
 function validStateName(value: unknown, field: string): Result<string, MutationError> {
   const id = validId(value, field)
   if (!id.ok) return id
-  if (id.value.includes('-') || /^(?:default|click|href)$/i.test(id.value)) {
-    return err({ code: 'INVALID_OP', message: `State ${field} '${id.value}' is not a name Mermaid 12.2.0 reads as a state: it holds no hyphen and is not default, click or href` })
+  if (id.value.includes('-') || startsWithMermaidKeyword(id.value)) {
+    return err({ code: 'INVALID_OP', message: `State ${field} '${id.value}' is not a name Mermaid 12.2.0 reads as a state: it holds no hyphen and does not start with the word default, click or href` })
   }
   return id
 }
@@ -1914,7 +1919,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (style && style[1]!.split(',').some(id => !portableStyleTarget(id.trim()))) {
       warn(statement, 'state_style_target', 'The style target is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in style targets, with no quoted alternative; use a portable target for typed editing.')
     }
-    const classShorthand = parseClassShorthandStatement(text)
+    const classShorthand = matchStateClassShorthand(text)
     const classTargets = matchStateClassAssignment(text)?.ids ?? (classShorthand ? [classShorthand.id] : [])
     if (classTargets.some(id => !portableStyleTarget(id))) warn(statement, 'state_class_target', 'Class membership is preserved in source. Pinned Mermaid class assignments require targets containing only letters, digits, or underscore; repair the target before typed class editing.')
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
@@ -1958,7 +1963,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
           if (statement.nameBlanks?.[endpoint === transition.from ? 0 : 1] === false) continue
           warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: before a blank, \`note\`, \`class\`, \`classDef\`, \`style\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition. The writer writes no blank after the name (\`${endpoint}--> …\`, \`… --> ${endpoint}%%\`), which Mermaid reads.`, line)
         } else {
-          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`click\` and \`href\` start statements of their own. Mermaid rejects the transition, here and in the output. Rename the state to keep it portable.`, line)
+          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`click\` and \`href\`, alone or before a character other than a letter, digit or underscore, start statements of their own. Mermaid rejects the transition, here and in the output. Rename the state to keep it portable.`, line)
         }
       }
       if (transition.label !== undefined) cutText(statement, transition.label)
@@ -1977,11 +1982,11 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     // A name alone declares the state, as `A` does.
     if (isStateNodeId(text) && !isConcurrencySeparator(text)) {
       if (!hasBareSpelling(text)) {
-        warn(statement, 'state_declaration_name', `The line declares '${text}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration of the name after it, which Mermaid drops. Mermaid rejects the line, or reads it otherwise. The writer declares it as \`state "…" as ${text}\` (a composite as \`state ${text} {\`), which Mermaid reads.`)
+        warn(statement, 'state_declaration_name', `The line declares '${text}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`stateDiagram\` start statements of their own (\`default\`, \`click\` and \`href\` also before a character other than a letter, digit or underscore), as \`state\` starts a declaration of the name after it, which Mermaid drops. Mermaid rejects the line, or reads it otherwise. The writer declares it as \`state "…" as ${text}\` (a composite as \`state ${text} {\`), which Mermaid reads.`)
       }
       continue
     }
-    if (parseClassShorthandStatement(text)) continue
+    if (matchStateClassShorthand(text)) continue
     const description = text.match(STATE_DESCRIPTION_RE)
     if (description) {
       const id = description[1]!
@@ -1989,7 +1994,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       // Mermaid reads the name after `state "…" as` to the line's end.
       if (statement.afterAlias) continue
       if (!hasBareSpelling(id)) {
-        warn(statement, 'state_description_name', `The description names '${id}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the description. The writer writes it as \`state "…" as ${id}\`, which Mermaid reads.`)
+        warn(statement, 'state_description_name', `The description names '${id}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own (\`default\`, \`click\` and \`href\` also before a character other than a letter, digit or underscore), as \`state\` starts a declaration it drops. Mermaid rejects or drops the description. The writer writes it as \`state "…" as ${id}\`, which Mermaid reads.`)
       }
       cutText(statement, description[2]!)
     }
@@ -2037,9 +2042,9 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
   // anchors to the enclosing composite, so it is always structurally valid).
   const anchors = (endpoint: string): boolean => {
     if (known.has(endpoint)) return true
-    const h = endpoint.match(/^([\w\p{L}\p{N}\p{M}-]*)\[H\*?\]$/u)
+    const h = matchHistoryEndpoint(endpoint)
     if (!h) return false
-    return h[1] === '' || known.has(h[1]!)
+    return h.base === '' || known.has(h.base)
   }
   // Tier-3 honesty lint (plan §State 2a): history semantics ("re-enter where
   // you left off") are not modeled by any local analysis — announce that the

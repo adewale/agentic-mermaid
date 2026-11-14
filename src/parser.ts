@@ -17,7 +17,7 @@ import {
   isNoteEnd,
   matchHistoryEndpoint,
   matchNoteLine, matchNoteOpen, matchFloatingNote,
-  matchStateClassAssignment, matchStateDeclarationLine, matchStateLayoutDirective,
+  matchStateClassAssignment, matchStateClassShorthand, matchStateDeclarationLine, matchStateLayoutDirective,
   matchStereotypeDecl, matchTransitionLine, readStateStatements,
   STATE_ALIAS_RE,
   STATE_CLASS_DEF_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
@@ -31,7 +31,7 @@ import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-rout
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 import { checkedFlowchartStyleProps, coalesceFlowchartLines, flowchartGroupPosition, type FlowchartLineGroup, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
-  MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
+  MERMAID_IDENTIFIER_SOURCE } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
 import { DeferredDependencyError } from './layout/certification-error.ts'
 import { locateSyntaxError, MermaidSyntaxError, syntaxError, type MermaidSyntaxErrorLocation } from './shared/syntax-error.ts'
@@ -802,7 +802,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   const addNote = (target: string, side: 'left' | 'right', authored: string): void => {
     if (!graph.stateNotes) graph.stateNotes = []
     const { text, content } = readStateText(authored)
-    graph.stateNotes.push({ id: `note#${graph.stateNotes.length}`, target, side, text, ...(content ? { textContent: content } : {}) })
+    graph.stateNotes.push({ id: identities.noteId(graph.stateNotes.length), target, side, text, ...(content ? { textContent: content } : {}) })
     if (parserObservationActive('state')) observeParserMutation('state', 'add-note', graph.stateNotes.at(-1))
     // A note on an undeclared state declares it (upstream parity) — unless the
     // id is (or later becomes) a composite, which the composite opener handles.
@@ -1126,7 +1126,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- class shorthand: `s1:::highlight` ---
     // Consume before the description grammar so two of the three colons can
     // never leak into a visible `::highlight` label.
-    const stateClass = parseClassShorthandStatement(line)
+    const stateClass = matchStateClassShorthand(line)
     if (stateClass) {
       if (!compositeStateIds.has(stateClass.id)) ensureStateNode(graph, compositeStack, stateClass.id)
       appendGraphClass(graph.classAssignments, stateClass.id, stateClass.className)

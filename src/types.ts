@@ -37,7 +37,7 @@ export interface MermaidGraph {
  *  models these for the render parser and the agent body alike —
  *  src/state/parse-core.ts (plan §State 1, repo #118). */
 export interface StateNoteSpec {
-  /** Stable id (`note#<i>` in source order). */
+  /** Stable id (`note#<i>` in source order, unless an authored state has that name). */
   id: string
   /** The state (or composite) the note is anchored to. */
   target: string

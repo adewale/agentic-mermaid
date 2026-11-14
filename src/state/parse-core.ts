@@ -17,6 +17,7 @@
 
 import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, scanStateComments, type StateSourceLine } from './comment.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
+import { STATE_NAME_LIST_SOURCE, STATE_NAME_SOURCE, STATE_STATEMENT_NAME_SOURCE } from './name.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
@@ -42,21 +43,24 @@ export interface StateStereotypeMatch {
   label?: string
 }
 
-const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s*:\s*([^\r\n]+)$/iu
-const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{M}\p{N}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/iu
+const NOTE_LINE_RE = new RegExp(String.raw`^note\s+(left|right)\s+of\s+(${STATE_NAME_SOURCE})\s*:\s*([^\r\n]+)$`, 'iu')
+const STEREOTYPE_RE = new RegExp(String.raw`^state\s+(?:"([^"]+)"\s+as\s+)?(${STATE_NAME_SOURCE})\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$`, 'iu')
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
-const HISTORY_ENDPOINT_RE = /^([\w\p{L}\p{M}\p{N}-]*)\[(H\*?)\]$/u
-const STATE_NODE_ID_RE = /^[\w\p{L}\p{M}\p{N}-]+$/u
+const HISTORY_ENDPOINT_RE = new RegExp(String.raw`^((?:${STATE_NAME_SOURCE})?)\[(H\*?)\]$`, 'u')
+const STATE_NODE_ID_RE = new RegExp(`^${STATE_NAME_SOURCE}$`, 'u')
+const STATE_DECLARATION_RE = new RegExp(`^state\\s+(${STATE_NAME_SOURCE})$`, 'u')
+const STATE_CLASS_SHORTHAND_RE = new RegExp(String.raw`^(${STATE_NAME_SOURCE}):::([\w-]+)$`, 'u')
+const FLOATING_NOTE_RE = new RegExp(String.raw`^note\s+"([^"]*)"\s+as\s+(${STATE_NAME_SOURCE})\s*$`, 'iu')
 
-/** Ordinary simple-state/note identifier grammar (hyphens allowed). */
+/** Ordinary simple-state/note identifier grammar (src/state/name.ts). */
 export function isStateNodeId(id: string): boolean {
   return STATE_NODE_ID_RE.test(id)
 }
 
 /** Simple declarations accept both `Idle` and `state Idle`. */
 export function matchStateDeclarationLine(line: string): string | null {
-  const explicit = line.match(/^state\s+([\w\p{L}\p{M}\p{N}-]+)$/u)
+  const explicit = line.match(STATE_DECLARATION_RE)
   return explicit?.[1] ?? (isStateNodeId(line) ? line : null)
 }
 
@@ -77,6 +81,12 @@ export function matchStateClassAssignment(line: string): { ids: string[]; classN
   const ids = match[1]!.split(',').map(id => id.trim())
   if (ids.some(id => !isStateNodeId(id))) return null
   return { ids, className: match[2]! }
+}
+
+/** A whole `A:::name` statement: A's class. */
+export function matchStateClassShorthand(line: string): { id: string; className: string } | null {
+  const match = line.match(STATE_CLASS_SHORTHAND_RE)
+  return match ? { id: match[1]!, className: match[2]! } : null
 }
 
 /** State text as pinned Mermaid's lexer meets it: after its prepass, it
@@ -102,7 +112,7 @@ export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
 /** The quoted payload can span physical lines; readStateStatements has
  * already joined the string without interpreting its note-like contents. */
 export function matchFloatingNote(line: string): { id: string; text: string } | null {
-  const match = /^note\s+"([^"]*)"\s+as\s+([\w\p{L}\p{M}\p{N}-]+)\s*$/iu.exec(line)
+  const match = FLOATING_NOTE_RE.exec(line)
   return match ? { id: match[2]!, text: match[1]! } : null
 }
 
@@ -150,7 +160,7 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
 /** Transition-line matcher shared by both parsers. Endpoints accept `[*]`,
  *  plain ids, and the history forms. Returns null when the line is not a
  *  transition. */
-const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}\p{M}\p{N}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}\p{M}\p{N}-]+`
+const TRANSITION_ENDPOINT = String.raw`\[\*\]|(?:${STATE_NAME_SOURCE})\[H\*?\]|\[H\*?\]|${STATE_NAME_SOURCE}`
 const TRANSITION_RE = new RegExp(
   `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*([^\\r\\n]+))?$`,
   'u',
@@ -189,11 +199,11 @@ export function stereotypeMarker(stereotype: StateStereotype): string {
 
 // Residual statement grammar shared by the render and editable projections.
 export const STATE_DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)\s*$/i
-export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}\p{M}\p{N}-]+)\s*$/u
-export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}\p{M}\p{N}-]+)\s*\{$/u
-export const STATE_DESCRIPTION_RE = /^([\w\p{L}\p{M}\p{N}-]+)\s*:\s*([^\r\n]+)$/u
+export const STATE_ALIAS_RE = new RegExp(String.raw`^state\s+"([^"]+)"\s+as\s+(${STATE_NAME_SOURCE})\s*$`, 'u')
+export const STATE_COMPOSITE_OPEN_RE = new RegExp(String.raw`^state\s+(?:"([^"]+)"\s+as\s+)?(${STATE_NAME_SOURCE})\s*\{$`, 'u')
+export const STATE_DESCRIPTION_RE = new RegExp(String.raw`^(${STATE_NAME_SOURCE})\s*:\s*([^\r\n]+)$`, 'u')
 export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/i
-export const STATE_STYLE_RE = /^style\s+([\w\p{L}\p{M}\p{N},-]+)\s+(.+)$/iu
+export const STATE_STYLE_RE = new RegExp(String.raw`^style\s+(${STATE_NAME_LIST_SOURCE})\s+(.+)$`, 'iu')
 export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
 
 // ---- Statements -------------------------------------------------------------
@@ -263,9 +273,9 @@ export interface StateStatementScan {
   unclosedLines: number[]
 }
 
-// A name starts with a letter or digit; a hyphen continues it unless it
-// starts an arrow (`A-->B`), as in a class name after `:::`.
-const STATEMENT_ENDPOINT_AT = /\[\*\]|\[H\*?\]|[\w\p{L}\p{M}\p{N}](?:[\w\p{L}\p{M}\p{N}]|-(?!->))*(?:\[H\*?\])?/uy
+// A name starts with a character other than a hyphen; a hyphen continues it
+// unless it starts an arrow (`A-->B`), as in a class name after `:::`.
+const STATEMENT_ENDPOINT_AT = new RegExp(String.raw`\[\*\]|\[H\*?\]|${STATE_STATEMENT_NAME_SOURCE}(?:\[H\*?\])?`, 'uy')
 const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
 // Mermaid's State lexer is case-insensitive, so its keywords are read in any
 // case. `end` and `hide` are keywords only in `end note` and `hide empty
@@ -275,7 +285,7 @@ const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
 const STATEMENT_KEYWORD_AT = /(?:(?:classDef|class|style|note|scale|click|direction)(?=[ \t]|$)|end(?=[ \t]+note(?:[ \t]|$))|hide(?=[ \t]+empty[ \t]+description(?:[ \t]|$)))/iy
 const OWN_KEYWORD_AT = /(?:cssClass|linkStyle)(?=[ \t]|$)/y
 const STATE_KEYWORD_AT = /state[ \t]+/iy
-const STATE_ID_AT = /[\w\p{L}\p{M}\p{N}-]+/uy
+const STATE_ID_AT = new RegExp(STATE_NAME_SOURCE, 'uy')
 const STATE_AS_AT = /[ \t]+as[ \t]+/iy
 const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/iy
 const STEREOTYPE_AT = /[ \t]*(?:<<[^>\n]*>>|\[\[(fork|join|choice)\]\])/iy
