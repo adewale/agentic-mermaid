@@ -20,8 +20,27 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
   The `--help` text of those commands and both MCP servers' `instructions`
   carry the same notice.
+- **0.6.0 will make source-preserving edits the default for `am mutate` and
+  MCP `mutate`.** Today both still write the whole diagram canonically; pin that
+  output now with `am mutate --canonical` or `mode: "structured"`.
+  `am mutate --help` and the MCP `mutate` tool description carry the notice.
 
 ### Added
+
+- Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
+  `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
+  `mode: "source-preserving"` and `am mutate --preserve-source` now accept every
+  operation of every structured family (they previously refused structured
+  bodies). The edit is replayed on the authored lines: comments, blank lines,
+  indentation, quoting, `:::class` shorthand, directives and frontmatter that
+  the edit does not touch are kept byte for byte, and new statements are written
+  in portable Mermaid next to related ones. A result is returned only when it
+  reads back as the same diagram as the canonical edit; otherwise the canonical
+  source is returned and `preservation: { method: "canonical", reason }` says so
+  (`method: "local"` otherwise; `am mutate` also notes it on stderr). On the 56
+  held-out edit-arms tasks a typed operation can express, scripted typed edits
+  kept 99.7% of untouched lines (canonical: 18.6%) with no collateral damage
+  (canonical: 10 damaged). `am mutate --canonical` names the current default.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

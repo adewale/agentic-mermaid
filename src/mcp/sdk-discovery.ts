@@ -61,7 +61,7 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
   createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram}>
+  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram;preservation?:{method:'local'|'canonical';reason?:string}}>
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>

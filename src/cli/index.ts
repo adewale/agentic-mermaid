@@ -7,6 +7,7 @@ export * from './args.ts'
 export { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
 import { applyOps, type VerifySummary } from '../agent/apply.ts'
+import type { SourceEditPreservation } from '../agent/source-projection.ts'
 // ============================================================================
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
@@ -661,7 +662,7 @@ type CliMutationError = MutationError | { code: string; message: string; details
 /** `family` and `opIndex` mirror the MCP mutate envelope ({ok, family,
  * opIndex?, error}); `error.details` keeps the CLI's {index, op} locator. */
 type MutationRunResult =
-  | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving' }
+  | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving'; preservation?: SourceEditPreservation }
   | { ok: false; family: string | null; opIndex?: number; error: CliMutationError; verify?: VerifySummary }
 
 /** `full` embeds verify's complete result; `summary` embeds the compact
@@ -694,7 +695,7 @@ export function mutateSource(source: string, ops: AnyMutationOp[], preserveSourc
       const { opIndex } = result
       return { ok: false, family: result.family, ...(opIndex !== undefined ? { opIndex } : {}), error: { ...result.error, ...(opIndex !== undefined ? { details: { index: opIndex, op: ops[opIndex] } } : {}) } }
     }
-    return { ok: true, family: result.family, source: result.source, verify: result.verify, mode: 'source-preserving' }
+    return { ok: true, family: result.family, source: result.source, verify: result.verify, mode: 'source-preserving', ...(result.preservation ? { preservation: result.preservation } : {}) }
   }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
@@ -729,6 +730,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   if (!ops.ok) {
     throw new CliArgumentError(`mutate: ${ops.error.message}`)
   }
+  if (args.flags['preserve-source'] === true && args.flags.canonical === true) throw new CliArgumentError('mutate: pass either --preserve-source or --canonical, not both')
   const verifyView = summaryViewRequested(args, 'mutate') ? 'summary' : 'full'
   return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true, verifyView), json)
 }
@@ -738,7 +740,8 @@ function emitMutationRun(r: MutationRunResult, json: boolean): number {
     process.stdout.write(JSON.stringify({ ok: false, family: r.family, opIndex: r.opIndex, error: r.error, verify: r.verify }, replacer) + '\n')
     return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
-  process.stdout.write(json ? JSON.stringify({ ok: true, family: r.family, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
+  if (!json && r.preservation?.method === 'canonical') process.stderr.write(`mutate: source preservation fell back to canonical serialization: ${r.preservation.reason}\n`)
+  process.stdout.write(json ? JSON.stringify({ ok: true, family: r.family, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}), ...(r.preservation ? { preservation: r.preservation } : {}) }, replacer) + '\n' : r.source)
   return EXIT_OK
 }
 

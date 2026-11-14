@@ -46,7 +46,7 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 - **Render SVG without a browser** — the synchronous JavaScript API runs without a DOM or Puppeteer.
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` combines a look with a palette. Set colors, fonts, strokes, fills and backdrops in a [JSON style](./docs/style-authoring.md). `seed` re-rolls the ink, never the layout.
 - **Match your editor's colors** — choose a built-in palette, theme from two colors, or adapt a VS Code theme with Shiki.
-- **Agent-native editing** — use typed operations for modeled syntax. Class and Timeline retain unmodeled statements alongside typed edits; explicit [source-preserving mode](./docs/agent-mutation-policy.md) covers selected opaque Class and Flowchart operations.
+- **Agent-native editing** — use typed operations for modeled syntax. Class and Timeline retain unmodeled statements alongside typed edits; [source-preserving mode](./docs/agent-mutation-policy.md) keeps every authored line an edit does not touch (comments, indentation, quoting) and covers selected opaque Class and Flowchart operations.
 - **CLI + MCP + library** — use `am`, connect `agentic-mermaid-mcp`, or import `agentic-mermaid/agent` for rendering and editing. See the [API reference](./docs/api.md) for the other library and browser entry points.
 
 ## Installation
@@ -196,7 +196,7 @@ Rules:
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
-- For opaque Class/Flowchart inputs, bounded [source-preserving edits](./docs/agent-mutation-policy.md) support Class `add_member`/`remove_member` and Flowchart `set_label`/`rename_node`. Use `mutatePreservingSource`, `applyOps` with `mode: 'source-preserving'`, or CLI `--preserve-source`; MCP and the editor worker expose the same explicit mode. Save exact source and inspect the retained portability diagnostics; ambiguous ownership and unsupported dependencies refuse atomically.
+- To edit an existing file without reformatting it, use [source-preserving edits](./docs/agent-mutation-policy.md): `mutatePreservingSource`, `applyOps` with `mode: 'source-preserving'`, CLI `--preserve-source`, or the same MCP and editor-worker mode. Untouched lines stay byte-identical; `preservation.method` is `canonical` when an edit had to be re-serialized. For opaque Class/Flowchart inputs the mode supports Class `add_member`/`remove_member` and Flowchart `set_label`/`rename_node`; save exact source and inspect the retained portability diagnostics.
 
 ## Supported diagram families
 

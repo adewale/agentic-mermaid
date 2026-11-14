@@ -33,7 +33,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
   const sourceResults = new WeakSet<object>()
-  const preservedSources = new WeakMap<object, string>()
+  const preservedSources = new WeakMap<object, { source: string; preservation?: unknown }>()
   const hardened = new WeakMap<object, unknown>()
   const raw = new WeakMap<object, object>()
   let nextId = 1
@@ -498,7 +498,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           trustDiagram(output)
           if ('diagram' in r.value) {
             sourceResults.add(r.value)
-            preservedSources.set(output, r.value.source)
+            preservedSources.set(output, { source: r.value.source, ...(r.value.preservation ? { preservation: r.value.preservation } : {}) })
           }
           call.output = idOf(output)
           call.fingerprint = fingerprint(output)
@@ -670,7 +670,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           }
         }
         const exact = preservedSources.get(d)
-        return { ok: true, family: d.kind, source: exact ?? mermaid.serializeMermaid(d), verify: summary, ...(exact !== undefined ? { mode: 'source-preserving' } : {}) }
+        return { ok: true, family: d.kind, source: exact?.source ?? mermaid.serializeMermaid(d), ...(exact !== undefined ? { mode: 'source-preserving', ...(exact.preservation ? { preservation: exact.preservation } : {}) } : {}), verify: summary }
       }
     } catch {
       // A returned value whose inspection trips a post-close proxy guard (e.g. a

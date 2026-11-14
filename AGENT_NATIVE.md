@@ -108,10 +108,13 @@ other inputs remain opaque source and refuse ordinary typed mutation. Preserving
 source is preferable to silently dropping meaning to fit a smaller model.
 
 Canonical serialization can normalize source spelling. Where exact retained
-bytes matter, the explicit source-preserving mode supports a bounded set of
-Class and Flowchart edits. It returns the edited source together with its parsed
-diagram and refuses ambiguous ownership or unsupported dependencies. See the
-[mutation policy](docs/agent-mutation-policy.md) for the operations and limits.
+bytes matter, the explicit source-preserving mode writes a typed edit as a
+local change to the authored source: untouched lines are copied byte for byte
+and the result must read back as the same diagram as the canonical edit, or
+the canonical source is returned with a receipt saying so. On opaque bodies it
+supports a bounded set of Class and Flowchart edits and refuses ambiguous
+ownership. See the [mutation policy](docs/agent-mutation-policy.md) for the
+operations and limits.
 
 ## Library, CLI and MCP
 

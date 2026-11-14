@@ -120,7 +120,20 @@ renderer defect. The [warning reference](https://agentic-mermaid.dev/warnings/)
 and [architecture reference](https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md)
 explain the generated warning catalog and its limits.
 
-## Source-preserved and opaque input
+## Keep the authored source when editing a file
+
+Ordinary `mutate` and `serializeMermaid` write the whole diagram canonically:
+comments, blank lines, indentation, quoting and `:::class` shorthand are
+rewritten. When the diagram came from a user's file, edit it in
+source-preserving mode instead: `mutatePreservingSource(diagram, op)`, library
+`applyOps({ source, ops, mode: 'source-preserving' })`, MCP `mutate` with
+`mode: 'source-preserving'`, or `am mutate --preserve-source`. Every authored
+line the ops do not touch is kept byte for byte, and new statements are written
+in portable Mermaid next to related ones. Save the returned `source` exactly
+after inspecting verification. Check `preservation`: `method: 'local'` means only
+the edited statements changed; `method: 'canonical'` means no local change could
+express the edit, so the whole diagram was re-serialized — say so (with its
+`reason`) instead of presenting it as a small edit.
 
 Unmodeled syntax can remain as opaque source or verbatim segments. A null
 narrower refuses structured mutation; it does not mean the source is empty.
@@ -128,13 +141,10 @@ If a task explicitly needs a source-level edit, make the smallest edit, say
 `source-level fallback`, then reparse and verify. Preserve comments and bytes
 outside the requested edit. Do not silently regenerate the diagram.
 
-For bounded opaque Class/Flowchart edits, use
-`mutatePreservingSource(diagram, op)`: Class `add_member`/`remove_member`, or
-Flowchart `set_label`/`rename_node`. Save `value.source` exactly after inspecting
-`verifyMermaid(value.diagram)`. The body remains opaque and its portability
-warning remains. Ambiguous ownership and unsupported dependencies refuse
-atomically. Library `applyOps` and MCP `mutate` select these batches with
-`mode: 'source-preserving'`; CLI uses `--preserve-source`. Read the
+On opaque bodies, source-preserving mode accepts only Class
+`add_member`/`remove_member` and Flowchart `set_label`/`rename_node`; the body
+remains opaque and its portability warning remains, and ambiguous ownership
+refuses atomically. Read the
 [mutation policy](https://agentic-mermaid.dev/docs/agent-mutation-policy/) for
 operation limits before choosing this path.
 

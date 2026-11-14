@@ -25,16 +25,23 @@ is \`opIndex\`) and the input is left untouched.
 Each op is { "kind": <op>, …fields }. Call \`describe_sdk\` for the detected
 family before authoring unfamiliar ops; it returns compact signatures or exact
 field types, enum values, defaults, and constraints.
-Set mode to source-preserving for supported edits to opaque Class or Flowchart
-source. Exact edited bytes and portability warnings are retained; unsupported
-operations still fail atomically. This mode does not promise portable export.`,
+Set mode to source-preserving to keep the authored source: every line the ops
+do not touch (comments, blank lines, indentation, quoting, :::classes,
+directives) is returned byte for byte and new statements are written in
+portable Mermaid next to related ones. The result reads back as the same
+diagram as the default (structured) edit. When no local change does, the
+canonical source is returned and \`preservation\` is { method: "canonical",
+reason }; otherwise { method: "local" }. Opaque Class or Flowchart bodies accept
+only their bounded source edits and keep their portability warnings.
+Deprecation: 0.6.0 makes source-preserving the default; pass mode "structured"
+to keep today's canonical output.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
         ops: mutationBatchSchema('Non-empty ordered list of edit ops; each is { kind, ...fields }.'),
-        mode: { type: 'string', enum: ['structured', 'source-preserving'], default: 'structured', description: 'Source-preserving mode edits owned source ranges without regenerating unsupported syntax.' },
+        mode: { type: 'string', enum: ['structured', 'source-preserving'], default: 'structured', description: 'structured re-serializes the whole diagram; source-preserving keeps every authored line the ops do not touch.' },
       },
       required: ['source', 'ops'],
     },

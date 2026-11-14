@@ -180,9 +180,10 @@ per-run assumption (see PREREGISTRATION.md §8).
   opaque. Agentic Mermaid fails to verify two diagrams that Mermaid 12.2.0
   accepts (`fluid-remote-message-processor`, dotted state ids;
   `airflow-dagrun-metrics`, a `2min` duration). Both arms meet those failures
-  when they verify. `am mutate` re-serializes a structured body canonically
-  (`--preserve-source` applies only to opaque bodies), so arm B's preservation
-  depends on whether agents keep that output or patch the original text.
+  when they verify. `am mutate` re-serializes a structured body canonically by default;
+  `--preserve-source` (and MCP `mode: "source-preserving"`) keeps untouched
+  authored lines for structured bodies too, so arm B's preservation depends on
+  which mode agents choose.
 
 ## Pilot (2026-11-13) and why the full run is deferred
 
@@ -201,6 +202,18 @@ writes structured bodies canonically and `--preserve-source` refuses them, so
 one run rewrote a quoted subgraph title into a new subgraph identity and the
 other wrote `<` as `#lt;` (displayed the same, recorded differently by
 Mermaid). Every B run dropped the diagram's comments.
+
+**Scripted typed edits (2026-11-14, no model calls).** For each of the 56
+tasks a typed operation can express (the other 7 edit notes, a nested
+fragment, an opaque State body or a mid-history commit, which no operation
+reaches), the edit was written as the op list an agent would send and
+applied through `applyOps`, then scored with `score.ts` against the Mermaid
+12.2.0 oracle. Canonical mode: 50 applied, 40 successes, 10 damaged, 18.6% of
+untouched lines kept (comments 66.7%). Source-preserving mode: 49 applied (one
+diagram fails verification on a class-note layout defect), 49 successes, 0
+damaged, 99.7% of untouched lines kept (comments 100%), every result local.
+This measures the editing path, not agents; rerunning the agent pilot is still
+the acceptance check.
 
 The confirmatory run is deferred: the pilot already shows the typed path losing
 on the primary metric for a known, fixable reason, so its result is predictable

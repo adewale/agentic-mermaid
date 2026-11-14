@@ -52,6 +52,32 @@ describe('source-preserving edits across agent channels', () => {
     expect(failed).toMatchObject({ ok: false, opIndex: 1 })
     expect('source' in failed).toBe(false)
   })
+  // A structured body: every channel returns the library's exact bytes and its
+  // preservation receipt, `local` or the announced `canonical` fallback.
+  test.each([
+    ['flowchart TD\n  %% keep\n    A["Old"] --> B\n', { kind: 'set_label', target: 'A', label: 'New' }, 'flowchart TD\n  %% keep\n    A["New"] --> B\n', 'local'],
+    ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, undefined, 'canonical'],
+  ] as const)('structured source-preserving edits agree across library, CLI and MCP: %j', async (source, op, expected, method) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.preservation?.method).toBe(method)
+    const structured = applyOps({ source, ops: [op] })
+    if (!structured.ok) throw new Error(structured.error.message)
+    expect(result.source).toBe(expected ?? structured.source)
+    const file = join(temp.dir('structured-source-mode-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    expect(JSON.parse(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source', '--json'])).out)).toMatchObject({ ok: true, source: result.source, mode: 'source-preserving', preservation: result.preservation })
+    const text = capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source']))
+    expect({ code: text.code, out: text.out, noted: text.err.includes('fell back to canonical serialization') }).toEqual({ code: 0, out: result.source, noted: method === 'canonical' })
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical'])).out).toBe(structured.source)
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical', '--preserve-source'])).code).toBe(2)
+    expect(runBatchLine(JSON.stringify({ op: 'mutate', source, mutation: op, preserveSource: true }))).toMatchObject({ ok: true, data: { source: result.source, mode: 'source-preserving' } })
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op], mode: 'source-preserving' } } })
+    expect(JSON.parse((response!.result as any).content[0].text)).toEqual(result)
+    const direct = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; return mermaid.mutatePreservingSource(d,${JSON.stringify(op)});`)
+    expect(direct.ok).toBe(true)
+    expect(direct.value).toEqual(result)
+  })
   test('CLI mutate --json and batch carry the MCP mutate envelope fields on failure and success', async () => {
     const source = 'flowchart TD\n  A --> B\n'
     const file = join(temp.dir('mutate-envelope-'), 'diagram.mmd')

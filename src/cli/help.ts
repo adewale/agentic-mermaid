@@ -29,7 +29,8 @@ Flags:
   --ascii                For render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: one MutationOp
   --ops <JSON|file>      For mutate: JSON array of MutationOps
-  --preserve-source     For mutate: edit supported source ranges without regenerating opaque syntax
+  --preserve-source      For mutate: keep untouched authored lines; write only the edited statements
+  --canonical            For mutate: re-serialize the whole diagram (today's default)
   --output <FILE>        Write render/preview output to FILE instead of stdout
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
@@ -147,9 +148,21 @@ Pipe to 'am serialize' to round-trip.`,
   serialize: `am serialize  (reads ValidDiagram JSON on stdin)
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source] [--json [--summary | --full]]
+  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source | --canonical] [--json [--summary | --full]]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
 With --json, emits {ok, family, source, verify}; verify is verify's full result.
+  --preserve-source Write the edit as a local change: every authored line the
+                    ops do not touch (comments, blank lines, indentation,
+                    quoting, :::classes, directives) is kept byte for byte and
+                    new statements are written in portable Mermaid next to
+                    related ones. The result must read back as the same diagram
+                    as the canonical edit; when no local change does, the
+                    canonical source is emitted, a note goes to stderr and
+                    --json carries preservation:{method:"canonical", reason}
+                    (method "local" otherwise). Opaque Class/Flowchart bodies
+                    accept only their bounded source operations.
+  --canonical       Re-serialize the whole diagram canonically (the default).
+Deprecation: 0.6.0 makes --preserve-source the default; pass --canonical to keep this output.
   --summary         With --json, verify is the compact MCP verify payload
                     {ok, family, summary, warnings, checks, layout: {bounds,
                     nodes, edges}} (--preserve-source already embeds {ok, warnings, checks})

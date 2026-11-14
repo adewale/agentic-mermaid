@@ -378,10 +378,12 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
   describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
-  // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
-  // Save value.source exactly; verify value.diagram. Ambiguous ownership and
-  // unsupported dependencies refuse; portability diagnostics remain present.
-  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram }, { code: string; message: string }>
+  // Structured bodies: any op; untouched authored lines are kept and
+  // value.preservation.method is 'local', or 'canonical' (with reason) when
+  // the edit had to be re-serialized. Opaque Class: add_member/remove_member;
+  // opaque Flowchart: set_label/rename_node; ambiguous ownership refuses.
+  // Save value.source exactly; verify value.diagram.
+  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram; preservation?: { method: 'local' | 'canonical'; reason?: string } }, { code: string; message: string }>
 }
 
 // Conventions:
