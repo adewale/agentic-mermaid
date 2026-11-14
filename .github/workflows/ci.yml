@@ -564,7 +564,7 @@ jobs:
     # Browser binaries and OS libraries are one versioned environment. Avoid
     # re-provisioning three engines from an Ubuntu mirror on every CI run.
     container:
-      image: ${{ contains(fromJSON('["browser","browser-site","payload"]'), matrix.suite) && 'mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0' || '' }}
+      image: ${{ contains(fromJSON('["browser","browser-site","payload"]'), matrix.suite) && 'mcr.microsoft.com/playwright:v1.65.1-noble@sha256:766137e2d9caad4744187e53cdc89320ba6f2eb57cff097374020944b44dd0a9' || '' }}
       options: --init --ipc=host
     defaults:
       run:
@@ -644,7 +644,7 @@ jobs:
       - name: Check the Playwright environment matches the installed package
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         run: |
-          bun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'
+          bun -e 'const {version}=require("playwright/package.json"); if(version!=="1.65.1") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'
           bunx playwright install --list
 
       - name: Resolve tested PR revisions
