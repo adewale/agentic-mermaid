@@ -64,11 +64,13 @@ requirement, block, C4 and swimlane) widen their corridors and retry when
 greedy routing fills one, within one shared cell-search ceiling
 (`route-search`, 4 million cells); an all-pairs table of 20 entities with
 attributes renders, a 20 × 20 bipartite table whose relations carry distinct
-labels refuses. When a class diagram exhausts that ceiling, each closed
+labels refuses. When a class diagram exhausts that ceiling, each
 complete-bipartite block of alike relations (`A0..A19 --> B0..B19`: one kind,
 and one label and cardinality text or none) draws as one bus instead: one port
 per card, collector and distributor runs meeting at one junction, and every
 relation keeping its own identity, endpoints, markers and connected owned ink.
+Other relations touching the block's classes route on their own and cross the
+bus only perpendicularly.
 The block's shared label is written once beside the junction, and its shared
 cardinalities once beside each card's port.
 A block of at least 9 classes on each side cannot route relation by relation

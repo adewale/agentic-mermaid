@@ -12,6 +12,7 @@ import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 import { readFileSync } from 'node:fs'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 import { withPerformanceObserver } from '../performance-observations.ts'
+import { TERMINAL_ROUTE_SEARCH_LIMIT } from '../ascii/terminal-limits.ts'
 
 const denseClassSource = `classDiagram
 direction TB
@@ -625,13 +626,17 @@ test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, u
 // runs first (it once spent the whole search ceiling before failing). Text
 // the block's relations share (`texts`: a label, cardinalities) is written
 // once per shared place, owned by exactly the relations it describes: all of
-// them, or those leaving (entering) one card.
+// them, or those leaving (entering) one card. Relations outside the block
+// that touch its cards (`others`: another kind, or the same kind to a card
+// outside it) route on their own, with their own ports and ink.
 const range20 = Array.from({ length: 20 }, (_, i) => i)
-const bipartiteTable = (line: (i: number, j: number) => string, header: readonly string[] = ['classDiagram']) => [...header, ...range20.flatMap(i => range20.map(j => line(i, j)))].join('\n')
-const busTables: Array<{ name: string; source: string; pair?: (i: number, j: number) => readonly [string, string]; faces?: readonly [string, string]; ends: readonly [readonly TerminalMarker['shape'][], readonly TerminalMarker['shape'][]]; texts?: ReadonlyArray<readonly [string, number, 'all' | 'from' | 'to']> }> = [
+const bipartiteTable = (line: (i: number, j: number) => string, header: readonly string[] = ['classDiagram'], others: readonly string[] = []) => [...header, ...range20.flatMap(i => range20.map(j => line(i, j))), ...others].join('\n')
+const classOthers = ['A0 <|-- X', 'Y --> B0', 'A1 --> Z', 'W ..> A2']
+const busTables: Array<{ name: string; source: string; pair?: (i: number, j: number) => readonly [string, string]; faces?: readonly [string, string]; ends: readonly [readonly TerminalMarker['shape'][], readonly TerminalMarker['shape'][]]; texts?: ReadonlyArray<readonly [string, number, 'all' | 'from' | 'to']>; others?: ReadonlyArray<readonly [string, string]> }> = [
   { name: 'Class 20 x 20 table of -->', source: bipartiteTable((i, j) => `A${i} --> B${j}`), ends: [[], ['triangle']] },
   { name: 'Class 20 x 20 table of <|--', source: bipartiteTable((i, j) => `A${i} <|-- B${j}`), ends: [['open-arrow'], []] },
   { name: 'Class 20 x 20 table of --> sharing a label and cardinalities', source: bipartiteTable((i, j) => `A${i} "one" --> "many" B${j} : uses`), ends: [[], ['triangle']], texts: [['uses', 1, 'all'], ['one', 20, 'from'], ['many', 20, 'to']] },
+  { name: 'Class 20 x 20 table of --> beside relations touching its cards', source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram'], classOthers), ends: [[], ['triangle']], others: [['A0', 'X'], ['Y', 'B0'], ['A1', 'Z'], ['W', 'A2']] },
 ]
 /** Breadth-first search over the cells an edge owns, through its own directions only. */
 function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): boolean {
@@ -653,24 +658,27 @@ function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): bool
   }
   return seen.has(end!)
 }
-test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [] }) => {
+test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [], others = [] }) => {
   let searched = 0
   const result = withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === 'terminal-route-search') searched += event.units }, () => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }))
-  expect(searched).toBe(0)
+  // Only relations outside the block search for their routes.
+  if (others.length) expect(searched).toBeLessThan(TERMINAL_ROUTE_SEARCH_LIMIT)
+  else expect(searched).toBe(0)
   const doc = terminalDocumentOf(result)!
   expect(certifyTerminalLayout(doc, result.text, 'none')).toMatchObject({ status: 'passed', issues: [] })
   expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' }).text).toBe(result.text)
-  const edges = doc.regions().filter(region => region.kind === 'edge')
-  expect(new Set(edges.map(edge => edge.id)).size).toBe(400)
-  expect(edges.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(range20.flatMap(i => range20.map(j => pair(i, j).join('>'))).sort())
+  const edges = doc.regions().filter(region => region.kind === 'edge'), members = edges.filter(edge => edge.bundle)
+  expect(new Set(edges.map(edge => edge.id)).size).toBe(400 + others.length)
+  expect(members.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(range20.flatMap(i => range20.map(j => pair(i, j).join('>'))).sort())
+  expect(edges.filter(edge => !edge.bundle).map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(others.map(pair => pair.join('>')).sort())
   const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
-  expect(owners.every(owner => owner.route === 'connected' && owner.bundle === owners[0]!.bundle && owner.bundle)).toBe(true)
-  expect([...(doc.layoutEvidence().pathWitnesses ?? [])].filter(witness => witness !== null)).toHaveLength(400)
+  expect(owners.filter(owner => owner.bundle).every(owner => owner.route === 'connected' && owner.bundle === members[0]!.bundle)).toBe(true)
+  expect([...(doc.layoutEvidence().pathWitnesses ?? [])].filter(witness => witness !== null)).toHaveLength(owners.filter(owner => owner.route === 'connected').length)
   const portsAt = new Map<string, Set<string>>()
-  for (const edge of edges) {
+  for (const edge of edges) expect(ownDirectionsConnect(doc, edge), edge.id).toBe(true)
+  for (const edge of members) {
     expect(edge.ports!.map(port => [port.end, port.nodeId, port.side])).toEqual([['start', edge.from, faces[0]], ['end', edge.to, faces[1]]])
     for (const port of edge.ports!) portsAt.set(port.nodeId, (portsAt.get(port.nodeId) ?? new Set()).add(`${port.x},${port.y}`))
-    expect(ownDirectionsConnect(doc, edge), edge.id).toBe(true)
     expect(edge.ports!.map(port => port.markers!.map(marker => marker.shape))).toEqual(ends.map(shapes => [...shapes]))
     expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(ends.flat())
     for (const [text, , share] of texts) if (share === 'all') expect(edge.projectedText, edge.id).toBe(text)
@@ -683,9 +691,9 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
     expect({ text, places: places.length }).toEqual({ text, places: count })
     for (const [x, y] of places) {
       // A label belongs to each relation; a cardinality to each relation's own cardinality label.
-      const described = new Set(doc.cell(x, y)!.owners.flatMap(owner => (share === 'all' ? (owner.kind === 'edge' ? [owner.id] : []) : owner.kind === 'label' && owner.parent?.kind === 'edge' ? [owner.parent.id] : []))), members = edges.filter(edge => described.has(edge.id))
-      expect({ text, described: described.size, members: members.length }).toEqual({ text, described: share === 'all' ? 400 : 20, members: described.size })
-      if (share !== 'all') expect(new Set(members.map(edge => (share === 'from' ? edge.from : edge.to))).size).toBe(1)
+      const described = new Set(doc.cell(x, y)!.owners.flatMap(owner => (share === 'all' ? (owner.kind === 'edge' ? [owner.id] : []) : owner.kind === 'label' && owner.parent?.kind === 'edge' ? [owner.parent.id] : []))), holders = members.filter(edge => described.has(edge.id))
+      expect({ text, described: described.size, members: holders.length }).toEqual({ text, described: share === 'all' ? 400 : 20, members: described.size })
+      if (share !== 'all') expect(new Set(holders.map(edge => (share === 'from' ? edge.from : edge.to))).size).toBe(1)
     }
   }
 })

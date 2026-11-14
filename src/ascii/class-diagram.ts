@@ -42,9 +42,9 @@ function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): Ter
 }
 
 export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
-  // A table too dense to route relation by relation draws each closed
-  // complete-bipartite block of alike, unlabeled relations as one bus.
-  // Every diagram that routes relation by relation keeps that drawing.
+  // A table too dense to route relation by relation draws each
+  // complete-bipartite block of alike relations as one bus. Every diagram
+  // that routes relation by relation keeps that drawing.
   return renderWithBuses(choose => renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, choose), 9)
 }
 

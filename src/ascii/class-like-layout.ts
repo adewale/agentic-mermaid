@@ -39,7 +39,7 @@ export interface BoxRelation {
 }
 export interface BoxPort extends Readonly<GridCoord> { readonly side: BoxSide }
 /**
- * A closed complete-bipartite block of alike relations, drawn as one bus: each
+ * A complete-bipartite block of alike relations, drawn as one bus: each
  * source's relations leave through one shared port and stem into a collector
  * run, the collector meets a distributor run at one junction, and the
  * distributor stems into one shared port of each target. Every relation keeps
@@ -97,44 +97,54 @@ function sides(relation: BoxRelation, direction: DiagramDirection, boxes?: Reado
 }
 
 /**
- * The closed complete-bipartite blocks of alike relations that contract to a
- * bus: sources S and targets T with |S|, |T| >= 2 and |S||T| > |S| + |T|,
- * every s -> t joined by exactly one relation, all with the same defined
+ * The complete-bipartite blocks of alike relations that contract to a bus:
+ * sources S and targets T with |S|, |T| >= 2 and |S||T| > |S| + |T|, every
+ * s -> t joined by exactly one relation, all with the same defined
  * `signature` (the family's complete shared paint: kind, markers, shaft and
- * text), and no other relation leaving a source or entering a target.
- * Deterministic: blocks follow their first member, members authored order.
+ * text). Other relations may touch a block's cards; they route on their own
+ * and cross its bus only as they cross any route. Each block takes, as its
+ * targets, every remaining alike target of one of its sources, and as its
+ * sources every source reaching all of them; the largest such block is
+ * taken first (the earliest on ties), its relations leave the remaining
+ * ones, and the next is sought, so blocks never share a relation. A closed
+ * block (no other relation leaving a source or entering a target) is
+ * always taken whole. Deterministic: blocks follow their first member,
+ * members authored order.
  */
 export function bipartiteBuses(relations: readonly BoxRelation[], signature: (relation: BoxRelation, index: number) => string | undefined): BoxBus[] {
-  const pairs = new Map<string, number>(), outgoing = new Map<string, number>(), incoming = new Map<string, number>()
+  const pairs = new Map<string, number>()
   for (const relation of relations) {
     const pair = JSON.stringify([relation.from, relation.to])
     pairs.set(pair, (pairs.get(pair) ?? 0) + 1)
-    outgoing.set(relation.from, (outgoing.get(relation.from) ?? 0) + 1)
-    incoming.set(relation.to, (incoming.get(relation.to) ?? 0) + 1)
   }
-  const families = new Map<string, Map<string, number[]>>(), order = new Map<string, number>()
+  // Each family's sources, each with its remaining alike relations by target.
+  const families = new Map<string, Map<string, Map<string, number>>>(), order = new Map<string, number>()
   relations.forEach((relation, index) => {
     for (const id of [relation.from, relation.to]) if (!order.has(id)) order.set(id, order.size)
     const family = relation.from === relation.to || pairs.get(JSON.stringify([relation.from, relation.to])) !== 1 ? undefined : signature(relation, index)
     if (family === undefined) return
-    const bySource = families.get(family) ?? new Map<string, number[]>()
-    families.set(family, bySource)
-    bySource.set(relation.from, [...(bySource.get(relation.from) ?? []), index])
+    const reach = families.get(family) ?? new Map<string, Map<string, number>>()
+    families.set(family, reach)
+    reach.set(relation.from, (reach.get(relation.from) ?? new Map()).set(relation.to, index))
   })
   const buses: Array<Omit<BoxBus, 'id'>> = []
-  for (const bySource of families.values()) {
-    const byTargets = new Map<string, { members: number[]; sources: string[]; targets: string[] }>()
-    for (const [source, members] of bySource) {
-      const targets = members.map(index => relations[index]!.to).sort((a, b) => order.get(a)! - order.get(b)!), key = JSON.stringify(targets)
-      const draft = byTargets.get(key)
-      if (draft) { draft.sources.push(source); draft.members.push(...members) } else byTargets.set(key, { members: [...members], sources: [source], targets })
+  for (const reach of families.values())
+    for (;;) {
+      let best: Omit<BoxBus, 'id'> | undefined
+      const tried = new Set<string>()
+      for (const edges of reach.values()) {
+        const targets = [...edges.keys()].sort((a, b) => order.get(a)! - order.get(b)!), key = JSON.stringify(targets)
+        if (targets.length < 2 || tried.has(key)) continue
+        tried.add(key)
+        const sources = [...reach].filter(([, other]) => targets.every(target => other.has(target))).map(([source]) => source)
+        if (sources.length < 2 || sources.length * targets.length <= sources.length + targets.length) continue
+        const members = sources.flatMap(source => targets.map(target => reach.get(source)!.get(target)!)).sort((a, b) => a - b)
+        if (!best || members.length > best.members.length || (members.length === best.members.length && members[0]! < best.members[0]!)) best = { members, sources, targets }
+      }
+      if (!best) break
+      buses.push(best)
+      for (const source of best.sources) for (const target of best.targets) reach.get(source)!.delete(target)
     }
-    for (const { members, sources, targets } of byTargets.values()) {
-      if (sources.length < 2 || targets.length < 2 || sources.length * targets.length <= sources.length + targets.length) continue
-      if (sources.some(id => outgoing.get(id) !== targets.length) || targets.some(id => incoming.get(id) !== sources.length)) continue
-      buses.push({ members: members.sort((a, b) => a - b), sources, targets })
-    }
-  }
   return buses.sort((a, b) => a.members[0]! - b.members[0]!).map((bus, index) => Object.freeze({ id: `bus:${index}`, ...bus }))
 }
 
