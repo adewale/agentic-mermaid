@@ -8,10 +8,10 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type 
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
-import { SEQUENCE_CENTRAL_CIRCLE, SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
+import { SEQUENCE_CENTRAL_CIRCLE, SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceIconGlyphFrame, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
-import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
+import type { Geometry, MarkerDescriptor, MarkPaint } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
@@ -392,16 +392,13 @@ function renderActor<T>(
       }),
     })
   } else if (type !== 'participant') {
-    const left = x - width / 2
-    const top = y + 2
-    const w = width
-    const h = Math.max(24, height - 4)
+    const { left, top, w, h } = sequenceIconGlyphFrame(x, y, width, height)
     const glyphs: T[] = []
     const owner = { id, role: 'actor' as const }
-    const paint = { fill: rawFillColor, stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(lineWidth) }
+    const paint: MarkPaint = { fill: rawFillColor, stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(lineWidth) }
     // Each glyph piece carries the paint; the group holds the hook classes.
-    const add = (geometry: Geometry): void => {
-      glyphs.push(marks.shape({ id: semanticChildId(`actor:${id}:icon`, 'part', glyphs.length), role: 'icon', owner, geometry, paint }))
+    const add = (geometry: Geometry, piecePaint = paint): void => {
+      glyphs.push(marks.shape({ id: semanticChildId(`actor:${id}:icon`, 'part', glyphs.length), role: 'icon', owner, geometry, paint: piecePaint }))
     }
     const path = (d: string): void => add({ kind: 'path', d })
     const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r })
@@ -409,7 +406,10 @@ function renderActor<T>(
     const rect = (x: number, y: number, width: number, height: number, rx?: number): void => add({ kind: 'rect', x, y, width, height, ...(rx === undefined ? {} : { rx }) })
     if (type === 'database') {
       add({ kind: 'ellipse', cx: x, cy: top + 5, rx: w / 2, ry: 5 })
-      path(`M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}`)
+      // The walls meet the arc where it is vertical, so a round join changes
+      // no ink; it lets paint certification bound the walls by their
+      // half-width, where a creation message's head meets them.
+      add({ kind: 'path', d: `M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}` }, { ...paint, strokeLinejoin: 'round' })
       add({ kind: 'ellipse', cx: x, cy: top + h - 5, rx: w / 2, ry: 5 })
     } else if (type === 'collections') {
       rect(left + 6, top, w - 6, h - 6)

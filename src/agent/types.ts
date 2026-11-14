@@ -183,6 +183,8 @@ export interface SequenceCreateStatement {
   kind: 'create'
   id: string
   declaration: 'participant' | 'actor'
+  /** Visual type from `@{ "type": … }` metadata, when it is not the keyword's. */
+  type?: SequenceParticipantKind
   label: string
   labelContent?: LabelContent
   wrap?: boolean

@@ -111,14 +111,55 @@ export function sequenceActorIconScale(height: number): number {
   return (height / 24) * 0.9
 }
 
+/** The frame an icon participant's glyph is drawn in (all but `participant`
+ * and the stick-figure `actor`): from 2 below the header's top, at least 24
+ * high, across the header's width. */
+export function sequenceIconGlyphFrame(x: number, y: number, width: number, height: number): { left: number; top: number; w: number; h: number } {
+  return { left: x - width / 2, top: y + 2, w: width, h: Math.max(24, height - 4) }
+}
+
+/** How far from its centre a created header's painted outline reaches on
+ * `side` (-1 left, 1 right) within `band` of its middle row, where the
+ * message creating it arrives with ink that far across the row, out to the
+ * outline stroke's edge: a card's side, the stick figure's outer circle, or
+ * the glyph piece of an icon participant that the band meets first (a
+ * database's wall, a queue's rounded end, the circle of an entity, control
+ * or boundary, a boundary's bar on its left). */
+function sequenceCreatedOutline(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, side: -1 | 1, band: number): number {
+  const half = outlineWidth / 2
+  if (type === 'participant') return spec.width / 2 + half
+  if (type === 'actor') return 9 * sequenceActorIconScale(spec.height) + half
+  // Glyph coordinates relative to the header's centre and middle row.
+  const { left, top, w, h } = sequenceIconGlyphFrame(0, -spec.height / 2, spec.width, spec.height)
+  const r = Math.min(w, h) / 2 - 3
+  // A stroked circle at (cx, cy) as far as the band crosses it.
+  const circle = (cx: number, cy: number, radius: number) => side * cx + Math.sqrt(Math.max(0, (radius + half) ** 2 - Math.max(0, Math.abs(cy) - band) ** 2))
+  switch (type) {
+    case 'database':
+    case 'collections':
+      // The row crosses both side walls (a database's, each card's outer one).
+      return w / 2 + half
+    case 'queue':
+      // A rect rounded by half its height: its ends are semicircles.
+      return Math.max(0, w / 2 - h / 2) + circle(0, top + h / 2, Math.min(w, h) / 2)
+    case 'entity':
+      return circle(0, top + h / 2 - 3, r)
+    case 'boundary':
+      return side < 0 ? -(left + 3) + half : circle(3, top + h / 2, r)
+    default:
+      return circle(0, top + h / 2, r)
+  }
+}
+
 /** How far from a created participant's lifeline the message creating it
- * meets its header. The row runs through the header's middle, so that is the
- * painted outline (a card's side, or the stick figure's outer circle, out to
- * its stroke's edge), plus how far the head paints past its endpoint, or a
- * `()` circle's radius: the circle sits against the outline, outside it. */
-export function sequenceCreatedContactInset(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, style: ResolvedRenderStyle, message: Pick<Message, 'endHead' | 'centralEnd'>): number {
-  const outline = (type === 'actor' ? 9 * sequenceActorIconScale(spec.height) : spec.width / 2) + outlineWidth / 2
-  return outline + (message.centralEnd ? CENTRAL_CIRCLE_OUTER : sequenceHeadOverreach(style, message.endHead, 'end'))
+ * meets its header: the painted outline on the sender's side (`side`, -1
+ * left of the lifeline, 1 right of it) that the message's end ink meets
+ * across the header's middle row, plus how far the head paints past its
+ * endpoint, or a `()` circle's radius: the circle sits against the outline,
+ * outside it. */
+export function sequenceCreatedContactInset(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, style: ResolvedRenderStyle, message: Pick<Message, 'endHead' | 'centralEnd'>, side: -1 | 1): number {
+  const band = message.centralEnd ? CENTRAL_CIRCLE_OUTER : Math.max(style.lineWidth / 2, sequenceHeadHalfHeight(sequenceMarkerResources(style), message.endHead, 'end', style.lineWidth))
+  return sequenceCreatedOutline(type, spec, outlineWidth, side, band) + (message.centralEnd ? CENTRAL_CIRCLE_OUTER : sequenceHeadOverreach(style, message.endHead, 'end'))
 }
 
 /** Half-size of the X cross ending a destroyed lifeline. */

@@ -425,7 +425,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
       const id = statement.kind === 'create' ? statement.id : statement.actorId
       const at = messageIndex < total ? ` before message#${messageIndex}` : ''
       add(out, statement.kind === 'create'
-        ? `create ${statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
+        ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
         : `destroy ${clean(id)}${at}`)
     }
   }

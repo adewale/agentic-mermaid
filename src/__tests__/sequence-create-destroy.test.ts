@@ -52,6 +52,18 @@ describe('parseSequenceDiagram – create/destroy', () => {
     expect(donald.destroyMessageIndex).toBe(3) // "A-xD: goodbye"
   })
 
+  // Mermaid 12.2.0 reads type metadata on a `create` line as on a declaration.
+  it.each([
+    ['create participant C@{ "type": "database" }', 'database', 'C'],
+    ['create participant C@{ type: queue } as Jobs', 'queue', 'Jobs'],
+    ['create actor C@{ "type": "boundary", "alias": "Gate" }', 'boundary', 'Gate'],
+    ['create actor C@{ "alias": "Don" }', 'actor', 'Don'],
+    ['create participant C @{ "type": "entity" } as wrap: Long entity name', 'entity', 'Long entity name'],
+  ] as const)('%s creates a %s at its message', (create, type, label) => {
+    const d = parse(`sequenceDiagram\nA->>B: hi\n${create}\nA->>C: spawn`)
+    expect(d.actors.find(a => a.id === 'C')).toMatchObject({ type, label, createMessageIndex: 1 })
+  })
+
   it('create participant (box form) works too', () => {
     const d = parse(`sequenceDiagram
       A->>B: hi
@@ -113,26 +125,71 @@ describe('sequence create/destroy layout', () => {
   })
 
   // A creation message ends where its head meets the created header's
-  // outline, a participant card's side or the stick figure's outer circle,
-  // with the head's ink outside it, so the header covers none of the head and
-  // strict layout safety certifies the diagram (the Mermaid documentation
-  // example creates the actor `D as Donald` this way).
+  // outline, a participant card's side, the stick figure's outer circle or the
+  // piece of an icon participant's glyph the row meets, with the head's ink
+  // outside it, so the header covers none of the head and strict layout
+  // safety certifies the diagram (the Mermaid documentation example creates
+  // the actor `D as Donald` this way).
   const creationHeads = [['filled', '->>'], ['dotted', '-->>'], ['open', '->'], ['cross', '-x'], ['async', '-)'], ['bidirectional', '<<->>']] as const
-  it.each(['participant', 'actor'].flatMap(type => creationHeads.flatMap(([head, arrow]) => [
-    [type, head, 'right', `participant A\ncreate ${type} C as Created\nA${arrow}C: Welcome`],
-    [type, head, 'left', `create ${type} C as Created\nA${arrow}C: Welcome`],
+  const createdHeaders = [
+    ['participant', 'create participant C as Created'],
+    ['actor', 'create actor C as Created'],
+    ...['database', 'collections', 'queue', 'entity', 'boundary', 'control'].map(type => [type, `create participant C@{ "type": "${type}" } as Created`] as const),
+    ['database', 'create actor C@{ "type": "database" } as Created'],
+  ] as const
+  /** How far the drawn glyph's ink reaches from `x` towards `side` (-1 left,
+   * 1 right) on row `y`, read from the SVG's own primitives, each out to its
+   * stroke's half-width. */
+  function glyphReach(glyph: string, x: number, y: number, side: number): number {
+    const reaches: number[] = []
+    const attr = (tag: string, name: string) => Number(tag.match(new RegExp(` ${name}="([-\\d.]+)"`))?.[1])
+    for (const tag of glyph.match(/<(?:rect|circle|ellipse|line|path)\b[^>]*>/g) ?? []) {
+      const half = attr(tag, 'stroke-width') / 2
+      if (tag.startsWith('<rect')) {
+        const top = attr(tag, 'y'), left = attr(tag, 'x'), width = attr(tag, 'width'), height = attr(tag, 'height')
+        if (y >= top && y <= top + height) reaches.push(side * ((side < 0 ? left : left + width) - x) + half)
+      } else if (tag.startsWith('<circle')) {
+        const dy = y - attr(tag, 'cy'), r = attr(tag, 'r') + half
+        if (Math.abs(dy) <= r) reaches.push(side * (attr(tag, 'cx') - x) + Math.sqrt(r * r - dy * dy))
+      } else if (tag.startsWith('<ellipse')) {
+        const dy = (y - attr(tag, 'cy')) / (attr(tag, 'ry') + half)
+        if (Math.abs(dy) <= 1) reaches.push(side * (attr(tag, 'cx') - x) + (attr(tag, 'rx') + half) * Math.sqrt(1 - dy * dy))
+      } else if (tag.startsWith('<line')) {
+        const y1 = attr(tag, 'y1'), y2 = attr(tag, 'y2')
+        if (y >= Math.min(y1, y2) - half && y <= Math.max(y1, y2) + half) reaches.push(Math.max(side * (attr(tag, 'x1') - x), side * (attr(tag, 'x2') - x)) + half)
+      } else {
+        // The database's walls run vertically between the path's points
+        // (M, L, V and A commands; an arc ends at its last two numbers).
+        const points: Array<readonly [number, number]> = []
+        for (const [, command, args] of tag.match(/ d="([^"]+)"/)![1]!.matchAll(/([MLVA])([^MLVA]*)/g)) {
+          const n = args!.trim().split(/[\s,]+/).map(Number)
+          points.push(command === 'V' ? [points.at(-1)![0], n[0]!] : [n.at(-2)!, n.at(-1)!])
+        }
+        if (y >= Math.min(...points.map(point => point[1])) && y <= Math.max(...points.map(point => point[1]))) reaches.push(Math.max(...points.map(point => side * (point[0] - x))) + half)
+      }
+    }
+    return Math.max(...reaches)
+  }
+  it.each(createdHeaders.flatMap(([type, create]) => creationHeads.flatMap(([head, arrow]) => [
+    [type, head, 'right', `participant A\n${create}\nA${arrow}C: Welcome`],
+    [type, head, 'left', `${create}\nA${arrow}C: Welcome`],
   ])))('a creation message meets the created %s header with a %s head from the %s', (type, _head, _direction, body) => {
     const source = `sequenceDiagram\n${body}\nC-->>A: back`
     const p = layoutSequenceDiagram(parse(source))
     const message = p.messages[0]!, sender = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
+    expect(target.type as string).toBe(type)
     expect(message).toMatchObject({ from: 'A', to: 'C', label: 'Welcome', x1: sender.x })
     expect(message.points.at(-1)).toEqual({ x: message.x2, y: message.y })
     const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
     expect(receipt.layoutCertification?.status).toBe('passed')
-    // The drawn outline on the message row: the card's side, or the icon's
-    // outer circle (radius 9 of its 24-unit box), each with a 1px stroke.
+    // The drawn outline on the message row: the card's side, the icon's
+    // outer circle (radius 9 of its 24-unit box), or the glyph's own pieces,
+    // each with a 1px stroke.
     const icon = svg.match(/<g transform="translate\(([-\d.]+),([-\d.]+)\) scale\(([-\d.]+)\)">/)
-    const outline = type === 'actor' ? 9 * Number(icon![3]) + 0.5 : target.width / 2 + 0.5
+    const glyph = svg.match(/<g class="sequence-actor-glyph[^]*?<\/g>/)?.[0]
+    const outline = type === 'actor' ? 9 * Number(icon![3]) + 0.5
+      : type === 'participant' ? target.width / 2 + 0.5
+        : glyphReach(glyph!, target.x, message.y, Math.sign(sender.x - target.x))
     if (type === 'actor') {
       expect(Number(icon![1]) + 12 * Number(icon![3])).toBe(target.x)
       expect(Number(icon![2]) + 12 * Number(icon![3])).toBe(message.y)

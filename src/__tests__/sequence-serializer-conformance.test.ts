@@ -326,6 +326,9 @@ describe('sequence create/destroy are typed statements', () => {
     ['stacked destroys at a message from the last', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye', ['destroy Carl', 'destroy Bob']],
     ['stacked creates at a message to the last', 'Alice->>Bob: hi\n  create participant X\n  create actor Y\n  Bob->>Y: make', ['create X', 'create Y']],
     ['a stacked create and destroy', 'Alice->>Bob: hi\n  create participant Y\n  destroy Alice\n  Bob->>Y: make', ['create Y', 'destroy Alice']],
+    ['a created database participant', 'A->>B: hi\n  create participant D@{ "type": "database" }\n  A->>D: store\n  destroy D\n  D-->>A: stored', ['create D', 'destroy D']],
+    ['a created icon actor with an alias', 'A->>B: hi\n  create actor Q@{ "type": "queue" } as Jobs\n  B-)Q: enqueue', ['create Q']],
+    ['a created actor typed as a participant', 'A->>B: hi\n  create actor P@{ "type": "participant" } as Plain\n  B->>P: make', ['create P']],
   ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = sequence(source)
@@ -338,6 +341,10 @@ describe('sequence create/destroy are typed statements', () => {
     const { ours, mermaid } = await bindings(written)
     expect(Object.keys(ours).sort()).toEqual([...directives].sort())
     expect(mermaid).toEqual(ours)
+    // Each participant, created ones included, has Mermaid's type and label.
+    const upstreamParse = await upstream.parse(written)
+    expect(upstreamParse.ok && upstreamParse.sequence?.actors.map(actor => [actor.name, actor.type, actor.description]))
+      .toEqual(renderParse(written).actors.map(actor => [actor.id, actor.type, actor.label]))
   })
 
   // Mermaid binds a stacked directive to the message after the stack even

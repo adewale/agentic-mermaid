@@ -117,9 +117,11 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 
     if (syntax?.kind === 'create') {
       fold.applyAll(participantEventsOf(syntax))
-      const { id, label, type, wrap } = syntax.declaration
+      const { id, label, type, keyword, wrap, unmodeledMetadata } = syntax.declaration
+      // Metadata the body does not model stays verbatim, as a declaration's.
+      if (unmodeledMetadata?.length) { appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue }
       const text = readSequenceText(label)
-      statements.push({ kind: 'create', id, declaration: type === 'actor' ? 'actor' : 'participant', label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) })
+      statements.push({ kind: 'create', id, declaration: keyword, ...(type === keyword ? {} : { type }), label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) })
       i++
       continue
     }
@@ -594,7 +596,9 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
 }
 
 function renderCreate(statement: Extract<SequenceStatement, { kind: 'create' }>): string {
-  const prefix = `  create ${statement.declaration} ${statement.id}`
+  // A type the keyword does not give is written as a declaration writes it.
+  const metadata = statement.type !== undefined && statement.type !== statement.declaration ? `@{ "type": "${statement.type}" }` : ''
+  const prefix = `  create ${statement.declaration} ${statement.id}${metadata}`
   const label = writeSequenceControlledText(statement.label, statement.labelContent, statement.wrap, `${prefix} as `)
   return `${prefix}${label !== statement.id ? ` as ${label}` : ''}`
 }

@@ -142,8 +142,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // A creation message ends where its head's ink (or its `()` circle) meets
   // the created header's painted outline, not at the lifeline under the
   // header, so the header never covers either.
-  const createdContactInset = (actor: number, message: Message): number =>
-    sequenceCreatedContactInset(diagram.actors[actor]!.type, actorSpecs[actor]!, actorRoleStyles[actor]?.lineWidth ?? style.nodeLineWidth, style, message)
+  const createdContactInset = (actor: number, message: Message, side: -1 | 1): number =>
+    sequenceCreatedContactInset(diagram.actors[actor]!.type, actorSpecs[actor]!, actorRoleStyles[actor]?.lineWidth ?? style.nodeLineWidth, style, message, side)
   const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
   for (let mi = 0; mi < diagram.messages.length; mi++) {
     const message = diagram.messages[mi]!
@@ -160,7 +160,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const first = Math.min(from, to)
     const last = Math.max(from, to)
     const span = last - first
-    const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi ? createdContactInset(to, message) : 0
+    const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi ? createdContactInset(to, message, from < to ? -1 : 1) : 0
     const requiredPerGap = (spec.requiredSpanWidth + createdHeaderWidth) / span
     for (let gap = first; gap < last; gap++) {
       messageGapRequirements[gap] = Math.max(messageGapRequirements[gap]!, requiredPerGap)
@@ -583,7 +583,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const createdHeader = diagram.actors[toIdx]!.createMessageIndex === msgIdx
     // A creation message meets the header's outline; later messages use the
     // lifeline. Ending at its centre puts the head under the header.
-    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * createdContactInset(toIdx, msg) : centerX2
+    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * createdContactInset(toIdx, msg, x1 < centerX2 ? -1 : 1) : centerX2
     const positionRow = (): PositionedMessage => {
       const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
       messages[msgIdx] = positioned

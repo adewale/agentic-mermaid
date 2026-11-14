@@ -555,7 +555,7 @@ function describeSequence(d: SequenceValidDiagram): string {
       continue
     }
     if (statement.kind === 'create') {
-      interactions.push(`create ${statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`)
+      interactions.push(`create ${statement.type ?? statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`)
       continue
     }
     if (statement.kind === 'destroy') {

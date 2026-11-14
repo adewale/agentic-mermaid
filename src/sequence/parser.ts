@@ -618,7 +618,7 @@ export function authoredSequenceColumn(source: NormalizedMermaidSource): (index:
  * the typed body both read. Context (which block is open) is the caller's. */
 export type SequenceStatementSyntax =
   | { kind: 'declaration'; declaration: ParsedActorDeclaration }
-  | { kind: 'create'; declaration: Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> }
+  | { kind: 'create'; declaration: ParsedSequenceCreate }
   | { kind: 'destroy'; actorId: string }
   | { kind: 'links'; actorId: string; links: Record<string, string> }
   /** `properties A: {…}` / `details A: <element id>`: actor data the
@@ -683,7 +683,7 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       if (parent?.kind !== 'block' || !continuationBelongsToBlock(syntax.continuation.type, parent.opener.type)) {
         issue(entry, 'sequence_block_boundary', `Sequence ${syntax.continuation.type} does not belong to the enclosing block`)
       }
-    } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
+    } else if ((syntax.kind === 'declaration' || syntax.kind === 'create') && syntax.declaration.unmodeledMetadata?.length) {
       issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
     } else if (syntax.kind === 'message' && syntax.message.localArrow) {
       const { localArrow, arrow } = syntax.message
@@ -765,8 +765,8 @@ export function participantEventsOf(statement: SequenceStatementSyntax | null): 
     }
     case 'create': {
       // Creating a known participant is an upstream error, never a rename.
-      const { id, label, type, wrap } = statement.declaration
-      return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, ...(wrap === undefined ? {} : { wrap }), create: true }]
+      const { id, label, type, keyword, wrap } = statement.declaration
+      return [{ kind: 'declare', id, keyword, type, label, ...(wrap === undefined ? {} : { wrap }), create: true }]
     }
     case 'links':
       return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links },
@@ -881,15 +881,27 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   }
 }
 
+/** A `create participant|actor X …` line: the participant it creates. */
+export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata'>
+
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
- *  agent parsers. */
-export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> | null {
+ *  agent parsers. Type metadata (`create participant D@{ "type": "database" }`)
+ *  reads as the declaration's does, which Mermaid accepts the same way. */
+export function parseSequenceCreateLine(line: string): ParsedSequenceCreate | null {
+  const metadata = line.match(/^create\s+(?=(?:participant|actor)\s+[^\s@]+\s*@\{)/i)
+  if (metadata) {
+    const declared = parseActorDeclaration(line.slice(metadata[0].length))
+    if (!declared) return null
+    const { id, label, type, keyword, wrap, unmodeledMetadata } = declared
+    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}) }
+  }
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
   assertSequenceParticipantId(id)
   const control = match[3] === undefined ? undefined : splitSequenceTextControl(match[3])
-  return { id, label: control?.text ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor', ...(control?.wrap === undefined ? {} : { wrap: control.wrap }) }
+  const keyword = match[1]!.toLowerCase() as 'participant' | 'actor'
+  return { id, label: control?.text ?? id, type: keyword, keyword, ...(control?.wrap === undefined ? {} : { wrap: control.wrap }) }
 }
 
 export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
