@@ -16,3 +16,7 @@ export const EXIT_VERIFY_FAILED = 3
 
 /** Uncaught exception inside the CLI (a bug). */
 export const EXIT_INTERNAL = 4
+
+/** The command exceeded its --timeout deadline and was stopped (the status
+ * coreutils `timeout` uses, so wrappers can treat both alike). */
+export const EXIT_TIMEOUT = 124

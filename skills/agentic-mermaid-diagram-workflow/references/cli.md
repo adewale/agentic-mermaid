@@ -46,7 +46,12 @@ am mutate flow.mmd --op '{"kind":"rename_node","from":"X","to":"Y"}'
 am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
-Exit codes: 0 ok, 2 arg/parse/mutation error or a render the input refuses, 3 verify failed, 4 internal (an `INTERNAL_ERROR` render, or a verify whose errors are all `INTERNAL_ERROR`).
+Exit codes: 0 ok, 2 arg/parse/mutation error or a render the input refuses, 3 verify failed, 4 internal (an `INTERNAL_ERROR` render, or a verify whose errors are all `INTERNAL_ERROR`), 124 the command exceeded `--timeout` and was stopped (`RENDER_TIMEOUT`).
+
+Commands that lay out a diagram (`render`, `verify`, `mutate`, `describe`,
+`preview`, `render-markdown`) stop after 120 s by default; pass `--timeout
+<seconds>` to change it or `--timeout 0` for no limit. `--watch` and `batch` take
+no deadline.
 
 PNG emits `BELOW_READABLE_SIZE` when the smallest measurable configured text
 lands below `--min-label-px` after final raster sizing. The provisional default

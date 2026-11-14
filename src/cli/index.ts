@@ -1180,7 +1180,7 @@ you haven't inspected.
 - llms-txt — this document
 - init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
-Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR).
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR), 124 exceeded --timeout (default 120 s; RENDER_TIMEOUT).
 
 ## MCP tools
 

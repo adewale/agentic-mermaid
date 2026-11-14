@@ -43,6 +43,8 @@ Flags:
   --certificates         For render --format layout: include route/family certificates
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
+  --timeout <SECONDS>    For render, verify, mutate, describe, preview, render-markdown: stop the
+                         command after SECONDS and exit 124 (default 120; 0 = no limit; not with --watch)
   --agent-instructions   Print the canonical agent-use guide
   --version, -v          Print the package version (with --json: {"ok":true,"version":...})
   --help                 Show this message (or per-command help: am <cmd> --help)
@@ -52,6 +54,7 @@ Exit codes:
   2  arg / parse error (bad flag, missing file, malformed JSON), or a render the input refuses
   3  verify reported errors (severity 'error')
   4  internal failure: an INTERNAL_ERROR render, or verify errors that are all INTERNAL_ERROR
+  124 the command exceeded its --timeout deadline and was stopped (RENDER_TIMEOUT)
 `
 
 /** Warning codes of one severity, comma-separated and wrapped for help text. */
@@ -98,6 +101,8 @@ ${cliRenderFormatHelpLines()}
   --min-label-px <PX> PNG only: warn below this effective text size
                     (provisional default 9; 0 disables)
   --watch           Re-render one input file on change (non-PNG only)
+  --timeout <SECONDS> Stop after SECONDS and exit 124 with RENDER_TIMEOUT
+                    (default 120; 0 = no limit); not with --watch
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, success prints {"ok":true,...}: textual forms as
 {"ok":true,"<format>":"...","receipt":{...},"warnings":[...]}, layout as the
