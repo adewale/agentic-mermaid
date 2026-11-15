@@ -55,7 +55,7 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     const probe = `
       import { createRequire } from 'node:module'
       const require = createRequire(import.meta.url)
-      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.includes('/elkjs/')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
+      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.endsWith('/elk-solver.cjs')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
       const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
       const states = [loaded()]
       renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')

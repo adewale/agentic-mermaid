@@ -126,7 +126,7 @@ function ensureBrowserBundle(target: 'complete' | 'zenuml' = 'complete') {
   }
 }
 
-function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
+function lazyImplementationChunk(input = 'src/elk-layered/kernel/layout.ts'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
