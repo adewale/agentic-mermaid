@@ -7,14 +7,15 @@
  *******************************************************************************/
 import type { Random } from '../java/util/Random.ts'
 import type { LayoutEdge, LayoutNode, LayoutPort } from './graph.ts'
-import { enumOption, numberOption, type Options } from './options.ts'
+import { enumOption, numberOption, paddingOption, type Options } from './options.ts'
 
 interface Segment { ports: LayoutPort[]; incomingCoordinates: number[]; outgoingCoordinates: number[]; incoming: Dependency[]; outgoing: Dependency[]; start: number; end: number; slot: number; mark: number; inWeight: number; outWeight: number; criticalIn: number; criticalOut: number; splitPartner?: Segment; splitBy?: Segment }
 interface Dependency { source: Segment; target: Segment; weight: number; critical: boolean }
 const TOLERANCE = 1e-3
+export type RoutingDirection = 'WEST_TO_EAST' | 'NORTH_TO_SOUTH' | 'SOUTH_TO_NORTH'
 
-/** OrthogonalEdgeRouter with the west-to-east routing direction strategy. */
-export function routeOrthogonal(layers: LayoutNode[][], options: Options, random: Random): { width: number; height: number; offsetY: number } {
+/** LayerSizeAndGraphHeightCalculator, retained separately for intervening hierarchy processors. */
+export function measureLayers(layers: LayoutNode[][], options: Options): { widths: number[]; height: number; offsetY: number } {
   let minY = Number.POSITIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY
   const widths: number[] = []
   for (const layer of layers) {
@@ -23,10 +24,19 @@ export function routeOrthogonal(layers: LayoutNode[][], options: Options, random
     widths.push(width)
     if (layer.length === 0) continue
     const first = layer[0]!, last = layer.at(-1)!
-    minY = Math.min(minY, first.y - first.margin.top)
-    maxY = Math.max(maxY, last.y + last.height + last.margin.bottom)
+    let top = first.y - first.margin.top, bottom = last.y + last.height + last.margin.bottom
+    const surrounding = paddingOption(options, { top: 0, right: 0, bottom: 0, left: 0 }, 'spacing.portsSurrounding')
+    if (first.type === 'EXTERNAL_PORT') top -= surrounding.top
+    if (last.type === 'EXTERNAL_PORT') bottom += surrounding.bottom
+    minY = Math.min(minY, top)
+    maxY = Math.max(maxY, bottom)
   }
   if (!layers.some(layer => layer.length > 0)) { minY = 0; maxY = 0 }
+  return { widths, height: maxY - minY, offsetY: 0 - minY }
+}
+/** OrthogonalEdgeRouter with the west-to-east routing direction strategy. */
+export function routeOrthogonal(layers: LayoutNode[][], options: Options, random: Random, measurement = measureLayers(layers, options)): { width: number; height: number; offsetY: number } {
+  const { widths, height, offsetY } = measurement
   const edgeSpacing = numberOption(options, 'layered.spacing.edgeEdgeBetweenLayers', 10), nodeSpacing = numberOption(options, 'layered.spacing.nodeNodeBetweenLayers', 20), edgeNodeSpacing = numberOption(options, 'layered.spacing.edgeNodeBetweenLayers', 10)
   let x = 0, left: LayoutNode[] | null = null
   for (let index = 0; index <= layers.length; index++) {
@@ -43,7 +53,7 @@ export function routeOrthogonal(layers: LayoutNode[][], options: Options, random
     } else if (!leftExternal && !rightExternal) x += nodeSpacing
     left = right
   }
-  return { width: x, height: maxY - minY, offsetY: 0 - minY }
+  return { width: x, height, offsetY }
 }
 function placeHorizontally(layer: LayoutNode[], width: number, offset: number): void {
   let maxLeft = 0, maxRight = 0
@@ -64,20 +74,28 @@ function placeHorizontally(layer: LayoutNode[], width: number, offset: number): 
   }
 }
 function newSegment(): Segment { return { ports: [], incomingCoordinates: [], outgoingCoordinates: [], incoming: [], outgoing: [], start: Number.NaN, end: Number.NaN, slot: 0, mark: 0, inWeight: 0, outWeight: 0, criticalIn: 0, criticalOut: 0 } }
-function addPort(segment: Segment, port: LayoutPort, map: Map<LayoutPort, Segment>): void {
+function addPort(segment: Segment, port: LayoutPort, map: Map<LayoutPort, Segment>, direction: RoutingDirection): void {
   map.set(port, segment); segment.ports.push(port)
-  const value = port.node.y + port.y + port.anchorY, positions = port.side === 'EAST' ? segment.incomingCoordinates : segment.outgoingCoordinates
+  const value = direction === 'WEST_TO_EAST' ? port.node.y + port.y + port.anchorY : port.node.x + port.x + port.anchorX
+  const sourceSide = direction === 'WEST_TO_EAST' ? 'EAST' : direction === 'NORTH_TO_SOUTH' ? 'SOUTH' : 'NORTH'
+  const positions = port.side === sourceSide ? segment.incomingCoordinates : segment.outgoingCoordinates
   let index = 0
   while (index < positions.length) { const next = positions[index]!; if (next === value) break; if (next > value) break; index++ }
   if (positions[index] !== value) positions.splice(index, 0, value)
   segment.start = Number.NaN; segment.end = Number.NaN
   for (const list of [segment.incomingCoordinates, segment.outgoingCoordinates]) if (list.length > 0) { segment.start = Number.isNaN(segment.start) ? list[0]! : Math.min(segment.start, list[0]!); segment.end = Number.isNaN(segment.end) ? list.at(-1)! : Math.max(segment.end, list.at(-1)!) }
-  for (const edge of port.incoming) if (!map.has(edge.source)) addPort(segment, edge.source, map)
-  for (const edge of port.outgoing) if (!map.has(edge.target)) addPort(segment, edge.target, map)
+  for (const edge of port.incoming) if (!map.has(edge.source)) addPort(segment, edge.source, map, direction)
+  for (const edge of port.outgoing) if (!map.has(edge.target)) addPort(segment, edge.target, map, direction)
 }
 function routeGap(left: LayoutNode[] | null, right: LayoutNode[] | null, start: number, spacing: number, random: Random): number {
+  return routeOrthogonalGap(left, right, 'WEST_TO_EAST', start, spacing, random)
+}
+/** OrthogonalRoutingGenerator.routeEdges with the selected source direction strategy. */
+export function routeOrthogonalGap(left: LayoutNode[] | null, right: LayoutNode[] | null, direction: RoutingDirection, start: number, spacing: number, random: Random): number {
   const map = new Map<LayoutPort, Segment>(), segments: Segment[] = []
-  for (const [nodes, side] of [[left, 'EAST'], [right, 'WEST']] as const) if (nodes !== null) for (const node of nodes) for (const port of node.ports) if (port.side === side && port.outgoing.length > 0 && !map.has(port)) { const segment = newSegment(); segments.push(segment); addPort(segment, port, map) }
+  const sourceSide = direction === 'WEST_TO_EAST' ? 'EAST' : direction === 'NORTH_TO_SOUTH' ? 'SOUTH' : 'NORTH'
+  const targetSide = direction === 'WEST_TO_EAST' ? 'WEST' : direction === 'NORTH_TO_SOUTH' ? 'NORTH' : 'SOUTH'
+  for (const [nodes, side] of [[left, sourceSide], [right, targetSide]] as const) if (nodes !== null) for (const node of nodes) for (const port of node.ports) if (port.side === side && port.outgoing.length > 0 && !map.has(port)) { const segment = newSegment(); segments.push(segment); addPort(segment, port, map, direction) }
   let minimum = Number.MAX_VALUE
   for (const incoming of [true, false]) {
     const coordinates = segments.flatMap(segment => incoming ? segment.incomingCoordinates : segment.outgoingCoordinates).sort((a, b) => a - b).filter((value, index, values) => index === 0 || value !== values[index - 1])
@@ -102,17 +120,18 @@ function routeGap(left: LayoutNode[] | null, right: LayoutNode[] | null, start: 
     if (Math.abs(segment.start - segment.end) < TOLERANCE) continue
     rank = Math.max(rank, segment.slot)
     if (segment.splitPartner !== undefined && segment.splitBy === undefined) continue
-    const x = start + segment.slot * spacing
+    const horizontal = direction === 'WEST_TO_EAST', sign = direction === 'SOUTH_TO_NORTH' ? -1 : 1
+    const x = start + sign * segment.slot * spacing
     for (const port of segment.ports) {
-      const sourceY = port.node.y + port.y + port.anchorY
+      const sourceY = horizontal ? port.node.y + port.y + port.anchorY : port.node.x + port.x + port.anchorX
       for (const edge of port.outgoing) {
         if (edge.source.node === edge.target.node) continue
-        const target = edge.target, targetY = target.node.y + target.y + target.anchorY
+        const target = edge.target, targetY = horizontal ? target.node.y + target.y + target.anchorY : target.node.x + target.x + target.anchorX
         if (Math.abs(sourceY - targetY) > TOLERANCE) {
           let currentX = x, currentSegment = segment
-          const add = (y: number): void => { const point = { x: currentX, y }; edge.bends.push(point); if (!junctions.some(junction => junction.x === point.x && junction.y === point.y) && needsJunction(currentSegment, y)) { edge.junctions ??= []; edge.junctions.push({ ...point }); junctions.push(point) } }
+          const add = (y: number): void => { const point = horizontal ? { x: currentX, y } : { x: y, y: currentX }; edge.bends.push(point); if (!junctions.some(junction => junction.x === point.x && junction.y === point.y) && needsJunction(currentSegment, y)) { edge.junctions ??= []; edge.junctions.push({ ...point }); junctions.push(point) } }
           add(sourceY)
-          if (segment.splitPartner !== undefined) { const splitY = segment.splitPartner.incomingCoordinates[0]!; add(splitY); currentX = start + segment.splitPartner.slot * spacing; currentSegment = segment.splitPartner; add(splitY) }
+          if (segment.splitPartner !== undefined) { const splitY = segment.splitPartner.incomingCoordinates[0]!; add(splitY); currentX = start + sign * segment.splitPartner.slot * spacing; currentSegment = segment.splitPartner; add(splitY) }
           add(targetY)
         }
       }

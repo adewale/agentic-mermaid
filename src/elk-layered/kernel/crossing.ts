@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
 import type { Random } from '../java/util/Random.ts'
-import type { LayoutNode, LayoutPort, LayoutEdge } from './graph.ts'
+import type { LayoutNode, LayoutPort, LayoutEdge, LayoutGraph } from './graph.ts'
 import { booleanOption, enumOption, integerOption, numberOption } from './options.ts'
 import type { Options } from './options.ts'
 
@@ -43,11 +43,17 @@ class ModelOrderContext {
   readonly groupStrategy: GroupOrderStrategy
   readonly portModelOrder: boolean
   readonly longEdgeStrategy: LongEdgeOrderingStrategy
-  constructor(readonly options: Options, readonly order: Order, readonly maxModelOrderNodes: number) {
+  constructor(readonly options: Options, readonly order: Order, private maximum?: number) {
     this.strategy = enumOption(options, 'layered.considerModelOrder.strategy', ['NONE', 'NODES_AND_EDGES', 'PREFER_EDGES', 'PREFER_NODES'] as const, 'NONE')
     this.groupStrategy = enumOption(options, 'layered.considerModelOrder.groupModelOrder.cmGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP')
     this.portModelOrder = booleanOption(options, 'layered.considerModelOrder.portModelOrder', false)
     this.longEdgeStrategy = enumOption(options, 'layered.considerModelOrder.longEdgeStrategy', ['DUMMY_NODE_OVER', 'DUMMY_NODE_UNDER', 'EQUAL'] as const, 'DUMMY_NODE_OVER')
+  }
+  get maxModelOrderNodes(): number {
+    // The source unboxes this optional graph property only when a comparator
+    // actually needs it. Joined child graphs do not acquire a local default.
+    if (this.maximum === undefined) throw new TypeError("Cannot read properties of undefined (reading 'value_0')")
+    return this.maximum
   }
   groupId(element: ModelElement): number {
     return 'ports' in element ? element.crossingMinimizationGroupId : integerOption(element.options, 'layered.considerModelOrder.groupModelOrder.crossingMinimizationId', 0)
@@ -63,7 +69,7 @@ class ModelOrderContext {
   }
 }
 function requiredModelOrder(element: ModelElement): number {
-  if (element.modelOrder === undefined) throw new Error('Model order is not set.')
+  if (element.modelOrder === undefined) throw new TypeError("Cannot read properties of undefined (reading 'value_0')")
   return element.modelOrder
 }
 
@@ -709,7 +715,7 @@ class BarycenterPortDistributor {
       this.calculatePortRanks(fixed, forward)
       for (const node of layer) this.distributePorts(node, side, layer.length)
       this.calculatePortRanks(layer, !forward)
-      for (const node of fixed) this.distributePorts(node, forward ? 'EAST' : 'WEST', fixed.length)
+      for (const node of fixed) if (node.nestedGraph === undefined) this.distributePorts(node, forward ? 'EAST' : 'WEST', fixed.length)
     } else for (const node of layer) this.distributePorts(node, side, layer.length)
     return false
   }
@@ -822,7 +828,7 @@ class BarycenterHeuristic {
   setFirstLayerOrder(order: Order, forward: boolean): boolean { this.minimize(order[forward ? 0 : order.length - 1]!, false, true, forward); return false }
   minimizeCrossings(order: Order, free: number, forward: boolean, firstSweep: boolean): boolean {
     if (forward ? free > 0 : free < order.length - 1) this.distributor.calculatePortRanks(order[free - (forward ? 1 : -1)]!, forward)
-    this.minimize(order[free]!, !firstSweep, false, forward)
+    this.minimize(order[free]!, !firstSweep || order[free]![0]!.type === 'EXTERNAL_PORT', false, forward)
     return false
   }
 }
@@ -931,7 +937,8 @@ class GreedySwitchHeuristic {
   private right: CrossingsCounter
   private matrix = new Map<Node, Map<Node, number>>()
   private between!: BetweenLayerEdgeTwoNodeCrossingsCounter
-  constructor(order: Order) {
+  private parentCounter?: CrossingsCounter
+  constructor(order: Order, private hierarchy?: { parent: Node; parentOrder: Order; parentPositions: Map<Port, number>; bottomUp: boolean }) {
     const positions = new Map<Port, number>()
     for (const layer of order) for (const node of layer) for (const port of node.ports) positions.set(port, 0)
     this.left = new CrossingsCounter(positions); this.right = new CrossingsCounter(positions)
@@ -941,6 +948,14 @@ class GreedySwitchHeuristic {
     this.between = new BetweenLayerEdgeTwoNodeCrossingsCounter(order, free)
     this.left.initPortPositionsForInLayerCrossings(order[free]!, 'WEST')
     this.right.initPortPositionsForInLayerCrossings(order[free]!, 'EAST')
+    this.parentCounter = undefined
+    if (this.hierarchy !== undefined && !this.hierarchy.bottomUp && order[free]![0]!.type === 'EXTERNAL_PORT') {
+      const { parent, parentOrder, parentPositions } = this.hierarchy, index = parent.rank
+      const previous = parentOrder[index - 1] ?? [], current = parentOrder[index]!, next = parentOrder[index + 1] ?? []
+      this.parentCounter = new CrossingsCounter(parentPositions)
+      if (free === order.length - 1) this.parentCounter.initForCountingBetween(current, next)
+      else this.parentCounter.initForCountingBetween(previous, current)
+    }
   }
   private haveLayoutUnitConstraints(upper: Node, lower: Node): boolean {
     const different = upper.inLayerLayoutUnit !== lower.inLayerLayoutUnit
@@ -959,8 +974,10 @@ class GreedySwitchHeuristic {
       a.set(lower, upperLower); b.set(upper, lowerUpper)
       this.matrix.set(upper, a); this.matrix.set(lower, b)
     }
-    if (upperLower + left[0] + right[0] > lowerUpper! + left[1] + right[1]) {
+    const parent = this.parentCounter?.countCrossingsBetweenPortsInBothOrders(upper.originPort!, lower.originPort!) ?? [0, 0]
+    if (upperLower + left[0] + right[0] + parent[0]! > lowerUpper! + left[1] + right[1] + parent[1]!) {
       this.left.switchNodes(upper, lower, 'WEST'); this.right.switchNodes(upper, lower, 'EAST')
+      this.parentCounter?.switchPorts(upper.originPort!, lower.originPort!)
       layer[upperIndex] = lower; layer[upperIndex + 1] = upper
       return true
     }
@@ -984,12 +1001,268 @@ class GreedySwitchHeuristic {
   }
 }
 
+/** SortByInputModelProcessor at its separate, pre-crossing hierarchy slot. */
+export function prepareCrossingModelOrder(graph: LayoutGraph): void {
+  if (graph.layers === undefined || graph.phaseOptions === undefined) throw new Error('Crossing model order requires prepared graph layers and phase options.')
+  const context = new ModelOrderContext(graph.phaseOptions, graph.layers, graph.maxModelOrderNodes)
+  if (context.strategy !== 'NONE') sortByInputModel(graph.layers, context)
+}
+
+type HierarchicalCrossMinType = 'BARYCENTER' | 'TWO_SIDED_GREEDY_SWITCH'
+interface CrossingHeuristic {
+  setFirstLayerOrder(order: Order, forward: boolean): boolean
+  minimizeCrossings(order: Order, free: number, forward: boolean, first: boolean): boolean
+}
+interface NodeInfluence { connected: number; hierarchical: number; random: number }
+
+/** GraphInfoHolder and LayerSweepTypeDecider use one record per active LGraph. */
+class GraphInfoHolder {
+  readonly order: Order
+  readonly options: Options
+  readonly random: Random
+  readonly parent?: Node
+  readonly children: LayoutGraph[] = []
+  readonly counter: AllCrossingsCounter
+  readonly distributor: BarycenterPortDistributor | GreedyPortDistributor
+  readonly heuristic: CrossingHeuristic
+  readonly context: ModelOrderContext
+  readonly positions = new Map<Port, number>()
+  readonly bottomUp: boolean
+  initialOrder = false
+  currentBest: SweepCopy | null = null
+  best: SweepCopy | null = null
+  constructor(readonly graph: LayoutGraph, readonly type: HierarchicalCrossMinType, readonly parentRecord: GraphInfoHolder | undefined) {
+    if (graph.layers === undefined || graph.phaseOptions === undefined || graph.random === undefined) throw new Error('Hierarchical crossing requires prepared graph layers, phase options, and random streams.')
+    this.order = graph.layers.map(layer => layer.slice())
+    this.options = graph.phaseOptions; this.random = graph.random; this.parent = graph.parentNode
+    this.counter = new AllCrossingsCounter(this.order)
+    this.distributor = type === 'BARYCENTER' ? new BarycenterPortDistributor(this.order, this.random.nextBoolean()) : new GreedyPortDistributor(this.order)
+    // LayerSweepTypeDecider.initAtLayerLevel reads the first node even when
+    // an empty child layer will later be skipped by bottom-up processing.
+    if (this.order.some(layer => layer.length === 0)) throw new TypeError("Cannot read properties of undefined (reading 'layer')")
+    this.context = new ModelOrderContext(this.options, graph.layers, graph.maxModelOrderNodes)
+    for (const layer of this.order) for (const node of layer) {
+      if (node.nestedGraph !== undefined) this.children.push(node.nestedGraph)
+      for (const port of node.ports) this.positions.set(port, 0)
+    }
+    if (type === 'BARYCENTER') {
+      this.heuristic = new BarycenterHeuristic(new ForsterConstraintResolver(this.order), this.random, this.distributor as BarycenterPortDistributor, booleanOption(this.options, 'layered.crossingMinimization.forceNodeModelOrder', false) ? this.context : undefined)
+      this.bottomUp = this.useBottomUp()
+    } else {
+      this.bottomUp = this.useBottomUp()
+      this.heuristic = new GreedySwitchHeuristic(this.order, this.parent === undefined ? undefined : { parent: this.parent, parentOrder: parentRecord!.order, parentPositions: parentRecord!.positions, bottomUp: this.bottomUp })
+    }
+  }
+  getBestSweep(): SweepCopy | null { return this.type === 'BARYCENTER' ? this.best : this.currentBest }
+  private useBottomUp(): boolean {
+    const boundary = numberOption(this.options, 'layered.crossingMinimization.hierarchicalSweepiness', 0.1), parent = this.parent
+    if (boundary < -1 || parent === undefined || isOrderFixed(parent) || portsOnSide(parent, 'EAST').length < 2 && portsOnSide(parent, 'WEST').length < 2) return true
+    if (this.type !== 'BARYCENTER') return false
+    const info = new Map<Node, NodeInfluence>()
+    for (const layer of this.order) for (const node of layer) info.set(node, { connected: 0, hierarchical: 0, random: 0 })
+    let randomPaths = 0, hierarchicalPaths = 0
+    const transfer = (current: NodeInfluence, target: Node): void => {
+      const next = info.get(target)!
+      next.hierarchical += current.hierarchical; next.random += current.random; next.connected += current.connected; next.connected++
+    }
+    const outgoing = (node: Node, current: NodeInfluence): void => {
+      for (const port of node.ports) for (const edge of port.outgoing) { randomPaths += current.random; hierarchicalPaths += current.hierarchical; transfer(current, edge.target.node) }
+    }
+    for (const layer of this.order) {
+      const northSouth: Node[] = []
+      for (const node of layer) {
+        if (node.type === 'NORTH_SOUTH_PORT') { northSouth.push(node); continue }
+        const current = info.get(node)!
+        if (node.type === 'EXTERNAL_PORT') { current.hierarchical = 1; if (node.originPort!.side === 'EAST') hierarchicalPaths += current.connected }
+        else if (!portsOnSide(node, 'WEST').some(port => port.incoming.length + port.outgoing.length > 0)) current.random = 1
+        else if (!portsOnSide(node, 'EAST').some(port => port.incoming.length + port.outgoing.length > 0)) randomPaths += current.connected
+        outgoing(node, current)
+        for (const port of portsOnSide(node, 'NORTH').concat(portsOnSide(node, 'SOUTH'))) if (port.portDummy !== undefined) {
+          randomPaths += current.random; hierarchicalPaths += current.hierarchical; transfer(current, port.portDummy)
+        }
+      }
+      for (const node of northSouth) outgoing(node, info.get(node)!)
+    }
+    const all = randomPaths + hierarchicalPaths
+    return (all === 0 ? Number.POSITIVE_INFINITY : (randomPaths - hierarchicalPaths) / all) >= boundary
+  }
+}
+
+/** The shared LayerSweepCrossingMinimizer controller, preserving its root RNG. */
+class HierarchicalLayerSweep {
+  private records: GraphInfoHolder[] = []
+  private byGraph = new Map<LayoutGraph, GraphInfoHolder>()
+  private changed = new Set<GraphInfoHolder>()
+  private random: Random
+  private seed: bigint
+  constructor(root: LayoutGraph, private type: HierarchicalCrossMinType) {
+    if (root.random === undefined) throw new Error('Hierarchical crossing requires a prepared root random stream.')
+    this.random = root.random; this.seed = this.random.nextLong()
+    const graphs = [root]
+    for (let i = 0; i < graphs.length; i++) {
+      const graph = graphs[i]!, parent = graph.parentNode?.layoutGraph
+      const record = new GraphInfoHolder(graph, type, parent === undefined ? undefined : this.byGraph.get(parent))
+      this.records.push(record); this.byGraph.set(graph, record); graphs.push(...record.children)
+    }
+  }
+  process(): void {
+    const sweepOn: GraphInfoHolder[] = []
+    for (const record of this.records) if (record.bottomUp) sweepOn.unshift(record)
+    for (const record of sweepOn) if (record.order.length > 0) {
+      if (this.type === 'BARYCENTER') this.compareRandomizedLayouts(record)
+      else this.minimizeWithoutCounter(record)
+      const best = record.getBestSweep()
+      if (record.parent !== undefined && record.graph.hasExternalPorts === true && best !== null) {
+        this.sortParentPorts(best.nodes, record.parent, true); this.sortParentPorts(best.nodes, record.parent, false)
+        record.parent.portConstraints = 'FIXED_ORDER'
+      }
+    }
+    for (const record of this.records) record.getBestSweep()?.transfer(record.graph.layers!)
+  }
+  private setCurrentBest(): void { for (const record of this.changed) record.currentBest = new SweepCopy(record.order) }
+  private saveChangedGraphs(): void { for (const record of this.changed) record.best = new SweepCopy(record.currentBest!) }
+  private count(record: GraphInfoHolder, modelOrder: boolean): number {
+    let influence = 0
+    if (modelOrder && record.context.strategy !== 'NONE') {
+      influence += numberOption(record.options, 'layered.considerModelOrder.crossingCounterNodeInfluence', 0) * countModelOrderNodeChanges(record.order, record.context)
+      influence += numberOption(record.options, 'layered.considerModelOrder.crossingCounterPortInfluence', 0) * countModelOrderPortChanges(record.order, record.context)
+    }
+    let result = 0
+    result += record.counter.countAllCrossings(record.order) + influence
+    for (const graph of record.children) { const child = this.byGraph.get(graph)!; if (!child.bottomUp) result += this.count(child, false) }
+    return result
+  }
+  private compareRandomizedLayouts(record: GraphInfoHolder): void {
+    this.random.setSeed(this.seed); this.changed.clear()
+    const withModelOrder = numberOption(record.options, 'layered.considerModelOrder.crossingCounterNodeInfluence', 0) !== 0
+    let bestCrossings = withModelOrder ? Number.MAX_VALUE : 2147483647
+    record.initialOrder = record.context.strategy !== 'NONE'
+    for (let i = 0; i < integerOption(record.options, 'layered.thoroughness', 7); i++) {
+      const result = this.minimizeWithCounter(record, record.initialOrder, withModelOrder)
+      record.initialOrder = result.initial
+      if (result.crossings < bestCrossings) {
+        bestCrossings = result.crossings; this.saveChangedGraphs()
+        if (bestCrossings === 0) break
+      }
+    }
+  }
+  private minimizeWithCounter(record: GraphInfoHolder, initial: boolean, withModelOrder: boolean): { crossings: number; initial: boolean } {
+    let forward = this.random.nextBoolean()
+    const firstCrossings = this.count(record, withModelOrder)
+    if (firstCrossings === 0 && initial) return { crossings: 0, initial }
+    if (!initial || record.context.strategy === 'NONE') record.heuristic.setFirstLayerOrder(record.order, forward)
+    else forward = initial
+    this.sweep(record, forward, true, initial)
+    // FIRST_TRY and SECOND_TRY alias the same GWT property ID.
+    initial = false
+    let crossings = this.count(record, withModelOrder), previous: number
+    do {
+      this.setCurrentBest()
+      if (crossings === 0) return { crossings: 0, initial }
+      forward = !forward; previous = crossings
+      this.sweep(record, forward, false, initial)
+      crossings = this.count(record, withModelOrder)
+    } while (previous > crossings)
+    return { crossings: previous, initial }
+  }
+  private minimizeWithoutCounter(record: GraphInfoHolder): void {
+    let forward = this.random.nextBoolean(), improved = true
+    while (improved) {
+      improved = record.heuristic.setFirstLayerOrder(record.order, forward)
+      improved = this.sweep(record, forward, false, false) || improved
+      forward = !forward
+    }
+    this.setCurrentBest()
+  }
+  private sweep(record: GraphInfoHolder, forward: boolean, first: boolean, initial: boolean): boolean {
+    const order = record.order, start = forward ? 0 : order.length - 1
+    let improved = record.distributor.distributePortsWhileSweeping(order, start, forward)
+    improved = this.sweepChildren(order[start]!, forward, first) || improved
+    for (let i = forward ? 1 : order.length - 2; forward ? i < order.length : i >= 0; i += forward ? 1 : -1) {
+      improved = record.heuristic.minimizeCrossings(order, i, forward, first && !initial) || improved
+      improved = record.distributor.distributePortsWhileSweeping(order, i, forward) || improved
+      improved = this.sweepChildren(order[i]!, forward, first) || improved
+    }
+    this.changed.add(record)
+    return improved
+  }
+  private sweepChildren(layer: Node[], forward: boolean, first: boolean): boolean {
+    let improved = false
+    for (const node of layer) if (node.nestedGraph !== undefined) {
+      const record = this.byGraph.get(node.nestedGraph)!
+      if (record.bottomUp) continue
+      const start = forward ? 0 : record.order.length - 1, nodes = record.order[start]!
+      if (nodes[0]!.type === 'EXTERNAL_PORT') {
+        const ports = topDownPorts(node, forward ? 'WEST' : 'EAST').filter(port => port.insideConnections === true)
+        if (ports.length < nodes.length) throw new Error('Expected ' + nodes.length + ' hierarchical ports, but found only ' + ports.length + '.')
+        if (ports.length > nodes.length) throw new RangeError('Hierarchical port dummy index exceeds the first layer length.')
+        record.order[start] = ports.map(port => port.portDummy!)
+      } else record.heuristic.setFirstLayerOrder(record.order, forward)
+      // Nested graphs read their own FIRST/SECOND_TRY property; the root's
+      // initial-order flag is not propagated down the inclusion tree.
+      improved = this.sweep(record, forward, first, record.initialOrder) || improved
+      this.sortParentPorts(record.order, record.parent!, forward)
+    }
+    return improved
+  }
+  private sortParentPorts(order: Order, parent: Node, rightmost: boolean): void {
+    const layer = order[rightmost ? order.length - 1 : 0]!
+    let index = rightmost ? 0 : layer.length - 1
+    if (layer[index]!.type !== 'EXTERNAL_PORT') return
+    for (let i = 0; i < parent.ports.length; i++) {
+      const port = parent.ports[i]!
+      if (port.side === (rightmost ? 'EAST' : 'WEST') && port.insideConnections === true) {
+        parent.ports[i] = layer[index]!.originPort!
+        index += rightmost ? 1 : -1
+      }
+    }
+  }
+}
+
+/** Coupled crossing for a prepared hierarchy; model sorting is a prior slot. */
+export function minimizeHierarchicalCrossings(root: LayoutGraph): void {
+  if (root.layers === undefined || root.phaseOptions === undefined || root.random === undefined) throw new Error('Hierarchical crossing requires prepared root layers, phase options, and random stream.')
+  const layers = root.layers, options = root.phaseOptions
+  if (layers.length === 0 || layers.every(layer => layer.length === 0)) return
+  const hierarchical = enumOption(options, 'hierarchyHandling', ['INHERIT', 'SEPARATE_CHILDREN', 'INCLUDE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
+  if (layers.length === 1 && layers[0]!.length === 1 && !hierarchical) return
+  const pending = [root]
+  for (let i = 0; i < pending.length; i++) {
+    const graph = pending[i]!
+    if (graph.layers === undefined || graph.phaseOptions === undefined || graph.random === undefined) throw new Error('Hierarchical crossing requires prepared child layers, phase options, and random streams.')
+    if (enumOption(graph.phaseOptions, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP') !== 'LAYER_SWEEP' || booleanOption(graph.phaseOptions, 'layered.crossingMinimization.semiInteractive', false)) throw new Error('ELK TypeScript port: this crossing-minimization strategy is not implemented yet')
+    for (const layer of graph.layers) for (const node of layer) {
+      if (!['NORMAL', 'LONG_EDGE', 'LABEL', 'EXTERNAL_PORT'].includes(node.type) || node.ports.some(port => port.side === 'NORTH' || port.side === 'SOUTH')) throw new Error('ELK TypeScript port: north/south crossing references are not implemented yet')
+      if (node.nestedGraph !== undefined) pending.push(node.nestedGraph)
+    }
+  }
+  new HierarchicalLayerSweep(root, 'BARYCENTER').process()
+}
+
+/** The later hierarchy-aware greedy processor has its own dispatch barrier. */
+export function minimizeHierarchicalGreedySwitch(root: LayoutGraph): void {
+  if (root.layers === undefined || root.phaseOptions === undefined || root.random === undefined) throw new Error('Hierarchical greedy switch requires prepared root layers, phase options, and random stream.')
+  const layers = root.layers, options = root.phaseOptions
+  const hierarchical = enumOption(options, 'hierarchyHandling', ['INHERIT', 'SEPARATE_CHILDREN', 'INCLUDE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
+  if (layers.length === 0 || layers.every(layer => layer.length === 0) || layers.length === 1 && layers[0]!.length === 1 && !hierarchical) return
+  const greedy = hierarchical ? enumOption(options, 'layered.crossingMinimization.greedySwitchHierarchical.type', ['ONE_SIDED', 'TWO_SIDED', 'OFF'] as const, 'OFF') : enumOption(options, 'layered.crossingMinimization.greedySwitch.type', ['ONE_SIDED', 'TWO_SIDED', 'OFF'] as const, 'TWO_SIDED')
+  const threshold = integerOption(options, 'layered.crossingMinimization.greedySwitch.activationThreshold', 40)
+  if (greedy === 'OFF' || !hierarchical && threshold !== 0 && threshold <= root.nodes.filter(node => !node.noLayout).length) return
+  if (greedy !== 'TWO_SIDED') throw new Error('ELK TypeScript port: one-sided greedy switch is not implemented yet')
+  new HierarchicalLayerSweep(root, 'TWO_SIDED_GREEDY_SWITCH').process()
+}
+
 class SweepCopy {
   readonly nodes: Order
   private ports = new Map<Node, Port[]>()
-  constructor(order: Order) {
-    this.nodes = order.map(layer => layer.slice())
-    for (const layer of order) for (const node of layer) this.ports.set(node, node.ports.slice())
+  constructor(order: Order | SweepCopy) {
+    if (order instanceof SweepCopy) {
+      this.nodes = order.nodes.map(layer => layer.slice())
+      this.ports = new Map(order.ports)
+    } else {
+      this.nodes = order.map(layer => layer.slice())
+      for (const layer of order) for (const node of layer) this.ports.set(node, node.ports.slice())
+    }
   }
   transfer(order: Order): void {
     for (let l = 0; l < order.length; l++) {

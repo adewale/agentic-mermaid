@@ -85,8 +85,8 @@ function transpose(nodes: LayoutNode[], graph: TransformationGraph): void {
       node.externalPortSide = transposeSide(node.externalPortSide)
       if (node.layerConstraint === 'FIRST_SEPARATE') { node.layerConstraint = 'NONE'; node.inLayerConstraint = 'TOP' }
       else if (node.layerConstraint === 'LAST_SEPARATE') { node.layerConstraint = 'NONE'; node.inLayerConstraint = 'BOTTOM' }
-      else if (node.inLayerConstraint === 'TOP') { node.layerConstraint = 'FIRST_SEPARATE'; node.inLayerConstraint = 'NONE' }
-      else if (node.inLayerConstraint === 'BOTTOM') { node.layerConstraint = 'LAST_SEPARATE'; node.inLayerConstraint = 'NONE' }
+      else if (node.inLayerConstraint === 'TOP') { node.layerConstraintSet = true; node.layerConstraint = 'FIRST_SEPARATE'; node.inLayerConstraint = 'NONE' }
+      else if (node.inLayerConstraint === 'BOTTOM') { node.layerConstraintSet = true; node.layerConstraint = 'LAST_SEPARATE'; node.inLayerConstraint = 'NONE' }
     }
     for (const label of node.labels) { transposePlacement(label.options); transposeShape(label) }
   }

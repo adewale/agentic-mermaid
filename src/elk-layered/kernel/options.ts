@@ -48,6 +48,7 @@ export function optionalNumberOption(options: Options, key: string): number | un
 export function optionalIntegerOption(options: Options, key: string): number | undefined { return resolveOption<number | undefined>(options, key, undefined, parseInteger) }
 export function integerOption(options: Options, key: string, fallback: number): number { return resolveOption(options, key, fallback, parseInteger) }
 export function booleanOption(options: Options, key: string, fallback: boolean): boolean { return resolveOption(options, key, fallback, value => value.toLowerCase() === 'true' ? true : value.toLowerCase() === 'false' ? false : undefined) }
+export function optionalEnumOption<T extends string>(options: Options, key: string, choices: readonly T[]): T | undefined { return resolveOption<T | undefined>(options, key, undefined, value => parseEnum(value, choices)) }
 export function enumOption<T extends string>(options: Options, key: string, choices: readonly T[], fallback: T): T { return resolveOption(options, key, fallback, value => parseEnum(value, choices)) }
 export function setOption(options: Options, key: string, choices: readonly string[], fallback: readonly string[]): Set<string> {
   return resolveOption(options, key, new Set(fallback), value => {
