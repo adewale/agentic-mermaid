@@ -1,9 +1,10 @@
-// Run with Bun: bun eval/elk-layered/capture.ts
+// Run with Bun: bun eval/elk-layered/capture.ts [capture-to-resume]
+// Additive stress packet: bun eval/elk-layered/capture.ts --current-main-stress <complete-canonical-capture> [supplement-to-resume]
 // These mocks are eval-only: production candidate selection and retry code run
 // unchanged. Rejecting the first 0–3 ELK returns exercises their existing ladder.
 import { mock } from 'bun:test'
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { serialize } from 'node:v8'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
@@ -12,10 +13,18 @@ import type { ElkNode } from 'elkjs'
 
 process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
 
+// Additional current-Main stress inputs are recorded separately and retain an
+// explicit reference to the complete canonical packet they augment.
+const stressSupplement = process.argv[2] === '--current-main-stress'
+const canonicalDirectory = stressSupplement ? process.argv[3] : undefined
+if (stressSupplement && canonicalDirectory === undefined) throw new Error('Pass the complete retained canonical capture after --current-main-stress')
+const canonical = canonicalDirectory === undefined ? undefined : JSON.parse(readFileSync(join(canonicalDirectory, 'capture.json'), 'utf8'))
+if (canonical !== undefined && (!canonical.complete || canonical.oracle !== 'elkjs/lib/elk-worker.js synchronous dispatcher' || canonical.supplements !== undefined || canonical.population !== undefined && canonical.population !== 'complete corpus')) throw new Error('The stress supplement requires a complete actual-elkjs canonical capture')
+const resumeDirectory = process.argv[stressSupplement ? 4 : 2]
 const outputRoot = join(import.meta.dir, 'output')
 mkdirSync(outputRoot, { recursive: true })
-const output = process.argv[2] ?? mkdtempSync(join(outputRoot, 'capture-'))
-const resumed = process.argv[2] ? JSON.parse(readFileSync(join(output, 'capture.json'), 'utf8')) : undefined
+const output = resumeDirectory ?? mkdtempSync(join(outputRoot, 'capture-'))
+const resumed = resumeDirectory ? JSON.parse(readFileSync(join(output, 'capture.json'), 'utf8')) : undefined
 if (resumed?.complete) throw new Error('This capture is already complete')
 const retained = resumed ? readdirSync(output) : []
 const resumeRender = retained.reduce((next, name) => {
@@ -108,7 +117,30 @@ const { collectSamples } = await import('../layout-compare/run.ts')
 const { generatedFlowchartSamples } = await import('../layout-compare/generated.ts')
 const { renderMermaidSVGWithReceipt } = await import('../../src/agent/index.ts')
 // Keep the complete seed ranges enrolled in the existing layout comparison.
-const samples = [
+// Sources below are the existing Main 947645a1 layout-cost, layout-worst-case,
+// and junction-contraction fixtures. Their options remain owned by production.
+function currentMainStressSamples(): { id: string; family: 'flowchart'; source: string }[] {
+  const names = (prefix: string, n: number): string[] => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
+  const fan = (from: string, to: string, n: number, op = '-->'): string => `${names(from, n).join(' & ')} ${op} ${names(to, n).join(' & ')}`
+  const chain = Array.from({ length: 79 }, (_, i) => `n${i} --> n${i + 1}`)
+  const nested = [...chain, ...Array.from({ length: 20 }, (_, i) => `n${i} --> n${79 - i}`)]
+  const complete = Array.from({ length: 30 }, (_, i) => Array.from({ length: 29 - i }, (_, k) => `k${i} --> k${i + k + 1}`)).flat()
+  const rows: [string, string][] = [
+    ['layout-cost/nested-links-80-20', ['flowchart TD', ...nested].join('\n')],
+    ['layout-worst-case/complete-dag-30', ['flowchart TD', ...complete].join('\n')],
+    ['layout-cost/fan-19', `flowchart TD\n${fan('a', 'b', 19)}`],
+    ['layout-cost/fan-20', `flowchart TD\n${fan('a', 'b', 20)}`],
+    ['layout-cost/fan-23', `flowchart TD\n${fan('a', 'b', 23)}`],
+    ['layout-cost/stacked-fans-19', `flowchart TD\n${fan('a', 'b', 19)}\n${fan('b', 'c', 19)}`],
+    ['junction-contraction/LR-arrows-21', `flowchart LR\n${fan('a', 'b', 21)}`],
+    ['junction-contraction/TD-bidirectional-21', `flowchart TD\n${fan('a', 'b', 21, '<-->')}`],
+    ['junction-contraction/RL-dotted-group-21', `flowchart RL\nsubgraph G[Grid]\n${fan('a', 'b', 21, '-.->')}\nend\nx --> a0`],
+    ['junction-contraction/BT-open-21', `flowchart BT\n${fan('a', 'b', 21, '---')}`],
+    ['junction-contraction/labelled-open-block', `flowchart LR\n${fan('a', 'b', 3)}\na0 -->|x| b0`],
+  ]
+  return rows.map(([id, source]) => ({ id: 'current-main-stress/' + id, family: 'flowchart', source }))
+}
+const samples = stressSupplement ? currentMainStressSamples() : [
   ...collectSamples({ includeStress: true }),
   ...generatedFlowchartSamples({ start: 0, count: 256 }),
   ...generatedFlowchartSamples({ start: 256, count: 128 }),
@@ -127,11 +159,13 @@ const metadata = {
   serialization: 'node:v8 on the recorded runtime; preserves undefined, nonfinite numbers and negative zero',
   started: resumed?.started ?? new Date().toISOString(),
   ...(resumed ? { resumed: [...(resumed.resumed ?? []), { at: new Date().toISOString(), render: resumeRender, captures }] } : {}),
+  population: stressSupplement ? 'current-main-stress supplement' : 'complete corpus',
+  ...(canonicalDirectory === undefined ? {} : { supplements: { directory: resolve(canonicalDirectory), source: canonical.source, captures: canonical.captures } }),
   samples: samples.length,
   plannedRenders: samples.length * strategies.length * 4,
 }
-if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders || resumed.oracle !== metadata.oracle)) {
-  throw new Error('Resume requires the original source, runtime, oracle and complete population')
+if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders || resumed.oracle !== metadata.oracle || resumed.population !== metadata.population || resumed.supplements?.directory !== metadata.supplements?.directory || resumed.supplements?.source !== metadata.supplements?.source || resumed.supplements?.captures !== metadata.supplements?.captures)) {
+  throw new Error('Resume requires the original source, runtime, oracle and complete population, including its canonical reference')
 }
 writeFileSync(join(output, 'capture.json'), JSON.stringify({ ...metadata, complete: false }, null, 2))
 console.log(JSON.stringify({ output, ...metadata }))
