@@ -679,6 +679,15 @@ function ownDirectionsConnect(edge: TerminalRegion, owned: Map<string, Map<strin
   }
   return seen.has(end!)
 }
+// A bus lets an 800-relation table render; its receipt hashes the projected
+// connectors of all 800, which the request-data node bound used to refuse.
+test('the receipt of an 800-relation requirement bus resolves with every connector', () => {
+  const table = busTables.find(item => item.name === 'Requirement 20 x 40 table of satisfies, left to right')!
+  const result = renderMermaidASCIIWithReceipt(table.source, { colorMode: 'none' })
+  expect(result.terminalStyle.connectorProjection).toMatchObject({ evidence: 'scene', count: 800 })
+  expect(result.terminalStyle.digest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed' })
+}, 30_000)
 test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, size: [m, n] = [20, 20], pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [], others = [] }) => {
   let searched = 0
   const result = withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === 'terminal-route-search') searched += event.units }, () => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }))
