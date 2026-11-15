@@ -1,5 +1,11 @@
 export const TERMINAL_CERTIFICATION_LIMITS = Object.freeze({ maxOperations: 1_000_000, maxOutputCodeUnits: 2_000_000, maxIssues: 64 })
 
+/** Cells shared by more owners than this (a bus, or a text its members share)
+ * are checked once per interned owner set and run instead of once per owner
+ * and cell. Cells of fewer owners keep their exact per-owner checks and work
+ * charges. */
+export const TERMINAL_SHARED_CELL_OWNERS = 16
+
 /** Owner identities a terminal document may sort, scan or name while composing
  * multi-owner cell sets, summed over every set it composes and every document
  * overlaid into it. A route adds its identity to each cell it shares, so

@@ -631,10 +631,15 @@ test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, u
 // them, or those leaving (entering) one card. Relations outside the block
 // that touch its cards (`others`: another kind, or the same kind to a card
 // outside it) route on their own, with their own ports and ink.
-const range20 = Array.from({ length: 20 }, (_, i) => i)
-const bipartiteTable = (line: (i: number, j: number) => string, header: readonly string[] = ['classDiagram'], others: readonly string[] = []) => [...header, ...range20.flatMap(i => range20.map(j => line(i, j))), ...others].join('\n')
+const range = (count: number) => Array.from({ length: count }, (_, i) => i)
+const range20 = range(20)
+const bipartiteTable = (line: (i: number, j: number) => string, header: readonly string[] = ['classDiagram'], others: readonly string[] = [], [m, n]: readonly [number, number] = [20, 20]) => [...header, ...range(m).flatMap(i => range(n).map(j => line(i, j))), ...others].join('\n')
 const classOthers = ['A0 <|-- X', 'Y --> B0', 'A1 --> Z', 'W ..> A2']
-const busTables: Array<{ name: string; source: string; pair?: (i: number, j: number) => readonly [string, string]; faces?: readonly [string, string]; ends: readonly [readonly TerminalMarker['shape'][], readonly TerminalMarker['shape'][]]; texts?: ReadonlyArray<readonly [string, number, 'all' | 'from' | 'to']>; others?: ReadonlyArray<readonly [string, string]> }> = [
+const requirementCards = (m: number, n: number) => [...range(m).flatMap(i => [`requirement a${i} {`, `id: A${i}`, '}']), ...range(n).flatMap(j => [`element b${j} {`, 'type: part', '}'])]
+// Larger blocks once exhausted strict certification's operation budget: each
+// relation was checked along the whole shared trunk. Their shared runs are now
+// checked once per owner set and run, each relation through its own cells.
+const busTables: Array<{ name: string; source: string; size?: readonly [number, number]; pair?: (i: number, j: number) => readonly [string, string]; faces?: readonly [string, string]; ends: readonly [readonly TerminalMarker['shape'][], readonly TerminalMarker['shape'][]]; texts?: ReadonlyArray<readonly [string, number, 'all' | 'from' | 'to']>; others?: ReadonlyArray<readonly [string, string]> }> = [
   { name: 'Class 20 x 20 table of -->', source: bipartiteTable((i, j) => `A${i} --> B${j}`), ends: [[], ['triangle']] },
   { name: 'Class 20 x 20 table of <|--', source: bipartiteTable((i, j) => `A${i} <|-- B${j}`), ends: [['open-arrow'], []] },
   { name: 'Class 20 x 20 table of --> sharing a label and cardinalities', source: bipartiteTable((i, j) => `A${i} "one" --> "many" B${j} : uses`), ends: [[], ['triangle']], texts: [['uses', 1, 'all'], ['one', 20, 'from'], ['many', 20, 'to']] },
@@ -642,16 +647,27 @@ const busTables: Array<{ name: string; source: string; pair?: (i: number, j: num
   { name: 'ER 20 x 20 table of ||--o{ sharing a label', source: bipartiteTable((i, j) => `A${i} ||--o{ B${j} : has`, ['erDiagram']), faces: ['R', 'L'], ends: [['cardinality-one'], ['cardinality-many', 'circle']], texts: [['has', 1, 'all']] },
   { name: 'Block 20 x 20 grid of labelled links', source: bipartiteTable((i, j) => `a${i} -- "uses" --> b${j}`, ['block', 'columns 20', ...range20.map(i => `a${i}["A ${i}"]`), ...range20.map(i => `b${i}["B ${i}"]`)]), pair: (i, j) => [`a${i}`, `b${j}`], ends: [[], ['arrow']], texts: [['uses', 1, 'all']] },
   { name: 'Requirement 20 x 20 table of satisfies', source: bipartiteTable((i, j) => `b${j} - satisfies -> a${i}`, ['requirementDiagram', ...range20.flatMap(i => [`requirement a${i} {`, `id: A${i}`, '}', `element b${i} {`, 'type: part', '}'])]), pair: (i, j) => [`b${j}`, `a${i}`], ends: [[], ['open-arrow']], texts: [['<<satisfies>>', 1, 'all']] },
+  ...([[16, 30], [20, 40]] as const).map(size => ({ name: `Requirement ${size[0]} x ${size[1]} table of satisfies, left to right`, size, source: bipartiteTable((i, j) => `b${j} - satisfies -> a${i}`, ['requirementDiagram', 'direction LR', ...requirementCards(size[0], size[1])], [], size), pair: (i: number, j: number) => [`b${j}`, `a${i}`] as const, faces: ['R', 'L'] as const, ends: [[], ['open-arrow']] as const, texts: [['<<satisfies>>', 1, 'all'] as const] })),
+  { name: 'Class 30 x 30 table of --> sharing a label, left to right', size: [30, 30], source: bipartiteTable((i, j) => `A${i} --> B${j} : uses`, ['classDiagram', 'direction LR'], [], [30, 30]), faces: ['R', 'L'], ends: [[], ['triangle']], texts: [['uses', 1, 'all']] },
+  { name: 'Class 40 x 40 table of -->', size: [40, 40], source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram'], [], [40, 40]), ends: [[], ['triangle']] },
+  { name: 'Class 40 x 40 table of -->, left to right', size: [40, 40], source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram', 'direction LR'], [], [40, 40]), faces: ['R', 'L'], ends: [[], ['triangle']] },
 ]
+/** Each edge's own directions in every cell it owns. */
+function ownedEdgeDirections(doc: TerminalDocument): Map<string, Map<string, number>> {
+  const edges = new Map<string, Map<string, number>>()
+  for (const [x, y, cell] of doc.entries())
+    cell.owners.forEach((owner, index) => {
+      if (owner.kind !== 'edge') return
+      const mask = cell.kind === 'stroke' ? terminalOwnedStrokeMask(cell, index) : cell.kind === 'marker' ? (cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10) : 0
+      if (!mask) return
+      if (!edges.has(owner.id)) edges.set(owner.id, new Map())
+      edges.get(owner.id)!.set(`${x},${y}`, mask)
+    })
+  return edges
+}
 /** Breadth-first search over the cells an edge owns, through its own directions only. */
-function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): boolean {
-  const masks = new Map<string, number>()
-  for (const [x, y, cell] of doc.entries()) {
-    const index = cell.owners.findIndex(owner => owner.kind === 'edge' && owner.id === edge.id)
-    if (index < 0) continue
-    const mask = cell.kind === 'stroke' ? terminalOwnedStrokeMask(cell, index) : cell.kind === 'marker' ? (cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10) : 0
-    if (mask) masks.set(`${x},${y}`, mask)
-  }
+function ownDirectionsConnect(edge: TerminalRegion, owned: Map<string, Map<string, number>>): boolean {
+  const masks = owned.get(edge.id) ?? new Map<string, number>()
   const [start, end] = edge.ports!.map(port => `${port.x},${port.y}`)
   const queue = masks.has(start!) ? [start!] : [], seen = new Set(queue)
   for (let index = 0; index < queue.length; index++) {
@@ -663,7 +679,7 @@ function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): bool
   }
   return seen.has(end!)
 }
-test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [], others = [] }) => {
+test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, size: [m, n] = [20, 20], pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [], others = [] }) => {
   let searched = 0
   const result = withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === 'terminal-route-search') searched += event.units }, () => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }))
   // Only relations outside the block search for their routes.
@@ -673,14 +689,15 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
   expect(certifyTerminalLayout(doc, result.text, 'none')).toMatchObject({ status: 'passed', issues: [] })
   expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' }).text).toBe(result.text)
   const edges = doc.regions().filter(region => region.kind === 'edge'), members = edges.filter(edge => edge.bundle)
-  expect(new Set(edges.map(edge => edge.id)).size).toBe(400 + others.length)
-  expect(members.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(range20.flatMap(i => range20.map(j => pair(i, j).join('>'))).sort())
+  expect(new Set(edges.map(edge => edge.id)).size).toBe(m * n + others.length)
+  expect(members.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(range(m).flatMap(i => range(n).map(j => pair(i, j).join('>'))).sort())
   expect(edges.filter(edge => !edge.bundle).map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(others.map(pair => pair.join('>')).sort())
   const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
   expect(owners.filter(owner => owner.bundle).every(owner => owner.route === 'connected' && owner.bundle === members[0]!.bundle)).toBe(true)
   expect([...(doc.layoutEvidence().pathWitnesses ?? [])].filter(witness => witness !== null)).toHaveLength(owners.filter(owner => owner.route === 'connected').length)
-  const portsAt = new Map<string, Set<string>>()
-  for (const edge of edges) expect(ownDirectionsConnect(doc, edge), edge.id).toBe(true)
+  const portsAt = new Map<string, Set<string>>(),
+    owned = ownedEdgeDirections(doc)
+  for (const edge of edges) expect(ownDirectionsConnect(edge, owned), edge.id).toBe(true)
   for (const edge of members) {
     expect(edge.ports!.map(port => [port.end, port.nodeId, port.side])).toEqual([['start', edge.from, faces[0]], ['end', edge.to, faces[1]]])
     for (const port of edge.ports!) portsAt.set(port.nodeId, (portsAt.get(port.nodeId) ?? new Set()).add(`${port.x},${port.y}`))
@@ -688,8 +705,8 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
     expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(ends.flat())
     for (const [text, , share] of texts) if (share === 'all') expect(edge.projectedText, edge.id).toBe(text)
   }
-  // One shared port per card: the bus, not a fan of 20 ports per face.
-  expect([...portsAt.values()].map(ports => ports.size)).toEqual(Array.from({ length: 40 }, () => 1))
+  // One shared port per card: the bus, not a fan of ports per face.
+  expect([...portsAt.values()].map(ports => ports.size)).toEqual(Array.from({ length: m + n }, () => 1))
   const rows = result.text.split('\n')
   for (const [text, count, share] of texts) {
     const word = (end: string) => (/\w/.test(end) ? '\\b' : ''), pattern = new RegExp(word(text[0]!) + text + word(text.at(-1)!), 'g')
@@ -698,10 +715,66 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
     for (const [x, y] of places) {
       // A label belongs to each relation; a cardinality to each relation's own cardinality label.
       const described = new Set(doc.cell(x, y)!.owners.flatMap(owner => (share === 'all' ? (owner.kind === 'edge' ? [owner.id] : []) : owner.kind === 'label' && owner.parent?.kind === 'edge' ? [owner.parent.id] : []))), holders = members.filter(edge => described.has(edge.id))
-      expect({ text, described: described.size, members: holders.length }).toEqual({ text, described: share === 'all' ? 400 : 20, members: described.size })
+      expect({ text, described: described.size, members: holders.length }).toEqual({ text, described: share === 'all' ? m * n : share === 'from' ? n : m, members: described.size })
       if (share !== 'all') expect(new Set(holders.map(edge => (share === 'from' ? edge.from : edge.to))).size).toBe(1)
     }
   }
+})
+
+// Shared runs are checked once per owner set and run, yet each relation is
+// still proven through its own cells: one corrupted shared cell is refused.
+// The run cell is the fewest-owner cell inside a straight shared run, so every
+// relation through it can be named within the issue limit.
+function sharedRunCell(doc: TerminalDocument) {
+  let found: { x: number; y: number; ids: string[] } | undefined
+  for (const [x, y, cell] of doc.entries()) {
+    const axis = cell.glyph === '─' ? [1, 0] : cell.glyph === '│' ? [0, 1] : undefined
+    if (!axis || cell.owners.length <= 16 || (found && cell.owners.length >= found.ids.length)) continue
+    if ([-1, 1].every(side => doc.cell(x + side * axis[0]!, y + side * axis[1]!)?.owners === cell.owners)) found = { x, y, ids: cell.owners.map(owner => owner.id) }
+  }
+  return found!
+}
+const endpointCell = (doc: TerminalDocument, from: string, to: string, end: 'start' | 'end') => {
+  const port = doc.regions().find(region => region.kind === 'edge' && region.from === from && region.to === to)!.ports!.find(port => port.end === end)!
+  const offset = port.markerOffset ?? 0, dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+  return doc.cell(port.x + dx * offset, port.y + dy * offset)!
+}
+test.each<[string, (doc: TerminalDocument) => (issues: ReturnType<typeof certifyTerminalLayout>['issues']) => void]>([
+  ['ink is erased inside a shared run', doc => {
+    const { x, y, ids } = sharedRunCell(doc)
+    doc.cell(x, y)!.glyph = ' '
+    return issues => expect(issues.filter(issue => issue.code === 'TERMINAL_ROUTE_DISCONNECTED').map(issue => issue.elementId).sort()).toEqual(ids.sort())
+  }],
+  ['a relation is dropped from a shared run cell', doc => {
+    const { x, y, ids } = sharedRunCell(doc), cell = doc.cell(x, y)!
+    // A coherent corruption: the remaining owners keep the cell's directions.
+    const contributors = Object.getOwnPropertySymbols(cell).find(symbol => (cell as unknown as Record<symbol, unknown>)[symbol] === cell.owners)!
+    cell.owners = doc.owners(cell.owners.filter(owner => owner.id !== ids[0]))
+    ;(cell as unknown as Record<symbol, unknown>)[contributors] = cell.owners
+    return issues => expect(issues.map(issue => [issue.code, issue.elementId])).toEqual([['TERMINAL_ROUTE_DISCONNECTED', ids[0]]])
+  }],
+  ['a foreign route runs along a shared run', doc => {
+    const { x, y } = sharedRunCell(doc)
+    doc.stroke(x, y, doc.cell(x, y)!.glyph === '─' ? 10 : 5, { owner: { id: 'foreign', kind: 'edge' } })
+    doc.diagnostics.splice(0) // the certifier's own overlap check, not the painter's warning
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_ROUTE_OVERLAP', cell: { column: x, row: y } }))
+  }],
+  ['a relation is dropped from a shared marker', doc => {
+    const cell = endpointCell(doc, 'A3', 'B5', 'end'), victim = cell.owners.find(owner => owner.kind === 'edge')!
+    cell.owners = doc.owners(cell.owners.filter(owner => owner !== victim))
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_MARKER_CONTRACT_FAILED', message: expect.stringContaining(`${victim.id}/end`) }))
+  }],
+  ['a marker is drawn at the unmarked end', doc => {
+    const marker = endpointCell(doc, 'A3', 'B5', 'end')
+    Object.assign(endpointCell(doc, 'A3', 'B5', 'start'), { kind: 'marker', marker: marker.marker, glyph: marker.glyph })
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_MARKER_CONTRACT_FAILED', message: expect.stringContaining('Unexpected terminal marker') }))
+  }],
+])('a bus is refused when %s', (_name, corrupt) => {
+  const result = renderMermaidASCIIWithReceipt(bipartiteTable((i, j) => `A${i} --> B${j}`), { colorMode: 'none' }), doc = terminalDocumentOf(result)!
+  const check = corrupt(doc), certification = certifyTerminalLayout(doc, result.text, 'none')
+  expect(certification.status).toBe('failed')
+  expect(certification.budget).toMatchObject({ exhausted: false, issuesTruncated: false })
+  check(certification.issues)
 })
 
 // A shared trunk cannot say which of several labels belongs to which pair:

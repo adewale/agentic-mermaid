@@ -5,7 +5,7 @@ import { observeWork } from '../performance-observations.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { colorizeLine, colorizeText, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TERMINAL_CERTIFICATION_LIMITS, TERMINAL_OWNER_COMPOSITION_LIMIT, TerminalWorkLimitError } from './terminal-limits.ts'
+import { TERMINAL_CERTIFICATION_LIMITS, TERMINAL_OWNER_COMPOSITION_LIMIT, TERMINAL_SHARED_CELL_OWNERS, TerminalWorkLimitError } from './terminal-limits.ts'
 import { terminalPathAdmission } from './terminal-route.ts'
 import type { AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { charVisualWidth, visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
@@ -322,6 +322,15 @@ export function terminalOwnedStrokeMask(cell: Readonly<TerminalCell>, index: num
   return typeof masks === 'number' ? (masks === (cell.stroke?.mask ?? strokePorts[cell.glyph] ?? styledPorts[cell.glyph] ?? asciiPorts[cell.glyph] ?? 0) ? masks : 0) : (masks?.[index] ?? 0)
 }
 
+/** The mask `terminalOwnedStrokeMask` returns for every owner of a stroke cell
+ * whose owners all retain one direction set, or undefined when owners retain
+ * their own directions. */
+export function terminalUniformStrokeMask(cell: Readonly<TerminalCell>): number | undefined {
+  if (cell.kind !== 'stroke' || cell[strokeContributors] !== cell.owners) return cell.kind === 'stroke' ? 0 : undefined
+  const masks = cell[strokeContributions]
+  return typeof masks === 'number' ? terminalOwnedStrokeMask(cell, 0) : undefined
+}
+
 /** The final scan independently compares the owner union with current ink. */
 export function terminalStrokeProvenanceMatches(cell: Readonly<TerminalCell>, union: number): boolean {
   const masks = cell[strokeContributions]
@@ -470,6 +479,9 @@ export class TerminalDocument {
   private canonicalOwners = new WeakSet<TerminalOwner>()
   private ownerKeys = new WeakMap<TerminalOwner, string>()
   private ownerUnions = new WeakMap<TerminalOwnerSet, WeakMap<TerminalOwnerSet, TerminalOwnerSet>>()
+  /** Whether a large replayed owner set lists the same identities, in the
+   * same order, as the set it is interned as here. */
+  private alignedOwnerSets = new WeakMap<readonly TerminalOwner[], WeakMap<TerminalOwnerSet, boolean>>()
   private warningFeatures = new WeakMap<TerminalOwnerSet, { feature: string; keys: Partial<Record<TerminalCompositionDiagnostic['code'], string>> }>()
   private declared = new Map<string, TerminalBounds>()
   private ports = new Map<string, TerminalPort[]>()
@@ -883,14 +895,32 @@ export class TerminalDocument {
     let projectionFeatures: Set<string> | undefined
     const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
     const typedFrames = new Map<string, TerminalBounds>()
+    const frameKinds = ['node', 'group', 'cluster', 'subgraph']
     const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
-      if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
+      if (!frameKinds.includes(owner.kind ?? 'node')) return
       const typedKey = ownerKey(owner),
         typedPrevious = typedFrames.get(typedKey)
       typedFrames.set(typedKey, !declared && typedPrevious ? union(typedPrevious, bounds) : bounds)
       const previous = frames.get(owner.id)
       if (previous?.kind === 'node' && owner.kind !== 'node') return
       frames.set(owner.id, { kind: owner.kind, bounds: !declared && previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })
+    }
+    // Only node and container owners infer frames. A large shared set (a bus)
+    // lists those owners once, in set order, for every cell it owns.
+    const framing = new Map<readonly TerminalOwner[], TerminalOwner[]>()
+    const framingOwners = (owners: readonly TerminalOwner[]): readonly TerminalOwner[] => {
+      if (owners.length <= TERMINAL_SHARED_CELL_OWNERS) return owners
+      let found = framing.get(owners)
+      if (!found) {
+        visit() // list and map slot before allocation
+        found = []
+        for (const owner of owners) {
+          visit()
+          if (frameKinds.includes(owner.kind ?? 'node')) found.push(owner)
+        }
+        framing.set(owners, found)
+      }
+      return found
     }
     // Owned link summaries and labels are not surfaces. Explicit native card
     // allocation wins over inferred ink bounds, which may include annotations.
@@ -905,7 +935,7 @@ export class TerminalDocument {
         }
       }
       if (cell.kind !== 'text')
-        for (const owner of cell.owners) {
+        for (const owner of framingOwners(cell.owners)) {
           visit()
           includeFrame(owner, { x, y, width: cell.width, height: 1 })
         }
@@ -915,13 +945,30 @@ export class TerminalDocument {
       includeFrame(this.elements.get(key)!, bounds, true)
     }
     const expected = new Map<string, Set<string>>()
+    // A marker at a shared port is owned by every relation through it: index
+    // a large owner set's keys once instead of scanning it per relation.
+    const ownerIndex = new Map<readonly TerminalOwner[], Set<string>>()
     for (const [key, ports] of this.ports) {
       const owner = this.elements.get(key)!
-      const owns = (cell: TerminalCell | undefined) =>
-        cell?.owners.some(candidate => {
-          visit()
-          return ownerKey(candidate) === key
-        })
+      const owns = (cell: TerminalCell | undefined) => {
+        if (!cell || cell.owners.length <= TERMINAL_SHARED_CELL_OWNERS)
+          return cell?.owners.some(candidate => {
+            visit()
+            return ownerKey(candidate) === key
+          })
+        let index = ownerIndex.get(cell.owners)
+        if (!index) {
+          visit() // index and map slot before allocation
+          index = new Set()
+          for (const candidate of cell.owners) {
+            visit()
+            index.add(ownerKey(candidate))
+          }
+          ownerIndex.set(cell.owners, index)
+        }
+        visit()
+        return index.has(key)
+      }
       for (const port of ports) {
         visit()
         if (!port.markers) continue
@@ -1050,11 +1097,22 @@ export class TerminalDocument {
     if (!old && incoming[strokeContributors] === incoming.owners && !incoming.owners.length) return incoming[strokeContributions] ?? 0
     if (!old && owners.length <= 1 && incomingOwners.length === owners.length) return owners.length ? this.contribution(incoming, owners[0]!, mask) : (incoming[strokeContributions] ?? mask)
     if (!old && incoming[strokeContributors] === incoming.owners && incomingOwners.length === owners.length) {
-      let same = true
-      for (let index = 0; index < owners.length; index++) {
-        this.reserveStrokeProvenance(1)
-        if (ownerKey(owners[index]!) !== ownerKey(incomingOwners[index]!)) same = false
-      }
+      // A shared run replays one pair of immutable sets cell after cell, so a
+      // large pair's order is compared once and each repeat is one lookup.
+      const shared = owners.length > TERMINAL_SHARED_CELL_OWNERS && Object.isFrozen(owners) && Object.isFrozen(incomingOwners)
+      let same = shared ? this.alignedOwnerSets.get(incomingOwners)?.get(owners) : undefined
+      if (same === undefined) {
+        same = true
+        for (let index = 0; index < owners.length; index++) {
+          this.reserveStrokeProvenance(1)
+          if (ownerKey(owners[index]!) !== ownerKey(incomingOwners[index]!)) same = false
+        }
+        if (shared) {
+          let aligned = this.alignedOwnerSets.get(incomingOwners)
+          if (!aligned) this.alignedOwnerSets.set(incomingOwners, (aligned = new WeakMap()))
+          aligned.set(owners, same)
+        }
+      } else this.reserveStrokeProvenance(1)
       if (same) return incoming[strokeContributions] ?? 0
     }
     // Same singleton paint is the common path: no extra array or scan.
