@@ -413,6 +413,7 @@ describe('sequence participant of an unknown type', () => {
     ['a declaration', 'participant A\n  participant X@{ "type": "bogus" }\n  A->>X: hi', 3, 'bogus', 'X', undefined],
     ['an aliased actor declaration', 'actor X@{ type: Robot, "alias": "R2" }\n  participant A\n  A->>X: hi', 2, 'Robot', 'R2', undefined],
     ['a create', 'participant A\n  A->>B: hi\n  create participant X@{ "type": "bogus" } as Thing\n  A->>X: make\n  X-->>A: ok', 4, 'bogus', 'Thing', 1],
+    ['a number type', 'participant A\n  participant X@{ type: 3 }\n  A->>X: hi', 3, '3', 'X', undefined],
   ] as const)('%s is drawn as a participant, written back unchanged and warned about', async (_name, body, line, type, label, createdAt) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = await upstream.parse(source)
@@ -426,5 +427,30 @@ describe('sequence participant of an unknown type', () => {
     expect(receipt.layoutCertification?.status).toBe('passed')
     expect(svg).toContain(`data-id="X" data-label="${label}" data-type="participant"`)
     for (const useAscii of [false, true]) expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }).text).toContain(label)
+  })
+
+  // Mermaid matches type names exactly, so `Database` draws nothing there.
+  // The author meant a database: ours draws one, writes the Mermaid name and
+  // warns on the authored line.
+  test.each([
+    ['a declaration', 'participant A\n  participant X@{ "type": "Database" }\n  A->>X: hi', 3, 'Database', 'database'],
+    ['a create', 'participant A\n  A->>B: hi\n  create participant X@{ "type": "QUEUE" }\n  A->>X: make', 4, 'QUEUE', 'queue'],
+  ] as const)('a type in another case in %s is drawn as that type and written in Mermaid\'s spelling', async (_name, body, line, spelled, type) => {
+    const source = `sequenceDiagram\n  ${body}\n`
+    const parsed = await upstream.parse(source)
+    expect(parsed.ok && parsed.sequence?.actors.find(actor => actor.name === 'X')).toMatchObject({ type: spelled })
+    expect(renderParse(source).actors.find(actor => actor.id === 'X')).toMatchObject({ id: 'X', type })
+    expect(verifyMermaid(source).warnings).toContainEqual({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_type_case', line, message: expect.stringContaining(`Participant type "${spelled}" is read as "${type}"`),
+    })
+    const written = serializeMermaid(sequence(source))
+    expect(written).toContain(`"type": "${type}"`)
+    expect(written).not.toContain(spelled)
+    const rewritten = await upstream.parse(written)
+    expect(rewritten.ok && rewritten.sequence?.actors.find(actor => actor.name === 'X')).toMatchObject({ type })
+    expect(verifyMermaid(written).warnings.filter(warning => 'syntax' in warning && warning.syntax === 'sequence_participant_type_case')).toEqual([])
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    expect(svg).toContain(`data-type="${type}"`)
   })
 })

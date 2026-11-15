@@ -698,6 +698,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     if (syntax.kind === 'declaration' || syntax.kind === 'create') {
       const problem = sequenceParticipantIdProblem(syntax.declaration.id)
       if (problem) issue(entry, 'sequence_participant_id_extension', problem)
+      const { typeSpelling, type } = syntax.declaration
+      if (typeSpelling !== undefined) issue(entry, 'sequence_participant_type_case', `Participant type "${typeSpelling}" is read as "${type}". Pinned Mermaid matches types exactly and draws neither its header nor its lifeline; ours draws a ${type} and writes "${type}"`)
     }
     if (syntax.kind === 'message') {
       for (const [context, id] of [['sender', syntax.message.from], ['receiver', syntax.message.to]] as const) {
@@ -799,7 +801,9 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
  *  change an actor that already exists. */
 export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean
   /** A metadata type Mermaid has no glyph for, read as a plain participant. */
-  unknownType?: string }
+  unknownType?: string
+  /** A known type spelled in another case, which Mermaid matches exactly. */
+  typeSpelling?: string }
 
 function clearSequenceParticipantId(id: string): boolean {
   // Mermaid protects entity tokens before lexing. Their terminator is not
@@ -848,11 +852,14 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const asText = control ? control.text || null : undefined
     if (asText === null) return null
     const { entries } = block
+    // Upstream keeps any non-null `type` (`doc?.type ?? type`) and draws only
+    // the exact lower-case names, so a number or `Database` draws nothing.
     const requestedType = entries.get('type')
-    const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
+    const requested = typeof requestedType === 'string' ? requestedType.toLowerCase()
+      : requestedType === undefined || requestedType === null ? baseType : undefined
     // A type Mermaid has no glyph for still declares a participant: ours
     // draws a plain one, keeps the line as source and warns.
-    const known = ACTOR_TYPES.has(requested as SequenceActorType)
+    const known = requested !== undefined && ACTOR_TYPES.has(requested as SequenceActorType)
     const type = known ? requested as SequenceActorType : 'participant'
     // Upstream's `addActor`: a truthy metadata alias names the actor unless
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
@@ -863,7 +870,8 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
       id, label: alias ?? id, type, keyword: baseType, aliased: alias !== undefined,
       ...(control?.wrap === undefined ? {} : { wrap: control.wrap }),
       ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
-      ...(known ? {} : { unknownType: String(requestedType) }),
+      ...(known ? {} : { unknownType: typeof requestedType === 'string' ? requestedType : JSON.stringify(requestedType) }),
+      ...(known && typeof requestedType === 'string' && requestedType !== requested ? { typeSpelling: requestedType } : {}),
     }
   }
   if (line.includes('@{')) return null
@@ -886,7 +894,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
 }
 
 /** A `create participant|actor X …` line: the participant it creates. */
-export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata' | 'unknownType'>
+export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata' | 'unknownType' | 'typeSpelling'>
 
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
  *  agent parsers. Type metadata (`create participant D@{ "type": "database" }`)
@@ -896,8 +904,8 @@ export function parseSequenceCreateLine(line: string): ParsedSequenceCreate | nu
   if (metadata) {
     const declared = parseActorDeclaration(line.slice(metadata[0].length))
     if (!declared) return null
-    const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType } = declared
-    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}), ...(unknownType === undefined ? {} : { unknownType }) }
+    const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType, typeSpelling } = declared
+    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}), ...(unknownType === undefined ? {} : { unknownType }), ...(typeSpelling === undefined ? {} : { typeSpelling }) }
   }
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
