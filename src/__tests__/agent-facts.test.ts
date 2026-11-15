@@ -71,7 +71,7 @@ describe('deterministic Mermaid facts', () => {
   })
 
   test('recognized messages in preserved Sequence controls remain observable without claiming typed edit indexes', () => {
-    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n critical Connect\n A->>B: attempt\n option timeout\n B-->>A: retry\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
+    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n critical Connect\n A->>B: attempt\n activate B\n option timeout\n B-->>A: retry\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
     const out = facts(source)
     for (const message of ['message A -> B : start', 'message A -> B : attempt', 'message B -> A : retry', 'message A -> B : <b>literal</b>']) expect(out).toContain(message)
     expect(out).toContain('title Checkout')

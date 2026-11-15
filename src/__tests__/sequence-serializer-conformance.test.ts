@@ -335,6 +335,9 @@ describe('sequence create/destroy are typed statements', () => {
     ['a create inside a loop', 'A->>B: hi\n  loop each\n    create participant C as Carl\n    A->>C: make\n  end', ['create C']],
     ['a destroy in a second par branch', 'A->>B: hi\n  par one\n    A->>B: x\n  and two\n    destroy B\n    A->>B: bye\n  end', ['destroy B']],
     ['a create and destroy stacked in an opt', 'A->>B: hi\n  opt maybe\n    create participant C\n    destroy B\n    B->>C: hand over\n  end', ['create C', 'destroy B']],
+    ['a destroy in a critical option', 'A->>B: hi\n  critical connect\n    A->>B: try\n  option timeout\n    destroy B\n    B-->>A: gone\n  end', ['destroy B']],
+    ['a create inside a break', 'A->>B: hi\n  break when full\n    create participant C\n    A->>C: overflow\n  end', ['create C']],
+    ['a destroy inside a rect', 'A->>B: hi\n  rect rgb(200, 220, 255)\n    destroy B\n    A->>B: bye\n  end', ['destroy B']],
   ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = sequence(source)
@@ -443,11 +446,11 @@ describe('sequence create/destroy are typed statements', () => {
     expect(serializeMermaid(parsed)).toBe(FRAGMENT)
   })
 
-  test('a lifecycle directive inside an unmodeled fragment is named by the opaque warning', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  critical done\n    destroy B\n    A->>B: bye\n  end\n'
+  test('a lifecycle directive inside a nested fragment is named by the opaque warning', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  rect rgb(1, 2, 3)\n    alt done\n      destroy B\n      A->>B: bye\n    end\n  end\n'
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(critical fragment, destroy)'),
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(rect fragment, alt fragment, destroy)'),
     }))
   })
 })

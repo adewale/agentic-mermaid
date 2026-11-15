@@ -158,7 +158,9 @@ export interface SequenceMessage {
   deactivate?: boolean
 }
 
-export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
+/** `critical` branches continue with `option`; a `rect`'s label is its fill
+ * color as written (none for a bare `rect`). */
+export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
 export interface SequenceFragmentBranch {
   wrap?: boolean
   /** `else` / `and` caption. The first branch normally omits it. */
@@ -220,12 +222,12 @@ export interface SequenceNoteStatement {
   wrap?: boolean
 }
 
-// Ordered statement list. Refs index into the top-level arrays. The four
-// common control fragments are typed (with their `create`/`destroy` lines) so
+// Ordered statement list. Refs index into the top-level arrays. Control
+// fragments of messages are typed (with their `create`/`destroy` lines) so
 // their messages participate in
 // describe/facts/verify and can be authored through mutation ops, as are
 // top-level notes. Constructs outside that closed model (notes inside
-// fragments, critical/break/rect/box, activations…) remain lossless opaque
+// fragments, nested fragments, box, activations…) remain lossless opaque
 // segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants

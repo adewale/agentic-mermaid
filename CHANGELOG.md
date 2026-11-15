@@ -93,7 +93,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   boundaries too. Verify warns `sequence_lifecycle_gap` where a fragment
   boundary, note, activation or `autonumber` stands between a directive and
   its message: Mermaid binds the directive to that line and draws no creation
-  or destruction. `critical`, `break` and `rect` stay preserved source.
+  or destruction.
+
+- `critical` (with `option` branches), `break` and `rect` fragments are typed
+  like `alt`/`opt`/`loop`/`par`: their messages and `create`/`destroy` lines
+  are in facts and `describe`, and the fragment operations edit them
+  (`add_fragment` takes the three kinds, `add_fragment_branch` adds an
+  `option` to a `critical`). A `rect`'s label is its fill color: `add_fragment`
+  and the label setters refuse one the renderer cannot read. A `rect` holding
+  another fragment, or whose argument is a `#` comment, stays preserved
+  source, as does any fragment nested in another.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

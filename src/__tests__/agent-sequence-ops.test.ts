@@ -221,7 +221,8 @@ describe('sequence message style names the arrow Mermaid reads and ours draws', 
   test('every parsed arrow: typed style, facts, written arrow and drawn heads agree', () => {
     const lines = ARROW_CASES.map((c, i) => `A${c.arrow}B: m${i}`)
     for (const preserved of [false, true]) {
-      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect rgb(1, 2, 3)', ...lines, 'end'] : lines)].join('\n'))
+      // An activation is outside the typed fragment model, so this rect stays preserved source.
+      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect rgb(1, 2, 3)', ...lines, 'activate A', 'end'] : lines)].join('\n'))
       const facts = describeMermaidFacts(d)
       const subject = (i: number) => preserved ? `preserved-message#0.${i + 1}` : `message#${i}`
       ARROW_CASES.forEach((c, i) => {
@@ -387,6 +388,76 @@ describe('facts give each sequence message the address its ops take', () => {
     expect(written).toContain('  A->>B: five\n  Note over B: after five\n  loop again\n')
     expect(written).toContain('  B->>A: before seven\n  A->>B: seven\n')
     expect(written).toContain('  A->>B: before four\n  B->>A: four\n')
+  })
+})
+
+// ============================================================================
+// critical / break / rect fragments
+// ============================================================================
+
+describe('critical, break and rect fragments are typed like alt, opt, loop and par', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  /** Messages and fragment markers in order, as Mermaid's database holds them. */
+  const mermaidSignals = (source: string) => upstream.project(source, diagram => {
+    const names = Object.fromEntries(Object.entries(diagram.db.LINETYPE as Record<string, number>).map(([name, type]) => [type, name]))
+    return diagram.db.getMessages().map((m: { from?: string; to?: string; message: unknown; type: number }) => m.from === undefined
+      ? `${names[m.type]} ${typeof m.message === 'string' ? m.message : ''}`.trim()
+      : `${m.from}->${m.to}: ${m.message}`)
+  })
+
+  test.each([
+    ['a critical fragment with option branches', [
+      { kind: 'add_fragment', fragmentKind: 'critical', label: 'connect' },
+      { kind: 'add_fragment_branch', fragmentIndex: 0, label: 'timeout' },
+      { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'B', text: 'try' },
+      { kind: 'add_fragment_message', fragmentIndex: 0, branchIndex: 1, from: 'B', to: 'A', text: 'retry' },
+    ], '  critical connect\n  A->>B: try\n  option timeout\n  B->>A: retry\n  end\n', ['CRITICAL_START connect', 'A->B: try', 'CRITICAL_OPTION timeout', 'B->A: retry', 'CRITICAL_END']],
+    ['a break fragment', [
+      { kind: 'add_fragment', fragmentKind: 'break', label: 'when full' },
+      { kind: 'add_fragment_message', fragmentIndex: 0, from: 'B', to: 'A', text: 'full' },
+    ], '  break when full\n  B->>A: full\n  end\n', ['BREAK_START when full', 'B->A: full', 'BREAK_END']],
+    ['a rect fragment with a fill color', [
+      { kind: 'add_fragment', fragmentKind: 'rect', label: 'rgb(200, 220, 255)' },
+      { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'B', text: 'inside' },
+    ], '  rect rgb(200, 220, 255)\n  A->>B: inside\n  end\n', ['RECT_START rgb(200, 220, 255)', 'A->B: inside', 'RECT_END']],
+    ['a rect fragment recolored', [
+      { kind: 'add_fragment', fragmentKind: 'rect' },
+      { kind: 'set_fragment_label', index: 0, label: 'lightyellow' },
+    ], '  rect lightyellow\n  end\n', ['RECT_START lightyellow', 'RECT_END']],
+  ] as const)('%s is written as Mermaid reads it and re-reads typed', async (_name, ops, written, signals) => {
+    let d = sequence('sequenceDiagram\n  A->>B: hi\n')
+    for (const op of ops) d = apply(d, op as SequenceMutationOp)
+    const output = serializeMermaid(d)
+    expect(output).toBe(`sequenceDiagram\n  A->>B: hi\n${written}`)
+    expect(sequence(output).body.statements.map(statement => statement.kind)).toEqual(['message', 'fragment'])
+    expect(describeMermaidFacts(sequence(output))).toEqual(describeMermaidFacts(d))
+    const read = await mermaidSignals(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map(projectEntityMarkers)).toEqual(['A->B: hi', ...signals])
+  })
+
+  test.each([
+    ['a rect color the renderer cannot read', { kind: 'add_fragment', fragmentKind: 'rect', label: 'not a color' }],
+    ['a rect recolored with text', { kind: 'set_fragment_label', index: 0, label: 'Heading' }],
+    ['a second branch in a break', { kind: 'add_fragment_branch', fragmentIndex: 1 }],
+    ['a second branch in a rect', { kind: 'add_fragment_branch', fragmentIndex: 0 }],
+  ] as const)('an op asking for %s is refused', (_name, op) => {
+    const parsed = sequence('sequenceDiagram\n  rect rgb(1, 2, 3)\n    A->>B: in\n  end\n  break stop\n    A->>B: out\n  end\n')
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+  })
+
+  test.each([
+    ['a rect whose argument is a # comment', 'rect #ff0000'],
+    ['a rect holding another fragment', 'rect rgb(1, 2, 3)\n    alt yes\n      A->>B: x\n    end'],
+  ])('%s stays preserved source', (_name, block) => {
+    const source = `sequenceDiagram\n  A->>B: hi\n  ${block}\n  end\n`
+    expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
+    expect(serializeMermaid(sequence(source))).toBe(source)
   })
 })
 

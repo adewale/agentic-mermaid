@@ -74,7 +74,7 @@ const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'd
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'line', 'line-dashed', 'async', 'async-dashed', 'lost', 'lost-dashed', 'bidirectional', 'bidirectional-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
-const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
+const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over', 'critical', 'break', 'rect'] as const
 const SEQUENCE_NOTE_POSITIONS = ['left', 'right', 'over'] as const
 // Facts number every message in drawing order (`message#N`); these ops take
 // the index facts state as `message#N op [fragmentIndex F branchIndex B] index K`.
@@ -173,7 +173,7 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   set_message_wrap: { fields: { index: withNote(num(), SEQUENCE_TOP_INDEX), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
   move_message: { fields: { from: withNote(num(), SEQUENCE_TOP_INDEX), to: withNote(num(), `target position as a ${SEQUENCE_TOP_INDEX}`) } },
   set_participant_label: { fields: { id: str(), label: str() } },
-  add_fragment: { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: str(false), index: withNote(num(false), 'fragment insert position; default: append') } },
+  add_fragment: { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: withNote(str(false), 'a rect takes its fill color (a CSS color); omit for the default fill'), index: withNote(num(false), 'fragment insert position; default: append') } },
   remove_fragment: { fields: { index: num() } },
   set_fragment_label: { fields: { index: num(), label: strOrNull() } },
   add_fragment_branch: { fields: { fragmentIndex: num(), label: str(false) } },

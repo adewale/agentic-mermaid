@@ -42,6 +42,7 @@ import { appendOpaqueSegment, coalesceOpaqueSegments } from './opaque-segments.t
 import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText, writeSequenceControlledText } from '../sequence/text.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { sequenceRectColor } from '../sequence/colors.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -264,8 +265,11 @@ function portableRaw(entry: SequenceSourceStatement): string {
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
-  if (!opener || !['alt', 'opt', 'loop', 'par', 'par_over'].includes(opener.type)) return null
+  if (!opener || !['alt', 'opt', 'loop', 'par', 'par_over', 'critical', 'break', 'rect'].includes(opener.type)) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
+  // A rect's argument is a color, kept as written. One the renderer does not
+  // read as a color (a `#` comment, a wrap control) stays verbatim source.
+  if (fragmentKind === 'rect' && (opener.wrap !== undefined || rectColorError(opener.label))) return null
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
   for (const entry of entries.slice(1, -1)) {
     const line = entry.raw.trim()
@@ -290,6 +294,7 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
     if (inner?.kind !== 'message') return null
     branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
   }
+  if (fragmentKind === 'rect') return { fragmentKind, ...(opener.label ? { label: opener.label } : {}), branches, rawLines: entries.map(portableRaw) }
   const text = readSequenceText(opener.label)
   return {
     fragmentKind,
@@ -683,16 +688,27 @@ function renderFragment(fragment: SequenceFragment): string[] {
     return [...fragment.rawLines]
   }
   const prefix = `  ${fragment.fragmentKind} `
-  const lines = [fragment.label || fragment.wrap !== undefined ? prefix + writeSequenceControlledText(fragment.label ?? '', fragment.labelContent, fragment.wrap, prefix) : prefix.trimEnd()]
+  const opener = fragment.fragmentKind === 'rect' ? prefix + (fragment.label ?? '')
+    : fragment.label || fragment.wrap !== undefined ? prefix + writeSequenceControlledText(fragment.label ?? '', fragment.labelContent, fragment.wrap, prefix) : prefix
+  const lines = [opener.trimEnd()]
   fragment.branches.forEach((branch, index) => {
     if (index > 0) {
-      const branchPrefix = `  ${fragment.fragmentKind === 'par' || fragment.fragmentKind === 'par_over' ? 'and' : 'else'} `
+      const branchPrefix = `  ${BRANCH_KEYWORD[fragment.fragmentKind] ?? 'else'} `
       lines.push(branch.label || branch.wrap !== undefined ? branchPrefix + writeSequenceControlledText(branch.label ?? '', branch.labelContent, branch.wrap, branchPrefix) : branchPrefix.trimEnd())
     }
     for (const item of branchItems(branch)) lines.push('kind' in item ? renderDirective(item) : `  ${renderMessage(item).trimStart()}`)
   })
   lines.push('  end')
   return lines
+}
+
+/** The line that starts each further branch of a multi-branch fragment. */
+const BRANCH_KEYWORD: Partial<Record<SequenceFragment['fragmentKind'], string>> = { alt: 'else', par: 'and', par_over: 'and', critical: 'option' }
+
+/** A rect's label is the fill color the renderer reads, or none. */
+function rectColorError(label: string | undefined): MutationError | undefined {
+  if (!label || sequenceRectColor(label)) return undefined
+  return { code: 'INVALID_OP', message: `A rect fragment's label is its fill color; "${label}" is not a CSS color the renderer reads (use a color name, rgb(…) or rgba(…), or omit it)` }
 }
 
 function renderParticipant(p: SequenceParticipant, redeclared: boolean): string {
@@ -947,6 +963,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     case 'add_fragment': {
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
+      const color = op.fragmentKind === 'rect' ? rectColorError(label.value) : undefined
+      if (color) return err(color)
       const fragments = fragmentStatements(statements)
       const index = op.index ?? fragments.length
       if (!Number.isInteger(index) || index < 0 || index > fragments.length) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${fragments.length})` })
@@ -966,6 +984,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
+      const color = target.statement.fragment.fragmentKind === 'rect' ? rectColorError(label.value) : undefined
+      if (color) return err(color)
       // A matching setter can follow a direct body edit. Rebuild the source;
       // valid labelContent still preserves the label's authored spelling.
       delete target.statement.fragment.rawLines
@@ -977,7 +997,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     case 'add_fragment_branch': {
       const target = fragmentStatements(statements)[op.fragmentIndex]
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      if (!['alt', 'par', 'par_over'].includes(target.statement.fragment.fragmentKind)) return err({ code: 'INVALID_OP', message: 'Only alt, par and par_over fragments can have multiple branches' })
+      if (!BRANCH_KEYWORD[target.statement.fragment.fragmentKind]) return err({ code: 'INVALID_OP', message: 'Only alt, par, par_over and critical fragments can have multiple branches' })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
       delete target.statement.fragment.rawLines
@@ -991,6 +1011,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!branch.ok) return branch
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
+      const color = target.statement.fragment.fragmentKind === 'rect' && op.branchIndex === 0 ? rectColorError(label.value) : undefined
+      if (color) return err(color)
       delete target.statement.fragment.rawLines
       if (branch.value.label !== label.value || branch.value.labelContent?.value !== branch.value.label) delete branch.value.labelContent
       if (op.branchIndex === 0) {

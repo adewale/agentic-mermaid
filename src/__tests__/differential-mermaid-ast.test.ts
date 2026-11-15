@@ -63,8 +63,9 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
 
   test('B: corpus divergence profile vs mermaid-ast is pinned (ratchet)', () => {
     // Documented divergence classes (June 2026): mermaid-ast counts sequence
-    // alt/loop/opt block delimiters as messages while we count the typed
-    // fragment's actual interactions; it
+    // alt/loop/opt (and critical/break/rect) block delimiters as messages
+    // while we count the typed fragment's actual interactions (case 29, a
+    // `break`, joined this class when those fragments became typed); it
     // counts nested-subgraph membership differently than our flattened universe;
     // it does not project ER statements preserved inside tolerated subgraphs;
     // and mermaid-ast 0.8.2 does not model the current v11 icon/image and edge
@@ -83,7 +84,7 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
       'flowchart:syntax/flowchart.md#97', 'flowchart:syntax/flowchart.md#103',
       'sequence:syntax/sequenceDiagram.md#15', 'sequence:syntax/sequenceDiagram.md#23', 'sequence:syntax/sequenceDiagram.md#24',
       'sequence:syntax/sequenceDiagram.md#25', 'sequence:syntax/sequenceDiagram.md#26', 'sequence:syntax/sequenceDiagram.md#27',
-      'sequence:syntax/sequenceDiagram.md#28', 'sequence:syntax/sequenceDiagram.md#33',
+      'sequence:syntax/sequenceDiagram.md#28', 'sequence:syntax/sequenceDiagram.md#29', 'sequence:syntax/sequenceDiagram.md#33',
       'er:syntax/entityRelationshipDiagram.md#12', 'er:syntax/entityRelationshipDiagram.md#13', 'er:syntax/entityRelationshipDiagram.md#14',
       'er:syntax/entityRelationshipDiagram.md#16', 'er:syntax/entityRelationshipDiagram.md#17',
     ]

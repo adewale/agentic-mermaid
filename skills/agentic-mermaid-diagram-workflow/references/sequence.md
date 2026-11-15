@@ -30,15 +30,17 @@ own fact: `message#N op index K` for a top-level message (pass K as `index`,
 `message#N op fragmentIndex F branchIndex B index K` for a fragment message
 (pass all three to the fragment-message ops).
 
-IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, and `par` are
-typed fragments. Their messages appear in describe/facts/verify and fragment
+IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, `par`,
+`par_over`, `critical` (branches continue with `option`), `break` and `rect`
+(its label is the fill color, a CSS color) are typed fragments. Their messages appear in describe/facts/verify and fragment
 ops can author or edit them. `create participant|actor` and `destroy` lines
 are typed statements too, at top level and inside those fragments (facts:
 `create …`, `destroy …`, with `fragment#f branch#b` inside a fragment); an
 edit that would separate one from the message Mermaid requires right after it
 is refused. Top-level `Note left of|right of|over …` lines are typed
-notes. Other constructs (notes inside fragments, critical/break/rect/box/
-activate/autonumber/title) ride along VERBATIM as opaque-block segments while
+notes. Other constructs (notes inside fragments, a fragment nested in
+another, box/activate/autonumber/title) ride along VERBATIM as opaque-block
+segments while
 participant and top-level message ops remain live. Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE
 body. Either way the parser never silently drops constructs.

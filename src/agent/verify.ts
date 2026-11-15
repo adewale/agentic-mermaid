@@ -1405,7 +1405,8 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
       const w = labelOverflowWarning(`note#${noteIndex++}`, resolveLabelContent(statement.text, statement.textContent), cap)
       if (w) warnings.push(w)
     } else if (statement.kind === 'fragment') {
-      if (statement.fragment.label) {
+      // A rect's label is its fill color, not text.
+      if (statement.fragment.label && statement.fragment.fragmentKind !== 'rect') {
         const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)
         if (w) warnings.push(w)
       }
