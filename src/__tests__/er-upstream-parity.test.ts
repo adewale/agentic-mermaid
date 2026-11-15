@@ -138,6 +138,9 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A["100% done"]', 'er', '>100% done<', 'er_quoted_text', 2],
   ['erDiagram\n  A[""]\n  A ||--o{ B : x', 'opaque', '>B<', 'er_quoted_text', 2],
   ['erDiagram\n  subgraph "a\\"b"\n  A\n  end', 'opaque', '>a&quot;b<', 'er_quoted_text', 2],
+  // A subgraph id or title that runs across lines (see the next describe).
+  ['erDiagram\n  subgraph "one\n  two"\n  A\n  end', 'er', '>two<', 'er_quoted_text', 2],
+  ['erDiagram\n  subgraph S["one\n  two"]\n  A\n  end', 'er', '>two<', 'er_quoted_text', 2],
   ['erDiagram\n  A ||--o{ B : x %% c', 'er', '>x<', 'er_trailing_comment', 2],
   ['erDiagram\n  A ||--o{ B : "x" %% c', 'er', '>x<', 'er_trailing_comment', 2],
   ['erDiagram\n  A %% c', 'er', '>A<', 'er_trailing_comment', 2],
@@ -189,6 +192,42 @@ describe('ER source Mermaid rejects, read generously', () => {
   ])('%j has nothing to report', async source => {
     await expectParity(source)
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+})
+
+// Quoted text that runs across lines (erDiagram.jison): a relation label may
+// be WORD, `"[^"]*"`, which Mermaid reads to its closing quote; a name or an
+// alias is ENTITY_NAME, which holds no line break, so Mermaid rejects it.
+// Ours reads both as one line, each line break as `<br>` (the alias is drawn
+// on two lines, its attributes intact), reports the name, and writes one line
+// Mermaid reads as ours does.
+// [source, Mermaid's reading, ours, the attributes, the two drawn lines]
+describe('ER quoted text across lines against pinned Mermaid', () => {
+  test.each<[string, ErReading | 'rejected', ErReading, string[], [string, string]]>([
+    ['erDiagram\n  E["one\n  two"] {\n    int id\n  }', 'rejected', { entities: [['E', 'one<br>two']], relations: [] }, ['E int id'], ['one', 'two']],
+    ['erDiagram\n  E["one\n two"] { int id }', 'rejected', { entities: [['E', 'one<br>two']], relations: [] }, ['E int id'], ['one', 'two']],
+    ['erDiagram\n  "one\n  two" {\n    int id\n  }', 'rejected', { entities: [['one<br>two']], relations: [] }, ['one<br>two int id'], ['one', 'two']],
+    ['erDiagram\n  A ||--o{ B : "has\n  many"', { entities: [['A'], ['B']], relations: [['A', 'B', 'has\n  many']] }, { entities: [['A'], ['B']], relations: [['A', 'B', 'has<br>many']] }, [], ['has', 'many']],
+  ])('%j', async (source, mermaid, ours, attributes, [first, second]) => {
+    const attributesOf = (text: string) => parseErDiagram(normalizeMermaidSource(text).familyLines).entities
+      .flatMap(entity => entity.attributes.map(attribute => `${entity.id} ${attribute.type} ${attribute.name}`))
+    expect(await mermaidReads(source)).toEqual(mermaid)
+    expect(oursReads(source)).toEqual(ours)
+    expect(attributesOf(source)).toEqual(attributes)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('source rejected')
+    const written = serializeMermaid(parsed.value)
+    expect({ written, mermaid: await mermaidReads(written), ours: oursReads(written), attributes: attributesOf(written) }).toEqual({ written, mermaid: ours, ours, attributes })
+    const reread = parseRegisteredMermaid(written)
+    expect(reread.ok && describeMermaidFacts(reread.value)).toEqual(describeMermaidFacts(parsed.value))
+    expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+      .toEqual(mermaid === 'rejected' ? ['er_quoted_text@2'] : [])
+    const svg = renderMermaidSVG(source)
+    expect([first, second].map(text => svg.includes(`>${text}<`))).toEqual([true, true])
+    const rows = renderMermaidASCII(source, { colorMode: 'none' }).split('\n')
+    const at = (text: string) => rows.findIndex(row => row.includes(text))
+    expect(at(first)).toBeGreaterThanOrEqual(0)
+    expect(at(second)).toBeGreaterThan(at(first))
   })
 })
 

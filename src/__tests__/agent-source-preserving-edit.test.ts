@@ -157,6 +157,19 @@ const SPLIT_STATE = `stateDiagram-v2
   Wait --> Done
 `
 
+// Mermaid reads a relation label over lines, but not an alias (it is edited
+// away here, so the result is Mermaid's to read).
+const SPLIT_ER = `erDiagram
+    CUSTOMER ||--o{ ORDER : "places
+        online"
+    ORDER {
+        int id
+    }
+`
+const SPLIT_ER_ALIAS = `${SPLIT_ER}    LINE_ITEM["Line
+        item"]
+`
+
 // Statements declared or labelled on several lines: the parser merges them,
 // and the canonical writer writes one statement for all of them.
 const REDECLARED_FLOWCHART = `flowchart TD
@@ -269,6 +282,9 @@ const CASES: Case[] = [
   { name: 'er add_attribute to an entity named only by a relation opens an indented block', source: `${ER}    ORDER ||--o{ SHIPMENT : ships\n`, op: { kind: 'add_attribute', entity: 'SHIPMENT', text: 'date sent' }, reference: [['    ORDER ||--o{ SHIPMENT : ships\n', '    ORDER ||--o{ SHIPMENT : ships\n    SHIPMENT {\n        date sent\n    }\n']] },
   { name: 'er add_relation', source: ER, op: { kind: 'add_relation', from: 'ORDER', to: 'LINE_ITEM', leftCard: 'one-only', rightCard: 'one-or-many', label: 'contains' }, reference: [['    CUSTOMER ||--o{ ORDER : places\n', '    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE_ITEM : contains\n']] },
   { name: 'er set_entity_label', source: ER, op: { kind: 'set_entity_label', entity: 'ORDER', label: 'Order' }, touched: ['    ORDER {'], reference: [['    ORDER {', '    ORDER["Order"] {']] },
+  { name: 'er add_attribute after a relation label written over two lines', source: SPLIT_ER, op: { kind: 'add_attribute', entity: 'ORDER', text: 'date placed' }, reference: [['        int id\n', '        int id\n        date placed\n']] },
+  { name: 'er remove_relation removes every line of its split label', source: SPLIT_ER, op: { kind: 'remove_relation', index: 0 }, touched: ['    CUSTOMER ||--o{ ORDER : "places', '        online"'], reference: [['    CUSTOMER ||--o{ ORDER : "places\n        online"\n', '    CUSTOMER\n']] },
+  { name: 'er set_entity_label on an alias written over two lines', source: SPLIT_ER_ALIAS, op: { kind: 'set_entity_label', entity: 'LINE_ITEM', label: 'Item' }, touched: ['    LINE_ITEM["Line', '        item"]'], reference: [['LINE_ITEM["Line\n        item"]', 'LINE_ITEM["Item"]']] },
   { name: 'gantt add_task', source: GANTT, op: { kind: 'add_task', sectionIndex: 0, label: 'Test', taskId: 'test', start: 'after impl', end: '3d' }, reference: [['    Implement   :impl, after des, 10d\n', '    Implement   :impl, after des, 10d\n    Test :test, after impl, 3d\n']] },
   { name: 'gantt rename_task', source: GANTT, op: { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'Design work' }, touched: ['    Design      :des, 2024-01-01, 5d'], reference: [['Design      :', 'Design work      :']] },
   { name: 'gantt set_task_dates', source: GANTT, op: { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 0, start: '2024-01-02', end: '6d' }, touched: ['    Design      :des, 2024-01-01, 5d'], reference: [['2024-01-01, 5d', '2024-01-02, 6d']] },

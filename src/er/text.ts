@@ -8,6 +8,9 @@
 //            `"` is written as the entity code `#quot;`. Ours also reads a
 //            name with `%`, a backslash or nothing in it, and `\"` and `\\`
 //            in either as `"` and `\`; verify reports each (ErQuotedTextReport).
+//            WORD (like an attribute's COMMENT) may run across lines;
+//            ENTITY_NAME may not. Ours reads a label or a name that does as
+//            one line, each line break as `<br>`, and verify reports a name.
 //   entity   `#name;` / `#123;` codes (src/shared/mermaid-entities.ts).
 //   display  `<br>` and markdown emphasis (upstream renders ER labels as
 //            markdown), read from the text as written, before its entity
@@ -40,30 +43,47 @@ function unescapeErQuoted(text: string): string {
 }
 
 /**
+ * Quoted text that runs across lines, as one line: each later line without
+ * its indentation and blank lines dropped, as Mermaid's markdown display
+ * draws such text, and each remaining line break written `<br>`, the line
+ * break token the display layer reads (as the flowchart and class readers
+ * join a label that runs across lines).
+ */
+function joinErQuotedLines(text: string): string {
+  if (!/[\r\n]/.test(text)) return text
+  const [first, ...rest] = text.split(/\r\n?|\n/)
+  return [first!.trimEnd(), ...rest.map(line => line.trim()).filter(Boolean)].join('<br>')
+}
+
+/**
  * The text of a quoted name token (`"…"`, quotes included). The lexer keeps
  * a `\"` inside the token, which reads as `"`; `report` hears a name
- * Mermaid rejects (a backslash, a `%`, or no text).
+ * Mermaid rejects (a backslash, a `%`, no text, or a line break). A name that
+ * runs across lines reads each line break as `<br>`, the spelling of a line
+ * break Mermaid reads in a name.
  */
 export function readErQuotedName(token: string, context: string, report?: ErQuotedTextReport): string {
   const text = token.slice(1, -1)
   if (text.includes('\\')) report?.(`${context} ${token} contains a backslash, and \\" reads as "`, 'write " as #quot; and \\ as #92;')
   else if (text.includes('%')) report?.(`${context} ${token} contains a % and is read as written`, 'write % as #37;')
   else if (text === '') report?.(`${context} ${token} is empty and is read as no text`, 'give the name some text')
-  return unescapeErQuoted(text)
+  if (/[\r\n]/.test(text)) report?.(`${context} runs across lines, and each line break reads as <br>`, 'write it on one line, with <br> for each line break')
+  return joinErQuotedLines(unescapeErQuoted(text))
 }
 
 /**
  * The text of a relation label: what follows the `:`, trimmed. A quoted
- * label is one string, `"…"` with no `"` inside; ours also reads a `\"` in
- * it as `"`, and `report` hears that.
+ * label is one string, `"…"` with no `"` inside, which may run across lines
+ * (joinErQuotedLines); ours also reads a `\"` in it as `"`, and `report`
+ * hears that.
  */
 export function readErRelationLabel(raw: string, report?: ErQuotedTextReport): string {
   const text = raw.trim()
   if (!text.startsWith('"')) return text
-  if (/^"[^"]*"$/.test(text)) return text.slice(1, -1)
+  if (/^"[^"]*"$/.test(text)) return joinErQuotedLines(text.slice(1, -1))
   if (/^"(?:\\.|[^"\\])*"$/.test(text)) {
     report?.(`ER relation label ${text} contains \\", which reads as "`, 'write " as #quot;')
-    return unescapeErQuoted(text.slice(1, -1))
+    return joinErQuotedLines(unescapeErQuoted(text.slice(1, -1)))
   }
   throw syntaxError({
     what: `ER relation label ${text} is not one quoted string`,
