@@ -50,6 +50,7 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
 function layoutGraph(graph: LayoutGraph): void {
   importIndependentPorts(graph)
   layoutIndependentDescendants(graph)
+  checkSupportedStrategies(graph.options)
   if (graph.nodes.some(node => node.nestedGraph !== undefined)) { layoutCompound(graph); return }
   const algorithm = stringOption(graph.options, 'algorithm', 'layered')
   if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
@@ -110,6 +111,7 @@ function layoutCompound(root: LayoutGraph): void {
   const greedy = enumOption(root.options, 'layered.crossingMinimization.greedySwitchHierarchical.type', ['ONE_SIDED', 'TWO_SIDED', 'OFF'] as const, 'OFF')
   const streams = new Map<LayoutGraph, Random>()
   for (const graph of graphs) {
+    checkSupportedStrategies(graph.options)
     const childCrossing = enumOption(graph.options, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP')
     if (childCrossing !== crossing) throw new Error('ELK TypeScript port: differing hierarchical crossing strategies are not implemented yet')
     graph.options.set('layered.crossingMinimization.greedySwitchHierarchical.type', greedy)
@@ -127,6 +129,24 @@ function layoutCompound(root: LayoutGraph): void {
     finishLayout(prepared.get(graph)!)
   }
   postprocessCompound(compound)
+}
+
+// GraphConfigurator chooses these algorithms and optional processors before
+// component splitting. Valid alternatives outside the port must not silently
+// run the default phase; invalid enum strings still use ELK's parsed defaults.
+function checkSupportedStrategies(options: Options): void {
+  const layering = enumOption(options, 'layered.layering.strategy', ['NETWORK_SIMPLEX', 'LONGEST_PATH', 'LONGEST_PATH_SOURCE', 'COFFMAN_GRAHAM', 'INTERACTIVE', 'STRETCH_WIDTH', 'MIN_WIDTH', 'BF_MODEL_ORDER', 'DF_MODEL_ORDER'] as const, 'NETWORK_SIMPLEX')
+  if (layering !== 'NETWORK_SIMPLEX') throw new Error('ELK TypeScript port: layering strategy ' + layering + ' is not implemented yet')
+  const placement = enumOption(options, 'layered.nodePlacement.strategy', ['SIMPLE', 'INTERACTIVE', 'LINEAR_SEGMENTS', 'BRANDES_KOEPF', 'NETWORK_SIMPLEX'] as const, 'BRANDES_KOEPF')
+  if (placement !== 'BRANDES_KOEPF') throw new Error('ELK TypeScript port: node-placement strategy ' + placement + ' is not implemented yet')
+  const routing = enumOption(options, 'edgeRouting', ['UNDEFINED', 'POLYLINE', 'ORTHOGONAL', 'SPLINES'] as const, 'ORTHOGONAL')
+  if (routing !== 'ORTHOGONAL') throw new Error('ELK TypeScript port: edge-routing strategy ' + routing + ' is not implemented yet')
+  const promotion = enumOption(options, 'layered.layering.nodePromotion.strategy', ['NONE', 'NIKOLOV', 'NIKOLOV_PIXEL', 'NIKOLOV_IMPROVED', 'NIKOLOV_IMPROVED_PIXEL', 'DUMMYNODE_PERCENTAGE', 'NODECOUNT_PERCENTAGE', 'NO_BOUNDARY', 'MODEL_ORDER_LEFT_TO_RIGHT', 'MODEL_ORDER_RIGHT_TO_LEFT'] as const, 'NONE')
+  if (promotion !== 'NONE') throw new Error('ELK TypeScript port: node-promotion strategy ' + promotion + ' is not implemented yet')
+  const unzipping = enumOption(options, 'layered.layerUnzipping.strategy', ['NONE', 'ALTERNATING'] as const, 'NONE')
+  if (unzipping !== 'NONE') throw new Error('ELK TypeScript port: layer-unzipping strategy ' + unzipping + ' is not implemented yet')
+  const wrapping = enumOption(options, 'layered.wrapping.strategy', ['OFF', 'SINGLE_EDGE', 'MULTI_EDGE'] as const, 'OFF')
+  if (wrapping !== 'OFF') throw new Error('ELK TypeScript port: wrapping strategy ' + wrapping + ' is not implemented yet')
 }
 
 function minimumSize(options: Options): { x: number; y: number } {
