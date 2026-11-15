@@ -28,7 +28,7 @@ export class Random {
     do {
       bits = this.next(31)
       value = bits % bound
-    } while (((bits - value + bound - 1) | 0) < 0)
+    } while (bits - value + bound - 1 < 0)
     return value
   }
 
