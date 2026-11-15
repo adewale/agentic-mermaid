@@ -29,9 +29,9 @@ import { classRelationMarkers } from './class-body.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
+import { sequenceBranchItems, sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import { sequenceDisplayText } from '../sequence/text.ts'
-import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceNoteStatement, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 /** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
 export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
@@ -563,17 +563,14 @@ function describeSequence(d: SequenceValidDiagram): string {
       continue
     }
     if (statement.kind === 'note') {
-      interactions.push(`note ${statement.position === 'over' ? 'over' : `${statement.position} of`} ${statement.actorIds.join(',')}: ${sequenceDisplayText(statement.text, statement.textContent)}`)
+      interactions.push(sequenceNoteDisplay(statement))
       continue
     }
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = sequenceBranchDisplay(statement.fragment, branchIndex)
-      const directives = (before: number) => (branch.directives ?? []).filter(entry => entry.before === before).map(entry => sequenceLifecycleDisplay(entry.directive))
-      const messages = [
-        ...branch.messages.flatMap((m, before) => [...directives(before), `${m.from} -> ${m.to}: ${sequenceDisplayText(m.text, m.textContent)}`]),
-        ...directives(branch.messages.length),
-      ].join('; ') || 'no messages'
+      const messages = sequenceBranchItems(branch).map(item => !('kind' in item) ? `${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`
+        : item.kind === 'note' ? sequenceNoteDisplay(item) : sequenceLifecycleDisplay(item)).join('; ') || 'no messages'
       return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
     })
     interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
@@ -581,6 +578,10 @@ function describeSequence(d: SequenceValidDiagram): string {
   }
   if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
+}
+
+function sequenceNoteDisplay(note: SequenceNoteStatement): string {
+  return `note ${note.position === 'over' ? 'over' : `${note.position} of`} ${note.actorIds.join(',')}: ${sequenceDisplayText(note.text, note.textContent)}`
 }
 
 function sequenceLifecycleDisplay(statement: SequenceCreateStatement | SequenceDestroyStatement): string {

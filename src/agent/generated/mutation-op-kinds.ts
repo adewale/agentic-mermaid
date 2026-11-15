@@ -187,7 +187,11 @@ export const MUTATION_OPS_BY_FAMILY = {
     "add_note",
     "remove_note",
     "set_note_text",
-    "move_note"
+    "move_note",
+    "add_fragment_note",
+    "remove_fragment_note",
+    "set_fragment_note_text",
+    "move_fragment_note"
   ],
   "timeline": [
     "set_title",

@@ -16,13 +16,13 @@ import { readClassMemberClassifiers } from '../class/parser.ts'
 import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
+import { sequenceBranchItems, sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
 import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceCreateStatement, SequenceDestroyStatement, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceCreateStatement, SequenceDestroyStatement, SequenceMessage, SequenceNoteStatement, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -432,27 +432,33 @@ function factsSequence(out: string[], body: SequenceBody): void {
       ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
       : `destroy ${clean(id)}${at}`)
   }
+  // Notes are numbered in drawing order, as messages are, and state the
+  // fields the note ops take.
+  let topNote = 0
+  const noteFacts = (statement: SequenceNoteStatement, address: string): void => {
+    const { position, actorIds } = statement
+    const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
+    add(out, `note ${note}`)
+    add(out, `note#${noteIndex} ${note}`)
+    add(out, `note#${noteIndex} op ${address}`)
+    if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
+    if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
+    noteIndex++
+  }
   for (const statement of body.statements) {
     if (statement.kind === 'message') messageIndex++
     else if (statement.kind === 'fragment') {
       statement.fragment.branches.forEach((branch, branchIndex) => {
-        const directives = (before: number) => {
-          for (const entry of branch.directives ?? []) if (entry.before === before) lifecycle(entry.directive, ` fragment#${fragmentIndex} branch#${branchIndex}`)
+        let branchNote = 0
+        for (const item of sequenceBranchItems(branch)) {
+          if (!('kind' in item)) messageIndex++
+          else if (item.kind === 'note') noteFacts(item, `fragmentIndex ${fragmentIndex} branchIndex ${branchIndex} index ${branchNote++}`)
+          else lifecycle(item, ` fragment#${fragmentIndex} branch#${branchIndex}`)
         }
-        branch.messages.forEach((_, before) => { directives(before); messageIndex++ })
-        directives(branch.messages.length)
       })
       fragmentIndex++
-    } else if (statement.kind === 'note') {
-      const { position, actorIds } = statement
-      const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
-      add(out, `note ${note}`)
-      add(out, `note#${noteIndex} ${note}`)
-      add(out, `note#${noteIndex} op index ${noteIndex}`)
-      if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
-      if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
-      noteIndex++
-    } else if (statement.kind === 'create' || statement.kind === 'destroy') lifecycle(statement)
+    } else if (statement.kind === 'note') noteFacts(statement, `index ${topNote++}`)
+    else if (statement.kind === 'create' || statement.kind === 'destroy') lifecycle(statement)
   }
 }
 

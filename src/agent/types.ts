@@ -167,15 +167,15 @@ export interface SequenceFragmentBranch {
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
-  /** `create`/`destroy` lines in the branch, in source order, each before
-   * branch message `before` (`messages.length`: after the last). They bind
-   * as top-level directives do: to the next message involving their
-   * participant, in this branch or after it. */
-  directives?: SequenceBranchDirective[]
+  /** The branch's `create`/`destroy` lines and notes, in source order, each
+   * before branch message `before` (`messages.length`: after the last).
+   * Directives bind as top-level ones do: to the next message involving
+   * their participant, in this branch or after it. */
+  statements?: SequenceBranchStatement[]
 }
-export interface SequenceBranchDirective {
+export interface SequenceBranchStatement {
   before: number
-  directive: SequenceCreateStatement | SequenceDestroyStatement
+  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement
 }
 export interface SequenceFragment {
   wrap?: boolean
@@ -226,9 +226,8 @@ export interface SequenceNoteStatement {
 // fragments of messages are typed (with their `create`/`destroy` lines) so
 // their messages participate in
 // describe/facts/verify and can be authored through mutation ops, as are
-// top-level notes. Constructs outside that closed model (notes inside
-// fragments, nested fragments, box, activations…) remain lossless opaque
-// segments.
+// notes. Constructs outside that closed model (nested fragments, box,
+// activations…) remain lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
@@ -1449,6 +1448,12 @@ export type SequenceMutationOp =
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
   | { kind: 'move_note'; index: number; afterMessage?: number; beforeMessage?: number }
+  // The same, for notes in a fragment branch: `index` counts the branch's
+  // notes, and the anchors are branch message indexes.
+  | { kind: 'add_fragment_note'; fragmentIndex: number; branchIndex?: number; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_note_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'move_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number; afterMessage?: number; beforeMessage?: number }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

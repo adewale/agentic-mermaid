@@ -284,11 +284,12 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
       branches.push({ ...(continuation.wrap === undefined ? {} : { wrap: continuation.wrap }), ...(text.value ? { label: text.value } : {}), ...(text.content ? { labelContent: text.content } : {}), messages: [] })
       continue
     }
-    if (inner?.kind === 'create' || inner?.kind === 'destroy') {
-      const directive = inner.kind === 'destroy' ? { kind: 'destroy' as const, actorId: inner.actorId } : typedCreate(inner.declaration)
-      if (!directive) return null
+    if (inner?.kind === 'create' || inner?.kind === 'destroy' || inner?.kind === 'note') {
+      const statement = inner.kind === 'destroy' ? { kind: 'destroy' as const, actorId: inner.actorId }
+        : inner.kind === 'note' ? typedNote(inner.note) : typedCreate(inner.declaration)
+      if (!statement) return null
       const branch = branches.at(-1)!
-      ;(branch.directives ??= []).push({ before: branch.messages.length, directive })
+      ;(branch.statements ??= []).push({ before: branch.messages.length, statement })
       continue
     }
     if (inner?.kind !== 'message') return null
@@ -657,8 +658,8 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
           invalid = messageIdError(message)
           if (invalid) return invalid
         }
-        for (const { directive } of branch.directives ?? []) {
-          invalid = directiveIdError(directive)
+        for (const { statement: inner } of branch.statements ?? []) {
+          invalid = inner.kind === 'note' ? noteActorsError(inner.position, inner.actorIds) : directiveIdError(inner)
           if (invalid) return invalid
         }
       }
@@ -676,10 +677,36 @@ function directiveIdError(statement: SequenceCreateStatement | SequenceDestroySt
 
 const directiveId = (statement: SequenceCreateStatement | SequenceDestroyStatement): string => statement.kind === 'create' ? statement.id : statement.actorId
 
-/** A branch's messages and lifecycle directives in source order. */
-function branchItems(branch: SequenceFragmentBranch): Array<SequenceMessage | SequenceCreateStatement | SequenceDestroyStatement> {
-  const at = (index: number) => (branch.directives ?? []).filter(entry => entry.before === index).map(entry => entry.directive)
+type BranchItem = SequenceMessage | SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement
+
+/** A branch's messages, lifecycle directives and notes in source order. */
+export function sequenceBranchItems(branch: SequenceFragmentBranch): BranchItem[] {
+  const at = (index: number) => (branch.statements ?? []).filter(entry => entry.before === index).map(entry => entry.statement)
   return [...branch.messages.flatMap((message, index) => [...at(index), message]), ...at(branch.messages.length)]
+}
+const branchItems = sequenceBranchItems
+
+export type SequenceNoteContext =
+  | { scope: 'top-level'; note: SequenceNoteStatement; index: number }
+  | { scope: 'fragment'; note: SequenceNoteStatement; index: number; fragmentIndex: number; branchIndex: number }
+
+/** Notes in drawing order, each with the `index` the note ops take: its
+ * top-level note index, or its index among its branch's notes. */
+export function sequenceNoteContexts(body: SequenceBody): SequenceNoteContext[] {
+  const out: SequenceNoteContext[] = []
+  let top = 0
+  let fragmentIndex = 0
+  for (const statement of body.statements) {
+    if (statement.kind === 'note') out.push({ scope: 'top-level', note: statement, index: top++ })
+    else if (statement.kind === 'fragment') {
+      statement.fragment.branches.forEach((branch, branchIndex) => {
+        let index = 0
+        for (const item of branchItems(branch)) if ('kind' in item && item.kind === 'note') out.push({ scope: 'fragment', note: item, index: index++, fragmentIndex, branchIndex })
+      })
+      fragmentIndex++
+    }
+  }
+  return out
 }
 
 function renderFragment(fragment: SequenceFragment): string[] {
@@ -696,7 +723,7 @@ function renderFragment(fragment: SequenceFragment): string[] {
       const branchPrefix = `  ${BRANCH_KEYWORD[fragment.fragmentKind] ?? 'else'} `
       lines.push(branch.label || branch.wrap !== undefined ? branchPrefix + writeSequenceControlledText(branch.label ?? '', branch.labelContent, branch.wrap, branchPrefix) : branchPrefix.trimEnd())
     }
-    for (const item of branchItems(branch)) lines.push('kind' in item ? renderDirective(item) : `  ${renderMessage(item).trimStart()}`)
+    for (const item of branchItems(branch)) lines.push(!('kind' in item) ? `  ${renderMessage(item).trimStart()}` : item.kind === 'note' ? renderNote(item) : renderDirective(item))
   })
   lines.push('  end')
   return lines
@@ -755,7 +782,7 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
   switch (statement.kind) {
     case 'participant': return participants[statement.ref] ? [participants[statement.ref]!.id] : []
     case 'message': return endpoints(messages[statement.ref])
-    case 'fragment': return statement.fragment.branches.flatMap(branch => branchItems(branch).flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : []))
+    case 'fragment': return statement.fragment.branches.flatMap(branch => branchItems(branch).flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : item.kind === 'note' ? [...item.actorIds] : []))
     case 'actor-links': return [statement.actorId]
     case 'create': return [statement.id]
     // `destroy` refers to a participant without creating it.
@@ -916,7 +943,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       // fragment branch too.
       const creating = naming === undefined ? statements[creatingStatement(statements, participants, messages, p.id)] : undefined
       const created = creating?.kind === 'create' ? creating
-        : creating?.kind === 'fragment' ? creating.fragment.branches.flatMap(branch => branch.directives ?? []).map(entry => entry.directive).find(directive => directive.kind === 'create' && directive.id === p.id)
+        : creating?.kind === 'fragment' ? creating.fragment.branches.flatMap(branch => branch.statements ?? []).map(entry => entry.statement).find(inner => inner.kind === 'create' && inner.id === p.id)
           : undefined
       if (created?.kind === 'create' && created.id === p.id) {
         if (creating?.kind === 'fragment') delete creating.fragment.rawLines
@@ -1043,7 +1070,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync', ...(op.wrap === undefined ? {} : { wrap: op.wrap }) })
       // As at top level, the new message takes the place of the one at
       // `index`, after the directives above it.
-      for (const entry of branch.value.directives ?? []) if (entry.before > index) entry.before++
+      for (const entry of branch.value.statements ?? []) if (entry.before > index) entry.before++
       break
     }
     case 'remove_fragment_message': {
@@ -1054,7 +1081,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!branch.value.messages[op.index]) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
       delete target.statement.fragment.rawLines
       branch.value.messages.splice(op.index, 1)
-      for (const entry of branch.value.directives ?? []) if (entry.before > op.index) entry.before--
+      for (const entry of branch.value.statements ?? []) if (entry.before > op.index) entry.before--
       break
     }
     case 'set_fragment_message_wrap': {
@@ -1119,6 +1146,51 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       statements.splice(at.value, 0, target.statement)
       break
     }
+    case 'add_fragment_note': {
+      const invalid = noteActorsError(op.position, Array.isArray(op.actorIds) ? op.actorIds : [])
+      if (invalid) return err(invalid)
+      const missing = op.actorIds.find(id => !participants.some(p => p.id === id))
+      if (missing !== undefined) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${missing}" not found; add it before placing a note on it` })
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!branch.ok) return branch
+      const at = branchNotePosition(branch.value, op)
+      if (!at.ok) return at
+      delete target.statement.fragment.rawLines
+      ;(branch.value.statements ??= []).splice(at.value.at, 0, { before: at.value.before, statement: {
+        kind: 'note', position: op.position, actorIds: [...op.actorIds], text: normalizeSequenceMessageText(op.text),
+        ...(op.wrap === undefined ? {} : { wrap: op.wrap }),
+      } })
+      break
+    }
+    case 'remove_fragment_note':
+    case 'set_fragment_note_text':
+    case 'move_fragment_note': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!branch.ok) return branch
+      const entries = branch.value.statements ?? []
+      const notes = entries.filter(entry => entry.statement.kind === 'note')
+      const entry = notes[op.index]
+      if (!entry || entry.statement.kind !== 'note') return err({ code: 'INVALID_OP', message: `No note at index ${op.index} in branch ${op.branchIndex ?? 0} of sequence fragment ${op.fragmentIndex}${notes.length ? ` (0..${notes.length - 1})` : ' (the branch has no notes)'}` })
+      delete target.statement.fragment.rawLines
+      if (op.kind === 'set_fragment_note_text') {
+        const note = entry.statement
+        const text = normalizeSequenceMessageText(op.text)
+        if (note.text !== text || note.textContent?.value !== note.text) delete note.textContent
+        note.text = text
+        break
+      }
+      entries.splice(entries.indexOf(entry), 1)
+      if (op.kind === 'move_fragment_note') {
+        const at = branchNotePosition(branch.value, op)
+        if (!at.ok) return at
+        entries.splice(at.value.at, 0, { before: at.value.before, statement: entry.statement })
+      }
+      break
+    }
     default: {
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
@@ -1135,7 +1207,7 @@ function renderedOrUndefined(body: SequenceBody): string | undefined {
 
 function hasLifecycleDirective(body: SequenceBody): boolean {
   return body.statements.some(statement => statement.kind === 'create' || statement.kind === 'destroy'
-    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.directives?.length))
+    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.statements?.some(entry => entry.statement.kind !== 'note')))
     || (statement.kind === 'opaque-block' && statement.lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))))
 }
 
@@ -1269,7 +1341,7 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   return statements.some(statement =>
     (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line))))
     || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id)
-      || branch.directives?.some(entry => directiveId(entry.directive) === id))))
+      || branch.statements?.some(({ statement: inner }) => inner.kind === 'note' ? inner.actorIds.includes(id) : directiveId(inner) === id))))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
@@ -1279,7 +1351,7 @@ function cloneStatement(s: SequenceStatement): SequenceStatement {
   if (s.kind === 'fragment') {
     return { kind: 'fragment', fragment: { ...s.fragment, branches: s.fragment.branches.map(branch => ({
       ...branch, messages: branch.messages.map(message => ({ ...message })),
-      ...(branch.directives ? { directives: branch.directives.map(({ before, directive }) => ({ before, directive: { ...directive } })) } : {}),
+      ...(branch.statements ? { statements: branch.statements.map(({ before, statement: inner }) => ({ before, statement: cloneStatement(inner) as typeof inner })) } : {}),
     })) } }
   }
   return { ...s }
@@ -1321,6 +1393,34 @@ function notePosition(statements: SequenceStatement[], messageCount: number, anc
     while (at > 0 && (statements[at - 1]!.kind === 'create' || statements[at - 1]!.kind === 'destroy')) at--
   }
   return ok(at)
+}
+
+/** Where a note anchored to a branch message goes, as at top level (see
+ * notePosition): its `before` message index and its place among the branch's
+ * statements, which are kept in source order. */
+function branchNotePosition(branch: SequenceFragmentBranch, anchor: { afterMessage?: number; beforeMessage?: number }): Result<{ before: number; at: number }, MutationError> {
+  const { afterMessage, beforeMessage } = anchor
+  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: 'Give a note afterMessage or beforeMessage, not both' })
+  const entries = branch.statements ?? []
+  const count = branch.messages.length
+  const index = afterMessage ?? beforeMessage
+  if (index === undefined) return ok({ before: count, at: entries.length })
+  if (!Number.isInteger(index) || index < 0 || index >= count) {
+    return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${index} in this fragment branch${count ? ` (0..${count - 1})` : ' (the branch has no messages)'}` })
+  }
+  const before = afterMessage !== undefined ? index + 1 : index
+  if (afterMessage !== undefined) {
+    // Right after the message: past the notes already written below it.
+    let at = entries.findIndex(entry => entry.before >= before)
+    if (at < 0) at = entries.length
+    while (entries[at]?.before === before && entries[at]!.statement.kind === 'note') at++
+    return ok({ before, at })
+  }
+  // Right above the message: above the create/destroy lines bound to it.
+  let at = entries.findIndex(entry => entry.before > before)
+  if (at < 0) at = entries.length
+  while (at > 0 && entries[at - 1]!.before === before && entries[at - 1]!.statement.kind !== 'note') at--
+  return ok({ before, at })
 }
 
 function normalizeFragmentLabel(value: string | null | undefined): Result<string | undefined, MutationError> {

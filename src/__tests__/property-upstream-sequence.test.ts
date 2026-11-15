@@ -147,7 +147,7 @@ function printSequence(statements: Statement[]): string {
  * messages is a typed fragment; every other block is preserved source. */
 function isTypedFragment(statement: Extract<Statement, { kind: 'block' }>): boolean {
   return ['loop', 'opt', 'alt', 'par', 'critical', 'break', 'rect'].includes(statement.keyword)
-    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message'))
+    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note'))
 }
 
 /** Every generated message in source order, or only those our model types. */

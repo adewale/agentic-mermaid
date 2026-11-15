@@ -18,10 +18,14 @@ lost-dashed, `<<->>` bidirectional, `<<-->>` bidirectional-dashed. Half-arrows
 
 MutationOps include participant/top-level message edits plus `add_fragment`,
 `remove_fragment`, fragment/branch label edits, fragment-message add/remove/
-text edits, and top-level note edits: `add_note` (`position` left/right/over,
+text edits, and note edits: `add_note` (`position` left/right/over,
 `actorIds`, `text`, placed with `afterMessage` or `beforeMessage`, a top-level
 message index, else appended), `remove_note`, `set_note_text` and `move_note`
-(notes are addressed by top-level note index, `note#N op index K` in facts).
+for top-level notes, and `add_fragment_note`, `remove_fragment_note`,
+`set_fragment_note_text` and `move_fragment_note` (with `fragmentIndex`,
+`branchIndex`; anchors are branch message indexes) for notes in a branch.
+Facts number notes in drawing order (`note#N`) and state each one's address:
+`note#N op index K` or `note#N op fragmentIndex F branchIndex B index K`.
 
 Indexes: facts number messages in drawing order, fragment messages included
 (`message#N`), so N is not what the ops take. Each message's address is its
@@ -32,13 +36,13 @@ own fact: `message#N op index K` for a top-level message (pass K as `index`,
 
 IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, `par`,
 `par_over`, `critical` (branches continue with `option`), `break` and `rect`
-(its label is the fill color, a CSS color) are typed fragments. Their messages appear in describe/facts/verify and fragment
-ops can author or edit them. `create participant|actor` and `destroy` lines
-are typed statements too, at top level and inside those fragments (facts:
-`create …`, `destroy …`, with `fragment#f branch#b` inside a fragment); an
-edit that would separate one from the message Mermaid requires right after it
-is refused. Top-level `Note left of|right of|over …` lines are typed
-notes. Other constructs (notes inside fragments, a fragment nested in
+(its label is the fill color, a CSS color) are typed fragments. Their
+messages appear in describe/facts/verify and fragment ops can author or edit
+them. `create participant|actor` and `destroy` lines and `Note left of|right
+of|over …` lines are typed statements too, at top level and inside those
+fragments (facts: `create …`, `destroy …`, with `fragment#f branch#b` inside a
+fragment); an edit that would separate a directive from the message Mermaid
+requires right after it is refused. Other constructs (a fragment nested in
 another, box/activate/autonumber/title) ride along VERBATIM as opaque-block
 segments while
 participant and top-level message ops remain live. Only an un-segmentable

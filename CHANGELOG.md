@@ -81,12 +81,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `afterMessage` or `beforeMessage`, else appended), `remove_note`,
   `set_note_text` and `move_note` edit them in both canonical and
   source-preserving modes. `remove_participant` refuses a participant a note
-  names until the note is removed. Notes inside fragments stay preserved.
+  names until the note is removed. Notes inside a fragment branch are typed
+  too: `add_fragment_note`, `remove_fragment_note`, `set_fragment_note_text`
+  and `move_fragment_note` address them like fragment messages
+  (`fragmentIndex`, `branchIndex`, `index` among the branch's notes; anchors
+  are branch message indexes). Facts number notes in drawing order and state
+  each one's address (`note#N op index K` or `note#N op fragmentIndex F
+  branchIndex B index K`).
 
 - `create`/`destroy` lines inside `alt`, `opt`, `loop` and `par` fragments are
   typed. Such a fragment used to become preserved source as a whole (verify
   named it `(alt fragment, destroy)`); it now stays a typed fragment whose
-  branches list the directives in place (`branch.directives`), writes back
+  branches list the directives in place (`branch.statements`), writes back
   byte for byte, appears in facts (`destroy B fragment#0 branch#0 before
   message#2`) and `describe`, and accepts fragment operations, which keep each
   binding or are refused. Directives bind as at top level, across fragment

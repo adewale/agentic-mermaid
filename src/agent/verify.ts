@@ -64,7 +64,7 @@ import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
-import { sequenceMessages, sequencePreservedConstructs, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
+import { sequenceMessages, sequenceNoteContexts, sequencePreservedConstructs, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
@@ -1399,12 +1399,12 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const w = labelOverflowWarning(p.id, resolveLabelContent(p.label, p.labelContent), cap)
     if (w) warnings.push(w)
   }
-  let noteIndex = 0
+  sequenceNoteContexts(body).forEach(({ note }, index) => {
+    const w = labelOverflowWarning(`note#${index}`, resolveLabelContent(note.text, note.textContent), cap)
+    if (w) warnings.push(w)
+  })
   for (const statement of body.statements)
-    if (statement.kind === 'note') {
-      const w = labelOverflowWarning(`note#${noteIndex++}`, resolveLabelContent(statement.text, statement.textContent), cap)
-      if (w) warnings.push(w)
-    } else if (statement.kind === 'fragment') {
+    if (statement.kind === 'fragment') {
       // A rect's label is its fill color, not text.
       if (statement.fragment.label && statement.fragment.fragmentKind !== 'rect') {
         const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)

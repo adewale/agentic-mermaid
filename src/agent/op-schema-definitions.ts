@@ -82,6 +82,9 @@ const SEQUENCE_TOP_INDEX = 'top-level message index: the K of facts `message#N o
 const SEQUENCE_BRANCH_INDEX = 'index in the branch: the K of facts `message#N op fragmentIndex F branchIndex B index K`'
 const SEQUENCE_NOTE_AFTER = `${SEQUENCE_TOP_INDEX}; the note goes right after it (and its notes); omit both anchors to append`
 const SEQUENCE_NOTE_BEFORE = `${SEQUENCE_TOP_INDEX}; the note goes right before it (and its create/destroy lines)`
+const SEQUENCE_BRANCH_NOTE_AFTER = `${SEQUENCE_BRANCH_INDEX}; the note goes right after it (and its notes); omit both anchors to append to the branch`
+const SEQUENCE_BRANCH_NOTE_BEFORE = `${SEQUENCE_BRANCH_INDEX}; the note goes right before it (and its create/destroy lines)`
+const SEQUENCE_BRANCH_NOTE_INDEX = 'index among the branch\'s notes: the K of facts `note#N op fragmentIndex F branchIndex B index K`'
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many', 'parent']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -186,6 +189,10 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   remove_note: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`') } },
   set_note_text: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`'), text: str() } },
   move_note: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`'), afterMessage: withNote(num(false), SEQUENCE_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_NOTE_BEFORE) } },
+  add_fragment_note: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), position: oneOf(SEQUENCE_NOTE_POSITIONS), actorIds: withNote(strArr(), 'existing participant ids: one, or two for over'), text: str(), wrap: bool(false), afterMessage: withNote(num(false), SEQUENCE_BRANCH_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_BRANCH_NOTE_BEFORE) } },
+  remove_fragment_note: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_NOTE_INDEX) } },
+  set_fragment_note_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_NOTE_INDEX), text: str() } },
+  move_fragment_note: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_NOTE_INDEX), afterMessage: withNote(num(false), SEQUENCE_BRANCH_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_BRANCH_NOTE_BEFORE) } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {

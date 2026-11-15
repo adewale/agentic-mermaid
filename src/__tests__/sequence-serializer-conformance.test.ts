@@ -343,7 +343,7 @@ describe('sequence create/destroy are typed statements', () => {
     const parsed = sequence(source)
     expect(parsed.body.statements.filter(statement => statement.kind === 'opaque-block')).toEqual([])
     const named = (statement: SequenceStatement): string[] => statement.kind === 'create' ? [`create ${statement.id}`] : statement.kind === 'destroy' ? [`destroy ${statement.actorId}`]
-      : statement.kind === 'fragment' ? statement.fragment.branches.flatMap(branch => (branch.directives ?? []).flatMap(entry => named(entry.directive))) : []
+      : statement.kind === 'fragment' ? statement.fragment.branches.flatMap(branch => (branch.statements ?? []).flatMap(entry => named(entry.statement))) : []
     expect(parsed.body.statements.flatMap(named).sort()).toEqual([...directives].sort())
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
     expect(describeMermaidFacts(parsed).filter(fact => /^(create|destroy) /.test(fact)).map(fact => `${fact.split(' ')[0]} ${fact.split(' ').at(fact.startsWith('create') ? 2 : 1)}`).sort()).toEqual([...directives].sort())

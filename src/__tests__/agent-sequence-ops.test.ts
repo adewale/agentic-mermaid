@@ -462,6 +462,88 @@ describe('critical, break and rect fragments are typed like alt, opt, loop and p
 })
 
 // ============================================================================
+// Notes inside fragments
+// ============================================================================
+
+describe('notes inside a fragment branch are typed and edited by fragment note ops', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  const FRAGMENT_NOTES = 'sequenceDiagram\n  participant A\n  participant B\n  Note over A: before\n  A->>B: one\n  alt ok\n    B->>A: two\n    Note right of A: seen\n    destroy B\n    B->>A: three\n  else no\n    A->>A: four\n  end\n'
+
+  /** Messages and notes in drawing order, as Mermaid's database holds them. */
+  const mermaidTimeline = (source: string) => upstream.project(source, diagram => diagram.db.getMessages()
+    .filter((m: { from?: string }) => m.from !== undefined)
+    .map((m: { from: string; to: string; type: number; placement: number; message: string }) => m.type === diagram.db.LINETYPE.NOTE
+      ? `note ${['left', 'right', 'over'][m.placement]} ${m.from === m.to ? m.from : `${m.from},${m.to}`}: ${m.message}`
+      : `${m.from}->${m.to}: ${m.message}`))
+
+  function ourTimeline(source: string): string[] {
+    const diagram = parseSequenceDiagram(source.split('\n').map(line => line.trim()).filter(Boolean))
+    const notesAfter = (index: number) => diagram.notes.filter(note => note.afterIndex === index)
+      .map(note => `note ${note.position} ${note.actorIds.join(',')}: ${note.text}`)
+    return [...notesAfter(-1), ...diagram.messages.flatMap((m, index) => [`${m.from}->${m.to}: ${m.label}`, ...notesAfter(index)])]
+  }
+
+  test('a note in a branch is typed in place and written back unchanged', () => {
+    const parsed = sequence(FRAGMENT_NOTES)
+    expect(parsed.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'note', 'message', 'fragment'])
+    expect(serializeMermaid(parsed)).toBe(FRAGMENT_NOTES)
+    expect(describeMermaidFacts(parsed).filter(fact => fact.startsWith('note#1 '))).toEqual([
+      'note#1 before message#2', 'note#1 op fragmentIndex 0 branchIndex 0 index 0', 'note#1 right of A : seen',
+    ])
+  })
+
+  test.each([
+    ['added after a branch message, below its notes', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['A', 'B'], text: 'both', afterMessage: 0 }, '  B->>A: two\n  Note right of A: seen\n  Note over A,B: both\n  destroy B\n'],
+    ['added before a branch message, above the destroy bound to it', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'left', actorIds: ['B'], text: 'last word', beforeMessage: 1 }, '  Note right of A: seen\n  Note left of B: last word\n  destroy B\n  B->>A: three\n'],
+    ['appended to the second branch', { kind: 'add_fragment_note', fragmentIndex: 0, branchIndex: 1, position: 'right', actorIds: ['A'], text: 'alone', wrap: true }, '  A->>A: four\n  Note right of A: wrap: alone\n  end\n'],
+    ['removed', { kind: 'remove_fragment_note', fragmentIndex: 0, index: 0 }, '  B->>A: two\n  destroy B\n'],
+    ['given new text', { kind: 'set_fragment_note_text', fragmentIndex: 0, index: 0, text: 'seen\ntwice' }, '  Note right of A: seen<br/>twice\n'],
+    ['moved to the end of its branch', { kind: 'move_fragment_note', fragmentIndex: 0, index: 0, afterMessage: 1 }, '  B->>A: three\n  Note right of A: seen\n  else no\n'],
+  ] as const)('a note %s is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(FRAGMENT_NOTES), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    expect(serializeMermaid(sequence(output))).toBe(output)
+    expect(describeMermaidFacts(sequence(output))).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidTimeline(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text).replace(/<br\s*\/?>/gi, '\n'))).toEqual(ourTimeline(output))
+  })
+
+  test.each([
+    ['a missing fragment', { kind: 'add_fragment_note', fragmentIndex: 1, position: 'over', actorIds: ['A'], text: 'x' }, 'INVALID_OP'],
+    ['a missing branch', { kind: 'add_fragment_note', fragmentIndex: 0, branchIndex: 2, position: 'over', actorIds: ['A'], text: 'x' }, 'INVALID_OP'],
+    ['an anchor past the branch messages', { kind: 'add_fragment_note', fragmentIndex: 0, branchIndex: 1, position: 'over', actorIds: ['A'], text: 'x', afterMessage: 1 }, 'MESSAGE_NOT_FOUND'],
+    ['both anchors', { kind: 'move_fragment_note', fragmentIndex: 0, index: 0, afterMessage: 0, beforeMessage: 1 }, 'INVALID_OP'],
+    ['an unknown participant', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['Z'], text: 'x' }, 'PARTICIPANT_NOT_FOUND'],
+    ['a missing note', { kind: 'set_fragment_note_text', fragmentIndex: 0, branchIndex: 1, index: 0, text: 'x' }, 'INVALID_OP'],
+  ] as const)('a fragment note op naming %s is refused', (_name, op, code) => {
+    const parsed = sequence(FRAGMENT_NOTES)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe(code)
+    expect(serializeMermaid(parsed)).toBe(FRAGMENT_NOTES)
+  })
+
+  test('the address facts give each note edits that note and no other', () => {
+    const d = sequence(FRAGMENT_NOTES.replace('    A->>A: four\n', '    A->>A: four\n    Note over A: done\n'))
+    const notes = (diagram: SequenceValidDiagram) => describeMermaidFacts(diagram).filter(fact => /^note#\d+ (?:left|right|over) /.test(fact))
+    for (const fact of notes(d)) {
+      const subject = fact.split(' ')[0]!
+      const fields = describeMermaidFacts(d).find(line => line.startsWith(`${subject} op `))!.slice(`${subject} op `.length).split(' ')
+      const at = Object.fromEntries(fields.flatMap((field, i) => i % 2 === 0 ? [[field, Number(fields[i + 1])]] : []))
+      const op = 'fragmentIndex' in at
+        ? { kind: 'set_fragment_note_text', fragmentIndex: at.fragmentIndex!, branchIndex: at.branchIndex!, index: at.index!, text: 'edited' } as const
+        : { kind: 'set_note_text', index: at.index!, text: 'edited' } as const
+      expect(notes(apply(d, op))).toEqual(notes(d).map(line => line === fact ? `${line.slice(0, line.lastIndexOf(' : '))} : edited` : line))
+    }
+  })
+})
+
+// ============================================================================
 // add_message index
 // ============================================================================
 
