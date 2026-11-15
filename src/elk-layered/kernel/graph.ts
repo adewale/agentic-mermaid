@@ -12,7 +12,8 @@ import type { ElkExtendedEdge, ElkLabel, ElkNode, ElkPort } from './types.ts'
 
 export interface LayoutLabel { data: ElkLabel; text: string | null; active: boolean; inputX: number; inputY: number; inputWidth: number; inputHeight: number; x: number; y: number; width: number; height: number; options: Options }
 export interface LayoutPort extends CyclePort { portDummy?: LayoutNode; originPort?: LayoutPort; index?: number; modelOrder?: number; longEdgeTargetNode?: LayoutNode; key: string | number | null; id: string | null; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; borderOffset: number | null; ratio: number; explicitAnchor: boolean; data: ElkPort | null; node: LayoutNode; incoming: LayoutEdge[]; outgoing: LayoutEdge[]; x: number; y: number; width: number; height: number; side: 'UNDEFINED' | 'NORTH' | 'EAST' | 'SOUTH' | 'WEST'; collect: 'INPUT' | 'OUTPUT' | null; anchorX: number; anchorY: number }
-export interface LayoutEdge extends CycleEdge { modelOrder?: number; data: ElkExtendedEdge; source: LayoutPort; target: LayoutPort; priorityDirection: number; priorityShortness: number; reversed: boolean; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; bends: { x: number; y: number }[]; junctions?: { x: number; y: number }[] }
+export interface LayoutEdge extends CycleEdge { noLayout?: false; sourceShapeKey?: string | number | null; targetShapeKey?: string | number | null; modelOrder?: number; data: ElkExtendedEdge; source: LayoutPort; target: LayoutPort; priorityDirection: number; priorityShortness: number; reversed: boolean; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; bends: { x: number; y: number }[]; junctions?: { x: number; y: number }[] }
+export interface SkippedLayoutEdge { noLayout: true; data: ElkExtendedEdge; options: Options; sourceLabels: LayoutLabel[] }
 export type LayoutNodeType = 'NORMAL' | 'LONG_EDGE' | 'EXTERNAL_PORT' | 'NORTH_SOUTH_PORT' | 'LABEL' | 'BREAKING_POINT' | 'PLACEHOLDER' | 'NONSHIFTING_PLACEHOLDER'
 export type PortConstraints = 'UNDEFINED' | 'FREE' | 'FIXED_SIDE' | 'FIXED_ORDER' | 'FIXED_RATIO' | 'FIXED_POS'
 export interface LayoutNode extends CycleNode {
@@ -58,6 +59,7 @@ export interface LayoutGraph {
   id: string | null
   nodes: LayoutNode[]
   edges: LayoutEdge[]
+  sourceEdges: (LayoutEdge | SkippedLayoutEdge)[]
   options: Options
   labels: LayoutLabel[]
   padding: Insets
@@ -93,7 +95,7 @@ export function importGraph(data: ElkNode): LayoutGraph {
     if (isJsonObject(child)) nodes.push(importNode(child, index, direction))
   }
   for (const node of nodes) if (node.children.length > 0) throw new Error('ELK TypeScript port: hierarchy layout is not implemented yet')
-  const graph: LayoutGraph = { data, id, nodes, edges: [], options, labels, padding: paddingOption(options, { top: 12, right: 12, bottom: 12, left: 12 }), offsetX: 0, offsetY: 0, maxModelOrderNodes: 0, modelOrderGroupCount: 0, direction, x, y, width, height }
+  const graph: LayoutGraph = { data, id, nodes, edges: [], sourceEdges: [], options, labels, padding: paddingOption(options, { top: 12, right: 12, bottom: 12, left: 12 }), offsetX: 0, offsetY: 0, maxModelOrderNodes: 0, modelOrderGroupCount: 0, direction, x, y, width, height }
   importEdges(graph)
   assignModelOrder(graph)
   return graph
@@ -107,6 +109,7 @@ function importNode(data: JsonObject, sourceIndex: number, direction: Direction)
   const portData = arrayMember(data, 'ports')
   if (portData !== null) for (let index = 0; index < portData.length; index++) { const port = jsonValue(portData[index]); if (isJsonObject(port)) node.ports.push(importPort(port, node, direction)) }
   node.sourcePorts = node.ports.slice()
+  node.ports = node.ports.filter(port => !booleanOption(port.options, 'noLayout', false))
   node.sourceLabels = importLabels(data)
   node.labels = node.sourceLabels.filter(label => label.active)
   const childData = arrayMember(data, 'children')
@@ -135,14 +138,14 @@ function importEdges(graph: LayoutGraph): void {
   const ids = new Map<string | number, LayoutNode>()
   for (const node of graph.nodes) if (node.key !== null) ids.set(node.key, node)
   const portIds = new Map<string | number, LayoutPort>()
-  for (const node of graph.nodes) for (const port of node.ports) if (port.key !== null) portIds.set(port.key, port)
+  for (const node of graph.nodes) for (const port of node.sourcePorts) if (port.key !== null) portIds.set(port.key, port)
   const edgeData = arrayMember(graph.data, 'edges')
   if (edgeData === null) return
   for (let index = 0; index < edgeData.length; index++) {
     const data = jsonValue(edgeData[index])
     if (!isJsonObject(data)) continue
     const id = elementId(data)
-    primitiveString(readMember(data, 'id'))
+    const identifier = primitiveString(readMember(data, 'id'))
     const sources = arrayMember(data, 'sources'), targets = arrayMember(data, 'targets')
     const resolve = (values: unknown[] | null): (LayoutNode | LayoutPort)[] => {
       const result: (LayoutNode | LayoutPort)[] = []
@@ -158,17 +161,26 @@ function importEdges(graph: LayoutGraph): void {
     const options = importOptions(data)
     if (arrayMember(data, 'sections')?.length) throw new Error('ELK TypeScript port: authored edge sections are not implemented yet')
     const sourceLabels = importLabels(data), labels = sourceLabels.filter(label => label.active)
+    const hierarchical = enumOption(graph.options, 'hierarchyHandling', ['INHERIT', 'SEPARATE_CHILDREN', 'INCLUDE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
+    const sourceNode = 'node' in sourceNodes[0]! ? sourceNodes[0]!.node : sourceNodes[0]!, targetNode = 'node' in targetNodes[0]! ? targetNodes[0]!.node : targetNodes[0]!
+    if (booleanOption(options, 'noLayout', false) || hierarchical && (sourceNode.noLayout || targetNode.noLayout)) {
+      graph.sourceEdges.push({ noLayout: true, data: data as unknown as ElkExtendedEdge, options, sourceLabels }); continue
+    }
+    if (sourceNode.noLayout || targetNode.noLayout) {
+      const describe = (node: LayoutNode): string => { const id = node.id || node.sourceLabels[0]?.text; return 'ElkNode' + (id ? ' \"' + id + '\"' : '') + ' (' + node.x + ',' + node.y + ' | ' + node.width + ',' + node.height + ')' }
+      const label = identifier || sourceLabels[0]?.text
+      throw new Error('org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge' + (label ? ' \"' + label + '\"' : '') + ' ' + describe(sourceNode) + ' -> ' + describe(targetNode) + ' could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.')
+    }
     if (sourceNodes.length !== 1 || targetNodes.length !== 1) throw new Error('ELK TypeScript port: hyperedge transformation is not implemented yet')
     const sourceShape = sourceNodes[0]!, targetShape = targetNodes[0]!
-    const source = 'node' in sourceShape ? sourceShape : createPort(graph, sourceShape, 'OUTPUT'), target = 'node' in targetShape ? targetShape : createPort(graph, targetShape, 'INPUT')
-    const edge: LayoutEdge = { data: data as unknown as ElkExtendedEdge, source, target, options, labels, sourceLabels, reversed: false, priorityDirection: integerOption(options, 'layered.priority.direction', 0), priorityShortness: integerOption(options, 'layered.priority.shortness', 0), bends: [] }
-    source.outgoing.push(edge); target.incoming.push(edge); graph.edges.push(edge)
+    const source = 'node' in sourceShape && sourceShape.node.ports.includes(sourceShape) ? sourceShape : createPort(graph, sourceNode, 'OUTPUT'), target = 'node' in targetShape && targetShape.node.ports.includes(targetShape) ? targetShape : createPort(graph, targetNode, 'INPUT')
+    const edge: LayoutEdge = { sourceShapeKey: sourceShape.key, targetShapeKey: targetShape.key, data: data as unknown as ElkExtendedEdge, source, target, options, labels, sourceLabels, reversed: false, priorityDirection: integerOption(options, 'layered.priority.direction', 0), priorityShortness: integerOption(options, 'layered.priority.shortness', 0), bends: [] }
+    source.outgoing.push(edge); target.incoming.push(edge); graph.edges.push(edge); graph.sourceEdges.push(edge)
   }
 }
 export function createPort(graph: LayoutGraph, node: LayoutNode, type: 'INPUT' | 'OUTPUT'): LayoutPort {
   const constraints = enumOption(node.options, 'portConstraints', ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const, 'UNDEFINED')
-  if (constraints !== 'UNDEFINED' && constraints !== 'FREE') throw new Error('ELK TypeScript port: constrained port initialization is not implemented yet')
-  const collect = booleanOption(graph.options, 'layered.mergeEdges', false) || booleanOption(node.options, 'layered.hypernode', false)
+  const collect = !isSideFixed(constraints) && (booleanOption(graph.options, 'layered.mergeEdges', false) || booleanOption(node.options, 'layered.hypernode', false))
   const side = graph.direction === 'RIGHT' ? type === 'OUTPUT' ? 'EAST' : 'WEST' : graph.direction === 'LEFT' ? type === 'OUTPUT' ? 'WEST' : 'EAST' : graph.direction === 'DOWN' ? type === 'OUTPUT' ? 'SOUTH' : 'NORTH' : type === 'OUTPUT' ? 'NORTH' : 'SOUTH'
   return providePort(node, type, side, collect)
 }
@@ -254,5 +266,5 @@ function assignModelOrder(graph: LayoutGraph): void {
     node.cycleBreakingGroupId = integerOption(node.options, 'layered.considerModelOrder.groupModelOrder.cycleBreakingId', 0)
   }
   graph.maxModelOrderNodes = index; graph.modelOrderGroupCount = groups.size
-  if (needs) for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) graph.edges[edgeIndex]!.modelOrder = edgeIndex
+  if (needs) for (let edgeIndex = 0; edgeIndex < graph.sourceEdges.length; edgeIndex++) { const edge = graph.sourceEdges[edgeIndex]!; if (!edge.noLayout) edge.modelOrder = edgeIndex }
 }

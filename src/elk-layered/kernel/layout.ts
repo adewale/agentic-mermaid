@@ -33,15 +33,24 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
   if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
   if (numberOption(graph.options, 'spacing.edgeEdge', 10) < 2) graph.options.set('spacing.edgeEdge', '2')
   if (graph.nodes.length > 0) {
-    if (!booleanOption(graph.options, 'separateConnectedComponents', true)) throw new Error('ELK TypeScript port: unsplit component phases are not implemented yet')
-    if (booleanOption(graph.options, 'layered.compaction.connectedComponents', false)) throw new Error('ELK TypeScript port: connected-component compaction is not implemented yet')
-    const components: Component[] = []
+    const compound = enumOption(graph.options, 'hierarchyHandling', ['INHERIT', 'INCLUDE_CHILDREN', 'SEPARATE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
     const random = new Random(integerOption(graph.options, 'randomSeed', 1))
-    for (const nodes of splitComponents(graph)) components.push(layoutComponent(nodes, graph, random))
-    const ordering = enumOption(graph.options, 'layered.considerModelOrder.components', ['NONE', 'INSIDE_PORT_SIDE_GROUPS', 'GROUP_MODEL_ORDER', 'MODEL_ORDER'] as const, 'NONE')
-    if (ordering !== 'NONE') throw new Error('ELK TypeScript port: model-order component placer is not implemented yet')
-    const size = packComponents(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
-    resizeGraph(graph, size.width, size.height)
+    if (compound) {
+      const component = layoutComponent(graph.nodes.filter(node => !node.noLayout), graph, random, true)
+      graph.width = component.width + graph.padding.left + graph.padding.right
+      graph.height = component.height + graph.padding.top + graph.padding.bottom
+      graph.offsetX = component.offsetX + graph.padding.left
+      graph.offsetY = component.offsetY + graph.padding.top
+    } else {
+      if (!booleanOption(graph.options, 'separateConnectedComponents', true)) throw new Error('ELK TypeScript port: unsplit component phases are not implemented yet')
+      if (booleanOption(graph.options, 'layered.compaction.connectedComponents', false)) throw new Error('ELK TypeScript port: connected-component compaction is not implemented yet')
+      const components: Component[] = []
+      for (const nodes of splitComponents(graph)) components.push(layoutComponent(nodes, graph, random, false))
+      const ordering = enumOption(graph.options, 'layered.considerModelOrder.components', ['NONE', 'INSIDE_PORT_SIDE_GROUPS', 'GROUP_MODEL_ORDER', 'MODEL_ORDER'] as const, 'NONE')
+      if (ordering !== 'NONE') throw new Error('ELK TypeScript port: model-order component placer is not implemented yet')
+      const size = packComponents(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
+      resizeGraph(graph, size.width, size.height)
+    }
   }
   emitGraph(graph)
   return data
@@ -74,9 +83,10 @@ function resizeGraph(graph: LayoutGraph, contentWidth: number, contentHeight: nu
 function emitGraph(graph: LayoutGraph): void {
   emitShape(graph.data, graph)
   for (const node of graph.nodes) { if (node.data === null) throw new Error('Layout node did not exist in input'); emitShape(node.data, { x: node.noLayout ? node.x : node.x + graph.offsetX, y: node.noLayout ? node.y : node.y + graph.offsetY, width: node.width, height: node.height }); for (const port of node.sourcePorts) if (port.data !== null) emitShape(port.data, port) }
-  for (const edge of graph.edges) {
+  for (const edge of graph.sourceEdges) {
+    if (edge.noLayout) { writeMember(edge.data, 'container', graph.id); continue }
     const source = edge.source, target = edge.target
-    const section: import('./types.ts').ElkEdgeSection = { id: String(elementKey(edge.data)) + '_s0', startPoint: { x: source.node.x + source.x + source.anchorX + graph.offsetX, y: source.node.y + source.y + source.anchorY + graph.offsetY }, endPoint: { x: target.node.x + target.x + target.anchorX + graph.offsetX, y: target.node.y + target.y + target.anchorY + graph.offsetY }, incomingShape: (source.key ?? source.node.key) as string, outgoingShape: (target.key ?? target.node.key) as string }
+    const section: import('./types.ts').ElkEdgeSection = { id: String(elementKey(edge.data)) + '_s0', startPoint: { x: source.node.x + source.x + source.anchorX + graph.offsetX, y: source.node.y + source.y + source.anchorY + graph.offsetY }, endPoint: { x: target.node.x + target.x + target.anchorX + graph.offsetX, y: target.node.y + target.y + target.anchorY + graph.offsetY }, incomingShape: (edge.sourceShapeKey ?? source.key ?? source.node.key) as string, outgoingShape: (edge.targetShapeKey ?? target.key ?? target.node.key) as string }
     if (edge.bends.length > 0) section.bendPoints = edge.bends.map(point => ({ x: point.x + graph.offsetX, y: point.y + graph.offsetY }))
     writeMember(edge.data, 'sections', [section])
     if (edge.junctions?.length) writeMember(edge.data, 'junctionPoints', edge.junctions.map(point => ({ x: point.x + graph.offsetX, y: point.y + graph.offsetY })))
@@ -88,7 +98,7 @@ function emitGraph(graph: LayoutGraph): void {
     for (const label of node.sourceLabels) emitLabel(label, label.active && (nodePlacement || setOption(label.options, 'nodeLabels.placement', ['H_LEFT', 'H_CENTER', 'H_RIGHT', 'V_TOP', 'V_CENTER', 'V_BOTTOM', 'INSIDE', 'OUTSIDE', 'H_PRIORITY'], []).size > 0))
     for (const port of node.sourcePorts) for (const label of port.sourceLabels) emitLabel(label, false)
   }
-  for (const edge of graph.edges) for (const label of edge.sourceLabels) emitLabel(label, label.active)
+  for (const edge of graph.sourceEdges) for (const label of edge.sourceLabels) emitLabel(label, !edge.noLayout && label.active)
 }
 function emitLabel(label: LayoutLabel, apply: boolean): void { emitShape(label.data, apply ? label : { x: label.inputX, y: label.inputY, width: label.inputWidth, height: label.inputHeight }) }
 function emitShape(data: object, shape: { x: number; y: number; width: number; height: number }): void { writeMember(data, 'x', shape.x); writeMember(data, 'y', shape.y); writeMember(data, 'width', shape.width); writeMember(data, 'height', shape.height) }
@@ -106,10 +116,10 @@ function splitComponents(graph: LayoutGraph): LayoutNode[][] {
   for (const node of graph.nodes) if (!visited.has(node) && !node.noLayout) { const nodes: LayoutNode[] = []; visit(node, nodes); result.push(nodes) }
   return result
 }
-function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random): Component {
+function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): Component {
   const direction = graph.direction
   const state = { width: 0, height: 0, offsetX: 0, offsetY: 0, padding: { ...graph.padding }, options: new Map(graph.options) }
-  state.options.delete('nodeSize.minimum')
+  if (!compound) state.options.delete('nodeSize.minimum')
   state.options.set('direction', direction)
   for (const node of nodes) node.originalPortConstraints = node.portConstraints
   // The upstream strategy factory maps the preprocessor to TO_INPUT_DIRECTION.

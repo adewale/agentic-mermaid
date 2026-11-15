@@ -20,6 +20,7 @@ export function sizeAndPlacePorts(nodes: LayoutNode[], graphOptions: Options): v
     if (node.ports.some(port => port.labels.length > 0)) throw new Error('ELK TypeScript port: port label cells are not implemented yet')
     const constraints = setOption(node.options, 'nodeSize.constraints', SIZE_CONSTRAINTS, []), flags = setOption(node.options, 'nodeSize.options', SIZE_OPTIONS, ['DEFAULT_MINIMUM_SIZE'])
     if (constraints.has('NODE_LABELS') || constraints.has('PORT_LABELS')) throw new Error('ELK TypeScript port: label cells contributing to node size are not implemented yet')
+    if (constraints.has('MINIMUM_SIZE') && flags.has('MINIMUM_SIZE_ACCOUNTS_FOR_PADDING')) throw new Error('ELK TypeScript port: minimum client-area label cells are not implemented yet')
     const spacing = numberOption(node.individualSpacings, 'spacing.portPort', numberOption(graphOptions, 'spacing.portPort', 10))
     const zero = { top: 0, right: 0, bottom: 0, left: 0 }
     const surrounding = paddingOption(node.individualSpacings, paddingOption(graphOptions, zero, 'spacing.portsSurrounding'), 'spacing.portsSurrounding')
