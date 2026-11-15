@@ -39,7 +39,7 @@ export function splitEdge(edge: LayoutEdge, dummy: LayoutNode): LayoutEdge {
   else { dummy.longEdgeSource = edge.source; dummy.longEdgeTarget = next.target }
   for (let index = 0; index < edge.labels.length;) {
     const label = edge.labels[index]!
-    if (enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') === 'HEAD') { edge.labels.splice(index, 1); next.labels.push(label) }
+    if (enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') === 'HEAD') { label.endLabelEdge ??= edge; edge.labels.splice(index, 1); next.labels.push(label) }
     else index++
   }
   return next

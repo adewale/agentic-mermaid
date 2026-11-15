@@ -1036,7 +1036,7 @@ export function minimizeCrossings(layers: Order, options: Options, random: Rando
   if (enumOption(options, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP') !== 'LAYER_SWEEP'
     || booleanOption(options, 'layered.crossingMinimization.semiInteractive', false)) throw new Error('ELK TypeScript port: this crossing-minimization strategy is not implemented yet')
   for (const layer of layers) for (const node of layer) {
-    if ((node.type !== 'NORMAL' && node.type !== 'LONG_EDGE' && node.type !== 'LABEL') || node.children.length > 0
+    if ((node.type !== 'NORMAL' && node.type !== 'LONG_EDGE' && node.type !== 'LABEL') || node.nestedGraph !== undefined
       || node.ports.some(port => port.side === 'NORTH' || port.side === 'SOUTH')) throw new Error('ELK TypeScript port: hierarchical and north/south crossing references are not implemented yet')
   }
   const context = new ModelOrderContext(options, layers, maxModelOrderNodes ?? layers.reduce((sum, layer) => sum + layer.filter(node => node.modelOrder !== undefined).length, 0))

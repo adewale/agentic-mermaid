@@ -7,6 +7,7 @@
  *******************************************************************************/
 import { packComponents, type Component } from './components.ts'
 import { compactGraph } from './compaction.ts'
+import { prepareEndLabels, selectEndLabelSides, sortEndLabels, finishEndLabels } from './end-labels.ts'
 import { preprocessSelfLoops, restoreSelfLoopPorts, routeSelfLoops, postprocessSelfLoops } from './self-loops.ts'
 import { insertLabelDummies, switchLabelDummies, selectLabelSides, removeLabelDummies } from './edge-labels.ts'
 import { breakGreedyCycles, breakModelOrderCycles, breakGreedyModelOrderCycles } from './cycle-breaking.ts'
@@ -31,6 +32,16 @@ const SIZE_OPTIONS = ['DEFAULT_MINIMUM_SIZE', 'MINIMUM_SIZE_ACCOUNTS_FOR_PADDING
 /** Development entry. Production continues to use elkjs until all paths qualify. */
 export function elkLayoutSync<T extends ElkNode>(data: T): T {
   const graph = importGraph(data)
+  layoutGraph(graph)
+  emitGraph(graph)
+  return data
+}
+function layoutGraph(graph: LayoutGraph): void {
+  if (graph.nodes.some(node => node.nestedGraph !== undefined)) throw new Error('ELK TypeScript port: compound graph phase dispatch is not implemented yet')
+  for (const node of graph.nodes) if (node.contentGraph !== undefined && !node.noLayout) {
+    layoutGraph(node.contentGraph)
+    node.width = node.contentGraph.width; node.height = node.contentGraph.height
+  }
   const algorithm = stringOption(graph.options, 'algorithm', 'layered')
   if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
   if (numberOption(graph.options, 'spacing.edgeEdge', 10) < 2) graph.options.set('spacing.edgeEdge', '2')
@@ -54,8 +65,6 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
       resizeGraph(graph, size.width, size.height)
     }
   }
-  emitGraph(graph)
-  return data
 }
 
 function minimumSize(options: Options): { x: number; y: number } {
@@ -82,8 +91,8 @@ function resizeGraph(graph: LayoutGraph, contentWidth: number, contentHeight: nu
   }
   graph.offsetX = offsetX + padding.left; graph.offsetY = offsetY + padding.top
 }
-function emitGraph(graph: LayoutGraph): void {
-  emitShape(graph.data, graph)
+function emitGraph(graph: LayoutGraph, emitRoot = true): void {
+  if (emitRoot) emitShape(graph.data, graph)
   for (const node of graph.nodes) { if (node.data === null) throw new Error('Layout node did not exist in input'); emitShape(node.data, { x: node.noLayout ? node.x : node.x + graph.offsetX, y: node.noLayout ? node.y : node.y + graph.offsetY, width: node.width, height: node.height }); for (const port of node.sourcePorts) if (port.data !== null) emitShape(port.data, port) }
   for (const edge of graph.sourceEdges) {
     if (edge.noLayout) { writeMember(edge.data, 'container', graph.id); continue }
@@ -94,6 +103,7 @@ function emitGraph(graph: LayoutGraph): void {
     if (edge.junctions?.length) writeMember(edge.data, 'junctionPoints', edge.junctions.map(point => ({ x: point.x + graph.offsetX, y: point.y + graph.offsetY })))
     writeMember(edge.data, 'container', graph.id)
   }
+  for (const node of graph.nodes) if (node.contentGraph !== undefined) emitGraph(node.contentGraph, false)
   for (const label of graph.labels) emitLabel(label, false)
   for (const node of graph.nodes) {
     const nodePlacement = setOption(node.options, 'nodeLabels.placement', ['H_LEFT', 'H_CENTER', 'H_RIGHT', 'V_TOP', 'V_CENTER', 'V_BOTTOM', 'INSIDE', 'OUTSIDE', 'H_PRIORITY'], []).size > 0
@@ -121,7 +131,23 @@ function splitComponents(graph: LayoutGraph): LayoutNode[][] {
   for (const node of graph.nodes) if (!visited.has(node) && !node.noLayout) { const nodes: LayoutNode[] = []; visit(node, nodes); result.push(nodes) }
   return result
 }
+interface PreparedLayout {
+  nodes: LayoutNode[]
+  graph: LayoutGraph
+  random: Random
+  direction: LayoutGraph['direction']
+  state: { width: number; height: number; offsetX: number; offsetY: number; padding: import('./options.ts').Insets; options: Options }
+  loops: ReturnType<typeof preprocessSelfLoops>
+  centerLabels: ReturnType<typeof insertLabelDummies> | undefined
+  layers: LayoutNode[][]
+  phaseNodes: LayoutNode[]
+}
 function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): Component {
+  const prepared = prepareLayout(nodes, graph, random, compound)
+  minimizeCrossings(prepared.layers, prepared.state.options, random, graph.nodes.filter(node => !node.noLayout).length, graph.maxModelOrderNodes)
+  return finishLayout(prepared)
+}
+function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): PreparedLayout {
   const direction = graph.direction
   const state = { width: 0, height: 0, offsetX: 0, offsetY: 0, padding: { ...graph.padding }, options: new Map(graph.options) }
   if (!compound) state.options.delete('nodeSize.minimum')
@@ -135,7 +161,7 @@ function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random
   const loops = preprocessSelfLoops(nodes, state.options)
   const feedback = booleanOption(state.options, 'layered.feedbackEdges', false)
   if (feedback) assignPortSides(nodes)
-  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: import('./cycle-breaking.ts').CycleEdge) => reverseEdge(edge as import('./graph.ts').LayoutEdge, true), maxModelOrderNodes: graph.maxModelOrderNodes, modelOrderGroupCount: graph.modelOrderGroupCount, enforceGroupModelOrder: enumOption(state.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
+  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: import('./cycle-breaking.ts').CycleEdge) => reverseEdge(edge as import('./graph.ts').LayoutEdge, true), maxModelOrderNodes: graph.maxModelOrderNodes!, modelOrderGroupCount: graph.modelOrderGroupCount!, enforceGroupModelOrder: enumOption(state.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
   const cycle = enumOption(state.options, 'layered.cycleBreaking.strategy', ['GREEDY', 'DEPTH_FIRST', 'INTERACTIVE', 'MODEL_ORDER', 'GREEDY_MODEL_ORDER', 'SCC_CONNECTIVITY', 'SCC_NODE_TYPE', 'DFS_NODE_ORDER', 'BFS_NODE_ORDER'] as const, 'GREEDY')
   if (cycle === 'GREEDY') breakGreedyCycles(cycleGraph)
   else if (cycle === 'MODEL_ORDER') breakModelOrderCycles(cycleGraph)
@@ -143,19 +169,22 @@ function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random
   else throw new Error('ELK TypeScript port: cycle strategy ' + cycle + ' is not implemented yet')
   const centerLabels = nodes.some(node => node.ports.some(port => port.outgoing.some(edge => edge.source.node !== edge.target.node && edge.labels.some(label => enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') === 'CENTER')))) ? insertLabelDummies(nodes, state.options) : undefined
   const layers = assignNetworkSimplexLayers(nodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
-  for (const node of nodes) for (const port of node.ports) for (const edge of port.outgoing) {
-    if (edge.labels.length > 0) throw new Error('ELK TypeScript port: edge label processors are not implemented yet')
-  }
   splitLongEdges(layers)
   const phaseNodes = layers.flat()
   if (!feedback) assignPortSides(phaseNodes)
   sortPortLists(phaseNodes, state.options)
-  minimizeCrossings(layers, state.options, random, graph.nodes.filter(node => !node.noLayout).length, graph.maxModelOrderNodes)
+  graph.layers = layers; graph.phaseOptions = state.options; graph.random = random
+  return { nodes, graph, random, direction, state, loops, centerLabels, layers, phaseNodes }
+}
+function finishLayout(prepared: PreparedLayout): Component {
+  const { nodes, random, direction, state, loops, centerLabels, layers, phaseNodes } = prepared
   restoreSelfLoopPorts(layers, loops)
   sizeAndPlacePorts(phaseNodes, state.options)
   calculateNodeMargins(phaseNodes)
   routeSelfLoops(layers, state.options, random, loops)
+  const endLabels = layers.some(layer => layer.some(node => node.ports.some(port => [...port.incoming, ...port.outgoing].some(edge => edge.labels.some(label => enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') !== 'CENTER'))))) ? prepareEndLabels(layers, state.options) : undefined
   if (centerLabels !== undefined) { switchLabelDummies(layers, state.options, centerLabels); selectLabelSides(layers, state.options, centerLabels) }
+  if (endLabels !== undefined) selectEndLabelSides(layers, state.options, endLabels)
   placeNodes(layers, state.options)
   const size = routeOrthogonal(layers, state.options, random)
   state.width = size.width; state.height = size.height; state.offsetY = size.offsetY
@@ -163,7 +192,9 @@ function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random
   postprocessSelfLoops(layers, loops)
   compactGraph(layers, state.options, state)
   if (centerLabels !== undefined) removeLabelDummies(layers, nodes, state.options, centerLabels)
+  if (endLabels !== undefined) sortEndLabels(layers, endLabels)
   for (const layer of layers) for (const node of layer) for (const port of node.ports) for (const edge of [...port.outgoing]) if (edge.reversed) reverseEdge(edge, false)
+  if (endLabels !== undefined) finishEndLabels(layers, endLabels)
   if (enumOption(state.options, 'hierarchyHandling', ['INHERIT', 'INCLUDE_CHILDREN', 'SEPARATE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN') resizeHierarchicalGraph(state)
   transformGraph(layers.flat(), state, direction, 'TO_INTERNAL_LTR')
   const points: { x: number; y: number }[] = []
