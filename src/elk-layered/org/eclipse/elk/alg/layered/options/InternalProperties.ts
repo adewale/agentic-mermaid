@@ -8,6 +8,13 @@
 import { Property } from '../../../graph/properties/Property.ts'
 import type { AbstractList } from '../../../../../../java/util/AbstractList.ts'
 import type { LLabel } from '../graph/LLabel.ts'
+import { Class } from '../../../../../../java/lang/Class.ts'
+import { EnumSet } from '../../../../../../java/util/EnumSet.ts'
+import { KVector } from '../../../core/math/KVector.ts'
+import { PortSide } from '../../../core/options/PortSide.ts'
+import { GraphProperties } from './GraphProperties.ts'
+import { EdgeConstraint } from './EdgeConstraint.ts'
+import { InLayerConstraint } from './InLayerConstraint.ts'
 
 export class InternalProperties {
   static readonly ORIGIN = new Property<unknown>('origin')
@@ -15,4 +22,11 @@ export class InternalProperties {
   static readonly REVERSED = new Property<boolean>('reversed', false)
   static readonly INPUT_COLLECT = new Property<boolean>('inputCollect', false)
   static readonly OUTPUT_COLLECT = new Property<boolean>('outputCollect', false)
+  static readonly GRAPH_PROPERTIES = new Property<EnumSet<GraphProperties>>('graphProperties', EnumSet.noneOf(Class.of(GraphProperties)))
+  static readonly EXT_PORT_SIZE = new Property<KVector>('externalPortSize', new KVector())
+  static readonly PORT_RATIO_OR_POSITION = new Property<number>('portRatioOrPosition', 0)
+  static readonly EDGE_CONSTRAINT = new Property<EdgeConstraint>('edgeConstraint', EdgeConstraint.NONE)
+  static readonly IN_LAYER_CONSTRAINT = new Property<InLayerConstraint>('inLayerConstraint', InLayerConstraint.NONE)
+  static readonly EXT_PORT_SIDE = new Property<PortSide>('externalPortSide', PortSide.UNDEFINED)
+  static readonly MODEL_ORDER = new Property<number>('modelOrder')
 }
