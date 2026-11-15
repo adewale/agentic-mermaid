@@ -464,14 +464,15 @@ function containsToken(text: string, part: string): boolean {
 type DiffOp = { kind: 'eq'; a: number; b: number } | { kind: 'del'; a: number } | { kind: 'ins'; a: number; b: number }
 
 /** Line diff of comparison keys after trimming the common ends; undefined
- * when too large. */
+ * when too large. A middle too long for the table is compared by the
+ * shortest edit script, whose cost grows with the number of changed lines. */
 function diffLines(a: readonly string[], b: readonly string[]): DiffOp[] | undefined {
   let prefix = 0
   while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++
   let suffix = 0
   while (suffix < a.length - prefix && suffix < b.length - prefix && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++
   const n = a.length - prefix - suffix, m = b.length - prefix - suffix
-  if ((n + 1) * (m + 1) > MAX_DIFF_CELLS) return undefined
+  if ((n + 1) * (m + 1) > MAX_DIFF_CELLS) return shortestEdit(a, b, prefix, suffix)
   const table = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -486,6 +487,47 @@ function diffLines(a: readonly string[], b: readonly string[]): DiffOp[] | undef
     else if (j < m && (i === n || table[i]![j + 1]! >= table[i + 1]![j]!)) { ops.push({ kind: 'ins', a: prefix + i, b: prefix + j }); j++ }
     else { ops.push({ kind: 'del', a: prefix + i }); i++ }
   }
+  for (let k = 0; k < suffix; k++) ops.push({ kind: 'eq', a: a.length - suffix + k, b: b.length - suffix + k })
+  return ops
+}
+
+/** The middle of `a` and `b` (between `prefix` and `suffix` common lines)
+ * compared by the shortest edit script (Myers), giving up once the number of
+ * edits times the lines compared passes the diff budget. */
+function shortestEdit(a: readonly string[], b: readonly string[], prefix: number, suffix: number): DiffOp[] | undefined {
+  const n = a.length - prefix - suffix, m = b.length - prefix - suffix
+  const center = n + m + 1
+  const reach = new Int32Array(2 * center + 1)
+  // The furthest reach on each diagonal before step d, for the walk back.
+  const steps: Int32Array[] = []
+  let edits = -1
+  search: for (let d = 0; (d + 1) * (n + m + 1) <= MAX_DIFF_CELLS; d++) {
+    steps.push(reach.slice(center - d - 1, center + d + 2))
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && reach[center + k - 1]! < reach[center + k + 1]!) ? reach[center + k + 1]! : reach[center + k - 1]! + 1
+      let y = x - k
+      while (x < n && y < m && a[prefix + x] === b[prefix + y]) { x++; y++ }
+      reach[center + k] = x
+      if (x >= n && y >= m) { edits = d; break search }
+    }
+  }
+  if (edits < 0) return undefined
+  const middle: DiffOp[] = []
+  let x = n, y = m
+  for (let d = edits; d > 0; d--) {
+    const before = steps[d]!, at = (k: number) => before[k + d + 1]!
+    const k = x - y
+    const down = k === -d || (k !== d && at(k - 1) < at(k + 1))
+    const fromX = at(down ? k + 1 : k - 1), fromY = fromX - (down ? k + 1 : k - 1)
+    while (x > (down ? fromX : fromX + 1) && y > (down ? fromY + 1 : fromY)) { x--; y--; middle.push({ kind: 'eq', a: prefix + x, b: prefix + y }) }
+    if (down) middle.push({ kind: 'ins', a: prefix + fromX, b: prefix + fromY })
+    else middle.push({ kind: 'del', a: prefix + fromX })
+    x = fromX; y = fromY
+  }
+  while (x > 0 && y > 0) { x--; y--; middle.push({ kind: 'eq', a: prefix + x, b: prefix + y }) }
+  const ops: DiffOp[] = []
+  for (let k = 0; k < prefix; k++) ops.push({ kind: 'eq', a: k, b: k })
+  ops.push(...middle.reverse())
   for (let k = 0; k < suffix; k++) ops.push({ kind: 'eq', a: a.length - suffix + k, b: b.length - suffix + k })
   return ops
 }

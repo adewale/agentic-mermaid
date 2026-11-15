@@ -183,17 +183,18 @@ removal takes every line that declares nothing else, and a new member of a
 block written as separate lines is spelled like its authored siblings. A
 statement kept in its authored spacing (a fragment message written
 `A ->> B: ping`) is edited through its canonical reading, so only the changed
-text changes.
+text changes. A canonical difference too long for the line table is compared
+by the shortest edit script, within the same budget.
 
 Typical fallbacks: one authored line carrying several statements whose removal
 needs the rest respelled in a different order (`A:::hot & B --> C`), an edit
 whose canonical result moves statements into or out of blocks the source does
 not spell (subgraph members declared by edges, nested namespaces the writer
-flattens), an edit that empties a family below its grammar floor, and edits to
-wrappers the canonical writer does not own. The receipt names the reason (the
-statement that could not be traced or placed, or how the closest local
-candidate reads differently from the edit); the source is then the ordinary
-canonical result.
+flattens), an edit that empties a family below its grammar floor, a canonical
+difference beyond the diff budget, and edits to wrappers the canonical writer
+does not own. The receipt names the reason (the statement that could not be
+traced or placed, or how the closest local candidate reads differently from
+the edit); the source is then the ordinary canonical result.
 
 The same explicit mode, for structured and opaque bodies, is available
 through the workflow surfaces:

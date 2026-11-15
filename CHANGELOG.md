@@ -50,7 +50,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   inside a sequence fragment takes the indentation of the fragment's authored
   body or branch lines, also as the first line of an empty branch or loop, and
   the fragment's untouched messages keep their authored spelling. An edited
-  fragment message keeps its authored spacing (`A ->> B: ping now`).
+  fragment message keeps its authored spacing (`A ->> B: ping now`). A large
+  reordering (a rename in a 1,200-class diagram) is compared instead of
+  falling back.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the
