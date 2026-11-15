@@ -5,6 +5,7 @@
  * https://www.eclipse.org/legal/epl-2.0/.
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
+import { packComponentGroups } from './component-groups.ts'
 import { packComponents, type Component } from './components.ts'
 import { compactGraph } from './compaction.ts'
 import { prepareEndLabels, selectEndLabelSides, sortEndLabels, finishEndLabels } from './end-labels.ts'
@@ -12,6 +13,7 @@ import { preprocessSelfLoops, restoreSelfLoopPorts, routeSelfLoops, postprocessS
 import { insertLabelDummies, switchLabelDummies, selectLabelSides, removeLabelDummies } from './edge-labels.ts'
 import { breakGreedyCycles, breakModelOrderCycles, breakGreedyModelOrderCycles } from './cycle-breaking.ts'
 import { Random } from '../java/util/Random.ts'
+import { applyHighDegreeLayers } from './high-degree.ts'
 import { assignNetworkSimplexLayers } from './network-simplex.ts'
 import { insertInvertedPortDummies } from './inverted-ports.ts'
 import { assignPortSides, sortPortLists } from './phases.ts'
@@ -60,13 +62,26 @@ function layoutGraph(graph: LayoutGraph): void {
       graph.offsetX = component.offsetX + graph.padding.left
       graph.offsetY = component.offsetY + graph.padding.top
     } else {
-      if (!booleanOption(graph.options, 'separateConnectedComponents', true)) throw new Error('ELK TypeScript port: unsplit component phases are not implemented yet')
+      const constraints = enumOption(graph.options, 'portConstraints', ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const, 'UNDEFINED')
+      const separate = booleanOption(graph.options, 'separateConnectedComponents', true) && (!graph.hasExternalPorts || constraints !== 'FIXED_ORDER' && constraints !== 'FIXED_RATIO' && constraints !== 'FIXED_POS')
+      if (!separate) {
+        const component = layoutComponent((graph.layerlessNodes ?? graph.nodes).filter(node => !node.noLayout), graph, random, false, false)
+        graph.layerlessNodes = component.nodes as LayoutNode[]
+        resizeGraph(graph, component.width, component.height, component.offsetX, component.offsetY)
+        transferIndependentGraph(graph)
+        return
+      }
       if (booleanOption(graph.options, 'layered.compaction.connectedComponents', false)) throw new Error('ELK TypeScript port: connected-component compaction is not implemented yet')
       const components: Component[] = []
-      for (const nodes of splitComponents(graph)) components.push(layoutComponent(nodes, graph, random, false))
+      for (const nodes of splitComponents(graph)) {
+        let connections = 0
+        for (const node of nodes) if (node.type === 'EXTERNAL_PORT') connections |= node.externalPortSide === 'NORTH' ? 1 : node.externalPortSide === 'EAST' ? 2 : node.externalPortSide === 'SOUTH' ? 4 : node.externalPortSide === 'WEST' ? 8 : 0
+        const component = layoutComponent(nodes, graph, random, false); component.connections = connections; components.push(component)
+      }
       const ordering = enumOption(graph.options, 'layered.considerModelOrder.components', ['NONE', 'INSIDE_PORT_SIDE_GROUPS', 'GROUP_MODEL_ORDER', 'MODEL_ORDER'] as const, 'NONE')
       if (ordering !== 'NONE') throw new Error('ELK TypeScript port: model-order component placer is not implemented yet')
-      const size = packComponents(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
+      const size = (graph.hasExternalPorts ? packComponentGroups : packComponents)(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
+      graph.layerlessNodes = (size.order ?? components).flatMap(component => component.nodes as LayoutNode[])
       resizeGraph(graph, size.width, size.height)
     }
   }
@@ -118,10 +133,10 @@ function minimumSize(options: Options): { x: number; y: number } {
   if (flags.has('DEFAULT_MINIMUM_SIZE')) { if (minimum.x <= 0) minimum.x = 20; if (minimum.y <= 0) minimum.y = 20 }
   return minimum
 }
-function resizeGraph(graph: LayoutGraph, contentWidth: number, contentHeight: number): void {
+function resizeGraph(graph: LayoutGraph, contentWidth: number, contentHeight: number, initialOffsetX = 0, initialOffsetY = 0): void {
   const padding = graph.padding
   const oldWidth = contentWidth + padding.left + padding.right, oldHeight = contentHeight + padding.top + padding.bottom
-  let width = oldWidth, height = oldHeight, offsetX = 0, offsetY = 0
+  let width = oldWidth, height = oldHeight, offsetX = initialOffsetX, offsetY = initialOffsetY
   if (setOption(graph.options, 'nodeSize.constraints', SIZE_CONSTRAINTS, []).has('MINIMUM_SIZE')) {
     const minimum = minimumSize(graph.options)
     width = Math.max(width, minimum.x); height = Math.max(height, minimum.y)
@@ -214,15 +229,15 @@ interface PreparedLayout {
   layers: LayoutNode[][]
   phaseNodes: LayoutNode[]
 }
-function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): Component {
-  const prepared = prepareLayout(nodes, graph, random, compound)
+function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean, clearMinimum = !compound): Component {
+  const prepared = prepareLayout(nodes, graph, random, compound, clearMinimum)
   minimizeCrossings(prepared.layers, prepared.state.options, random, (graph.layerlessNodes ?? graph.nodes).filter(node => !node.noLayout).length, graph.maxModelOrderNodes, true)
   return finishLayout(prepared)
 }
-function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): PreparedLayout {
+function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean, clearMinimum = !compound): PreparedLayout {
   const direction = graph.direction
   const state = { width: 0, height: 0, offsetX: 0, offsetY: 0, padding: { ...graph.padding }, options: new Map(graph.options) }
-  if (!compound) state.options.delete('nodeSize.minimum')
+  if (clearMinimum) state.options.delete('nodeSize.minimum')
   state.options.set('direction', direction)
   for (const node of nodes) node.originalPortConstraints = node.portConstraints
   // The upstream strategy factory maps the preprocessor to TO_INPUT_DIRECTION.
@@ -241,6 +256,7 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const layererNodes = nodes.slice()
   const hiddenLayers = hideSeparateLayers(layererNodes)
   const layers = assignNetworkSimplexLayers(layererNodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
+  if (booleanOption(state.options, 'layered.highDegreeNodes.treatment', false)) applyHighDegreeLayers(layers, state.options)
   restoreSeparateLayers(layers, hiddenLayers)
   const hierarchyPorts = constrainHierarchyPorts(graph, layers)
   splitLongEdges(layers)
@@ -295,8 +311,8 @@ function finishLayout(prepared: PreparedLayout): Component {
     graph.offsetX = state.offsetX + state.padding.left; graph.offsetY = state.offsetY + state.padding.top
   }
   const points: { x: number; y: number }[] = []
-  for (const node of nodes) for (const port of node.ports) for (const edge of port.outgoing) { points.push(...edge.bends); if (edge.junctions !== undefined) points.push(...edge.junctions); points.push(...edge.labels) }
-  return { nodes, points, width: state.width, height: state.height, offsetX: state.offsetX, offsetY: state.offsetY }
+  for (const node of completedNodes) for (const port of node.ports) for (const edge of port.outgoing) { points.push(...edge.bends); if (edge.junctions !== undefined) points.push(...edge.junctions); points.push(...edge.labels) }
+  return { nodes: completedNodes, points, width: state.width, height: state.height, offsetX: state.offsetX, offsetY: state.offsetY }
 }
 
 /** HierarchicalNodeResizingProcessor's flat graph size/offset transfer. */

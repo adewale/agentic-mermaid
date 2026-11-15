@@ -15,6 +15,7 @@ export interface ComponentNode {
 }
 
 export interface Component {
+  connections?: number
   nodes: ComponentNode[]
   width: number
   height: number
@@ -31,6 +32,7 @@ export interface ComponentPackingOptions {
 }
 
 export interface ComponentPackingResult {
+  order?: Component[]
   width: number
   height: number
 }
