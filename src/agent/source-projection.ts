@@ -1214,7 +1214,7 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
       tried.add(source)
       const parsed = parseRegisteredMermaid(source)
       if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return { source, diagram: parsed.value }
-      const miss = misreading(parsed, c1)
+      const miss = misreading(parsed, c1, facts)
       if (!closest || miss.size < closest.size) closest = miss
     }
     return undefined
@@ -1238,8 +1238,9 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
 const quote = (statement: string) => JSON.stringify(statement.trim().length > 60 ? `${statement.trim().slice(0, 57)}...` : statement.trim())
 
 /** How a rejected candidate reads differently from the edit: a parse
- * failure, else the canonical statements it gains and lacks. */
-function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[]): { size: number; reason: string } {
+ * failure, else the canonical statements it gains and lacks, saying when it
+ * has the edit's facts (a kept line now declares something where it stands). */
+function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string } {
   if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})` }
   const found = statements(parsed.value)
   if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram` }
@@ -1254,6 +1255,8 @@ function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: strin
   const extra = left(got, want), missing = left(want, got)
   const list = (values: readonly string[]) => `${quote(values[0]!)}${values.length > 1 ? ` and ${values.length - 1} more` : ''}`
   if (!extra.length && !missing.length) return { size: 0, reason: 'the closest local change writes the edited statements, but they read with different order, metadata or facts' }
-  const reason = !missing.length ? `the closest local change also reads ${list(extra)}` : !extra.length ? `the closest local change lacks ${list(missing)}` : `the closest local change reads ${list(extra)} where the edit has ${list(missing)}`
+  const sorted = (values: readonly string[]) => [...values].sort()
+  const closest = sameSourceMeaning(sorted(describeMermaidFacts(parsed.value)), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
+  const reason = !missing.length ? `${closest} also reads ${list(extra)}` : !extra.length ? `${closest} lacks ${list(missing)}` : `${closest} reads ${list(extra)} where the edit has ${list(missing)}`
   return { size: extra.length + missing.length, reason }
 }

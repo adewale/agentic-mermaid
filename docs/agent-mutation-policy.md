@@ -200,11 +200,14 @@ as the edited block. A declaration whose label the writer would move onto a
 new statement that now mentions it first keeps its line, and the new statement
 names it bare (`n0[Zero]` stays and the edge is written `n0 --> n1`).
 
-Typical fallbacks: an edit that empties a family below its grammar floor, a
-canonical difference beyond the diff budget, and edits to wrappers the
-canonical writer does not own. The receipt names the reason (the statement
-that could not be traced or placed, or how the closest local candidate reads
-differently from the edit); the source is then the ordinary canonical result.
+Typical fallbacks: a kept line whose position changes what it declares (a
+state note left before the state's only remaining transition declares the
+state there; the receipt says the closest candidate has the edit's facts), an
+edit that empties a family below its grammar floor, a canonical difference
+beyond the diff budget, and edits to wrappers the canonical writer does not
+own. The receipt names the reason (the statement that could not be traced or
+placed, or how the closest local candidate reads differently from the edit);
+the source is then the ordinary canonical result.
 
 The same explicit mode, for structured and opaque bodies, is available
 through the workflow surfaces:

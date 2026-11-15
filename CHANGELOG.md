@@ -55,7 +55,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   falling back. Subgraph members declared by edges and one line carrying
   several statements and `:::` classes edit locally. A new edge that is a
   node's first mention keeps the node's label on its declaration line. Nested
-  namespaces and a class annotated on one line edit locally.
+  namespaces and a class annotated on one line edit locally. A fallback whose
+  closest candidate has the edit's facts (a state note left before the state's
+  only transition) says so.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

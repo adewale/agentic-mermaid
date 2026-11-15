@@ -468,4 +468,15 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read).toEqual(expected!)
     expect(read!.ok).toBe(true)
   }, 20_000)
+
+  // A kept line whose position changes what it declares: with `[*] --> S`
+  // gone, the note left before `S --> T` would declare S on its own, which
+  // Mermaid draws differently, so the edit falls back and the receipt says
+  // the closest candidate has the edit's facts.
+  test('a state note left before its state\'s only transition falls back with a named reason', () => {
+    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n'
+    const result = applyOps({ source, ops: [{ kind: 'remove_transition', index: 0 }], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change has the edit\'s facts but also reads "S"' })
+  })
 })
