@@ -9,10 +9,15 @@
  */
 import type { EObject } from '../../emf/ecore/EObject.ts'
 
+export const ElkBendPoint = Symbol('org.eclipse.elk.graph.ElkBendPoint')
+
 export interface ElkBendPoint extends EObject {
+  readonly [ElkBendPoint]: true
   getX(): number
   setX(value: number): void
   getY(): number
   setY(value: number): void
   set(x: number, y: number): void
 }
+
+export function isElkBendPoint(value: unknown): value is ElkBendPoint { return value !== null && typeof value === 'object' && (value as ElkBendPoint)[ElkBendPoint] === true }

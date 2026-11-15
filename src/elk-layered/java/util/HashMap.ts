@@ -6,9 +6,10 @@
  * SPDX-License-Identifier: EPL-2.0 AND Apache-2.0
  */
 import { JavaObject, javaEquals, javaHashCode } from '../lang/Object.ts'
+import { JavaSet, isJavaSet } from './Set.ts'
 import { Cloneable } from '../lang/Cloneable.ts'
 import { iterableIterator, type Iterator } from './Iterator.ts'
-import type { JavaMap } from './Map.ts'
+import type { JavaMap, Entry } from './Map.ts'
 
 export class SimpleEntry<K, V> extends JavaObject {
   constructor(private readonly key: K, private value: V) { super() }
@@ -105,15 +106,27 @@ export class HashMap<K, V> extends JavaObject implements JavaMap<K, V>, Cloneabl
   size(): number { return this.count }
   isEmpty(): boolean { return this.count === 0 }
   clone(): HashMap<K, V> { return new HashMap(this) }
-  entrySet(): MapView<SimpleEntry<K, V>> { return new MapView(() => this.iterator(), () => this.size()) }
-  keySet(): MapView<K> { return this.project(entry => entry.getKey()) }
-  values(): MapView<V> { return this.project(entry => entry.getValue()) }
+  protected containsEntry(entry: Entry<K, V>): boolean {
+    if (entry === null || typeof entry !== 'object' || typeof entry.getKey !== 'function' || typeof entry.getValue !== 'function') return false
+    const key = entry.getKey(), value = entry.getValue(), ourValue = this.get(key)
+    if (!javaEquals(value, ourValue)) return false
+    return ourValue !== null || this.containsKey(key)
+  }
+  entrySet(): MapView<Entry<K, V>> { return new MapView<Entry<K, V>>(() => this.iterator(), () => this.size(), entry => this.containsEntry(entry), entry => { if (!this.containsEntry(entry)) return false; this.remove(entry.getKey()); return true }, () => this.clear(), true) }
+  keySet(): MapView<K> {
+    return this.project(entry => entry.getKey(), key => this.containsKey(key), key => {
+      if (!this.containsKey(key)) return false
+      this.remove(key)
+      return true
+    }, true)
+  }
+  values(): MapView<V> { return this.project(entry => entry.getValue(), value => this.containsValue(value)) }
 
-  private project<T>(project: (entry: SimpleEntry<K, V>) => T): MapView<T> {
+  private project<T>(project: (entry: SimpleEntry<K, V>) => T, contains: (value: T) => boolean, remove?: (value: T) => boolean, setView = false): MapView<T> {
     return new MapView(() => {
       const source = this.iterator()
       return { hasNext: () => source.hasNext(), next: () => project(source.next()), remove: () => source.remove() }
-    }, () => this.size())
+    }, () => this.size(), contains, remove, () => this.clear(), setView)
   }
 
   iterator(): Iterator<SimpleEntry<K, V>> {
@@ -163,8 +176,53 @@ export class HashMap<K, V> extends JavaObject implements JavaMap<K, V>, Cloneabl
   override hashCode(): number { let hash = 0; for (const entry of this) hash = (hash + entry.hashCode()) | 0; return hash }
 }
 
-export class MapView<T> implements Iterable<T> {
-  constructor(private readonly makeIterator: () => Iterator<T>, private readonly getSize: () => number) {}
+export class MapView<T> extends JavaObject implements Iterable<T> {
+  constructor(private readonly makeIterator: () => Iterator<T>, private readonly getSize: () => number, private readonly containsElement?: (value: T) => boolean, private readonly removeElement?: (value: T) => boolean, private readonly clearElements?: () => void, private readonly setView = false) { super() }
+  get [JavaSet](): boolean { return this.setView }
+  contains(value: T): boolean {
+    if (this.containsElement !== undefined) return this.containsElement(value)
+    for (const element of this) if (javaEquals(value, element)) return true
+    return false
+  }
+  add(_value: T): never { throw new Error('Unsupported operation') }
+  addAll(values: Iterable<T>): boolean { let changed = false; for (const value of values) { this.add(value); changed = true } return changed }
+  containsAll(values: Iterable<T>): boolean { for (const value of values) if (!this.contains(value)) return false; return true }
+  remove(value: T): boolean {
+    if (this.removeElement !== undefined) return this.removeElement(value)
+    const iterator = this.iterator()
+    while (iterator.hasNext()) if (javaEquals(value, iterator.next())) { iterator.remove(); return true }
+    return false
+  }
+  removeAll(values: Iterable<T> & { contains(value: T): boolean; size(): number }): boolean {
+    if (this.setView && this.size() >= values.size()) { let changed = false; for (const value of values) changed = this.remove(value) || changed; return changed }
+    let changed = false
+    const iterator = this.iterator()
+    while (iterator.hasNext()) if (values.contains(iterator.next())) { iterator.remove(); changed = true }
+    return changed
+  }
+  retainAll(values: { contains(value: T): boolean }): boolean {
+    let changed = false
+    const iterator = this.iterator()
+    while (iterator.hasNext()) if (!values.contains(iterator.next())) { iterator.remove(); changed = true }
+    return changed
+  }
+  clear(): void {
+    if (this.clearElements !== undefined) { this.clearElements(); return }
+    const iterator = this.iterator()
+    while (iterator.hasNext()) { iterator.next(); iterator.remove() }
+  }
+  toArray(): T[]
+  toArray(array: T[]): T[]
+  toArray(array?: T[]): T[] {
+    const result = array !== undefined && array.length >= this.size() ? array : new Array<T>(this.size())
+    let index = 0
+    for (const value of this) result[index++] = value
+    if (result.length > index) result[index] = null as T
+    return result
+  }
+  override hashCode(): number { if (!this.setView) return super.hashCode(); let hash = 0; for (const value of this) hash = (hash + javaHashCode(value)) | 0; return hash }
+  override equals(other: unknown): boolean { return this.setView ? other === this || isJavaSet<T>(other) && other.size() === this.size() && this.containsAll(other) : super.equals(other) }
+  override toString(): string { return `[${Array.from(this, value => (value as unknown) === this ? '(this Collection)' : String(value)).join(', ')}]` }
   iterator(): Iterator<T> { return this.makeIterator() }
   size(): number { return this.getSize() }
   isEmpty(): boolean { return this.size() === 0 }

@@ -10,9 +10,14 @@
 import type { ElkGraphElement } from './ElkGraphElement.ts'
 import type { ElkShape } from './ElkShape.ts'
 
+export const ElkLabel = Symbol('org.eclipse.elk.graph.ElkLabel')
+
 export interface ElkLabel extends ElkShape {
+  readonly [ElkLabel]: true
   getParent(): ElkGraphElement | null
   setParent(value: ElkGraphElement | null): void
   getText(): string | null
   setText(value: string | null): void
 }
+
+export function isElkLabel(value: unknown): value is ElkLabel { return value !== null && typeof value === 'object' && (value as ElkLabel)[ElkLabel] === true }

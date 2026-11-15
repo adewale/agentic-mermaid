@@ -12,7 +12,10 @@ import type { ElkConnectableShape } from './ElkConnectableShape.ts'
 import type { ElkEdge } from './ElkEdge.ts'
 import type { ElkPort } from './ElkPort.ts'
 
+export const ElkNode = Symbol('org.eclipse.elk.graph.ElkNode')
+
 export interface ElkNode extends ElkConnectableShape {
+  readonly [ElkNode]: true
   getPorts(): EList<ElkPort>
   getChildren(): EList<ElkNode>
   getParent(): ElkNode | null
@@ -20,3 +23,5 @@ export interface ElkNode extends ElkConnectableShape {
   getContainedEdges(): EList<ElkEdge>
   isHierarchical(): boolean
 }
+
+export function isElkNode(value: unknown): value is ElkNode { return value !== null && typeof value === 'object' && (value as ElkNode)[ElkNode] === true }

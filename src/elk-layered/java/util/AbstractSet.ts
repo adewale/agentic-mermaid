@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: EPL-2.0 */
 import { JavaObject, javaHashCode } from '../lang/Object.ts'
+import { JavaSet, isJavaSet } from './Set.ts'
 import { iterableIterator, type Iterator } from './Iterator.ts'
 
 export abstract class AbstractSet<T> extends JavaObject implements Iterable<T> {
+  readonly [JavaSet] = true
   abstract iterator(): Iterator<T>
   abstract size(): number
   abstract contains(value: T): boolean
@@ -13,7 +15,15 @@ export abstract class AbstractSet<T> extends JavaObject implements Iterable<T> {
   [Symbol.iterator](): IterableIterator<T> { return iterableIterator(this.iterator()) }
   addAll(values: Iterable<T>): boolean { let changed = false; for (const value of values) changed = this.add(value) || changed; return changed }
   containsAll(values: Iterable<T>): boolean { for (const value of values) if (!this.contains(value)) return false; return true }
-  removeAll(values: Iterable<T>): boolean { let changed = false; for (const value of values) changed = this.remove(value) || changed; return changed }
+  removeAll(values: Iterable<T>): boolean {
+    const collection = values as Iterable<T> & { size?: () => number; contains?: (value: T) => boolean }
+    const size = this.size()
+    if (collection.size !== undefined && collection.contains !== undefined && size < collection.size()) {
+      const iterator = this.iterator()
+      while (iterator.hasNext()) if (collection.contains(iterator.next())) iterator.remove()
+    } else for (const value of values) this.remove(value)
+    return size !== this.size()
+  }
   retainAll(values: AbstractSet<T>): boolean {
     let changed = false
     const iterator = this.iterator()
@@ -30,6 +40,6 @@ export abstract class AbstractSet<T> extends JavaObject implements Iterable<T> {
     return result
   }
   override hashCode(): number { let hash = 0; for (const value of this) hash = (hash + javaHashCode(value)) | 0; return hash }
-  override equals(other: unknown): boolean { return other instanceof AbstractSet && other.size() === this.size() && this.containsAll(other) }
+  override equals(other: unknown): boolean { return other === this || isJavaSet<T>(other) && other.size() === this.size() && this.containsAll(other) }
   override toString(): string { return `[${Array.from(this).join(', ')}]` }
 }

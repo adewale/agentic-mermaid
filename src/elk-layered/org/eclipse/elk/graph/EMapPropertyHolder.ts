@@ -12,6 +12,11 @@ import type { EObject } from '../../emf/ecore/EObject.ts'
 import type { IProperty } from './properties/IProperty.ts'
 import type { IPropertyHolder } from './properties/IPropertyHolder.ts'
 
+export const EMapPropertyHolder = Symbol('org.eclipse.elk.graph.EMapPropertyHolder')
+
 export interface EMapPropertyHolder extends EObject, IPropertyHolder {
+  readonly [EMapPropertyHolder]: true
   getProperties(): EMap<IProperty<unknown>, unknown>
 }
+
+export function isEMapPropertyHolder(value: unknown): value is EMapPropertyHolder { return value !== null && typeof value === 'object' && (value as EMapPropertyHolder)[EMapPropertyHolder] === true }

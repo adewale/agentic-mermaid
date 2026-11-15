@@ -13,7 +13,10 @@ import type { ElkBendPoint } from './ElkBendPoint.ts'
 import type { ElkConnectableShape } from './ElkConnectableShape.ts'
 import type { ElkEdge } from './ElkEdge.ts'
 
+export const ElkEdgeSection = Symbol('org.eclipse.elk.graph.ElkEdgeSection')
+
 export interface ElkEdgeSection extends EMapPropertyHolder {
+  readonly [ElkEdgeSection]: true
   getStartX(): number
   setStartX(value: number): void
   getStartY(): number
@@ -36,3 +39,5 @@ export interface ElkEdgeSection extends EMapPropertyHolder {
   setStartLocation(x: number, y: number): void
   setEndLocation(x: number, y: number): void
 }
+
+export function isElkEdgeSection(value: unknown): value is ElkEdgeSection { return value !== null && typeof value === 'object' && (value as ElkEdgeSection)[ElkEdgeSection] === true }

@@ -9,7 +9,10 @@
  */
 import type { ElkGraphElement } from './ElkGraphElement.ts'
 
+export const ElkShape = Symbol('org.eclipse.elk.graph.ElkShape')
+
 export interface ElkShape extends ElkGraphElement {
+  readonly [ElkShape]: true
   getHeight(): number
   setHeight(value: number): void
   getWidth(): number
@@ -21,3 +24,5 @@ export interface ElkShape extends ElkGraphElement {
   setDimensions(width: number, height: number): void
   setLocation(x: number, y: number): void
 }
+
+export function isElkShape(value: unknown): value is ElkShape { return value !== null && typeof value === 'object' && (value as ElkShape)[ElkShape] === true }

@@ -7,8 +7,10 @@
 import { JavaObject, javaEquals, javaHashCode } from '../lang/Object.ts'
 import { iterableIterator, type Iterator, type ListIterator } from './Iterator.ts'
 import type { Collection } from './Collection.ts'
+import { JavaList, isJavaList } from './List.ts'
 
 export abstract class AbstractList<T> extends JavaObject implements Collection<T> {
+  readonly [JavaList] = true
   modCount = 0
   abstract size(): number
   abstract get(index: number): T
@@ -100,7 +102,7 @@ export abstract class AbstractList<T> extends JavaObject implements Collection<T
     for (let index = 0; index < values.length; index++) this.set(index, values[index]!)
   }
   override equals(other: unknown): boolean {
-    if (!(other instanceof AbstractList) || this.size() !== other.size()) return false
+    if (!isJavaList(other) || this.size() !== other.size()) return false
     for (let index = 0; index < this.size(); index++) if (!javaEquals(this.get(index), other.get(index))) return false
     return true
   }

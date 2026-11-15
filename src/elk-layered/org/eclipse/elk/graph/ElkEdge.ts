@@ -13,7 +13,10 @@ import type { ElkEdgeSection } from './ElkEdgeSection.ts'
 import type { ElkGraphElement } from './ElkGraphElement.ts'
 import type { ElkNode } from './ElkNode.ts'
 
+export const ElkEdge = Symbol('org.eclipse.elk.graph.ElkEdge')
+
 export interface ElkEdge extends ElkGraphElement {
+  readonly [ElkEdge]: true
   getContainingNode(): ElkNode | null
   setContainingNode(value: ElkNode | null): void
   getSources(): EList<ElkConnectableShape>
@@ -24,3 +27,5 @@ export interface ElkEdge extends ElkGraphElement {
   isSelfloop(): boolean
   isConnected(): boolean
 }
+
+export function isElkEdge(value: unknown): value is ElkEdge { return value !== null && typeof value === 'object' && (value as ElkEdge)[ElkEdge] === true }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: EPL-2.0 */
 import { JavaObject } from '../lang/Object.ts'
-import { MapView, type SimpleEntry } from './HashMap.ts'
-import type { JavaMap } from './Map.ts'
+import { MapView } from './HashMap.ts'
+import type { JavaMap, Entry } from './Map.ts'
 import { AbstractSet } from './AbstractSet.ts'
 import type { Iterator } from './Iterator.ts'
 import { AbstractList } from './AbstractList.ts'
@@ -14,8 +14,8 @@ class EmptyMap<K, V> extends JavaObject implements JavaMap<K, V> {
   size(): number { return 0 }
   isEmpty(): boolean { return true }
   clear(): void {}
-  entrySet(): MapView<SimpleEntry<K, V>> {
-    return new MapView(() => ({ hasNext: () => false, next: () => { throw new Error('No such element') }, remove: () => { throw new Error('No current element') } }), () => 0)
+  entrySet(): MapView<Entry<K, V>> {
+    return new MapView<Entry<K, V>>(() => ({ hasNext: () => false, next: () => { throw new Error('No such element') }, remove: () => { throw new Error('No current element') } }), () => 0, undefined, undefined, undefined, true)
   }
   override hashCode(): number { return 0 }
 }

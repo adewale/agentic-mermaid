@@ -20,6 +20,27 @@ the translation's EPL-2.0 notice; Apache-2.0 is reproduced in
 - Source: <https://github.com/gwtproject/gwt/tree/2.11.0/user/super/com/google/gwt/emul/java>
 - Copyright: Google Inc. and other contributors, as identified upstream.
 
+The JavaScript-host JSON adapter translates elkjs `0.11.1`, revision
+`572e73323791d05f09b0815ff639af2b67f202ab`,
+`src/java-additional/org/eclipse/elk/graph/json/JsonAdapter.xtend`.
+It retains its EPL-2.0 notice and the same adapter operations as the ELK source.
+
+EMF compatibility classes under `src/elk-layered/org/eclipse/emf/` translate
+the EMF-GWT `2.12.4` platform used by that elkjs build, published as
+`com.genmymodel.emf.gwt:emf-common:2.12.4` and
+`com.genmymodel.emf.gwt:emf-ecore:2.12.4`. Original IBM Corporation, Ed Merks
+and other contributor notices are retained. The translations use EPL-2.0
+under the original EPL-1.0 section 7 subsequent-version option; the license
+is reproduced in `LICENSES/ELK-EPL-2.0.md`.
+
+Guava compatibility classes under `src/elk-layered/com/google/common/` translate
+Guava `31.1-jre`, the Guava-GWT version used by that elkjs build. Original
+Guava Authors Apache-2.0 notices are retained alongside the translation's
+EPL-2.0 notice. Apache-2.0 is reproduced in `LICENSES/Apache-2.0.txt`.
+
+- Source: <https://repo.maven.apache.org/maven2/com/google/guava/guava-gwt/31.1-jre/guava-gwt-31.1-jre-sources.jar>
+- Copyright: The Guava Authors, as identified in each file.
+
 ## Pele parser and fishbone layout adaptations
 
 The native Block and Requirement parsers and Ishikawa layout adapt browserless

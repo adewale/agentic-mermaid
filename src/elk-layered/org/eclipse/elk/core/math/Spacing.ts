@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
 import { Double, NumberFormatException } from '../../../../../java/lang/Double.ts'
+import { IllegalArgumentException } from '../../../../../java/lang/IllegalArgumentException.ts'
 import { JavaObject } from '../../../../../java/lang/Object.ts'
 import { Cloneable } from '../../../../../java/lang/Cloneable.ts'
 import type { IDataObject } from '../util/IDataObject.ts'
@@ -77,7 +78,7 @@ export abstract class Spacing extends JavaObject implements IDataObject, Cloneab
         for (const token of tokens) {
           const keyandvalue = token.split('=')
           if (token.length > 0) while (keyandvalue.length > 0 && keyandvalue[keyandvalue.length - 1] === '') keyandvalue.pop()
-          if (keyandvalue.length !== 2) throw new Error('java.lang.IllegalArgumentException: Expecting a list of key-value pairs.')
+          if (keyandvalue.length !== 2) throw new IllegalArgumentException('Expecting a list of key-value pairs.')
           const key = keyandvalue[0]!.trim()
           const value = Double.parseDouble(keyandvalue[1]!.trim())
           if (key === 'top') this.top = value
@@ -87,7 +88,7 @@ export abstract class Spacing extends JavaObject implements IDataObject, Cloneab
         }
       } catch (exception) {
         if (!(exception instanceof NumberFormatException)) throw exception
-        throw new Error(`java.lang.IllegalArgumentException: The given string contains parts that cannot be parsed as numbers.${exception}`)
+        throw new IllegalArgumentException(`The given string contains parts that cannot be parsed as numbers.${exception}`)
       }
     }
   }

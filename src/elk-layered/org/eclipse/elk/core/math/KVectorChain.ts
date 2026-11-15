@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
 import { Double, NumberFormatException } from '../../../../../java/lang/Double.ts'
+import { IllegalArgumentException } from '../../../../../java/lang/IllegalArgumentException.ts'
+import { IllegalStateException } from '../../../../../java/lang/IllegalStateException.ts'
 import { LinkedList } from '../../../../../java/util/LinkedList.ts'
 import type { Collection } from '../../../../../java/util/Collection.ts'
 import type { IDataObject } from '../util/IDataObject.ts'
@@ -71,7 +73,7 @@ export class KVectorChain extends LinkedList<KVector> implements IDataObject {
       }
     } catch (exception) {
       if (!(exception instanceof NumberFormatException)) throw exception
-      throw new Error(`The given string does not match the expected format for vectors.${exception}`)
+      throw new IllegalArgumentException(`The given string does not match the expected format for vectors.${exception}`)
     }
   }
 
@@ -208,11 +210,11 @@ export class KVectorChain extends LinkedList<KVector> implements IDataObject {
       return iter.next()
     }
     if (this.size() === 1) return this.get(0)
-    throw new Error('Cannot determine a point on an empty vector chain.')
+    throw new IllegalStateException('Cannot determine a point on an empty vector chain.')
   }
 
   angleOnLine(dist: number): number {
-    if (this.size() < 2) throw new Error('Need at least two points to determine an angle.')
+    if (this.size() < 2) throw new IllegalStateException('Need at least two points to determine an angle.')
     const absDistance = Math.abs(dist)
     let distanceSum = 0
     if (dist >= 0) {

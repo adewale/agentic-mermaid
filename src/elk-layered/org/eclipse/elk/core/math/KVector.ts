@@ -7,6 +7,7 @@
  *******************************************************************************/
 // ELK v0.11.0, org.eclipse.elk.core.math.KVector.
 import { Double, NumberFormatException } from '../../../../../java/lang/Double.ts'
+import { IllegalArgumentException } from '../../../../../java/lang/IllegalArgumentException.ts'
 import { Integer } from '../../../../../java/lang/Integer.ts'
 import { JavaObject } from '../../../../../java/lang/Object.ts'
 import { Cloneable } from '../../../../../java/lang/Cloneable.ts'
@@ -162,7 +163,7 @@ export class KVector extends JavaObject implements IDataObject, Cloneable {
   angle(other: KVector): number { return Math.acos(this.dotProduct(other) / (this.length() * other.length())) }
 
   bound(lowx: number, lowy: number, highx: number, highy: number): KVector {
-    if (highx < lowx || highy < lowy) throw new Error('java.lang.IllegalArgumentException: The highx must be bigger then lowx and the highy must be bigger then lowy')
+    if (highx < lowx || highy < lowy) throw new IllegalArgumentException('The highx must be bigger then lowx and the highy must be bigger then lowy')
     if (this.x < lowx) this.x = lowx
     else if (this.x > highx) this.x = highx
     if (this.y < lowy) this.y = lowy
@@ -178,16 +179,16 @@ export class KVector extends JavaObject implements IDataObject, Cloneable {
     while (start < string.length && KVector.isdelim(string.charAt(start), "([{\"' \t\r\n")) start++
     let end = string.length
     while (end > 0 && KVector.isdelim(string.charAt(end - 1), ")]}\"' \t\r\n")) end--
-    if (start >= end) throw new Error('java.lang.IllegalArgumentException: The given string does not contain any numbers.')
+    if (start >= end) throw new IllegalArgumentException('The given string does not contain any numbers.')
     const tokens = string.substring(start, end).split(/,|;|\r|\n/)
     while (tokens.length > 0 && tokens[tokens.length - 1] === '') tokens.pop()
-    if (tokens.length !== 2) throw new Error(`java.lang.IllegalArgumentException: Exactly two numbers are expected, ${tokens.length} were found.`)
+    if (tokens.length !== 2) throw new IllegalArgumentException(`Exactly two numbers are expected, ${tokens.length} were found.`)
     try {
       this.x = Double.parseDouble(tokens[0]!.trim())
       this.y = Double.parseDouble(tokens[1]!.trim())
     } catch (exception) {
       if (!(exception instanceof NumberFormatException)) throw exception
-      throw new Error(`java.lang.IllegalArgumentException: The given string contains parts that cannot be parsed as numbers.${exception}`)
+      throw new IllegalArgumentException(`The given string contains parts that cannot be parsed as numbers.${exception}`)
     }
   }
 

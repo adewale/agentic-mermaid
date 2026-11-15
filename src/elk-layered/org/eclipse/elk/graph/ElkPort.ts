@@ -10,7 +10,12 @@
 import type { ElkConnectableShape } from './ElkConnectableShape.ts'
 import type { ElkNode } from './ElkNode.ts'
 
+export const ElkPort = Symbol('org.eclipse.elk.graph.ElkPort')
+
 export interface ElkPort extends ElkConnectableShape {
+  readonly [ElkPort]: true
   getParent(): ElkNode | null
   setParent(value: ElkNode | null): void
 }
+
+export function isElkPort(value: unknown): value is ElkPort { return value !== null && typeof value === 'object' && (value as ElkPort)[ElkPort] === true }

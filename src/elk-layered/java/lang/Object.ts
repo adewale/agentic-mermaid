@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: EPL-2.0 */
 const JAVA_OBJECT = Symbol('java.lang.Object')
+import type { Class } from './Class.ts'
 let nextHash = 0
 
 export class JavaObject {
@@ -7,6 +8,8 @@ export class JavaObject {
 
   equals(other: unknown): boolean { return this === other }
   hashCode(): number { return getObjectIdentityHashCode(this) }
+  getClass(): Class<unknown> { return (require('./Class.ts') as { Class: { of(constructor: Function & { prototype: unknown }): Class<unknown> } }).Class.of(this.constructor) }
+  toString(): string { return this.getClass().getName() + '@' + (this.hashCode() >>> 0).toString(16) }
 }
 
 export function getObjectIdentityHashCode(object: object): number {
