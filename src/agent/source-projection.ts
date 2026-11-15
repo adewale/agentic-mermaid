@@ -132,6 +132,9 @@ interface LineReader {
    * line closes: it reads only with that closer, or reads as a block both
    * alone and with it. */
   opens(text: string): boolean
+  /** Whether a statement reads as the diagram's statements on its own (a
+   * message or node does; a branch line like `else` or a member does not). */
+  alone(text: string): boolean
 }
 
 const closesBlock = (statement: string) => statement.trim() === 'end' || statement.trim() === '}'
@@ -170,6 +173,9 @@ function lineReader(wrapper: string, header: string): LineReader {
     isolated(text) {
       if (!cache.has(text)) cache.set(text, isolated(text))
       return cache.get(text)
+    },
+    alone(text) {
+      return read(`${wrapper}${header}\n${text.trim()}`) !== undefined
     },
     opens(text) {
       const alone = read(`${wrapper}${header}\n${text}`)
@@ -585,7 +591,7 @@ function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: bool
   return diffLines(c0.map(key), c1.map(key))
 }
 
-function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings }: Trace, variant: Variant): Plan | string {
+function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings }: Trace, variant: Variant, reader: LineReader): Plan | string {
   if (!ops) return 'the edit changes too many lines to compare'
   const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
   const partsOf = (index: number): readonly number[] => parts?.get(index) ?? (owner[index]! >= 0 ? [owner[index]!] : [])
@@ -596,11 +602,15 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // Insertions are collected with their position in the edited canonical
   // text, so statements written at one authored line keep that order.
   const placed = { before: new Map<number, Array<[number, string]>>(), after: new Map<number, Array<[number, string]>>() }
-  // A moved statement keeps its authored line when that line held only it.
-  const moved = new Map<string, number[]>()
+  // A moved statement keeps its authored line when that line held only it;
+  // the line it was written from also gives its new neighbours their
+  // indentation (a family that writes block bodies at the opener's depth
+  // marks nothing else as their sibling).
+  const moved = new Map<string, number[]>(), writtenFrom = new Map<number, number>()
   const push = (where: 'before' | 'after', at: number, index: number, indent?: string) => {
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
+    if (from !== undefined) writtenFrom.set(index, from)
     list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + c1[index]!.trimStart()])
     placed[where].set(at, list)
   }
@@ -737,8 +747,17 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // block's body), else its new opener's indentation plus one step.
   const authoredIndent = (at: number) => {
     const from = sourceOf.get(at)
-    return from !== undefined && owner[from]! >= 0 ? leading(lines[owner[from]!]!.text) : undefined
+    if (from !== undefined && owner[from]! >= 0) return leading(lines[owner[from]!]!.text)
+    const line = writtenFrom.get(at)
+    return line !== undefined ? leading(lines[line]!.text) : undefined
   }
+  // A sibling is a statement at the same canonical depth. A statement that
+  // cannot stand alone (a branch line like `else`, a member) only takes the
+  // indentation of another such statement, so a new branch never takes a
+  // message's indentation in a family that writes block bodies at the
+  // opener's depth.
+  const standsAlone = (text: string) => reader.alone(text) || reader.opens(text.trim())
+  const sibling = (at: number, index: number) => depthOf(c1[at]!) === depthOf(c1[index]!) && (standsAlone(c1[index]!) || !standsAlone(c1[at]!))
   const peerIndent = (index: number, target: number): string | undefined => {
     for (let distance = 1; index - distance >= 0 || index + distance < c1.length; distance++) {
       for (const at of [index - distance, index + distance]) {
@@ -759,7 +778,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       for (let at = index - 1; at >= 0; at--) {
         if (!c1[at]!.trim()) continue
         const depth = depthOf(c1[at]!), indent = authoredIndent(at)
-        if (depth === target && indent !== undefined) return indent
+        if (indent !== undefined && sibling(at, index)) return indent
         if (depth < target) {
           opener = indent !== undefined ? indent + unit : peerIndent(index, target) ?? indentFor(at) + unit
           break
@@ -768,7 +787,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       for (let at = index + 1; at < c1.length; at++) {
         if (!c1[at]!.trim()) continue
         const depth = depthOf(c1[at]!), indent = authoredIndent(at)
-        if (depth === target && indent !== undefined) return indent
+        if (indent !== undefined && sibling(at, index)) return indent
         if (depth < target) break
       }
       return opener ?? leading(c1[index]!)
@@ -898,7 +917,7 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
   const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[]): { source: string; diagram: ParsedDiagram } | undefined => {
     unplanned = undefined
     for (const variant of variants) {
-      const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant)
+      const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant, reader)
       if (typeof plan === 'string') { unplanned ??= plan; continue }
       const source = nextWrapper + renderPlan(authoredLines, plan, eol)
       if (tried.has(source)) continue

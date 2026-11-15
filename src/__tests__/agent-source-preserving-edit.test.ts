@@ -106,6 +106,17 @@ const GANTT = `gantt
     Release     :milestone, rel, 2024-01-20, 0d
 `
 
+// The sequence writer writes fragment bodies at the opener's depth, so only
+// the authored lines say how deep a fragment's body is.
+const FRAGMENT_SEQUENCE = `sequenceDiagram
+  participant A
+  participant B
+  %% retries
+  loop every minute
+      A->>B: ping
+  end
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -209,6 +220,8 @@ const CASES: Case[] = [
   { name: 'flowchart set_direction keeps the graph keyword', source: FLOWCHART, op: { kind: 'set_direction', direction: 'LR' }, touched: ['graph TD'], reference: [['graph TD', 'graph LR']] },
   { name: 'sequence add_message', source: SEQUENCE, op: { kind: 'add_message', from: 'C', to: 'K', text: 'done' }, reference: [['\tNote over K,C: done\n', '\tNote over K,C: done\n\tC->>K: done\n']] },
   { name: 'sequence add_fragment_message inside a verbatim alt branch', source: SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, branchIndex: 0, from: 'C', to: 'K', text: 'extra' }, reference: [['\t\tK -->> C: ok\n', '\t\tK -->> C: ok\n\t\tC->>K: extra\n']] },
+  { name: 'sequence add_fragment_message appended to a single-branch fragment takes its body indentation', source: FRAGMENT_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, from: 'B', to: 'A', text: 'pong' }, reference: [['      A->>B: ping\n', '      A->>B: ping\n      B->>A: pong\n']] },
+  { name: 'sequence add_fragment_branch takes its sibling branch line indentation', source: SEQUENCE, op: { kind: 'add_fragment_branch', fragmentIndex: 0, label: 'retry' }, reference: [['\t\tC ->> C: sleep\n', '\t\tC ->> C: sleep\n\telse retry\n']] },
   { name: 'sequence set_message_text', source: SEQUENCE, op: { kind: 'set_message_text', index: 0, text: 'changed event' }, touched: ['\tK ->> C: event'], reference: [['C: event', 'C: changed event']] },
   { name: 'sequence set_participant_label', source: SEQUENCE, op: { kind: 'set_participant_label', id: 'C', label: 'Ctrl' }, touched: ['\tparticipant C as Controller'], reference: [['as Controller', 'as Ctrl']] },
   { name: 'sequence add_participant', source: SEQUENCE, op: { kind: 'add_participant', id: 'D', label: 'Database' }, reference: [['\tparticipant C as Controller\n', '\tparticipant C as Controller\n\tparticipant D as Database\n']] },

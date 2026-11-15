@@ -46,7 +46,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   and a fallback reason names the statement or misreading that blocked a local
   edit. A statement declared on several lines (a label given again, a class
   named by `Class : member` lines, an entity block opened twice) is edited on
-  every line it is read from instead of falling back.
+  every line it is read from instead of falling back. A message or branch added
+  inside a sequence fragment takes the indentation of the fragment's authored
+  body or branch lines.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the
