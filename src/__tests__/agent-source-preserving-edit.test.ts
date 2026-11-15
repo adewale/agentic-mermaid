@@ -194,6 +194,9 @@ const REDECLARED_STATE = `stateDiagram-v2
     state Busy {
       Load --> Save
     }
+  state "Ready" as Ship
+  Ship --> [*]
+  state "to go" as Ship
 `
 
 const REDECLARED_ER = `erDiagram
@@ -283,6 +286,7 @@ const CASES: Case[] = [
   { name: 'class remove_class beside a class written as member lines', source: REDECLARED_CLASS, op: { kind: 'remove_class', id: 'Duck' }, touched: ['    Animal <|-- Duck', '    class Duck {', '        +swim()', '    }'], reference: [['    Animal <|-- Duck\n', ''], ['    class Duck {\n        +swim()\n    }\n', '']] },
   { name: 'class remove_member removes its member line', source: REDECLARED_CLASS, op: { kind: 'remove_member', class: 'Animal', index: 0 }, touched: ['    Animal : +int age'], reference: [['    Animal : +int age\n', '']] },
   { name: 'state set_state_label replaces descriptions given twice', source: REDECLARED_STATE, op: { kind: 'set_state_label', id: 'Wait', label: 'Idle' }, touched: ['    Wait: Waiting', '  Wait: for payment'], reference: [['Wait: Waiting', 'Wait: Idle'], ['  Wait: for payment\n', '']] },
+  { name: 'state set_state_label replaces aliases given twice', source: REDECLARED_STATE, op: { kind: 'set_state_label', id: 'Ship', label: 'Shipped' }, touched: ['  state "Ready" as Ship', '  state "to go" as Ship'], reference: [['state "Ready" as Ship', 'state "Shipped" as Ship'], ['  state "to go" as Ship\n', '']] },
   { name: 'state set_state_label on a composite labelled on its own line', source: REDECLARED_STATE, op: { kind: 'set_state_label', id: 'Busy', label: 'Running' }, touched: ['  Busy: Working'], reference: [['Busy: Working', 'Busy: Running']] },
   { name: 'state rename_state renames its label line and its block', source: REDECLARED_STATE, op: { kind: 'rename_state', from: 'Busy', to: 'Active' }, touched: ['  Wait --> Busy', '  Busy: Working', '    state Busy {'], reference: [['--> Busy', '--> Active'], ['Busy: Working', 'Active: Working'], ['state Busy {', 'state Active {']] },
   { name: 'er rename_entity renames both of its blocks', source: REDECLARED_ER, op: { kind: 'rename_entity', from: 'CUSTOMER', to: 'CLIENT' }, touched: ['    CUSTOMER {', '  CUSTOMER ||--o{ ORDER : places'], reference: [['CUSTOMER {\n        string name', 'CLIENT {\n        string name'], ['CUSTOMER ||', 'CLIENT ||'], ['CUSTOMER {\n        string email', 'CLIENT {\n        string email']] },

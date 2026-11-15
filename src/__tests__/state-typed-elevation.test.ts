@@ -386,10 +386,16 @@ describe('typed State residual elevation (B07)', () => {
 
   test.each([
     ['state A\nstate "Running" as A\nA --> B', 'Running'],
-    ['state "A" as A\nstate "Running" as A\nA --> B', 'A'],
+    // Mermaid reads `state "…" as A` as a description of A, as `A : …`.
+    ['state "A" as A\nstate "Running" as A\nA --> B', 'A\nRunning'],
+    ['state "First" as A\nstate "Second" as A\nA --> B', 'First\nSecond'],
+    ['A : First\nstate "Second" as A\nA --> B', 'First\nSecond'],
+    ['A --> B\nstate "One" as A\nA : Two\nstate "Three" as A', 'One\nTwo\nThree'],
     ['A --> B\nstate "Running" as A', 'Running'],
     ['state A\nA : First\nA : Second\nA --> B', 'First\nSecond'],
     ['A : First\nA : Second\nstate A {\nB --> C\n}', 'First\nSecond'],
+    ['state "First" as A\nstate "Second" as A {\nB --> C\n}', 'First\nSecond'],
+    ['state "First" as A {\nB --> C\n}\nstate "Second" as A', 'First\nSecond'],
   ])('retains State labels after declarations and repeated descriptions: %s', async (body, label) => {
     const source = `stateDiagram-v2\n${body}`
     const diagram = state(source)
@@ -398,6 +404,16 @@ describe('typed State residual elevation (B07)', () => {
     const upstream = startUpstreamMermaid()
     try {
       expect(await upstream.accepts(serialized)).toBe(true)
+      // Mermaid's title and descriptions are the label's lines; it rejects a
+      // composite with more than one, which ours joins and reports.
+      const lines = (mermaid: UpstreamDiagram) => {
+        const node = mermaid.db.getData().nodes.find((item: { id: string }) => item.id === 'A')
+        return [node.label, ...(node.description ?? [])].join('\n').replace(/<br\s*\/?\s*>/gi, '\n')
+      }
+      const [read, written] = await upstream.projectEach([source, serialized], lines)
+      expect(written).toEqual({ ok: true, value: label })
+      if (body.includes('{') && label.includes('\n')) expect(read).toEqual({ ok: false, error: expect.stringContaining('Group nodes can only have label') })
+      else expect(read).toEqual({ ok: true, value: label })
     } finally {
       upstream.close()
     }
@@ -406,6 +422,7 @@ describe('typed State residual elevation (B07)', () => {
       const graph = parseRenderGraph(input)
       expect(graph.nodes.get('A')?.label ?? graph.subgraphs.find(group => group.id === 'A')?.label).toBe(label)
       for (const part of label.split('\n')) expect(renderMermaidSVG(input)).toContain(part)
+      for (const part of label.split('\n')) expect(renderMermaidASCII(input)).toContain(part)
       const verified = verifyMermaid(input)
       expect(verified.ok).toBe(true)
       expect(verified.layout.nodes.find(node => node.id === 'A')?.label ?? verified.layout.groups.find(group => group.id === 'A')?.label).toBe(label)

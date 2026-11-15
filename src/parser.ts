@@ -766,15 +766,36 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // Each labelled state's or composite's label as written, one piece per line
   // (a label and the descriptions under it), read by the State text codec.
   const labelPieces = new Map<string, readonly string[]>()
-  /** Label a composite as `X : text` (`stack`: under an earlier label) or
-   *  `state "L" as X` (only while it has none) labels a simple state. */
-  const labelComposite = (id: string, piece: string, stack: boolean): void => {
-    if (labeledStateIds.has(id) && !stack) return
+  /** Add a line to a composite's label, under any it has: Mermaid rejects a
+   *  composite with more than one label or description (verify reports it,
+   *  `state_composite_description`), and ours keeps them all. */
+  const labelComposite = (id: string, piece: string): void => {
     const pieces = [...(labeledStateIds.has(id) ? labelPieces.get(id) ?? [] : []), piece]
     labelPieces.set(id, pieces)
     labeledStateIds.add(id)
     const group = composites.get(id)
     if (group) Object.assign(group, stateLabel(group, pieces))
+  }
+  /** One description of a state (`X : text` or `state "text" as X`): each is
+   *  kept, in source order, as a line of its label, which Mermaid draws as a
+   *  title and the descriptions under it. A description also describes a
+   *  state a transition already created (Mermaid adds it either way),
+   *  replacing its id-only label. */
+  const describeState = (id: string, piece: string): void => {
+    if (compositeStateIds.has(id)) {
+      labelComposite(id, piece)
+      return
+    }
+    const existing = graph.nodes.get(id)
+    const pieces = [...(labeledStateIds.has(id) ? labelPieces.get(id) ?? [] : []), piece]
+    if (existing && existing.shape === 'rounded') {
+      labelPieces.set(id, pieces)
+      graph.nodes.set(id, stateLabel(existing, pieces))
+      if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label: graph.nodes.get(id)!.label })
+    }
+    if (!existing) labelPieces.set(id, pieces)
+    registerStateNode(graph, compositeStack, stateLabel({ id, label: id, shape: 'rounded' }, pieces))
+    labeledStateIds.add(id)
   }
   // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
   const regionCounts = new Map<string, number>()
@@ -1025,7 +1046,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       // layout to refuse; anywhere else, a reopened block continues the state,
       // and its label is one more line of the composite's label.
       if (reopened && !compositeStack.includes(reopened)) {
-        if (compositeMatch[1] !== undefined) labelComposite(id, compositeMatch[1], true)
+        if (compositeMatch[1] !== undefined) labelComposite(id, compositeMatch[1])
         if (reopened.direction !== undefined) directionSet.add(reopened)
         graph.nodes.delete(id)
         pushGroup(reopened, groupDepths.get(reopened))
@@ -1035,10 +1056,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         if (parserObservationActive('state')) observeParserMutation('state', 'open-group', { id, label: reopened.label, parent: compositeParents.get(reopened) })
         continue
       }
-      if (compositeMatch[1] !== undefined) {
-        labelPieces.set(id, [compositeMatch[1]])
-        labeledStateIds.add(id)
-      }
+      // Its label is one more line, under any descriptions before the block.
+      if (compositeMatch[1] !== undefined) labelComposite(id, compositeMatch[1])
       const pieces = labeledStateIds.has(id) ? labelPieces.get(id) : undefined
       const sg: MermaidSubgraph = { id, label: id, nodeIds: [], children: [], stateComposite: true }
       if (pieces !== undefined) Object.assign(sg, stateLabel(sg, pieces))
@@ -1074,23 +1093,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- state alias: `state "Description" as s1` (without brace) ---
+    // Mermaid reads it as one more description of s1, as `s1 : Description`.
     const stateAliasMatch = line.match(STATE_ALIAS_RE)
     if (stateAliasMatch) {
-      const pieces = [stateAliasMatch[1]!]
-      const id = stateAliasMatch[2]!
-      if (compositeStateIds.has(id)) {
-        labelComposite(id, stateAliasMatch[1]!, false)
-        continue
-      }
-      const existing = graph.nodes.get(id)
-      if (existing?.shape === 'rounded' && !labeledStateIds.has(id)) {
-        labelPieces.set(id, pieces)
-        graph.nodes.set(id, stateLabel(existing, pieces))
-        if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label: graph.nodes.get(id)!.label })
-      }
-      if (!existing) labelPieces.set(id, pieces)
-      registerStateNode(graph, compositeStack, stateLabel({ id, label: id, shape: 'rounded' }, pieces))
-      labeledStateIds.add(id)
+      describeState(stateAliasMatch[2]!, stateAliasMatch[1]!)
       continue
     }
 
@@ -1137,25 +1143,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- state description / bare declaration ---
     const stateDescMatch = line.match(STATE_DESCRIPTION_RE)
     if (stateDescMatch) {
-      const id = stateDescMatch[1]!
-      const piece = stateDescMatch[2]!.trim()
-      if (compositeStateIds.has(id)) {
-        labelComposite(id, piece, true)
-        continue
-      }
-      // A description also describes a state a transition already created
-      // (Mermaid adds it either way): it replaces the id-only label, and a
-      // second description stacks under the first rather than being dropped.
-      const existing = graph.nodes.get(id)
-      const pieces = [...(labeledStateIds.has(id) ? labelPieces.get(id) ?? [] : []), piece]
-      if (existing && existing.shape === 'rounded') {
-        labelPieces.set(id, pieces)
-        graph.nodes.set(id, stateLabel(existing, pieces))
-        if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label: graph.nodes.get(id)!.label })
-      }
-      if (!existing) labelPieces.set(id, pieces)
-      registerStateNode(graph, compositeStack, stateLabel({ id, label: id, shape: 'rounded' }, pieces))
-      labeledStateIds.add(id)
+      describeState(stateDescMatch[1]!, stateDescMatch[2]!.trim())
       continue
     }
     const declaredId = matchStateDeclarationLine(line)

@@ -180,6 +180,18 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (!entries) { entries = new Map(); declarations.set(node, entries) }
     if (!entries.has(scope)) entries.set(scope, scope.transitions.length)
   }
+  /** One description of a state (`id : text` or `state "text" as id`): each
+   *  adds a line under any label the state has, as the render parser reads
+   *  it; one of a composite before its block waits for the block. */
+  const describeState = (scope: ParseScope, id: string, piece: string): void => {
+    if (compositeIds.has(id) && !composites.has(id)) {
+      pendingCompositeLabels.set(id, [...(pendingCompositeLabels.get(id) ?? []), piece])
+      return
+    }
+    const node = composites.get(id) ?? ensureState(scope, id)
+    declare(scope, node)
+    labelState(node, [...(labelPieces.get(node) ?? []), piece])
+  }
   const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', authored: string): void => {
     const { text, content } = readStateText(authored)
     notes.push({ target, side, text, ...(content ? { textContent: content } : {}) })
@@ -318,7 +330,9 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
-      const pieces = open[1] !== undefined ? [open[1]] : pendingCompositeLabels.get(id)
+      // Its label is one more line, under any descriptions before the block.
+      const before = pendingCompositeLabels.get(id)
+      const pieces = open[1] !== undefined ? [...(before ?? []), open[1]] : before
       const child = newScope(stateById)
       const prior = stateById.get(id)
       const node: StateNode = prior ?? { id }
@@ -360,21 +374,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- alias: `state "Description" as id` ---
+    // Mermaid reads it as one more description of id, as `id : Description`.
     const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
-      const id = alias[2]!
-      const pieces = [alias[1]!]
-      const composite = composites.get(id)
-      if (composite) {
-        if (composite.label === undefined) labelState(composite, pieces)
-      } else if (compositeIds.has(id)) {
-        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, pieces)
-      } else {
-        const node = ensureState(scope, id)
-        declare(scope, node)
-        // Definition-before-use: only set if not already labeled.
-        if (node.label === undefined) labelState(node, pieces)
-      }
+      describeState(scope, alias[2]!, alias[1]!)
       continue
     }
 
@@ -422,16 +425,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- description: `id : Description` ---
     const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
-      const id = desc[1]!
-      const piece = desc[2]!.trim()
-      if (compositeIds.has(id) && !composites.has(id)) {
-        pendingCompositeLabels.set(id, [...(pendingCompositeLabels.get(id) ?? []), piece])
-      } else {
-        // A description adds a line under any label the state has.
-        const node = composites.get(id) ?? ensureState(scope, id)
-        declare(scope, node)
-        labelState(node, [...(labelPieces.get(node) ?? []), piece])
-      }
+      describeState(scope, desc[1]!, desc[2]!.trim())
       continue
     }
 
