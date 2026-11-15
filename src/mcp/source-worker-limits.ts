@@ -5,7 +5,11 @@ export const SOURCE_TOOL_MEMORY_POLL_MS = 10
 export const SOURCE_TOOL_QUEUE_LIMIT = 32
 export const SOURCE_TOOL_QUEUE_BYTES = 16 * 1024 * 1024
 export const SOURCE_TOOL_REQUEST_BYTES = 4 * 1024 * 1024
-export const SOURCE_TOOL_RESULT_BYTES = 16 * 1024 * 1024
+/** Default per-artifact cap of the local MCP artifact store. */
+export const ARTIFACT_MAX_BYTES = 20 * 1024 * 1024
+/** Large enough for the largest storable artifact (a PNG) as base64, plus
+ * its receipt, so the renderer can return anything the server may store. */
+export const SOURCE_TOOL_RESULT_BYTES = Math.ceil(ARTIFACT_MAX_BYTES / 3) * 4 + 1024 * 1024
 // An additional V8 heap guard when running under Node. Bun uses the sampled
 // whole-child RSS budget, which includes its renderer worker and native buffers.
 export const SOURCE_TOOL_NODE_FLAGS = Object.freeze(['--max-old-space-size=480', '--max-semi-space-size=8'])

@@ -94,7 +94,7 @@ for (const [entry, parsers] of [['main', api], ['agent/core', agent]] as const) 
       ['class', parsers.parseClassDiagram, 'classDiagram\n  invalid ???', 3],
       ['er', parsers.parseErDiagram, 'erDiagram\n  !!', 3],
       ['sequence', parsers.parseSequenceDiagram, 'sequenceDiagram\ninvalid ???', 1],
-      ['sequence', parsers.parseSequenceDiagram, 'sequenceDiagram\n  participant A@{type: nonsense}', 3],
+      ['sequence', parsers.parseSequenceDiagram, 'sequenceDiagram\n  participant A@{type: database', 3],
       ['sequence', parsers.parseSequenceDiagram, 'sequenceDiagram\n  rect url(bad)\n  A->>B: hi\n  end', 3],
       ['er', parsers.parseErDiagram, 'erDiagram\n  USER {\nint id PK', 3],
     ] as const)('%s syntax errors expose authored positions as fields', (diagramType, parse, body, column) => {

@@ -126,7 +126,9 @@ Top-level:
 `RenderOptions.style` — name | JSON record | stack — and
 `RenderOptions.seed`; see `docs/style-authoring.md`. Mermaid
 `themeVariables` and explicit color options still win over a style's
-palette, preserving Mermaid compatibility.)
+palette, preserving Mermaid compatibility.) Mermaid's top-level `look` and
+`handDrawnSeed` therefore have no effect here; `verify` and render warnings
+name them with `INEFFECTIVE_CONFIG` and point to `style: 'hand-drawn'`.
 
 Family-specific config is **wire-or-warn**: every accepted key either changes
 output or produces `INEFFECTIVE_CONFIG` naming the field. Unknown keys also

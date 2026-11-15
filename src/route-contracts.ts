@@ -2,6 +2,7 @@
 // lane proofs, feedback shortening, and per-pass self-loop occupancy have
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import type { LabelSeatSearch } from './layout/label-seat-search.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
@@ -1221,7 +1222,7 @@ function* labelSegmentSamples(segments: ReturnType<typeof orderedLabelSegments>,
   }
 }
 
-type LabelPaintRect = { x: number; y: number; w: number; h: number }
+export type LabelPaintRect = { x: number; y: number; w: number; h: number }
 
 /** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
 function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): number {
@@ -1589,7 +1590,7 @@ export function separateEdgeLabelPills(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
   style: LabelMetricsStyle = resolveRenderStyle({}),
-  options?: { preserveRouteClearance?: boolean },
+  options?: { preserveRouteClearance?: boolean; seats?: LabelSeatSearch },
 ): void {
   let routeWork = 1_000_000
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
@@ -1602,6 +1603,9 @@ export function separateEdgeLabelPills(
   const intersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5
 
   const { overlapsMarker, clearPaintRect } = labelPaintClearance(positioned, style)
+  // The budgeted clearance mode charges every check; any other caller may
+  // supply a search that remembers fixed clearances (label-seat-search.ts).
+  const seats = options?.preserveRouteClearance ? undefined : options?.seats?.(positioned, style, labeled, clearPaintRect, rectOf, intersects)
 
   const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }, masking = true): Generator<Point> {
     if (rescue && !rescue.pay(16)) return
@@ -1610,6 +1614,7 @@ export function separateEdgeLabelPills(
     const halo = labelHaloPadding(edge, style)
     const clearAt = (x: number, y: number, maskFree: boolean): boolean => {
       if (rescue) return rescue.pay(3) && rescue.clear({ x, y })
+      if (seats) return seats.clear(edge, x, y, maskFree, others)
       if (options?.preserveRouteClearance && routeWork <= 0) return false
       const pill = clearPaintRect(pillRect(x, y, m), halo, edge)
       if (!pill) return false
@@ -1649,14 +1654,15 @@ export function separateEdgeLabelPills(
       }
     }
   }
-  const trySlide = (edge: PositionedEdge, others: PositionedEdge[], masking = true): boolean => {
-    for (const point of slots(edge, others, false, undefined, masking)) {
+  const slide = (edge: PositionedEdge, masking = true): boolean => {
+    for (const point of slots(edge, labeled.filter(other => other !== edge), false, undefined, masking)) {
       edge.labelPosition = point
       return true
     }
     return false
   }
-  const tryPair = (a: PositionedEdge, b: PositionedEdge): boolean => {
+  const trySlide = seats ? seats.memo(slide) : slide
+  const pair = (a: PositionedEdge, b: PositionedEdge): boolean => {
     const others = labeled.filter(edge => edge !== a && edge !== b)
     // Search only after neither label can move alone. Each label still clears
     // every node and foreign pill; joint candidates also clear each other.
@@ -1685,6 +1691,7 @@ export function separateEdgeLabelPills(
     }
     return false
   }
+  const tryPair = seats ? seats.memo(pair) : pair
 
   // Settle legacy seats first, then use the existing overhang/joint family
   // for unresolved marker or foreign-shaft occlusion under full paint proof.
@@ -1810,11 +1817,7 @@ export function separateEdgeLabelPills(
       const halo = rectOf(edge)
       if (!halo || !overlapsMarker(halo)) continue
       conflicts++
-      trySlide(
-        edge,
-        labeled.filter(other => other !== edge),
-        false,
-      )
+      trySlide(edge, false)
     }
     for (let i = 0; i < labeled.length; i++) {
       for (let j = i + 1; j < labeled.length; j++) {
@@ -1824,17 +1827,7 @@ export function separateEdgeLabelPills(
           rb = rectOf(b)
         if (!ra || !rb || !intersects(ra, rb)) continue
         conflicts++
-        if (
-          !trySlide(
-            b,
-            labeled.filter(e => e !== b),
-          ) &&
-          !trySlide(
-            a,
-            labeled.filter(e => e !== a),
-          )
-        )
-          tryPair(a, b)
+        if (!trySlide(b, true) && !trySlide(a, true)) tryPair(a, b)
       }
     }
     if (conflicts === 0) { rescuePaintSeats(); break }

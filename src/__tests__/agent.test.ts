@@ -252,7 +252,7 @@ describe('sequence parsing — structured', () => {
     expect(d.body.kind).toBe('sequence')
     if (d.body.kind !== 'sequence') return
     expect(d.body.messages.map(m => m.text)).toEqual(['Hello Bob, how are you?', 'I am good thanks!'])
-    expect(d.body.statements?.some(st => st.kind === 'opaque-block')).toBe(true)
+    expect(d.body.statements?.map(st => st.kind)).toEqual(['message', 'note', 'message'])
     expect(verifyMermaid(d).ok).toBe(true)
   })
 })

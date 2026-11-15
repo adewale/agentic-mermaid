@@ -210,6 +210,31 @@ describe('gantt structured parse', () => {
     expect(verifyMermaid(edited).warnings.map(warning => warning.code)).not.toContain('UNSUPPORTED_SYNTAX')
   })
 
+  test('a length spelled with a unit name keeps its length, is reported, and is written as Mermaid spells it', async () => {
+    const source = 'gantt\n  dateFormat YYYY-MM-DD HH:mm\n  Scheduled :milestone, s, 2024-01-01 12:00, 2min\n  Run :r, after s, 3 hours\n  Report :p, after r, 2 Days\n'
+    const minute = 60_000
+    const lengths = [2 * minute, 180 * minute, 2 * 86_400_000]
+    const d = gantt(source)
+    expect(d.body.sections[0]!.tasks.map(task => task.end)).toEqual(['2m', '3h', '2d'])
+    expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+      .toEqual(['gantt_duration_spelling@3', 'gantt_duration_spelling@4', 'gantt_duration_spelling@5'])
+    const schedule = resolveGanttSchedule(parseGanttModel(normalizeMermaidSource(source).lines))
+    expect(schedule.tasks.map(task => task.end - task.start)).toEqual(lengths)
+    const written = serializeMermaid(d)
+    expect(written).toContain('  Scheduled :milestone, s, 2024-01-01 12:00, 2m\n  Run :r, after s, 3h\n  Report :p, after r, 2d\n')
+    expect(verifyMermaid(written).warnings.map(warning => warning.code)).not.toContain('UNSUPPORTED_SYNTAX')
+    const edited = apply(d, { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 1, end: '90 mins' })
+    expect(edited.body.sections[0]!.tasks[1]!.end).toBe('90m')
+    // Mermaid gives the authored lengths none, and the written ones their length.
+    const upstream = startUpstreamMermaid()
+    try {
+      const taskLengths = (mermaid: { db: any }) => mermaid.db.getTasks().map((task: any) => task.endTime.getTime() - task.startTime.getTime())
+      expect(await upstream.projectAll([source, written], taskLengths)).toEqual([[0, 0, 0], lengths])
+    } finally {
+      upstream.close()
+    }
+  })
+
   test('detects kind gantt and models title/sections/tasks', () => {
     const d = gantt()
     expect(d.kind).toBe('gantt')

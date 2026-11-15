@@ -59,6 +59,10 @@ export type UpstreamParse =
       sequence?: {
         actors: UpstreamSequenceActor[]
         messages: UpstreamSequenceMessage[]
+        /** Actor name → index into `messages` of the message that creates
+         * (`create`) or destroys (`destroy`) it. */
+        created: Record<string, number>
+        destroyed: Record<string, number>
       }
     }
   | { ok: false; error: string }
@@ -130,6 +134,8 @@ function sequence(db) {
   return {
     actors: [...db.getActors().values()].map(a => ({ name: a.name, description: String(a.description ?? ''), type: String(a.type ?? ''), links: { ...a.links } })),
     messages: db.getMessages().map(m => ({ from: m.from, to: m.to, message: String(m.message ?? ''), type: m.type })),
+    created: Object.fromEntries(db.getCreatedActors?.() ?? []),
+    destroyed: Object.fromEntries(db.getDestroyedActors?.() ?? []),
   }
 }
 const DB_GETTERS = ['getDiagramTitle', 'getAccTitle', 'getAccDescription', 'getSections', 'getShowData', 'getTasks',

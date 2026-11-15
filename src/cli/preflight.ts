@@ -1,10 +1,16 @@
-import { parseArgs, flagEnabled, FLAG_SPECS, COMMAND_FLAGS, COMMAND_POSITIONALS, type ParsedArgs } from './args.ts'
+import { parseArgs, flagEnabled, flagValue, FLAG_SPECS, COMMAND_FLAGS, COMMAND_POSITIONALS, type ParsedArgs } from './args.ts'
+import { cliDeadlineMs } from './deadline.ts'
 import { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { EXIT_OK, EXIT_ARG_ERROR } from './exit-codes.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 
-export interface PreparedCli { args: ParsedArgs & { command: string }; json: boolean }
+export interface PreparedCli {
+  args: ParsedArgs & { command: string }
+  json: boolean
+  /** The --timeout deadline the `am` entrypoint enforces, if any. */
+  deadlineMs?: number
+}
 
 /** An invalid invocation (flag value, flag combination, op JSON) detected by a
  * command after preflight. Commands throw it; the CLI failure boundary reports
@@ -67,5 +73,7 @@ export function preflightCli(argv: string[]): { exitCode: number } | PreparedCli
   if (positionalContract && (args.positional.length < positionalContract.min || args.positional.length > positionalContract.max)) {
     return { exitCode: argError(`am ${args.command} accepts ${positionalContract.max === 0 ? 'no positional arguments' : `at most ${positionalContract.max} positional input${positionalContract.max === 1 ? '' : 's'}`}; received ${args.positional.length}.`) }
   }
-  return { args: args as PreparedCli['args'], json }
+  const deadline = cliDeadlineMs(args.command, flagValue(args, 'timeout'), flagEnabled(args, 'watch'))
+  if (typeof deadline === 'object') return { exitCode: argError(deadline.error) }
+  return { args: args as PreparedCli['args'], json, ...(deadline === undefined ? {} : { deadlineMs: deadline }) }
 }

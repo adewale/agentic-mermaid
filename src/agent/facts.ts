@@ -16,13 +16,13 @@ import { readClassMemberClassifiers } from '../class/parser.ts'
 import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
+import { sequenceBranchItems, sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
 import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceCreateStatement, SequenceDestroyStatement, SequenceMessage, SequenceNoteStatement, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -380,6 +380,10 @@ function factsSequence(out: string[], body: SequenceBody): void {
     const text = shown(m.text, m.textContent)
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    // message# counts every message in drawing order; the ops address a
+    // top-level message by its top-level index and a fragment message by its
+    // index in its branch. State the fields to pass.
+    add(out, `message#${i} op ${context.scope === 'top-level' ? '' : `fragmentIndex ${context.fragmentIndex} branchIndex ${context.branchIndex} `}index ${context.index}`)
     addSequenceArrow(out, `message#${i}`, m)
     if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
@@ -415,6 +419,47 @@ function factsSequence(out: string[], body: SequenceBody): void {
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
+  // Lifecycle directives and notes, placed by the message# that follows them.
+  let messageIndex = 0
+  let noteIndex = 0
+  let fragmentIndex = 0
+  const total = sequenceMessageContexts(body).length
+  // A directive in a fragment branch also names the branch it is written in.
+  const lifecycle = (statement: SequenceCreateStatement | SequenceDestroyStatement, where = ''): void => {
+    const id = statement.kind === 'create' ? statement.id : statement.actorId
+    const at = `${where}${messageIndex < total ? ` before message#${messageIndex}` : ''}`
+    add(out, statement.kind === 'create'
+      ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
+      : `destroy ${clean(id)}${at}`)
+  }
+  // Notes are numbered in drawing order, as messages are, and state the
+  // fields the note ops take.
+  let topNote = 0
+  const noteFacts = (statement: SequenceNoteStatement, address: string): void => {
+    const { position, actorIds } = statement
+    const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
+    add(out, `note ${note}`)
+    add(out, `note#${noteIndex} ${note}`)
+    add(out, `note#${noteIndex} op ${address}`)
+    if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
+    if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
+    noteIndex++
+  }
+  for (const statement of body.statements) {
+    if (statement.kind === 'message') messageIndex++
+    else if (statement.kind === 'fragment') {
+      statement.fragment.branches.forEach((branch, branchIndex) => {
+        let branchNote = 0
+        for (const item of sequenceBranchItems(branch)) {
+          if (!('kind' in item)) messageIndex++
+          else if (item.kind === 'note') noteFacts(item, `fragmentIndex ${fragmentIndex} branchIndex ${branchIndex} index ${branchNote++}`)
+          else lifecycle(item, ` fragment#${fragmentIndex} branch#${branchIndex}`)
+        }
+      })
+      fragmentIndex++
+    } else if (statement.kind === 'note') noteFacts(statement, `index ${topNote++}`)
+    else if (statement.kind === 'create' || statement.kind === 'destroy') lifecycle(statement)
+  }
 }
 
 /** A message's style when not the default `sync`, and its operator when the

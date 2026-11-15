@@ -27,7 +27,8 @@ export default defineConfig({
   metafile: true,
   noExternal: [/.*/],
   external: [],
-  // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
+  // ELK, YAML, the HTML5 entity table and the indexed crossing counter load
+  // only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
   esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), {
     name: 'lazy-browser-dependencies',
@@ -47,10 +48,19 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      // The State comment scanner comes from the State family chunk, which
+      // only the lazy entry's graph holds; the ZenUML build reuses these
+      // facades and keeps the scanner rather than ship the State family.
+      if (Object.values(build.initialOptions.entryPoints ?? {}).includes('src/browser-lazy.ts')) {
+        build.onResolve({ filter: /\/state\/source-comments\.ts$/ }, args =>
+          ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      }
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/edge-crossings-indexed\.ts$/ }, args =>
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
       build.onResolve({ filter: /\/indexed-forest\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>

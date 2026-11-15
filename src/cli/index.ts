@@ -7,6 +7,7 @@ export * from './args.ts'
 export { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
 import { applyOps, type VerifySummary } from '../agent/apply.ts'
+import type { SourceEditPreservation } from '../agent/source-projection.ts'
 // ============================================================================
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
@@ -44,6 +45,7 @@ import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './ex
 import { initAgentFiles } from './init-agent.ts'
 import { extractMermaidFences } from './markdown-fences.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
+import { compactVerification, verifySummaryPayload } from '../mcp/source-tools.ts'
 import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 /**
@@ -144,7 +146,7 @@ export function runPreparedCli({ args, json }: PreparedCli): number | Promise<nu
       case 'describe':
         return cmdDescribe(args, json)
       case 'capabilities':
-        return cmdCapabilities()
+        return cmdCapabilities(args)
       case 'styles':
         return cmdStyles(json)
       case 'llms-txt':
@@ -562,6 +564,7 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
 }
 
 function cmdVerify(args: ParsedArgs): number {
+  const summary = summaryViewRequested(args, 'verify')
   const source = readSourceArg(args.positional[0])
   const suppressFlag = flagValue(args, 'suppress')
   let suppress: WarningCode[] | undefined
@@ -601,6 +604,11 @@ function cmdVerify(args: ParsedArgs): number {
     const ok = blocks.every(block => block.ok)
     process.stdout.write(JSON.stringify({ ok, file: args.positional[0] ?? '<stdin>', blocks }, replacer) + '\n')
     return ok ? EXIT_OK : verifyFailureExit(blocks.flatMap(block => block.warnings))
+  }
+  if (summary) {
+    const payload = verifySummaryPayload(source, options)
+    process.stdout.write(JSON.stringify(payload, replacer) + '\n')
+    return payload.ok ? EXIT_OK : verifyFailureExit(payload.warnings as LayoutWarning[])
   }
   const r = verifyMermaid(source, options)
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
@@ -654,8 +662,13 @@ type CliMutationError = MutationError | { code: string; message: string; details
 /** `family` and `opIndex` mirror the MCP mutate envelope ({ok, family,
  * opIndex?, error}); `error.details` keeps the CLI's {index, op} locator. */
 type MutationRunResult =
-  | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving' }
+  | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving'; preservation?: SourceEditPreservation }
   | { ok: false; family: string | null; opIndex?: number; error: CliMutationError; verify?: VerifySummary }
+
+/** `full` embeds verify's complete result; `summary` embeds the compact
+ * verification MCP verify returns. Source-preserving edits already embed the
+ * compact { ok, warnings, checks } either way. */
+export type MutationVerifyView = 'full' | 'summary'
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = flagValue(args, 'op') ?? ''
@@ -675,14 +688,14 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 }
 
 
-export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false): MutationRunResult {
+export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false, verifyView: MutationVerifyView = 'full'): MutationRunResult {
   if (preserveSource) {
     const result = applyOps({ source, ops, mode: 'source-preserving' })
     if (!result.ok) {
       const { opIndex } = result
       return { ok: false, family: result.family, ...(opIndex !== undefined ? { opIndex } : {}), error: { ...result.error, ...(opIndex !== undefined ? { details: { index: opIndex, op: ops[opIndex] } } : {}) } }
     }
-    return { ok: true, family: result.family, source: result.source, verify: result.verify, mode: 'source-preserving' }
+    return { ok: true, family: result.family, source: result.source, verify: result.verify, mode: 'source-preserving', ...(result.preservation ? { preservation: result.preservation } : {}) }
   }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
@@ -698,7 +711,8 @@ export function mutateSource(source: string, ops: AnyMutationOp[], preserveSourc
     return { ok: false, family, opIndex, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
   }
   const current = batch.value
-  const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
+  const { accepted, verification } = verifyMutationResult(current, r0.value)
+  const verify = verifyView === 'summary' ? compactVerification(current, verification) : verification
   if (!accepted) {
     return {
       ok: false,
@@ -716,7 +730,9 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   if (!ops.ok) {
     throw new CliArgumentError(`mutate: ${ops.error.message}`)
   }
-  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true), json)
+  if (args.flags['preserve-source'] === true && args.flags.canonical === true) throw new CliArgumentError('mutate: pass either --preserve-source or --canonical, not both')
+  const verifyView = summaryViewRequested(args, 'mutate') ? 'summary' : 'full'
+  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true, verifyView), json)
 }
 
 function emitMutationRun(r: MutationRunResult, json: boolean): number {
@@ -724,7 +740,8 @@ function emitMutationRun(r: MutationRunResult, json: boolean): number {
     process.stdout.write(JSON.stringify({ ok: false, family: r.family, opIndex: r.opIndex, error: r.error, verify: r.verify }, replacer) + '\n')
     return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
-  process.stdout.write(json ? JSON.stringify({ ok: true, family: r.family, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
+  if (!json && r.preservation?.method === 'canonical') process.stderr.write(`mutate: source preservation fell back to canonical serialization: ${r.preservation.reason}\n`)
+  process.stdout.write(json ? JSON.stringify({ ok: true, family: r.family, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}), ...(r.preservation ? { preservation: r.preservation } : {}) }, replacer) + '\n' : r.source)
   return EXIT_OK
 }
 
@@ -1059,8 +1076,52 @@ function cmdStyles(json: boolean): number {
   return EXIT_OK
 }
 
-function cmdCapabilities(): number {
-  process.stdout.write(JSON.stringify(buildCapabilities()) + '\n')
+/** `--summary` view: what an agent needs to pick a family and its typed path,
+ * with one `--family` call for the op field schemas, conformance and example. */
+export interface CapabilitiesSummary {
+  view: 'summary'
+  sdkVersion: string
+  families: Array<Pick<FamilyCapability, 'id' | 'editPolicy' | 'narrower' | 'headers' | 'mutationOps'>>
+  warningCodes: WarningCode[]
+  outputFormats: CliRenderFormat[]
+  detail: string
+}
+
+export function capabilitiesSummary(capabilities: CapabilitiesEnvelope): CapabilitiesSummary {
+  return {
+    view: 'summary',
+    sdkVersion: capabilities.sdkVersion,
+    families: capabilities.families.map(({ id, editPolicy, narrower, headers, mutationOps }) => ({ id, editPolicy, narrower, headers, mutationOps })),
+    warningCodes: capabilities.warningCodes.map(warning => warning.code),
+    outputFormats: capabilities.outputFormats,
+    detail: 'am capabilities --family <id>[,<id>...] for opFields, conformance, identity and example',
+  }
+}
+
+/** The envelope with `families` narrowed to the requested ids, in request order. */
+export function capabilitiesForFamilies(capabilities: CapabilitiesEnvelope, ids: readonly string[]): CapabilitiesEnvelope {
+  const byId = new Map(capabilities.families.map(family => [family.id, family]))
+  const unknown = ids.filter(id => !byId.has(id))
+  if (ids.length === 0 || unknown.length > 0) {
+    throw new CliArgumentError(`am capabilities --family: ${ids.length === 0 ? 'expected one or more family ids' : `unknown family ${unknown.map(id => JSON.stringify(id)).join(', ')}`}; valid ids: ${[...byId.keys()].join(', ')}`)
+  }
+  return { ...capabilities, families: [...new Set(ids)].map(id => byId.get(id)!) }
+}
+
+/** `--summary` and `--full` choose the view; `--full` names today's default
+ * explicitly so a caller can pin it before the default changes. */
+function summaryViewRequested(args: ParsedArgs, command: string): boolean {
+  const summary = flagEnabled(args, 'summary')
+  if (summary && flagEnabled(args, 'full')) throw new CliArgumentError(`am ${command}: --summary and --full are mutually exclusive`)
+  return summary
+}
+
+function cmdCapabilities(args: ParsedArgs): number {
+  const summary = summaryViewRequested(args, 'capabilities')
+  const familyFlag = flagValue(args, 'family')
+  let capabilities = buildCapabilities()
+  if (familyFlag !== undefined) capabilities = capabilitiesForFamilies(capabilities, familyFlag.split(',').map(id => id.trim()).filter(Boolean))
+  process.stdout.write(JSON.stringify(summary ? capabilitiesSummary(capabilities) : capabilities) + '\n')
   return EXIT_OK
 }
 
@@ -1122,7 +1183,7 @@ you haven't inspected.
 - llms-txt — this document
 - init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
-Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR).
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR), 124 exceeded --timeout (default 120 s; RENDER_TIMEOUT).
 
 ## MCP tools
 

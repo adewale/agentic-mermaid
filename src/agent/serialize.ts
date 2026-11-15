@@ -61,6 +61,13 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
   return wrapperPrefix(meta, mode, bodySource, d.kind) + bodySource
 }
 
+/** The family statements of a structured body, header first, without the
+ * wrapper or the body comments the full serialization restores. */
+export function serializeBodyStatements(d: ParsedDiagram): string {
+  if (d.body.kind === 'preserved') return d.body.source
+  return renderBody(d.body, d.kind, metadataFromBody(d.body, d.meta), d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
+}
+
 /** A preserved body already owns its authored layers. Only directives newly
  * produced by a family writer extend the source metadata's ordered list. */
 function serializedInitLayers(meta: ValidDiagramMeta, body: string): ValidDiagramMeta['initDirectives'] {

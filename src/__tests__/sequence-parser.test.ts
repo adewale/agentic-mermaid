@@ -122,7 +122,8 @@ describe('parseSequenceDiagram – actors', () => {
     ['create participant item:0 as Created', 'item:0', 'Created', 'participant'],
   ] as const)('preserves clear native colon IDs but refuses a typed body that cannot write them: %s', (declaration, id, label, type) => {
     const source = `sequenceDiagram\n${declaration}\nparticipant A as Before\nA->>B: Unchanged`
-    expect(parse(source).actors[0]).toEqual({ id, label, type })
+    // A create no later message reaches binds at the message right after it.
+    expect(parse(source).actors[0]).toEqual({ id, label, type, ...(declaration.startsWith('create') ? { createMessageIndex: 0 } : {}) })
     expect(sequenceUnsupportedSyntaxWarnings(source)).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_id_extension', line: 2 }))
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(false)

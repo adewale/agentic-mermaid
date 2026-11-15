@@ -13,7 +13,7 @@ import type { AsciiTheme, ColorMode } from './ascii/types.ts'
 import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ResolvedRenderRequest } from './render-contract.ts'
-import { deferredRenderContractDigest, renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
+import { producedRenderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
 import { safeCssColor } from './shared/css-color.ts'
 import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import { toHex, tryParseCssColor } from './shared/color-math.ts'
@@ -265,8 +265,10 @@ export function projectTerminalStyle(
   )
   const semanticFallbacks = ['labels', 'symbols', 'markers', 'line-patterns'] as const
   const receipt = { version: TERMINAL_STYLE_VERSION, colorMode, theme, diagnostics, semanticFallbacks, connectorProjection }
-  const digest = deferredRenderContractDigest(receipt)
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest() } })
+  // Built here from frozen parts; its connector projection grows with the
+  // diagram's relationships, so it is hashed as produced evidence.
+  let digest: string | undefined
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest ??= producedRenderContractDigest(receipt) } })
 }
 
 /** Add optional graphical evidence without resolving terminal appearance twice. */
@@ -285,8 +287,10 @@ export function withTerminalConnectorScene(
     semanticFallbacks: appearance.semanticFallbacks,
     connectorProjection,
   }
-  const digest = deferredRenderContractDigest(receipt)
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest() } })
+  // Built here from frozen parts; its connector projection grows with the
+  // diagram's relationships, so it is hashed as produced evidence.
+  let digest: string | undefined
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest ??= producedRenderContractDigest(receipt) } })
 }
 
 function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnostic[]): void {
@@ -409,5 +413,5 @@ function projectConnectorScene(
     connectors: Object.freeze(projectedConnectors),
     capabilities: terminalConnectorCapabilityClaims(),
   }
-  return Object.freeze({ ...body, digest: renderContractDigest(body) })
+  return Object.freeze({ ...body, digest: producedRenderContractDigest(body) })
 }

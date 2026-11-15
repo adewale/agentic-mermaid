@@ -25,6 +25,18 @@ export const WIDE_CHAR_CONTINUATION = '\x00'
  */
 export function charVisualWidth(ch: string): number {
   const code = ch.codePointAt(0) ?? 0
+  if (code >= 0x20 && code < 0x7f) return 1 // printable ASCII: no range below holds it
+  if (code < 0x10000) {
+    // Range scans run once per basic-plane code point; terminal drawing asks
+    // for the same few glyphs once per painted cell.
+    const widths = basicPlaneWidths ??= new Int8Array(0x10000).fill(-1)
+    const known = widths[code]!
+    return known >= 0 ? known : (widths[code] = codePointWidth(code))
+  }
+  return codePointWidth(code)
+}
+let basicPlaneWidths: Int8Array | undefined
+function codePointWidth(code: number): number {
   if (code === VS_TEXT || code === VS_EMOJI || code === ZWJ) return 0
   if (isZeroWidth(code)) return 0
   if (isWideRange(code)) return 2

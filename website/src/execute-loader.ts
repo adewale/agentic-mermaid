@@ -18,6 +18,7 @@
 
 import { toAgentResult, userModuleSources, MAX_RESULT_BYTES, type HarnessResult } from '../../src/mcp/harness-runtime.ts'
 import type { ExecuteResult, HostedExecuteTelemetry } from '../../src/mcp/hosted-server.ts'
+import { hostedToolTimeout, type HostedToolPayload, type HostedToolRunner } from '../../src/mcp/hosted-tool-runtime.ts'
 import { PACKAGE_VERSION } from '../../src/version.ts'
 
 // Keep in sync with wrangler.jsonc `compatibility_date`: the isolate should
@@ -180,4 +181,56 @@ function failure(message: string, timeoutMs: number): ExecuteResult {
     return { ok: false, error: syntax?.[1] ?? clean, logs: [] }
   }
   return { ok: false, error: `sandbox error: ${clean}`, logs: [] }
+}
+
+/** Largest layout result the parent accepts from a tool isolate. */
+export const MAX_TOOL_RESULT_BYTES = 16 * 1024 * 1024
+
+/**
+ * The direct tools' layout work in a Dynamic Worker. Every call goes to one
+ * per-deploy isolate (the harness's /tool route; user.js is inert), so warm
+ * isolates are reused across requests, and each call carries its own cpuMs
+ * limit. A cpuMs overrun, a hung call (the wall-clock backstop) or an isolate
+ * failure becomes a structured payload, never an exception.
+ */
+export function createLoaderToolRunner(loader: WorkerLoaderBinding, harnessSource: string, backstopMarginMs: number = DEFAULT_BACKSTOP_MARGIN_MS): HostedToolRunner {
+  const tag = deployTag(harnessSource)
+  return async (request, cpuMs, onStart): Promise<HostedToolPayload> => {
+    const failure = (code: string, message: string): HostedToolPayload => ({ ok: false, error: { code, message } })
+    const stub = loader.get(`tool-${await tag}`, async () => ({
+      compatibilityDate: DYNAMIC_WORKER_COMPAT_DATE,
+      mainModule: 'harness.js',
+      modules: { 'harness.js': harnessSource, 'user.js': 'export default undefined' },
+      globalOutbound: null,
+      env: {},
+    }))
+    const entrypoint = stub.getEntrypoint(null, { limits: { cpuMs, subRequests: 0 } })
+    onStart?.(cpuMs)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let response: Response
+    try {
+      response = await Promise.race([
+        entrypoint.fetch('https://tool.internal/tool', { method: 'POST', body: JSON.stringify(request), headers: { 'content-type': 'application/json' } }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`exceeded its ${cpuMs}ms CPU budget`)), cpuMs + backstopMarginMs) }),
+      ])
+    } catch (error) {
+      // The loader surfaces a cpuMs or memory overrun as a thrown exception.
+      const message = error instanceof Error ? error.message : String(error)
+      if (/memory/i.test(message)) return failure('RENDER_MEMORY_LIMIT', 'Rendering exceeded its isolate memory limit')
+      if (/cpu|exceeded|limit/i.test(message)) return hostedToolTimeout(cpuMs)
+      return failure('RENDER_WORKER_FAILED', 'The rendering isolate failed without a result')
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+    }
+    if (!response.ok) return failure('RENDER_WORKER_FAILED', `The rendering isolate returned HTTP ${response.status}`)
+    const text = await readCapped(response.body, MAX_TOOL_RESULT_BYTES)
+    if (text === null) return failure('RENDER_OUTPUT_LIMIT', `Rendering result exceeds ${MAX_TOOL_RESULT_BYTES} bytes`)
+    try {
+      const payload = JSON.parse(text)
+      if (payload === null || typeof payload !== 'object' || Array.isArray(payload) || typeof payload.ok !== 'boolean') throw new TypeError('malformed')
+      return payload as HostedToolPayload
+    } catch {
+      return failure('RENDER_WORKER_FAILED', 'The rendering isolate returned a malformed result')
+    }
+  }
 }

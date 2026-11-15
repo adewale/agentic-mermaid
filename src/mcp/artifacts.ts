@@ -17,6 +17,7 @@ import {
 } from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
+import { ARTIFACT_MAX_BYTES } from './source-worker-limits.ts'
 
 export interface ArtifactStoreOptions {
   dir?: string
@@ -63,7 +64,7 @@ interface ArtifactManifest {
   records: Array<Pick<TrackedRecord, 'name' | 'mimeType' | 'bytes' | 'sha256' | 'createdAt' | 'expiresAt'>>
 }
 
-const DEFAULT_MAX_BYTES = 20 * 1024 * 1024
+const DEFAULT_MAX_BYTES = ARTIFACT_MAX_BYTES
 const DEFAULT_MAX_TOTAL_BYTES = 200 * 1024 * 1024
 const DEFAULT_MAX_ARTIFACTS = 1_000
 const DEFAULT_TTL_MS = 60 * 60 * 1000

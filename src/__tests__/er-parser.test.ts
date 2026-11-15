@@ -194,6 +194,13 @@ describe('parseErDiagram – statements sharing or spanning lines', () => {
     // A quoted relationship label ends at its closing quote; declarations follow.
     ['A ||--o{ B : "x" y', ['A {}', 'B {}', 'y {}', 'A->B x']],
     ['C A ||--o{ B : "x"y z { int id }', ['C {}', 'A {}', 'B {}', 'y {}', 'z {int id}', 'A->B x']],
+    // A quoted name, alias or label runs on to its closing quote; each line
+    // break inside it is a line break, and its attribute block is still read.
+    ['E["one\n  two"] {\n    int id\n  }', ['E[one\ntwo] {int id}']],
+    ['E["one\n two"] { int id } F', ['E[one\ntwo] {int id}', 'F {}']],
+    ['E["one\n\n  %% note\n  two"]:::hot { int id "c\n  d" }', ['E[one\ntwo]:::hot {int id "c\nd"}']],
+    ['"one\n  two" { int id }', ['one<br>two[one\ntwo] {int id}']],
+    ['A ||--o{ E["one\n  two"] : "has\n  many" C', ['A {}', 'E[one\ntwo] {}', 'C {}', 'A->E has\nmany']],
   ])('%j is read alike by the renderer, the typed body and its output', (body, expected) => {
     const source = `erDiagram\n  ${body}`
     expect(readingOf(parse(source))).toEqual(expected)

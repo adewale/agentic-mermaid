@@ -266,6 +266,35 @@ check 'preflight admits the modern routing headers' 'mcp-method' \
 check 'an over-cap batch is 400' '400' \
   "$(python3 -c 'import json; print(json.dumps([{"jsonrpc":"2.0","id":i,"method":"ping"} for i in range(25)]))' | mcurl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
 
+# Hosted CPU enforcement. A random 800-node, 1,600-edge flowchart (25 KB, under
+# the source cap) lays out in about 50 s on a laptop, well past the 10 s
+# per-call budget, and its pre-layout cost estimate routes it to the isolate.
+# Production must stop it and answer RENDER_TIMEOUT within the budget plus the
+# wall-clock backstop, and the next call must still render. wrangler dev does
+# not enforce cpuMs (see the header), so local targets skip this unless
+# AM_E2E_ENFORCED_CPU=1.
+if [[ "$MCP" =~ ^https?://(127\.0\.0\.1|localhost)[:/] && "${AM_E2E_ENFORCED_CPU:-}" != 1 ]]; then
+  echo "skip hosted CPU enforcement (local target; set AM_E2E_ENFORCED_CPU=1 to run)"
+else
+  heavy_request="$(python3 -c '
+import json
+s = 1
+lines = ["flowchart TD"]
+for _ in range(1600):
+    s = s * 48271 % 2147483647; a = s * 800 // 2147483647
+    s = s * 48271 % 2147483647; b = s * 800 // 2147483647
+    lines.append(f"  N{a} --> N{b}")
+print(json.dumps({"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"render_svg","arguments":{"source":"\n".join(lines)}}}))')"
+  heavy_started="$(date +%s)"
+  check 'a layout past the CPU budget is stopped with RENDER_TIMEOUT' '\"code\":\"RENDER_TIMEOUT\",\"message\":\"Operation exceeded its 10000ms CPU budget\"' \
+    "$(mcurl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d "$heavy_request")"
+  heavy_seconds=$(( $(date +%s) - heavy_started ))
+  check "the stopped layout answered within the budget and backstop (${heavy_seconds}s)" 'yes' \
+    "$([[ "$heavy_seconds" -le 20 ]] && echo yes || echo "no: ${heavy_seconds}s")"
+  check 'a render after the stopped layout still succeeds' '<svg' \
+    "$(j '{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"render_svg","arguments":{"source":"flowchart LR\n  A --> B"}}}')"
+fi
+
 # Keep the chunked over-size probe last. Current local workerd exits after it
 # has returned the correct 413, while production isolates remain replaceable;
 # ordering it last preserves the exact assertion without masking later checks.

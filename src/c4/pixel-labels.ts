@@ -1,5 +1,6 @@
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import { ARROW_HEAD } from '../styles.ts'
+import { createInkIndex } from '../shared/ink-index.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 
 export interface C4LabelRect { x: number; y: number; width: number; height: number }
@@ -16,6 +17,9 @@ const frames = (groups: PositionedGroup[]): PositionedGroup[] => groups.flatMap(
 function segmentHits(a: Point, b: Point, box: C4LabelRect): boolean {
   // Clip the segment to the open rectangle. This also handles a diagonal
   // segment supplied by a shared route repair, without a pixel sampling grid.
+  // A segment whose extent stays on one side of the open box cannot enter it;
+  // rejecting it first gives the clip's answer without its divisions.
+  if (Math.max(a.x, b.x) <= box.x + .01 || Math.min(a.x, b.x) >= box.x + box.width - .01 || Math.max(a.y, b.y) <= box.y + .01 || Math.min(a.y, b.y) >= box.y + box.height - .01) return false
   let lo = 0, hi = 1
   for (const axis of ['x', 'y'] as const) {
     const delta = b[axis] - a[axis], min = box[axis] + .01, max = box[axis] + (axis === 'x' ? box.width : box.height) - .01
@@ -77,6 +81,15 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
   const { edges } = positioned, obstacles = blockers(positioned.nodes, positioned.groups), heads = edges.flatMap(edge => c4MarkerRects(edge, lineWidth)), accepted: C4LabelRect[] = []
   const authoredStyles = new Map(body.relationships.map(relationship => [relationship.id, relationship.style]))
   const routes = edges.flatMap(edge => edge.points.slice(1).map((end, index) => ({ edge, start: edge.points[index]!, end })))
+  // Broad phase only: an item outside a candidate's widest clearance box adds
+  // exactly zero to every penalty term, so each term visits the indexed items
+  // that can meet it, in their original order, and sums the same values.
+  const near = <T,>(items: T[], box: (item: T) => C4LabelRect) => {
+    const query = createInkIndex(items.map((item, index) => { const b = box(item); return { index, x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height } }), item => item, () => {}, Number.MAX_SAFE_INTEGER)
+    return (around: C4LabelRect): T[] => query({ x0: around.x - 1, y0: around.y - 1, x1: around.x + around.width + 1, y1: around.y + around.height + 1 }).sort((a, b) => a.index - b.index).map(item => items[item.index]!)
+  }
+  const nearHeads = near(heads, head => head), nearObstacles = near(obstacles, obstacle => obstacle)
+  const nearRoutes = near(routes, ({ start, end }) => ({ x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) }))
   const ordered = edges.map((edge, index) => ({ edge, index, rect: c4LabelRect(edge) })).filter(item => item.rect).sort((a, b) => b.rect!.width * b.rect!.height - a.rect!.width * a.rect!.height || a.index - b.index)
   for (const { edge, rect } of ordered) {
     const authored = authoredStyles.get(edge.id!)
@@ -85,12 +98,12 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
     const shifted = (point: Point): Point => ({ x: point.x + dx, y: point.y + dy })
     const original = shifted(edge.labelPosition!), candidates: Point[] = [original], width = rect!.width, height = rect!.height
     const penalty = (candidate: Point): number[] => {
-      const box = { x: candidate.x - width / 2, y: candidate.y - height / 2, width, height }, clearance = inflate(box, 3)
+      const box = { x: candidate.x - width / 2, y: candidate.y - height / 2, width, height }, clearance = inflate(box, 3), labelClearance = inflate(box, 4), routeClearance = inflate(box, 2)
       return [
-        heads.reduce((sum, head) => sum + overlap(clearance, head), 0),
-        obstacles.reduce((sum, obstacle) => sum + overlap(clearance, obstacle), 0),
-        accepted.reduce((sum, other) => sum + overlap(inflate(box, 4), other), 0),
-        routes.reduce((sum, route) => sum + (route.edge !== edge && segmentHits(route.start, route.end, inflate(box, 2)) ? 1 : 0), 0),
+        nearHeads(labelClearance).reduce((sum, head) => sum + overlap(clearance, head), 0),
+        nearObstacles(labelClearance).reduce((sum, obstacle) => sum + overlap(clearance, obstacle), 0),
+        accepted.reduce((sum, other) => sum + overlap(labelClearance, other), 0),
+        nearRoutes(labelClearance).reduce((sum, route) => sum + (route.edge !== edge && segmentHits(route.start, route.end, routeClearance) ? 1 : 0), 0),
       ]
     }
     let best = original, bestPenalty = penalty(original)

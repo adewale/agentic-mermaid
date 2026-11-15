@@ -20,6 +20,7 @@
 // diagnostic compares facts the engine derived itself.
 // ============================================================================
 
+import { TerminalWorkLimitError } from '../ascii/terminal-limits.ts'
 import { C4RouteWorkLimitError } from '../c4/errors.ts'
 import { ClassLayoutWorkLimitError } from '../class/errors.ts'
 import { ErRouteGeometryError, ErRouteWorkLimitError } from '../er/errors.ts'
@@ -83,6 +84,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [ErLabelWorkLimitError, 'source'],
   [C4RouteWorkLimitError, 'source'],
   [ClassLayoutWorkLimitError, 'source'],
+  [TerminalWorkLimitError, 'source'],
   [PngRasterBudgetError, 'source'],
   [PaintLayoutCertificationError, 'source'],
 ]

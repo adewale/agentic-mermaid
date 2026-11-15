@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
@@ -289,17 +290,26 @@ test('native admission resolves local paint resources and refuses undeclared res
   }
 })
 
+// A built-in drawing that only outgrows an aggregate budget is a diagram too
+// large for the host, reported as the typed work limit, not a malformed Scene.
+function expectDrawnSceneLimit(draw: () => unknown, resource: string, limit: number): void {
+  let error: unknown
+  try { draw() } catch (caught) { error = caught }
+  expect(error).toBeInstanceOf(DiagramWorkLimitError)
+  expect(error).toMatchObject({ code: 'DIAGRAM_WORK_LIMIT', resource, requested: limit + 1, message: expect.stringContaining(`more than ${limit} scene`) })
+}
+
 test('native text and point budgets accumulate across transient leaves', () => {
   const text = createNativeSceneValidator(header)
   const textMark = Object.freeze(label('x'.repeat(40_000)))
   for (let index = 0; index < 50; index++) text.node(textMark)
-  expect(() => text.node(textMark)).toThrow(/aggregate 2000000-byte/)
+  expectDrawnSceneLimit(() => text.node(textMark), 'sceneTextBytes', SCENE_VALIDATION_LIMITS.maxTextBytes)
 
   const points = createNativeSceneValidator(header)
   const line = (id: string, count: number) => marks.shape({ id, role: 'chrome', geometry: { kind: 'polyline', points: Array.from({ length: count }, (_, index) => ({ x: index % 100, y: 10 })) }, paint: { stroke: '#111' } })
   points.node(line('first', 25_000))
   points.node(line('second', 25_000))
-  expect(() => points.node(line('third', 2))).toThrow(/aggregate 50000-point/)
+  expectDrawnSceneLimit(() => points.node(line('third', 2)), 'scenePoints', SCENE_VALIDATION_LIMITS.maxPoints)
 })
 
 test('native admission enforces per-fragment and aggregate serialization limits', () => {
@@ -307,14 +317,14 @@ test('native admission enforces per-fragment and aggregate serialization limits'
   const validator = createNativeSceneValidator(header)
   const chunk = `<metadata>${'x'.repeat(4_100_000)}</metadata>`
   for (let index = 0; index < 3; index++) validator.node(marks.documentContent({ id: `metadata:${index}`, role: 'chrome' }, chunk))
-  expect(() => validator.node(marks.documentContent({ id: 'metadata:over', role: 'chrome' }, chunk))).toThrow(/aggregate 16000000-byte/)
+  expectDrawnSceneLimit(() => validator.node(marks.documentContent({ id: 'metadata:over', role: 'chrome' }, chunk)), 'sceneSerializationBytes', SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes)
 })
 
 test('native admission bounds total node count even when each leaf is tiny', () => {
   const validator = createNativeSceneValidator(header)
   const node = marks.documentClose()
   for (let index = 0; index < SCENE_VALIDATION_LIMITS.maxNodes; index++) validator.node(node)
-  expect(() => validator.node(node)).toThrow(/too many Scene nodes/)
+  expectDrawnSceneLimit(() => validator.node(node), 'sceneNodes', SCENE_VALIDATION_LIMITS.maxNodes)
 })
 
 

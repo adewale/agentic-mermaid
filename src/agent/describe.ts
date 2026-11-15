@@ -29,9 +29,9 @@ import { classRelationMarkers } from './class-body.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
+import { sequenceBranchItems, sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import { sequenceDisplayText } from '../sequence/text.ts'
-import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceFragment, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceNoteStatement, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 /** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
 export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
@@ -73,7 +73,10 @@ export interface DescribeTree {
     /** How the drawn arrowheads read between `from` and `to`; absent means
      * forward (`from` points at `to`). */
     direction?: Exclude<ArrowheadDirection, 'forward'>
-    sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    /** A fragment message's branch, and `index`, its position in that branch
+     * as the fragment-message ops take it. Top-level messages have none;
+     * their edges are listed in top-level message index order. */
+    sequence?: { fragmentIndex: number; branchIndex: number; index: number; fragmentKind: string; branchLabel?: string }
     zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
     c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
       authoredFrom: string
@@ -227,6 +230,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
               sequence: {
                 fragmentIndex: context.fragmentIndex,
                 branchIndex: context.branchIndex,
+                index: context.index,
                 fragmentKind: context.fragmentKind,
                 ...(branchLabel ? { branchLabel } : {}),
               },
@@ -554,10 +558,19 @@ function describeSequence(d: SequenceValidDiagram): string {
       if (message) interactions.push(`message ${message.from} -> ${message.to}: ${sequenceDisplayText(message.text, message.textContent)}`)
       continue
     }
+    if (statement.kind === 'create' || statement.kind === 'destroy') {
+      interactions.push(sequenceLifecycleDisplay(statement))
+      continue
+    }
+    if (statement.kind === 'note') {
+      interactions.push(sequenceNoteDisplay(statement))
+      continue
+    }
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = sequenceBranchDisplay(statement.fragment, branchIndex)
-      const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${sequenceDisplayText(m.text, m.textContent)}`).join('; ') || 'no messages'
+      const messages = sequenceBranchItems(branch).map(item => !('kind' in item) ? `${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`
+        : item.kind === 'note' ? sequenceNoteDisplay(item) : sequenceLifecycleDisplay(item)).join('; ') || 'no messages'
       return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
     })
     interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
@@ -565,6 +578,15 @@ function describeSequence(d: SequenceValidDiagram): string {
   }
   if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
+}
+
+function sequenceNoteDisplay(note: SequenceNoteStatement): string {
+  return `note ${note.position === 'over' ? 'over' : `${note.position} of`} ${note.actorIds.join(',')}: ${sequenceDisplayText(note.text, note.textContent)}`
+}
+
+function sequenceLifecycleDisplay(statement: SequenceCreateStatement | SequenceDestroyStatement): string {
+  if (statement.kind === 'destroy') return `destroy ${statement.actorId}`
+  return `create ${statement.type ?? statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`
 }
 
 /** A participant's name as drawn; the body keeps authored quotes and markup. */

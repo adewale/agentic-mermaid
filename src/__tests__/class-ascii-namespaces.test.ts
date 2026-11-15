@@ -84,9 +84,11 @@ describe('Class terminal namespace frames (B05/CL4)', () => {
           for (const marker of port.markers ?? []) expect(doc.cell(port.x, port.y)?.marker).toMatchObject(marker)
         }
       }
+      // A route crosses a namespace's header row in one cell, clear of its text.
       for (const group of regions.filter(region => region.kind === 'cluster')) {
         const headerInk = [...doc.entries()].filter(([x, y, cell]) => y === group.canvasRow && x > group.canvasColStart && x < group.canvasColEnd - 1 && cell.owners.some(owner => owner.kind === 'edge'))
-        expect(headerInk).toEqual([])
+        expect(headerInk.filter(([, , cell]) => cell.kind === 'text')).toEqual([])
+        for (const edge of edges) expect(edge.ownedCellSpans.filter(span => span.row === group.canvasRow && span.end > group.canvasColStart && span.start < group.canvasColEnd && span.end - span.start > 1)).toEqual([])
       }
       expect(() => doc.assertMarkers()).not.toThrow()
     }

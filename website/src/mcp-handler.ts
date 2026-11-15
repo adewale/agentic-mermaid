@@ -22,6 +22,7 @@ import {
   type McpAdmissionResult,
 } from '../../src/mcp/admission.ts'
 import { decorateMcpResult, protocolNeutralMcpResult } from '../../src/mcp/tool-surface.ts'
+import { withRequestCpuAllowanceForIsolate } from '../../src/mcp/hosted-tool-runtime.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -287,12 +288,28 @@ function internalErrorType(error: unknown): McpInternalErrorType {
   return 'UnknownError'
 }
 
+/** One HTTP request's context: its isolate calls run one at a time against
+ * a shared CPU allowance, so a batch cannot multiply the per-call budget.
+ * Calls light enough to run inline neither queue nor draw from it. */
+function contextForRequest(context: HostedMcpContext): HostedMcpContext {
+  return context.runTool ? { ...context, runTool: withRequestCpuAllowanceForIsolate(context.runTool) } : context
+}
+
 /** Scope the execution telemetry callback to the item which started the
  * loader. A test/local context that does not implement the optional callback
  * still truthfully records the one execute call it received. */
 function contextForItem(context: HostedMcpContext, item: McpItemEvent): HostedMcpContext {
+  const runTool = context.runTool
   return {
     ...context,
+    ...(runTool ? {
+      runTool(request, cpuMs) {
+        return runTool(request, cpuMs, budget => {
+          item.configured_cpu_limit_ms = budget
+          item.loader_attempts = 1
+        })
+      },
+    } satisfies Pick<HostedMcpContext, 'runTool'> : {}),
     async execute(code, timeoutMs) {
       item.configured_cpu_limit_ms = timeoutMs
       let reported = false
@@ -332,7 +349,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   const { context, cache, cacheVersion, waitUntil } = options
   const onEvent = options.onEvent ?? ((event: McpRequestEvent) => console.log(JSON.stringify(event)))
 
-  async function handleOne(message: AdmittedMcpMessage, item: McpItemEvent): Promise<JsonRpcResponse | null> {
+  async function handleOne(message: AdmittedMcpMessage, item: McpItemEvent, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
     const started = Date.now()
     const { request } = message
     if (request.method === 'tools/call') {
@@ -486,9 +503,10 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       }
       // One event per request even for batches: each item gets an entry, not a line.
       event.items = parsed.map(() => newItemEvent())
+      const batchContext = contextForRequest(context)
       const responses = (await Promise.all(batchAdmissions.map(async (admission, i) => {
         const item = event.items[i]!
-        if (admission.ok) return handleOne(admission.message, item)
+        if (admission.ok) return handleOne(admission.message, item, batchContext)
         recordItemOutcome(item, admission.response)
         return admission.response
       }))).filter((r): r is JsonRpcResponse => r !== null)
@@ -515,7 +533,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       return json(admission.kind === 'invalid-request' ? 200 : 400, admission.response, cors, exact.ids)
     }
     const modern = admission.message.protocol.era === 'modern'
-    const response = await handleOne(admission.message, event.items[0]!)
+    const response = await handleOne(admission.message, event.items[0]!, contextForRequest(context))
     if (response === null) {
       return new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
     }

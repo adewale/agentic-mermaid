@@ -1,5 +1,5 @@
 // Declarative edit tools shared by local and hosted MCP. Host limits stay at the adapter.
-import { applyOps } from '../agent/apply.ts'
+import { applyOps, type OpEnvelope } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { rpcError, toolResult, type JsonRpcResponse } from './protocol.ts'
@@ -25,16 +25,23 @@ is \`opIndex\`) and the input is left untouched.
 Each op is { "kind": <op>, …fields }. Call \`describe_sdk\` for the detected
 family before authoring unfamiliar ops; it returns compact signatures or exact
 field types, enum values, defaults, and constraints.
-Set mode to source-preserving for supported edits to opaque Class or Flowchart
-source. Exact edited bytes and portability warnings are retained; unsupported
-operations still fail atomically. This mode does not promise portable export.`,
+Set mode to source-preserving to keep the authored source: every line the ops
+do not touch (comments, blank lines, indentation, quoting, :::classes,
+directives) is returned byte for byte and new statements are written in
+portable Mermaid next to related ones. The result reads back as the same
+diagram as the default (structured) edit. When no local change does, the
+canonical source is returned and \`preservation\` is { method: "canonical",
+reason }; otherwise { method: "local" }. Opaque Class or Flowchart bodies accept
+only their bounded source edits and keep their portability warnings.
+Deprecation: 0.6.0 makes source-preserving the default; pass mode "structured"
+to keep today's canonical output.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
         ops: mutationBatchSchema('Non-empty ordered list of edit ops; each is { kind, ...fields }.'),
-        mode: { type: 'string', enum: ['structured', 'source-preserving'], default: 'structured', description: 'Source-preserving mode edits owned source ranges without regenerating unsupported syntax.' },
+        mode: { type: 'string', enum: ['structured', 'source-preserving'], default: 'structured', description: 'structured re-serializes the whole diagram; source-preserving keeps every authored line the ops do not touch.' },
       },
       required: ['source', 'ops'],
     },
@@ -63,7 +70,10 @@ unfamiliar ops; its field notes state identity rules such as these.`,
   },
 ]
 
-export function handleEditTool(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family', maxBytes = Infinity, tooLargeHint = 'input exceeds the size cap'): JsonRpcResponse {
+/** The adapter-owned argument checks for mutate/build: a JSON-RPC
+ * invalid-params error or a size-cap tool error, or undefined when the call may
+ * run. Hosts check here before handing the call to their execution boundary. */
+export function editToolRequestError(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family', maxBytes = Infinity, tooLargeHint = 'input exceeds the size cap'): JsonRpcResponse | undefined {
   if (mode === 'family' && args.mode !== undefined) return rpcError(id, -32602, 'build does not accept an edit mode')
   const ops = args.ops
   if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
@@ -79,8 +89,20 @@ export function handleEditTool(id: number | string | null, args: Record<string, 
   if (boundedUtf8ByteLength(JSON.stringify(ops), maxBytes) > maxBytes) {
     return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: tooLargeHint } }, true)
   }
-  const envelope = mode === 'source'
+  return undefined
+}
+
+/** The mutate/build envelope for arguments editToolRequestError admitted. */
+export function editToolEnvelope(args: Record<string, unknown>, mode: 'source' | 'family'): OpEnvelope {
+  const ops = args.ops
+  return mode === 'source'
     ? applyOps({ source: args.source as string, ops, mode: args.mode as 'structured' | 'source-preserving' | undefined })
     : applyOps({ family: args.family as string, ops })
+}
+
+export function handleEditTool(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family', maxBytes = Infinity, tooLargeHint = 'input exceeds the size cap'): JsonRpcResponse {
+  const refused = editToolRequestError(id, args, mode, maxBytes, tooLargeHint)
+  if (refused) return refused
+  const envelope = editToolEnvelope(args, mode)
   return toolResult(id, envelope, !envelope.ok)
 }

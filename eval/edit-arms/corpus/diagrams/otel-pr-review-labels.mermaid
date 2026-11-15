@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant R as Reviewer
+    participant GH as GitHub
+    participant T as pr-review-trigger
+    participant L as label-manager
+
+    R->>GH: Submits review (approve/request changes/dismiss)
+
+    Note over GH: pull_request_review event
+
+    GH->>T: Trigger (fork context, no secrets)
+    T->>T: Save PR number as artifact
+    T->>GH: Upload artifact, workflow completes
+
+    Note over GH: workflow_run event (completed)
+
+    GH->>L: Trigger (base repository context, with secrets)
+    L->>L: Download PR number artifact
+    L->>L: Run pr-approval-labels.sh
+    L->>GH: Add/remove labels

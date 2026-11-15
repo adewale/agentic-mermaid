@@ -4,6 +4,7 @@ import {
   SOURCE_TOOL_MEMORY_BYTES, SOURCE_TOOL_MEMORY_POLL_MS, SOURCE_TOOL_REQUEST_BYTES, SOURCE_TOOL_RESULT_BYTES,
 } from './source-worker-limits.ts'
 import type { SourceToolReply, SourceToolRequest } from './source-tool-message.ts'
+import { registeredEmbeddedFontResourceFiles } from '../agent/embedded-font-registry.ts'
 
 declare const __AM_STANDALONE__: boolean
 
@@ -39,9 +40,12 @@ export function runSourceSupervisor(): void {
     try {
       // Bun compiles additional entries under their project-relative .js path.
       // The compiled CLI's import.meta.url names the executable at that root.
-      worker = initial.worker ? new Worker(new URL(initial.worker), { execArgv: [] })
-        : standalone ? new Worker(new URL('./src/mcp/source-worker.js', import.meta.url), { execArgv: [] })
-        : new Worker(new URL(import.meta.url.endsWith('.ts') ? './source-worker.ts' : './source-worker.js', import.meta.url), { execArgv: [] })
+      // A standalone host's embedded PNG fonts are registered in this thread;
+      // the renderer thread has its own module state.
+      const options = { execArgv: [], workerData: { embeddedFonts: registeredEmbeddedFontResourceFiles() } }
+      worker = initial.worker ? new Worker(new URL(initial.worker), options)
+        : standalone ? new Worker(new URL('./src/mcp/source-worker.js', import.meta.url), options)
+        : new Worker(new URL(import.meta.url.endsWith('.ts') ? './source-worker.ts' : './source-worker.js', import.meta.url), options)
     }
     catch { stop(SOURCE_TOOL_EXIT_FAILED) }
     worker!.on('error', (error: Error & { code?: string }) => stop(error.code === 'ERR_WORKER_OUT_OF_MEMORY' ? SOURCE_TOOL_EXIT_MEMORY : SOURCE_TOOL_EXIT_FAILED))

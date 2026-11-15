@@ -1,9 +1,13 @@
+import { STATE_NAME_SOURCE } from './name.ts'
+
 /** Block-note boundaries are shared with the State grammar. Note bodies are
  * literal text, including whole lines beginning with %% or syntax-like text. */
-export const STATE_NOTE_OPEN_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s*$/iu
+export const STATE_NOTE_OPEN_RE = new RegExp(String.raw`^note\s+(left|right)\s+of\s+(${STATE_NAME_SOURCE})\s*$`, 'iu')
 /** Mermaid's block-note text runs from the target to `end note`, so it may
  * start on the opening line: `note left of A first line`. */
-export const STATE_NOTE_OPEN_TEXT_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}\p{M}\p{N}-]+)\s+([^\s:][^\r\n]*)$/iu
+export const STATE_NOTE_OPEN_TEXT_RE = new RegExp(String.raw`^note\s+(left|right)\s+of\s+(${STATE_NAME_SOURCE})\s+([^\s:][^\r\n]*)$`, 'iu')
+const NAME_RE = new RegExp(`^${STATE_NAME_SOURCE}$`, 'u')
+const NOTE_PREFIX_RE = new RegExp(String.raw`^note\s+(?:left|right)\s+of\s+${STATE_NAME_SOURCE}$`, 'iu')
 export const STATE_NOTE_END_RE = /^end\s+note$/i
 
 /** Where a State comment starts on a line (-1 for none), and whether the line
@@ -18,7 +22,7 @@ function scanStateLine(line: string, quoted = false): { comment: number; quoted:
     if (character === '%' && line[index + 1] === '%') return { comment: index, quoted }
     if (character !== ':' || line[index - 1] === ':' || line[index + 1] === ':') continue
     const prefix = line.slice(0, index).trim()
-    if (/^[\w\p{L}\p{M}\p{N}-]+$/u.test(prefix) || prefix.includes('-->') || /^note\s+(?:left|right)\s+of\s+[\w\p{L}\p{M}\p{N}-]+$/iu.test(prefix)) return { comment: -1, quoted: false }
+    if (NAME_RE.test(prefix) || prefix.includes('-->') || NOTE_PREFIX_RE.test(prefix)) return { comment: -1, quoted: false }
   }
   return { comment: -1, quoted }
 }

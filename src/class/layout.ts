@@ -620,6 +620,35 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
   }
 }
 
+/** Class pairs that must be drawn bent before ELK placement is refused. */
+const CLASS_ELK_BENT_PAIR_LIMIT = 400
+
+/**
+ * Refuse, before ELK places anything, a relationship graph too dense for the
+ * final sharp-contact admission (assertFinalClassSharpContacts). That check
+ * projects and validates every route point against the request's shared
+ * 400000-operation ledger; dense ELK tables spend 850-1350 operations per
+ * relationship there, so 400 bent pairs (which imply 604 or more pairs) cannot
+ * be admitted; the densest table that renders, 19 x 19, has 145. A straight route is one axis-parallel segment: no two vertical
+ * ones cross, nor two horizontal ones, so the pairs joined straight form two
+ * plane graphs, at most 2(3V - 6) pairs over V classes. Every other related
+ * pair is drawn bent. Rounded routes skip that admission and are not counted.
+ */
+function assertClassElkRouteWork(diagram: ClassDiagram, style: ResolvedRenderStyle): void {
+  if (style.edgeBendRadius !== 0) return
+  const partners = new Map<string, Set<string>>()
+  let pairs = 0
+  for (const { from, to } of diagram.relationships) {
+    if (from === to) continue
+    const [low, high] = from < to ? [from, to] : [to, from]
+    let seen = partners.get(low)
+    if (!seen) partners.set(low, seen = new Set())
+    if (!partners.has(high)) partners.set(high, new Set())
+    if (!seen.has(high)) { seen.add(high); pairs++ }
+  }
+  if (partners.size >= 3 && pairs - (6 * partners.size - 12) >= CLASS_ELK_BENT_PAIR_LIMIT) throw new ClassLayoutWorkLimitError()
+}
+
 /**
  * Lay out measured Class cards with the selected graph backend.
  */
@@ -742,6 +771,7 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
       return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
     },
     () => {
+      assertClassElkRouteWork(diagram, style)
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
       let result: PositionedClassDiagram | undefined
       let headerInsets: ReadonlyMap<string, number> = new Map()

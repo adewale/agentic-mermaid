@@ -118,9 +118,12 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   return drawing
 }
 
-/** The receipt's layout certificate also records geometry drawn uncertified. */
+/** The receipt's layout certificate also records geometry drawn uncertified
+ * and a graph laid out under the bounded cost profile. */
 function withGeometryCertification(certification: PaintLayoutCertification, layout: FamilyLayoutResult): PaintLayoutCertification {
-  return layout.uncertifiedLayout ? Object.freeze({ ...certification, geometry: layout.uncertifiedLayout }) : certification
+  const layoutCost = (layout.positioned as { layoutCost?: PaintLayoutCertification['layoutCost'] }).layoutCost
+  if (!layout.uncertifiedLayout && !layoutCost) return certification
+  return Object.freeze({ ...certification, ...(layout.uncertifiedLayout ? { geometry: layout.uncertifiedLayout } : {}), ...(layoutCost ? { layoutCost } : {}) })
 }
 
 export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {

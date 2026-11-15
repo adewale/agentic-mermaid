@@ -66,6 +66,29 @@ describe('MCP — render_png tool', () => {
     for (let i = 0; i < PNG_MAGIC.length; i++) expect(bytes[i]).toBe(PNG_MAGIC[i]!)
   })
 
+  test('output=image carries the base64 path\'s PNG bytes in an image content block', async () => {
+    const source = 'flowchart TD\n  A --> B'
+    const call = async (args: Record<string, unknown>) => (await handleRequest({
+      jsonrpc: '2.0', id: 4, method: 'tools/call',
+      params: { name: 'render_png', arguments: { source, ...args } },
+    }))!.result as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError: boolean }
+    const base64 = JSON.parse((await call({})).content[0]!.text!) as { png_base64: string; receipt: Record<string, any> }
+    const image = await call({ output: 'image', receipt: 'summary' })
+    expect(image.isError).toBe(false)
+    expect(image.content.map(block => [block.type, block.mimeType])).toEqual([['text', undefined], ['image', 'image/png']])
+    const bytes = Buffer.from(image.content[1]!.data!, 'base64')
+    expect(bytes.equals(Buffer.from(base64.png_base64, 'base64'))).toBe(true)
+    const meta = JSON.parse(image.content[0]!.text!)
+    expect(meta).not.toHaveProperty('png_base64')
+    expect(meta).toMatchObject({ ok: true, mimeType: 'image/png', bytes: bytes.length, width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) })
+    expect(meta.receipt).toMatchObject({
+      view: 'summary',
+      requestDigest: base64.receipt.requestDigest,
+      accepted: base64.receipt.capabilityDecision.accepted,
+      layoutCertification: { status: base64.receipt.layoutCertification.status },
+    })
+  })
+
   test('honors scale on a fractional canvas', async () => {
     const source = 'flowchart TD\n  A --> B'
     const options = { padding: 40.1 }

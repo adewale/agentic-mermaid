@@ -24,8 +24,11 @@ const FLAG_SPEC_TABLE = {
   open: {},
   force: {},
   'canonical-wrapper': {},
+  canonical: {},
   'preserve-source': {},
   'system-fonts': {},
+  summary: {},
+  full: {},
   version: {},
   // value flags (placeholder = what the usage shows after the flag)
   suppress: { arg: 'CODES' },
@@ -44,6 +47,8 @@ const FLAG_SPEC_TABLE = {
   'font-dirs': { arg: 'DIRS' },
   'gantt-today': { arg: 'DATE' },
   'target-width': { arg: 'CELLS' },
+  timeout: { arg: 'SECONDS' },
+  family: { arg: 'IDS' },
   // PNG raster knobs (read by cmdRender's png path since v4; registered so
   // the unknown-flag gate cannot reject them).
   scale: { arg: 'N' },
@@ -104,20 +109,20 @@ export const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDING
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 export const COMMAND_FLAGS = {
-  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'graph-layout', 'graph-layout-fallback', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
-  verify: ['help', 'json', 'suppress', 'label-cap', 'style', 'markdown'],
+  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'graph-layout', 'graph-layout-fallback', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o', 'timeout'],
+  verify: ['help', 'json', 'suppress', 'label-cap', 'style', 'markdown', 'summary', 'full', 'timeout'],
   parse: ['help', 'json'],
   serialize: ['help'],
-  mutate: ['help', 'json', 'op', 'ops', 'preserve-source'],
-  preview: ['help', 'json', 'output', 'open', 'security'],
+  mutate: ['help', 'json', 'op', 'ops', 'preserve-source', 'canonical', 'summary', 'full', 'timeout'],
+  preview: ['help', 'json', 'output', 'open', 'security', 'timeout'],
   format: ['help', 'canonical-wrapper'],
-  describe: ['help', 'json', 'format'],
-  capabilities: ['help', 'json'],
+  describe: ['help', 'json', 'format', 'timeout'],
+  capabilities: ['help', 'json', 'summary', 'full', 'family'],
   styles: ['help', 'json'],
   'llms-txt': ['help'],
   'init-agent': ['help', 'json', 'dir', 'force'],
   batch: ['help', 'jsonl'],
-  'render-markdown': ['help', 'ascii'],
+  'render-markdown': ['help', 'ascii', 'timeout'],
 } as const satisfies Record<string, readonly string[]>
 
 /** Closed positional contract. Zero source arguments means piped stdin; only

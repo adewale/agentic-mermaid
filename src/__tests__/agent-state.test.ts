@@ -625,10 +625,12 @@ describe('state fast-check round-trip property', () => {
   // survives the round-trip with the same state/transition shape.
   // State ids: letters, combining marks and digits of any script, and
   // underscores (not leading digits or marks), minus the statement keywords a
-  // bare id cannot be.
+  // bare id cannot be; or two such words joined by punctuation Mermaid's
+  // State lexer reads in a name (`ContainerRuntime.process`, `a/b`).
   const STATE_KEYWORDS = new Set(['state', 'end', 'note', 'direction', 'class', 'classdef', 'style', 'as', 'left', 'right', 'of', 'over', 'accTitle', 'accDescr'].map(word => word.toLowerCase()))
-  const id = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 6 })
+  const word = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 6 })
     .filter(s => /^[\p{L}_][\p{L}\p{M}\p{N}_]*$/u.test(s) && !STATE_KEYWORDS.has(s.toLowerCase()))
+  const id = fc.oneof(word, fc.tuple(word, fc.constantFrom(...'./()&\'%*#!?=~^$@|+`\\'), word).map(parts => parts.join('')))
 
   const shape = (states: StateNode[], transitions: StateTransition[]): unknown => ({
     states: states.map(s => ({ id: s.id, label: s.label, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
@@ -666,9 +668,9 @@ describe('state fast-check round-trip property', () => {
         states: states.map(id => ({ id, label: `${id} label`, children: null })),
         transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
       })
-      // Reduced counterexamples: ids holding a non-ASCII digit or a combining
-      // mark fell back to opaque source that no renderer could draw.
-    }), fcParameters({ numRuns: 200, examples: [[{ states: ['一¼'], transitions: [{ from: '[*]', to: '[*]' }] }], [{ states: ['e\u0301'], transitions: [{ from: '[*]', to: 'e\u0301' }] }]] }))
+      // Reduced counterexamples: ids holding a non-ASCII digit, a combining
+      // mark or a dot fell back to opaque source that no renderer could draw.
+    }), fcParameters({ numRuns: 200, examples: [[{ states: ['一¼'], transitions: [{ from: '[*]', to: '[*]' }] }], [{ states: ['e\u0301'], transitions: [{ from: '[*]', to: 'e\u0301' }] }], [{ states: ['A.A'], transitions: [{ from: '[*]', to: 'A.A' }] }]] }))
   })
 
   test('generated nested composites (depth ≤ 2) round-trip stably', () => {

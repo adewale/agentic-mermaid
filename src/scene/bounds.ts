@@ -171,7 +171,7 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
   }
 }
 
-function markerBoundsAt(
+export function markerBoundsAt(
   marker: MarkerDescriptor | undefined,
   anchor: ScenePoint | undefined,
   strokeWidth: number,

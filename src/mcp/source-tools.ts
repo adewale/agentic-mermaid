@@ -4,15 +4,20 @@ import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../a
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import { projectMcpRenderOptions } from './tool-surface.ts'
-import { mcpVerificationSummary } from './describe-payload.ts'
+import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
+import { editToolEnvelope } from './edit-tools.ts'
+import { mcpRenderReceipt } from './receipt-summary.ts'
 import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { RenderOptions } from '../types.ts'
+import type { ParsedDiagram, VerifyOptions, VerifyResult } from '../agent/types.ts'
 
-export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify'
+export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify' | 'describe' | 'mutate' | 'build'
 
-/** Shared structured results for the hosted tools and the local worker. */
+/** Shared structured results for the hosted tools and the local worker: every
+ * runtime-neutral tool that parses and lays out a diagram. Adapters check
+ * their own arguments and caps first and own the catch for a thrown error. */
 export function runSourceTool(name: SourceToolName, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
   const source = args.source as string
   switch (name) {
@@ -23,7 +28,7 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       return {
         ok: true as const,
         svg: rendered.svg,
-        receipt: rendered.receipt,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
         warnings: sourceConfigWarnings(source, args),
       }
     }
@@ -43,41 +48,56 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       return {
         ok: true as const,
         text: rendered.text,
-        receipt: rendered.receipt,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
         warnings: sourceConfigWarnings(source, args),
       }
     }
-    case 'verify': {
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok) {
-        // Self-describing tool: when the header names a known family, hand back
-        // that family's canonical example so a failed authoring attempt gets the
-        // correct dialect in the same response — no need to fetch capabilities.json.
-        // It also carries verify's own findings, so its warning codes match
-        // the library and CLI verify.
-        const hint = familyExampleForSource(source)
-        const v = verifyMermaid(source)
-        return { ok: false as const, errors: parsed.error, warnings: v.warnings, checks: v.checks, ...(hint ?? {}) }
-      }
-      if (parsed.value.body.kind === 'preserved') {
-        const v = verifyMermaid(parsed.value)
-        return {
-          ok: false as const,
-          error: projectRenderErrorDiagnostic(new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(parsed.value.body))),
-          warnings: v.warnings,
-          checks: v.checks,
-        }
-      }
-      const v = verifyMermaid(parsed.value)
-      const summary = mcpVerificationSummary(parsed.value)
-      // Echo the detected family + a one-line summary so `ok:true` is never a
-      // silent pass on the wrong kind of diagram: an agent that asked for an
-      // architecture diagram and reads `family:"flowchart"` here sees the
-      // mismatch in the same result it was already going to read, without
-      // having to know to call `describe` separately.
-      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+    case 'verify': return verifySummaryPayload(source)
+    case 'describe': return mcpDescribePayload(source, args)
+    case 'mutate': return editToolEnvelope(args, 'source')
+    case 'build': return editToolEnvelope(args, 'family')
+  }
+}
+
+/**
+ * The compact verification of a parsed diagram: verify's findings with the
+ * layout reduced to its bounds and element counts. MCP verify returns it, and
+ * `am verify --summary` / `am mutate --json --summary` print it, from this one
+ * function so the surfaces cannot drift.
+ */
+export function compactVerification(diagram: ParsedDiagram, v: VerifyResult) {
+  // Echo the detected family + a one-line summary so `ok:true` is never a
+  // silent pass on the wrong kind of diagram: an agent that asked for an
+  // architecture diagram and reads `family:"flowchart"` here sees the
+  // mismatch in the same result it was already going to read, without
+  // having to know to call `describe` separately.
+  return { ok: v.ok, family: diagram.kind, summary: mcpVerificationSummary(diagram), warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+}
+
+/** The MCP verify payload for source; `am verify --summary` prints the same
+ * payload, passing its own verify options. */
+export function verifySummaryPayload(source: string, options: VerifyOptions = {}): { ok: boolean } & Record<string, unknown> {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) {
+    // Self-describing tool: when the header names a known family, hand back
+    // that family's canonical example so a failed authoring attempt gets the
+    // correct dialect in the same response — no need to fetch capabilities.json.
+    // It also carries verify's own findings, so its warning codes match
+    // the library and CLI verify.
+    const hint = familyExampleForSource(source)
+    const v = verifyMermaid(source, options)
+    return { ok: false as const, errors: parsed.error, warnings: v.warnings, checks: v.checks, ...(hint ?? {}) }
+  }
+  if (parsed.value.body.kind === 'preserved') {
+    const v = verifyMermaid(parsed.value, options)
+    return {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(parsed.value.body))),
+      warnings: v.warnings,
+      checks: v.checks,
     }
   }
+  return compactVerification(parsed.value, verifyMermaid(parsed.value, options))
 }
 
 /** Config warnings for the source and for the mermaidConfig the caller passed. */

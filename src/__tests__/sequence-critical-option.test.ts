@@ -201,12 +201,12 @@ describe('Sequence critical/option keyword boundary', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const body = asSequence(parsed.value)?.body
-    expect(body?.statements.map(statement => statement.kind)).toEqual(['opaque-block', 'message'])
-    const opaque = body?.statements[0]
-    expect(opaque?.kind).toBe('opaque-block')
-    if (opaque?.kind !== 'opaque-block') return
+    expect(body?.statements.map(statement => statement.kind)).toEqual(['fragment', 'message'])
+    const fragment = body?.statements[0]
+    expect(fragment?.kind).toBe('fragment')
+    if (fragment?.kind !== 'fragment') return
     const authoredBlockLines = CRITICAL.trimEnd().split('\n').slice(1, -1)
-    expect(opaque.lines).toEqual(authoredBlockLines)
+    expect(fragment.fragment.rawLines).toEqual(authoredBlockLines)
     const serialized = serializeMermaid(parsed.value)
     expect(serialized).toContain(authoredBlockLines.join('\n'))
     expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks[0]?.type).toBe('critical')

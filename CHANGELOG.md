@@ -4,7 +4,121 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Deprecated
+
+- **0.6.0 will make the compact agent views the defaults.** Nothing changes in
+  this release; every compact view below is opt-in today, and each current
+  default has a name you can pin now so the flip does not affect you:
+
+  | Surface | 0.6.0 default | Keep today's output with |
+  |---|---|---|
+  | MCP `render_svg`, `render_ascii`, `render_png` | `receipt: "summary"` | `receipt: "full"` |
+  | MCP `render_png` (local and hosted) | `output: "image"` | `output: "base64"` |
+  | `am verify` | `--summary` | `--full` |
+  | `am mutate --json` | `--summary` | `--full` |
+  | `am capabilities` | `--summary` (index) | `--full` |
+
+  The `--help` text of those commands and both MCP servers' `instructions`
+  carry the same notice.
+- **0.6.0 will make source-preserving edits the default for `am mutate` and
+  MCP `mutate`.** Today both still write the whole diagram canonically; pin that
+  output now with `am mutate --canonical` or `mode: "structured"`.
+  `am mutate --help` and the MCP `mutate` tool description carry the notice.
+
 ### Added
+
+- Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
+  `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
+  `mode: "source-preserving"` and `am mutate --preserve-source` now accept every
+  operation of every structured family (they previously refused structured
+  bodies). The edit is replayed on the authored lines: comments, blank lines,
+  indentation, quoting, `:::class` shorthand, directives and frontmatter that
+  the edit does not touch are kept byte for byte, and new statements are written
+  in portable Mermaid next to related ones. A result is returned only when it
+  reads back as the same diagram as the canonical edit; otherwise the canonical
+  source is returned and `preservation: { method: "canonical", reason }` says so
+  (`method: "local"` otherwise; `am mutate` also notes it on stderr). On the 56
+  held-out edit-arms tasks a typed operation can express, scripted typed edits
+  kept 99.7% of untouched lines (canonical: 18.6%) with no collateral damage
+  (canonical: 10 damaged). `am mutate --canonical` names the current default.
+  A statement written over several physical lines (a quoted label continued on
+  the next line) is edited and removed as one statement instead of falling back,
+  and a fallback reason names the statement or misreading that blocked a local
+  edit. A statement declared on several lines (a label given again, a class
+  named by `Class : member` lines, an entity block opened twice) is edited on
+  every line it is read from instead of falling back. A message or branch added
+  inside a sequence fragment takes the indentation of the fragment's authored
+  body or branch lines, also as the first line of an empty branch or loop, and
+  the fragment's untouched messages keep their authored spelling.
+
+- Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
+  request digest, acceptance, unselected capabilities, layout fallbacks, the
+  layout certification verdict and diagnostics grouped by code with counts
+  (an 8-node SVG receipt goes from 7.7 KB to 158 B). `render_png` takes
+  `output: "image"` on local and hosted servers and returns the PNG as an MCP
+  image content block beside a small JSON block, instead of base64 inside the
+  JSON text (51 KB, ~32k tokens, of text for an 8-node flowchart).
+  `am verify --summary` prints the MCP verify payload and
+  `am mutate --json --summary` embeds it (17.4 KB → 1.6 KB for 30 nodes).
+  `am capabilities --summary` prints an index (132 KB → 12 KB) and
+  `--family <id>[,<id>…]` one or more full family entries.
+- `describe_sdk` `capability: "render-options"` lists every render option's
+  applicable families and terminal treatment, and with `field` returns that
+  option's full annotated schema; `capability: "code-mode"` returns the
+  `execute` SDK declaration.
+- `agentic-mermaid-mcp --tool-profile slim` serves a 26 KB `tools/list`
+  (instead of 99 KB) under the server name `agentic-mermaid-mcp-slim`: render
+  arguments one level deep, and `execute` pointing at `describe_sdk`
+  `capability: "code-mode"`. Validation is unchanged. Local server only.
+- `/capabilities.json` is served minified (261 KB → 155 KB, same JSON).
+
+- Sequence notes are typed. Top-level `Note left of A: …`, `Note right of A:
+  …` and `Note over A,B: …` lines are typed statements instead of preserved
+  source: facts list them as `note#<i> …` with `note#<i> before message#<n>`,
+  `describe` reads them in order, verify checks their length, and canonical
+  writing spells them `Note …` with two-space indentation. New operations
+  `add_note` (`position`, `actorIds`, `text`, `wrap`, placed with
+  `afterMessage` or `beforeMessage`, else appended), `remove_note`,
+  `set_note_text` and `move_note` edit them in both canonical and
+  source-preserving modes. `remove_participant` refuses a participant a note
+  names until the note is removed. Notes inside a fragment branch are typed
+  too: `add_fragment_note`, `remove_fragment_note`, `set_fragment_note_text`
+  and `move_fragment_note` address them like fragment messages
+  (`fragmentIndex`, `branchIndex`, `index` among the branch's notes; anchors
+  are branch message indexes). Facts number notes in drawing order and state
+  each one's address (`note#N op index K` or `note#N op fragmentIndex F
+  branchIndex B index K`).
+
+- `create`/`destroy` lines inside `alt`, `opt`, `loop` and `par` fragments are
+  typed. Such a fragment used to become preserved source as a whole (verify
+  named it `(alt fragment, destroy)`); it now stays a typed fragment whose
+  branches list the directives in place (`branch.statements`), writes back
+  byte for byte, appears in facts (`destroy B fragment#0 branch#0 before
+  message#2`) and `describe`, and accepts fragment operations, which keep each
+  binding or are refused. Directives bind as at top level, across fragment
+  boundaries too. Verify warns `sequence_lifecycle_gap` where a fragment
+  boundary, note, activation or `autonumber` stands between a directive and
+  its message: Mermaid binds the directive to that line and draws no creation
+  or destruction.
+
+- `critical` (with `option` branches), `break` and `rect` fragments are typed
+  like `alt`/`opt`/`loop`/`par`: their messages and `create`/`destroy` lines
+  are in facts and `describe`, and the fragment operations edit them
+  (`add_fragment` takes the three kinds, `add_fragment_branch` adds an
+  `option` to a `critical`). A `rect`'s label is its fill color: `add_fragment`
+  and the label setters refuse one the renderer cannot read. A `rect` holding
+  another fragment, or whose argument is a `#` comment, stays preserved
+  source, as does any fragment nested in another.
+
+- Sequence facts state the address each message op takes. `message#N`
+  numbers every message in drawing order, fragment messages included, while
+  `add_message`, `set_message_text`, `move_message` and the note anchors take a
+  top-level message index and the fragment-message ops an index in the branch,
+  so an agent reading `message#N` after a fragment picked the wrong message.
+  Each message now also has `message#N op index K` (top-level) or
+  `message#N op fragmentIndex F branchIndex B index K`; the op schema notes
+  point at it, and `describe` tree edges of fragment messages carry `index`.
+  What each op's index means is unchanged.
 
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note
@@ -48,6 +162,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   are unchanged.
 
 ### Fixed
+
+- ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
+  `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
+  failed as `INTERNAL_ERROR`, a 50 × 50 fan only after ~94 s. Terminal work
+  ceilings now throw `TerminalWorkLimitError` (`TERMINAL_WORK_LIMIT`, reported
+  as `RENDER_FAILED` with origin `source`), and composing the owners of shared
+  route cells is counted, so these refuse within about 5 s. 26 × 26 and
+  28 × 28 fans, which drew in about 30 and 40 s, now refuse the same way.
 
 - `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
   affects. `padding` is consumed by Requirement, Block, Packet, Kanban and

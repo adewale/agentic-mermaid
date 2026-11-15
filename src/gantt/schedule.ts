@@ -22,7 +22,7 @@
 //   - iteration counts are bounded (GANTT_SCHEDULE_OVERFLOW), never infinite.
 // ============================================================================
 
-import { GANTT_DURATION_RE } from './parser.ts'
+import { GANTT_DURATION_RE, ganttDuration } from './parser.ts'
 import type { EpochMs, GanttCalendar, GanttCalendarToken, GanttClock, GanttModel, GanttModelTask, GanttSchedule, GanttScheduleAnalysis, GanttWeekday, ScheduledGanttTask } from './types.ts'
 import { GanttError } from './types.ts'
 
@@ -242,7 +242,7 @@ const DURATION_UNIT_MS: Record<string, number> = {
  * everything else is a fixed millisecond span.
  */
 export function addGanttDuration(start: EpochMs, raw: string): EpochMs | null {
-  const m = raw.match(GANTT_DURATION_RE)
+  const m = ganttDuration(raw)?.match(GANTT_DURATION_RE)
   if (!m) return null
   const count = Number(m[1])
   const unit = m[2]!

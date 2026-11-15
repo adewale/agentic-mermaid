@@ -12,7 +12,7 @@ that fits the task, then stop discovering tools:
 
 | Available environment | Channel | Version-matched reference |
 |---|---|---|
-| JS/TS with the package installed | `agentic-mermaid/agent/core` for portable editing; `/agent` also supplies native PNG | Installed declarations and `am capabilities --json` |
+| JS/TS with the package installed | `agentic-mermaid/agent/core` for portable editing; `/agent` also supplies native PNG | Installed declarations and `am capabilities --summary` |
 | Shell | `am …` or `npx agentic-mermaid …` | `am <command> --help` |
 | Connected local MCP | `agentic-mermaid-mcp` | `describe_sdk` and the connected tool list |
 | Network only, with permission to send the source | Hosted MCP at `https://agentic-mermaid.dev/mcp` | Connected tool list and `describe_sdk` |
@@ -36,8 +36,9 @@ transport and input limits; do not send private material merely to test access.
 
 ## Discover the family's actual schema
 
-Run `am capabilities --json` for installed families, headers, examples, edit
-policies, warning codes and operation fields. In MCP, use
+Run `am capabilities --summary` for installed families, headers, edit policies,
+operation names and warning codes, then `am capabilities --family <id>` for that
+family's operation fields and example. In MCP, use
 `describe_sdk({ family, detail: 'fields' })`; `detail: 'signatures'` is a compact
 menu. These describe the installed or connected version. Online
 `https://agentic-mermaid.dev/capabilities.json` describes production and may be
@@ -119,7 +120,20 @@ renderer defect. The [warning reference](https://agentic-mermaid.dev/warnings/)
 and [architecture reference](https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md)
 explain the generated warning catalog and its limits.
 
-## Source-preserved and opaque input
+## Keep the authored source when editing a file
+
+Ordinary `mutate` and `serializeMermaid` write the whole diagram canonically:
+comments, blank lines, indentation, quoting and `:::class` shorthand are
+rewritten. When the diagram came from a user's file, edit it in
+source-preserving mode instead: `mutatePreservingSource(diagram, op)`, library
+`applyOps({ source, ops, mode: 'source-preserving' })`, MCP `mutate` with
+`mode: 'source-preserving'`, or `am mutate --preserve-source`. Every authored
+line the ops do not touch is kept byte for byte, and new statements are written
+in portable Mermaid next to related ones. Save the returned `source` exactly
+after inspecting verification. Check `preservation`: `method: 'local'` means only
+the edited statements changed; `method: 'canonical'` means no local change could
+express the edit, so the whole diagram was re-serialized — say so (with its
+`reason`) instead of presenting it as a small edit.
 
 Unmodeled syntax can remain as opaque source or verbatim segments. A null
 narrower refuses structured mutation; it does not mean the source is empty.
@@ -127,13 +141,10 @@ If a task explicitly needs a source-level edit, make the smallest edit, say
 `source-level fallback`, then reparse and verify. Preserve comments and bytes
 outside the requested edit. Do not silently regenerate the diagram.
 
-For bounded opaque Class/Flowchart edits, use
-`mutatePreservingSource(diagram, op)`: Class `add_member`/`remove_member`, or
-Flowchart `set_label`/`rename_node`. Save `value.source` exactly after inspecting
-`verifyMermaid(value.diagram)`. The body remains opaque and its portability
-warning remains. Ambiguous ownership and unsupported dependencies refuse
-atomically. Library `applyOps` and MCP `mutate` select these batches with
-`mode: 'source-preserving'`; CLI uses `--preserve-source`. Read the
+On opaque bodies, source-preserving mode accepts only Class
+`add_member`/`remove_member` and Flowchart `set_label`/`rename_node`; the body
+remains opaque and its portability warning remains, and ambiguous ownership
+refuses atomically. Read the
 [mutation policy](https://agentic-mermaid.dev/docs/agent-mutation-policy/) for
 operation limits before choosing this path.
 
@@ -147,6 +158,9 @@ render and verify with the same options. PNG sizing and font availability can
 change readability: inspect the artifact rather than treating a successful
 render or a `BELOW_READABLE_SIZE` warning as a general quality verdict.
 Gantt has no implicit clock read: pass `ganttToday` to draw today's marker.
+To keep results small, MCP render tools take `receipt: "summary"`, `render_png`
+takes `output: "image"`, and the CLI takes `am verify --summary` and
+`am mutate --json --summary`.
 
 Flowchart labels containing punctuation should be quoted. In a quoted label,
 `\n` is a line break and canonical serialization uses `<br>`. A group is

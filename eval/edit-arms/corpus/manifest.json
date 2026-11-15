@@ -1,0 +1,1197 @@
+{
+  "schemaVersion": 1,
+  "heldOut": true,
+  "retrieved": "2026-11-13",
+  "modifications": "Extracted the Mermaid block body verbatim from its Markdown container (fence or Hugo shortcode); removed the container indentation for fenced blocks nested in lists and trailing whitespace at the end of the block. No other edits.",
+  "diagrams": [
+    {
+      "id": "otel-service-legend",
+      "family": "flowchart",
+      "file": "diagrams/otel-service-legend.mermaid",
+      "source": {
+        "repository": "https://github.com/open-telemetry/opentelemetry.io",
+        "path": "content/en/docs/demo/architecture.md",
+        "commit": "eaa8ceeca00060f750f9963a193951a2fcdbe9b0",
+        "line": 114,
+        "url": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/content/en/docs/demo/architecture.md#L114",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 28,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "k8s-contribution-methods",
+      "family": "flowchart",
+      "file": "diagrams/k8s-contribution-methods.mermaid",
+      "source": {
+        "repository": "https://github.com/kubernetes/website",
+        "path": "content/en/docs/contribute/style/diagram-guide.md",
+        "commit": "14783102c018b7a79d99462fb6cdbd5473f157d6",
+        "line": 150,
+        "url": "https://github.com/kubernetes/website/blob/14783102c018b7a79d99462fb6cdbd5473f157d6/content/en/docs/contribute/style/diagram-guide.md#L150",
+        "embedding": "hugo"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/kubernetes/website/blob/14783102c018b7a79d99462fb6cdbd5473f157d6/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 22,
+      "features": {
+        "comments": true,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    },
+    {
+      "id": "dotnet-auth-environments",
+      "family": "flowchart",
+      "file": "diagrams/dotnet-auth-environments.mermaid",
+      "source": {
+        "repository": "https://github.com/dotnet/docs",
+        "path": "docs/azure/sdk/media/mermaidjs/authentication-environments.md",
+        "commit": "1174942d1f23b5f7642941b071fc3c73c520b374",
+        "line": 6,
+        "url": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/docs/azure/sdk/media/mermaidjs/authentication-environments.md#L6",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 41,
+      "features": {
+        "comments": true,
+        "initDirective": true,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    },
+    {
+      "id": "dotnet-local-service-principal",
+      "family": "flowchart",
+      "file": "diagrams/dotnet-local-service-principal.mermaid",
+      "source": {
+        "repository": "https://github.com/dotnet/docs",
+        "path": "docs/azure/sdk/media/mermaidjs/local-service-principal-authentication.md",
+        "commit": "1174942d1f23b5f7642941b071fc3c73c520b374",
+        "line": 6,
+        "url": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/docs/azure/sdk/media/mermaidjs/local-service-principal-authentication.md#L6",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 21,
+      "features": {
+        "comments": true,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    },
+    {
+      "id": "sk-process-dapr",
+      "family": "flowchart",
+      "file": "diagrams/sk-process-dapr.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/semantic-kernel",
+        "path": "dotnet/samples/Demos/ProcessWithDapr/README.md",
+        "commit": "b714e97e347617fb884be9bc961ea0dcc829b303",
+        "line": 22,
+        "url": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/dotnet/samples/Demos/ProcessWithDapr/README.md#L22",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 13,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "hugegraph-architecture",
+      "family": "flowchart",
+      "file": "diagrams/hugegraph-architecture.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/hugegraph",
+        "path": "README.md",
+        "commit": "0abd9312562cd42e33ddf986421578db5cc852ba",
+        "line": 128,
+        "url": "https://github.com/apache/hugegraph/blob/0abd9312562cd42e33ddf986421578db5cc852ba/README.md#L128",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/hugegraph/blob/0abd9312562cd42e33ddf986421578db5cc852ba/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 31,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "seatunnel-engine-choice",
+      "family": "flowchart",
+      "file": "diagrams/seatunnel-engine-choice.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/seatunnel",
+        "path": "docs/en/engines/overview.md",
+        "commit": "71e5df0ab7479d410c1e19517f3ea6429182b100",
+        "line": 134,
+        "url": "https://github.com/apache/seatunnel/blob/71e5df0ab7479d410c1e19517f3ea6429182b100/docs/en/engines/overview.md#L134",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/seatunnel/blob/71e5df0ab7479d410c1e19517f3ea6429182b100/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 23,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "superset-mcp-deployment",
+      "family": "flowchart",
+      "file": "diagrams/superset-mcp-deployment.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/superset",
+        "path": "superset/mcp_service/README.md",
+        "commit": "a0f120285ad416a8bbb7d9367c354986ffea40f7",
+        "line": 246,
+        "url": "https://github.com/apache/superset/blob/a0f120285ad416a8bbb7d9367c354986ffea40f7/superset/mcp_service/README.md#L246",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/superset/blob/a0f120285ad416a8bbb7d9367c354986ffea40f7/LICENSE.txt"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 41,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "cloudberry-segments",
+      "family": "flowchart",
+      "file": "diagrams/cloudberry-segments.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/cloudberry",
+        "path": "doc/core-internals/index.md",
+        "commit": "54cf3f4ec50752a0ea47a12701c9ca246fd7b35c",
+        "line": 95,
+        "url": "https://github.com/apache/cloudberry/blob/54cf3f4ec50752a0ea47a12701c9ca246fd7b35c/doc/core-internals/index.md#L95",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/cloudberry/blob/54cf3f4ec50752a0ea47a12701c9ca246fd7b35c/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 15,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "dapr-mcp-access-control",
+      "family": "flowchart",
+      "file": "diagrams/dapr-mcp-access-control.mermaid",
+      "source": {
+        "repository": "https://github.com/dapr/docs",
+        "path": "daprdocs/content/en/developing-ai/mcp/mcp-access-control.md",
+        "commit": "9255d6800899d0e228b0db76e0921781dfa06245",
+        "line": 116,
+        "url": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/daprdocs/content/en/developing-ai/mcp/mcp-access-control.md#L116",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 15,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "ray-data-repartition-diff",
+      "family": "flowchart",
+      "file": "diagrams/ray-data-repartition-diff.mermaid",
+      "source": {
+        "repository": "https://github.com/ray-project/ray",
+        "path": "python/ray/data/AGENTS.md",
+        "commit": "b95b872ac539554d2f3abe28d0a26077ce69c418",
+        "line": 55,
+        "url": "https://github.com/ray-project/ray/blob/b95b872ac539554d2f3abe28d0a26077ce69c418/python/ray/data/AGENTS.md#L55",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/ray-project/ray/blob/b95b872ac539554d2f3abe28d0a26077ce69c418/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 19,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "agent-os-layers",
+      "family": "flowchart",
+      "file": "diagrams/agent-os-layers.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/agent-governance-toolkit",
+        "path": "agent-governance-python/agent-os/ARCHITECTURE.md",
+        "commit": "fa310ff19ba6c6d017520fbf132e85059b181931",
+        "line": 44,
+        "url": "https://github.com/microsoft/agent-governance-toolkit/blob/fa310ff19ba6c6d017520fbf132e85059b181931/agent-governance-python/agent-os/ARCHITECTURE.md#L44",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/agent-governance-toolkit/blob/fa310ff19ba6c6d017520fbf132e85059b181931/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 38,
+      "features": {
+        "comments": true,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": true,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "directx-mlir-flow",
+      "family": "flowchart",
+      "file": "diagrams/directx-mlir-flow.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/DirectX-Specs",
+        "path": "d3d/MlirPrograms.md",
+        "commit": "5122ac08b27588a5bbbe0a7390474bcab44aaf2e",
+        "line": 134,
+        "url": "https://github.com/microsoft/DirectX-Specs/blob/5122ac08b27588a5bbbe0a7390474bcab44aaf2e/d3d/MlirPrograms.md#L134",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/microsoft/DirectX-Specs/blob/5122ac08b27588a5bbbe0a7390474bcab44aaf2e/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 18,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "edgequake-data-flow",
+      "family": "flowchart",
+      "file": "diagrams/edgequake-data-flow.mermaid",
+      "source": {
+        "repository": "https://github.com/raphaelmansuy/edgequake",
+        "path": "docs/architecture/data-flow.md",
+        "commit": "7057883b25017eadb71f43ceea5f32ae2b599f52",
+        "line": 18,
+        "url": "https://github.com/raphaelmansuy/edgequake/blob/7057883b25017eadb71f43ceea5f32ae2b599f52/docs/architecture/data-flow.md#L18",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/raphaelmansuy/edgequake/blob/7057883b25017eadb71f43ceea5f32ae2b599f52/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 13,
+      "features": {
+        "comments": true,
+        "initDirective": true,
+        "frontmatter": false,
+        "classDef": true,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    },
+    {
+      "id": "iceberg-wap-branches",
+      "family": "flowchart",
+      "file": "diagrams/iceberg-wap-branches.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/iceberg-python",
+        "path": "mkdocs/docs/api.md",
+        "commit": "e9f7f6b43dcefa9ccbd02be47d71e630921e54dd",
+        "line": 1521,
+        "url": "https://github.com/apache/iceberg-python/blob/e9f7f6b43dcefa9ccbd02be47d71e630921e54dd/mkdocs/docs/api.md#L1521",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/iceberg-python/blob/e9f7f6b43dcefa9ccbd02be47d71e630921e54dd/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 20,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": true,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "otel-pr-review-labels",
+      "family": "sequence",
+      "file": "diagrams/otel-pr-review-labels.mermaid",
+      "source": {
+        "repository": "https://github.com/open-telemetry/opentelemetry.io",
+        "path": "content/en/site/build/ci-workflows.md",
+        "commit": "eaa8ceeca00060f750f9963a193951a2fcdbe9b0",
+        "line": 109,
+        "url": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/content/en/site/build/ci-workflows.md#L109",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 20,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "cilium-bgp-reconcile",
+      "family": "sequence",
+      "file": "diagrams/cilium-bgp-reconcile.mermaid",
+      "source": {
+        "repository": "https://github.com/cilium/cilium",
+        "path": "pkg/bgp/README.md",
+        "commit": "ec728c985fed33297ee45efbf4cc8f17c8647dfb",
+        "line": 41,
+        "url": "https://github.com/cilium/cilium/blob/ec728c985fed33297ee45efbf4cc8f17c8647dfb/pkg/bgp/README.md#L41",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/cilium/cilium/blob/ec728c985fed33297ee45efbf4cc8f17c8647dfb/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 15,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": true
+      }
+    },
+    {
+      "id": "dotnet-credential-chain",
+      "family": "sequence",
+      "file": "diagrams/dotnet-credential-chain.mermaid",
+      "source": {
+        "repository": "https://github.com/dotnet/docs",
+        "path": "docs/azure/sdk/media/mermaidjs/chain-sequence.md",
+        "commit": "1174942d1f23b5f7642941b071fc3c73c520b374",
+        "line": 6,
+        "url": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/docs/azure/sdk/media/mermaidjs/chain-sequence.md#L6",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/dotnet/docs/blob/1174942d1f23b5f7642941b071fc3c73c520b374/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 28,
+      "features": {
+        "comments": true,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "sk-mcp-oauth",
+      "family": "sequence",
+      "file": "diagrams/sk-mcp-oauth.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/semantic-kernel",
+        "path": "dotnet/samples/Demos/ModelContextProtocolPluginAuth/README.md",
+        "commit": "b714e97e347617fb884be9bc961ea0dcc829b303",
+        "line": 97,
+        "url": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/dotnet/samples/Demos/ModelContextProtocolPluginAuth/README.md#L97",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 19,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "knox-sso-logout",
+      "family": "sequence",
+      "file": "diagrams/knox-sso-logout.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/knox",
+        "path": "knox-site/docs/knox_sso_logout.md",
+        "commit": "1fdaf2c0d3d520fe7b6e19c24fbab4ee18343085",
+        "line": 102,
+        "url": "https://github.com/apache/knox/blob/1fdaf2c0d3d520fe7b6e19c24fbab4ee18343085/knox-site/docs/knox_sso_logout.md#L102",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/knox/blob/1fdaf2c0d3d520fe7b6e19c24fbab4ee18343085/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 22,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "superset-token-refresh",
+      "family": "sequence",
+      "file": "diagrams/superset-token-refresh.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/superset",
+        "path": "superset/mcp_service/SECURITY.md",
+        "commit": "a0f120285ad416a8bbb7d9367c354986ffea40f7",
+        "line": 150,
+        "url": "https://github.com/apache/superset/blob/a0f120285ad416a8bbb7d9367c354986ffea40f7/superset/mcp_service/SECURITY.md#L150",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/superset/blob/a0f120285ad416a8bbb7d9367c354986ffea40f7/LICENSE.txt"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 22,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "dapr-workflow-fast-path",
+      "family": "sequence",
+      "file": "diagrams/dapr-workflow-fast-path.mermaid",
+      "source": {
+        "repository": "https://github.com/dapr/docs",
+        "path": "daprdocs/content/en/developing-applications/building-blocks/workflow/workflow-fast-path.md",
+        "commit": "9255d6800899d0e228b0db76e0921781dfa06245",
+        "line": 85,
+        "url": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/daprdocs/content/en/developing-applications/building-blocks/workflow/workflow-fast-path.md#L85",
+        "embedding": "hugo"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 22,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "temporal-nexus-dispatch",
+      "family": "sequence",
+      "file": "diagrams/temporal-nexus-dispatch.mermaid",
+      "source": {
+        "repository": "https://github.com/temporalio/temporal",
+        "path": "docs/architecture/nexus.md",
+        "commit": "74c71f963b99f366f2adf8c503ecd785b0d8b4dc",
+        "line": 390,
+        "url": "https://github.com/temporalio/temporal/blob/74c71f963b99f366f2adf8c503ecd785b0d8b4dc/docs/architecture/nexus.md#L390",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/temporalio/temporal/blob/74c71f963b99f366f2adf8c503ecd785b0d8b4dc/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 22,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "surefire-fork-lifecycle",
+      "family": "sequence",
+      "file": "diagrams/surefire-fork-lifecycle.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/maven-surefire",
+        "path": "maven-surefire-plugin/src/site/markdown/architecture.md",
+        "commit": "07ca88b6728bc77075946a666f330f0b291c2082",
+        "line": 114,
+        "url": "https://github.com/apache/maven-surefire/blob/07ca88b6728bc77075946a666f330f0b291c2082/maven-surefire-plugin/src/site/markdown/architecture.md#L114",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/maven-surefire/blob/07ca88b6728bc77075946a666f330f0b291c2082/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 34,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    },
+    {
+      "id": "pulsar-txn-send",
+      "family": "sequence",
+      "file": "diagrams/pulsar-txn-send.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/pulsar",
+        "path": "pip/pip-473.md",
+        "commit": "6536f615ccf776e3fc7b9647a5010bddce757535",
+        "line": 258,
+        "url": "https://github.com/apache/pulsar/blob/6536f615ccf776e3fc7b9647a5010bddce757535/pip/pip-473.md#L258",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/pulsar/blob/6536f615ccf776e3fc7b9647a5010bddce757535/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 17,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "temporal-scheduler-components",
+      "family": "class",
+      "file": "diagrams/temporal-scheduler-components.mermaid",
+      "source": {
+        "repository": "https://github.com/temporalio/temporal",
+        "path": "docs/architecture/schedules.md",
+        "commit": "74c71f963b99f366f2adf8c503ecd785b0d8b4dc",
+        "line": 16,
+        "url": "https://github.com/temporalio/temporal/blob/74c71f963b99f366f2adf8c503ecd785b0d8b4dc/docs/architecture/schedules.md#L16",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/temporalio/temporal/blob/74c71f963b99f366f2adf8c503ecd785b0d8b4dc/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 31,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "ray-file-indexers",
+      "family": "class",
+      "file": "diagrams/ray-file-indexers.mermaid",
+      "source": {
+        "repository": "https://github.com/ray-project/ray",
+        "path": "python/ray/data/_internal/datasource_v2/README.md",
+        "commit": "b95b872ac539554d2f3abe28d0a26077ce69c418",
+        "line": 96,
+        "url": "https://github.com/ray-project/ray/blob/b95b872ac539554d2f3abe28d0a26077ce69c418/python/ray/data/_internal/datasource_v2/README.md#L96",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/ray-project/ray/blob/b95b872ac539554d2f3abe28d0a26077ce69c418/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 31,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "vscode-jupyter-controllers",
+      "family": "class",
+      "file": "diagrams/vscode-jupyter-controllers.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/vscode-jupyter",
+        "path": ".github/instructions/notebooks.instructions.md",
+        "commit": "0a68e24f4305c3248a47f7c7abb87c13f1e5c3c7",
+        "line": 24,
+        "url": "https://github.com/microsoft/vscode-jupyter/blob/0a68e24f4305c3248a47f7c7abb87c13f1e5c3c7/.github/instructions/notebooks.instructions.md#L24",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/vscode-jupyter/blob/0a68e24f4305c3248a47f7c7abb87c13f1e5c3c7/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 19,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "scarb-sources",
+      "family": "class",
+      "file": "diagrams/scarb-sources.mermaid",
+      "source": {
+        "repository": "https://github.com/software-mansion/scarb",
+        "path": "guidelines/ARCHITECTURE.md",
+        "commit": "fbfd25e48e1e748f11ac778ac02e7b4d3a0852e6",
+        "line": 162,
+        "url": "https://github.com/software-mansion/scarb/blob/fbfd25e48e1e748f11ac778ac02e7b4d3a0852e6/guidelines/ARCHITECTURE.md#L162",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/software-mansion/scarb/blob/fbfd25e48e1e748f11ac778ac02e7b4d3a0852e6/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 18,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "sk-vector-store-abstractions",
+      "family": "class",
+      "file": "diagrams/sk-vector-store-abstractions.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/semantic-kernel",
+        "path": "docs/decisions/0050-updated-vector-store-design.md",
+        "commit": "b714e97e347617fb884be9bc961ea0dcc829b303",
+        "line": 91,
+        "url": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/docs/decisions/0050-updated-vector-store-design.md#L91",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 61,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": true,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "otel-stability-levels",
+      "family": "state",
+      "file": "diagrams/otel-stability-levels.mermaid",
+      "source": {
+        "repository": "https://github.com/open-telemetry/opentelemetry.io",
+        "path": "content/en/docs/collector/internal-telemetry.md",
+        "commit": "eaa8ceeca00060f750f9963a193951a2fcdbe9b0",
+        "line": 598,
+        "url": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/content/en/docs/collector/internal-telemetry.md#L598",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/open-telemetry/opentelemetry.io/blob/eaa8ceeca00060f750f9963a193951a2fcdbe9b0/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 11,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "spark-app-lifecycle",
+      "family": "state",
+      "file": "diagrams/spark-app-lifecycle.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/spark-kubernetes-operator",
+        "path": "docs/architecture.md",
+        "commit": "2368a6af81d36ef71ce383f887f31853c0be3889",
+        "line": 318,
+        "url": "https://github.com/apache/spark-kubernetes-operator/blob/2368a6af81d36ef71ce383f887f31853c0be3889/docs/architecture.md#L318",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/spark-kubernetes-operator/blob/2368a6af81d36ef71ce383f887f31853c0be3889/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 16,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "fluid-remote-message-processor",
+      "family": "state",
+      "file": "diagrams/fluid-remote-message-processor.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/FluidFramework",
+        "path": "packages/runtime/container-runtime/src/opLifecycle/README.md",
+        "commit": "8c51cdeac2dc2c238a8e97fd61e0a1206a7eb336",
+        "line": 337,
+        "url": "https://github.com/microsoft/FluidFramework/blob/8c51cdeac2dc2c238a8e97fd61e0a1206a7eb336/packages/runtime/container-runtime/src/opLifecycle/README.md#L337",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/FluidFramework/blob/8c51cdeac2dc2c238a8e97fd61e0a1206a7eb336/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 29,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": true,
+        "longLines": false,
+        "tabs": true
+      }
+    },
+    {
+      "id": "directline-connection-status",
+      "family": "state",
+      "file": "diagrams/directline-connection-status.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/BotFramework-DirectLineJS",
+        "path": "docs/API.md",
+        "commit": "5739bd10396530b0b093ffbf22d97068900cbc91",
+        "line": 9,
+        "url": "https://github.com/microsoft/BotFramework-DirectLineJS/blob/5739bd10396530b0b093ffbf22d97068900cbc91/docs/API.md#L9",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/BotFramework-DirectLineJS/blob/5739bd10396530b0b093ffbf22d97068900cbc91/LICENSE.md"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 14,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "retrospectives-frontend-erd",
+      "family": "er",
+      "file": "diagrams/retrospectives-frontend-erd.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/vsts-extension-retrospectives",
+        "path": "documentation/frontend_ERD.md",
+        "commit": "2ba8086754fe2438ac5db848efcefb7c3fd113ea",
+        "line": 10,
+        "url": "https://github.com/microsoft/vsts-extension-retrospectives/blob/2ba8086754fe2438ac5db848efcefb7c3fd113ea/documentation/frontend_ERD.md#L10",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/vsts-extension-retrospectives/blob/2ba8086754fe2438ac5db848efcefb7c3fd113ea/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 36,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "directx-state-object-db",
+      "family": "er",
+      "file": "diagrams/directx-state-object-db.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/DirectX-Specs",
+        "path": "d3d/MlirPrograms.md",
+        "commit": "5122ac08b27588a5bbbe0a7390474bcab44aaf2e",
+        "line": 722,
+        "url": "https://github.com/microsoft/DirectX-Specs/blob/5122ac08b27588a5bbbe0a7390474bcab44aaf2e/d3d/MlirPrograms.md#L722",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "file": "https://github.com/microsoft/DirectX-Specs/blob/5122ac08b27588a5bbbe0a7390474bcab44aaf2e/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 26,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "bcpt-test-suites",
+      "family": "er",
+      "file": "diagrams/bcpt-test-suites.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/BCTech",
+        "path": "samples/BCPT/README.md",
+        "commit": "ccb6c3d36f72b784fb9757316f6f296f0a58ea71",
+        "line": 89,
+        "url": "https://github.com/microsoft/BCTech/blob/ccb6c3d36f72b784fb9757316f6f296f0a58ea71/samples/BCPT/README.md#L89",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/BCTech/blob/ccb6c3d36f72b784fb9757316f6f296f0a58ea71/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 19,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "airflow-dagrun-metrics",
+      "family": "gantt",
+      "file": "diagrams/airflow-dagrun-metrics.mermaid",
+      "source": {
+        "repository": "https://github.com/apache/airflow",
+        "path": "airflow-core/src/airflow/METRICS.md",
+        "commit": "4b78d37e164486338dc1a7d428676c500ea07676",
+        "line": 24,
+        "url": "https://github.com/apache/airflow/blob/4b78d37e164486338dc1a7d428676c500ea07676/airflow-core/src/airflow/METRICS.md#L24",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/apache/airflow/blob/4b78d37e164486338dc1a7d428676c500ea07676/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 33,
+      "features": {
+        "comments": true,
+        "initDirective": false,
+        "frontmatter": true,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "dapr-signature-certs",
+      "family": "gantt",
+      "file": "diagrams/dapr-signature-certs.mermaid",
+      "source": {
+        "repository": "https://github.com/dapr/docs",
+        "path": "daprdocs/content/en/developing-applications/building-blocks/workflow/workflow-history-signing.md",
+        "commit": "9255d6800899d0e228b0db76e0921781dfa06245",
+        "line": 228,
+        "url": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/daprdocs/content/en/developing-applications/building-blocks/workflow/workflow-history-signing.md#L228",
+        "embedding": "hugo"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "file": "https://github.com/dapr/docs/blob/9255d6800899d0e228b0db76e0921781dfa06245/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 15,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "ergo-canary-traffic",
+      "family": "pie",
+      "file": "diagrams/ergo-canary-traffic.mermaid",
+      "source": {
+        "repository": "https://github.com/ergo-services/ergo",
+        "path": "docs/advanced/building-a-cluster.md",
+        "commit": "2e121073d187e9dcefd5d28d3f151912f0c123d9",
+        "line": 227,
+        "url": "https://github.com/ergo-services/ergo/blob/2e121073d187e9dcefd5d28d3f151912f0c123d9/docs/advanced/building-a-cluster.md#L227",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/ergo-services/ergo/blob/2e121073d187e9dcefd5d28d3f151912f0c123d9/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 3,
+      "features": {
+        "comments": false,
+        "initDirective": false,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": false,
+        "tabs": false
+      }
+    },
+    {
+      "id": "sk-azureopenai-versions",
+      "family": "gitGraph",
+      "file": "diagrams/sk-azureopenai-versions.mermaid",
+      "source": {
+        "repository": "https://github.com/microsoft/semantic-kernel",
+        "path": "docs/decisions/0055-dotnet-azureopenai-stable-version-strategy.md",
+        "commit": "b714e97e347617fb884be9bc961ea0dcc829b303",
+        "line": 48,
+        "url": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/docs/decisions/0055-dotnet-azureopenai-stable-version-strategy.md#L48",
+        "embedding": "fence"
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "https://github.com/microsoft/semantic-kernel/blob/b714e97e347617fb884be9bc961ea0dcc829b303/LICENSE"
+      },
+      "retrieved": "2026-11-13",
+      "lines": 24,
+      "features": {
+        "comments": false,
+        "initDirective": true,
+        "frontmatter": false,
+        "classDef": false,
+        "styleOrLinkStyle": false,
+        "subgraphOrComposite": false,
+        "longLines": true,
+        "tabs": false
+      }
+    }
+  ]
+}
