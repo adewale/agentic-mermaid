@@ -73,7 +73,10 @@ export interface DescribeTree {
     /** How the drawn arrowheads read between `from` and `to`; absent means
      * forward (`from` points at `to`). */
     direction?: Exclude<ArrowheadDirection, 'forward'>
-    sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    /** A fragment message's branch, and `index`, its position in that branch
+     * as the fragment-message ops take it. Top-level messages have none;
+     * their edges are listed in top-level message index order. */
+    sequence?: { fragmentIndex: number; branchIndex: number; index: number; fragmentKind: string; branchLabel?: string }
     zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
     c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
       authoredFrom: string
@@ -227,6 +230,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
               sequence: {
                 fragmentIndex: context.fragmentIndex,
                 branchIndex: context.branchIndex,
+                index: context.index,
                 fragmentKind: context.fragmentKind,
                 ...(branchLabel ? { branchLabel } : {}),
               },

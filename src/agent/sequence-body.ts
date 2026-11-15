@@ -301,11 +301,15 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
   }
 }
 
+/** A message with its place in the timeline and the `index` the message ops
+ * take for it: its top-level message index, or its index in its fragment
+ * branch (with `fragmentIndex` and `branchIndex`). */
 export type SequenceMessageContext =
-  | { scope: 'top-level'; message: SequenceMessage }
+  | { scope: 'top-level'; message: SequenceMessage; index: number }
   | {
     scope: 'fragment'
     message: SequenceMessage
+    index: number
     fragmentIndex: number
     branchIndex: number
     fragmentKind: SequenceFragment['fragmentKind']
@@ -320,15 +324,15 @@ export function sequenceMessageContexts(body: SequenceBody): SequenceMessageCont
   for (const statement of body.statements) {
     if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
-      if (message) out.push({ scope: 'top-level', message })
+      if (message) out.push({ scope: 'top-level', message, index: statement.ref })
     } else if (statement.kind === 'fragment') {
       statement.fragment.branches.forEach((branch, branchIndex) => {
-        for (const message of branch.messages) out.push({
-          scope: 'fragment', message, fragmentIndex, branchIndex,
+        branch.messages.forEach((message, index) => out.push({
+          scope: 'fragment', message, index, fragmentIndex, branchIndex,
           fragmentKind: statement.fragment.fragmentKind,
           ...(statement.fragment.label ? { fragmentLabel: statement.fragment.label } : {}),
           ...(branch.label ? { branchLabel: branch.label } : {}),
-        })
+        }))
       })
       fragmentIndex++
     }

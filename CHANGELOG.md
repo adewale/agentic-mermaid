@@ -95,6 +95,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   its message: Mermaid binds the directive to that line and draws no creation
   or destruction. `critical`, `break` and `rect` stay preserved source.
 
+- Sequence facts state the address each message op takes. `message#N`
+  numbers every message in drawing order, fragment messages included, while
+  `add_message`, `set_message_text`, `move_message` and the note anchors take a
+  top-level message index and the fragment-message ops an index in the branch,
+  so an agent reading `message#N` after a fragment picked the wrong message.
+  Each message now also has `message#N op index K` (top-level) or
+  `message#N op fragmentIndex F branchIndex B index K`; the op schema notes
+  point at it, and `describe` tree edges of fragment messages carry `index`.
+  What each op's index means is unchanged.
+
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note
   edits can append the next region while preserving scoped notes and comments.

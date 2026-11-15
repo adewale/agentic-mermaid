@@ -351,6 +351,46 @@ describe('sequence notes are typed statements that ops add, remove, edit and mov
 })
 
 // ============================================================================
+// Facts state the index each message op takes
+// ============================================================================
+
+describe('facts give each sequence message the address its ops take', () => {
+  // message# counts fragment messages too, so it differs from the top-level
+  // index after the first fragment and from the branch index inside one.
+  const NESTED = 'sequenceDiagram\n  A->>B: one\n  alt ok\n    B->>A: two\n  else no\n    B->>A: three\n    B->>A: four\n  end\n  A->>B: five\n  loop again\n    A->>B: six\n  end\n  A->>B: seven\n'
+
+  /** The op address facts state for the message whose text is `text`. */
+  function address(d: SequenceValidDiagram, text: string): Record<string, number> {
+    const facts = describeMermaidFacts(d)
+    const subject = facts.find(fact => /^message#\d+ /.test(fact) && fact.endsWith(` : ${text}`))!.split(' ')[0]!
+    const fields = facts.find(fact => fact.startsWith(`${subject} op `))!.slice(`${subject} op `.length).split(' ')
+    return Object.fromEntries(fields.flatMap((field, i) => i % 2 === 0 ? [[field, Number(fields[i + 1])]] : []))
+  }
+
+  test.each(['one', 'two', 'three', 'four', 'five', 'six', 'seven'])('the address facts give "%s" edits that message and no other', text => {
+    const d = sequence(NESTED)
+    const at = address(d, text)
+    const op = 'fragmentIndex' in at
+      ? { kind: 'set_fragment_message_text', fragmentIndex: at.fragmentIndex!, branchIndex: at.branchIndex!, index: at.index!, text: 'edited' } as const
+      : { kind: 'set_message_text', index: at.index!, text: 'edited' } as const
+    const texts = (diagram: SequenceValidDiagram) => describeMermaidFacts(diagram).filter(fact => /^message#\d+ (?:top-level|fragment#)/.test(fact)).map(fact => fact.slice(fact.lastIndexOf(' : ') + 3))
+    const before = texts(d)
+    expect(texts(apply(d, op))).toEqual(before.map(t => t === text ? 'edited' : t))
+  })
+
+  test('a note and a message placed by the facts address land next to the message the agent read', () => {
+    let d = sequence(NESTED)
+    d = apply(d, { kind: 'add_note', position: 'over', actorIds: ['B'], text: 'after five', afterMessage: address(d, 'five').index! })
+    d = apply(d, { kind: 'add_message', from: 'B', to: 'A', text: 'before seven', index: address(d, 'seven').index! })
+    d = apply(d, { kind: 'add_fragment_message', fragmentIndex: address(d, 'four').fragmentIndex!, branchIndex: address(d, 'four').branchIndex!, index: address(d, 'four').index!, from: 'A', to: 'B', text: 'before four' })
+    const written = serializeMermaid(d)
+    expect(written).toContain('  A->>B: five\n  Note over B: after five\n  loop again\n')
+    expect(written).toContain('  B->>A: before seven\n  A->>B: seven\n')
+    expect(written).toContain('  A->>B: before four\n  B->>A: four\n')
+  })
+})
+
+// ============================================================================
 // add_message index
 // ============================================================================
 

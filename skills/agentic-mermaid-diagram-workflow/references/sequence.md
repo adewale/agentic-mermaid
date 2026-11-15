@@ -21,7 +21,14 @@ MutationOps include participant/top-level message edits plus `add_fragment`,
 text edits, and top-level note edits: `add_note` (`position` left/right/over,
 `actorIds`, `text`, placed with `afterMessage` or `beforeMessage`, a top-level
 message index, else appended), `remove_note`, `set_note_text` and `move_note`
-(notes are addressed by top-level note index, `note#i` in facts).
+(notes are addressed by top-level note index, `note#N op index K` in facts).
+
+Indexes: facts number messages in drawing order, fragment messages included
+(`message#N`), so N is not what the ops take. Each message's address is its
+own fact: `message#N op index K` for a top-level message (pass K as `index`,
+`afterMessage`, `beforeMessage`, `from`/`to` of `move_message`) and
+`message#N op fragmentIndex F branchIndex B index K` for a fragment message
+(pass all three to the fragment-message ops).
 
 IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, and `par` are
 typed fragments. Their messages appear in describe/facts/verify and fragment

@@ -380,6 +380,10 @@ function factsSequence(out: string[], body: SequenceBody): void {
     const text = shown(m.text, m.textContent)
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    // message# counts every message in drawing order; the ops address a
+    // top-level message by its top-level index and a fragment message by its
+    // index in its branch. State the fields to pass.
+    add(out, `message#${i} op ${context.scope === 'top-level' ? '' : `fragmentIndex ${context.fragmentIndex} branchIndex ${context.branchIndex} `}index ${context.index}`)
     addSequenceArrow(out, `message#${i}`, m)
     if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
@@ -444,6 +448,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
       const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
       add(out, `note ${note}`)
       add(out, `note#${noteIndex} ${note}`)
+      add(out, `note#${noteIndex} op index ${noteIndex}`)
       if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
       if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
       noteIndex++

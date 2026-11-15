@@ -76,8 +76,12 @@ const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const SEQUENCE_NOTE_POSITIONS = ['left', 'right', 'over'] as const
-const SEQUENCE_NOTE_AFTER = 'top-level message index; the note goes right after it (and its notes); omit both anchors to append'
-const SEQUENCE_NOTE_BEFORE = 'top-level message index; the note goes right before it (and its create/destroy lines)'
+// Facts number every message in drawing order (`message#N`); these ops take
+// the index facts state as `message#N op [fragmentIndex F branchIndex B] index K`.
+const SEQUENCE_TOP_INDEX = 'top-level message index: the K of facts `message#N op index K`, not N'
+const SEQUENCE_BRANCH_INDEX = 'index in the branch: the K of facts `message#N op fragmentIndex F branchIndex B index K`'
+const SEQUENCE_NOTE_AFTER = `${SEQUENCE_TOP_INDEX}; the note goes right after it (and its notes); omit both anchors to append`
+const SEQUENCE_NOTE_BEFORE = `${SEQUENCE_TOP_INDEX}; the note goes right before it (and its create/destroy lines)`
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many', 'parent']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -163,25 +167,25 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant: { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message: { fields: { from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
-  remove_message: { fields: { index: num() } },
-  set_message_text: { fields: { index: num(), text: str() } },
-  set_message_wrap: { fields: { index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
-  move_message: { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
+  add_message: { fields: { from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), `insert position as a ${SEQUENCE_TOP_INDEX}; default: append`) } },
+  remove_message: { fields: { index: withNote(num(), SEQUENCE_TOP_INDEX) } },
+  set_message_text: { fields: { index: withNote(num(), SEQUENCE_TOP_INDEX), text: str() } },
+  set_message_wrap: { fields: { index: withNote(num(), SEQUENCE_TOP_INDEX), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
+  move_message: { fields: { from: withNote(num(), SEQUENCE_TOP_INDEX), to: withNote(num(), `target position as a ${SEQUENCE_TOP_INDEX}`) } },
   set_participant_label: { fields: { id: str(), label: str() } },
   add_fragment: { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: str(false), index: withNote(num(false), 'fragment insert position; default: append') } },
   remove_fragment: { fields: { index: num() } },
   set_fragment_label: { fields: { index: num(), label: strOrNull() } },
   add_fragment_branch: { fields: { fragmentIndex: num(), label: str(false) } },
   set_fragment_branch_label: { fields: { fragmentIndex: num(), branchIndex: num(), label: strOrNull() } },
-  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
-  remove_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num() } },
-  set_fragment_message_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), text: str() } },
-  set_fragment_message_wrap: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
+  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), `insert position as an ${SEQUENCE_BRANCH_INDEX}; default: append`) } },
+  remove_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_INDEX) } },
+  set_fragment_message_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_INDEX), text: str() } },
+  set_fragment_message_wrap: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: withNote(num(), SEQUENCE_BRANCH_INDEX), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
   add_note: { fields: { position: oneOf(SEQUENCE_NOTE_POSITIONS), actorIds: withNote(strArr(), 'existing participant ids: one, or two for over'), text: str(), wrap: bool(false), afterMessage: withNote(num(false), SEQUENCE_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_NOTE_BEFORE) } },
-  remove_note: { fields: { index: withNote(num(), 'top-level note index') } },
-  set_note_text: { fields: { index: withNote(num(), 'top-level note index'), text: str() } },
-  move_note: { fields: { index: withNote(num(), 'top-level note index'), afterMessage: withNote(num(false), SEQUENCE_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_NOTE_BEFORE) } },
+  remove_note: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`') } },
+  set_note_text: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`'), text: str() } },
+  move_note: { fields: { index: withNote(num(), 'top-level note index: the K of facts `note#N op index K`'), afterMessage: withNote(num(false), SEQUENCE_NOTE_AFTER), beforeMessage: withNote(num(false), SEQUENCE_NOTE_BEFORE) } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {
