@@ -42,6 +42,8 @@ function parseInteger(value: string): number | undefined { if (!/^[+-]?\d+$/.tes
 function parseEnum<T extends string>(value: string, choices: readonly T[]): T | undefined { if (choices.includes(value as T)) return value as T; const index = parseInteger(value); return index !== undefined && index >= 0 && index < choices.length ? choices[index] : undefined }
 export function stringOption(options: Options, key: string, fallback: string): string { return resolveOption(options, key, fallback, value => value) }
 export function numberOption(options: Options, key: string, fallback: number): number { return resolveOption(options, key, fallback, value => decimal.test(value) ? Number.parseFloat(value) : undefined) }
+export function optionalNumberOption(options: Options, key: string): number | undefined { return resolveOption<number | undefined>(options, key, undefined, value => decimal.test(value) ? Number.parseFloat(value) : undefined) }
+export function optionalIntegerOption(options: Options, key: string): number | undefined { return resolveOption<number | undefined>(options, key, undefined, parseInteger) }
 export function integerOption(options: Options, key: string, fallback: number): number { return resolveOption(options, key, fallback, parseInteger) }
 export function booleanOption(options: Options, key: string, fallback: boolean): boolean { return resolveOption(options, key, fallback, value => value.toLowerCase() === 'true' ? true : value.toLowerCase() === 'false' ? false : undefined) }
 export function enumOption<T extends string>(options: Options, key: string, choices: readonly T[], fallback: T): T { return resolveOption(options, key, fallback, value => parseEnum(value, choices)) }
@@ -57,8 +59,8 @@ export function setOption(options: Options, key: string, choices: readonly strin
     return result
   }, true)
 }
-export function paddingOption(options: Options, fallback: Insets): Insets {
-  return resolveOption(options, 'padding', { ...fallback }, value => {
+export function paddingOption(options: Options, fallback: Insets, key = 'padding'): Insets {
+  return resolveOption(options, key, { ...fallback }, value => {
     const result = { top: 0, right: 0, bottom: 0, left: 0 }
     let start = 0, end = value.length
     while (start < value.length && "([{\"' \t\r\n".includes(value.charAt(start))) start++
@@ -79,8 +81,9 @@ export function paddingOption(options: Options, fallback: Insets): Insets {
     return result
   })
 }
-export function vectorOption(options: Options, key: string): { x: number; y: number } {
-  return resolveOption(options, key, { x: 0, y: 0 }, value => {
+export function vectorOption(options: Options, key: string): { x: number; y: number } { return optionalVectorOption(options, key) ?? { x: 0, y: 0 } }
+export function optionalVectorOption(options: Options, key: string): { x: number; y: number } | undefined {
+  return resolveOption<{ x: number; y: number } | undefined>(options, key, undefined, value => {
     let start = 0, end = value.length
     while (start < value.length && "([{\"' \t\r\n".includes(value.charAt(start))) start++
     while (end > 0 && ")]}\"' \t\r\n".includes(value.charAt(end - 1))) end--

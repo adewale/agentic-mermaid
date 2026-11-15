@@ -21,6 +21,7 @@ export interface Component {
   offsetX: number
   offsetY: number
   priority?: number
+  points?: { x: number; y: number }[]
 }
 
 export interface ComponentPackingOptions {
@@ -57,6 +58,7 @@ export function packComponents(components: Component[], options: ComponentPackin
       node.x += source.offsetX
       node.y += source.offsetY
     }
+    for (const point of source.points ?? []) { point.x += source.offsetX; point.y += source.offsetY }
     return { width: source.width, height: source.height }
   }
   if (components.length === 0) return { width: 0, height: 0 }
@@ -98,6 +100,7 @@ export function packComponents(components: Component[], options: ComponentPackin
       node.x += offsetX
       node.y += offsetY
     }
+    for (const point of component.points ?? []) { point.x += offsetX; point.y += offsetY }
     component.offsetX = 0
     component.offsetY = 0
     broadestRow = Math.max(broadestRow, xpos + component.width)
@@ -111,6 +114,7 @@ export function packComponents(components: Component[], options: ComponentPackin
       node.x += component.offsetX
       node.y += component.offsetY
     }
+    for (const point of component.points ?? []) { point.x += component.offsetX; point.y += component.offsetY }
   }
   return { width: broadestRow, height: ypos + highestBox }
 }

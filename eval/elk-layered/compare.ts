@@ -83,9 +83,18 @@ for (let index = start; index < end; index++) {
     }
   } catch (difference) {
     const details = deserialize(readFileSync(join(directory, `render-${captured.render}.bin`))) as {
-      sample: string; strategy: string; depth: number
+      sample: string; family: string; strategy: string; depth: number
     }
-    const report = { input: filename, ...details, ordinal: captured.ordinal, difference: String(difference) }
+    const report = {
+      input: filename, sample: details.sample, family: details.family,
+      strategy: details.strategy, depth: details.depth, ordinal: captured.ordinal,
+      expectedKind: captured.outcome.kind, actualKind: actual.kind,
+      ...(actual.kind === 'throw' ? {
+        actualFailure: diagnosticMessage(actual.error),
+        actualStack: actual.error instanceof Error ? actual.error.stack : undefined,
+      } : {}),
+      difference: String(difference),
+    }
     writeFileSync(join(directory, `divergence-${index}-${Date.now()}.json`), JSON.stringify(report, null, 2))
     console.error(JSON.stringify(report))
     process.exitCode = 1
