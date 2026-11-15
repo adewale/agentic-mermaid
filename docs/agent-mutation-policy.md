@@ -172,13 +172,16 @@ New statements are written in the same portable spelling as canonical
 serialization and reference existing elements by their identities. A
 statement whose authored line also carries other statements (a node declared
 inline on an edge) is edited inside that line where the changed text is found
-once; otherwise the line is rewritten as its remaining statements.
+once; otherwise the line is rewritten as its remaining statements. A
+statement written over several physical lines (a quoted label continued on
+the next line) is traced, edited and removed as one authored statement.
 
 Typical fallbacks: a diagram whose statements the tracer cannot attribute
-(a value spread over several physical lines, or a label redeclared on more
-than one line), an edit that empties a family below its grammar floor, and
-edits to wrappers the canonical writer does not own. The receipt names the
-reason; the source is then the ordinary canonical result.
+(a label redeclared on more than one line), an edit that empties a family
+below its grammar floor, and edits to wrappers the canonical writer does not
+own. The receipt names the reason (the statement that could not be traced or
+placed, or how the closest local candidate reads differently from the edit);
+the source is then the ordinary canonical result.
 
 The same explicit mode, for structured and opaque bodies, is available
 through the workflow surfaces:

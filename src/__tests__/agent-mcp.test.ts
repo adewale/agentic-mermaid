@@ -56,7 +56,8 @@ describe('source-preserving edits across agent channels', () => {
   // preservation receipt, `local` or the announced `canonical` fallback.
   test.each([
     ['flowchart TD\n  %% keep\n    A["Old"] --> B\n', { kind: 'set_label', target: 'A', label: 'New' }, 'flowchart TD\n  %% keep\n    A["New"] --> B\n', 'local'],
-    ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, undefined, 'canonical'],
+    ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, 'flowchart TD\n  %% keep\n  A["Short"] --> B\n', 'local'],
+    ['flowchart TD\n  %% keep\n  A:::hot & B --> C\n  classDef hot fill:#f96\n', { kind: 'remove_edge', id: 'A->C' }, undefined, 'canonical'],
   ] as const)('structured source-preserving edits agree across library, CLI and MCP: %j', async (source, op, expected, method) => {
     const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
     if (!result.ok) throw new Error(result.error.message)

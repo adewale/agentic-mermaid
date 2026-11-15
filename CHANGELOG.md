@@ -41,6 +41,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   held-out edit-arms tasks a typed operation can express, scripted typed edits
   kept 99.7% of untouched lines (canonical: 18.6%) with no collateral damage
   (canonical: 10 damaged). `am mutate --canonical` names the current default.
+  A statement written over several physical lines (a quoted label continued on
+  the next line) is edited and removed as one statement instead of falling back,
+  and a fallback reason names the statement or misreading that blocked a local
+  edit.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

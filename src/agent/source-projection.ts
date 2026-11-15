@@ -18,8 +18,11 @@
 // The projection only proposes. A few placement variants are tried in order,
 // and a candidate is returned only when the shared parser reads it back as the
 // same diagram as the canonical result: the same facts and the same canonical
-// statements (whose incidental order may follow the authored order). The
-// caller otherwise writes the canonical source and says so.
+// statements (whose incidental order may follow the authored order). When no
+// candidate does, a second pass traces statements written over several
+// physical lines as one authored line. The caller otherwise writes the
+// canonical source and says why: the closest candidate's misreading, or the
+// statement that could not be placed.
 // ============================================================================
 
 import { describeMermaidFacts } from './facts.ts'
@@ -103,11 +106,77 @@ interface Trace {
   readonly folded: ReadonlyMap<number, readonly number[]>
 }
 
+interface LineReader {
+  /** The canonical statements an authored statement reads as on its own (the
+   * family parser and writer on it alone under the header, closing a block it
+   * opens), less the header's own and block closers; undefined when it does
+   * not parse alone. */
+  isolated(text: string): Map<string, number> | undefined
+}
+
+/** Isolated readings, cached by text: a fallback pass re-reads the same lines. */
+function lineReader(wrapper: string, header: string): LineReader {
+  const cache = new Map<string, Map<string, number> | undefined>()
+  const read = (source: string): Map<string, number> | undefined => {
+    const parsed = parseRegisteredMermaid(source)
+    const found = parsed.ok ? statements(parsed.value) : undefined
+    return found ? counts(found.slice(1)) : undefined
+  }
+  let base: Map<string, number> | undefined
+  const isolated = (text: string): Map<string, number> | undefined => {
+    base ??= read(`${wrapper}${header}\n`) ?? new Map<string, number>()
+    for (const closer of ['', '\nend', '\n}']) {
+      const found = read(`${wrapper}${header}\n${text}${closer}`)
+      if (!found) continue
+      // A block closer is its own authored line, never part of another.
+      for (const [line, count] of [...base, ['end', Infinity], ['}', Infinity]] as const) {
+        const left = (found.get(line) ?? 0) - count
+        if (left > 0) found.set(line, left)
+        else found.delete(line)
+      }
+      return found
+    }
+    return undefined
+  }
+  return {
+    isolated(text) {
+      if (!cache.has(text)) cache.set(text, isolated(text))
+      return cache.get(text)
+    },
+  }
+}
+
+/** A value may continue on later physical lines (a quoted label written over
+ * several lines, an edge whose target is on the next line). A line that does
+ * not read alone is joined with the lines after it until the joined text
+ * reads as statements of the diagram; the joined lines are then one authored
+ * statement, edited, kept or removed together. */
+const MAX_SPLIT_LINES = 12
+function joinSplitValues(lines: readonly AuthoredLine[], c0: readonly string[], reader: LineReader): AuthoredLine[] {
+  const canonical = counts(c0.slice(1))
+  const joined: AuthoredLine[] = []
+  for (let at = 0; at < lines.length; at++) {
+    let line = lines[at]!
+    const trimmed = line.text.trim()
+    if (at > 0 && !inert(line.text) && !canonical.has(trimmed) && !reader.isolated(trimmed)) {
+      let { text, eol } = line
+      for (let next = at + 1; next < lines.length && next - at <= MAX_SPLIT_LINES; next++) {
+        text += eol + lines[next]!.text
+        eol = lines[next]!.eol
+        const found = reader.isolated(text.trim())
+        if (found?.size && [...found.keys()].every(statement => canonical.has(statement))) { line = { text, eol }; at = next; break }
+      }
+    }
+    joined.push(line)
+  }
+  return joined
+}
+
 /** Which authored line produced each canonical statement of `before`: the
  * statement the family's source map locates for the same identity, else a
  * line already in canonical spelling, else the line whose own canonical
  * reading contains it. Nearby lines win ties, so repeated text stays in order. */
-function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram): Trace {
+function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram, reader: LineReader): Trace {
   const owner = c0.map(() => -1)
   const folded = new Map<number, number[]>()
   if (!lines.length) return { owner, folded }
@@ -134,33 +203,12 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
     }
   }
   const canonical = counts(c0.slice(1))
-  const header = lines[0]!.text
-  const read = (source: string): Map<string, number> | undefined => {
-    const parsed = parseRegisteredMermaid(source)
-    const found = parsed.ok ? statements(parsed.value) : undefined
-    return found ? counts(found.slice(1)) : undefined
-  }
-  const base = read(`${wrapper}${header}\n`) ?? new Map<string, number>()
-  const isolated = (text: string): Map<string, number> | undefined => {
-    for (const closer of ['', '\nend', '\n}']) {
-      const found = read(`${wrapper}${header}\n${text}${closer}`)
-      if (!found) continue
-      // A block closer is its own authored line, never part of another.
-      for (const [line, count] of [...base, ['end', Infinity], ['}', Infinity]] as const) {
-        const left = (found.get(line) ?? 0) - count
-        if (left > 0) found.set(line, left)
-        else found.delete(line)
-      }
-      return found
-    }
-    return undefined
-  }
   const readings = lines.map(({ text }, index) => {
     const trimmed = text.trim()
     // A family that keeps comments as verbatim segments writes them back.
     if (index === 0 || !trimmed || (inert(text) && !canonical.has(trimmed))) return new Map<string, number>()
     if (canonical.has(trimmed)) return new Map([[trimmed, 1]])
-    return isolated(trimmed) ?? new Map([[trimmed, 1]])
+    return reader.isolated(trimmed) ?? new Map([[trimmed, 1]])
   })
   const remaining = readings.map(reading => new Map(reading))
   let last = 0
@@ -264,20 +312,33 @@ const authoredSpellings = (text: string): string[] => {
   return decoded === text ? [text] : [text, decoded]
 }
 
+/** Where `spelling` occurs in `text` at word boundaries, as [start, end]. A
+ * statement joined from several physical lines spells a canonical line break
+ * as the authored line break (the reader drops the indentation around it). */
+function occurrences(text: string, spelling: string): Array<[number, number]> {
+  const found: Array<[number, number]> = []
+  const bounded = (at: number, end: number) => !(isWord(spelling[0]) && isWord(text[at - 1])) && !(isWord(spelling.at(-1)) && isWord(text[end]))
+  if (/[\r\n]/.test(text) && /<br\s*\/?>/i.test(spelling)) {
+    const pattern = new RegExp(spelling.split(/<br\s*\/?>/i).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(?:<br\\s*/?>|[ \\t]*(?:\\r\\n|\\n|\\r)[ \\t]*)'), 'gi')
+    for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+      if (bounded(match.index, match.index + match[0].length)) found.push([match.index, match.index + match[0].length])
+      pattern.lastIndex = match.index + 1
+    }
+    return found
+  }
+  for (let at = text.indexOf(spelling); at >= 0; at = text.indexOf(spelling, at + 1)) if (bounded(at, at + spelling.length)) found.push([at, at + spelling.length])
+  return found
+}
+
 /** Replace the one authored occurrence of a changed canonical token run. */
 function spliceLine(text: string, before: string, after: string): string | undefined {
   const { removed, added } = changedTokens(before, after)
   if (!removed) return undefined
   for (const spelling of authoredSpellings(removed)) {
-    const found: number[] = []
-    for (let at = text.indexOf(spelling); at >= 0; at = text.indexOf(spelling, at + 1)) {
-      if (isWord(spelling[0]) && isWord(text[at - 1])) continue
-      if (isWord(spelling.at(-1)) && isWord(text[at + spelling.length])) continue
-      found.push(at)
-    }
+    const found = occurrences(text, spelling)
     if (found.length > 1) return undefined
     if (!found.length) continue
-    let start = found[0]!, end = start + spelling.length, replacement = added
+    let [start, end] = found[0]!, replacement = added
     const quoted = (value: string) => value.length >= 2 && value.startsWith('"') && value.endsWith('"')
     // Keep the authored quoting around a replaced quoted token.
     if (text[start - 1] === '"' && text[end] === '"' && quoted(added)) { start--; end++ }
@@ -322,8 +383,8 @@ function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: bool
   return diffLines(c0.map(key), c1.map(key))
 }
 
-function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded }: Trace, variant: Variant): Plan | undefined {
-  if (!ops) return undefined
+function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded }: Trace, variant: Variant): Plan | string {
+  if (!ops) return 'the edit changes too many lines to compare'
   const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
   // Insertions are collected with their position in the edited canonical
   // text, so statements written at one authored line keep that order.
@@ -378,7 +439,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   const whole = new Set<number>()
   const spliced = new Map<number, Set<string>>()
   for (const [del, ins] of pairOf) {
-    if (owner[del]! < 0) return undefined
+    if (owner[del]! < 0) return `the changed statement ${quote(c0[del]!)} was not traced to an authored line`
     const { removed, added } = changedTokens(c0[del]!, c1[ins]!), change = `${removed}\u0000${added}`
     if (variant.splice && spliced.get(owner[del]!)?.has(change)) continue
     const splice = (line: number) => spliceLine(plan.text.get(line) ?? lines[line]!.text, c0[del]!, c1[ins]!)
@@ -398,12 +459,12 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del)) gone.add(del)
   for (const del of gone) {
     const line = owner[del]!
-    if (line < 0) return undefined
+    if (line < 0) return `the removed statement ${quote(c0[del]!)} was not traced to an authored line`
     plan.removed.add(line)
   }
   // A declaration folded into statements that all go away goes with them.
   for (const [line, into] of folded) if (into.every(index => gone.has(index))) plan.removed.add(line)
-  for (const line of plan.removed) if (plan.text.has(line)) return undefined
+  for (const line of plan.removed) if (plan.text.has(line)) return 'one authored line would be both edited and removed'
   const ownedLine = new Map<number, number>()
   owner.forEach(line => ownedLine.set(line, (ownedLine.get(line) ?? 0) + 1))
   const unit = indentUnit(lines)
@@ -470,7 +531,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   for (let index = 0; index < c0.length; index++) {
     if (!c0[index]!.trim() || gone.has(index) || !plan.removed.has(owner[index]!)) continue
     const kept = keptAs.get(index) ?? pairOf.get(index)
-    if (kept === undefined) return undefined
+    if (kept === undefined) return `${quote(c0[index]!)} shares a removed authored line and has no counterpart in the edit`
     push('before', owner[index]!, kept, leading(lines[owner[index]!]!.text))
   }
   for (const hunk of hunks) {
@@ -489,7 +550,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       if (at !== undefined) push('before', owner[at]!, ins, plan.removed.has(owner[at]!) && depthOf(c0[at]!) === depthOf(c1[ins]!) ? leading(lines[owner[at]!]!.text) : undefined)
       else if (afterPrevious && previous >= 0) push('after', owner[previous]!, ins)
       else if (next >= 0) push('before', owner[next]!, ins)
-      else return undefined
+      else return `the new statement ${quote(c1[ins]!)} has no authored neighbour to stand beside`
     }
   }
   for (const where of ['before', 'after'] as const) for (const list of placed[where].values()) list.sort((a, b) => a[0] - b[0])
@@ -502,7 +563,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     for (let earlier = 0; earlier < at; earlier++) {
       if (written[earlier]! < written[at]!) continue
       const shared = words(written[at]!)
-      if ([...words(written[earlier]!)].some(word => shared.has(word))) return undefined
+      if ([...words(written[earlier]!)].some(word => shared.has(word))) return `the new statements ${quote(c1[written[earlier]!]!)} and ${quote(c1[written[at]!]!)} would be written out of canonical order`
     }
   }
   for (const where of ['before', 'after'] as const) for (const [line, list] of placed[where]) plan[where].set(line, list.map(([, text]) => text))
@@ -558,7 +619,7 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
   }
   const lines = splitLines(authored.slice(wrapper.length))
   const eol = /\r\n/.test(authored) ? '\r\n' : '\n'
-  const trace = traceOwners(wrapper, lines, c0, before)
+  const reader = lineReader(wrapper, lines[0]?.text ?? '')
   const facts = describeMermaidFacts(after)
   const tried = new Set<string>()
   // The diff depends only on whether whitespace counts, so the variants
@@ -568,14 +629,53 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     if (!diffs.has(loose)) diffs.set(loose, canonicalDiff(c0, c1, loose))
     return diffs.get(loose)
   }
-  for (const variant of VARIANTS) {
-    const plan = planEdit(lines, c0, c1, diffFor(variant.loose), trace, variant)
-    if (!plan) continue
-    const source = nextWrapper + renderPlan(lines, plan, eol)
-    if (tried.has(source)) continue
-    tried.add(source)
-    const parsed = parseRegisteredMermaid(source)
-    if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return ok({ source, diagram: parsed.value })
+  let unplanned: string | undefined, closest: { size: number; reason: string } | undefined
+  const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace): { source: string; diagram: ParsedDiagram } | undefined => {
+    unplanned = undefined
+    for (const variant of VARIANTS) {
+      const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant)
+      if (typeof plan === 'string') { unplanned ??= plan; continue }
+      const source = nextWrapper + renderPlan(authoredLines, plan, eol)
+      if (tried.has(source)) continue
+      tried.add(source)
+      const parsed = parseRegisteredMermaid(source)
+      if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return { source, diagram: parsed.value }
+      const miss = misreading(parsed, c1)
+      if (!closest || miss.size < closest.size) closest = miss
+    }
+    return undefined
   }
-  return err(tried.size ? 'no local change to the authored source reads back as the edited diagram' : 'the changed statements could not be traced to authored lines')
+  const projected = attempt(lines, traceOwners(wrapper, lines, c0, before, reader)) ?? (() => {
+    // Statements spelled over several physical lines are traced, edited and
+    // removed as one authored line.
+    const joined = joinSplitValues(lines, c0, reader)
+    return joined.length < lines.length ? attempt(joined, traceOwners(wrapper, joined, c0, before, reader)) : undefined
+  })()
+  if (projected) return ok(projected)
+  if (closest) return err(`no local change to the authored source reads back as the edited diagram: ${closest.reason}`)
+  return err(unplanned ?? 'the changed statements could not be traced to authored lines')
+}
+
+/** A statement for a reason, quoted and shortened. */
+const quote = (statement: string) => JSON.stringify(statement.trim().length > 60 ? `${statement.trim().slice(0, 57)}...` : statement.trim())
+
+/** How a rejected candidate reads differently from the edit: a parse
+ * failure, else the canonical statements it gains and lacks. */
+function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[]): { size: number; reason: string } {
+  if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})` }
+  const found = statements(parsed.value)
+  if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram` }
+  const spell = (line: string) => line.replace(/\s+/g, '')
+  const tally = (values: readonly string[]) => {
+    const result = new Map<string, { text: string; count: number }>()
+    for (const line of values.slice(1)) if (line.trim()) result.set(spell(line), { text: line, count: (result.get(spell(line))?.count ?? 0) + 1 })
+    return result
+  }
+  const got = tally(found), want = tally(expected)
+  const left = (a: typeof got, b: typeof got) => [...a].flatMap(([key, { text, count }]) => Array.from({ length: Math.max(0, count - (b.get(key)?.count ?? 0)) }, () => text))
+  const extra = left(got, want), missing = left(want, got)
+  const list = (values: readonly string[]) => `${quote(values[0]!)}${values.length > 1 ? ` and ${values.length - 1} more` : ''}`
+  if (!extra.length && !missing.length) return { size: 0, reason: 'the closest local change writes the edited statements, but they read with different order, metadata or facts' }
+  const reason = !missing.length ? `the closest local change also reads ${list(extra)}` : !extra.length ? `the closest local change lacks ${list(missing)}` : `the closest local change reads ${list(extra)} where the edit has ${list(missing)}`
+  return { size: extra.length + missing.length, reason }
 }

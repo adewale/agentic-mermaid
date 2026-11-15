@@ -106,6 +106,33 @@ const GANTT = `gantt
     Release     :milestone, rel, 2024-01-20, 0d
 `
 
+// Values written over several physical lines: one statement, edited, kept or
+// removed as a whole.
+const SPLIT_FLOWCHART = `flowchart LR
+  %% split values
+  A["Load the
+     config"] --> B
+    B --> C
+  C -->
+      D[Done]
+`
+
+const SPLIT_CLASS = `classDiagram
+    %% notes over lines
+    class Order
+    note for Order "Paid orders
+        ship next day"
+      class Invoice
+`
+
+const SPLIT_STATE = `stateDiagram-v2
+  %% label over lines
+  state "Waiting for
+      payment" as Wait
+    [*] --> Wait
+  Wait --> Done
+`
+
 interface Case {
   name: string
   source: string
@@ -162,6 +189,12 @@ const CASES: Case[] = [
   { name: 'gantt add_task', source: GANTT, op: { kind: 'add_task', sectionIndex: 0, label: 'Test', taskId: 'test', start: 'after impl', end: '3d' }, reference: [['    Implement   :impl, after des, 10d\n', '    Implement   :impl, after des, 10d\n    Test :test, after impl, 3d\n']] },
   { name: 'gantt rename_task', source: GANTT, op: { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'Design work' }, touched: ['    Design      :des, 2024-01-01, 5d'], reference: [['Design      :', 'Design work      :']] },
   { name: 'gantt set_task_dates', source: GANTT, op: { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 0, start: '2024-01-02', end: '6d' }, touched: ['    Design      :des, 2024-01-01, 5d'], reference: [['2024-01-01, 5d', '2024-01-02, 6d']] },
+  { name: 'flowchart set_label on a label written over two lines', source: SPLIT_FLOWCHART, op: { kind: 'set_label', target: 'A', label: 'Load' }, touched: ['  A["Load the', '     config"] --> B'], reference: [['A["Load the\n     config"]', 'A["Load"]']] },
+  { name: 'flowchart remove_node removes every line of its split label', source: SPLIT_FLOWCHART, op: { kind: 'remove_node', id: 'A' }, touched: ['  A["Load the', '     config"] --> B'], reference: [['  A["Load the\n     config"] --> B\n', '']] },
+  { name: 'class remove_note whose text spans lines', source: SPLIT_CLASS, op: { kind: 'remove_note', index: 0 }, touched: ['    note for Order "Paid orders', '        ship next day"'], reference: [['    note for Order "Paid orders\n        ship next day"\n', '']] },
+  { name: 'class rename_class named by a note written over lines', source: SPLIT_CLASS, op: { kind: 'rename_class', from: 'Order', to: 'Purchase' }, touched: ['    class Order', '    note for Order "Paid orders'], reference: [['class Order\n', 'class Purchase\n'], ['note for Order', 'note for Purchase']] },
+  { name: 'state rename_state whose label spans lines', source: SPLIT_STATE, op: { kind: 'rename_state', from: 'Wait', to: 'Hold' }, touched: ['      payment" as Wait', '    [*] --> Wait', '  Wait --> Done'], reference: [['" as Wait', '" as Hold'], ['--> Wait', '--> Hold'], ['Wait --> Done', 'Hold --> Done']] },
+  { name: 'state remove_state removes every line of its split label', source: SPLIT_STATE, op: { kind: 'remove_state', id: 'Wait' }, touched: ['  state "Waiting for', '      payment" as Wait', '    [*] --> Wait', '  Wait --> Done'], reference: [['  state "Waiting for\n      payment" as Wait\n    [*] --> Wait\n  Wait --> Done\n', '  Done\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
