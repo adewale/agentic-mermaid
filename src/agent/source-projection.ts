@@ -20,9 +20,14 @@
 // same diagram as the canonical result: the same facts and the same canonical
 // statements (whose incidental order may follow the authored order). When no
 // candidate does, a second pass traces statements written over several
-// physical lines as one authored line. The caller otherwise writes the
-// canonical source and says why: the closest candidate's misreading, or the
-// statement that could not be placed.
+// physical lines as one authored line, and traces a statement the parser
+// merges from several declarations (a label given again, a class named by
+// each `Class : member` line, a block opened twice) to every line it is read
+// from: a change is spliced into each line that spells it, a removal takes
+// every line that declares nothing else, and a new member of a block written
+// as separate lines is spelled like its authored siblings. The caller
+// otherwise writes the canonical source and says why: the closest
+// candidate's misreading, or the statement that could not be placed.
 // ============================================================================
 
 import { describeMermaidFacts } from './facts.ts'
@@ -50,6 +55,7 @@ const inert = (text: string) => !text.trim() || text.trim().startsWith('%%')
 const leading = (text: string) => /^[ \t]*/.exec(text)![0]
 /** Canonical nesting depth; a verbatim tab counts as one two-space level. */
 const depthOf = (text: string) => leading(text).replace(/\t/g, '  ').length
+const WORDS = /[\p{L}\p{N}_]+/gu
 const isWord = (char: string | undefined) => char !== undefined && /[\p{L}\p{N}_]/u.test(char)
 const MAX_DIFF_CELLS = 4_000_000
 
@@ -104,6 +110,16 @@ interface Trace {
    * the statements the writer folds their reading into (a declaration the
    * writer writes inline on an edge). */
   readonly folded: ReadonlyMap<number, readonly number[]>
+  /** Structural pass: every authored line each traced statement is read from,
+   * its owner first: lines that redeclare it (a class named again by each
+   * `Class : member` line, an entity block opened twice), lines folded into
+   * it, and the closers of redeclared blocks. */
+  readonly parts?: ReadonlyMap<number, readonly number[]>
+  /** Structural pass: canonical block openers no authored block spells (a
+   * class whose members are `Class : member` lines). */
+  readonly implicit?: ReadonlySet<number>
+  /** Structural pass: each authored line's isolated reading. */
+  readonly readings?: ReadonlyArray<ReadonlyMap<string, number>>
 }
 
 interface LineReader {
@@ -112,22 +128,33 @@ interface LineReader {
    * opens), less the header's own and block closers; undefined when it does
    * not parse alone. */
   isolated(text: string): Map<string, number> | undefined
+  /** Whether an authored statement opens a block that a later `end` or `}`
+   * line closes: it reads only with that closer, or reads as a block both
+   * alone and with it. */
+  opens(text: string): boolean
 }
+
+const closesBlock = (statement: string) => statement.trim() === 'end' || statement.trim() === '}'
 
 /** Isolated readings, cached by text: a fallback pass re-reads the same lines. */
 function lineReader(wrapper: string, header: string): LineReader {
   const cache = new Map<string, Map<string, number> | undefined>()
+  const sources = new Map<string, Map<string, number> | undefined>()
   const read = (source: string): Map<string, number> | undefined => {
-    const parsed = parseRegisteredMermaid(source)
-    const found = parsed.ok ? statements(parsed.value) : undefined
-    return found ? counts(found.slice(1)) : undefined
+    if (!sources.has(source)) {
+      const parsed = parseRegisteredMermaid(source)
+      const found = parsed.ok ? statements(parsed.value) : undefined
+      sources.set(source, found ? counts(found.slice(1)) : undefined)
+    }
+    return sources.get(source)
   }
   let base: Map<string, number> | undefined
   const isolated = (text: string): Map<string, number> | undefined => {
     base ??= read(`${wrapper}${header}\n`) ?? new Map<string, number>()
     for (const closer of ['', '\nend', '\n}']) {
-      const found = read(`${wrapper}${header}\n${text}${closer}`)
-      if (!found) continue
+      const reading = read(`${wrapper}${header}\n${text}${closer}`)
+      if (!reading) continue
+      const found = new Map(reading)
       // A block closer is its own authored line, never part of another.
       for (const [line, count] of [...base, ['end', Infinity], ['}', Infinity]] as const) {
         const left = (found.get(line) ?? 0) - count
@@ -138,10 +165,19 @@ function lineReader(wrapper: string, header: string): LineReader {
     }
     return undefined
   }
+  const block = (reading: ReadonlyMap<string, number>) => [...reading.keys()].some(closesBlock)
   return {
     isolated(text) {
       if (!cache.has(text)) cache.set(text, isolated(text))
       return cache.get(text)
+    },
+    opens(text) {
+      const alone = read(`${wrapper}${header}\n${text}`)
+      if (alone && !block(alone)) return false
+      return ['\nend', '\n}'].some(closer => {
+        const closed = read(`${wrapper}${header}\n${text}${closer}`)
+        return closed !== undefined && (!alone || block(closed))
+      })
     },
   }
 }
@@ -176,7 +212,7 @@ function joinSplitValues(lines: readonly AuthoredLine[], c0: readonly string[], 
  * statement the family's source map locates for the same identity, else a
  * line already in canonical spelling, else the line whose own canonical
  * reading contains it. Nearby lines win ties, so repeated text stays in order. */
-function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram, reader: LineReader): Trace {
+function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram, reader: LineReader, structural = false): Trace {
   const owner = c0.map(() => -1)
   const folded = new Map<number, number[]>()
   if (!lines.length) return { owner, folded }
@@ -239,13 +275,174 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
     if (free.length === end - start) free.forEach((line, offset) => { owner[start + offset] = line })
     start = end
   }
+  const blocks = structural ? traceBlocks(lines, c0, owner, remaining, reader) : undefined
   const traced = new Set(owner)
   readings.forEach((reading, line) => {
     if (traced.has(line) || inert(lines[line]!.text)) return
     const into = c0.flatMap((statement, index) => index > 0 && [...reading.keys()].some(read => read !== statement.trim() && containsToken(statement, read)) ? [index] : [])
     if (into.length) folded.set(line, into)
   })
-  return { owner, folded }
+  if (!blocks) return { owner, folded }
+  // Every authored line a statement is read from: its owner, lines whose
+  // reading repeats it (attached to the nearest such statement before them),
+  // lines folded into it, and the closers of blocks that redeclare it.
+  const parts = new Map<number, number[]>()
+  owner.forEach((line, index) => { if (index > 0 && line >= 0) parts.set(index, [line]) })
+  const byText = new Map<string, number[]>()
+  for (const index of parts.keys()) byText.set(c0[index]!.trim(), [...byText.get(c0[index]!.trim()) ?? [], index])
+  readings.forEach((reading, line) => {
+    for (const read of reading.keys()) {
+      const indices = byText.get(read)
+      if (!indices || indices.some(index => owner[index] === line)) continue
+      const target = indices.filter(index => owner[index]! < line).at(-1) ?? indices[0]!
+      parts.get(target)!.push(line)
+    }
+  })
+  for (const [line, into] of folded) for (const index of into) parts.get(index)?.push(line)
+  for (const [line, indices] of blocks.redeclares) if (!folded.has(line)) for (const index of indices) parts.get(index)?.push(line)
+  // A line whose reading spells words none of its own statements carry (a
+  // label the writer moves to the node's first mention) is read into the
+  // statements that carry them all.
+  const carried = c0.map(statement => new Set(statement.match(WORDS) ?? []))
+  const ownWords = new Map<number, Set<string>>()
+  owner.forEach((line, index) => {
+    if (index === 0 || line < 0) return
+    const own = ownWords.get(line) ?? new Set<string>()
+    for (const word of carried[index]!) own.add(word)
+    ownWords.set(line, own)
+  })
+  for (const [line, own] of ownWords) {
+    const surplus = [...readings[line]!.keys()].flatMap(read => read.match(WORDS) ?? []).filter(word => !own.has(word))
+    if (!surplus.length) continue
+    c0.forEach((statement, index) => {
+      if (index === 0 || owner[index]! < 0 || owner[index] === line || closesBlock(statement)) return
+      if (surplus.every(word => carried[index]!.has(word)) && !parts.get(index)!.includes(line)) parts.get(index)!.push(line)
+    })
+  }
+  // The closer of an authored block goes with what it closes: the canonical
+  // closer, for a block that redeclares another, else the statement its
+  // opener is read as (`class A {` and `}` read as a bare `class A`).
+  const owners = new Set(owner)
+  for (const [index, list] of parts) {
+    const closer = blocks.closerOf.get(index)
+    for (const line of [...list]) {
+      const close = blocks.authoredCloser.get(line)
+      if (close === undefined) continue
+      if (closer !== undefined) { if (line !== list[0] && !parts.get(closer)!.includes(close)) parts.get(closer)!.push(close) }
+      else if (!owners.has(close) && !list.includes(close)) list.push(close)
+    }
+  }
+  return { owner, folded, parts, implicit: blocks.implicit, readings }
+}
+
+/**
+ * The structural pass's tracing of redeclared statements and of blocks.
+ * A statement still untraced is owned by the authored line whose unread
+ * reading is most like it (a participant declared again with another
+ * label: the canonical writer writes the last label on both); identical
+ * statements take their owners in authored order. A canonical block closer
+ * is owned by the authored closer of its opener's authored block; a block
+ * no authored line opens (members written as `Class : member` lines) has an
+ * implicit closer, so it never takes another block's.
+ */
+function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], remaining: ReadonlyArray<ReadonlyMap<string, number>>, reader: LineReader): { closerOf: Map<number, number>; authoredCloser: Map<number, number>; implicit: Set<number>; redeclares: Map<number, number[]> } {
+  const words = (text: string) => new Set(text.match(WORDS) ?? [])
+  const opens = (line: number) => line > 0 && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text) && reader.opens(lines[line]!.text.trim())
+  const nextStatement = (index: number) => {
+    let next = index + 1
+    while (next < c0.length && !c0[next]!.trim()) next++
+    return next < c0.length ? next : -1
+  }
+  // A canonical opener: the next statement is deeper, or closes it at once.
+  const opensBlock = (index: number) => {
+    const next = nextStatement(index)
+    return next >= 0 && !closesBlock(c0[index]!) && (depthOf(c0[next]!) > depthOf(c0[index]!) || (depthOf(c0[next]!) === depthOf(c0[index]!) && closesBlock(c0[next]!)))
+  }
+  // How much of a line's unread reading a statement repeats: the share of
+  // its words the statement has, averaged with the share of text kept by the
+  // smallest change between them. Openers only match openers.
+  const likeness = (index: number, line: number): number => {
+    if (opens(line) !== opensBlock(index)) return 0
+    const wanted = c0[index]!.trim(), wantedWords = words(wanted)
+    let best = 0
+    for (const read of remaining[line]!.keys()) {
+      if (closesBlock(read)) continue
+      const readWords = [...words(read)], { removed, kept } = changedTokens(wanted, read)
+      if (removed) best = Math.max(best, (readWords.filter(word => wantedWords.has(word)).length / Math.max(1, readWords.length) + kept / Math.max(wanted.length, read.length)) / 2)
+    }
+    return best
+  }
+  const LIKE = 0.5
+  const owning = new Set(owner)
+  const orphan = (line: number) => line > 0 && !owning.has(line) && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text)
+  for (let index = 1; index < c0.length; index++) {
+    if (owner[index]! >= 0 || !c0[index]!.trim() || closesBlock(c0[index]!)) continue
+    let best = -1, bestScore = LIKE
+    lines.forEach((_, line) => {
+      const score = orphan(line) ? likeness(index, line) : 0
+      if (score > bestScore) { best = line; bestScore = score }
+    })
+    if (best >= 0) { owner[index] = best; owning.add(best) }
+  }
+  // A line still owning nothing redeclares the statement most like it, else
+  // every statement that names all the words of its reading the diagram
+  // still has (`A[First]` before `A(Second) --> B`: the label it gave lost).
+  const redeclares = new Map<number, number[]>()
+  const known = new Set(c0.flatMap(statement => statement.match(WORDS) ?? []))
+  lines.forEach((_, line) => {
+    if (!orphan(line)) return
+    let best = -1, bestScore = LIKE
+    for (let index = 1; index < c0.length; index++) {
+      const score = owner[index]! >= 0 && !closesBlock(c0[index]!) ? likeness(index, line) : 0
+      if (score > bestScore) { best = index; bestScore = score }
+    }
+    if (best >= 0) { redeclares.set(line, [best]); return }
+    const names = [...new Set([...remaining[line]!.keys()].flatMap(read => read.match(WORDS) ?? []))].filter(word => known.has(word))
+    const naming = names.length ? c0.flatMap((statement, index) => index > 0 && owner[index]! >= 0 && !closesBlock(statement) && names.every(word => words(statement).has(word)) ? [index] : []) : []
+    if (naming.length) redeclares.set(line, naming)
+  })
+  const sameText = new Map<string, number[]>()
+  owner.forEach((line, index) => { if (index > 0 && line >= 0 && !closesBlock(c0[index]!)) sameText.set(c0[index]!.trim(), [...sameText.get(c0[index]!.trim()) ?? [], index]) })
+  for (const indices of sameText.values()) {
+    const lineOrder = indices.map(index => owner[index]!).sort((a, b) => a - b)
+    indices.forEach((index, at) => { owner[index] = lineOrder[at]! })
+  }
+  const authoredCloser = new Map<number, number>()
+  const stack: number[] = []
+  lines.forEach(({ text }, line) => {
+    if (closesBlock(text) && line > 0) { const open = stack.pop(); if (open !== undefined) authoredCloser.set(open, line) }
+    else if (opens(line)) stack.push(line)
+  })
+  const closerFor = (index: number) => {
+    const depth = depthOf(c0[index]!)
+    for (let at = index + 1; at < c0.length; at++) {
+      if (!c0[at]!.trim() || depthOf(c0[at]!) > depth) continue
+      if (depthOf(c0[at]!) < depth) return -1
+      // Same-depth statements between an opener and its closer are branches
+      // (`else`, `and`).
+      if (closesBlock(c0[at]!)) return at
+    }
+    return -1
+  }
+  const closerOf = new Map<number, number>(), claimed = new Map<number, number>(), implicit = new Set<number>()
+  for (const authored of [true, false]) {
+    for (let index = 1; index < c0.length; index++) {
+      const line = owner[index]!
+      if (line < 0 || !opensBlock(index) || authoredCloser.has(line) !== authored || (!authored && opens(line))) continue
+      const closer = closerFor(index)
+      if (closer < 0 || claimed.has(closer)) continue
+      claimed.set(closer, authored ? authoredCloser.get(line)! : -1)
+      if (authored) closerOf.set(index, closer)
+      else implicit.add(index)
+    }
+  }
+  const used = new Set(claimed.values())
+  c0.forEach((statement, index) => {
+    if (!closesBlock(statement)) return
+    if (claimed.has(index)) owner[index] = claimed.get(index)!
+    else if (used.has(owner[index]!)) owner[index] = -1
+  })
+  return { closerOf, authoredCloser, implicit, redeclares }
 }
 
 /** Whether `text` contains `part` starting and ending at word boundaries. */
@@ -363,12 +560,17 @@ interface Variant {
   /** Pair a removed statement with a similar new one elsewhere (a renamed or
    * relabelled statement the writer reorders), editing it in place. */
   readonly pair: boolean
+  /** Structural pass: rewrite a kept statement in canonical spelling when a
+   * line that redeclares it goes with another statement. */
+  readonly rewrite?: boolean
 }
 const VARIANTS: readonly Variant[] = [
   ...[false, true].flatMap(loose => [true, false].flatMap(splice => [true, false].map(previous => ({ splice, loose, previous, move: false, pair: true })))),
   ...[false, true].flatMap(loose => [true, false].map(previous => ({ splice: true, loose, previous, move: true, pair: true }))),
   ...[false, true].flatMap(loose => [true, false].map(previous => ({ splice: true, loose, previous, move: true, pair: false }))),
 ]
+
+const STRUCTURAL_VARIANTS: readonly Variant[] = [...VARIANTS, ...VARIANTS.map(variant => ({ ...variant, rewrite: true }))]
 
 interface Plan {
   readonly removed: Set<number>
@@ -383,9 +585,14 @@ function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: bool
   return diffLines(c0.map(key), c1.map(key))
 }
 
-function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded }: Trace, variant: Variant): Plan | string {
+function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings }: Trace, variant: Variant): Plan | string {
   if (!ops) return 'the edit changes too many lines to compare'
   const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
+  const partsOf = (index: number): readonly number[] => parts?.get(index) ?? (owner[index]! >= 0 ? [owner[index]!] : [])
+  let stranded: string | undefined
+  // The statements each authored line is read into.
+  const roles = new Map<number, number[]>()
+  if (parts) for (const [index, list] of parts) for (const line of list) roles.set(line, [...roles.get(line) ?? [], index])
   // Insertions are collected with their position in the edited canonical
   // text, so statements written at one authored line keep that order.
   const placed = { before: new Map<number, Array<[number, string]>>(), after: new Map<number, Array<[number, string]>>() }
@@ -394,8 +601,28 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   const push = (where: 'before' | 'after', at: number, index: number, indent?: string) => {
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
-    list.push([index, from === undefined ? (indent ?? indentFor(index)) + c1[index]!.trimStart() : lines[from]!.text])
+    list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + c1[index]!.trimStart()])
     placed[where].set(at, list)
+  }
+  // A new statement inside a block no authored line opens is written like
+  // an authored sibling (`Class : member`), that line with its changed
+  // tokens replaced.
+  const analogous = (index: number): string | undefined => {
+    if (!implicit?.size) return undefined
+    const depth = depthOf(c1[index]!)
+    let open = index - 1
+    while (open > 0 && (!c1[open]!.trim() || depthOf(c1[open]!) >= depth)) open--
+    const opener = sourceOf.get(open)
+    if (opener === undefined || !implicit.has(opener)) return undefined
+    let end = open + 1
+    while (end < c1.length && (!c1[end]!.trim() || depthOf(c1[end]!) > depthOf(c1[open]!))) end++
+    const siblings = Array.from({ length: end - open - 1 }, (_, offset) => open + 1 + offset).filter(at => at !== index && depthOf(c1[at]!) === depth && (sourceOf.get(at) ?? -1) >= 0 && owner[sourceOf.get(at)!]! >= 0).sort((a, b) => Math.abs(a - index) - Math.abs(b - index))
+    for (const at of siblings) {
+      const line = owner[sourceOf.get(at)!]!, written = spliceLine(plan.text.get(line) ?? lines[line]!.text, c0[sourceOf.get(at)!]!, c1[index]!)
+      if (written !== undefined) return written
+    }
+    stranded ??= `the new statement ${quote(c1[index]!)} belongs to a block written as separate lines, and no authored sibling line can be respelled for it`
+    return undefined
   }
   // Each kept or edited C1 statement knows the C0 statement it continues.
   const sourceOf = new Map<number, number>(), keptAs = new Map<number, number>()
@@ -451,9 +678,30 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       const elsewhere = lines.flatMap((_, index) => index !== line && !inert(lines[index]!.text) && splice(index) !== undefined ? [index] : [])
       if (elsewhere.length === 1) { line = elsewhere[0]!; edited = splice(line) }
     }
+    // A value composed from several lines (descriptions a state accumulates)
+    // is written on its first line, in that line's own spelling: the line's
+    // reading respelled as the edited statement. The lines that only added
+    // to it go.
+    if (edited === undefined && parts && variant.splice) {
+      line = owner[del]!
+      const text = plan.text.get(line) ?? lines[line]!.text
+      edited = [...readings?.[line]?.keys() ?? []].map(read => spliceLine(text, read, c1[ins]!)).find(respelled => respelled !== undefined)
+      if (edited !== undefined) for (const part of partsOf(del).slice(1)) if (roles.get(part)!.every(index => index === del)) plan.removed.add(part)
+    }
     if (edited === undefined) { whole.add(del); continue }
     plan.text.set(line, edited)
     spliced.set(owner[del]!, (spliced.get(owner[del]!) ?? new Set()).add(change))
+    // A statement read from several lines (a class named by each of its
+    // `Class : member` lines) changes on every line that spells the change.
+    if (!parts || !variant.splice) continue
+    spliced.set(line, (spliced.get(line) ?? new Set()).add(change))
+    for (const part of partsOf(del)) {
+      if (part === line || spliced.get(part)?.has(change)) continue
+      const more = splice(part)
+      if (more === undefined) continue
+      plan.text.set(part, more)
+      spliced.set(part, (spliced.get(part) ?? new Set()).add(change))
+    }
   }
   const gone = new Set<number>([...whole])
   for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del)) gone.add(del)
@@ -464,6 +712,20 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   }
   // A declaration folded into statements that all go away goes with them.
   for (const [line, into] of folded) if (into.every(index => gone.has(index))) plan.removed.add(line)
+  // So does every line a removed statement is read from that reads nothing
+  // else that stays.
+  for (const del of parts ? gone : []) for (const line of partsOf(del)) if (roles.get(line)!.every(index => gone.has(index))) plan.removed.add(line)
+  // A kept statement whose redeclaring line goes is rewritten whole, in the
+  // rewriting variant.
+  const rewritten = new Set<number>()
+  if (variant.rewrite) {
+    for (const [index, list] of parts ?? []) {
+      if (gone.has(index) || !list.slice(1).some(line => plan.removed.has(line))) continue
+      rewritten.add(index)
+      for (const line of list) if ((roles.get(line) ?? []).every(other => gone.has(other) || other === index)) plan.removed.add(line)
+      plan.removed.add(list[0]!)
+    }
+  }
   for (const line of plan.removed) if (plan.text.has(line)) return 'one authored line would be both edited and removed'
   const ownedLine = new Map<number, number>()
   owner.forEach(line => ownedLine.set(line, (ownedLine.get(line) ?? 0) + 1))
@@ -530,6 +792,8 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // it was.
   for (let index = 0; index < c0.length; index++) {
     if (!c0[index]!.trim() || gone.has(index) || !plan.removed.has(owner[index]!)) continue
+    // Another authored line still declares it.
+    if (!rewritten.has(index) && partsOf(index).some(line => !plan.removed.has(line))) continue
     const kept = keptAs.get(index) ?? pairOf.get(index)
     if (kept === undefined) return `${quote(c0[index]!)} shares a removed authored line and has no counterpart in the edit`
     push('before', owner[index]!, kept, leading(lines[owner[index]!]!.text))
@@ -553,6 +817,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       else return `the new statement ${quote(c1[ins]!)} has no authored neighbour to stand beside`
     }
   }
+  if (stranded) return stranded
   for (const where of ['before', 'after'] as const) for (const list of placed[where].values()) list.sort((a, b) => a[0] - b[0])
   // Mermaid reads some statements only after what they name (a `class`
   // line before its node is dropped), so new statements that share a word
@@ -630,9 +895,9 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     return diffs.get(loose)
   }
   let unplanned: string | undefined, closest: { size: number; reason: string } | undefined
-  const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace): { source: string; diagram: ParsedDiagram } | undefined => {
+  const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[]): { source: string; diagram: ParsedDiagram } | undefined => {
     unplanned = undefined
-    for (const variant of VARIANTS) {
+    for (const variant of variants) {
       const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant)
       if (typeof plan === 'string') { unplanned ??= plan; continue }
       const source = nextWrapper + renderPlan(authoredLines, plan, eol)
@@ -645,11 +910,12 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     }
     return undefined
   }
-  const projected = attempt(lines, traceOwners(wrapper, lines, c0, before, reader)) ?? (() => {
+  const projected = attempt(lines, traceOwners(wrapper, lines, c0, before, reader), VARIANTS) ?? (() => {
     // Statements spelled over several physical lines are traced, edited and
-    // removed as one authored line.
+    // removed as one authored line, and redeclared statements and blocks are
+    // traced to every line they are read from.
     const joined = joinSplitValues(lines, c0, reader)
-    return joined.length < lines.length ? attempt(joined, traceOwners(wrapper, joined, c0, before, reader)) : undefined
+    return attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
   })()
   if (projected) return ok(projected)
   if (closest) return err(`no local change to the authored source reads back as the edited diagram: ${closest.reason}`)

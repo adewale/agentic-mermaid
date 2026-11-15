@@ -44,7 +44,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   A statement written over several physical lines (a quoted label continued on
   the next line) is edited and removed as one statement instead of falling back,
   and a fallback reason names the statement or misreading that blocked a local
-  edit.
+  edit. A statement declared on several lines (a label given again, a class
+  named by `Class : member` lines, an entity block opened twice) is edited on
+  every line it is read from instead of falling back.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

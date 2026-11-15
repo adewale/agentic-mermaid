@@ -133,6 +133,56 @@ const SPLIT_STATE = `stateDiagram-v2
   Wait --> Done
 `
 
+// Statements declared or labelled on several lines: the parser merges them,
+// and the canonical writer writes one statement for all of them.
+const REDECLARED_FLOWCHART = `flowchart TD
+    %% labels given twice
+    A[First] --> B
+  B --> A[Second]
+    B --> C
+`
+
+const REDECLARED_SEQUENCE = `sequenceDiagram
+    participant A as Alice
+  participant B as Bob
+    A ->> B: hi
+  %% renamed later
+  participant A as Alicia
+`
+
+const REDECLARED_CLASS = `classDiagram
+    %% members given one per line
+    Animal <|-- Duck
+    Animal : +int age
+  Animal : +isMammal()
+    class Duck {
+        +swim()
+    }
+`
+
+const REDECLARED_STATE = `stateDiagram-v2
+  %% described twice
+  [*] --> Wait
+    Wait: Waiting
+  Wait --> Busy
+  Wait: for payment
+  Busy: Working
+    state Busy {
+      Load --> Save
+    }
+`
+
+const REDECLARED_ER = `erDiagram
+    %% entity opened twice
+    CUSTOMER {
+        string name
+    }
+  CUSTOMER ||--o{ ORDER : places
+    CUSTOMER {
+        string email
+    }
+`
+
 interface Case {
   name: string
   source: string
@@ -195,6 +245,18 @@ const CASES: Case[] = [
   { name: 'class rename_class named by a note written over lines', source: SPLIT_CLASS, op: { kind: 'rename_class', from: 'Order', to: 'Purchase' }, touched: ['    class Order', '    note for Order "Paid orders'], reference: [['class Order\n', 'class Purchase\n'], ['note for Order', 'note for Purchase']] },
   { name: 'state rename_state whose label spans lines', source: SPLIT_STATE, op: { kind: 'rename_state', from: 'Wait', to: 'Hold' }, touched: ['      payment" as Wait', '    [*] --> Wait', '  Wait --> Done'], reference: [['" as Wait', '" as Hold'], ['--> Wait', '--> Hold'], ['Wait --> Done', 'Hold --> Done']] },
   { name: 'state remove_state removes every line of its split label', source: SPLIT_STATE, op: { kind: 'remove_state', id: 'Wait' }, touched: ['  state "Waiting for', '      payment" as Wait', '    [*] --> Wait', '  Wait --> Done'], reference: [['  state "Waiting for\n      payment" as Wait\n    [*] --> Wait\n  Wait --> Done\n', '  Done\n']] },
+  { name: 'flowchart remove_edge whose line gave the node its last label', source: REDECLARED_FLOWCHART, op: { kind: 'remove_edge', id: 'B->A' }, touched: ['    A[First] --> B', '  B --> A[Second]'], reference: [['    A[First] --> B\n  B --> A[Second]\n', '    A[Second] --> B\n']] },
+  { name: 'sequence set_participant_label edits the declaration that wins', source: REDECLARED_SEQUENCE, op: { kind: 'set_participant_label', id: 'A', label: 'Al' }, touched: ['  participant A as Alicia'], reference: [['as Alicia', 'as Al']] },
+  { name: 'sequence remove_participant removes every declaration', source: REDECLARED_SEQUENCE, op: { kind: 'remove_participant', id: 'A' }, touched: ['    participant A as Alice', '    A ->> B: hi', '  participant A as Alicia'], reference: [['    participant A as Alice\n', ''], ['    A ->> B: hi\n', ''], ['  participant A as Alicia\n', '']] },
+  { name: 'class add_member to a class written as member lines', source: REDECLARED_CLASS, op: { kind: 'add_member', class: 'Animal', text: '+mate()' }, reference: [['  Animal : +isMammal()\n', '  Animal : +isMammal()\n  Animal : +mate()\n']] },
+  { name: 'class rename_class renames every member line', source: REDECLARED_CLASS, op: { kind: 'rename_class', from: 'Animal', to: 'Beast' }, touched: ['    Animal <|-- Duck', '    Animal : +int age', '  Animal : +isMammal()'], reference: [['Animal <|--', 'Beast <|--'], ['Animal : +int', 'Beast : +int'], ['Animal : +isMammal', 'Beast : +isMammal']] },
+  { name: 'class remove_class beside a class written as member lines', source: REDECLARED_CLASS, op: { kind: 'remove_class', id: 'Duck' }, touched: ['    Animal <|-- Duck', '    class Duck {', '        +swim()', '    }'], reference: [['    Animal <|-- Duck\n', ''], ['    class Duck {\n        +swim()\n    }\n', '']] },
+  { name: 'class remove_member removes its member line', source: REDECLARED_CLASS, op: { kind: 'remove_member', class: 'Animal', index: 0 }, touched: ['    Animal : +int age'], reference: [['    Animal : +int age\n', '']] },
+  { name: 'state set_state_label replaces descriptions given twice', source: REDECLARED_STATE, op: { kind: 'set_state_label', id: 'Wait', label: 'Idle' }, touched: ['    Wait: Waiting', '  Wait: for payment'], reference: [['Wait: Waiting', 'Wait: Idle'], ['  Wait: for payment\n', '']] },
+  { name: 'state set_state_label on a composite labelled on its own line', source: REDECLARED_STATE, op: { kind: 'set_state_label', id: 'Busy', label: 'Running' }, touched: ['  Busy: Working'], reference: [['Busy: Working', 'Busy: Running']] },
+  { name: 'state rename_state renames its label line and its block', source: REDECLARED_STATE, op: { kind: 'rename_state', from: 'Busy', to: 'Active' }, touched: ['  Wait --> Busy', '  Busy: Working', '    state Busy {'], reference: [['--> Busy', '--> Active'], ['Busy: Working', 'Active: Working'], ['state Busy {', 'state Active {']] },
+  { name: 'er rename_entity renames both of its blocks', source: REDECLARED_ER, op: { kind: 'rename_entity', from: 'CUSTOMER', to: 'CLIENT' }, touched: ['    CUSTOMER {', '  CUSTOMER ||--o{ ORDER : places'], reference: [['CUSTOMER {\n        string name', 'CLIENT {\n        string name'], ['CUSTOMER ||', 'CLIENT ||'], ['CUSTOMER {\n        string email', 'CLIENT {\n        string email']] },
+  { name: 'er remove_entity removes both of its blocks', source: REDECLARED_ER, op: { kind: 'remove_entity', id: 'CUSTOMER' }, touched: ['    CUSTOMER {', '        string name', '    }', '  CUSTOMER ||--o{ ORDER : places', '        string email'], reference: [['    CUSTOMER {\n        string name\n    }\n  CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string email\n    }\n', '    ORDER\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
