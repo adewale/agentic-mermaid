@@ -63,6 +63,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `capability: "code-mode"`. Validation is unchanged. Local server only.
 - `/capabilities.json` is served minified (261 KB → 155 KB, same JSON).
 
+- Sequence notes are typed. Top-level `Note left of A: …`, `Note right of A:
+  …` and `Note over A,B: …` lines are typed statements instead of preserved
+  source: facts list them as `note#<i> …` with `note#<i> before message#<n>`,
+  `describe` reads them in order, verify checks their length, and canonical
+  writing spells them `Note …` with two-space indentation. New operations
+  `add_note` (`position`, `actorIds`, `text`, `wrap`, placed with
+  `afterMessage` or `beforeMessage`, else appended), `remove_note`,
+  `set_note_text` and `move_note` edit them in both canonical and
+  source-preserving modes. `remove_participant` refuses a participant a note
+  names until the note is removed. Notes inside fragments stay preserved.
+
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note
   edits can append the next region while preserving scoped notes and comments.

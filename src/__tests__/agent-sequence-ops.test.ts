@@ -7,6 +7,7 @@
  *   - add_message gains optional `index` (top-level insert position)
  *   - move_message { from, to } (top-level indices)
  *   - set_participant_label { id, label }
+ *   - add_note / remove_note / set_note_text / move_note (top-level notes)
  */
 import { afterAll, beforeAll, describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -21,6 +22,7 @@ import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 
 function sequence(src: string): SequenceValidDiagram {
@@ -257,6 +259,94 @@ describe('sequence message style names the arrow Mermaid reads and ours draws', 
         }
       }
     }
+  })
+})
+
+// ============================================================================
+// Notes: typed top-level statements with add/remove/set text/move ops
+// ============================================================================
+
+describe('sequence notes are typed statements that ops add, remove, edit and move', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  const NOTES = 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: one\n  Note over A,B: shared\n  create participant C\n  B->>C: two\n  alt ok\n    C-->>A: three\n  end\n  A->>B: four\n'
+
+  /** Messages and notes in drawing order, as Mermaid's database holds them. */
+  const mermaidTimeline = (source: string) => upstream.project(source, diagram => diagram.db.getMessages()
+    .filter((m: { from?: string; type: number }) => m.from !== undefined)
+    .map((m: { from: string; to: string; type: number; placement: number; message: string }) => m.type === diagram.db.LINETYPE.NOTE
+      ? `note ${['left', 'right', 'over'][m.placement]} ${m.from === m.to ? m.from : `${m.from},${m.to}`}: ${m.message}`
+      : `${m.from}->${m.to}: ${m.message}`))
+  /** Mermaid keeps a line break as written; the renderer reads it as one. */
+  const breaks = (text: string) => projectEntityMarkers(text).replace(/<br\s*\/?>/gi, '\n')
+
+  /** The same timeline as the renderer's parser reads it. */
+  function ourTimeline(source: string): string[] {
+    const diagram = parseSequenceDiagram(source.split('\n').map(line => line.trim()).filter(Boolean))
+    const notesAfter = (index: number) => diagram.notes.filter(note => note.afterIndex === index)
+      .map(note => `note ${note.position} ${note.actorIds.join(',')}: ${note.text}`)
+    return [...notesAfter(-1), ...diagram.messages.flatMap((m, index) => [`${m.from}->${m.to}: ${m.label}`, ...notesAfter(index)])]
+  }
+
+  test.each([
+    ['after a message', { kind: 'add_note', position: 'right', actorIds: ['B'], text: 'got it', afterMessage: 0 }, '  A->>B: one\n  Note over A,B: shared\n  Note right of B: got it\n  create participant C\n'],
+    ['before a message, above the create line bound to it', { kind: 'add_note', position: 'left', actorIds: ['A'], text: 'about to create', beforeMessage: 1 }, '  Note over A,B: shared\n  Note left of A: about to create\n  create participant C\n'],
+    ['at the end, over two participants, wrapped and on two lines', { kind: 'add_note', position: 'over', actorIds: ['B', 'C'], text: 'all\ndone', wrap: true }, '  A->>B: four\n  Note over B,C: wrap: all<br/>done\n'],
+    ['with text that looks like a statement separator or comment', { kind: 'add_note', position: 'over', actorIds: ['A'], text: 'a; b #c %% d', afterMessage: 2 }, '  A->>B: four\n  Note over A: a#59; b #35;c %#37; d\n'],
+    ['removed', { kind: 'remove_note', index: 0 }, '  A->>B: one\n  create participant C\n'],
+    ['with new text', { kind: 'set_note_text', index: 0, text: 'both <b>see</b> it' }, '  Note over A,B: both <b>see</b> it\n'],
+    ['moved before the first message', { kind: 'move_note', index: 0, beforeMessage: 0 }, '  participant B\n  Note over A,B: shared\n  A->>B: one\n  create participant C\n'],
+    ['moved after the last message', { kind: 'move_note', index: 0, afterMessage: 2 }, '  A->>B: four\n  Note over A,B: shared\n'],
+  ] as const)('a note %s is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(NOTES), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    expect(serializeMermaid(sequence(output))).toBe(output)
+    expect(describeMermaidFacts(sequence(output))).toEqual(describeMermaidFacts(edited))
+    const notes = edited.body.statements.filter(statement => statement.kind === 'note')
+    notes.forEach((note, index) => expect(describeMermaidFacts(edited).filter(fact => fact.startsWith(`note#${index} ${note.position === 'over' ? 'over' : `${note.position} of`} ${note.actorIds.join(',')} : `))).toHaveLength(1))
+    const read = await mermaidTimeline(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map(breaks)).toEqual(ourTimeline(output))
+  })
+
+  test.each([
+    ['a third participant', { kind: 'add_note', position: 'over', actorIds: ['A', 'B', 'C'], text: 'x' }, 'INVALID_OP'],
+    ['two participants beside', { kind: 'add_note', position: 'left', actorIds: ['A', 'B'], text: 'x' }, 'INVALID_OP'],
+    ['no participant', { kind: 'add_note', position: 'over', actorIds: [], text: 'x' }, 'INVALID_OP'],
+    ['an unknown participant', { kind: 'add_note', position: 'over', actorIds: ['Z'], text: 'x' }, 'PARTICIPANT_NOT_FOUND'],
+    ['an id Mermaid reads as another token', { kind: 'add_note', position: 'over', actorIds: ['accDescr'], text: 'x' }, 'INVALID_OP'],
+    ['both anchors', { kind: 'add_note', position: 'over', actorIds: ['A'], text: 'x', afterMessage: 0, beforeMessage: 1 }, 'INVALID_OP'],
+    ['an anchor past the top-level messages', { kind: 'add_note', position: 'over', actorIds: ['A'], text: 'x', afterMessage: 3 }, 'MESSAGE_NOT_FOUND'],
+    ['a missing note', { kind: 'set_note_text', index: 1, text: 'x' }, 'INVALID_OP'],
+    ['a missing note to move', { kind: 'move_note', index: 1 }, 'INVALID_OP'],
+  ] as const)('an op naming %s is refused', (_name, op, code) => {
+    const parsed = sequence(NOTES)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe(code)
+    expect(serializeMermaid(parsed)).toBe(NOTES)
+  })
+
+  test('removing a participant a note names is refused until the note is removed', () => {
+    const parsed = sequence('sequenceDiagram\n  A->>B: hi\n  Note over A,B: shared\n  B->>C: on')
+    const refused = mutate(parsed, { kind: 'remove_participant', id: 'A' })
+    expect(!refused.ok && refused.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining('note 0') })
+    const removed = apply(apply(parsed, { kind: 'remove_note', index: 0 }), { kind: 'remove_participant', id: 'A' })
+    expect(removed.body.participants.map(p => p.id)).toEqual(['B', 'C'])
+  })
+
+  test('each placement keeps its authored spelling apart from canonical case and spacing', async () => {
+    const source = 'sequenceDiagram\n  A->>B: x\n  note LEFT OF A : l\n  Note right of B: nowrap: r<br>two\n  Note over A,B:#35; both\n'
+    const parsed = sequence(source)
+    expect(parsed.body.statements.map(statement => statement.kind === 'note' ? statement.position : statement.kind)).toEqual(['message', 'left', 'right', 'over'])
+    const written = serializeMermaid(parsed)
+    expect(written).toBe('sequenceDiagram\n  A->>B: x\n  Note left of A: l\n  Note right of B: nowrap: r<br>two\n  Note over A,B: #35; both\n')
+    const read = await mermaidTimeline(written)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map(breaks)).toEqual(ourTimeline(source))
   })
 })
 

@@ -17,15 +17,19 @@ lost-dashed, `<<->>` bidirectional, `<<-->>` bidirectional-dashed. Half-arrows
 (`-|\` …) keep their operator in `arrow`; facts state it.
 
 MutationOps include participant/top-level message edits plus `add_fragment`,
-`remove_fragment`, fragment/branch label edits, and fragment-message add/remove/
-text edits.
+`remove_fragment`, fragment/branch label edits, fragment-message add/remove/
+text edits, and top-level note edits: `add_note` (`position` left/right/over,
+`actorIds`, `text`, placed with `afterMessage` or `beforeMessage`, a top-level
+message index, else appended), `remove_note`, `set_note_text` and `move_note`
+(notes are addressed by top-level note index, `note#i` in facts).
 
 IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, and `par` are
 typed fragments. Their messages appear in describe/facts/verify and fragment
 ops can author or edit them. Top-level `create participant|actor` and
 `destroy` lines are typed statements too (facts: `create …`, `destroy …`);
 an edit that would separate one from the message Mermaid requires right
-after it is refused. Other constructs (Note/critical/break/rect/box/
+after it is refused. Top-level `Note left of|right of|over …` lines are typed
+notes. Other constructs (notes inside fragments, critical/break/rect/box/
 activate/autonumber/title) ride along VERBATIM as opaque-block segments while
 participant and top-level message ops remain live. Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE

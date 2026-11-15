@@ -6,12 +6,13 @@
 // autonumber/title keeps its participant/message mutation ops while unmodeled
 // lines ride along VERBATIM as opaque-block segments.
 //
-//   - Structured lines  = participant/actor declarations, simple messages and
-//                         the `create`/`destroy` lifecycle directives.
+//   - Structured lines  = participant/actor declarations, simple messages,
+//                         notes and the `create`/`destroy` lifecycle
+//                         directives.
 //   - Block constructs  = alt|opt|loop|par|critical|break|rect … end (nesting-
 //                         tracked) → ONE opaque-block segment, inner lines kept
 //                         byte-for-byte (original indentation).
-//   - Other single lines = Note…, activate/deactivate, autonumber, title… →
+//   - Other single lines = activate/deactivate, autonumber, title… →
 //                         each joins an adjacent opaque-block segment.
 //   - Unbalanced `end` / unclosed block / un-segmentable input → return null
 //                         so the caller falls back to a whole-body opaque body
@@ -29,10 +30,10 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageArrow, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceNoteStatement, SequenceNotePosition, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement } from '../sequence/parser.ts'
+import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement, type SequenceStatementSyntax } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
@@ -132,6 +133,15 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
+    if (syntax?.kind === 'note') {
+      fold.applyAll(participantEventsOf(syntax))
+      const note = typedNote(syntax.note)
+      if (note) statements.push(note)
+      else appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
+      i++
+      continue
+    }
+
     if (syntax?.kind === 'message') {
       fold.applyAll(participantEventsOf(syntax))
       messages.push(sequenceMessageFromParsed(syntax.message))
@@ -155,8 +165,8 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    // Any other unmodeled single line (Note…, activate/deactivate,
-    // autonumber, title…) joins an adjacent opaque-block segment, kept
+    // Any other unmodeled single line (activate/deactivate, autonumber,
+    // title…) joins an adjacent opaque-block segment, kept
     // verbatim, and still declares the participants it names.
     fold.applyAll(participantEventsOf(syntax))
     appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
@@ -201,6 +211,31 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
     ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
     ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
   }
+}
+
+/** A note line as a typed note, when the typed writer can spell its
+ * participants; otherwise it stays verbatim source. */
+function typedNote(note: Extract<SequenceStatementSyntax, { kind: 'note' }>['note']): SequenceNoteStatement | undefined {
+  const { position, actorIds, wrap } = note
+  if (noteActorsError(position, actorIds)) return undefined
+  const text = readSequenceText(note.text.trim())
+  return {
+    kind: 'note', position, actorIds: [...actorIds], text: text.value,
+    ...(text.content ? { textContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }),
+  }
+}
+
+/** Mermaid's note grammar: one participant, or two for `over`, each spelled
+ * as a message receiver is. */
+function noteActorsError(position: SequenceNotePosition, actorIds: readonly string[]): MutationError | undefined {
+  if (actorIds.length < 1 || actorIds.length > (position === 'over' ? 2 : 1)) {
+    return { code: 'INVALID_OP', message: 'A sequence note names one participant, or two when its position is "over"' }
+  }
+  for (const id of actorIds) {
+    const invalid = actorIdError(id, 'receiver')
+    if (invalid) return invalid
+  }
+  return undefined
 }
 
 /** A statement's source as kept verbatim, but with a local arrow spelling
@@ -505,6 +540,8 @@ export function renderSequence(body: SequenceBody): string {
         lines.push(renderCreate(st))
       } else if (st.kind === 'destroy') {
         lines.push(`  destroy ${st.actorId}`)
+      } else if (st.kind === 'note') {
+        lines.push(renderNote(st))
       } else {
         const m = body.messages[st.ref]
         if (m) lines.push(renderMessage(m))
@@ -553,6 +590,8 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
     } else if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
       if (message) invalid = messageIdError(message)
+    } else if (statement.kind === 'note') {
+      invalid = noteActorsError(statement.position, statement.actorIds)
     } else if (statement.kind === 'fragment') {
       for (const branch of statement.fragment.branches) {
         for (const message of branch.messages) {
@@ -597,6 +636,11 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
 
+function renderNote(note: SequenceNoteStatement): string {
+  const prefix = `  Note ${note.position === 'over' ? 'over' : `${note.position} of`} ${note.actorIds.join(',')}: `
+  return prefix + writeSequenceControlledText(note.text, note.textContent, note.wrap, prefix)
+}
+
 function renderCreate(statement: Extract<SequenceStatement, { kind: 'create' }>): string {
   // A type the keyword does not give is written as a declaration writes it.
   const metadata = statement.type !== undefined && statement.type !== statement.declaration ? `@{ "type": "${statement.type}" }` : ''
@@ -624,6 +668,7 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
     case 'create': return [statement.id]
     // `destroy` refers to a participant without creating it.
     case 'destroy': return []
+    case 'note': return [...statement.actorIds]
     case 'opaque-block': return statement.lines.flatMap(line => preservedLineEvents(line).map(event => event.id))
   }
 }
@@ -712,6 +757,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
           message: `Participant "${op.id}" is referenced by preserved sequence syntax; remove or model that opaque block before removing the participant`,
         })
       }
+      const naming = noteStatements(statements).findIndex(({ statement }) => statement.actorIds.includes(op.id))
+      if (naming >= 0) return err({ code: 'INVALID_OP', message: `Participant "${op.id}" is named by note ${naming}; remove that note (remove_note) before removing the participant` })
       participants.splice(idx, 1)
       // Drop messages touching the participant, then rebuild statements over
       // the surviving messages/participants (opaque blocks are preserved).
@@ -928,6 +975,43 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       message.text = text
       break
     }
+    case 'add_note': {
+      const invalid = noteActorsError(op.position, Array.isArray(op.actorIds) ? op.actorIds : [])
+      if (invalid) return err(invalid)
+      const missing = op.actorIds.find(id => !participants.some(p => p.id === id))
+      if (missing !== undefined) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${missing}" not found; add it before placing a note on it` })
+      const at = notePosition(statements, messages.length, op)
+      if (!at.ok) return at
+      statements.splice(at.value, 0, {
+        kind: 'note', position: op.position, actorIds: [...op.actorIds], text: normalizeSequenceMessageText(op.text),
+        ...(op.wrap === undefined ? {} : { wrap: op.wrap }),
+      })
+      break
+    }
+    case 'remove_note': {
+      const target = noteStatements(statements)[op.index]
+      if (!target) return err(noteNotFound(statements, op.index))
+      statements.splice(target.position, 1)
+      break
+    }
+    case 'set_note_text': {
+      const target = noteStatements(statements)[op.index]
+      if (!target) return err(noteNotFound(statements, op.index))
+      const note = target.statement
+      const text = normalizeSequenceMessageText(op.text)
+      if (note.text !== text || note.textContent?.value !== note.text) delete note.textContent
+      note.text = text
+      break
+    }
+    case 'move_note': {
+      const target = noteStatements(statements)[op.index]
+      if (!target) return err(noteNotFound(statements, op.index))
+      statements.splice(target.position, 1)
+      const at = notePosition(statements, messages.length, op)
+      if (!at.ok) return at
+      statements.splice(at.value, 0, target.statement)
+      break
+    }
     default: {
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
@@ -1082,6 +1166,7 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
 function cloneStatement(s: SequenceStatement): SequenceStatement {
   if (s.kind === 'opaque-block') return { kind: 'opaque-block', lines: [...s.lines] }
   if (s.kind === 'actor-links') return { ...s, links: { ...s.links } }
+  if (s.kind === 'note') return { ...s, actorIds: [...s.actorIds] }
   if (s.kind === 'fragment') return { kind: 'fragment', fragment: { ...s.fragment, branches: s.fragment.branches.map(branch => ({ ...branch, messages: branch.messages.map(message => ({ ...message })) })) } }
   return { ...s }
 }
@@ -1090,6 +1175,38 @@ function fragmentStatements(statements: SequenceStatement[]): Array<{ position: 
   const out: Array<{ position: number; statement: Extract<SequenceStatement, { kind: 'fragment' }> }> = []
   statements.forEach((statement, position) => { if (statement.kind === 'fragment') out.push({ position, statement }) })
   return out
+}
+
+function noteStatements(statements: SequenceStatement[]): Array<{ position: number; statement: SequenceNoteStatement }> {
+  const out: Array<{ position: number; statement: SequenceNoteStatement }> = []
+  statements.forEach((statement, position) => { if (statement.kind === 'note') out.push({ position, statement }) })
+  return out
+}
+
+function noteNotFound(statements: SequenceStatement[], index: number): MutationError {
+  const count = noteStatements(statements).length
+  return { code: 'INVALID_OP', message: `No top-level sequence note at index ${index}${count ? ` (0..${count - 1})` : ' (the diagram has no top-level notes)'}` }
+}
+
+/** Where a note anchored to a top-level message goes: right after message
+ * `afterMessage` and the notes already after it, right before message
+ * `beforeMessage` and the create/destroy lines bound to it, or at the end. */
+function notePosition(statements: SequenceStatement[], messageCount: number, anchor: { afterMessage?: number; beforeMessage?: number }): Result<number, MutationError> {
+  const { afterMessage, beforeMessage } = anchor
+  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: 'Give a note afterMessage or beforeMessage, not both' })
+  const index = afterMessage ?? beforeMessage
+  if (index === undefined) return ok(statements.length)
+  if (!Number.isInteger(index) || index < 0 || index >= messageCount) {
+    return err({ code: 'MESSAGE_NOT_FOUND', message: `No top-level message at index ${index}${messageCount ? ` (0..${messageCount - 1})` : ' (the diagram has no top-level messages)'}` })
+  }
+  let at = statements.findIndex(statement => statement.kind === 'message' && statement.ref === index)
+  if (afterMessage !== undefined) {
+    at++
+    while (statements[at]?.kind === 'note') at++
+  } else {
+    while (at > 0 && (statements[at - 1]!.kind === 'create' || statements[at - 1]!.kind === 'destroy')) at--
+  }
+  return ok(at)
 }
 
 function normalizeFragmentLabel(value: string | null | undefined): Result<string | undefined, MutationError> {
@@ -1178,6 +1295,8 @@ function rebuildStatements(
       if ((s.kind === 'create' ? s.id : s.actorId) !== removedParticipantId) out.push({ ...s })
       continue
     }
+    // remove_participant refuses a participant a note names.
+    if (s.kind === 'note') { out.push(cloneStatement(s)); continue }
     // message
     if (removedMsgIdx.has(s.ref)) continue
     let shift = 0

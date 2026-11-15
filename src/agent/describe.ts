@@ -562,6 +562,10 @@ function describeSequence(d: SequenceValidDiagram): string {
       interactions.push(`destroy ${statement.actorId}`)
       continue
     }
+    if (statement.kind === 'note') {
+      interactions.push(`note ${statement.position === 'over' ? 'over' : `${statement.position} of`} ${statement.actorIds.join(',')}: ${sequenceDisplayText(statement.text, statement.textContent)}`)
+      continue
+    }
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = sequenceBranchDisplay(statement.fragment, branchIndex)

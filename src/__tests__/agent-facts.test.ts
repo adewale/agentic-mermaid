@@ -88,7 +88,10 @@ describe('deterministic Mermaid facts', () => {
     const expected = ['note over A,B : shared\\nstep', 'note left of A : quoted', 'note right of B : done']
     const out = facts(source)
     expect(out.filter(fact => fact.startsWith('note '))).toEqual([...expected].sort())
-    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toHaveLength(3)
+    // The top-level note is typed and addressed by its note index; notes
+    // inside rect and a note-bearing fragment stay preserved source.
+    expect(out).toContain('note#0 over A,B : shared\\nstep')
+    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toHaveLength(2)
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(facts(serializeMermaid(parsed.value))).toEqual(out)
@@ -267,8 +270,8 @@ describe('facts through Code Mode and CLI surfaces', () => {
   })
 
   test('am describe --json carries verify warnings in every format, as MCP describe does', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A: kept verbatim'
-    const file = temp.file('note.mmd', source)
+    const source = 'sequenceDiagram\n  A->>B: hi\n  activate A'
+    const file = temp.file('activation.mmd', source)
     for (const format of ['text', 'facts', 'json']) {
       const result = capture(() => runCli(['describe', file, '--format', format, '--json']))
       expect({ format, code: result.code, out: JSON.parse(result.out) }).toEqual({ format, code: 0, out: mcpDescribePayload(source, { format }) })

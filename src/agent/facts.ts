@@ -415,13 +415,22 @@ function factsSequence(out: string[], body: SequenceBody): void {
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
-  // Lifecycle directives, placed by the message# that follows them.
+  // Lifecycle directives and notes, placed by the message# that follows them.
   let messageIndex = 0
+  let noteIndex = 0
   const total = sequenceMessageContexts(body).length
   for (const statement of body.statements) {
     if (statement.kind === 'message') messageIndex++
     else if (statement.kind === 'fragment') messageIndex += statement.fragment.branches.reduce((n, branch) => n + branch.messages.length, 0)
-    else if (statement.kind === 'create' || statement.kind === 'destroy') {
+    else if (statement.kind === 'note') {
+      const { position, actorIds } = statement
+      const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
+      add(out, `note ${note}`)
+      add(out, `note#${noteIndex} ${note}`)
+      if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
+      if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
+      noteIndex++
+    } else if (statement.kind === 'create' || statement.kind === 'destroy') {
       const id = statement.kind === 'create' ? statement.id : statement.actorId
       const at = messageIndex < total ? ` before message#${messageIndex}` : ''
       add(out, statement.kind === 'create'

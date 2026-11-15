@@ -1399,8 +1399,12 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const w = labelOverflowWarning(p.id, resolveLabelContent(p.label, p.labelContent), cap)
     if (w) warnings.push(w)
   }
+  let noteIndex = 0
   for (const statement of body.statements)
-    if (statement.kind === 'fragment') {
+    if (statement.kind === 'note') {
+      const w = labelOverflowWarning(`note#${noteIndex++}`, resolveLabelContent(statement.text, statement.textContent), cap)
+      if (w) warnings.push(w)
+    } else if (statement.kind === 'fragment') {
       if (statement.fragment.label) {
         const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)
         if (w) warnings.push(w)
@@ -1411,7 +1415,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
           if (w) warnings.push(w)
         }
     }
-  // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
+  // BUILD-18: opaque-block segments (critical/rect/title lines…) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
   // check survives the move from whole-body-opaque to structured-with-segments.
   const opaqueLines = body.statements

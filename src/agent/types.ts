@@ -190,11 +190,27 @@ export interface SequenceCreateStatement {
   wrap?: boolean
 }
 
+export type SequenceNotePosition = 'left' | 'right' | 'over'
+
+/** `Note left of A: text`, `Note right of A: text` or `Note over A[,B]: text`,
+ * drawn at its place in the statement order. */
+export interface SequenceNoteStatement {
+  kind: 'note'
+  position: SequenceNotePosition
+  /** One participant; a note `over` may span two. */
+  actorIds: string[]
+  text: string
+  textContent?: LabelContent
+  /** Authored wrap control; absent inherits the diagram configuration. */
+  wrap?: boolean
+}
+
 // Ordered statement list. Refs index into the top-level arrays. The four
 // common control fragments are typed so their messages participate in
-// describe/facts/verify and can be authored through mutation ops. Constructs
-// outside that closed model (notes, critical/break/rect/box, activations…)
-// remain lossless opaque segments.
+// describe/facts/verify and can be authored through mutation ops, as are
+// top-level notes. Constructs outside that closed model (notes inside
+// fragments, critical/break/rect/box, activations…) remain lossless opaque
+// segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
@@ -202,6 +218,7 @@ export type SequenceStatement =
   | SequenceCreateStatement
   /** `destroy X`: X's lifeline ends at the next message X sends or receives. */
   | { kind: 'destroy'; actorId: string }
+  | SequenceNoteStatement
   | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }
 
@@ -1407,6 +1424,14 @@ export type SequenceMutationOp =
   | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
   | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
+  // Notes are addressed by their index among top-level notes. A note goes
+  // directly after top-level message `afterMessage` (after notes already
+  // there) or directly before top-level message `beforeMessage` (above the
+  // create/destroy lines bound to it); with neither it is appended.
+  | { kind: 'add_note'; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_note'; index: number }
+  | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'move_note'; index: number; afterMessage?: number; beforeMessage?: number }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
