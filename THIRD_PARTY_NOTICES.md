@@ -1,5 +1,25 @@
 # Third-party notices
 
+## ELK Layered TypeScript translation
+
+Files under `src/elk-layered/org/eclipse/elk/` translate Eclipse ELK tag
+`v0.11.0`, revision `54123e884b1ae743b453260f713b20c9bf5787f2`.
+They retain their upstream class and method names and EPL-2.0 notices.
+
+- Source: <https://github.com/eclipse/elk/tree/54123e884b1ae743b453260f713b20c9bf5787f2>
+- Copyright: Kiel University and other contributors, as identified in each file.
+- License: **EPL-2.0**, reproduced in `LICENSES/ELK-EPL-2.0.md`.
+
+Java compatibility operations under `src/elk-layered/java/` reproduce the
+numeric and collection operations needed by that translation. Hash-map and
+enum-set iteration and decimal parsing adapt GWT 2.11.0, the compiler runtime
+used by elkjs 0.11.1. Original GWT portions retain Apache-2.0 notices alongside
+the translation's EPL-2.0 notice; Apache-2.0 is reproduced in
+`LICENSES/Apache-2.0.txt`.
+
+- Source: <https://github.com/gwtproject/gwt/tree/2.11.0/user/super/com/google/gwt/emul/java>
+- Copyright: Google Inc. and other contributors, as identified upstream.
+
 ## Pele parser and fishbone layout adaptations
 
 The native Block and Requirement parsers and Ishikawa layout adapt browserless
