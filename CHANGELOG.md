@@ -53,7 +53,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   fragment message keeps its authored spacing (`A ->> B: ping now`). A large
   reordering (a rename in a 1,200-class diagram) is compared instead of
   falling back. Subgraph members declared by edges and one line carrying
-  several statements and `:::` classes edit locally.
+  several statements and `:::` classes edit locally. A new edge that is a
+  node's first mention keeps the node's label on its declaration line.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

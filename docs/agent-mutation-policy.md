@@ -193,7 +193,10 @@ declared by another edge inside it), and a new statement placed beside a line
 inside a block its canonical statement is not in goes after that block's
 closer. The statements a rewritten line keeps, and those written beside it,
 are written in canonical order (`A:::hot & B --> C` less `A --> C` becomes
-`B --> C`, `A[A]`, `class A hot`).
+`B --> C`, `A[A]`, `class A hot`). A declaration whose label the writer would
+move onto a new statement that now mentions it first keeps its line, and the
+new statement names it bare (`n0[Zero]` stays and the edge is written
+`n0 --> n1`).
 
 Typical fallbacks: an edit whose canonical result moves statements into blocks
 the source does not spell (nested namespaces the writer flattens), an edit

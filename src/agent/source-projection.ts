@@ -33,9 +33,10 @@
 // to the line inside its authored block that declares it, a new statement
 // goes outside authored blocks its canonical statement is not in, and the
 // statements a rewritten line keeps and those written beside it are written
-// in canonical order. The caller otherwise writes the canonical source and
-// says why: the closest candidate's misreading, or the statement that could
-// not be placed.
+// in canonical order. A declaration whose label the writer moves onto a new
+// statement keeps its line, and the new statement names it bare. The caller
+// otherwise writes the canonical source and says why: the closest
+// candidate's misreading, or the statement that could not be placed.
 // ============================================================================
 
 import { describeMermaidFacts } from './facts.ts'
@@ -735,7 +736,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
     if (from !== undefined) writtenFrom.set(index, from)
-    list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + c1[index]!.trimStart()])
+    list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + (respelled.get(index) ?? c1[index]!.trimStart())])
     placed[where].set(at, list)
   }
   // A new statement inside a block no authored line opens is written like
@@ -796,6 +797,23 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   }
   const pairedFrom = new Map<number, number>()
   for (const [del, ins] of pairOf) { sourceOf.set(ins, del); pairedFrom.set(ins, del) }
+  // Residual pass: a declaration the edit only extends (a node's label the
+  // writer moves onto a new edge that now mentions it first) stays on its
+  // authored line, and the new statement names it bare.
+  const respelled = new Map<number, string>(), declared = new Set<number>()
+  if (variant.residual) {
+    for (const [del, ins] of [...pairOf]) {
+      const declaration = c0[del]!.trim(), statement = c1[ins]!.trim()
+      const name = /^[^\s[\](){}<>@:|"&;]+/.exec(declaration)?.[0]
+      const found = occurrences(statement, declaration)
+      if (!name || name === declaration || statement === declaration || found.length !== 1) continue
+      respelled.set(ins, statement.slice(0, found[0]![0]) + name + statement.slice(found[0]![1]))
+      declared.add(del)
+      pairOf.delete(del)
+      pairedFrom.delete(ins)
+      sourceOf.delete(ins)
+    }
+  }
   // Token splices keep the authored line; anything else replaces it whole.
   const whole = new Set<number>()
   const spliced = new Map<number, Set<string>>()
@@ -842,7 +860,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     }
   }
   const gone = new Set<number>([...whole])
-  for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del)) gone.add(del)
+  for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del) && !declared.has(del)) gone.add(del)
   for (const del of gone) {
     const line = owner[del]!
     if (line < 0) return `the removed statement ${quote(c0[del]!)} was not traced to an authored line`

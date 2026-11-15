@@ -261,6 +261,15 @@ const AMPERSAND_CLASSES = `flowchart TD
   classDef hot fill:#f96
 `
 
+// A node declared on its own line, whose label the writer moves onto the
+// first edge that mentions it.
+const DECLARED_FIRST = `flowchart TD
+  %% keep
+  n0[Zero]
+  n1{One}
+  n2 --> n1
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -358,6 +367,7 @@ const CASES: Case[] = [
   { name: 'flowchart remove_node keeps the subgraph member its edge declared', source: EDGE_MEMBERS, op: { kind: 'remove_node', id: 'a1' }, touched: ['    a1-->a2'], reference: [['    a1-->a2\n', '    a2\n']] },
   { name: 'flowchart add_node after edges inside a subgraph stays outside it', source: EDGE_MEMBERS, op: { kind: 'add_node', id: 'N', label: 'New' }, reference: [['      b1-->b2\n    end\n', '      b1-->b2\n    end\n    N[New]\n']] },
   { name: 'flowchart remove_edge from a line with two edges and a class', source: AMPERSAND_CLASSES, op: { kind: 'remove_edge', id: 'A->C' }, touched: ['  A:::hot & B --> C'], reference: [['  A:::hot & B --> C\n', '  B --> C\n  A[A]\n  class A hot\n']] },
+  { name: 'flowchart add_edge from a node declared on its own line keeps its label there', source: DECLARED_FIRST, op: { kind: 'add_edge', from: 'n0', to: 'n1' }, reference: [['  n2 --> n1\n', '  n2 --> n1\n  n0 --> n1\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
