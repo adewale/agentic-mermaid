@@ -50,9 +50,9 @@
   "unpkg": "./dist/browser.global.js",
   "jsdelivr": "./dist/browser.global.js",
   "imports": {
-    "#elk-constructor": {
-      "node": "./dist/elk-constructor.node.js",
-      "default": "./dist/elk-constructor.js"
+    "#elk-solver": {
+      "node": "./dist/elk-solver.node.js",
+      "default": "./dist/elk-solver.js"
     },
     "#builtin-font-metrics": {
       "node": "./dist/builtin-font-metrics.node.js",
@@ -256,7 +256,6 @@
     "acorn": "8.16.0",
     "d3-format": "3.1.0",
     "d3-sankey": "0.12.3",
-    "elkjs": "0.11.1",
     "entities": "^7.0.1",
     "yaml": "^2.8.3"
   },
@@ -306,6 +305,7 @@
     "typescript": "^5.9.3",
     "upng-js": "^2.1.0",
     "vitest": "4.1.11",
-    "wrangler": "4.149.0"
+    "wrangler": "4.149.0",
+    "elkjs": "0.11.1"
   }
 }

@@ -14,7 +14,7 @@ export default defineConfig({
   entry: { 'browser-lazy/index': 'src/browser-lazy.ts' },
   format: ['esm'],
   platform: 'browser',
-  dts: { entry: { 'browser-lazy/index': 'src/browser-lazy.ts' } },
+  dts: { resolve: ['elkjs'], entry: { 'browser-lazy/index': 'src/browser-lazy.ts' } },
   splitting: true,
   sourcemap: false,
   // The preceding exact-target cleanup preserves Node/IIFE siblings while
@@ -47,7 +47,7 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
-      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
+      build.onResolve({ filter: /\/elk-solver\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))

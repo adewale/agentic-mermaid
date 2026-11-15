@@ -132,11 +132,11 @@ if (forbiddenInputs.length > 0) {
 }
 
 const elkOutputs = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-layered/kernel/layout.ts') || MEASURE_ONLY && input.includes('node_modules/elkjs/')))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
 const elkLoaders = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-constructor.lazy.ts')))
-if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one on-demand constructor')
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-solver.lazy.ts') || MEASURE_ONLY && input.endsWith('/elk-constructor.lazy.ts')))
+if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one on-demand solver provider')
 const initialFiles = staticClosure([entry])
 const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
@@ -183,11 +183,11 @@ if (yamlOutputs.some(path => !yamlFiles.includes(path))) throw new Error('YAML p
 
 // A family can still demand ELK after its initial static download. Preserve
 // that transfer in the existing ceilings, deriving consumers from the emitted
-// constructor seam rather than maintaining a second family roster. The older
-// non-lazy constructor also identifies consumers when measuring a baseline.
+// solver seam rather than maintaining a second family roster. The older
+// non-lazy provider also identifies consumers when measuring a baseline.
 const elkConstructorOutputs = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input => /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input)))
-if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
+  Object.keys(metafile.outputs[path]!.inputs).some(input => (/^src\/elk-solver(?:\.lazy)?\.ts$/.test(input) || MEASURE_ONLY && /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input))))
+if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted solver seam')
 const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
   elkConstructorOutputs.some(path => staticFamilyFiles[id].includes(path)))
 const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [

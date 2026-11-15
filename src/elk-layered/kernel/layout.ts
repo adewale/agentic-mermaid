@@ -12,7 +12,7 @@ import { prepareEndLabels, selectEndLabelSides, sortEndLabels, finishEndLabels }
 import { preprocessSelfLoops, restoreSelfLoopPorts, routeSelfLoops, postprocessSelfLoops } from './self-loops.ts'
 import { insertLabelDummies, switchLabelDummies, selectLabelSides, removeLabelDummies } from './edge-labels.ts'
 import { breakGreedyCycles, breakModelOrderCycles, breakGreedyModelOrderCycles } from './cycle-breaking.ts'
-import { Random } from '../java/util/Random.ts'
+import { Random } from './random.ts'
 import { applyHighDegreeLayers } from './high-degree.ts'
 import { assignNetworkSimplexLayers } from './network-simplex.ts'
 import { insertInvertedPortDummies } from './inverted-ports.ts'
@@ -20,6 +20,8 @@ import { assignPortSides, sortPortLists } from './phases.ts'
 import { splitLongEdges, joinLongEdges } from './long-edges.ts'
 import { minimizeCrossings, prepareCrossingModelOrder, minimizeHierarchicalCrossings, minimizeHierarchicalGreedySwitch } from './crossing.ts'
 import { preprocessNorthSouthPorts, postprocessNorthSouthPorts, type NorthSouthPortState } from './north-south-ports.ts'
+import { mergeHyperedgeDummies } from './hyperedge-dummies.ts'
+import { preprocessPartitions, addPartitionConstraints, removePartitionConstraints } from './partitions.ts'
 import { preprocessCompound, postprocessCompound } from './compound.ts'
 import { constrainHierarchyPorts, sizeHierarchyPortDummies, positionHierarchyPorts, routeHierarchyPorts, type HierarchyPortState } from './hierarchy-ports.ts'
 import { reverseConstrainedEdges, hideSeparateLayers, restoreSeparateLayers, enforceInLayerConstraints } from './constraints.ts'
@@ -38,7 +40,7 @@ import type { ElkNode } from './types.ts'
 const SIZE_CONSTRAINTS = ['PORTS', 'PORT_LABELS', 'NODE_LABELS', 'MINIMUM_SIZE'] as const
 const SIZE_OPTIONS = ['DEFAULT_MINIMUM_SIZE', 'MINIMUM_SIZE_ACCOUNTS_FOR_PADDING', 'COMPUTE_PADDING', 'OUTSIDE_NODE_LABELS_OVERHANG', 'PORTS_OVERHANG', 'UNIFORM_PORT_SPACING', 'SPACE_EFFICIENT_PORT_LABELS', 'FORCE_TABULAR_NODE_LABELS', 'ASYMMETRICAL'] as const
 
-/** Development entry. Production continues to use elkjs until all paths qualify. */
+/** Synchronous ELK Layered JSON boundary. */
 export function elkLayoutSync<T extends ElkNode>(data: T): T {
   const graph = importGraph(data)
   layoutGraph(graph)
@@ -243,6 +245,8 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   // The upstream strategy factory maps the preprocessor to TO_INPUT_DIRECTION.
   transformGraph(nodes, state, direction, 'TO_INPUT_DIRECTION')
   reverseConstrainedEdges(nodes)
+  const partitioning = booleanOption(state.options, 'partitioning.activate', false)
+  if (partitioning) preprocessPartitions(nodes)
   const loops = preprocessSelfLoops(nodes, state.options)
   const feedback = booleanOption(state.options, 'layered.feedbackEdges', false)
   if (feedback) assignPortSides(nodes)
@@ -255,9 +259,11 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const centerLabels = nodes.some(node => node.ports.some(port => port.outgoing.some(edge => edge.source.node !== edge.target.node && edge.labels.some(label => enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') === 'CENTER')))) ? insertLabelDummies(nodes, state.options) : undefined
   const layererNodes = nodes.slice()
   const hiddenLayers = hideSeparateLayers(layererNodes)
+  const partitions = partitioning ? addPartitionConstraints(layererNodes) : undefined
   const layers = assignNetworkSimplexLayers(layererNodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
   if (booleanOption(state.options, 'layered.highDegreeNodes.treatment', false)) applyHighDegreeLayers(layers, state.options)
   restoreSeparateLayers(layers, hiddenLayers)
+  if (partitions !== undefined) removePartitionConstraints(layers, partitions)
   const hierarchyPorts = constrainHierarchyPorts(graph, layers)
   splitLongEdges(layers)
   if (!feedback) assignPortSides(layers.flat())
@@ -279,6 +285,7 @@ function finishLayout(prepared: PreparedLayout): Component {
   const endLabels = layers.some(layer => layer.some(node => node.ports.some(port => [...port.incoming, ...port.outgoing].some(edge => edge.labels.some(label => enumOption(label.options, 'edgeLabels.placement', ['CENTER', 'HEAD', 'TAIL'] as const, 'CENTER') !== 'CENTER'))))) ? prepareEndLabels(layers, state.options) : undefined
   if (centerLabels !== undefined) { switchLabelDummies(layers, state.options, centerLabels); selectLabelSides(layers, state.options, centerLabels) }
   if (endLabels !== undefined) selectEndLabelSides(layers, state.options, endLabels)
+  if (prepared.graph.hasHyperedges) mergeHyperedgeDummies(layers, state.options)
   sizeHierarchyPortDummies(layers, state.options, prepared.hierarchyPorts)
   placeNodes(layers, state.options)
   const measurement = measureLayers(layers, state.options)

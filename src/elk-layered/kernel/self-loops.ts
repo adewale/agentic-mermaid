@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-2.0.
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
-import type { Random } from '../java/util/Random.ts'
+import type { Random } from './random.ts'
 import type { LayoutNode, LayoutPort, LayoutEdge, LayoutLabel, PortConstraints } from './graph.ts'
 import { booleanOption, enumOption, numberOption } from './options.ts'
 import type { Options } from './options.ts'

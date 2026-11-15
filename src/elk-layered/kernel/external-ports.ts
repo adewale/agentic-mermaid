@@ -87,26 +87,30 @@ export function importIndependentPorts(graph: LayoutGraph): void {
   const descendant = (node: LayoutNode): boolean => { for (let parent = node.parent; parent !== undefined; parent = parent.parent) if (parent === owner) return true; return false }
   const insideLoops = booleanOption(owner.options, 'insideSelfLoops.activate', false)
   const votes = new Map<LayoutPort, number>()
+  let hasExternalPorts = false
   let top = graph; while (top.ownerNode?.layoutGraph !== undefined) top = top.ownerNode.layoutGraph
   const skipped: import('./graph.ts').SkippedLayoutEdge[] = []
   const collect = (graph: LayoutGraph): void => { for (const edge of graph.sourceEdges) if (edge.noLayout) skipped.push(edge); for (const node of graph.nodes) if (node.contentGraph !== undefined) collect(node.contentGraph) }
   collect(top)
   for (const port of ports) {
-    let output = 0, input = 0
+    let output = 0, input = 0, externalPortEdges = 0
+    const countExternal = (other: LayoutNode, loop: boolean): void => { if (loop || other.parent === owner) externalPortEdges++ }
     const outgoing = (target: LayoutNode, innerLoop: boolean): void => { if (target === owner) { if (innerLoop) input++; else output++ } else if (target.parent === owner) input++; else output++ }
     const incoming = (source: LayoutNode, innerLoop: boolean): void => { if (source === owner) { if (innerLoop) output++; else input++ } else if (source.parent === owner) output++; else input++ }
-    for (const edge of port.outgoing) outgoing(edge.target.node, insideLoops && booleanOption(edge.options, 'insideSelfLoops.yo', false))
-    for (const edge of port.incoming) incoming(edge.source.node, insideLoops && booleanOption(edge.options, 'insideSelfLoops.yo', false))
+    for (const edge of port.outgoing) { const loop = insideLoops && edge.source.node === edge.target.node && booleanOption(edge.options, 'insideSelfLoops.yo', false); outgoing(edge.target.node, loop); countExternal(edge.target.node, loop) }
+    for (const edge of port.incoming) { const loop = insideLoops && edge.source.node === edge.target.node && booleanOption(edge.options, 'insideSelfLoops.yo', false); incoming(edge.source.node, loop); countExternal(edge.source.node, loop) }
     for (const edge of skipped) {
-      if (edge.sourceShape === port && edge.targetShape !== undefined) outgoing('node' in edge.targetShape ? edge.targetShape.node : edge.targetShape, insideLoops && booleanOption(edge.options, 'insideSelfLoops.yo', false))
-      if (edge.targetShape === port && edge.sourceShape !== undefined) incoming('node' in edge.sourceShape ? edge.sourceShape.node : edge.sourceShape, insideLoops && booleanOption(edge.options, 'insideSelfLoops.yo', false))
+      if (edge.sourceShape === port && edge.targetShape !== undefined) { const other = 'node' in edge.targetShape ? edge.targetShape.node : edge.targetShape, loop = insideLoops && other === owner && booleanOption(edge.options, 'insideSelfLoops.yo', false); outgoing(other, loop); countExternal(other, loop) }
+      if (edge.targetShape === port && edge.sourceShape !== undefined) { const other = 'node' in edge.sourceShape ? edge.sourceShape.node : edge.sourceShape, loop = insideLoops && other === owner && booleanOption(edge.options, 'insideSelfLoops.yo', false); incoming(other, loop); countExternal(other, loop) }
     }
+    if (externalPortEdges > 0 || insideLabels && port.sourceLabels.length > 0) hasExternalPorts = true
+    if (externalPortEdges > 1) graph.hasHyperedges = true
     const flow = output - input; votes.set(port, flow)
     if (!isSideFixed(constraints)) port.side = flow > 0 ? fromDirection : opposed
     else if (port.side === 'UNDEFINED') { port.side = calculatePortSide(port, graph.direction); if (port.side === 'UNDEFINED') port.side = fromDirection }
     port.options.set('port.side', port.side)
   }
-  if (!ports.some(port => port.insideConnections === true || insideLabels && port.sourceLabels.length > 0)) return
+  if (!hasExternalPorts) return
   graph.hasExternalPorts = true
   const dummies: LayoutNode[] = []
   for (const port of ports) {

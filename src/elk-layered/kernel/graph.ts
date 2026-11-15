@@ -68,13 +68,14 @@ export interface LayoutNode extends CycleNode {
   noLayout: boolean
 }
 export interface LayoutGraph {
+  hasHyperedges?: boolean
   geometry?: { width: number; height: number; offsetX: number; offsetY: number; padding: Insets; options: Options }
   hasExternalPorts?: boolean
   layerlessNodes?: LayoutNode[]
   ownerNode?: LayoutNode
   layers?: LayoutNode[][]
   phaseOptions?: Options
-  random?: import('../java/util/Random.ts').Random
+  random?: import('./random.ts').Random
   parentNode?: LayoutNode
   data: ElkNode
   id: string | null
@@ -128,6 +129,7 @@ export function importGraph(data: ElkNode): LayoutGraph {
     if (compound !== undefined) { current.direction = compound.direction; current.options.set('direction', compound.direction) }
     for (const node of current.nodes) {
       node.layoutGraph = current
+      if (!node.noLayout && booleanOption(node.options, 'hypernode', false)) throw new Error('ELK TypeScript port: hypernodes are not implemented yet')
       for (const port of node.sourcePorts) initializePort(port, current.direction)
       const requestedHandling = enumOption(node.options, 'hierarchyHandling', ['INHERIT', 'SEPARATE_CHILDREN', 'INCLUDE_CHILDREN'] as const, 'INHERIT')
       const nodeHandling = requestedHandling === 'INHERIT' ? handling : requestedHandling
@@ -231,14 +233,16 @@ function importEdges(graph: LayoutGraph, ids: Map<string | number, LayoutNode>, 
     }
     if (sourceNodes.length !== 1 || targetNodes.length !== 1) throw new Error('ELK TypeScript port: hyperedge transformation is not implemented yet')
     const sourceShape = sourceNodes[0]!, targetShape = targetNodes[0]!
-    const source = 'node' in sourceShape && sourceShape.node.ports.includes(sourceShape) ? sourceShape : createPort(owner, sourceNode, 'OUTPUT'), target = 'node' in targetShape && targetShape.node.ports.includes(targetShape) ? targetShape : createPort(targetNode.layoutGraph ?? owner, targetNode, 'INPUT')
+    const source = 'node' in sourceShape && sourceShape.node.ports.includes(sourceShape) ? sourceShape : createPort(sourceNode.layoutGraph ?? owner, sourceNode, 'OUTPUT'), target = 'node' in targetShape && targetShape.node.ports.includes(targetShape) ? targetShape : createPort(targetNode.layoutGraph ?? owner, targetNode, 'INPUT')
     const edge: LayoutEdge = { containerGraph: owner, containerId, coordinateOrigin: sourceNode.parent !== targetNode.parent && !isDescendant(targetNode, sourceNode) ? owner : undefined, sourceShapeKey: sourceShape.key, targetShapeKey: targetShape.key, data: data as unknown as ElkExtendedEdge, source, target, options, labels, sourceLabels, reversed: false, priorityDirection: integerOption(options, 'layered.priority.direction', 0), priorityShortness: integerOption(options, 'layered.priority.shortness', 0), bends: [] }
-    source.outgoing.push(edge); target.incoming.push(edge); owner.edges.push(edge); owner.containedEdges.push(edge); graph.sourceEdges.push(edge)
+    source.outgoing.push(edge); target.incoming.push(edge)
+    if (source.incoming.length > 1 || source.outgoing.length > 1 || target.incoming.length > 1 || target.outgoing.length > 1) owner.hasHyperedges = true
+    owner.edges.push(edge); owner.containedEdges.push(edge); graph.sourceEdges.push(edge)
   }
 }
 export function createPort(graph: LayoutGraph, node: LayoutNode, type: 'INPUT' | 'OUTPUT'): LayoutPort {
   const constraints = enumOption(node.options, 'portConstraints', ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const, 'UNDEFINED')
-  const collect = !isSideFixed(constraints) && (booleanOption(graph.options, 'layered.mergeEdges', false) || booleanOption(node.options, 'layered.hypernode', false))
+  const collect = !isSideFixed(constraints) && (booleanOption(graph.options, 'layered.mergeEdges', false) || booleanOption(node.options, 'hypernode', false))
   const side = graph.direction === 'RIGHT' ? type === 'OUTPUT' ? 'EAST' : 'WEST' : graph.direction === 'LEFT' ? type === 'OUTPUT' ? 'WEST' : 'EAST' : graph.direction === 'DOWN' ? type === 'OUTPUT' ? 'SOUTH' : 'NORTH' : type === 'OUTPUT' ? 'NORTH' : 'SOUTH'
   return providePort(node, type, side, collect)
 }
