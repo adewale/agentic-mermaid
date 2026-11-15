@@ -34,8 +34,10 @@
 // goes outside authored blocks its canonical statement is not in, and the
 // statements a rewritten line keeps and those written beside it are written
 // in canonical order. A declaration whose label the writer moves onto a new
-// statement keeps its line, and the new statement names it bare. The caller
-// otherwise writes the canonical source and says why: the closest
+// statement keeps its line, and the new statement names it bare. A brace
+// opener the parser does not accept empty (a namespace) is read as a block,
+// and a block written on one line is rewritten there as the edited block.
+// The caller otherwise writes the canonical source and says why: the closest
 // candidate's misreading, or the statement that could not be placed.
 // ============================================================================
 
@@ -147,6 +149,10 @@ interface LineReader {
   /** Whether a statement reads as the diagram's statements on its own (a
    * message or node does; a branch line like `else` or a member does not). */
   alone(text: string): boolean
+  /** Whether a line read as nothing on its own opens a brace block: it ends
+   * with `{` and reads neither alone nor closed (a namespace, which the
+   * parser does not accept empty). */
+  opensBrace(text: string): boolean
   /** The canonical statements an authored statement adds inside a block
    * (between its authored opener and closer), less the empty block's own. */
   within(opener: string, text: string, closer: string): Map<string, number> | undefined
@@ -202,6 +208,9 @@ function lineReader(wrapper: string, header: string): LineReader {
         else result.delete(line)
       }
       return result
+    },
+    opensBrace(text) {
+      return /\{\s*$/.test(text) && read(`${wrapper}${header}\n${text}`) === undefined && read(`${wrapper}${header}\n${text}\n}`) === undefined
     },
     opens(text) {
       const alone = read(`${wrapper}${header}\n${text}`)
@@ -307,7 +316,7 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
     if (free.length === end - start) free.forEach((line, offset) => { owner[start + offset] = line })
     start = end
   }
-  const blocks = structural ? traceBlocks(lines, c0, owner, remaining, reader) : undefined
+  const blocks = structural ? traceBlocks(lines, c0, owner, remaining, reader, residual) : undefined
   if (blocks && residual) traceMembers(lines, c0, owner, blocks, reader)
   const traced = new Set(owner)
   readings.forEach((reading, line) => {
@@ -378,9 +387,10 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
  * no authored line opens (members written as `Class : member` lines) has an
  * implicit closer, so it never takes another block's.
  */
-function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], remaining: ReadonlyArray<ReadonlyMap<string, number>>, reader: LineReader): { closerOf: Map<number, number>; authoredCloser: Map<number, number>; implicit: Set<number>; redeclares: Map<number, number[]>; enclosing: number[] } {
+function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], remaining: ReadonlyArray<ReadonlyMap<string, number>>, reader: LineReader, residual: boolean): { closerOf: Map<number, number>; authoredCloser: Map<number, number>; implicit: Set<number>; redeclares: Map<number, number[]>; enclosing: number[] } {
   const words = (text: string) => new Set(text.match(WORDS) ?? [])
-  const opens = (line: number) => line > 0 && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text) && reader.opens(lines[line]!.text.trim())
+  // The residual pass also reads a brace opener that cannot be read empty.
+  const opens = (line: number) => line > 0 && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text) && (reader.opens(lines[line]!.text.trim()) || (residual && reader.opensBrace(lines[line]!.text.trim())))
   const nextStatement = (index: number) => {
     let next = index + 1
     while (next < c0.length && !c0[next]!.trim()) next++
@@ -732,11 +742,13 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // indentation (a family that writes block bodies at the opener's depth
   // marks nothing else as their sibling).
   const moved = new Map<string, number[]>(), writtenFrom = new Map<number, number>()
+  // Residual pass: statements written by a one-line block's rewrite.
+  const handled = new Set<number>()
   const push = (where: 'before' | 'after', at: number, index: number, indent?: string) => {
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
     if (from !== undefined) writtenFrom.set(index, from)
-    list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + (respelled.get(index) ?? c1[index]!.trimStart())])
+    list.push([index, from !== undefined ? lines[from]!.text : (handled.has(index) ? undefined : analogous(index)) ?? (indent ?? indentFor(index)) + (respelled.get(index) ?? c1[index]!.trimStart())])
     placed[where].set(at, list)
   }
   // A new statement inside a block no authored line opens is written like
@@ -1038,6 +1050,30 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     }
     return [where, at, indent]
   }
+  // Residual pass: a block written on one authored line (`class Shape
+  // <<interface>>`) whose body the edit changes is written there as the
+  // edited canonical block, indented by depth: no authored line spells the
+  // body to edit or to stand beside.
+  for (const hunk of variant.residual ? hunks : []) {
+    for (const ins of hunk.ins) {
+      if (handled.has(ins)) continue
+      let open = ins - 1
+      while (open > 0 && (!c1[open]!.trim() || depthOf(c1[open]!) >= depthOf(c1[ins]!))) open--
+      const from = open > 0 ? sourceOf.get(open) : undefined, line = from !== undefined ? owner[from]! : -1
+      if (from === undefined || line < 0 || plan.text.has(line) || reader.opens(lines[line]!.text.trim())) continue
+      let close0 = from + 1
+      while (close0 < c0.length && (!c0[close0]!.trim() || depthOf(c0[close0]!) > depthOf(c0[from]!))) close0++
+      const body = Array.from({ length: close0 - from }, (_, offset) => from + 1 + offset).filter(index => index < c0.length && c0[index]!.trim())
+      const close = closerAfter(open)
+      if (close < 0 || !body.some(index => owner[index] === line) || body.some(index => owner[index]! >= 0 && owner[index] !== line)) continue
+      plan.removed.add(line)
+      for (let at = open; at <= close; at++) {
+        if (!c1[at]!.trim()) continue
+        handled.add(at)
+        push('before', line, at, leading(lines[line]!.text) + unit.repeat(Math.max(0, Math.round((depthOf(c1[at]!) - depthOf(c1[open]!)) / 2))))
+      }
+    }
+  }
   // A removed line that also carried surviving statements is rewritten as
   // those statements in canonical spelling, where it stood and indented as
   // it was.
@@ -1046,6 +1082,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     // Another authored line still declares it.
     if (!rewritten.has(index) && partsOf(index).some(line => !plan.removed.has(line))) continue
     const kept = keptAs.get(index) ?? pairOf.get(index)
+    if (kept !== undefined && handled.has(kept)) continue
     if (kept === undefined) return `${quote(c0[index]!)} shares a removed authored line and has no counterpart in the edit`
     push('before', owner[index]!, kept, leading(lines[owner[index]!]!.text))
   }
@@ -1058,7 +1095,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     const afterPrevious = next < 0 || (previous >= 0 && (alone(previous) || !alone(next)) === variant.previous)
     for (const ins of hunk.ins) {
       const del = pairedFrom.get(ins)
-      if (del !== undefined && !whole.has(del)) continue
+      if ((del !== undefined && !whole.has(del)) || handled.has(ins)) continue
       const at = del ?? replaced
       // A statement written in place of a removed one at its depth keeps
       // that line's indentation.

@@ -270,6 +270,27 @@ const DECLARED_FIRST = `flowchart TD
   n2 --> n1
 `
 
+// Namespaces the writer flattens (`namespace Platform.Auth`), and a block
+// written on one line.
+const NESTED_NAMESPACES = `classDiagram
+    namespace Platform {
+        namespace Auth {
+            class UserService {
+                +login()
+            }
+        }
+        class Gateway {
+            +route()
+        }
+    }
+    Gateway --> UserService : delegates
+`
+
+const INLINE_ANNOTATION = `classDiagram
+  %% keep
+  class Shape <<interface>>
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -368,6 +389,8 @@ const CASES: Case[] = [
   { name: 'flowchart add_node after edges inside a subgraph stays outside it', source: EDGE_MEMBERS, op: { kind: 'add_node', id: 'N', label: 'New' }, reference: [['      b1-->b2\n    end\n', '      b1-->b2\n    end\n    N[New]\n']] },
   { name: 'flowchart remove_edge from a line with two edges and a class', source: AMPERSAND_CLASSES, op: { kind: 'remove_edge', id: 'A->C' }, touched: ['  A:::hot & B --> C'], reference: [['  A:::hot & B --> C\n', '  B --> C\n  A[A]\n  class A hot\n']] },
   { name: 'flowchart add_edge from a node declared on its own line keeps its label there', source: DECLARED_FIRST, op: { kind: 'add_edge', from: 'n0', to: 'n1' }, reference: [['  n2 --> n1\n', '  n2 --> n1\n  n0 --> n1\n']] },
+  { name: 'class remove_class from a nested namespace', source: NESTED_NAMESPACES, op: { kind: 'remove_class', id: 'UserService' }, touched: ['        namespace Auth {', '            class UserService {', '                +login()', '            }', '        }', '    Gateway --> UserService : delegates'], reference: [['        namespace Auth {\n            class UserService {\n                +login()\n            }\n        }\n', ''], ['    Gateway --> UserService : delegates\n', '']] },
+  { name: 'class add_member to a class written with its annotation on one line', source: INLINE_ANNOTATION, op: { kind: 'add_member', class: 'Shape', text: '+int added' }, touched: ['  class Shape <<interface>>'], reference: [['  class Shape <<interface>>\n', '  class Shape {\n    <<interface>>\n    +int added\n  }\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 

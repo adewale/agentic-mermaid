@@ -193,18 +193,18 @@ declared by another edge inside it), and a new statement placed beside a line
 inside a block its canonical statement is not in goes after that block's
 closer. The statements a rewritten line keeps, and those written beside it,
 are written in canonical order (`A:::hot & B --> C` less `A --> C` becomes
-`B --> C`, `A[A]`, `class A hot`). A declaration whose label the writer would
-move onto a new statement that now mentions it first keeps its line, and the
-new statement names it bare (`n0[Zero]` stays and the edge is written
-`n0 --> n1`).
+`B --> C`, `A[A]`, `class A hot`). A namespace opener the parser does not
+accept empty is read as a block, and a block written on one line
+(`class Shape <<interface>>`) whose body the edit changes is rewritten there
+as the edited block. A declaration whose label the writer would move onto a
+new statement that now mentions it first keeps its line, and the new statement
+names it bare (`n0[Zero]` stays and the edge is written `n0 --> n1`).
 
-Typical fallbacks: an edit whose canonical result moves statements into blocks
-the source does not spell (nested namespaces the writer flattens), an edit
-that empties a family below its grammar floor, a canonical difference beyond
-the diff budget, and edits to wrappers the canonical writer does not own. The
-receipt names the reason (the statement that could not be traced or placed, or
-how the closest local candidate reads differently from the edit); the source
-is then the ordinary canonical result.
+Typical fallbacks: an edit that empties a family below its grammar floor, a
+canonical difference beyond the diff budget, and edits to wrappers the
+canonical writer does not own. The receipt names the reason (the statement
+that could not be traced or placed, or how the closest local candidate reads
+differently from the edit); the source is then the ordinary canonical result.
 
 The same explicit mode, for structured and opaque bodies, is available
 through the workflow surfaces:
