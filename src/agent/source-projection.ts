@@ -10,10 +10,11 @@
 // whose isolated reading (the family parser and writer on that line alone)
 // contains it; respelled block contents pair by order. The difference is then
 // replayed on the authored lines: a changed token is spliced into the line
-// that spells it, a line whose every statement goes away is deleted (with any
-// declaration folded into them), and a new statement is written in canonical,
-// portable spelling beside its neighbour, indented like its authored
-// siblings. Every other line is copied byte for byte.
+// that spells it (through the line's canonical reading when the line keeps
+// its authored spacing), a line whose every statement goes away is deleted
+// (with any declaration folded into them), and a new statement is written in
+// canonical, portable spelling beside its neighbour, indented like its
+// authored siblings. Every other line is copied byte for byte.
 //
 // The projection only proposes. A few placement variants are tried, those
 // that rewrite the fewest authored lines first (ties in a fixed order), and
@@ -552,6 +553,31 @@ function spliceLine(text: string, before: string, after: string): string | undef
   return undefined
 }
 
+/** How many characters differ between two lines once their common ends are
+ * set aside. */
+function changedLength(a: string, b: string): number {
+  let prefix = 0
+  while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++
+  let suffix = 0
+  while (suffix < a.length - prefix && suffix < b.length - prefix && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++
+  return Math.max(a.length, b.length) - prefix - suffix
+}
+
+/** `edited`, the splice of `before` into `after` on authored `text`, or the
+ * same change made through the canonical reading of `before` when `before`
+ * keeps its authored spacing and that reading changes less of the line. */
+function respaced(text: string, before: string, after: string, edited: string, reader: LineReader): string {
+  const spell = (line: string) => line.replace(/\s+/g, '')
+  const reading = reader.isolated(before.trim())
+  let best = edited
+  for (const read of reading?.keys() ?? []) {
+    if (read === before.trim() || spell(read) !== spell(before)) continue
+    const spliced = spliceLine(text, read, after)
+    if (spliced !== undefined && changedLength(text, spliced) < changedLength(text, best)) best = spliced
+  }
+  return best
+}
+
 /** Plans are tried in order until one reads back as the edited diagram. */
 interface Variant {
   /** Edit changed tokens inside their authored line instead of rewriting it. */
@@ -682,6 +708,10 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     if (variant.splice && spliced.get(owner[del]!)?.has(change)) continue
     const splice = (line: number) => spliceLine(plan.text.get(line) ?? lines[line]!.text, c0[del]!, c1[ins]!)
     let line = owner[del]!, edited = variant.splice ? splice(line) : undefined
+    // A statement kept in its authored spacing (a fragment message written
+    // `A ->> B: ping`) is spliced through its canonical reading, so only the
+    // changed tokens change and the authored spacing stays.
+    if (edited !== undefined) edited = respaced(plan.text.get(line) ?? lines[line]!.text, c0[del]!, c1[ins]!, edited, reader)
     // A value written on a later statement than the one the writer folds it
     // into (a label given where a node is redeclared) is edited where it is
     // spelled, when exactly one authored line spells it.
