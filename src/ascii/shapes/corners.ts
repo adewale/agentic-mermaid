@@ -58,6 +58,10 @@ export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
     unicode: { tl: '◯', tr: '◯', bl: '◯', br: '◯' },
     ascii: { tl: 'o', tr: 'o', bl: 'o', br: 'o' },
   },
+  ellipse: {
+    unicode: { tl: '◯', tr: '◯', bl: '◯', br: '◯' },
+    ascii: { tl: 'o', tr: 'o', bl: 'o', br: 'o' },
+  },
   doublecircle: {
     unicode: { tl: '◎', tr: '◎', bl: '◎', br: '◎' },
     ascii: { tl: '@', tr: '@', bl: '@', br: '@' },
@@ -150,6 +154,10 @@ export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
   'state-history': {
     unicode: { tl: '◯', tr: '◯', bl: '◯', br: '◯' },
     ascii: { tl: 'o', tr: 'o', bl: 'o', br: 'o' },
+  },
+  'state-note': {
+    unicode: { tl: '┌', tr: '┐', bl: '└', br: '┘' },
+    ascii: { tl: '+', tr: '+', bl: '+', br: '+' },
   },
 }
 

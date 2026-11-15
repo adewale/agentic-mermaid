@@ -7,14 +7,14 @@
 // Bundled via `Bun.build({ target: 'browser' })` in scripts/site/editor.ts and website/build.ts.
 // ============================================================================
 
+import './scene/builtin-backends.ts'
+import { renderMermaidSVGWithReceipt } from './svg.ts'
 import {
-  renderMermaidSVGAsync,
-  renderMermaidSVGWithReceipt,
   SHARED_RENDER_OPTION_FIELDS,
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
-  verifyNoExternalRefs,
-} from './index.ts'
+} from './render-contract.ts'
+import { verifyNoExternalRefs } from './output-security.ts'
 import { verifyMermaid } from './agent/verify.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import {
@@ -35,6 +35,10 @@ declare const window: unknown
  * adapter; this name removes the need for browser callers to know its default. */
 function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptions = {}) {
   return renderMermaidASCIIWithReceipt(text, { ...options, useAscii: false })
+}
+
+async function renderMermaidSVGAsync(text: string, options = {}) {
+  return renderMermaidSVGWithReceipt(text, options).svg
 }
 
 /** Typed browser/editor boundary. The global bundle installs this exact object;

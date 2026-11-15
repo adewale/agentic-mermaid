@@ -62,7 +62,9 @@ BiRel(client,store,"Synchronizes")`)
   test('verification reports rejected conflicting placement hints without losing interactions', () => {
     const source = 'C4Context\nSystem(a,"A")\nSystem(b,"B")\nRel_L(a,b,"Left")\nRel_R(a,b,"Right")'
     const verified = verifyMermaid(source)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', message: expect.stringContaining('C4_LAYOUT_CONFLICT') }))
+    expect(verified.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([
+      { code: 'UNSUPPORTED_SYNTAX', syntax: 'c4_layout_conflict', line: 5, message: expect.stringMatching(/^C4_LAYOUT_CONFLICT: .*\(in: Rel_R\(a,b,"Right"\)\)$/) },
+    ])
     expect(verified.layout.edges).toHaveLength(2)
   })
 
@@ -130,7 +132,11 @@ BiRel(client,store,"Synchronizes")`)
     expect(serializeMermaid(edited.value)).toContain('Updated second')
     expect(renderMermaidSVG(edited.value)).toContain('Updated second')
     expect(renderMermaidASCII(edited.value)).toContain('Updated second')
-    const artifact = renderMermaidPNGWithReceipt(edited.value, { fitTo: { width: 640 }, background: '#fff' })
+    const options = { fitTo: { width: 640 }, background: '#fff' }
+    const artifact = renderMermaidPNGWithReceipt(edited.value, options)
+    const expectedSource = SOURCE.replace('Rel(api, db, "Second", "SQL")', 'Rel(api, db, "Updated second", "SQL")')
+    expect(artifact.png).toEqual(renderMermaidPNGWithReceipt(expectedSource, options).png)
+    expect(artifact.png).not.toEqual(renderMermaidPNGWithReceipt(SOURCE, options).png)
     expect(Array.from(artifact.png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
     expect(artifact.receipt.output).toBe('png')
     expect(new DataView(artifact.png.buffer, artifact.png.byteOffset).getUint32(16)).toBe(640)

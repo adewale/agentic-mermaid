@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync } from 'node:fs'
+import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 
@@ -10,7 +10,7 @@ interface PackResult {
   filename?: string
 }
 
-export interface PublishedVersionIdentity {
+interface PublishedVersionIdentity {
   name: string
   version: string
   localTreeHash: string
@@ -21,7 +21,7 @@ export interface PublishedVersionIdentity {
  * npm versions are immutable. A version already on the registry is safe only
  * when its extracted package tree is identical (the idempotent retry case).
  */
-export function publishedVersionProblem(identity: PublishedVersionIdentity): string | null {
+function publishedVersionProblem(identity: PublishedVersionIdentity): string | null {
   if (identity.publishedTreeHash === null || identity.publishedTreeHash === identity.localTreeHash) return null
   return `${identity.name}@${identity.version} is already published with different package contents; bump the package version before merging`
 }
@@ -92,6 +92,11 @@ function packageTreeHash(root: string): string {
 }
 
 if (import.meta.main) {
+  const args = process.argv.slice(2)
+  if (args.length > 1 || args.length === 1 && args[0] !== '--docs-only') {
+    throw new Error('Usage: published-version.ts [--docs-only]')
+  }
+  const docsOnly = args[0] === '--docs-only'
   const root = resolve(import.meta.dir, '..', '..')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
   const viewed = spawnSync('npm', ['view', `${pkg.name}@${pkg.version}`, 'version', '--json'], {
@@ -112,12 +117,31 @@ if (import.meta.main) {
     throw new Error(`npm view returned an invalid version for ${pkg.name}@${pkg.version}: ${viewed.stdout}`)
   }
 
+  // This mode is for CI's recognized documentation-only scope. npm selects
+  // current authored files; compose them with published runtime only in scratch.
+  // The checkout's dist is never created, replaced or removed by this mode.
+  const localDist = join(root, 'dist')
+  if (docsOnly && lstatSync(localDist, { throwIfNoEntry: false })) {
+    throw new Error('--docs-only requires dist to be absent; the existing build was not modified')
+  }
   const destination = mkdtempSync(join(tmpdir(), 'agentic-mermaid-published-version-'))
   try {
-    const localTarball = pack(root, join(destination, 'local-pack'))
+    const prepackedLocal = docsOnly ? undefined : pack(root, join(destination, 'local-pack'))
     const publishedTarball = pack(root, join(destination, 'published-pack'), `${pkg.name}@${pkg.version}`)
-    const localTreeHash = packageTreeHash(extractPackage(localTarball, join(destination, 'local-tree')))
-    const publishedTreeHash = packageTreeHash(extractPackage(publishedTarball, join(destination, 'published-tree')))
+    const publishedRoot = extractPackage(publishedTarball, join(destination, 'published-tree'))
+    const localTarball = prepackedLocal ?? pack(root, join(destination, 'local-pack'))
+    const localRoot = extractPackage(localTarball, join(destination, 'local-tree'))
+    if (docsOnly) {
+      const localRuntime = join(localRoot, 'dist')
+      if (lstatSync(localRuntime, { throwIfNoEntry: false })) {
+        throw new Error('--docs-only local package contains dist; another build may have started during packing')
+      }
+      const publishedDist = join(publishedRoot, 'dist')
+      if (!lstatSync(publishedDist).isDirectory()) throw new Error('The published package has no dist directory')
+      cpSync(publishedDist, localRuntime, { recursive: true, errorOnExist: true, force: false, verbatimSymlinks: true })
+    }
+    const localTreeHash = packageTreeHash(localRoot)
+    const publishedTreeHash = packageTreeHash(publishedRoot)
     const problem = publishedVersionProblem({ ...pkg, localTreeHash, publishedTreeHash })
     if (problem) throw new Error(problem)
     process.stdout.write(`ok   ${pkg.name}@${pkg.version} is already published with byte-identical package contents (${localTreeHash})\n`)

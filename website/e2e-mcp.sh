@@ -128,14 +128,18 @@ check 'execute: expression form' '\"value\":42' \
 check 'execute: bare object literal stays an expression' '\"answer\":42' \
   "$(j '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"execute","arguments":{"code":"{ answer: 42 }"}}}')"
 
-check 'execute: user errors use the structured envelope' '\"error\":{\"code\":\"EXECUTE_FAILED\",\"message\":\"boom\"}' \
+# The location is the throw's line/column in the agent's code (the column is
+# the engine's choice of token inside `new Error(...)`).
+check 'execute: user errors use the structured envelope with a location' '\"error\":{\"code\":\"EXECUTE_FAILED\",\"message\":\"boom\",\"location\":{\"line\":1,\"column\":' \
   "$(j '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"execute","arguments":{"code":"throw new Error(\"boom\")"}}}')"
 
 check 'execute: isolate has no fetch' '\"value\":\"undefined\"' \
   "$(j '{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return typeof fetch"}}}')"
 
-check 'execute: double syntax error reports cleanly' 'Unexpected token' \
-  "$(j '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ) === ("}}}')"
+# Shared Code Mode screening rejects malformed syntax before either isolate wrapper runs.
+check_http_jq 'execute: invalid syntax returns the structured screening error' '200' \
+  '.jsonrpc == "2.0" and .id == 13 and .result.isError == true and (.result.content[0] | .type == "text" and (.text | fromjson | .ok == false and .error == {"code":"EXECUTE_FAILED","message":"Code Mode syntax must be a strict JavaScript expression or function body","location":{"line":1,"column":8}}))' \
+  -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ) === ("}}}'
 
 check 'async code is screened before any isolate' 'Code Mode is synchronous' \
   "$(j '{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"execute","arguments":{"code":"await fetch(\"https://x\")"}}}')"
@@ -261,6 +265,35 @@ check 'preflight admits the modern routing headers' 'mcp-method' \
 # A batch beyond the fan-out cap is refused before any tool runs.
 check 'an over-cap batch is 400' '400' \
   "$(python3 -c 'import json; print(json.dumps([{"jsonrpc":"2.0","id":i,"method":"ping"} for i in range(25)]))' | mcurl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
+
+# Hosted CPU enforcement. A random 800-node, 1,600-edge flowchart (25 KB, under
+# the source cap) lays out in about 50 s on a laptop, well past the 10 s
+# per-call budget, and its pre-layout cost estimate routes it to the isolate.
+# Production must stop it and answer RENDER_TIMEOUT within the budget plus the
+# wall-clock backstop, and the next call must still render. wrangler dev does
+# not enforce cpuMs (see the header), so local targets skip this unless
+# AM_E2E_ENFORCED_CPU=1.
+if [[ "$MCP" =~ ^https?://(127\.0\.0\.1|localhost)[:/] && "${AM_E2E_ENFORCED_CPU:-}" != 1 ]]; then
+  echo "skip hosted CPU enforcement (local target; set AM_E2E_ENFORCED_CPU=1 to run)"
+else
+  heavy_request="$(python3 -c '
+import json
+s = 1
+lines = ["flowchart TD"]
+for _ in range(1600):
+    s = s * 48271 % 2147483647; a = s * 800 // 2147483647
+    s = s * 48271 % 2147483647; b = s * 800 // 2147483647
+    lines.append(f"  N{a} --> N{b}")
+print(json.dumps({"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"render_svg","arguments":{"source":"\n".join(lines)}}}))')"
+  heavy_started="$(date +%s)"
+  check 'a layout past the CPU budget is stopped with RENDER_TIMEOUT' '\"code\":\"RENDER_TIMEOUT\",\"message\":\"Operation exceeded its 10000ms CPU budget\"' \
+    "$(mcurl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d "$heavy_request")"
+  heavy_seconds=$(( $(date +%s) - heavy_started ))
+  check "the stopped layout answered within the budget and backstop (${heavy_seconds}s)" 'yes' \
+    "$([[ "$heavy_seconds" -le 20 ]] && echo yes || echo "no: ${heavy_seconds}s")"
+  check 'a render after the stopped layout still succeeds' '<svg' \
+    "$(j '{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"render_svg","arguments":{"source":"flowchart LR\n  A --> B"}}}')"
+fi
 
 # Keep the chunked over-size probe last. Current local workerd exits after it
 # has returned the correct 413, while production isolates remain replaceable;

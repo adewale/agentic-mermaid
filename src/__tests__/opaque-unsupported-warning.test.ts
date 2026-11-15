@@ -13,7 +13,7 @@ import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 // Each source is valid-enough to parse but uses a construct the structured
 // parser does not model, so it lands on the opaque path.
 const OPAQUE_BY_FAMILY: Record<string, string> = {
-  class: 'classDiagram\n  direction LR\n  class Box', // direction remains render-only
+  class: 'classDiagram\n  class `"Box`', // leading quote cannot be written as a portable Class identity
   xychart: 'xychart-beta\n  curve basis\n  bar [1, 2, 3]', // unmodeled curve directive
   pie: 'pie\n  Dogs : 40\n  Cats : 30', // unquoted labels (Mermaid requires quotes)
   sequence: 'sequenceDiagram\n  A->>B: hi\n  end', // unmatched block terminator
@@ -58,7 +58,7 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
       const v = verifyMermaid(p.value)
       const unsupported = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(unsupported.length).toBeGreaterThanOrEqual(1)
-      const syntax = family === 'timeline' ? 'timeline_header_direction' : family === 'sequence' ? 'sequence_block_boundary' : `${family}_opaque`
+      const syntax = family === 'class' ? 'class_id' : family === 'timeline' ? 'timeline_header_direction' : family === 'sequence' ? 'sequence_block_boundary' : `${family}_opaque`
       expect(unsupported.some(w => 'syntax' in w && w.syntax === syntax)).toBe(true)
       if (family === 'xychart' || family === 'sequence') {
         expect(v.ok).toBe(false)

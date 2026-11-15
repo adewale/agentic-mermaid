@@ -1,3 +1,4 @@
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   QuadrantChart,
   PositionedQuadrantChart,
@@ -89,6 +90,49 @@ function densityPlotSize(pointCount: number): number {
 
 interface Box { x0: number; y0: number; x1: number; y1: number }
 
+/** Request-local broad phase; exact family predicates remain authoritative. */
+class CollisionIndex<T> {
+  private cells = new Map<string, number[]>()
+  private values: T[] = []
+  private wide: number[] = []
+  private visited: number[] = []
+  private query = 0
+  private cellsOf(box: Box): [number, number, number, number] | undefined {
+    const x0 = Math.floor(box.x0 / 64), x1 = Math.floor(box.x1 / 64)
+    const y0 = Math.floor(box.y0 / 64), y1 = Math.floor(box.y1 / 64)
+    if (![x0, x1, y0, y1].every(Number.isSafeInteger) || x1 < x0 || y1 < y0 || (x1 - x0 + 1) * (y1 - y0 + 1) > 256) return undefined
+    return [x0, x1, y0, y1]
+  }
+  add(box: Box, value: T): void {
+    const id = this.values.length
+    this.values.push(value)
+    const cells = this.cellsOf(box)
+    if (!cells) { this.wide.push(id); return }
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const key = `${x},${y}`, ids = this.cells.get(key)
+      if (ids) ids.push(id)
+      else this.cells.set(key, [id])
+    }
+  }
+  some(box: Box, predicate: (value: T) => boolean): boolean {
+    const cells = this.cellsOf(box)
+    if (!cells) return this.values.some(predicate)
+    const query = ++this.query
+    const hit = (id: number): boolean => {
+      if (this.visited[id] === query) return false
+      this.visited[id] = query
+      return predicate(this.values[id]!)
+    }
+    for (const id of this.wide) if (hit(id)) return true
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      for (const id of this.cells.get(`${x},${y}`) ?? []) if (hit(id)) return true
+    }
+    return false
+  }
+}
+
 const intersects = (a: Box, b: Box): boolean =>
   Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
 
@@ -113,6 +157,10 @@ const SPIRAL_ANGLES: readonly number[] = [
   (-5 * Math.PI) / 8, (5 * Math.PI) / 8, (-7 * Math.PI) / 8, (7 * Math.PI) / 8,
 ]
 const SPIRAL_RINGS = 10
+const SPIRAL_DIRECTIONS = SPIRAL_ANGLES.map(angle => {
+  const cos = Math.cos(angle)
+  return { cos, sin: Math.sin(angle), anchor: (cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle') as Anchor }
+})
 
 /**
  * Candidate label slots for one point, in deterministic preference order.
@@ -120,29 +168,23 @@ const SPIRAL_RINGS = 10
  * sparse charts do not move; the outward spiral only engages when a chart is
  * dense enough that no near slot clears.
  */
-function labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): LabelCandidate[] {
-  const near: LabelCandidate[] = [
-    { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } },
-    { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } },
-    { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } },
-    { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } },
-  ]
-  const spiral: LabelCandidate[] = []
+function* labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): Generator<LabelCandidate> {
+  yield { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } }
+  yield { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } }
+  yield { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } }
+  yield { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } }
   for (let ring = 1; ring <= SPIRAL_RINGS; ring++) {
     const dist = gap + ring * (h + 6)
-    for (const angle of SPIRAL_ANGLES) {
-      const px = cx + Math.cos(angle) * dist
-      const py = cy + Math.sin(angle) * dist
-      const cos = Math.cos(angle)
-      const anchor: Anchor = cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle'
+    for (const { cos, sin, anchor } of SPIRAL_DIRECTIONS) {
+      const px = cx + cos * dist
+      const py = cy + sin * dist
       const x0 = anchor === 'start' ? px : anchor === 'end' ? px - w : px - w / 2
-      spiral.push({
+      yield {
         x: px, y: py, anchor, far: true,
         box: { x0, y0: py - h / 2, x1: x0 + w, y1: py + h / 2 },
-      })
+      }
     }
   }
-  return [...near, ...spiral]
 }
 
 /** Leader line from the circle edge to the label edge for a far slot. */
@@ -297,7 +339,7 @@ export function layoutQuadrantChart(
     return {
       number,
       label: chart.quadrants[number - 1],
-      labelBlock: chart.quadrants[number - 1] === undefined ? undefined : preparePixelText(chart.quadrants[number - 1]!, { display: 'formatted', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }),
+      labelBlock: chart.quadrants[number - 1] === undefined ? undefined : preparePixelText(chart.quadrants[number - 1]!, { display: 'formatted', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth: Math.max(1, half - 8) }),
       x: round(x),
       y: round(y),
       width: round(half),
@@ -323,20 +365,44 @@ export function layoutQuadrantChart(
   const fs = style.nodeLabelFontSize
   const fw = style.nodeLabelFontWeight
   const lineGap = visual.pointTextPadding ?? Q.pointTextPadding
-  const placedBoxes: Box[] = regions
-    .filter(r => r.label)
-    .map(r => {
-      const w = r.labelBlock!.width
-      return { x0: r.labelX - w / 2, y0: r.labelY - r.labelBlock!.height / 2, x1: r.labelX + w / 2, y1: r.labelY + r.labelBlock!.height / 2 }
-    })
   const defaultRadius = visual.pointRadius ?? Q.pointRadius
   const resolved = chart.points.map(p => resolvePointVisual(p, chart.classDefs, { radius: defaultRadius }))
   const pointBoxes: Box[] = chart.points.map((p, i) => {
     const cx = plotX + p.x * size, cy = plotY + (1 - p.y) * size, r = resolved[i]!.radius + 1
     return { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }
   })
+  // Data coordinates are fixed. A section caption at its geometric center
+  // must yield when a data point occupies that center; moving point labels
+  // alone cannot stop the marker from covering the caption. Keep a safe
+  // caption centered, otherwise search deterministically inside its region.
+  const placedBoxes: Box[] = []
+  for (const region of regions) {
+    if (!region.label) continue
+    const w = region.labelBlock!.width, h = region.labelBlock!.height
+    const centered = { x0: region.labelX - w / 2, y0: region.labelY - h / 2, x1: region.labelX + w / 2, y1: region.labelY + h / 2 }
+    const candidates = function* () {
+      yield centered
+      for (const candidate of labelCandidates(region.labelX, region.labelY, 8, w, h)) yield candidate.box
+    }
+    const clear = (b: Box) => b.x0 >= region.x + 4 && b.x1 <= region.x + region.width - 4 && b.y0 >= region.y + 4 && b.y1 <= region.y + region.height - 4
+      && !pointBoxes.some(point => intersects(b, point)) && !placedBoxes.some(other => intersects(b, other))
+    let chosen = centered
+    for (const candidate of candidates()) if (clear(candidate)) { chosen = candidate; break }
+    region.labelX = round((chosen.x0 + chosen.x1) / 2)
+    region.labelY = round((chosen.y0 + chosen.y1) / 2)
+    // Reserve a small text-ink allowance, also used by subsequent point labels.
+    placedBoxes.push({ x0: chosen.x0 - 2, y0: chosen.y0 - 2, x1: chosen.x1 + 2, y1: chosen.y1 + 2 })
+  }
   const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
   const routedLeaders: LeaderSegment[] = []
+  const indexed = chart.points.length >= 128
+  const labelIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const pointIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const leaderIndex = indexed ? new CollisionIndex<LeaderSegment>() : undefined
+  if (labelIndex && pointIndex) {
+    for (const box of placedBoxes) labelIndex.add(box, box)
+    for (const box of pointBoxes) pointIndex.add(box, box)
+  }
   const points: PositionedQuadrantPoint[] = chart.points.map((p, i) => {
     const vis = resolved[i]!
     const cx = round(plotX + p.x * size)
@@ -349,13 +415,22 @@ export function layoutQuadrantChart(
     const clear = (candidate: LabelCandidate): boolean => {
       const b = candidate.box
       if (!(b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1) ||
-          placedBoxes.some(o => intersects(b, o)) || pointBoxes.some(o => intersects(b, o))) return false
+          (labelIndex ? labelIndex.some(b, o => intersects(b, o)) : placedBoxes.some(o => intersects(b, o))) ||
+          (pointIndex ? pointIndex.some(b, o => intersects(b, o)) : pointBoxes.some(o => intersects(b, o)))) return false
       if (!candidate.far) return true
       const leader = leaderFor(cx, cy, vis.radius, candidate)
-      return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      if (!labelIndex || !leaderIndex) return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      const bounds = { x0: Math.min(leader.x1, leader.x2), y0: Math.min(leader.y1, leader.y2), x1: Math.max(leader.x1, leader.x2), y1: Math.max(leader.y1, leader.y2) }
+      const labelQuery = { x0: bounds.x0 - 2, y0: bounds.y0 - 2, x1: bounds.x1 + 2, y1: bounds.y1 + 2 }
+      const leaderQuery = { x0: bounds.x0 - 3, y0: bounds.y0 - 3, x1: bounds.x1 + 3, y1: bounds.y1 + 3 }
+      return !labelIndex.some(labelQuery, box => leaderCrossesBox(leader, box)) && !leaderIndex.some(leaderQuery, existing => segmentsConflict(leader, existing))
     }
-    const candidates = labelCandidates(cx, cy, gap, w, h)
-    const chosen = candidates.find(clear)
+    let first: LabelCandidate | undefined
+    let chosen: LabelCandidate | undefined
+    for (const candidate of labelCandidates(cx, cy, gap, w, h)) {
+      first ??= candidate
+      if (clear(candidate)) { chosen = candidate; break }
+    }
 
     const positioned: PositionedQuadrantPoint = {
       label,
@@ -365,10 +440,11 @@ export function layoutQuadrantChart(
       cx,
       cy,
       radius: vis.radius,
-      labelX: round((chosen ?? candidates[0]!).x),
-      labelY: round((chosen ?? candidates[0]!).y),
-      labelAnchor: (chosen ?? candidates[0]!).anchor,
+      labelX: round((chosen ?? first!).x),
+      labelY: round((chosen ?? first!).y),
+      labelAnchor: (chosen ?? first!).anchor,
     }
+    positioned.tooltip = layoutTooltip(cx, cy - vis.radius, `${label}: [${p.x}, ${p.y}]`)
     if (vis.fill !== undefined) positioned.fill = vis.fill
     if (vis.stroke !== undefined) positioned.stroke = vis.stroke
     if (vis.strokeWidth !== undefined) positioned.strokeWidth = vis.strokeWidth
@@ -376,6 +452,7 @@ export function layoutQuadrantChart(
 
     if (chosen) {
       placedBoxes.push(chosen.box)
+      labelIndex?.add(chosen.box, chosen.box)
       const labelBox: QuadrantLabelBox = {
         x0: round(chosen.box.x0), y0: round(chosen.box.y0),
         x1: round(chosen.box.x1), y1: round(chosen.box.y1),
@@ -384,6 +461,8 @@ export function layoutQuadrantChart(
       if (chosen.far) {
         positioned.leader = leaderFor(cx, cy, vis.radius, chosen)
         routedLeaders.push(positioned.leader)
+        const line = positioned.leader
+        leaderIndex?.add({ x0: Math.min(line.x1, line.x2), y0: Math.min(line.y1, line.y2), x1: Math.max(line.x1, line.x2), y1: Math.max(line.y1, line.y2) }, line)
       }
     } else {
       // Priority-based hiding: source order wins; the hidden label stays on

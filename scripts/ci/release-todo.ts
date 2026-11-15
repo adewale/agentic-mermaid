@@ -1,19 +1,14 @@
 #!/usr/bin/env bun
-// Release to-do: the deploy's one notification that a release is due.
+// Release to-do helper: manual creation and cleanup of existing issues.
 //
-// deploy-cloudflare.yml never ships a package version that is not on npm. When
-// `package.json` names such a version, the deploy skips and ends green, and
-// production keeps serving the previous release (0.4.2 waited eight weeks that
-// way). Instead of failing pushes or running a daily alarm, the deploy job
-// calls this script:
+// deploy-cloudflare.yml skips unpublished versions without opening issues.
+// Its only automatic call here is `close` after production is verified.
 //
-//   open   after the npm gate finds the version missing. Opens one issue for
-//          that version, labelled `release-todo`, that @mentions the owner and
-//          links a prefilled new-release form. A version that already has a
-//          release-todo issue, open or closed, gets no API write at all.
-//   close  after promoted production is verified. Closes every open
-//          release-todo issue for the live version or an older one, with a
-//          one-line comment.
+//   open   Explicit manual use only. Opens one issue for the version, labelled
+//          `release-todo`, that @mentions the owner and links a prefilled
+//          new-release form. An existing issue, open or closed, means no write.
+//   close  After promoted production is verified, closes every open release
+//          to-do for the live version or an older one with a one-line comment.
 //
 // The to-do never changes the deploy's outcome: any GitHub or npm error becomes
 // a `::warning::` and the script exits 0. It reads only GitHub and npm, never

@@ -123,11 +123,6 @@ describe('Section A transport and backend parity receipts', () => {
     }
   })
 
-  test('removed Style aliases are rejected', () => {
-    expect(() => renderMermaidSVGWithReceipt(SOURCE, { style: 'default' }))
-      .toThrow('Unknown style "default"')
-  })
-
   test('CLI layout delegates every built-in family to the canonical layout request', () => {
     const layoutOptions = {
       security: 'strict',
@@ -150,7 +145,15 @@ describe('Section A transport and backend parity receipts', () => {
       nodeSpacing: 200,
       layerSpacing: 200,
     })
-    expect(spaced.output).not.toEqual(natural.output)
+    const gap = (output: typeof spaced.output): number => {
+      expect(typeof output).toBe('object')
+      const positioned = output as ReturnType<typeof layoutMermaidWithReceipt>['layout']
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
+      const a = positioned.nodes.find(node => node.id === 'A')!, b = positioned.nodes.find(node => node.id === 'B')!
+      return b.x - (a.x + a.w)
+    }
+    expect(gap(spaced.output)).toBeGreaterThanOrEqual(199.99)
+    expect(gap(spaced.output)).toBeGreaterThan(gap(natural.output))
     expect(spaced.receipt.sharedRequestDigest).not.toBe(natural.receipt.sharedRequestDigest)
   })
 

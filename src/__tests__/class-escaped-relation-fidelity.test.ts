@@ -23,6 +23,9 @@ const upstreamEndpoints = async (statements: readonly string[]) =>
   })).map(reply => reply.ok ? reply.value : null)
 
 const cases = [
+  { statement: 'Animal <|-- Bugs-Bunny', from: 'Animal', to: 'Bugs-Bunny', kind: 'inheritance', lineType: 0, type1: 1, type2: 'none' },
+  { statement: 'domain.Order --> domain.Item', from: 'domain.Order', to: 'domain.Item', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
+  { statement: '注文 --> 商品', from: '注文', to: '商品', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: '`A B` --> C', from: 'A B', to: 'C', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: '`A B` ..> C', from: 'A B', to: 'C', kind: 'dependency', lineType: 1, type1: 'none', type2: 3 },
   { statement: 'A <|-- `B C`', from: 'A', to: 'B C', kind: 'inheritance', lineType: 0, type1: 1, type2: 'none' },
@@ -61,17 +64,22 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('2,592 ordinary endpoint/operator/asymmetric-spacing variants keep pinned identity', async () => {
+  // Public parsing plus real DOM sanitization runs twice per source. Partition
+  // the unchanged matrix by its relationship operator so one queued request
+  // cannot exhaust the shared worker's entire per-test execution budget.
+  describe('2,592 ordinary endpoint/operator/asymmetric-spacing variants', () => {
     const ids = ['A', 'Ao', 'Foo', 'Zoo', 'Oo', 'AB', 'B', 'oB']
     const arrows = ['-->', '--|>', '--*', '--o', 'o--', '*--', '<|--', '<--', '..>', '..|>', '--', '..']
     const spaces = ['', ' ', '  ']
-    const statements = ids.flatMap(from => ['B', 'oB', 'out'].flatMap(to => arrows.flatMap(arrow => spaces.flatMap(before => spaces.map(after => `${from}${before}${arrow}${after}${to}`)))))
-    expect(statements).toHaveLength(2_592)
-    const upstreamRelations = await upstreamEndpoints(statements)
-    expect(statements.map(statement => {
-      const relation = parseClassRelationship(statement)
-      return relation ? { from: relation.from, to: relation.to } : null
-    })).toEqual(upstreamRelations)
+    for (const arrow of arrows) test(`${arrow} keeps pinned endpoint identity in all 216 contexts`, async () => {
+      const statements = ids.flatMap(from => ['B', 'oB', 'out'].flatMap(to => spaces.flatMap(before => spaces.map(after => `${from}${before}${arrow}${after}${to}`))))
+      expect(statements).toHaveLength(216)
+      const upstreamRelations = await upstreamEndpoints(statements)
+      expect(statements.map(statement => {
+        const relation = parseClassRelationship(statement)
+        return relation ? { from: relation.from, to: relation.to } : null
+      })).toEqual(upstreamRelations)
+    })
   })
 
   test('pinned Mermaid retains space-bearing endpoint identity and arrow meaning', async () => {
@@ -93,6 +101,7 @@ describe('Class escaped relationship IDs', () => {
   test('native, agent, verify, SVG, and serialization preserve the same endpoints', () => {
     for (const item of cases) {
       const source = `classDiagram\n${item.statement}`
+      expect(() => parseClassDiagram(source.split('\n'))).not.toThrow()
       const native = parseClassDiagram(source.split('\n'))
       expect(native.classes.map(node => node.id)).toEqual([item.from, item.to])
       expect(native.relationships).toEqual([expect.objectContaining({
@@ -121,17 +130,19 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('1,020 endpoint/operator/spacing variants agree with pinned Mermaid identity', async () => {
+  describe('1,020 escaped endpoint/operator/spacing variants', () => {
     const ids = ['`A B`', '`A.B`', '`A--B`', '`A..B`', '`A$B`', '`A:B`', '`A;B`', 'A', 'B', 'o', '`o`', '`note`', '`click`', '`class`', '`link`', '`style`', '`cssClass`', '`namespace`', '$A']
     const arrows = ['-->', '..>', '<|--', '--|>', 'o--', '--o', '*--', '--*', '<--', '<..']
-    const statements = ids.flatMap(from => ['B', '`C D`'].flatMap(to => arrows.flatMap(arrow => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`))))
-      .filter(statement => statement.includes('`'))
-    expect(statements).toHaveLength(1_020)
-    const upstreamRelations = await upstreamEndpoints(statements)
-    expect(statements.map(statement => {
-      const relation = parseClassRelationship(statement)
-      return relation ? { from: relation.from, to: relation.to } : null
-    })).toEqual(upstreamRelations)
+    for (const arrow of arrows) test(`${arrow} keeps pinned endpoint identity in all 102 contexts`, async () => {
+      const statements = ids.flatMap(from => ['B', '`C D`'].flatMap(to => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`)))
+        .filter(statement => statement.includes('`'))
+      expect(statements).toHaveLength(102)
+      const upstreamRelations = await upstreamEndpoints(statements)
+      expect(statements.map(statement => {
+        const relation = parseClassRelationship(statement)
+        return relation ? { from: relation.from, to: relation.to } : null
+      })).toEqual(upstreamRelations)
+    })
   })
 
   test('reserved endpoint spellings fail loudly and do not pass verification', async () => {
@@ -219,14 +230,13 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('tilde and unescaped hyphenated identities remain diagnosed until modeled', async () => {
+  test('escaped tilde identities remain diagnosed until generic identity is modeled', async () => {
     const diagnosed = [
       '`A~B` --> C',
       '`A~B` -- C',
       '`A~B` .. C',
       'A -- `A~B`',
       'A .. `A~B`',
-      'A-B --> C',
     ]
     expect(await upstreamLinks(diagnosed)).toEqual([
       { from: 'A', to: 'C', lineType: 0 },
@@ -234,7 +244,6 @@ describe('Class escaped relationship IDs', () => {
       { from: 'A', to: 'C', lineType: 1 },
       { from: 'A', to: 'A', lineType: 0 },
       { from: 'A', to: 'A', lineType: 1 },
-      { from: 'A-B', to: 'C', lineType: 0 },
     ])
     for (const statement of diagnosed) {
       expect(parseClassRelationship(statement)).toBeNull()
@@ -270,7 +279,7 @@ describe('Class escaped relationship IDs', () => {
     const svg = renderMermaidSVG('classDiagram\n`class A` --> B')
     const relations = svg.match(/<(?:path|polyline) class="class-relationship"[^>]*>/g) ?? []
     expect(relations).toHaveLength(1)
-    expect(relations[0]).toContain('data-from="class A" data-to="B" data-type="association"')
+    for (const attribute of ['data-from="class A"', 'data-to="B"', 'data-type="association"']) expect(relations[0]).toContain(attribute)
     expect(relations[0]).toContain('marker-end="url(#cls-arrow)"')
   })
 })

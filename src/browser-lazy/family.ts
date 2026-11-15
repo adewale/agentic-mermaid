@@ -1,3 +1,5 @@
+import { enrollOwnedFamily } from '../experimental/owned-family.ts'
+import { inheritNativeDrawing, adaptOwnedSceneLowering } from '../scene/drawing.ts'
 import type {
   FamilyDescriptor,
   FamilyLayoutResult,
@@ -8,7 +10,7 @@ import type { PositionedDiagram, RenderContext } from '../types.ts'
 
 export type BrowserSvgFamilyHooks = Pick<
   FamilyDescriptor,
-  'normalizeRequest' | 'configDiagnostics' | 'layout' | 'lowerScene'
+  'normalizeRequest' | 'configDiagnostics' | 'statementEnds' | 'layout' | 'lowerScene'
 > & Required<Pick<FamilyDescriptor, 'projectPositioned'>>
 
 type BrowserFamilyDescriptorData = Omit<
@@ -25,7 +27,7 @@ export function positionedView<TPositioned extends PositionedDiagram>(
 export function scene<TPositioned extends PositionedDiagram>(
   lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
 ): NonNullable<FamilyDescriptor['lowerScene']> {
-  return ctx => lowerer(ctx as RenderContext<TPositioned>)
+  return adaptOwnedSceneLowering(lowerer, inheritNativeDrawing(lowerer, ctx => lowerer(ctx as RenderContext<TPositioned>)))
 }
 
 export function layoutResult<TPositioned extends PositionedDiagram>(
@@ -42,10 +44,12 @@ export function createBrowserFamilyDescriptor(
   data: BrowserFamilyDescriptorData,
   hooks: BrowserSvgFamilyHooks,
 ): FamilyDescriptor {
-  return Object.freeze({
+  const descriptor: FamilyDescriptor = Object.freeze({
     ...data,
     ...hooks,
     contractVersion: 2,
     capabilityEvidence: Object.freeze([]),
   })
+  enrollOwnedFamily(descriptor)
+  return descriptor
 }

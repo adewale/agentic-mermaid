@@ -5,45 +5,63 @@
 // verification prove renderability from the exact artifact it already
 // inspected, without serializing, parsing, or laying out again.
 
-import './scene/builtin-backends.ts'
+import './scene/default-backend.ts'
 
-import { compactSvg, namespaceSvgIds } from './renderer.ts'
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { compactSvg, formatSvgNumbers, namespaceSvgIds } from './svg-postprocess.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
-import { positionResolvedFamily } from './positioning.ts'
+import { positionFamilyForNativeRender } from './positioning.ts'
 import {
   receiptOf,
   canonicalTextDigest,
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
+  RenderConfigError,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
   type RenderRequestReceipt,
   type ResolvedRenderRequest,
 } from './render-contract.ts'
-import { applyOutputSecurityPolicy } from './output-security.ts'
+import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
-import { admitFamilyScene } from './scene/admission.ts'
-import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
+import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
+import { finishedNativeDrawing, retainFinishedNativeDrawing } from './experimental/position-cache.ts'
+import { PaintLayoutCertificationError, paintFailureIsDrawable, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
+import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
+import { isBuiltInBackend } from './scene/backend.ts'
 import type { SceneDoc } from './scene/ir.ts'
+import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withSvgInspectionCache } from './svg-inspection-cache.ts'
+import { measureRenderStage } from './render-stages.ts'
+import { sanitizeDisplayLines, xmlCarriableText } from './shared/text-controls.ts'
+import type { ScenePartCapture } from './scene/part-capture.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
   readonly executionDecision: RenderExecutionDecision
+  readonly layoutCertification?: PaintLayoutCertification
 }
 
 /** Private receipt-bearing artifact consumed by public SVG and PNG adapters. */
 export interface GraphicalSvgArtifact {
   readonly svg: string
   readonly receipt: RenderRequestReceipt
+}
+
+/** Internal projections consume owned positioning, never public evidence. */
+export interface GraphicalLayoutConsumer {
+  validate(request: ResolvedRenderRequest): void
+  consume(request: ResolvedRenderRequest, layout: FamilyLayoutResult): void
 }
 
 /** Internal receipt digest for a completed graphical output. SVG already has
@@ -78,16 +96,14 @@ export function lowerPositionedFamilyScene(
   layout: FamilyLayoutResult,
 ): SceneDoc {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if (executionPlan.mode !== 'scene') {
-    throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
-  }
-  const family = executionPlan.family
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () =>
-    admitFamilyScene(family, family.lowerScene!(renderContextForPositionedFamily(request, layout))))
+  if (executionPlan.mode !== 'scene') throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
+  return retainedPositionedScene(request, layout)
 }
 
+/** Accessible names are display text: controls and code points no output can
+ * carry become the inert characters labels draw. */
 function escapeXmlText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return sanitizeDisplayLines(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 function injectAccessibility(
@@ -118,20 +134,48 @@ function injectAccessibility(
   return replaceSvgRootStartTag(svg, root, `${open.slice(0, -1)}${add}>${children.join('')}`)
 }
 
+function expandSvgViewport(svg: string, viewport: PaintViewport): string {
+  const root = svgRootStartTag(svg)
+  if (!root) throw new Error('Cannot certify a graphical output with no SVG root')
+  const original = svg.slice(root.start, root.end)
+  const rewritten = original.replace(/\sviewBox="[^"]*"/g, '')
+  const attrs = ` viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}"`
+  return replaceSvgRootStartTag(svg, root, rewritten.slice(0, -1) + attrs + '>')
+}
+
+/** The one render decision on a final paint proof. Strict layout safety needs
+ * a passed proof. Report safety refuses a failed default-backend proof only
+ * when paint may be clipped; other failures (covered text or markers, a
+ * connector across a card, text past its region) render and verify reports
+ * them (see `reportedPaintFailure`), as rough backends already rendered. */
+export function paintCertificationRefuses(request: ResolvedRenderRequest, certification: PaintLayoutCertification): boolean {
+  if (request.renderOptions.layoutSafety === 'strict') return certification.status !== 'passed'
+  return certification.status === 'failed' && resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && !paintFailureIsDrawable(certification)
+}
+
+/** A failed default-backend paint proof report safety drew anyway. */
+export function reportedPaintFailure(request: ResolvedRenderRequest, certification: PaintLayoutCertification | undefined): boolean {
+  return certification !== undefined && request.renderOptions.layoutSafety !== 'strict' && certification.status === 'failed'
+    && resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && paintFailureIsDrawable(certification)
+}
+
 /** Render an exact descriptor layout result; this function never positions. */
 export function renderPositionedMermaidSVG(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
-  return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics))
+  const plan = resolvedRenderExecutionPlanOf(request)
+  return withTextMeasurementExecution(plan.textMeasurement, () =>
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
 }
 
 function renderPositionedWithTextMeasurement(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
@@ -141,33 +185,77 @@ function renderPositionedWithTextMeasurement(
   const family = executionPlan.family
   const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
+  let preparedText = false
+  let layoutCertification: PaintLayoutCertification | undefined
+  let drawing: ReturnType<typeof retainedNativeDrawing>
   if (executionPlan.mode === 'scene') {
-    const scene = lowerPositionedFamilyScene(request, layout)
-    rawSvg = executionPlan.backend!.backend.render(scene, {
-      seed: effectiveOptions.seed ?? 0,
-      ...(request.appearance.styled ? { style: request.appearance.style } : {}),
+    drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
+    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
+    if (paintCertificationRefuses(request, layoutCertification)) throw new PaintLayoutCertificationError(layoutCertification)
+    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
+      const backendContext = {
+        seed: effectiveOptions.seed ?? 0,
+        ...(request.appearance.styled ? { style: request.appearance.style } : {}),
+      }
+      capture?.begin(backendContext, scene!)
+      return executionPlan.backend!.backend.render(scene!, backendContext)
     })
+    preparedText = executionPlan.backend?.inputName === 'default'
+      && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
   } else {
-    rawSvg = family.renderSvg!(context)
+    if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
+    rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
-  let svg = inlineResolvedColors(rawSvg, context.colors)
-  assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
-  svg = fitUncalibratedSvgText(svg, request.appearance.font)
-  assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
+  // Typed identities and family data attributes keep authored text verbatim
+  // through the Scene; the bytes we emit cannot hold what XML cannot carry,
+  // so those characters are written as the inert ones display text draws.
+  // Only core producers are repaired: a host backend or extension family that
+  // emits such characters stays under the output-security refusal.
+  const trustedProducer = !family.id.startsWith('family:')
+    && (executionPlan.mode !== 'scene' || !executionPlan.backend || isBuiltInBackend(executionPlan.backend.backend))
   const idPrefix = effectiveOptions.idPrefix ?? ''
+  const accessibility = request.source.accessibility
+  const fallbackName = family.id === 'c4' ? 'C4 architecture diagram' : undefined
+  const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
+  const securityPolicy = isOwnedFamily(family) && isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
+  // Everything below is a pure function of the backend bytes and these inputs.
+  // A retained drawing keeps its finished output, so a repeat with the same
+  // inputs skips finishing and the security gate its exact bytes passed.
+  const finishingIdentity = drawing ? JSON.stringify([
+    trustedProducer, context.colors,
+    layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default' ? layoutCertification.viewport : null,
+    preparedText ? null : request.appearance.font, idPrefix, accessibility.title ?? null, accessibility.descr ?? null, fallbackName ?? null,
+    layout.injectAccessibility ?? true, effectiveOptions.compact ?? false, outputSecurity ?? null, securityPolicy === applyWrittenOutputSecurityPolicy,
+  ]) : undefined
+  const finished = drawing && finishingIdentity !== undefined ? finishedNativeDrawing(drawing, finishingIdentity) : undefined
+  if (finished) {
+    securityDiagnostics.push(...finished.diagnostics)
+    return Object.freeze({
+      svg: finished.svg,
+      executionDecision: executionPlan.executionDecision,
+      ...(layoutCertification ? { layoutCertification } : {}),
+    })
+  }
+  let svg = inlineResolvedColors(trustedProducer ? xmlCarriableText(rawSvg) : rawSvg, context.colors)
+  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
+  assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
+  if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
+  assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   if (idPrefix) {
     svg = namespaceSvgIds(svg, idPrefix)
     assertFinalSvgByteBudget(svg, 'namespaced SVG output')
   }
-  const accessibility = request.source.accessibility
-  const fallbackName = family.id === 'c4' ? 'C4 architecture diagram' : undefined
   if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr || fallbackName)) {
     svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
-  svg = scopeSvgStyles(svg)
+  if (capture) svg = capture.finish(svg)
+  // Scope identity belongs to the canonical written numbers, including late
+  // viewport repairs, so equivalent drawing/Scene paths share identical CSS.
+  svg = scopeSvgStyles(formatSvgNumbers(svg))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split
@@ -181,14 +269,17 @@ function renderPositionedWithTextMeasurement(
   // output-only projection: the shared request receipt retains authored
   // security intent, while no native/WASM/browser rasterizer can receive a
   // fetching reference from a conditional host backend.
-  const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
-  const secured = applyOutputSecurityPolicy(svg, outputSecurity)
+  const secured = measureRenderStage('svg-security', () => securityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
   assertFinalSvgByteBudget(svg, 'final SVG output')
+  if (drawing && finishingIdentity !== undefined) {
+    retainFinishedNativeDrawing(drawing, { identity: finishingIdentity, svg, diagnostics: Object.freeze(secured.diagnostics.map(diagnostic => Object.freeze({ ...diagnostic }))) })
+  }
   return Object.freeze({
     svg,
     executionDecision: executionPlan.executionDecision,
+    ...(layoutCertification ? { layoutCertification } : {}),
   })
 }
 
@@ -196,13 +287,11 @@ function renderPositionedWithTextMeasurement(
 export function renderResolvedMermaidSVG(
   request: ResolvedRenderRequest,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  consumeLayout?: GraphicalLayoutConsumer,
 ): ResolvedGraphicalExecution {
-  const familyId = resolvedRenderExecutionPlanOf(request).family.id
-  return renderPositionedMermaidSVG(
-    request,
-    positionResolvedFamily(familyId, request),
-    securityDiagnostics,
-  )
+  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
+  consumeLayout?.consume(request, layout)
+  return renderPositionedMermaidSVG(request, layout, securityDiagnostics)
 }
 
 /**
@@ -216,24 +305,74 @@ export function executeGraphicalRequest(
   output: 'svg' | 'png',
   outputOptions?: unknown,
   resolutionOptions: RenderExecutionResolutionOptions = {},
+  consumeLayout?: GraphicalLayoutConsumer,
 ): GraphicalSvgArtifact {
-  const request = resolveRenderRequestForExecution(
+  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions, consumeLayout))
+}
+
+function executeInspectedGraphicalRequest(
+  text: string,
+  options: RenderOptions,
+  output: 'svg' | 'png',
+  outputOptions: unknown,
+  resolutionOptions: RenderExecutionResolutionOptions,
+  consumeLayout?: GraphicalLayoutConsumer,
+): GraphicalSvgArtifact {
+  const request = measureRenderStage('request', () => resolveRenderRequestForExecution(
     text,
     options,
     output,
     outputOptions,
     resolutionOptions,
-  )
+  ))
+  return consumeResolvedGraphicalRequest(request, consumeLayout)
+}
+
+/** Async entries retain one immutable request across dependency loading.
+ * Diagnostics and lazy receipts consume that same admitted identity. */
+export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
+  return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
+}
+
+function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest, consumeLayout?: GraphicalLayoutConsumer): GraphicalSvgArtifact {
   emitResolvedConfigDiagnostics(request)
+  consumeLayout?.validate(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
-  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
-  const receipt = receiptOf(request, securityDiagnostics)
-  return Object.freeze({
-    svg: rendered.svg,
-    receipt: Object.freeze({
-      ...receipt,
-      graphicalProjectionDigest: renderedSvgDigest(rendered.svg),
+  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics, consumeLayout)
+  return graphicalSvgArtifact(request, rendered, securityDiagnostics)
+}
+
+/** Complete an already-rendered private request without positioning again. */
+export function graphicalSvgArtifact(
+  request: ResolvedRenderRequest,
+  rendered: ResolvedGraphicalExecution,
+  securityDiagnostics: OutputSecurityDiagnostic[],
+): GraphicalSvgArtifact {
+  const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
+  return lazyGraphicalArtifact(rendered.svg, () => {
+    const outputDigest = renderedSvgDigest(rendered.svg)
+    return Object.freeze({
+      ...receiptOf(request, securityDiagnostics),
+      graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
-    }),
+      ...(layoutCertification ? { layoutCertification: Object.freeze({ ...layoutCertification, outputDigest }) } : {}),
+    })
+  })
+}
+
+/** Keep the getter in a separate closure so a consumed artifact releases the
+ * request, positioned evidence and diagnostics captured by its builder. */
+function lazyGraphicalArtifact(svg: string, build: () => RenderRequestReceipt): GraphicalSvgArtifact {
+  let pending: (() => RenderRequestReceipt) | undefined = build
+  let receipt: RenderRequestReceipt | undefined
+  return Object.freeze({
+    svg,
+    get receipt() {
+      if (receipt === undefined) {
+        receipt = pending!()
+        pending = undefined
+      }
+      return receipt
+    },
   })
 }

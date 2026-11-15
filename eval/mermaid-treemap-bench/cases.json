@@ -1,0 +1,1773 @@
+[
+  {
+    "id": "treemap-docs-1",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "treemap-beta\n\"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n\"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-2",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "treemap-beta\n\"Products\"\n    \"Electronics\"\n        \"Phones\": 50\n        \"Computers\": 30\n        \"Accessories\": 20\n    \"Clothing\"\n        \"Men's\": 40\n        \"Women's\": 40\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Products",
+          "children": [
+            {
+              "label": "Electronics",
+              "children": [
+                {
+                  "label": "Phones",
+                  "value": 50,
+                  "children": []
+                },
+                {
+                  "label": "Computers",
+                  "value": 30,
+                  "children": []
+                },
+                {
+                  "label": "Accessories",
+                  "value": 20,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Clothing",
+              "children": [
+                {
+                  "label": "Men's",
+                  "value": 40,
+                  "children": []
+                },
+                {
+                  "label": "Women's",
+                  "value": 40,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-3",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "treemap-beta\n\"Section 1\"\n    \"Leaf 1.1\": 12\n    \"Section 1.2\":::class1\n      \"Leaf 1.2.1\": 12\n\"Section 2\"\n    \"Leaf 2.1\": 20:::class1\n    \"Leaf 2.2\": 25\n    \"Leaf 2.3\": 12\n\nclassDef class1 fill:red,color:blue,stroke:#FFD600;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Section 1",
+          "children": [
+            {
+              "label": "Leaf 1.1",
+              "value": 12,
+              "children": []
+            },
+            {
+              "label": "Section 1.2",
+              "className": "class1",
+              "children": [
+                {
+                  "label": "Leaf 1.2.1",
+                  "value": 12,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Section 2",
+          "children": [
+            {
+              "label": "Leaf 2.1",
+              "value": 20,
+              "className": "class1",
+              "children": []
+            },
+            {
+              "label": "Leaf 2.2",
+              "value": 25,
+              "children": []
+            },
+            {
+              "label": "Leaf 2.3",
+              "value": 12,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-4",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "treemap-beta\n\"Main\"\n    \"A\": 20\n    \"B\":::important\n        \"B1\": 10\n        \"B2\": 15\n    \"C\": 5\n\nclassDef important fill:#f96,stroke:#333,stroke-width:2px;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Main",
+          "children": [
+            {
+              "label": "A",
+              "value": 20,
+              "children": []
+            },
+            {
+              "label": "B",
+              "className": "important",
+              "children": [
+                {
+                  "label": "B1",
+                  "value": 10,
+                  "children": []
+                },
+                {
+                  "label": "B2",
+                  "value": 15,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "C",
+              "value": 5,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-5",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "---\nconfig:\n    theme: 'forest'\n---\ntreemap-beta\n\"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n\"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-6",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "---\nconfig:\n  treemap:\n    diagramPadding: 200\n---\ntreemap-beta\n\"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n\"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-7",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "---\nconfig:\n  treemap:\n    valueFormat: '$0,0'\n---\ntreemap-beta\n\"Budget\"\n    \"Operations\"\n        \"Salaries\": 700000\n        \"Equipment\": 200000\n        \"Supplies\": 100000\n    \"Marketing\"\n        \"Advertising\": 400000\n        \"Events\": 100000\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Budget",
+          "children": [
+            {
+              "label": "Operations",
+              "children": [
+                {
+                  "label": "Salaries",
+                  "value": 700000,
+                  "children": []
+                },
+                {
+                  "label": "Equipment",
+                  "value": 200000,
+                  "children": []
+                },
+                {
+                  "label": "Supplies",
+                  "value": 100000,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Marketing",
+              "children": [
+                {
+                  "label": "Advertising",
+                  "value": 400000,
+                  "children": []
+                },
+                {
+                  "label": "Events",
+                  "value": 100000,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-docs-8",
+    "origin": "packages/mermaid/src/docs/syntax/treemap.md",
+    "source": "---\nconfig:\n  treemap:\n    valueFormat: '$.1%'\n---\ntreemap-beta\n\"Market Share\"\n    \"Company A\": 0.35\n    \"Company B\": 0.25\n    \"Company C\": 0.15\n    \"Others\": 0.25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Market Share",
+          "children": [
+            {
+              "label": "Company A",
+              "value": 0.35,
+              "children": []
+            },
+            {
+              "label": "Company B",
+              "value": 0.25,
+              "children": []
+            },
+            {
+              "label": "Company C",
+              "value": 0.15,
+              "children": []
+            },
+            {
+              "label": "Others",
+              "value": 0.25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-12-should-apply-classdef-fill-color-to-leaf-nodes",
+    "origin": "e2e/diagrams/treemap/nightly-check/12-should-apply-classdef-fill-color-to-leaf-nodes.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Root\" with three flat leaves; two of the three (Item A,\n  Item C) are tagged with distinct classDefs (redClass, blueClass) that set\n  only a fill color, verifying classDef fill-color styling applies\n  correctly to individual leaf nodes.\n---\ntreemap-beta\n  \"Root\"\n    \"Item A\": 30:::redClass\n    \"Item B\": 20\n    \"Item C\": 25:::blueClass\n\n  classDef redClass fill:#ff0000;\n  classDef blueClass fill:#0000ff;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Root",
+          "children": [
+            {
+              "label": "Item A",
+              "value": 30,
+              "className": "redClass",
+              "children": []
+            },
+            {
+              "label": "Item B",
+              "value": 20,
+              "children": []
+            },
+            {
+              "label": "Item C",
+              "value": 25,
+              "className": "blueClass",
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-14-should-apply-classdef-color-to-text-labels",
+    "origin": "e2e/diagrams/treemap/nightly-check/14-should-apply-classdef-color-to-text-labels.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Products\" with two sections (Electronics, Furniture), each\n  styled with a classDef that sets a background fill plus a text color\n  (white text on a dark fill vs black text on a light fill), verifying\n  classDef color styling applies to node text labels.\n---\ntreemap-beta\n  \"Products\"\n    \"Electronics\":::whiteText\n      \"Phones\": 40\n      \"Laptops\": 30\n    \"Furniture\":::darkText\n      \"Chairs\": 25\n      \"Tables\": 20\n\n  classDef whiteText fill:#2c3e50,color:#ffffff;\n  classDef darkText fill:#ecf0f1,color:#000000;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Products",
+          "children": [
+            {
+              "label": "Electronics",
+              "className": "whiteText",
+              "children": [
+                {
+                  "label": "Phones",
+                  "value": 40,
+                  "children": []
+                },
+                {
+                  "label": "Laptops",
+                  "value": 30,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Furniture",
+              "className": "darkText",
+              "children": [
+                {
+                  "label": "Chairs",
+                  "value": 25,
+                  "children": []
+                },
+                {
+                  "label": "Tables",
+                  "value": 20,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-15-should-apply-multiple-classdef-properties-simultaneously",
+    "origin": "e2e/diagrams/treemap/nightly-check/15-should-apply-multiple-classdef-properties-simultaneously.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Budget\" with two sections (Critical, Normal), each styled\n  via a classDef that combines fill, text color, stroke color, and\n  stroke-width simultaneously, verifying multiple classDef properties can\n  be applied together to a single node.\n---\ntreemap-beta\n  \"Budget\"\n    \"Critical\":::critical\n      \"Server Costs\": 50000\n      \"Salaries\": 80000\n    \"Normal\":::normal\n      \"Office Supplies\": 5000\n      \"Marketing\": 15000\n\n  classDef critical fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:3px;\n  classDef normal fill:#3498db,color:#fff,stroke:#2980b9,stroke-width:1px;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Budget",
+          "children": [
+            {
+              "label": "Critical",
+              "className": "critical",
+              "children": [
+                {
+                  "label": "Server Costs",
+                  "value": 50000,
+                  "children": []
+                },
+                {
+                  "label": "Salaries",
+                  "value": 80000,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Normal",
+              "className": "normal",
+              "children": [
+                {
+                  "label": "Office Supplies",
+                  "value": 5000,
+                  "children": []
+                },
+                {
+                  "label": "Marketing",
+                  "value": 15000,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-16-should-handle-classdef-on-nested-sections-and-leaves",
+    "origin": "e2e/diagrams/treemap/nightly-check/16-should-handle-classdef-on-nested-sections-and-leaves.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Company\" with a nested Engineering section (styled via its\n  own classDef) whose leaves are further tagged individually with a second\n  \"highlight\" classDef, plus a sibling Sales section with one highlighted\n  leaf. Verifies classDef styling can be layered at both the nested-section\n  level and the individual-leaf level within the same diagram.\n---\ntreemap-beta\n  \"Company\"\n    \"Engineering\":::engSection\n      \"Frontend\": 30:::highlight\n      \"Backend\": 40\n      \"DevOps\": 20:::highlight\n    \"Sales\"\n      \"Direct\": 35\n      \"Channel\": 25:::highlight\n\n  classDef engSection fill:#9b59b6,stroke:#8e44ad,stroke-width:2px;\n  classDef highlight fill:#f39c12,color:#000,stroke:#e67e22,stroke-width:2px;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Company",
+          "children": [
+            {
+              "label": "Engineering",
+              "className": "engSection",
+              "children": [
+                {
+                  "label": "Frontend",
+                  "value": 30,
+                  "className": "highlight",
+                  "children": []
+                },
+                {
+                  "label": "Backend",
+                  "value": 40,
+                  "children": []
+                },
+                {
+                  "label": "DevOps",
+                  "value": 20,
+                  "className": "highlight",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Sales",
+              "children": [
+                {
+                  "label": "Direct",
+                  "value": 35,
+                  "children": []
+                },
+                {
+                  "label": "Channel",
+                  "value": 25,
+                  "className": "highlight",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-17-should-render-treemap-with-readable-text-on-dark-theme",
+    "origin": "e2e/diagrams/treemap/nightly-check/17-should-render-treemap-with-readable-text-on-dark-theme.mmd",
+    "source": "---\ndescription: >-\n  Same minimal two-section, four-leaf treemap-beta structure as the basic\n  smoke test, rendered under the dark theme to check that node and label\n  text stays readable against dark-theme colors.\n---\ntreemap-beta\n  \"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n  \"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-18-should-render-treemap-with-readable-text-on-neutral-theme",
+    "origin": "e2e/diagrams/treemap/nightly-check/18-should-render-treemap-with-readable-text-on-neutral-theme.mmd",
+    "source": "---\ndescription: >-\n  Same minimal two-section, four-leaf treemap-beta structure as the basic\n  smoke test, rendered under the neutral theme to check that node and label\n  text stays readable against neutral-theme colors.\n---\ntreemap-beta\n  \"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n  \"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-2-should-render-a-hierarchical-treemap",
+    "origin": "e2e/diagrams/treemap/nightly-check/2-should-render-a-hierarchical-treemap.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Products\" with three levels of hierarchy: a flat\n  Electronics section with three leaves, and a Clothing section containing\n  two sub-sections (Men's, Women's) that each hold two leaves. Basic test\n  of multi-level hierarchical nesting without any styling.\n---\ntreemap-beta\n  \"Products\"\n    \"Electronics\"\n      \"Phones\": 50\n      \"Computers\": 30\n      \"Accessories\": 20\n    \"Clothing\"\n      \"Men's\"\n        \"Shirts\": 10\n        \"Pants\": 15\n      \"Women's\"\n        \"Dresses\": 20\n        \"Skirts\": 10\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Products",
+          "children": [
+            {
+              "label": "Electronics",
+              "children": [
+                {
+                  "label": "Phones",
+                  "value": 50,
+                  "children": []
+                },
+                {
+                  "label": "Computers",
+                  "value": 30,
+                  "children": []
+                },
+                {
+                  "label": "Accessories",
+                  "value": 20,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Clothing",
+              "children": [
+                {
+                  "label": "Men's",
+                  "children": [
+                    {
+                      "label": "Shirts",
+                      "value": 10,
+                      "children": []
+                    },
+                    {
+                      "label": "Pants",
+                      "value": 15,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "label": "Women's",
+                  "children": [
+                    {
+                      "label": "Dresses",
+                      "value": 20,
+                      "children": []
+                    },
+                    {
+                      "label": "Skirts",
+                      "value": 10,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-4-should-handle-long-text-that-wraps",
+    "origin": "e2e/diagrams/treemap/nightly-check/4-should-handle-long-text-that-wraps.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta with a single section containing one leaf whose label is a\n  very long sentence-length string, alongside one short leaf, verifying\n  that long node labels wrap to multiple lines instead of overflowing.\n---\ntreemap-beta\n  \"Main Category\"\n    \"This is a very long item name that should wrap to the next line when rendered in the treemap diagram\": 50\n    \"Short item\": 20\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Main Category",
+          "children": [
+            {
+              "label": "This is a very long item name that should wrap to the next line when rendered in the treemap diagram",
+              "value": 50,
+              "children": []
+            },
+            {
+              "label": "Short item",
+              "value": 20,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-6-should-handle-multiple-levels-of-nesting",
+    "origin": "e2e/diagrams/treemap/nightly-check/6-should-handle-multiple-levels-of-nesting.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta with four levels of nesting (Level 1 > Level 2A/2B >\n  Level 3A-D > Level 4A/4B under Level 3D), testing that the renderer\n  correctly lays out sections nested more than two or three levels deep.\n---\ntreemap-beta\n  \"Level 1\"\n    \"Level 2A\"\n      \"Level 3A\": 10\n      \"Level 3B\": 15\n    \"Level 2B\"\n      \"Level 3C\": 20\n      \"Level 3D\"\n        \"Level 4A\": 5\n        \"Level 4B\": 5\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Level 1",
+          "children": [
+            {
+              "label": "Level 2A",
+              "children": [
+                {
+                  "label": "Level 3A",
+                  "value": 10,
+                  "children": []
+                },
+                {
+                  "label": "Level 3B",
+                  "value": 15,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Level 2B",
+              "children": [
+                {
+                  "label": "Level 3C",
+                  "value": 20,
+                  "children": []
+                },
+                {
+                  "label": "Level 3D",
+                  "children": [
+                    {
+                      "label": "Level 4A",
+                      "value": 5,
+                      "children": []
+                    },
+                    {
+                      "label": "Level 4B",
+                      "value": 5,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8-should-handle-dollar-value-formatting-with-thousands-separator",
+    "origin": "e2e/diagrams/treemap/nightly-check/8-should-handle-dollar-value-formatting-with-thousands-separator.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter sets treemap.valueFormat to '$0,0' (dollar sign with\n  thousands separator, no decimals). Uses the `treemap` diagram keyword\n  (not treemap-beta) with a \"Budget\" hierarchy of Operations/Marketing\n  sections and multiple six-figure leaf values, verifying currency\n  formatting with thousands separators renders correctly.\nconfig:\n  treemap:\n    valueFormat: '$0,0'\n---\ntreemap\n  \"Budget\"\n    \"Operations\"\n      \"Salaries\": 700000\n      \"Equipment\": 200000\n      \"Supplies\": 100000\n    \"Marketing\"\n      \"Advertising\": 400000\n      \"Events\": 100000\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Budget",
+          "children": [
+            {
+              "label": "Operations",
+              "children": [
+                {
+                  "label": "Salaries",
+                  "value": 700000,
+                  "children": []
+                },
+                {
+                  "label": "Equipment",
+                  "value": 200000,
+                  "children": []
+                },
+                {
+                  "label": "Supplies",
+                  "value": 100000,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Marketing",
+              "children": [
+                {
+                  "label": "Advertising",
+                  "value": 400000,
+                  "children": []
+                },
+                {
+                  "label": "Events",
+                  "value": 100000,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8a-should-handle-percentage-formatting",
+    "origin": "e2e/diagrams/treemap/nightly-check/8a-should-handle-percentage-formatting.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter sets treemap.valueFormat to '.1%' (percentage with one\n  decimal place). \"Market Share\" section with four leaves holding\n  fractional values (0.15-0.35), verifying percentage-format rendering of\n  leaf values.\nconfig:\n  treemap:\n    valueFormat: '.1%'\n---\ntreemap-beta\n  \"Market Share\"\n    \"Company A\": 0.35\n    \"Company B\": 0.25\n    \"Company C\": 0.15\n    \"Others\": 0.25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Market Share",
+          "children": [
+            {
+              "label": "Company A",
+              "value": 0.35,
+              "children": []
+            },
+            {
+              "label": "Company B",
+              "value": 0.25,
+              "children": []
+            },
+            {
+              "label": "Company C",
+              "value": 0.15,
+              "children": []
+            },
+            {
+              "label": "Others",
+              "value": 0.25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8b-should-handle-decimal-formatting",
+    "origin": "e2e/diagrams/treemap/nightly-check/8b-should-handle-decimal-formatting.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter sets treemap.valueFormat to '.2f' (plain two-decimal float,\n  with no percent or currency symbol). \"Metrics\" section with four small\n  fractional leaf values, verifying plain decimal formatting.\nconfig:\n  treemap:\n    valueFormat: '.2f'\n---\ntreemap-beta\n  \"Metrics\"\n    \"Conversion Rate\": 0.0567\n    \"Bounce Rate\": 0.6723\n    \"Click-through Rate\": 0.1289\n    \"Engagement\": 0.4521\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Metrics",
+          "children": [
+            {
+              "label": "Conversion Rate",
+              "value": 0.0567,
+              "children": []
+            },
+            {
+              "label": "Bounce Rate",
+              "value": 0.6723,
+              "children": []
+            },
+            {
+              "label": "Click-through Rate",
+              "value": 0.1289,
+              "children": []
+            },
+            {
+              "label": "Engagement",
+              "value": 0.4521,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8c-should-handle-dollar-sign-with-decimal-places",
+    "origin": "e2e/diagrams/treemap/nightly-check/8c-should-handle-dollar-sign-with-decimal-places.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter sets treemap.valueFormat to '$.2f' (dollar sign with two\n  decimals, no thousands separator). \"Product Prices\" section with four\n  sub-200 leaf values, verifying currency formatting without a thousands\n  separator.\nconfig:\n  treemap:\n    valueFormat: '$.2f'\n---\ntreemap-beta\n  \"Product Prices\"\n    \"Basic\": 19.99\n    \"Standard\": 49.99\n    \"Premium\": 99.99\n    \"Enterprise\": 199.99\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Product Prices",
+          "children": [
+            {
+              "label": "Basic",
+              "value": 19.99,
+              "children": []
+            },
+            {
+              "label": "Standard",
+              "value": 49.99,
+              "children": []
+            },
+            {
+              "label": "Premium",
+              "value": 99.99,
+              "children": []
+            },
+            {
+              "label": "Enterprise",
+              "value": 199.99,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8e-should-handle-simple-thousands-separator",
+    "origin": "e2e/diagrams/treemap/nightly-check/8e-should-handle-simple-thousands-separator.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"User Counts\" with four large integer leaf values (tens of\n  thousands to over a million) and no explicit valueFormat config,\n  verifying the default number formatting applies a thousands separator to\n  large plain integers.\n---\ntreemap-beta\n  \"User Counts\"\n    \"Active Users\": 1250345\n    \"New Signups\": 45789\n    \"Churned\": 12350\n    \"Converted\": 78975\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "User Counts",
+          "children": [
+            {
+              "label": "Active Users",
+              "value": 1250345,
+              "children": []
+            },
+            {
+              "label": "New Signups",
+              "value": 45789,
+              "children": []
+            },
+            {
+              "label": "Churned",
+              "value": 12350,
+              "children": []
+            },
+            {
+              "label": "Converted",
+              "value": 78975,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8f-should-handle-valueformat-set-via-directive-with-dollar-and-thousands-separator",
+    "origin": "e2e/diagrams/treemap/nightly-check/8f-should-handle-valueformat-set-via-directive-with-dollar-and-thousands-separator.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter config block sets treemap.valueFormat to '$0,0' (dollar sign\n  with thousands separator, no decimals). \"Sales by Region\" section with\n  four seven-figure leaf values, verifying currency plus thousands-\n  separator formatting configured through frontmatter config.\nconfig:\n  treemap:\n    valueFormat: '$0,0'\n---\ntreemap-beta\n  \"Sales by Region\"\n    \"North\": 1234567\n    \"South\": 7654321\n    \"East\": 4567890\n    \"West\": 9876543\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Sales by Region",
+          "children": [
+            {
+              "label": "North",
+              "value": 1234567,
+              "children": []
+            },
+            {
+              "label": "South",
+              "value": 7654321,
+              "children": []
+            },
+            {
+              "label": "East",
+              "value": 4567890,
+              "children": []
+            },
+            {
+              "label": "West",
+              "value": 9876543,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8g-should-handle-scientific-notation-format",
+    "origin": "e2e/diagrams/treemap/nightly-check/8g-should-handle-scientific-notation-format.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Scientific Values\" with three leaves spanning very\n  different magnitudes (about 1.2 million, a tiny fraction near 0.00001,\n  and one billion) with no explicit valueFormat, verifying default\n  formatting handles extreme value ranges, including scientific-notation-\n  scale numbers, without configuration.\n---\ntreemap-beta\n  \"Scientific Values\"\n    \"Value 1\": 1234567\n    \"Value 2\": 0.0000123\n    \"Value 3\": 1000000000\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Scientific Values",
+          "children": [
+            {
+              "label": "Value 1",
+              "value": 1234567,
+              "children": []
+            },
+            {
+              "label": "Value 2",
+              "value": 1.23e-5,
+              "children": []
+            },
+            {
+              "label": "Value 3",
+              "value": 1000000000,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-1-should-render-a-basic-treemap",
+    "origin": "e2e/diagrams/treemap/pr-check/1-should-render-a-basic-treemap.mmd",
+    "source": "---\ndescription: >-\n  Minimal smoke test for treemap-beta: two top-level sections (Category A,\n  Category B), each containing two leaf nodes with numeric values, with no\n  styling or formatting applied.\n---\ntreemap-beta\n  \"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n  \"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-10-should-render-the-example-from-documentation",
+    "origin": "e2e/diagrams/treemap/pr-check/10-should-render-the-example-from-documentation.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta mirroring the example used in the treemap documentation: two\n  sections where Section 1 nests a sub-section (Section 1.2) with its own\n  leaf, while Section 2 is flat with three leaves; a classDef (class1) is\n  applied to both a nested section and a leaf to show styling can target\n  either level.\n---\ntreemap-beta\n  \"Section 1\"\n    \"Leaf 1.1\": 12\n    \"Section 1.2\":::class1\n      \"Leaf 1.2.1\": 12\n  \"Section 2\"\n    \"Leaf 2.1\": 20:::class1\n    \"Leaf 2.2\": 25\n    \"Leaf 2.3\": 12\n\n  classDef class1 fill:red,color:blue,stroke:#FFD600;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Section 1",
+          "children": [
+            {
+              "label": "Leaf 1.1",
+              "value": 12,
+              "children": []
+            },
+            {
+              "label": "Section 1.2",
+              "className": "class1",
+              "children": [
+                {
+                  "label": "Leaf 1.2.1",
+                  "value": 12,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Section 2",
+          "children": [
+            {
+              "label": "Leaf 2.1",
+              "value": 20,
+              "className": "class1",
+              "children": []
+            },
+            {
+              "label": "Leaf 2.2",
+              "value": 25,
+              "children": []
+            },
+            {
+              "label": "Leaf 2.3",
+              "value": 12,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-11-should-handle-comments",
+    "origin": "e2e/diagrams/treemap/pr-check/11-should-handle-comments.mmd",
+    "source": "---\ndescription: >-\n  Same two-section, four-leaf treemap-beta structure as the basic smoke\n  test, with %% comment lines interspersed before each section, verifying\n  that comments are correctly ignored by the parser.\n---\ntreemap-beta\n  %% This is a comment\n  \"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n  %% Another comment\n  \"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-13-should-apply-classdef-stroke-styles-to-sections",
+    "origin": "e2e/diagrams/treemap/pr-check/13-should-apply-classdef-stroke-styles-to-sections.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta with two sections, each tagged with a distinct classDef:\n  Category A gets a thick solid red border (stroke-width 8px), Category B\n  gets a dashed black border (stroke-dasharray) of the same width, verifying\n  classDef stroke styling (solid vs dashed, color) applies to section\n  containers.\n---\ntreemap-beta\n  %% This is a comment\n  \"Category A\":::thickBorder\n    \"Item A1\": 10\n    \"Item A2\": 20\n  %% Another comment\n  \"Category B\":::dashedBorder\n    \"Item B1\": 15\n    \"Item B2\": 25\n\n  classDef thickBorder stroke:red,stroke-width:8px;\n  classDef dashedBorder stroke:black,stroke-dasharray:5,stroke-width:8px;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "className": "thickBorder",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "className": "dashedBorder",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-19-should-render-labels-in-complex-treemap-with-many-nested-blocks",
+    "origin": "e2e/diagrams/treemap/pr-check/19-should-render-labels-in-complex-treemap-with-many-nested-blocks.mmd",
+    "source": "---\ndescription: >-\n  Large, real-world-style treemap-beta with three top-level, emoji-labeled\n  sections (High/Medium/Low activity) containing dozens of nested leaf\n  nodes representing package and file paths, each with numeric values and\n  leaf-level classDef color classes. Exercises label rendering and layout\n  for a complex, many-leaf treemap.\n---\ntreemap-beta\n  \"\ud83d\udd34 High Activity (Top 50%)\":::redContainer\n    \"packages/app (1115)\": 15:::redleaf\n    \"packages/app/src (844)\": 12:::redleaf\n    \"packages/app/src/lib (707)\": 11:::redleaf\n    \"packages/app/src/routes (353)\": 7:::redleaf\n    \"packages/app/tests (277)\": 6:::redleaf\n    \"packages/app/tests/e2e (245)\": 6:::redleaf\n    \"packages/app/tests/common (48)\": 4:::redleaf\n    \"packages/llm-prompts (29)\": 3:::redleaf\n    \"packages/emails (26)\": 3:::redleaf\n    \"packages/app/tests/api (23)\": 3:::redleaf\n    \"packages/emails/src (18)\": 3:::redleaf\n    \"packages/emails/src/emails (17)\": 3:::redleaf\n    \"packages/app/static (15)\": 3:::redleaf\n    \"packages/llm-prompts/diagram-chat (15)\": 3:::redleaf\n    \"packages/app/prisma (11)\": 3:::redleaf\n    \"packages/app/prisma/migrations (11)\": 3:::redleaf\n    \"packages/llm-prompts/shared (9)\": 3:::redleaf\n    \"packages/app/static/icons (8)\": 3:::redleaf\n    \"packages/emails/src/components (8)\": 3:::redleaf\n    \"packages/app-observability (8)\": 3:::redleaf\n    \"packages/mermaid-pre-render-server (8)\": 3:::redleaf\n  \"\ud83d\udfe0 Medium Activity (35%)\":::orangeContainer\n    \"packages/app/tests/mobile (6)\": 3:::orangeleaf\n    \"packages/llm-prompts/diagram-chat/tests (6)\": 3:::orangeleaf\n    \"packages/eslint-plugin (6)\": 3:::orangeleaf\n    \"packages/eslint-plugin/src (5)\": 3:::orangeleaf\n    \"packages/eslint-plugin/src/rules (5)\": 3:::orangeleaf\n    \"packages/app/static/img (4)\": 3:::orangeleaf\n    \"packages/llm-prompts/tests (4)\": 3:::orangeleaf\n    \"packages/llm-prompts/common (3)\": 3:::orangeleaf\n    \"packages/mermaid-pre-render-server/tests (3)\": 3:::orangeleaf\n    \"packages/mermaid-pre-render-server/tests/e2e (3)\": 3:::orangeleaf\n    \"packages/app/tests/seed (2)\": 3:::orangeleaf\n    \"packages/llm-prompts/shared/patches (2)\": 3:::orangeleaf\n    \"packages/mermaid-pre-render-server/src (2)\": 3:::orangeleaf\n    \"packages/app/scripts (1)\": 3:::orangeleaf\n  \"\ud83d\udfe1 Low Activity (15%)\":::yellowContainer\n    \"packages/llm-prompts/regenerate-diagram (1)\": 3:::yellowleaf\n    \"packages/llm-prompts/repair-diagram (1)\": 3:::yellowleaf\n    \"packages/app-buildship (1)\": 3:::yellowleaf\n    \"packages/app-buildship/src (1)\": 3:::yellowleaf\n    \"packages/app-buildship/src/cleanupAssets (1)\": 3:::yellowleaf\n    \"packages/icons (1)\": 3:::yellowleaf\n\n  classDef root fill:#F5BA71\n  classDef redContainer fill:#F54927\n  classDef orangeContainer fill:#DE8118\n  classDef yellowContainer fill:#F5E514\n\n  classDef redleaf fill:#F54927,stroke:none,color:#FFFFFF\n  classDef orangeleaf fill:#DE8118,stroke:none,color:#FFFFFF\n  classDef yellowleaf fill:#F5E514,stroke:none,color:#333333\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "\ud83d\udd34 High Activity (Top 50%)",
+          "className": "redContainer",
+          "children": [
+            {
+              "label": "packages/app (1115)",
+              "value": 15,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/src (844)",
+              "value": 12,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/src/lib (707)",
+              "value": 11,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/src/routes (353)",
+              "value": 7,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/tests (277)",
+              "value": 6,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/tests/e2e (245)",
+              "value": 6,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/tests/common (48)",
+              "value": 4,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts (29)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/emails (26)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/tests/api (23)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/emails/src (18)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/emails/src/emails (17)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/static (15)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/diagram-chat (15)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/prisma (11)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/prisma/migrations (11)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/shared (9)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/static/icons (8)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/emails/src/components (8)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app-observability (8)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            },
+            {
+              "label": "packages/mermaid-pre-render-server (8)",
+              "value": 3,
+              "className": "redleaf",
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "\ud83d\udfe0 Medium Activity (35%)",
+          "className": "orangeContainer",
+          "children": [
+            {
+              "label": "packages/app/tests/mobile (6)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/diagram-chat/tests (6)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/eslint-plugin (6)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/eslint-plugin/src (5)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/eslint-plugin/src/rules (5)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/static/img (4)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/tests (4)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/common (3)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/mermaid-pre-render-server/tests (3)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/mermaid-pre-render-server/tests/e2e (3)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/tests/seed (2)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/shared/patches (2)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/mermaid-pre-render-server/src (2)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app/scripts (1)",
+              "value": 3,
+              "className": "orangeleaf",
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "\ud83d\udfe1 Low Activity (15%)",
+          "className": "yellowContainer",
+          "children": [
+            {
+              "label": "packages/llm-prompts/regenerate-diagram (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            },
+            {
+              "label": "packages/llm-prompts/repair-diagram (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app-buildship (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app-buildship/src (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            },
+            {
+              "label": "packages/app-buildship/src/cleanupAssets (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            },
+            {
+              "label": "packages/icons (1)",
+              "value": 3,
+              "className": "yellowleaf",
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-3-should-render-a-treemap-with-styling-using-classdef",
+    "origin": "e2e/diagrams/treemap/pr-check/3-should-render-a-treemap-with-styling-using-classdef.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta with two sections; Section 1 nests a sub-section\n  (Section 1.2) with its own leaf, while Section 2 is flat with three\n  leaves. A classDef (class1) is applied to both a nested section and a\n  leaf node to exercise classDef-based styling across hierarchy levels.\n---\ntreemap-beta\n  \"Section 1\"\n    \"Leaf 1.1\": 12\n    \"Section 1.2\":::class1\n      \"Leaf 1.2.1\": 12\n  \"Section 2\"\n    \"Leaf 2.1\": 20:::class1\n    \"Leaf 2.2\": 25\n    \"Leaf 2.3\": 12\n\n  classDef class1 fill:red,color:blue,stroke:#FFD600;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Section 1",
+          "children": [
+            {
+              "label": "Leaf 1.1",
+              "value": 12,
+              "children": []
+            },
+            {
+              "label": "Section 1.2",
+              "className": "class1",
+              "children": [
+                {
+                  "label": "Leaf 1.2.1",
+                  "value": 12,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Section 2",
+          "children": [
+            {
+              "label": "Leaf 2.1",
+              "value": 20,
+              "className": "class1",
+              "children": []
+            },
+            {
+              "label": "Leaf 2.2",
+              "value": 25,
+              "children": []
+            },
+            {
+              "label": "Leaf 2.3",
+              "value": 12,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-5-should-render-with-a-forest-theme",
+    "origin": "e2e/diagrams/treemap/pr-check/5-should-render-with-a-forest-theme.mmd",
+    "source": "---\ndescription: >-\n  Same minimal two-section, four-leaf treemap-beta structure as the basic\n  smoke test, rendered under the forest theme to verify the treemap looks\n  correct with that theme applied.\n---\ntreemap-beta\n  \"Category A\"\n    \"Item A1\": 10\n    \"Item A2\": 20\n  \"Category B\"\n    \"Item B1\": 15\n    \"Item B2\": 25\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Category A",
+          "children": [
+            {
+              "label": "Item A1",
+              "value": 10,
+              "children": []
+            },
+            {
+              "label": "Item A2",
+              "value": 20,
+              "children": []
+            }
+          ]
+        },
+        {
+          "label": "Category B",
+          "children": [
+            {
+              "label": "Item B1",
+              "value": 15,
+              "children": []
+            },
+            {
+              "label": "Item B2",
+              "value": 25,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-7-should-handle-classdef-with-multiple-styles",
+    "origin": "e2e/diagrams/treemap/pr-check/7-should-handle-classdef-with-multiple-styles.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta with a \"Main\" section containing a plain leaf (A), a nested\n  sub-section (B) whose two leaves inherit a classDef (important), and a\n  leaf (C) styled via a second classDef (secondary) that uses\n  stroke-dasharray. Exercises applying multiple distinct classDef styles\n  within a single diagram.\n---\ntreemap-beta\n  \"Main\"\n    \"A\": 20\n    \"B\":::important\n      \"B1\": 10\n      \"B2\": 15\n    \"C\": 5:::secondary\n\n  classDef important fill:#f96,stroke:#333,stroke-width:2px;\n  classDef secondary fill:#6cf,stroke:#333,stroke-dasharray:5 5;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Main",
+          "children": [
+            {
+              "label": "A",
+              "value": 20,
+              "children": []
+            },
+            {
+              "label": "B",
+              "className": "important",
+              "children": [
+                {
+                  "label": "B1",
+                  "value": 10,
+                  "children": []
+                },
+                {
+                  "label": "B2",
+                  "value": 15,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "C",
+              "value": 5,
+              "className": "secondary",
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-8d-should-handle-dollar-sign-with-thousands-separator-and-decimal-places",
+    "origin": "e2e/diagrams/treemap/pr-check/8d-should-handle-dollar-sign-with-thousands-separator-and-decimal-places.mmd",
+    "source": "---\ndescription: >-\n  Frontmatter sets treemap.valueFormat to '$,.2f' (dollar sign, thousands\n  separator, two decimal places). Single \"Revenue\" section with four\n  quarterly leaf values to verify combined currency, thousands-separator,\n  and decimal-place formatting.\nconfig:\n  treemap:\n    valueFormat: '$,.2f'\n---\ntreemap-beta\n  \"Revenue\"\n    \"Q1\": 1250345.75\n    \"Q2\": 1645789.25\n    \"Q3\": 1845123.50\n    \"Q4\": 2145678.75\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Revenue",
+          "children": [
+            {
+              "label": "Q1",
+              "value": 1250345.75,
+              "children": []
+            },
+            {
+              "label": "Q2",
+              "value": 1645789.25,
+              "children": []
+            },
+            {
+              "label": "Q3",
+              "value": 1845123.5,
+              "children": []
+            },
+            {
+              "label": "Q4",
+              "value": 2145678.75,
+              "children": []
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  },
+  {
+    "id": "treemap-e2e-9-should-handle-a-complex-example-with-multiple-features",
+    "origin": "e2e/diagrams/treemap/pr-check/9-should-handle-a-complex-example-with-multiple-features.mmd",
+    "source": "---\ndescription: >-\n  treemap-beta \"Company Budget\" with three sections (Engineering,\n  Marketing, Sales), each styled with its own classDef and each containing\n  multiple numeric leaf values. Exercises a combination of multi-level\n  sections, per-section classDef styling, and leaf values in one realistic\n  diagram.\n---\ntreemap-beta\n  \"Company Budget\"\n    \"Engineering\":::engineering\n      \"Frontend\": 300000\n      \"Backend\": 400000\n      \"DevOps\": 200000\n    \"Marketing\":::marketing\n      \"Digital\": 250000\n      \"Print\": 100000\n      \"Events\": 150000\n    \"Sales\":::sales\n      \"Direct\": 500000\n      \"Channel\": 300000\n\n  classDef engineering fill:#6b9bc3,stroke:#333;\n  classDef marketing fill:#c36b9b,stroke:#333;\n  classDef sales fill:#c3a66b,stroke:#333;\n",
+    "expect": {
+      "roots": [
+        {
+          "label": "Company Budget",
+          "children": [
+            {
+              "label": "Engineering",
+              "className": "engineering",
+              "children": [
+                {
+                  "label": "Frontend",
+                  "value": 300000,
+                  "children": []
+                },
+                {
+                  "label": "Backend",
+                  "value": 400000,
+                  "children": []
+                },
+                {
+                  "label": "DevOps",
+                  "value": 200000,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Marketing",
+              "className": "marketing",
+              "children": [
+                {
+                  "label": "Digital",
+                  "value": 250000,
+                  "children": []
+                },
+                {
+                  "label": "Print",
+                  "value": 100000,
+                  "children": []
+                },
+                {
+                  "label": "Events",
+                  "value": 150000,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "label": "Sales",
+              "className": "sales",
+              "children": [
+                {
+                  "label": "Direct",
+                  "value": 500000,
+                  "children": []
+                },
+                {
+                  "label": "Channel",
+                  "value": 300000,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "",
+      "accessibilityTitle": "",
+      "accessibilityDescription": ""
+    }
+  }
+]

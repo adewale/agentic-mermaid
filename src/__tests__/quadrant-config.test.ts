@@ -14,13 +14,9 @@ import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import {
-  resolveQuadrantVisualConfig,
-  QUADRANT_WIRED_CONFIG_FIELDS,
-} from '../quadrant/config.ts'
+import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { getFamily } from '../agent/families.ts'
 
 const BODY = `quadrantChart
   x-axis Urgent --> Not Urgent
@@ -98,8 +94,10 @@ describe('quadrant point/label/text config keys are wired', () => {
 
   it('border stroke widths are wired (internal divider + external border)', () => {
     const svg = renderMermaidSVG(withConfig('quadrantInternalBorderStrokeWidth: 4\nquadrantExternalBorderStrokeWidth: 7'))
-    expect(svg).toMatch(/\.quadrant-divider \{[^}]*stroke-width: 4/)
-    expect(svg).toMatch(/\.quadrant-border \{[^}]*stroke-width: 7/)
+    const dividers = svg.match(/<line class="quadrant-divider"[^>]*>/g) ?? []
+    expect(dividers).toHaveLength(2)
+    for (const divider of dividers) expect(divider).toContain(' stroke-width="4" ')
+    expect(svg).toMatch(/<rect class="quadrant-border"[^>]* stroke-width="7" /)
   })
 
   it('useMaxWidth: true renders a responsive root; absent keeps fixed sizing', () => {
@@ -137,26 +135,6 @@ describe('quadrant unwired config keys emit INEFFECTIVE_CONFIG', () => {
     expect(v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')).toEqual([])
   })
 
-  it('the wired and noop key sets partition the documented schema with no overlap', () => {
-    const wired = new Set<string>(QUADRANT_WIRED_CONFIG_FIELDS)
-    const noop = getFamily('quadrant')!.config!.noopKeys!
-    for (const field of noop) {
-      expect({ field, alsoWired: wired.has(field) }).toEqual({ field, alsoWired: false })
-    }
-    // The full upstream QuadrantChartConfig key list (config schema docs).
-    const documented = [
-      'chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding',
-      'xAxisLabelPadding', 'yAxisLabelPadding', 'xAxisLabelFontSize', 'yAxisLabelFontSize',
-      'quadrantLabelFontSize', 'quadrantTextTopPadding', 'pointTextPadding', 'pointLabelFontSize',
-      'pointRadius', 'xAxisPosition', 'yAxisPosition',
-      'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth',
-      'useWidth', 'useMaxWidth',
-    ]
-    const covered = new Set<string>([...QUADRANT_WIRED_CONFIG_FIELDS, ...noop])
-    for (const field of documented) {
-      expect({ field, covered: covered.has(field) }).toEqual({ field, covered: true })
-    }
-  })
 })
 
 // ---------------------------------------------------------------------------

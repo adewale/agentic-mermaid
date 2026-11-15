@@ -1,0 +1,16 @@
+stateDiagram-v2
+
+    [*] --> Submitted
+
+    Submitted --> RunningHealthy
+    Submitted --> SchedulingFailure
+
+    SchedulingFailure --> ResourceReleased : Resources released
+
+    RunningHealthy --> Suspended : spec.suspend=true or Kueue eviction
+    Suspended --> Submitted : spec.suspend=false or after Kueue eviction
+    Submitted --> Suspended : spec.suspend=true after resume
+
+    RunningHealthy --> [*]
+    Suspended --> [*]
+    ResourceReleased --> [*]

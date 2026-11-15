@@ -9,35 +9,40 @@
 // depends on iteration of an unordered structure or on Math.random / Date.now,
 // this test will catch it.
 
-import { describe, it, expect } from 'bun:test'
-import { renderMermaidASCII } from '../ascii/index.ts'
+import { describe, expect, it } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 
-interface CorpusEntry { family: string; source: string; origin: string; index: number }
+interface CorpusEntry {
+  family: string
+  source: string
+  origin: string
+  index: number
+}
 
 function loadCorpus(): CorpusEntry[] {
   return existsSync(CORPUS_PATH) ? JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) : []
 }
 
-const EXPECTED_CORPUS_RENDERED = 269
+const EXPECTED_CORPUS_RENDERED = 270
 const EXPECTED_CORPUS_ASCII_ERRORS = [
   // architecture:syntax/architecture.md:1–3 rendered as of the align
   // acceptance (upstream v11.16.0 align directives parse and render).
-  // Gantt docs entries that error BY DESIGN, deterministically: index 6 is a
-  // directive-only fragment (GANTT_EMPTY) and index 10 ends a task with an
+  // Gantt index 6 now renders an explicit empty template. Index 10 ends a task with an
   // inline `%% not yet official` comment that even upstream only renders via
   // wall-clock fallback (GANTT_BAD_DATE) — see eval/mermaid-gantt-bench e9.
   'gantt:syntax/gantt.md:10',
-  'gantt:syntax/gantt.md:6',
   // timeline:syntax/timeline.md:5 rendered as of the upstream-parity fixes
   // (direction tokens after the timeline header are accepted and ignored).
 ]
 
-function corpusKey(entry: CorpusEntry): string { return `${entry.family}:${entry.origin}:${entry.index}` }
+function corpusKey(entry: CorpusEntry): string {
+  return `${entry.family}:${entry.origin}:${entry.index}`
+}
 
 function asciiOutcome(source: string): { ok: true; hash: string; length: number } | { ok: false; error: string } {
   try {

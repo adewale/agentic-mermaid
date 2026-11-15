@@ -1,3 +1,4 @@
+import { describeSdkPayload } from '../mcp/sdk-discovery.ts'
 // Discovery completion: op field-shapes now carry constraint/default NOTES the
 // mutator enforces (journey score 1..5, quadrant x/y 0..1, pie value > 0,
 // flowchart shape/edge defaults, xychart kind2 footgun), and the read-only
@@ -5,7 +6,7 @@
 // script can look up an op's exact shape instead of guessing.
 
 import { describe, test, expect } from 'bun:test'
-import { describeOps, opSignatures } from '../agent/op-schema.ts'
+import { describeOps } from '../agent/op-schema.ts'
 import { buildChecked } from '../agent/apply.ts'
 import { buildCapabilities } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -66,13 +67,13 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
 describe('Code Mode can self-discover op shapes', () => {
   test('mermaid.opSignatures + mermaid.describeOps are reachable and carry notes', async () => {
     const r = await executeInSandbox(
-      'return { sig: mermaid.opSignatures("quadrant")[3], xNote: mermaid.describeOps("quadrant").add_point[1].note }',
+      'return { sig: mermaid.opSignatures("quadrant").find(sig => sig.startsWith("add_point(")), xNote: mermaid.describeOps("quadrant").add_point.find(field => field.name === "x").note }',
       {},
     )
     expect(r.ok).toBe(true)
     if (!r.ok) return
     const v = r.value as { sig: string; xNote: string }
-    expect(v.sig).toBe(opSignatures('quadrant')[3]!)
+    expect(v.sig).toBe('add_point(label, x, y)')
     expect(v.xNote).toBe('0..1')
   })
 
@@ -90,4 +91,18 @@ describe('Code Mode can self-discover op shapes', () => {
       expect(r.error).toContain('flowchart')
     }
   })
+})
+
+
+test('resolved-scene discovery names the executable API, limits and canonical primitive fields', () => {
+  const summary = buildCapabilities().resolvedScene
+  expect(summary).toMatchObject({ api: 'renderResolvedScene', version: 2, synchronous: true, coordinates: 'primitive-local', matrix: 'local-to-root-user-space' })
+  const detail = describeSdkPayload(summary.discovery.arguments)
+  expect(detail).toMatchObject({ ok: true, capability: 'resolved-scene', codeMode: { defaultMaxResultBytes: 2 * 1024 * 1024 } })
+  expect(describeSdkPayload({ capability: 'resolved-scene', detail: 'signatures' })).toMatchObject({ ok: true, signatures: [expect.stringContaining('renderResolvedScene')] })
+  expect(detail.declaration).toContain('interface ResolvedPaint')
+  expect(detail.declaration).toContain('strokeWidth: number')
+  expect(detail.declaration).toContain('node: unknown')
+  expect(JSON.stringify(detail).length).toBeLessThan(12_000)
+  expect(() => describeSdkPayload({ capability: 'resolved-scene', family: 'flowchart' })).toThrow()
 })

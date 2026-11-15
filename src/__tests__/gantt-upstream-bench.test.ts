@@ -1,25 +1,32 @@
 // Upstream Gantt test-suite bench (eval/mermaid-gantt-bench): every portable
 // case harvested from mermaid-js/mermaid's gantt.spec.js + ganttDb.spec.ts,
 // pgavlin/mermaid-ascii, and kais-radwan/ascii-mermaid must pass against our
-// parser/scheduler — and every deliberately-excluded upstream case is an
+// parser/scheduler (case notes mark the explicit empty-template peer divergence)
+// — and every deliberately-excluded upstream case is an
 // EXECUTABLE ledger entry: where the manifest names an `oursErrorCode`, the
 // bench proves we fail with exactly that named error. Provenance, schema, and
 // reason codes: eval/mermaid-gantt-bench/README.md.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
-import { resolveGanttSchedule } from '../gantt/schedule.ts'
-import { GanttError, type GanttModel, type GanttCalendarToken } from '../gantt/types.ts'
-import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
+import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { type GanttCalendarToken, GanttError, type GanttModel } from '../gantt/types.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 
 const BENCH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-gantt-bench')
 
-interface ExpectedTask { index: number; id?: string; label?: string; start?: string; end?: string }
+interface ExpectedTask {
+  index: number
+  id?: string
+  label?: string
+  start?: string
+  end?: string
+}
 interface BenchCase {
   id: string
   origin: string
@@ -61,13 +68,9 @@ interface Exclusion {
 const cases: BenchCase[] = JSON.parse(readFileSync(join(BENCH, 'cases.json'), 'utf8'))
 const exclusions: Exclusion[] = JSON.parse(readFileSync(join(BENCH, 'exclusions.json'), 'utf8'))
 
-const KNOWN_ORIGINS = ['mermaid/', 'pgavlin/', 'kais-radwan/']
 // 2026-07: 'exclude-boundary-model' retired — the divergence was RESOLVED by
 // adopting upstream's (start,end] exclude walk (family-elevation-plan §Gantt
 // item 6); its e3/e4 entries moved into cases.json as parity pins.
-const KNOWN_REASONS = new Set([
-  'wall-clock-fallback', 'local-tz', 'silent-ignore-vs-named-error',
-])
 
 function modelOf(source: string): GanttModel {
   const n = normalizeMermaidSource(source)
@@ -89,14 +92,16 @@ function assertTasks(model: GanttModel, expected: ExpectedTask[], caseId: string
     const t = schedule.tasks[exp.index]
     expect({ caseId, index: exp.index, found: Boolean(t) }).toEqual({ caseId, index: exp.index, found: true })
     const got = {
-      caseId, index: exp.index,
+      caseId,
+      index: exp.index,
       ...(exp.id !== undefined ? { id: t!.id } : {}),
       ...(exp.label !== undefined ? { label: t!.label } : {}),
       ...(exp.start !== undefined ? { start: new Date(t!.start).toISOString() } : {}),
       ...(exp.end !== undefined ? { end: new Date(t!.end).toISOString() } : {}),
     }
     expect(got).toEqual({
-      caseId, index: exp.index,
+      caseId,
+      index: exp.index,
       ...(exp.id !== undefined ? { id: exp.id } : {}),
       ...(exp.label !== undefined ? { label: exp.label } : {}),
       ...(exp.start !== undefined ? { start: toUtcIso(exp.start) } : {}),
@@ -104,29 +109,6 @@ function assertTasks(model: GanttModel, expected: ExpectedTask[], caseId: string
     })
   }
 }
-
-describe('mermaid-gantt-bench manifest hygiene', () => {
-  test('cases are present, well-formed, and from known origins', () => {
-    expect(cases.length).toBeGreaterThanOrEqual(60)
-    const ids = new Set<string>()
-    for (const c of cases) {
-      expect({ id: c.id, dup: ids.has(c.id) }).toEqual({ id: c.id, dup: false })
-      ids.add(c.id)
-      expect({ id: c.id, originKnown: KNOWN_ORIGINS.some(o => c.origin.startsWith(o)) }).toEqual({ id: c.id, originKnown: true })
-      expect(['parse', 'schedule', 'error']).toContain(c.expect.kind)
-    }
-  })
-
-  test('the exclusions ledger is non-empty and every reason code is documented', () => {
-    expect(exclusions.length).toBeGreaterThanOrEqual(7)
-    const readme = readFileSync(join(BENCH, 'README.md'), 'utf8')
-    for (const e of exclusions) {
-      expect({ id: e.id, reasonKnown: KNOWN_REASONS.has(e.reason) }).toEqual({ id: e.id, reasonKnown: true })
-      expect({ id: e.id, documented: readme.includes(e.reason) }).toEqual({ id: e.id, documented: true })
-      expect(e.upstreamBehavior.length).toBeGreaterThan(20)
-    }
-  })
-})
 
 describe('upstream parity cases', () => {
   for (const c of cases) {

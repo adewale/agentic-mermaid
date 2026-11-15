@@ -5,6 +5,7 @@
 // range for a bar chart contains zero, and both projections agree on sign.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
@@ -54,13 +55,14 @@ function sourceFor(chart: { horizontal: boolean; values: number[]; range?: { min
 }
 
 function renderedBars(svg: string): RenderedBar[] {
-  return [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar[^"]*" data-value="([^"]+)"/g)]
-    .map(match => ({
-      x: Number(match[1]),
-      y: Number(match[2]),
-      width: Number(match[3]),
-      height: Number(match[4]),
-      value: Number(match[5]),
+  const attribute = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1])
+  return [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^"]*"[^>]*>/g)]
+    .map(([tag]) => ({
+      x: attribute(tag, 'x'),
+      y: attribute(tag, 'y'),
+      width: attribute(tag, 'width'),
+      height: attribute(tag, 'height'),
+      value: attribute(tag, 'data-value'),
     }))
 }
 
@@ -85,6 +87,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         const baseline = expectedBaseline(parsedRange(source))
         const bars = renderedBars(renderMermaidSVG(source))
         expect(bars).toHaveLength(values.length)
+        expect(bars.map(bar => bar.value)).toEqual(values)
 
         // Near end = the edge at the baseline; far end = the edge at the value.
         // Vertical: larger values sit higher (smaller y). Horizontal: to the right.
@@ -98,13 +101,17 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         const lengths = bars.map(bar => horizontal ? bar.width : bar.height)
         const distances = bars.map(bar => Math.abs(bar.value - baseline))
         const reference = distances.indexOf(Math.max(...distances))
-        if (distances[reference] === 0) return
+        if (distances[reference] === 0) {
+          // Every value sits on the baseline, so every bar is empty.
+          for (const length of lengths) expect(length).toBeLessThan(EPSILON)
+          return
+        }
         const pixelsPerUnit = lengths[reference]! / distances[reference]!
         bars.forEach((_bar, index) => {
           expect(Math.abs(lengths[index]! - pixelsPerUnit * distances[index]!)).toBeLessThan(EPSILON)
         })
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -115,7 +122,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         expect(Math.min(range.min, range.max)).toBeLessThanOrEqual(0)
         expect(Math.max(range.min, range.max)).toBeGreaterThanOrEqual(0)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -125,6 +132,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
       fc.property(signedArb, values => {
         const source = sourceFor({ horizontal: false, values })
         const svgBars = renderedBars(renderMermaidSVG(source))
+        expect(svgBars.map(bar => bar.value)).toEqual(values)
         const baselineY = svgBars.map(bar => bar.value > 0 ? bar.y + bar.height : bar.y)[0]!
         for (const bar of svgBars) {
           if (bar.value > 0) expect(bar.y).toBeLessThan(baselineY)
@@ -155,11 +163,50 @@ describe('xychart bars encode value as length from a shared baseline', () => {
             expect(Math.min(...filled)).toBeLessThan(zeroRow)
           } else {
             expect(Math.min(...filled)).toBe(zeroRow)
-            expect(Math.max(...filled)).toBeGreaterThan(zeroRow)
+            // A short negative interval can quantize to the zero-row cell
+            // alone; it must never paint above that boundary.
+            expect(Math.max(...filled)).toBeGreaterThanOrEqual(zeroRow)
           }
         })
       }),
-      { numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]]] },
+      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]], [[-91, -20, 81]]] }),
+    )
+  })
+
+  it('horizontal charts draw the same sign in SVG and ASCII: positive bars run right of the zero column, negative bars left', () => {
+    const signedArb = fc.array(fc.integer({ min: 20, max: 100 }).chain(magnitude => fc.constantFrom(magnitude, -magnitude)), { minLength: 2, maxLength: 5 })
+    fc.assert(
+      fc.property(signedArb, values => {
+        const source = sourceFor({ horizontal: true, values })
+        const svgBars = renderedBars(renderMermaidSVG(source))
+        expect(svgBars.map(bar => bar.value)).toEqual(values)
+        const baselineX = svgBars.map(bar => bar.value > 0 ? bar.x : bar.x + bar.width)[0]!
+        for (const bar of svgBars) {
+          if (bar.value > 0) expect({ value: bar.value, starts: Math.abs(bar.x - baselineX) < EPSILON }).toEqual({ value: bar.value, starts: true })
+          else expect({ value: bar.value, ends: Math.abs(bar.x + bar.width - baselineX) < EPSILON }).toEqual({ value: bar.value, ends: true })
+        }
+
+        const { ascii, regions } = renderMermaidASCIIWithMeta(source, { useAscii: true, colorMode: 'none' })
+        const rows = ascii.split('\n')
+        const zero = regions.find(region => region.kind === 'label' && region.id === 'y-tick-0')!
+        const plot = regions.find(region => region.kind === 'plot' && region.id === 'plot')!
+        expect(zero).toBeDefined()
+        expect(plot).toBeDefined()
+        const zeroColumn = Math.floor((zero.canvasColStart + zero.canvasColEnd - 1) / 2)
+        const range = parsedRange(source)
+        const cellsPerUnit = (plot.canvasColEnd - plot.canvasColStart) / (range.max - range.min)
+        values.forEach((value, index) => {
+          const category = regions.find(region => region.kind === 'node' && region.id === `x-category-${index}`)!
+          const row = rows[category.canvasRow]!
+          const filled = [...row].flatMap((cell, column) => cell === '#' ? [column] : [])
+          expect(filled.length).toBeGreaterThan(0)
+          // Each boundary rounds to a whole cell, so lengths differ by at most one.
+          expect(Math.abs(filled.length - Math.abs(value) * cellsPerUnit)).toBeLessThanOrEqual(1)
+          if (value > 0) expect({ value, first: Math.min(...filled) }).toEqual({ value, first: zeroColumn })
+          else expect({ value, last: Math.max(...filled) }).toEqual({ value, last: zeroColumn - 1 })
+        })
+      }),
+      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]], [[40, -60, 80]]] }),
     )
   })
 })

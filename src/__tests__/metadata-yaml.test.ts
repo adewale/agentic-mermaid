@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
-import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -15,9 +16,11 @@ import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
-import { coalesceFlowchartMetadataLines } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import {
   metadataText,
+  parseMetadataBody,
+  protectMetadataEntities,
   quoteMetadataString,
   readMetadataBlock,
 } from '../shared/metadata-yaml.ts'
@@ -52,7 +55,7 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
     fc.assert(fc.property(strings, text => {
       const parsed = parseMermaidYaml(stringifyMermaidYaml({ title: text }))
       expect({ text, read: parsed.ok ? (parsed.value as { title: unknown }).title : parsed.message }).toEqual({ text, read: text })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
   })
 
   test('a string whose first line is only spaces survives the YAML writer', () => {
@@ -107,14 +110,15 @@ describe('frontmatter whitespace survives authored and canonical wrappers', () =
     ['---\nconfig:\n  themeCSS: |+\n    before\n    ---\n    after\n\n---\n', { themeCSS: 'before\n---\nafter\n\n' }],
     ['---\nconfig:\n  items:\n    - text: |\n        line\n      flag: yes\n      ---\n', { items: [{ text: 'line\n', flag: 'yes' }] }],
     ['---\nconfig:\n  items:\n    - |\n      ---\n      line\n---\n', { items: ['---\nline\n'] }],
-  ])('wrapper boundary retains empty and indented documents: %j', (wrapper, frontmatter) => {
+  ])('wrapper boundary reads empty and retains supported indented documents: %j', (wrapper, frontmatter) => {
     const source = wrapper as string + 'flowchart TD\n  A --> B\n'
     expect(mermaidFirstLine(source)).toBe('flowchart td')
     expect(normalizeMermaidSource(source).frontmatter).toEqual(frontmatter)
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    expect(serializeMermaid(parsed.value)).toBe(source)
+    // Adjacent delimiters have no YAML content line and cannot be written as Mermaid.
+    expect(serializeMermaid(parsed.value)).toBe(wrapper === '---\n---\n' ? 'flowchart TD\n  A --> B\n' : source)
     const span = parsed.value.source.spans!.preserved.frontmatter!
     expect(source.slice(span.start.offset, span.end.offset)).toBe(wrapper)
     const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
@@ -187,7 +191,7 @@ describe('parseMermaidYaml agrees with pinned upstream\'s js-yaml', () => {
       const theirs = upstreamYaml(text)
       expect({ text, ours: ourYaml(text) }).toEqual({ text, ours: theirs })
       if (theirs.ok) accepted++
-    }), { numRuns: 1000 })
+    }), fcParameters({ numRuns: 1000 }))
     expect(accepted).toBeGreaterThan(0)
   })
 
@@ -197,14 +201,13 @@ describe('parseMermaidYaml agrees with pinned upstream\'s js-yaml', () => {
     expect(parseMermaidYaml(text)).toEqual({ ok: true, value: { config: { themeCSS: ' a {} b {} ', gantt: { useWidth: 400 } } } })
   })
 
-  // A quoted scalar left open by an escaped or missing quote runs into later
-  // lines; js-yaml then lets a following key's own quote close it and reads
-  // on, and the yaml package's escape handling differs there. Garbage in both
-  // readers, left unmatched.
-  test.failing('an unterminated quoted scalar that a later key closes', () => {
-    for (const text of ['title: "unclosed\n"k": v', '  title: "a\\"\n  b: "q"']) {
-      expect({ text, ours: ourYaml(text) }).toEqual({ text, ours: upstreamYaml(text) })
-    }
+  // A quoted scalar left open by a missing quote runs into later lines, where
+  // js-yaml lets a following key's quote close it and reads on. We refuse the
+  // open quote, and honour YAML's \" escape inside double quotes
+  // (docs/project/divergences.md).
+  test('an open quoted scalar is refused; an escaped quote stays inside its scalar', () => {
+    expect(parseMermaidYaml('title: "unclosed\n"k": v')).toMatchObject({ ok: false, message: expect.stringContaining('Missing closing "quote') })
+    expect(parseMermaidYaml('  title: "a\\"\n  b: "q"')).toEqual({ ok: true, value: { title: 'a"', b: 'q' } })
   })
 })
 
@@ -227,9 +230,37 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
   })
 
   test('a multi-line flowchart block is joined with its line breaks and indentation', () => {
-    expect(coalesceFlowchartMetadataLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
-      .toEqual([{ text: 'A@{\n  shape: rect\n  label: "x"\n}', line: 0 }, { text: 'A --> B', line: 4 }])
+    expect(coalesceFlowchartLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
+      .toEqual([
+        {
+          text: 'A@{\n  shape: rect\n  label: "x"\n}',
+          line: 0,
+          joined: [{ at: 4, line: 1, col: 0 }, { at: 18, line: 2, col: 0 }, { at: 31, line: 3, col: 0 }],
+        },
+        { text: 'A --> B', line: 4 },
+      ])
   })
+})
+
+test.each([' x: *,', ' label: "#quot;A#quot;", x: *,', '\n\tshape: rounded\n'])('metadata failures retain the offending authored offset through YAML preparation: %j', body => {
+  const parsed = parseMetadataBody(body, 'flowchart')
+  expect(parsed.ok).toBe(false)
+  if (parsed.ok) throw new Error('Expected malformed metadata to fail')
+  expect(parsed.offset).toBe(body.includes('\t') ? body.indexOf('\t') : body.indexOf('*'))
+})
+
+test('metadata entity protection stays proportional when one private-use candidate dominates', () => {
+  const alphabet = Array.from({ length: 0x1900 }, (_, index) => String.fromCharCode(0xe000 + index)).join('')
+  for (const heavy of ['\uE000', '\uF8FF']) {
+    const value = alphabet + heavy.repeat(256) + '#x;'.repeat(1024)
+    const source = `value: "${value}"`
+    const protectedBody = protectMetadataEntities(source)
+    expect(protectedBody.restore(protectedBody.text)).toBe(source)
+    expect(protectedBody.sourceOffset(protectedBody.text.length)).toBe(source.length)
+    expect(protectedBody.text.length).toBeLessThanOrEqual(source.length * 2)
+    const parsed = parseMetadataBody(source, 'flowchart')
+    expect(parsed.ok ? parsed.entries.get('value') : parsed.message).toBe(value)
+  }
 })
 
 describe('quoteMetadataString', () => {
@@ -241,7 +272,7 @@ describe('quoteMetadataString', () => {
       const read = readMetadataBlock(line, line.indexOf('{'), 'flowchart')
       expect({ value, read: read.ok ? { end: read.end, label: read.entries.get('label') } : read.message })
         .toEqual({ value, read: { end: line.length - 1, label: value } })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
   })
 })
 
@@ -266,7 +297,16 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
 
   /** Upstream DB text in marker form, or its rejection. */
   const upstreamOutcome = (parsed: Awaited<ReturnType<UpstreamMermaid['parse']>>, text: (p: Extract<typeof parsed, { ok: true }>) => string | undefined): Outcome =>
-    parsed.ok ? { accepted: text(parsed) } : { rejected: true }
+    parsed.ok ? (() => {
+      const value = text(parsed)
+      // The parser DB retains entity markers, whereas our render models
+      // project display text and deliberately refuse terminal controls.
+      const control = [...(value ?? '').matchAll(/ﬂ°°(\d+)¶ß/g)].some(match => {
+        const code = Number(match[1])
+        return code > 0 && code < 32 || [127, 129, 141, 143, 144, 157].includes(code)
+      }) || /ﬂ°(?:Tab|NewLine)¶ß/.test(value ?? '')
+      return control ? { rejected: true } : { accepted: value }
+    })() : { rejected: true }
 
 
   /** Our outcome: acceptance is the whole renderer parser's (text after a
@@ -292,11 +332,11 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
     await fc.assert(fc.asyncProperty(flowchartValueArb, async value => {
       const source = `flowchart TD\n  A@{ label: ${value} }`
       const theirs = upstreamOutcome(await upstream.parse(source), p => p.flowchart?.vertices.find(v => v.id === 'A')?.text)
-      const line = coalesceFlowchartMetadataLines(source.split('\n'))[1]!.text
+      const line = coalesceFlowchartLines(source.split('\n'))[1]!.text
       const ours = ourOutcome(() => parseMermaid(source), line, 'flowchart', 'label')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200 }))
     expect(accepted).toBeGreaterThan(0)
   }, 60_000)
 
@@ -314,7 +354,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       const ours = ourOutcome(() => parseSequenceDiagram(source.split('\n')), line, 'sequence', 'alias')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200, examples: [['#5;"']] }))
     expect(accepted).toBeGreaterThan(0)
   }, 60_000)
 
@@ -434,8 +474,10 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       try { ours = normalizeMermaidSource(source).frontmatter } catch (error) { ours = error instanceof Error ? 'rejected' : error }
       let rendered = true
       try { renderMermaidSVG(source) } catch { rendered = false }
-      expect({ yaml, upstream: parsed.ok, ours, rendered })
-        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined })
+      // The agent API reports the rejection rather than throwing it.
+      const typed = parseRegisteredMermaid(source)
+      expect({ yaml, upstream: parsed.ok, ours, rendered, typed: typed.ok || typed.error[0]?.code, verified: verifyMermaid(source).ok })
+        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined, typed: frontmatter !== undefined || 'INVALID_FRONTMATTER', verified: frontmatter !== undefined })
     }
     expect(() => normalizeMermaidSource('---\ntitle: [unclosed\n---\nflowchart TD\n  A')).toThrow('Mermaid frontmatter is not valid YAML')
   })

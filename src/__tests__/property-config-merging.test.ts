@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
 
 import {
   mergeFrontmatterMaps,
@@ -14,8 +18,9 @@ import {
 
 const NUM_RUNS = 200
 
-// Prototype-polluting keys cause havoc with plain object semantics — filter them.
-const BANNED_KEYS = new Set(['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty'])
+// Frontmatter admission refuses these two keys (parseYamlDocument →
+// JsonConfigAdmissionError); every other own key, `toString` included, is data.
+const BANNED_KEYS = new Set(['__proto__', 'constructor'])
 
 // ---------------------------------------------------------------------------
 // Arbitraries
@@ -139,7 +144,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], a[key])).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -149,7 +154,7 @@ describe('property-based config merging', () => {
         const merged = mergeFrontmatterMaps(a, a)
         expect(mapsEqual(merged, a)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -160,7 +165,7 @@ describe('property-based config merging', () => {
         const rightAssoc = mergeFrontmatterMaps(a, mergeFrontmatterMaps(b, c))
         expect(mapsEqual(leftAssoc, rightAssoc)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -174,7 +179,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], value)).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -190,38 +195,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], value)).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
-    )
-  })
-
-  it('type preservation: getFrontmatterScalar never returns an object', () => {
-    // Maps with mixed scalar types and nested objects
-    const mixedMapArb = fc.dictionary(
-      safeKeyArb({ minLength: 1, maxLength: 10 }),
-      fc.oneof(
-        fc.string(),
-        fc.integer(),
-        fc.boolean(),
-        fc.constant(null),
-        fc.dictionary(
-          safeKeyArb({ minLength: 1, maxLength: 5 }),
-          fc.oneof(fc.string(), fc.integer()),
-        ),
-      ),
-    )
-
-    fc.assert(
-      fc.property(mixedMapArb, (map) => {
-        for (const key of Object.keys(map)) {
-          const result = getFrontmatterScalar(map, [key])
-          if (result !== undefined) {
-            // Must be a primitive scalar, never an object
-            expect(isScalar(result)).toBe(true)
-            expect(typeof result !== 'object' || result === null).toBe(true)
-          }
-        }
-      }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -237,7 +211,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -253,7 +227,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -281,7 +255,7 @@ describe('property-based config merging', () => {
         // The init directive should win
         expect(result.frontmatter[key]).toBe(initValue)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -304,7 +278,7 @@ describe('property-based config merging', () => {
         const tv = getFrontmatterMap(result.frontmatter, ['themeVariables'])
         expect(tv).toEqual(expect.objectContaining({ primaryColor: initColor }))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -343,7 +317,7 @@ describe('property-based config merging', () => {
         // Body lines must be identical between first and second call
         expect(second.lines).toEqual(first.lines)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -361,7 +335,7 @@ describe('property-based config merging', () => {
           expect(second.text).toBe(first.text)
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -371,7 +345,7 @@ describe('property-based config merging', () => {
         const merged = mergeFrontmatterMaps({}, map)
         expect(mapsEqual(merged, map)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -390,14 +364,12 @@ describe('property-based config merging', () => {
     fc.assert(
       fc.property(mapWithArraysArb, (map) => {
         for (const key of Object.keys(map)) {
-          // Should not throw; should return undefined for array values
-          const result = getFrontmatterScalar(map, [key])
-          if (result !== undefined) {
-            expect(isScalar(result)).toBe(true)
-          }
+          // A scalar reads back as itself; an array is not a scalar.
+          const value = map[key]
+          expect(getFrontmatterScalar(map, [key])).toBe(Array.isArray(value) ? undefined : value)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -419,7 +391,7 @@ describe('property-based config merging', () => {
           }
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -441,7 +413,7 @@ describe('property-based config merging', () => {
         }
         expect(allLeavesAreFiniteScalars(merged)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -470,37 +442,75 @@ describe('property-based config merging', () => {
           }
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
   it('adversarial YAML: preprocessMermaidSource does not crash on hostile frontmatter', () => {
-    const hostileYamlArb = fc.oneof(
-      // Deeply nested YAML
-      fc.constant('---\na:\n  b:\n    c:\n      d:\n        e:\n          f: 1\n---\ngraph TD\nA-->B'),
-      // Array where scalar expected
-      fc.constant('---\ntheme:\n  - dark\n  - forest\n---\ngraph TD\nA-->B'),
-      // Very long value
-      fc.constant(`---\ntheme: "${'x'.repeat(1500)}"\n---\ngraph TD\nA-->B`),
-      // Empty frontmatter
-      fc.constant('---\n---\ngraph TD\nA-->B'),
-      // Numeric keys
-      fc.constant('---\n123: true\n456: false\n---\ngraph TD\nA-->B'),
-      // Unicode keys
-      fc.constant('---\n\u00e9\u00e8\u00ea: hello\n\u4f60\u597d: world\n---\ngraph TD\nA-->B'),
-      // Null values
-      fc.constant('---\ntheme: null\nfontFamily: null\n---\ngraph TD\nA-->B'),
-    )
+    const sources = [
+      '---\na:\n  b:\n    c:\n      d:\n        e:\n          f: 1\n---\ngraph TD\nA-->B',
+      '---\ntheme:\n  - dark\n  - forest\n---\ngraph TD\nA-->B',
+      `---\ntheme: "${'x'.repeat(1500)}"\n---\ngraph TD\nA-->B`,
+      '---\n---\ngraph TD\nA-->B',
+      '---\n123: true\n456: false\n---\ngraph TD\nA-->B',
+      '---\néèê: hello\n你好: world\n---\ngraph TD\nA-->B',
+      '---\ntheme: null\nfontFamily: null\n---\ngraph TD\nA-->B',
+    ]
+    for (const text of sources) {
+      const result = preprocessMermaidSource(text)
+      expect(typeof result.body).toBe('string')
+      expect(result.lines.length).toBeGreaterThan(0)
+      expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
+    }
+  })
+})
 
+describe('frontmatter admission refuses prototype keys at any depth', () => {
+  it('a __proto__ or constructor key anywhere under config is refused by path; other keys are data', () => {
+    const keyArb = fc.stringMatching(/^[a-z][A-Za-z0-9]{0,6}$/).filter(key => !BANNED_KEYS.has(key))
     fc.assert(
-      fc.property(hostileYamlArb, (text) => {
-        // Must not throw
-        const result = preprocessMermaidSource(text)
-        expect(typeof result.body).toBe('string')
-        expect(result.lines.length).toBeGreaterThan(0)
-        expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
+      fc.property(fc.array(keyArb, { maxLength: 4 }), fc.constantFrom('__proto__', 'constructor', 'toString'), (path, last) => {
+        const keys = ['config', ...path, last]
+        const yaml = keys.map((key, depth) => `${'  '.repeat(depth)}${key}:`).join('\n') + ' 1'
+        const source = `---\n${yaml}\n---\nflowchart LR\n  A`
+        if (BANNED_KEYS.has(last)) {
+          expect(() => preprocessMermaidSource(source)).toThrow(JsonConfigAdmissionError)
+          expect(() => preprocessMermaidSource(source)).toThrow(`$.${keys.join('.')} uses a forbidden prototype key`)
+        } else {
+          // The `config:` wrapper is unwrapped into the frontmatter map.
+          expect(getFrontmatterScalar(preprocessMermaidSource(source).frontmatter, [...path, last])).toBe(1)
+        }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+})
+
+describe('a theme that names no Mermaid theme', () => {
+  // Config is untyped JSON, so a theme value may be any type. One that is not
+  // a Mermaid theme name leaves the default colors, as an unknown name does,
+  // rather than failing the render.
+  const THEME_NAMES = new Set(['default', 'base', 'neutral', 'dark', 'forest'])
+  const word = fc.stringMatching(/^[a-z]{1,8}$/)
+  type ThemeValue = string | number | boolean | null | string[] | Record<string, number>
+  const notATheme: fc.Arbitrary<ThemeValue> = fc.oneof(
+    word.filter(name => !THEME_NAMES.has(name)),
+    fc.integer(),
+    fc.boolean(),
+    fc.constant(null),
+    fc.array(word, { maxLength: 3 }),
+    fc.dictionary(word, fc.integer(), { maxKeys: 2 }),
+  )
+  const NO_THEME = renderMermaidSVG('flowchart LR\n  A --> B')
+
+  it('renders as no theme and verifies, whatever its type', () => {
+    fc.assert(
+      fc.property(notATheme, theme => {
+        const source = `%%{init: ${JSON.stringify({ theme })}}%%\nflowchart LR\n  A --> B`
+        expect(renderMermaidSVG(source)).toBe(NO_THEME)
+        expect(verifyMermaid(source).ok).toBe(true)
+      }),
+      fcParameters<[ThemeValue]>({ numRuns: 40, examples: [[5], [true], [['dark']], [{ a: 1 }]] }),
     )
   })
 })

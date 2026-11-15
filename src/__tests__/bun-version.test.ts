@@ -61,7 +61,7 @@ describe('minimum Bun version', () => {
     expect(settings.hooks.SessionStart.flatMap(entry => entry.hooks.map(hook => hook.command))).toEqual(['"$CLAUDE_PROJECT_DIR"/scripts/ci/session-start.sh'])
     expect(() => accessSync(SESSION_START, constants.X_OK)).not.toThrow()
     const { CLAUDE_CODE_REMOTE: _remote, ...localEnv } = process.env
-    const local = Bun.spawnSync(['bash', SESSION_START], { cwd: REPO, env: localEnv, stdout: 'pipe', stderr: 'pipe' })
+    const local = Bun.spawnSync(['bash', SESSION_START], { timeout: 20_000, killSignal: 'SIGKILL', cwd: REPO, env: localEnv, stdout: 'pipe', stderr: 'pipe' })
     expect({ exitCode: local.exitCode, stdout: local.stdout.toString(), stderr: local.stderr.toString() }).toEqual({ exitCode: 0, stdout: '', stderr: '' })
   })
 })

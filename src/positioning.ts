@@ -1,3 +1,11 @@
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
+import { sceneAssertionsEnabled } from './scene/assertions.ts'
+import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { observeCache } from './performance-observations.ts'
+import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -7,16 +15,45 @@
 
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './agent/families.ts'
 import type { FamilyId } from './agent/types.ts'
-import { assessRenderedLayout, familyHardViolations } from './family-rubric.ts'
+import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
+import { mergeUncertifiedLayout, type UncertifiedLayoutReceipt } from './layout/uncertified-layout.ts'
+import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
+import { layoutOptimization } from './layout/optimization-context.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
-import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
 
 // A certification and its consumers use one projection of the same final
 // artifact. Keep this internal evidence outside descriptor-owned return data.
 const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
+const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
+const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
+
+/** Final family checks a drawing can fail while still showing every authored
+ * element with its meaning. Non-finite or off-canvas geometry loses content
+ * and always refuses. */
+const DRAWABLE_FINAL_METRICS: ReadonlySet<string> = new Set(['nodeOverlaps', 'groupBreaches', 'groupOverlaps'])
+
+function graphUncertifiedReceipt(positioned: PositionedDiagram): UncertifiedLayoutReceipt | undefined {
+  const receipt = (positioned as { uncertifiedLayout?: UncertifiedLayoutReceipt }).uncertifiedLayout
+  return receipt?.status === 'uncertified' ? receipt : undefined
+}
+
+/** Pixel dependencies in terminal renderers use the same evidence boundary. */
+export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest, decision: GraphLayoutDecision, role: 'primary' | 'companion'): void {
+  retainGraphLayoutDecision(request, { ...decision, role })
+  if (decision.requested !== 'agentic' || decision.selected !== 'elk' || reportedFallbacks.has(request)) return
+  reportedFallbacks.add(request)
+  const diagnostic = {
+    code: 'INEFFECTIVE_CONFIG' as const,
+    field: 'graphLayout.backend',
+    message: `Agentic graph layout declined this input; using the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
+  }
+  const report = resolvedRenderExecutionPlanOf(request).onConfigDiagnostic ?? ((value: typeof diagnostic) => console.warn(value.message))
+  report(diagnostic)
+}
 
 export function retainedFamilyProjection(result: FamilyLayoutResult): FamilyPositionedView | undefined {
   return retainedProjections.get(result)
@@ -27,6 +64,39 @@ export function normalizeFamilyLayoutResult(result: FamilyLayoutResult | Positio
 }
 
 export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource> = request.source, projectionOptions: FamilyPositionedProjectionOptions = {}): FamilyLayoutResult {
+  return positionFamily(familyId, request, source, projectionOptions, false)
+}
+
+/** Private render adapter: borrowed geometry never crosses a public boundary. */
+export function positionFamilyForNativeRender(request: ResolvedRenderRequest): FamilyLayoutResult {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  // A modified native producer may retain its context. Give it the ordinary
+  // independent copy, including on the call that first fills the cache, so a
+  // later restored original producer never borrows caller-retained geometry.
+  const producer = nativeDrawingOf(plan.family.lowerScene)
+  const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
+  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+    && isOwnedFamily(plan.family) && reusableMetrics
+    && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
+  const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
+  if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
+  return result
+}
+
+/** A stage/cache observer can replace the native capability after positioning.
+ * Detach borrowed geometry before replacement producers, and captured copies
+ * before any producer. Public inputs keep their original getter observations. */
+export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
+  const original = borrowedNativeProducers.get(layout)
+  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+}
+
+/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
+  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+}
+
+function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const descriptor = executionPlan.family
   if (descriptor.id !== familyId) {
@@ -41,30 +111,97 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
     throw new LayoutCertificationError([{ strategy, violations: ['missing final geometry projection'] }])
   }
   const resolved = resolvedFamilyRenderContextOf(request)
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
-    const result = normalizeFamilyLayoutResult(
-      descriptor.layout!({
+  const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
+  const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
+  const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
+  // Gantt reads no clock: its today marker comes only from renderOptions.ganttToday, which the key holds.
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && reusableMetrics
+    && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
+  // The request's source is normalized deterministically from originalText,
+  // the admitted Mermaid config and the family descriptor (isolated by the
+  // cache). Its cleanup and grammar views add nothing to that identity, and
+  // serializing them made keys about eight times the authored text, so large
+  // diagrams exceeded the key bound. Explicit source overrides keep the full key.
+  const cacheSource = cacheEnabled && source === request.source
+    ? { originalText: source.originalText, config: source.config, frontmatter: source.frontmatter } : source
+  // The original C4 request normalizer derives its familyConfig (the parsed
+  // model, 20-30x the authored text) from the source alone, which the key
+  // already holds. Every other family config stays keyed.
+  const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+    layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
+  if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
+  const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
+  const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
+  if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
+    !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
+      : !reusableMetrics ? 'custom-text-measurement'
+        : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
+  const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+    const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
+    if (borrow && boundedKey !== undefined) {
+      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined, true)
+      if (snapshot?.projection) {
+        for (const decision of graphLayoutDecisionsOf(snapshot.result)) retainRequestGraphLayoutDecision(request, decision, role)
+        retainedProjections.set(snapshot.result, snapshot.projection)
+        return snapshot.result
+      }
+    }
+    // The private borrow probe already observed this logical lookup. Retain
+    // the public-copy fallback without counting its second probe again.
+    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow, immutableText)
+    const produced: GraphLayoutDecision[] = []
+    // A fresh result is the seam's own wrapper: its uncertified receipt must
+    // never be written onto a descriptor-owned object.
+    const result = hit ?? { ...normalizeFamilyLayoutResult(
+      withGraphLayoutDecisionObserver(decision => {
+        produced.push(decision)
+        retainRequestGraphLayoutDecision(request, decision, role)
+      }, () => descriptor.layout!({
         source,
         renderOptions: resolved.renderOptions,
         ...(resolved.styleFace ? { styleFace: resolved.styleFace } : {}),
+        ...(resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
         ...(resolved.familyConfig ? { familyConfig: resolved.familyConfig } : {}),
         ...(resolved.familyAppearance ? { familyAppearance: resolved.familyAppearance } : {}),
-      }),
-    )
+      })),
+    ) }
+    if (hit) for (const decision of graphLayoutDecisionsOf(hit)) retainRequestGraphLayoutDecision(request, decision, role)
+    else for (const decision of produced) retainGraphLayoutDecision(result, decision)
     if (certifyFinal) {
       // Specialized native layouters have one deterministic candidate; do not
       // rerun identical work as a pretend fallback. Graph families already ran
       // their bounded stronger route certification before reaching this seam.
+      // Report layout safety draws drawable failures with an uncertified
+      // receipt (merged with the graph candidate loop's); strict refuses.
       try {
         const view = descriptor.projectPositioned!({ positioned: result.positioned, options: projectionOptions })
-        const violations = familyHardViolations(assessRenderedLayout({ ...view, kind: familyId }))
-        if (violations.length) throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
+        const violations = assessRenderedLayoutHardViolations({ ...view, kind: familyId })
+        if (violations.length && (request.renderOptions.layoutSafety === 'strict' || violations.some(value => !DRAWABLE_FINAL_METRICS.has(value.metric)))) {
+          throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
+        }
         retainedProjections.set(result, view)
+        const uncertified = mergeUncertifiedLayout(graphUncertifiedReceipt(result.positioned), strategy,
+          violations.map(value => ({ kind: value.metric, targets: value.targets ?? [], detail: value.detail })))
+        if (uncertified) result.uncertifiedLayout = uncertified
+        else delete result.uncertifiedLayout
       } catch (error) {
         if (error instanceof LayoutCertificationError) throw error
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])
       }
     }
+    if (!hit && boundedKey !== undefined) {
+      // These original hooks parse fresh private diagrams. Native SVG consumes
+      // their geometry without exposing it; shared prepared text is frozen.
+      const retain = borrow && request.output === 'svg'
+        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
+        ? retainOwnedNativeSvgPositioned : retainPositioned
+      // An owned family's layout hook is the original producer on every output
+      // path; borrowing additionally needs the native drawing conditions.
+      retain(descriptor, boundedKey, result, retainedProjections.get(result), borrow || isOwnedFamily(descriptor))
+    }
     return result
   })
+  const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
+  return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

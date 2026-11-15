@@ -11,7 +11,7 @@
 // silently merge two nodes' flows). Parallel duplicate rows are legal and
 // addressed by (source, target, occurrence).
 //
-// Structured-or-opaque: accTitle/accDescr and any unmodeled/malformed line
+// Structured-or-opaque: any unmodeled/malformed row
 // returns null so the caller falls back to a lossless opaque body. The
 // serializer emits a canonical CSV form the renderer parser re-parses
 // identically, quoting only when a label demands it. The canonical header is
@@ -19,10 +19,12 @@
 // links) → opaque, so the loud "no rows" render error still surfaces.
 // ============================================================================
 
-import { findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
+import { csvQuotedFieldIsOpen, findSankeyCycle, isSankeyHeader, parseSankeyDiagram } from '../sankey/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
-import type { LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
+import type { Accessibility, LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
 const HEADER_RE = /^sankey(?:-beta)?\s*:?\s*$/i
@@ -35,12 +37,12 @@ function formatNumber(n: number): string {
 
 /**
  * Construct the typed body only after the renderer parser has fully recognized
- * the source. Accessibility remains source-preserved/opaque, and model states
- * that cannot uphold link addressing stay opaque.
+ * the source. The shared envelope owns accessibility; model states that
+ * cannot uphold link addressing stay opaque.
  */
-export function parseSankeyBody(lines: string[]): SankeyBody | null {
+export function parseSankeyBody(lines: string[], _accessibility: Accessibility = {}): SankeyBody | null {
   if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
-  const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['sankey-beta', ...lines]
+  const sourceLines = ['sankey-beta', ...lines]
   try {
     const diagram = parseSankeyDiagram(sourceLines)
     const body: SankeyBody = {
@@ -67,6 +69,7 @@ export function sankeyBodyProblem(body: SankeyBody, allowEmptyDraft = false): st
         return `Every typed sankey link needs a non-empty ${field} label.`
       }
       if (/[\r\n]/.test(label)) return `Sankey ${field} labels cannot contain line breaks.`
+      if (label.includes('%%{')) return `Sankey ${field} labels cannot contain a directive opener; CSV has no escape that preserves this identity.`
     }
     if (!Number.isFinite(link.value) || link.value < 0) {
       return `Sankey link "${link.source}" -> "${link.target}" needs a non-negative finite value.`
@@ -84,9 +87,10 @@ export function sankeyBodyProblem(body: SankeyBody, allowEmptyDraft = false): st
 
 // ---- Serializer -------------------------------------------------------------
 
-/** Quote a CSV field only when its content demands it (RFC 4180). */
+/** Quote a CSV field only when its content demands it (RFC 4180), or when
+ * a bare field would open a `%%` comment line. */
 function renderCsvField(label: string): string {
-  if (/[",]/.test(label) || label !== label.trim()) {
+  if (/[",]/.test(label) || label !== label.trim() || label.startsWith('%%')) {
     return `"${label.replace(/"/g, '""')}"`
   }
   return label
@@ -95,7 +99,9 @@ function renderCsvField(label: string): string {
 export function renderSankey(body: SankeyBody): string {
   const lines: string[] = ['sankey-beta']
   for (const link of body.links) {
-    lines.push(`  ${renderCsvField(link.source)},${renderCsvField(link.target)},${formatNumber(link.value)}`)
+    const row = `${renderCsvField(link.source)},${renderCsvField(link.target)},${formatNumber(link.value)}`
+    // Pinned Mermaid rejects an indented row that opens with a quoted field.
+    lines.push(row.startsWith('"') ? row : `  ${row}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -117,6 +123,19 @@ function validLabel(value: unknown, field: string): Result<string, MutationError
     return err({ code: 'INVALID_OP', message: `Sankey ${field} cannot contain line breaks` })
   }
   return ok(value.trim())
+}
+
+/** A node name a typed edit writes. Mermaid's Sankey CSV reader takes only
+ * printable ASCII, quoted or not, and its entity prepass turns `#name;` codes
+ * into characters it rejects (sankey_unsupported_character): no spelling
+ * holds other text. */
+function writableName(value: unknown, field: string): Result<string, MutationError> {
+  const name = validLabel(value, field)
+  if (!name.ok) return name
+  const outside = /[^\x20-\x7E]/u.exec(name.value)?.[0]
+  if (outside !== undefined) return err({ code: 'INVALID_OP', message: `Sankey ${field} ${JSON.stringify(name.value)} holds U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}; Mermaid 12.2.0 reads only printable ASCII in a Sankey row` })
+  if (/#\w+;/.test(mermaidEntityPrepass(name.value))) return err({ code: 'INVALID_OP', message: `Sankey ${field} ${JSON.stringify(name.value)} holds an entity code, which Mermaid 12.2.0 decodes to a character its Sankey reader rejects` })
+  return name
 }
 
 function validValue(value: unknown, field: string): Result<number, MutationError> {
@@ -152,9 +171,9 @@ export function mutateSankey(body: SankeyBody, op: SankeyMutationOp): Result<San
 
   switch (op.kind) {
     case 'add_link': {
-      const source = validLabel(op.source, 'link source')
+      const source = writableName(op.source, 'link source')
       if (!source.ok) return source
-      const target = validLabel(op.target, 'link target')
+      const target = writableName(op.target, 'link target')
       if (!target.ok) return target
       const value = validValue(op.value, 'link value')
       if (!value.ok) return value
@@ -196,7 +215,7 @@ export function mutateSankey(body: SankeyBody, op: SankeyMutationOp): Result<San
     case 'rename_node': {
       const from = validLabel(op.from, 'node label')
       if (!from.ok) return from
-      const to = validLabel(op.to, 'node label')
+      const to = writableName(op.to, 'node label')
       if (!to.ok) return to
       const exists = next.links.some(link => link.source === from.value || link.target === from.value)
       if (!exists) return err({ code: 'NODE_NOT_FOUND', message: `Sankey node "${from.value}" not found` })
@@ -255,6 +274,64 @@ export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarni
       inflow: received,
       outflow: emitted,
       message: `Sankey node "${label}" receives ${received} but emits ${emitted}; ` + `the unaccounted ${unaccounted} renders as node height with no matching ribbon`,
+    })
+  }
+  return warnings
+}
+
+/** Sankey rows ours reads where pinned Mermaid rejects them, each on its
+ * canonical line. Mermaid's CSV lexer reads only printable ASCII in a row
+ * (RFC 4180 TEXTDATA, plus commas and quotes), quoted or not: a tab or any
+ * non-ASCII character fails, except in the whitespace it trims from the end
+ * of the whole source. Its entity prepass first turns each `#name;` or
+ * `#123;` code into a marker of non-ASCII characters, so a row holding one
+ * fails too. Ours reads the text as written. */
+export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => HEADER_RE.test(line.trim()))
+  if (header < 0) return []
+  let last = lines.length - 1
+  while (last > header && !lines[last]!.trim()) last--
+  const warnings: LayoutWarning[] = []
+  let csvRecord = ''
+  for (let index = header + 1; index <= last; index++) {
+    const trimmed = lines[index]!.trim()
+    if (!trimmed) continue
+    const continuation = csvRecord.length > 0
+    if (!continuation && isSankeyHeader(trimmed)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_repeated_header', line: index + 1,
+        message: 'A standalone repeated Sankey header is read as a header, not a CSV row. Pinned Mermaid rejects it; canonical export writes one header.',
+      })
+      continue
+    }
+    const directive = continuation ? null : parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_accessibility', line: index + 1, message: 'Sankey accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.' })
+      index = directive.endIndex
+      continue
+    }
+    if (!continuation && trimmed.startsWith('%%')) continue
+    csvRecord = continuation ? `${csvRecord}\n${lines[index]!}` : lines[index]!
+    if (!csvQuotedFieldIsOpen(csvRecord)) csvRecord = ''
+    // Mermaid trims whitespace from the end of the source.
+    const raw = authoredLine?.(index + 1) ?? lines[index]!
+    const row = index === last ? raw.trimEnd() : raw
+    if (!continuation && /^\s+"/.test(row)) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_indented_quoted_row', line: index + 1, message: 'Pinned Mermaid rejects an indented Sankey row that opens with a quoted field. Ours reads it; canonical export writes that row unindented.' })
+    if (row.includes('%%{')) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_directive_text', line: index + 1, message: 'A Sankey node name containing a directive opener is read as written. Pinned Mermaid rejects it, and CSV has no escape preserving the name; this source remains preserved without typed edits.' })
+    const outside = /[^\x20-\x7E\r]/u.exec(row)?.[0]
+    if (outside !== undefined) {
+      const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: index + 1,
+        message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
+      })
+    }
+    // The prepass's own `;` strip is mermaid_cleanup's to report.
+    const entity = /#\w+;/.exec(mermaidEntityPrepass(row))?.[0]
+    if (entity !== undefined) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: index + 1,
+      message: `Pinned Mermaid reads ${entity} as an entity code, which its Sankey reader then rejects as a character outside printable ASCII. Ours reads and draws ${entity} as written; Mermaid has no spelling for this text, so write the character itself if it is printable ASCII.`,
     })
   }
   return warnings

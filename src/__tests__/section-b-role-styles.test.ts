@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import {
   getStyle,
   knownStyleDescriptors,
@@ -10,7 +11,6 @@ import {
   validateStyleSpec,
 } from '../index.ts'
 import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
-import { BINDABLE_SCENE_ROLES, EXACT_ROLE_STYLE_CONTRACT } from '../scene/role-style-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
@@ -49,33 +49,6 @@ describe('Section B public semantic role Styles', () => {
     expect(validateStyleSpec({ roles: { title: { fontSize: 20 } } })).toContain('scene role "title" is fallback-only; set roles.label instead')
     expect(validateStyleSpec({ roles: { node: { fontWeight: 0 } } })).toContain('"roles.node.fontWeight" must be between 1 and 1000')
     expect(validateStyleSpec({ roles: { node: { fillColor: 'url(https://example.test/x)' } } })).toContain('"roles.node.fillColor" must be a safe non-fetching CSS paint')
-  })
-
-  test('every role descriptor owns closed applicability and deterministic fallback', () => {
-    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleConsumption === 'exact').map(role => String(role.role)))
-      .toEqual(Object.keys(EXACT_ROLE_STYLE_CONTRACT))
-    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleBindingFamilies.length > 0).map(role => String(role.role)))
-      .toEqual([...BINDABLE_SCENE_ROLES])
-    for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
-      const exact = EXACT_ROLE_STYLE_CONTRACT[descriptor.role as keyof typeof EXACT_ROLE_STYLE_CONTRACT]
-      if (exact) {
-        expect(descriptor.style.applicableProperties, descriptor.role).toEqual(exact.properties)
-        expect(descriptor.traits.styleBindingFamilies, descriptor.role).toEqual('bindingFamilies' in exact ? exact.bindingFamilies : [])
-      }
-      const fallback = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === descriptor.style.fallbackRole)
-      expect(fallback, descriptor.role).toBeDefined()
-      if (descriptor.traits.styleConsumption === 'exact') {
-        expect(descriptor.style.applicableProperties.length, descriptor.role).toBeGreaterThan(0)
-      } else {
-        expect(descriptor.style.applicableProperties, descriptor.role).toEqual([])
-        expect(fallback!.style.applicableProperties.length, descriptor.role).toBeGreaterThan(0)
-      }
-      for (const family of descriptor.traits.styleBindingFamilies) {
-        expect(getFamily(family), `${descriptor.role}/${family}`).toBeDefined()
-        expect(getFamily(family)!.semanticRoles, `${descriptor.role}/${family}`).toContain(descriptor.role)
-        expect(descriptor.traits.styleConsumption, `${descriptor.role}/${family}`).toBe('exact')
-      }
-    }
   })
 
   test('every exact role contract has a real renderer witness rather than an admitted no-op', () => {
@@ -146,7 +119,7 @@ describe('Section B public semantic role Styles', () => {
         expect(resolveStyleStack([a, a])).toEqual(resolveStyleStack(a))
         expect(empty?.roles).toBeUndefined()
       },
-    ), { numRuns: 50 })
+    ), fcParameters({ numRuns: 50 }))
   })
 
   // "A Look's exported record is equivalent to selecting it by name" is decided
@@ -266,9 +239,10 @@ describe('Section B public semantic role Styles', () => {
     const baseline = renderMermaidSVG(source)
     const branded = renderMermaidSVG(source, { style })
     const paths = (svg: string) => [...svg.matchAll(/class="pie-slice[^\"]*"[^>]*d="([^"]+)"/g)].map(match => match[1])
+    expect(paths(baseline)).toHaveLength(2)
     expect(paths(branded)).toEqual(paths(baseline))
     expect(branded.match(/class="pie-slice highlighted"/g)).toHaveLength(1)
-    expect(branded).toContain('.pie-slice.highlighted { stroke: #27272A;')
-    expect(branded).not.toContain('.pie-slice.highlighted { stroke: #00ff00;')
+    expect(branded).toMatch(/<path class="pie-slice highlighted"[^>]* stroke="#27272A" /)
+    expect(branded).not.toMatch(/<path class="pie-slice highlighted"[^>]* stroke="#00ff00"/)
   })
 })

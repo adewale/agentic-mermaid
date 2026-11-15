@@ -1,8 +1,12 @@
-import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction } from './types.ts'
+import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction, DrawingCoord } from './types.ts'
 import { Up, Down, Left, Right } from './types.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 
 export const GRAPH_EDGE_APPROACH = 2
+/** Keep each allocated face's normal leads clear before their independent
+ * bend lanes. Marker glyphs still occupy only their original face cells. */
+export const graphEdgeEscape = (edge: AsciiEdge, start: boolean): number =>
+  (start ? edge.cellAllocation?.startEscape : edge.cellAllocation?.endEscape) ?? GRAPH_EDGE_APPROACH
 interface Bounds { minX: number; minY: number; maxX: number; maxY: number }
 export type GraphEndpoint = AsciiNode | AsciiSubgraph
 type Endpoint = GraphEndpoint
@@ -11,6 +15,19 @@ export const graphEndpointOf = (edge: AsciiEdge, start: boolean): Endpoint => st
   ? edge.attachFromSubgraph ?? edge.fromSubgraph ?? edge.from
   : edge.attachToSubgraph ?? edge.toSubgraph ?? edge.to
 const membersOf = (endpoint: Endpoint): readonly AsciiNode[] => isGroup(endpoint) ? endpoint.nodes : [endpoint]
+
+/** A relative face allocation projects from the current complete envelope.
+ * Capacity reservation and painting must use the same physical contact. */
+export function allocatedGraphPort(edge: AsciiEdge, start: boolean, bounds: Bounds): DrawingCoord | undefined {
+  const endpoint = graphEndpointOf(edge, start), direction = start ? edge.startDir : edge.endDir
+  const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
+  const horizontal = direction.x !== 1, available = horizontal ? bounds.maxY - bounds.minY : bounds.maxX - bounds.minX
+  const minimum = isGroup(endpoint) && horizontal ? lineCount(endpoint.name) + 1 : 1
+  if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
+  return horizontal ? { x: direction.x === 0 ? bounds.minX : bounds.maxX, y: bounds.minY + offset }
+    : { x: bounds.minX + offset, y: direction.y === 0 ? bounds.minY : bounds.maxY }
+}
+
 const logicalBounds = (endpoint: Endpoint): Bounds => {
   const members = membersOf(endpoint)
   return {
@@ -19,22 +36,55 @@ const logicalBounds = (endpoint: Endpoint): Bounds => {
   }
 }
 
-/** Allocate from semantic endpoint envelopes, including complete container
- * frames. A representative member is only a logical routing anchor; it is
- * never the authority for the container's face, ports or exterior clearance. */
-export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => ReadonlyMap<AsciiNode, Bounds>): void {
-  const directed = new Map<Endpoint, Map<Endpoint, number>>()
-  let needsPhysicalFaces = false
+/** Keep complete shared routing units when selecting unsafe contacts. */
+export function graphRoutingUnits(graph: AsciiGraph): Map<AsciiEdge, readonly AsciiEdge[]> {
+  const groups = new Map<AsciiEdge | object | string, AsciiEdge[]>()
+  for (const edge of graph.edges) {
+    const key = edge.bundle ?? edge.sharedTrunk ?? edge
+    const members = groups.get(key) ?? []; members.push(edge); groups.set(key, members)
+  }
+  return new Map([...groups.values()].flatMap(members => members.map(edge => [edge, members] as const)))
+}
+
+/** Select witnessed contact conflicts, retaining their relationship identities.
+ * Projection alone is not evidence that every route needs replacing. */
+export function unsafeGraphContacts(graph: AsciiGraph): Set<AsciiEdge> {
+  const directed = new Map<Endpoint, Map<Endpoint, AsciiEdge[]>>()
+  const contacts = new Map<Endpoint, Map<string, Map<string, AsciiEdge[]>>>()
+  const selected = new Set<AsciiEdge>()
   for (const edge of graph.edges) {
     if (edge.style === 'invisible') continue
     const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false)
-    const outgoing = directed.get(from) ?? new Map<Endpoint, number>()
-    const parallels = (outgoing.get(to) ?? 0) + 1
-    outgoing.set(to, parallels); directed.set(from, outgoing)
-    const compoundPair = isGroup(from) || isGroup(to)
-    if (parallels >= 2 || compoundPair && (from === to || (directed.get(to)?.get(from) ?? 0) > 0)) needsPhysicalFaces = true
+    // A frame has no node-centre contact, and a self relationship needs two
+    // distinct physical contacts on the same envelope.
+    if (isGroup(from) || isGroup(to) || from === to) selected.add(edge)
+    const outgoing = directed.get(from) ?? new Map<Endpoint, AsciiEdge[]>()
+    const parallels = outgoing.get(to) ?? []
+    parallels.push(edge); outgoing.set(to, parallels); directed.set(from, outgoing)
+    const reverse = directed.get(to)?.get(from) ?? []
+    if (parallels.length >= 2 || (isGroup(from) || isGroup(to)) && (from === to || reverse.length)) {
+      for (const member of [...parallels, ...reverse]) selected.add(member)
+    }
+    for (const start of [true, false]) {
+      const endpoint = start ? from : to, direction = start ? edge.startDir : edge.endDir
+      const faces = contacts.get(endpoint) ?? new Map<string, Map<string, AsciiEdge[]>>(), face = `${direction.x},${direction.y}`
+      const meanings = faces.get(face) ?? new Map<string, AsciiEdge[]>()
+      const marked = start ? edge.hasArrowStart : edge.hasArrowEnd
+      const meaning = marked ? (start ? edge.startMarker : edge.endMarker) ?? 'arrow' : 'line'
+      const members = meanings.get(meaning) ?? []; members.push(edge); meanings.set(meaning, members)
+      faces.set(face, meanings); contacts.set(endpoint, faces)
+    }
   }
-  if (!needsPhysicalFaces && !graph.compoundRepacked) return
+  for (const faces of contacts.values()) for (const meanings of faces.values()) if (meanings.size > 1) {
+    for (const members of meanings.values()) for (const member of members) selected.add(member)
+  }
+  return selected
+}
+
+/** Allocate only selected units from semantic endpoint envelopes. Retained
+ * route/contact footprints participate in admission before publication. */
+export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => ReadonlyMap<AsciiNode, Bounds>, selected: ReadonlySet<AsciiEdge>): void {
+  if (!selected.size) return
   const logicalEnvelopes = new Map<Endpoint, Bounds>()
   const logicalOf = (endpoint: Endpoint): Bounds => {
     let bounds = logicalEnvelopes.get(endpoint)
@@ -52,7 +102,7 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     return before.extent + Math.floor(demand / 2)
   }
   for (const edge of graph.edges) {
-    if (edge.style === 'invisible') continue
+    if (edge.style === 'invisible' || !selected.has(edge)) continue
     const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false), a = boundsOf(from), b = boundsOf(to)
     const separatedX = a.maxX < b.minX || b.maxX < a.minX, separatedY = a.maxY < b.minY || b.maxY < a.minY
     const dx = Math.abs(a.minX + a.maxX - b.minX - b.maxX), dy = Math.abs(a.minY + a.maxY - b.minY - b.maxY)
@@ -70,16 +120,25 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     const demand = edge.startDir === Left || edge.startDir === Right ? lineCount(edge.text) : Math.max(1, maxLineWidth(edge.text))
     edge.cellAllocation = { startOffset: slot(from, edge.startDir, demand), endOffset: slot(to, edge.endDir, demand) }
   }
+  for (const edge of graph.edges) if (edge.cellAllocation) {
+    for (const start of [true, false]) {
+      const endpoint = graphEndpointOf(edge, start), face = start ? edge.startDir : edge.endDir
+      const count = faces.get(endpoint)!.get(face)!.count
+      const approach = GRAPH_EDGE_APPROACH + 2 * (count - 1)
+      if (start) edge.cellAllocation.startEscape = approach
+      else edge.cellAllocation.endEscape = approach
+    }
+  }
   // An individually valid child face is insufficient: its outward marker
   // approach must fit inside the enclosing frame without touching that
   // frame's own ports. Reserve the occupied approach and one clear cell.
   for (const [endpoint, perFace] of faces) {
     const parent = isGroup(endpoint) ? endpoint.parent : parentFor.get(endpoint)
     if (!parent) continue
-    for (const face of perFace.keys()) {
+    for (const [face, demand] of perFace) {
       const side = face === Left ? 'left' : face === Right ? 'right' : face === Up ? 'top' : 'bottom'
       parent.insets ??= {}
-      parent.insets[side] = Math.max(parent.insets[side] ?? 2, GRAPH_EDGE_APPROACH + 1 + 1)
+      parent.insets[side] = Math.max(parent.insets[side] ?? 2, GRAPH_EDGE_APPROACH + 2 * (demand.count - 1) + 1 + 1)
     }
   }
   // Card demand fills its own grid dimensions. Container demand first measures
@@ -104,7 +163,10 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
         requests.set(index, Math.max(requests.get(index) ?? 0, deficit))
       }
       const sizes = horizontal ? graph.columnWidth : graph.rowHeight
-      const index = horizontal ? face === Left ? logical.minX - 1 : logical.maxX + 1 : face === Up ? logical.minY - 1 : logical.maxY + 1
+      // A node's first two tracks paint its body; logical.max is the
+      // trailing escape track. Growing max + 1 can enlarge the next body
+      // while leaving the immediate outward corridor unchanged.
+      const index = horizontal ? face === Left ? logical.minX - 1 : logical.maxX : face === Up ? logical.minY - 1 : logical.maxY
       if (index >= 0) sizes.set(index, Math.max(sizes.get(index) ?? 0, GRAPH_EDGE_APPROACH + 1 + demand.count * 2))
     }
   }
@@ -125,7 +187,7 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     const label = horizontal ? maxLineWidth(edge.text) : lineCount(edge.text)
     // Each endpoint keeps its straight marker approach, one bend and one
     // label-clearance cell. Multiline labels add their separate adjacent run.
-    const required = label + 2 * (GRAPH_EDGE_APPROACH + 1 + 1) + (horizontal && lineCount(edge.text) > 1 ? 4 : 0)
+    const required = label + graphEdgeEscape(edge, true) + graphEdgeEscape(edge, false) + 4 + (horizontal && lineCount(edge.text) > 1 ? 4 : 0)
     const deficit = Math.max(0, required - (after[min] - before[max]))
     const requests = horizontal ? columns : rows
     requests.set(spacer, Math.max(requests.get(spacer) ?? 0, deficit))

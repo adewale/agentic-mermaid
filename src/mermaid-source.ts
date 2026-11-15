@@ -1,3 +1,5 @@
+import { isMermaidConfigDirective } from './shared/pinned-mermaid-config/directive-types.ts'
+import { decodeXML } from 'entities'
 // ============================================================================
 // Mermaid source normalization + config extraction
 //
@@ -9,9 +11,13 @@
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
-import { scanStateComments } from './state/comment.ts'
-import YAML from 'yaml'
-import { detectInstalledFamilyFromFirstLine } from './agent/family-router.ts'
+import { mergeConfigSource, configDirective } from './shared/pinned-mermaid-config/merge.js'
+import { pinnedMermaidDiagramType } from './shared/pinned-mermaid-diagram-type.ts'
+import { scanStateComments } from './state/source-comments.ts'
+import { readAuthoredGrammarAccessibility, readGrammarAccessibility } from './shared/grammar-text.ts'
+import { DeferredDependencyError } from './layout/certification-error.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine, detectInstalledFamilyFromFirstLine, installedFamilyStatementEnds, type RegisteredFamilyResolver } from './agent/family-router.ts'
+import type { FamilyDescriptor } from './agent/families.ts'
 import type { FamilyId } from './agent/types.ts'
 import {
   assertJsonConfigAdmission,
@@ -19,14 +25,19 @@ import {
   JsonConfigAdmissionError,
 } from './shared/json-config-admission.ts'
 import {
+  maskMermaidConfigForGrammar,
+  nativeAccessibilityTransportEdits,
   parseAccessibilityDirective,
   scanAccessibilityDirectives,
+  statementEndAt,
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
 import { splitSequenceStatementLines } from './sequence/statements.ts'
-import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
+import { parseDirectiveYaml, parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup, type MermaidCleanupBias } from './shared/mermaid-cleanup.ts'
+import { matchMermaidFrontmatter, mermaidFirstLine, INIT_DIRECTIVE_REGEX, stripMermaidDirectives, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { joinStatementLines } from './shared/trailing-comment.ts'
 
 export { toMermaidLines }
 
@@ -437,6 +448,14 @@ export interface MermaidSourceAccessibility extends MermaidAccessibility {}
 export interface NormalizedMermaidSource {
   /** Original bytes supplied at the public boundary. */
   originalText: string
+  /** Shared cleanup receipt, with offsets back to the exact input. */
+  cleanup?: MermaidCleanup
+  /** Authored grammar view retained when transport decoding changes source. */
+  authoredFamilyLines?: string[]
+  /** Indentation-preserving grammar view for field-owned XML interpretation. */
+  authoredFamilyBody?: string
+  authoredHeader?: string
+  authoredWrapperLength?: number
   text: string
   body: string
   lines: string[]
@@ -447,8 +466,6 @@ export interface NormalizedMermaidSource {
   familyText: string
   /** Family grammar view with universal accessibility directives removed. */
   familyLines: string[]
-  /** Pie-only grammar view with authored quoted labels/titles and decoded syntax. */
-  authoredPieFamilyLines?: string[]
   firstLine: string
   config: MermaidRuntimeConfig
   frontmatter: MermaidFrontmatterMap
@@ -469,7 +486,67 @@ const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
  * the same directive boundary automatically.
  */
 export function stripMermaidInitDirectives(text: string): string {
-  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+  return withoutMermaidInitDirectives(text)
+}
+
+function withoutMermaidInitDirectives(text: string, removed?: (offset: number, length: number) => void): string {
+  return removed ? text.replace(INIT_DIRECTIVE_REGEX, (match, _line, _inline, offset: number) => {
+    removed(offset, match.length)
+    return ''
+  }) : text.replace(INIT_DIRECTIVE_REGEX, '')
+}
+
+/** The preserved native grammar payload and its exact authored boundaries.
+ * Sparse directive deletions compose with the shared cleanup receipt. The
+ * optional deletion bias controls collapsed init boundaries independently of
+ * XML/cleanup bias; the existing enclosing-range defaults remain unchanged. */
+export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): { text: string; sourceOffset: (offset: number, bias?: MermaidCleanupBias, deletionBias?: MermaidCleanupBias) => number; familyOffset: (offset: number, bias?: MermaidCleanupBias) => number } {
+  const cleanup = source.cleanup ?? cleanupMermaidSource(source.originalText)
+  const wrapperLength = source.wrapperSource?.length ?? 0
+  const authoredStart = source.cleanup && source.authoredWrapperLength !== undefined
+    ? originalMermaidOffset(cleanup, wrapperLength, 'end', 'text') : wrapperLength
+  const selectedView = source.cleanup && view === 'render' ? 'payloadText' : 'authoredPayloadText'
+  const start = cleanedMermaidOffset(cleanup, authoredStart, 'end', selectedView)
+  const payload = cleanup[selectedView].slice(start)
+  let deletions: Array<{ at: number; before: number; after: number }> | undefined
+  let removedLength = 0
+  const text = withoutMermaidInitDirectives(payload, (offset, length) => {
+    const at = offset - removedLength
+    const previous = deletions?.at(-1)
+    if (previous?.at === at) previous.after = offset + length
+    else (deletions ??= []).push({ at, before: offset, after: offset + length })
+    removedLength += length
+  })
+  return { text, sourceOffset: (offset, bias = 'start', deletionBias = bias) => {
+    if (!Number.isInteger(offset) || offset < 0 || offset > text.length) throw new RangeError('Family source offset is outside the preserved payload')
+    let low = 0, high = deletions?.length ?? 0
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      if (deletions![middle]!.at <= offset) low = middle + 1
+      else high = middle
+    }
+    const deletion = deletions?.[low - 1]
+    const payloadOffset = deletion ? offset === deletion.at ? deletionBias === 'start' ? deletion.before : deletion.after : offset + deletion.after - deletion.at : offset
+    return originalMermaidOffset(cleanup, start + payloadOffset, bias, selectedView)
+  }, familyOffset: (offset, bias = 'start') => {
+    const position = cleanedMermaidOffset(cleanup, offset, bias, selectedView) - start
+    if (position < 0 || position > payload.length) throw new RangeError('Authored offset is outside the preserved family')
+    let low = 0, high = deletions?.length ?? 0
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      if (deletions![middle]!.before <= position) low = middle + 1
+      else high = middle
+    }
+    const deletion = deletions?.[low - 1]
+    return deletion ? position <= deletion.after ? deletion.at : position - deletion.after + deletion.at : position
+  } }
+}
+
+/** Read the shared post-wrapper source without normalizing payload line endings.
+ * Rendering uses the once-decoded view; authored parsing keeps entity spelling.
+ * The family grammar still owns quoted payloads and accessibility directives. */
+export function preservedMermaidFamilyText(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): string {
+  return preservedMermaidFamilySource(source, view).text
 }
 
 /**
@@ -484,23 +561,73 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
   const regex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
+    if (!isMermaidConfigDirective(match[0])) continue
     directives.push({
       raw: match[0],
-      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+      parsed: mermaidInitDirectiveConfig(match[0]) ?? {},
     })
   }
   return directives
 }
 
+/** Distinguish a valid empty object from an unparsed directive payload. */
+export function mermaidInitDirectiveConfig(raw: string): MermaidFrontmatterMap | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  return match ? (match[1] !== undefined || match[2] !== undefined ? directiveConfig(match[1] ?? match[2]) : /%%\{\s*wrap\s*\}/.test(match[0]) ? { wrap: true } : {}) : undefined
+}
+
+/** Raw layer before native flattening. Single scalar/array init payloads
+ * are no-ops; arrays can contribute on the multi-init assignment path.
+ * Generous object reads remain repairable as canonical JSON. */
+export function mermaidInitDirectivePayload(raw: string): MermaidFrontmatterValue | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  if (!match) return undefined
+  const payload = match[1] ?? match[2]
+  if (payload === undefined) return null
+  if (!payload.trim()) return {}
+  // The pinned directive lexer captures bare words as strings, before JSON.
+  if (/^\w+$/.test(payload.trim())) return payload.trim()
+  assertJsonConfigSourceTextAdmission(payload, 'Mermaid init directive', { trackFlowDepth: true })
+  try {
+    const value: unknown = JSON.parse(payload.replace(/'/g, '"'))
+    assertJsonConfigAdmission(value, 'Mermaid init directive')
+    return toFrontmatterValue(value)
+  } catch (error) {
+    if (error instanceof JsonConfigAdmissionError) throw error
+    return directiveConfig(payload)
+  }
+}
+
+export interface MermaidConfigDirectiveLayer {
+  kind: string
+  hasArgs: boolean
+  payload: MermaidFrontmatterValue
+}
+
+/** Kind is semantic: a wrap directive does not increase the init count. */
+export function mermaidInitDirectiveLayer(raw: string): MermaidConfigDirectiveLayer | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  const payload = mermaidInitDirectivePayload(raw)
+  if (!match || payload === undefined) return undefined
+  return { kind: /%%\{\s*(\w+)/.exec(match[0])![1]!, hasArgs: match[1] !== undefined || match[2] !== undefined, payload }
+}
+
+/** The authored YAML layer alone, without init directives folded into it. */
+export function mermaidAuthoredFrontmatter(source: string): MermaidFrontmatterMap {
+  const match = matchMermaidFrontmatter(source)
+  return match ? parseYamlDocument(match.yaml) : {}
+}
+
 /**
  * Whitespace- and formatting-insensitive identity for one init directive.
- * A parseable payload is identified by its canonical config so re-indented or
+ * A parseable payload is identified by its raw kind and scope so re-indented or
  * re-spaced re-emissions still match; an unparseable payload has no semantic
  * projection, so it falls back to its collapsed raw text.
  */
 export function mermaidInitDirectiveIdentity(directive: MermaidSourceInitDirective): string {
-  return Object.keys(directive.parsed).length > 0
-    ? `config:${stableConfigIdentity(directive.parsed)}`
+  const layer = mermaidInitDirectiveLayer(directive.raw)
+  return layer
+    ? `${layer.kind}:${layer.hasArgs}:${stableConfigIdentity(layer.payload)}`
     : `raw:${directive.raw.trim().replace(/\s+/g, ' ')}`
 }
 
@@ -526,24 +653,98 @@ function stableConfigIdentity(value: MermaidConfigValue): string {
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
+  view: 'authored' | 'render' = 'authored',
+  resolveFamily?: RegisteredFamilyResolver,
 ): NormalizedMermaidSource {
-  const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
+  // Native JSON before the header owns its encoded line breaks and directive
+  // lookalikes. Shield that envelope before discovering a transport-decoded
+  // header; family statement scope is applied to the complete source below.
+  const discoveryFields = nativeAccessibilityEdits(text, null)
+  const initialCleanup = cleanupMermaidSource(text, discoveryFields)
+  // Detection is executable extension code. Capture its descriptor once, then
+  // retain that same owner through cleanup, config and both grammar views.
+  const firstLine = mermaidFirstLine(view === 'render' ? initialCleanup.text : initialCleanup.lineText)
+  const family = resolveFamily
+    ? resolveFamily(firstLine, 'loose')
+    : detectInstalledFamilyDescriptorFromFirstLine(view === 'authored' ? decodeXML(firstLine) : firstLine, 'loose')
+  const nativeFields = nativeAccessibilityEdits(text, family)
+  const cleanup = discoveryFields.length > 0 || nativeFields.length > 0 ? cleanupMermaidSource(text, nativeFields) : initialCleanup
+  return normalizeSource(text, baseConfig, view, cleanup, family)
+}
+
+function nativeAccessibilityEdits(text: string, family: FamilyDescriptor | null): Array<{ start: number; end: number; text: string }> {
+  if (!text.includes('%% agentic-mermaid ')) return []
+  const start = matchMermaidFrontmatter(text)?.source.length ?? 0
+  const body = text.slice(start)
+  return nativeAccessibilityTransportEdits(body, installedFamilyStatementEnds(decodeXML(mermaidFirstLine(text)), maskMermaidConfigForGrammar(body).split(/\r\n?|\n/), family))
+    .map(edit => ({ ...edit, start: start + edit.start, end: start + edit.end }))
+}
+
+function normalizeSource(
+  text: string,
+  baseConfig: MermaidRuntimeConfig,
+  view: 'authored' | 'render',
+  cleanup: MermaidCleanup,
+  family: FamilyDescriptor | null,
+): NormalizedMermaidSource {
+  const semanticText = view === 'render' ? cleanup.text : cleanup.lineText
+  const processed = preprocessMermaidSource(semanticText, runtimeConfigToFrontmatterMap(baseConfig), family)
   const physicalLines = processed.body.split(/\r?\n/)
   const sequence = /^sequenceDiagram\b/i.test(processed.lines[0] ?? '')
   const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
     ? splitSequenceStatementLines(physicalLines)
     : physicalLines
-  const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
-  const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
+  const statementEnds = family?.statementEnds?.(accessibilityLines)
+  const physicalStatementEnds = accessibilityLines === physicalLines ? statementEnds : family?.statementEnds?.(physicalLines)
+  const canonicalLines = physicalStatementEnds?.some((end, index) => end > index)
+    ? toMermaidLines(joinStatementLines(physicalLines, physicalStatementEnds, true))
+    : processed.lines
+  // A line inside a statement's quoted text is the family's, whatever it holds.
+  const accessibilityScan = scanAccessibilityDirectives(
+    accessibilityLines,
+    statementEnds,
+    // Ordinary fields already passed global XML cleanup; native JSON fields
+    // own their transport references and decode them only after classification.
+    view === 'render' ? directive => (directive.form === 'native' ? readAuthoredGrammarAccessibility : readGrammarAccessibility)({ title: directive.value }).title! : undefined,
+  )
+  const envelope = sourceEnvelopeMetadata(semanticText, accessibilityScan.accessibility, family)
+  const sharesAuthoredGrammar = semanticText === cleanup.lineText
+  if (sharesAuthoredGrammar && semanticText !== text) {
+    if (envelope.wrapperSource !== undefined) {
+      envelope.wrapperSource = text.slice(0, originalMermaidOffset(cleanup, envelope.wrapperSource.length, 'end', 'lineText'))
+    }
+    const frontmatterEnd = matchMermaidFrontmatter(semanticText)?.source.length ?? (semanticText.startsWith('\uFEFF') ? 1 : 0)
+    const matches = [...semanticText.slice(frontmatterEnd).matchAll(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'))].filter(match => isMermaidConfigDirective(match[0])).values()
+    for (const directive of envelope.initDirectives) {
+      const start = frontmatterEnd + matches.next().value!.index
+      const end = start + directive.raw.length
+      directive.raw = authoredMermaidSlice(cleanup, start, end, 'lineText')
+    }
+  }
   const familyBody = accessibilityScan.familyLines.join('\n')
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
+  const timeline = /^timeline(?=$|[\s;#%])/i.test(processed.lines[0] ?? '')
   const familyLines = state
     ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
-    : toMermaidLines(familyBody)
+    : timeline
+      // Timeline's SECTION token consumes two spaces for an explicit empty
+      // heading. Trimming line ends first changes that token into a period.
+      ? accessibilityScan.familyLines.map(line => line.trimStart()).filter(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))
+      : toMermaidLines(familyBody)
+  const authored = sharesAuthoredGrammar ? undefined : normalizeSource(text, baseConfig, 'authored', cleanup, family)
 
   return {
     originalText: text,
-    text: processed.lines.join('\n'),
+    cleanup,
+    ...(authored ? {
+      authoredFamilyLines: authored.familyLines,
+      authoredFamilyBody: authored.familyBody,
+      authoredHeader: authored.lines[0] ?? '',
+      authoredWrapperLength: authored.wrapperSource?.length ?? 0,
+    } : {}),
+    // Canonical source must not dedent or filter physical rows inside a
+    // grammar-owned spanning token. The parser line views remain separate.
+    text: canonicalLines.join('\n'),
     body: processed.body,
     lines: processed.lines,
     familyBody,
@@ -565,8 +766,10 @@ export function normalizeMermaidSource(
 export function normalizeMermaidSourceWithOverrides(
   text: string,
   overrides: MermaidRuntimeConfig = {},
+  view: 'authored' | 'render' = 'authored',
+  resolveFamily?: RegisteredFamilyResolver,
 ): NormalizedMermaidSource {
-  const source = normalizeMermaidSource(text)
+  const source = normalizeMermaidSource(text, {}, view, resolveFamily)
   if (Object.keys(overrides).length === 0) return source
   const frontmatter = mergeFrontmatterMaps(source.frontmatter, runtimeConfigToFrontmatterMap(overrides))
   return {
@@ -576,7 +779,13 @@ export function normalizeMermaidSourceWithOverrides(
   }
 }
 
-function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility): {
+/** Semantic input for render admission and hosts that load its family first.
+ * Decode transport spelling once while retaining original bytes for receipts. */
+export function normalizeMermaidRenderSource(text: string, overrides?: MermaidRuntimeConfig, resolveFamily?: RegisteredFamilyResolver): NormalizedMermaidSource {
+  return normalizeMermaidSourceWithOverrides(text, overrides, 'render', resolveFamily)
+}
+
+function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility, family: FamilyDescriptor | null): {
   wrapperSource?: string
   initDirectives: MermaidSourceInitDirective[]
   comments: MermaidSourceComment[]
@@ -607,14 +816,17 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
       .find(statement => statement.trimStart().startsWith('%%'))
     if (comment) comments.push({ text: comment.trimStart().slice(2).trim(), line: physicalLine })
   }
+  const statementEnds = installedFamilyStatementEnds(decodeXML(firstStatement), lines, family)
+  let statementEnd = -1
   for (let index = 0; index < lines.length; index++) {
-    const accessibility = parseAccessibilityDirective(lines, index)
+    const accessibility = index > statementEnd ? parseAccessibilityDirective(lines, index) : null
     if (accessibility === undefined) break
     if (accessibility !== null) {
       if (accessibility.suffixLine) recordPackedSequenceComment(accessibility.suffixLine, accessibility.endIndex + 1)
       index = accessibility.endIndex
       continue
     }
+    if (index > statementEnd) statementEnd = statementEndAt(statementEnds, index, lines.length)
     const line = lines[index]!
     const stateLine = stateLines?.[index]
     if (stateLine) {
@@ -635,6 +847,9 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     if (directive?.index === 0 && directive[0].length > 0) { wrapperEnd += directive[0].length; continue }
     const lineEnd = rest.indexOf('\n')
     const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
+    // Native accessibility comments are mutable envelope fields, not immutable
+    // wrapper trivia. Keep them outside the verbatim prefix.
+    if (parseAccessibilityDirective([line], 0)?.form === 'native') break
     // COMMENT_LINE_REGEX accepts a CR terminator while this span retains it.
     if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
       wrapperEnd += lineEnd === -1 ? rest.length : lineEnd + 1
@@ -654,15 +869,16 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
 export function preprocessMermaidSource(
   text: string,
   baseFrontmatter: MermaidFrontmatterMap = {},
+  family: FamilyDescriptor | null = detectInstalledFamilyDescriptorFromFirstLine(decodeXML(mermaidFirstLine(text)), 'loose'),
 ): ProcessedMermaidSource {
+  const protectedFields = nativeAccessibilityEdits(text, family)
+  for (const edit of protectedFields.toReversed()) text = text.slice(0, edit.start) + edit.text + text.slice(edit.end)
   const frontmatterMatch = matchMermaidFrontmatter(text)
   const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch.yaml)) : {}
   const rawBody = frontmatterMatch ? text.slice(frontmatterMatch.source.length) : text
-  const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
-  const frontmatter = mergeFrontmatterMaps(
-    mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
-    canonicalizeFrontmatterMap(directiveFrontmatter),
-  )
+  const extracted = extractInitDirectives(rawBody, mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter), family)
+  const body = splitHeaderStatement(extracted.body)
+  const frontmatter = extracted.frontmatter
 
   return {
     body,
@@ -882,6 +1098,9 @@ function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmat
   return configRoot ? mergeFrontmatterMaps(configRoot, topLevel) : topLevel
 }
 
+/** Frontmatter that is not valid YAML, which rejects the diagram, as upstream. */
+export class MermaidFrontmatterError extends Error {}
+
 /** Frontmatter is read as upstream reads it (shared/metadata-yaml.ts): YAML
  * that does not parse rejects the diagram; a document that parses but is not
  * a mapping (a scalar, a list, nothing) is empty metadata. */
@@ -889,36 +1108,64 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
   assertJsonConfigSourceTextAdmission(text, 'Mermaid frontmatter')
   const parsed = parseMermaidYaml(text)
   if (!parsed.ok) {
-    throw syntaxError({
+    throw new MermaidFrontmatterError(syntaxError({
       what: `Mermaid frontmatter is not valid YAML: ${parsed.message}`,
       expectedForm: 'a YAML mapping between the two `---` lines',
       example: '---\ntitle: "Order flow: v2"\n---',
-    })
+    }).message)
   }
   assertJsonConfigAdmission(parsed.value, 'Mermaid frontmatter')
   return toFrontmatterMap(parsed.value) ?? {}
 }
 
-function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
-  let merged: MermaidFrontmatterMap = {}
-
-  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, payload: string) => {
-    const parsed = parseDirectiveMap(payload)
-    if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
-    return ''
+function extractInitDirectives(text: string, base: MermaidFrontmatterMap, family: FamilyDescriptor | null): { body: string; frontmatter: MermaidFrontmatterMap } {
+  const layers = mermaidInitDirectives(text).flatMap(directive => {
+    const layer = mermaidInitDirectiveLayer(directive.raw)
+    return layer ? [layer] : []
   })
+  const body = stripMermaidDirectives(text)
+  const header = toMermaidLines(body)[0]?.split(/\s/)[0] ?? ''
+  const detected = pinnedMermaidDiagramType(family?.id ?? header)
+  // The base is already a fresh, admitted canonical map. An empty merge has
+  // no directive state to process or configuration to clone.
+  if (layers.length === 0 && Object.keys(base).length === 0) return { body, frontmatter: base }
+  const inits = layers.filter(layer => /(?:init\b)|(?:initialize\b)/.test(layer.kind)).map(layer => layer.payload)
+  const wrap = layers.some(layer => layer.kind === 'wrap')
+  try {
+    return { body, frontmatter: mergeConfigSource(base, layers.map(layer => configDirective(layer.kind, layer.payload, layer.hasArgs)).join('\n'), detected, true) as MermaidFrontmatterMap }
+  } catch {
+    // Invalid consumed values still need a generous read for repair. Canonical
+    // admission reports the actual failure separately. Do not activate a legacy
+    // config block that the multi-init sanitizer would discard before remapping.
+    let merged = mergeFrontmatterMaps({}, base)
+    for (const init of inits) {
+      if (!init || typeof init !== 'object' || Array.isArray(init)) continue
+      const layer = mergeFrontmatterMaps({}, init)
+      if (layer.config !== undefined) {
+        if (inits.length === 1) layer[detected === 'flowchart-v2' ? 'flowchart' : detected] = layer.config
+        delete layer.config
+      }
+      merged = mergeFrontmatterMaps(merged, layer)
+    }
+    if (wrap) merged.wrap = true
+    return { body, frontmatter: merged }
+  }
+}
 
-  return { body, frontmatter: merged }
+/** The configuration an init directive's payload sets, or a wrap
+ *  directive's (which has none): `wrap: true`, as Mermaid applies it. */
+function directiveConfig(payload: string | undefined): MermaidFrontmatterMap | undefined {
+  return payload === undefined ? { wrap: true } : payload.trim() === '' ? {} : parseDirectiveMap(payload.trim())
 }
 
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {
   assertJsonConfigSourceTextAdmission(text, 'Mermaid init directive', { trackFlowDepth: true })
   try {
-    const parsed: unknown = YAML.parse(text)
+    const parsed = parseDirectiveYaml(text)
     assertJsonConfigAdmission(parsed, 'Mermaid init directive')
     return toFrontmatterMap(parsed)
   } catch (error) {
-    if (error instanceof JsonConfigAdmissionError) throw error
+    if (error instanceof JsonConfigAdmissionError || error instanceof DeferredDependencyError) throw error
     const parsed = parseLooseObjectLiteral(text)
     if (parsed !== undefined) assertJsonConfigAdmission(parsed, 'Mermaid init directive')
     return parsed
@@ -1181,5 +1428,7 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): FamilyId
  * never coerced to Flowchart.
  */
 export function detectDiagramType(text: string): FamilyId | null {
-  return detectDiagramTypeFromFirstLine(preprocessMermaidLines(text)[0] ?? '')
+  const family = detectInstalledFamilyDescriptorFromFirstLine(mermaidFirstLine(text), 'strict')
+  preprocessMermaidSource(text, {}, family)
+  return family?.id ?? null
 }

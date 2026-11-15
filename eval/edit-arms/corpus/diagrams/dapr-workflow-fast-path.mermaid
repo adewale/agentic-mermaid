@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant A as Activity actor (result sender)
+    participant W as Workflow actor
+    participant S as State store
+    participant J as Scheduler
+    participant P as Workflow app
+    A->>W: AddWorkflowEvent(TaskCompleted)
+    W->>S: commit inbox row (commit 1)
+    W->>J: upsert new-event reminder (commit 2)
+    W-->>A: ack
+    J->>W: trigger new-event reminder
+    W->>P: run turn (history + inbox)
+    P-->>W: actions (TaskScheduled)
+    W->>S: commit history, clear inbox (commit 3)
+    J->>J: delete the fired reminder
+    W->>A: Execute(next activity)
+    A->>J: upsert run-activity reminder (commit 4)
+    A-->>W: ack
+    J->>A: trigger run-activity reminder
+    A->>P: run activity body
+    P-->>A: result
+    A->>W: AddWorkflowEvent(TaskCompleted) for the next turn

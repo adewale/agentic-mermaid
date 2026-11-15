@@ -1,7 +1,9 @@
+import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS, SDK_WARNING_CODE_DECLARATIONS } from './generated/sdk-types.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
-import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { RESOLVED_SCENE_VERSION } from '../scene/resolved-types.ts'
+import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
@@ -16,7 +18,14 @@ const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADA
 
 const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA.map(family => `    | ${sdkFamilyBodyType(family)}`).join('\n')
 
-const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`).join('\n')
+const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = Omit<ValidDiagram, 'kind' | 'body'> & { readonly kind: '${family.id}'; readonly body: ${sdkFamilyBodyType(family)} }`).join('\n')
+
+const SDK_FAMILY_TYPE_MAPS = `interface FamilyDiagrams {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}ValidDiagram`).join('\n')}
+}
+interface FamilyMutationOps {
+${BUILTIN_FAMILY_METADATA.map(family => `  ${JSON.stringify(family.id)}: ${sdkFamilyTypeStem(family)}MutationOp`).join('\n')}
+}`
 
 const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ParsedDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
 
@@ -25,9 +34,7 @@ const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => {
   return `  mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp): Result<${stem}ValidDiagram, { code: string; message: string }>`
 }).join('\n')
 
-const SDK_ANY_MUTATION_OP_DECLARATION = `type AnyMutationOp = ${BUILTIN_FAMILY_METADATA.map(family => `${sdkFamilyTypeStem(family)}MutationOp`).join(' | ')}`
-
-const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.`
+const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.\n//    ${FAMILY_NARROWING_NOTE}`
 
 function codeModeRenderMethodDeclarations(): string {
   const methods = new Map<
@@ -85,13 +92,14 @@ interface LayoutRenderOptions extends SharedRenderOptions {
 
 const CODE_MODE_RENDER_RECEIPT_DECLARATIONS = `interface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }
 interface CapabilityResolution { readonly id: \`\${string}:\${string}\`; readonly range: string; readonly level: 'required' | 'preferred' | 'optional'; readonly status: 'selected' | 'unsupported' | 'incompatible'; readonly version?: string }
-interface CapabilityDecision { readonly version: 1; readonly accepted: boolean; readonly resolutions: readonly CapabilityResolution[] }
+type CapabilityDecision = Readonly<{ version: 1; accepted: boolean; resolutions: readonly CapabilityResolution[] }>
 interface RenderExecutionDecision {
   readonly family: { readonly id: string; readonly version: string }
   readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' }
   readonly digest: string
 }
-interface RenderRequestReceipt { version: ${RENDER_CONTRACT_VERSION}; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision }`
+type GraphLayoutDecision = Readonly<{ requested: 'elk' | 'agentic'; fallback: 'none' | 'elk'; selected: 'elk' | 'agentic'; reason?: string; attempts: readonly Readonly<{ backend: 'elk' | 'agentic'; outcome: 'selected' | 'unsupported' | 'candidate-rejected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
+interface RenderRequestReceipt { version: ${RENDER_CONTRACT_VERSION}; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision; layoutDecisions?: readonly GraphLayoutDecision[] }`
 
 /** Lossless whitespace projection for the tools/list context budget. Every
  * member remains generated by the same declarations used in the full SDK. */
@@ -113,33 +121,23 @@ function compactInterfaceDeclarations(declaration: string): string {
   return compact.trimEnd()
 }
 
+/** Preserve literals and line separators while dropping optional type-syntax
+ * whitespace, and the optional separator before a closing brace, from the
+ * progressive-disclosure prompt. */
+export function compactSdkDeclaration(source: string): string {
+  return source.replace(/('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|;(?=\s*\})|\s+/g, (text, literal: string | undefined, offset: number) => {
+    if (literal) return literal
+    if (text === ';') return ''
+    if (text.includes('\n')) return '\n'
+    return /[\w$]/.test(source[offset - 1] ?? '') && /[\w$]/.test(source[offset + text.length] ?? '') ? ' ' : ''
+  })
+}
+
 const CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION = compactInterfaceDeclarations(CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION)
 const CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS)
 const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_RENDER_RECEIPT_DECLARATIONS)
 
-export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `interface DisplayRun {
-  readonly text: string
-  readonly bold: boolean
-  readonly italic: boolean
-  readonly underline: boolean
-  readonly strikethrough: boolean
-  readonly sourceStart: number
-  readonly sourceEnd: number
-  readonly clusters?: readonly { text: string; sourceStart: number; sourceEnd: number }[]
-}
-interface PreparedDisplayText {
-  readonly source: string
-  readonly display: 'formatted' | 'literal'
-  readonly transform?: 'uppercase' | 'lowercase' | 'capitalize'
-  readonly lines: readonly (readonly DisplayRun[])[]
-  readonly lineStarts: readonly number[]
-}
-interface LabelContent {
-  readonly value: string
-  readonly prepared: PreparedDisplayText
-  // Family lexical payload before display/entity normalization, not diagram source coordinates.
-  readonly authored?: string
-}
+export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `${SDK_TEXT_DECLARATIONS}
 
 ${styleSpecTypeScriptDeclaration()}
 
@@ -182,7 +180,7 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
  * while intentionally summarizing the full terminal evidence records. */
 const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true }).replaceAll(' | ', '|').replaceAll(', ', ',')
 
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = compactSdkDeclaration(`${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
@@ -193,22 +191,21 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
+
+export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; labels?: Array<{ id: string; text: string; bounds?: LayoutRect; container?: LayoutRect; visibility?: 'visible' | 'hidden' | 'semantic' }>; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }`
 
 const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
+
+export const CODE_MODE_RESOLVED_SCENE_SUMMARY_DECLARATION = `interface ResolvedScene {version:${RESOLVED_SCENE_VERSION};family:string;width:number;height:number;svg:string}`
 
 export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`mermaid\`. All calls are
 // synchronous and pure. Compose multi-step edits in one execute() call.
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
 
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
-type CheckMermaidSpec = string[] | {
-  include?: string[]; expected?: string[]; required?: string[]; require?: string[]
-  exclude?: string[]; absent?: string[]; forbidden?: string[]; forbid?: string[]; unexpected?: string[]
-  exact?: boolean
-}
-interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
-
+// fields: a nested record's own fields (e.g. xychart set_y_axis axis.range).
+interface OpFieldDoc { name: string; required: boolean; type: string; note?: string; fields?: OpFieldDoc[] }
 type MermaidConfigScalar = string | number | boolean | null
 type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
 type MermaidRuntimeConfig = {
@@ -246,85 +243,8 @@ type MermaidRuntimeConfig = {
 ${CODE_MODE_RENDER_OPTION_DECLARATIONS}
 
 ${SDK_DIAGRAM_KIND_DECLARATION}
-type ExternalFamilyId = \`family:\${string}\`
-
-interface ExtensionCompatibility {
-  readonly [contract: string]: string | undefined
-  readonly core?: string
-  readonly scene?: string
-}
-
-interface ExtensionProvenance {
-  readonly owner: string
-  readonly source: string
-  readonly reference?: string
-}
-
-interface ExtensionIdentity<Kind extends string = string> {
-  readonly id: \`\${Kind}:\${string}\`
-  readonly kind: Kind
-  readonly version: string
-  readonly compatibility: ExtensionCompatibility
-  readonly provenance: ExtensionProvenance
-}
-
-interface SourceSpanPoint {
-  /** UTF-16 offset in the exact authored source; line and col are one-based. */
-  readonly offset: number
-  readonly line: number
-  readonly col: number
-}
-
-interface SourceSpan {
-  readonly start: SourceSpanPoint
-  readonly end: SourceSpanPoint
-}
-
-interface PreservedSourceSpans {
-  readonly source: SourceSpan
-  readonly wrapper?: SourceSpan
-  readonly frontmatter?: SourceSpan
-  readonly initDirectives?: readonly SourceSpan[]
-  readonly accessibilityDirectives?: readonly SourceSpan[]
-  readonly header: SourceSpan
-  readonly body: SourceSpan
-}
-
-interface SourceLocation { readonly line: number; readonly col: number }
-interface SourceMapSpans {
-  readonly preserved: PreservedSourceSpans
-  readonly nodes: ReadonlyMap<string, SourceSpan>
-  readonly edges: ReadonlyMap<string, SourceSpan>
-  readonly groups: ReadonlyMap<string, SourceSpan>
-  readonly labels: ReadonlyMap<string, SourceSpan>
-}
-interface SourceMap {
-  readonly nodes: ReadonlyMap<string, SourceLocation>
-  readonly edges: ReadonlyMap<string, SourceLocation>
-  readonly groups: ReadonlyMap<string, SourceLocation>
-  readonly labels: ReadonlyMap<string, SourceLocation>
-  readonly spans?: SourceMapSpans
-}
-
-interface SourcePreservationReceipt {
-  readonly version: 1
-  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'
-  /** Exact authored bytes supplied to the parser. */
-  readonly source: string
-  readonly header: string
-  readonly upstreamFamilyId?: string
-  readonly mermaidVersion: string
-  readonly spans?: PreservedSourceSpans
-}
-
-interface ParseError {
-  readonly code: string
-  readonly message: string
-  readonly line?: number
-  readonly col?: number
-  readonly preservation?: SourcePreservationReceipt
-  readonly help?: string
-}
+${SDK_COMMON_DECLARATIONS}
+${SDK_RESOLVED_SCENE_DECLARATIONS}
 
 interface ValidDiagram {
   readonly kind: DiagramKind
@@ -380,441 +300,23 @@ interface PreservedValidDiagram {
 
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
+${SDK_MODEL_DECLARATIONS}
+
 ${SDK_VALID_DIAGRAM_ALIASES}
-
-interface PixelTextBlock {
-  readonly unit: 'px'
-  readonly prepared: PreparedDisplayText
-  readonly text: string
-  readonly lines: string[]
-  readonly lineBlocks: readonly { readonly runs: readonly DisplayRun[]; readonly text: string; readonly width: number; readonly baseline: number; readonly originX: number }[]
-  readonly breaks: readonly { readonly kind: 'authored' | 'wrap' | 'hyphen'; readonly sourceOffset: number; readonly replacedText?: string }[]
-  readonly width: number
-  readonly height: number
-  readonly lineHeight: number
-  readonly fontSize: number
-  readonly fontWeight: number
-  readonly letterSpacing: number
-  readonly monospace: boolean
-  readonly safeFont: boolean
-}
-
-interface FlowchartGraph {
-  direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
-  // semanticShape/authoredShape carry Mermaid v11 @{ shape } metadata: shape
-  // stays the drawn geometry, semanticShape the canonical v11 id, and
-  // authoredShape the exact spelling that serializes back.
-  nodes: Map<string, { id: string; label: string; labelContent?: LabelContent; labelBlock?: PixelTextBlock; shape: string; semanticShape?: string; authoredShape?: string; markdownLabel?: true; icon?: string; image?: string; iconForm?: 'square' | 'circle' | 'rounded'; href?: string }>
-  edges: {
-    // id = authored v11.6 edge ID ('e1@-->'): round-trips verbatim and is a
-    // valid remove_edge/set_label target selector.
-    id?: string
-    source: string; target: string; label?: string; labelContent?: LabelContent; style: string
-    hasArrowStart?: boolean; hasArrowEnd?: boolean; startMarker?: string; endMarker?: string
-    curve?: string; animate?: boolean; animation?: 'fast' | 'slow'; length?: number
-  }[]
-  subgraphs: { id: string; label: string; labelContent?: LabelContent; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction']; concurrencyRegion?: true }[]
-  classDefs: Map<string, Record<string, string>>
-  classAssignments: Map<string, string>
-  nodeStyles: Map<string, Record<string, string>>
-  linkStyles: Map<number | 'default', Record<string, string>>
-}
-
-interface StateNode { id: string; label?: string; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface StateTransition { from: string; to: string; label?: string; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]')
-interface StateNote { target: string; side: 'left' | 'right'; text: string }
-interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
-
-type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
-interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
-interface SeqMessage { from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
-type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
-interface SeqFragmentBranch { label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
-interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
-// BUILD-18: ordered statement list. participant/message refs index into the
-// participants/messages arrays; direct-message common fragments are typed;
-// opaque-block carries all remaining unmodeled lines verbatim.
-type SequenceStatement =
-  | { kind: 'participant'; ref: number }
-  | { kind: 'message'; ref: number }
-  | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
-  | { kind: 'fragment'; fragment: SeqFragment }
-  | { kind: 'opaque-block'; lines: string[] }
-interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[]; statements: SequenceStatement[] }
-
-interface TimelineEvent { id: string; text: string }
-interface TimelinePeriod { id: string; label: string; events: TimelineEvent[] }
-interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[] }
-// direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
-interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
-
-interface ClassNode { id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
-type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
-interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; labelContent?: LabelContent; fromCardinality?: string; fromCardinalityContent?: LabelContent; toCardinality?: string; toCardinalityContent?: LabelContent; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
-interface ClassNote { text: string; textContent?: LabelContent; for?: string }
-// namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
-// compound boxes and serialize to "namespace path { ... }" blocks.
-interface ClassNamespaceDecl { name: string; label?: string; labelContent?: LabelContent }
-interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
-
-type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
-interface ErAttribute { text: string }
-interface ErEntity { id: string; label?: string; labelContent?: LabelContent; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
-interface ErGroup { id: string; label: string; labelContent?: LabelContent; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string; labelContent?: LabelContent }
-type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
-interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; statements?: ErStatement[] }
-
-interface JourneyTask { id: string; text: string; score: number; actors: string[] }
-interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
-interface JourneyBody { kind: 'journey'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: JourneySection[] }
-
-type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
-type ArchitectureEndpointBoundary = 'item' | 'group'
-interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
-interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
-interface ArchitectureJunction { id: string; parentId?: string }
-interface ArchitectureEndpoint { id: string; side: ArchitectureSide; boundary?: ArchitectureEndpointBoundary }
-interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
-// alignments: upstream v11.16.0 "align row|column" directives, preserved
-// losslessly and honored as deterministic center-coordinate constraints.
-interface ArchitectureAlignment { axis: 'row' | 'column'; members: string[] }
-interface ArchitectureBody { kind: 'architecture'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
-
-interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
-interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[]; pointLabels?: Array<string | undefined> }
-interface XyChartBody { kind: 'xychart'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
-
-interface PieSlice { id: string; label: string; value: number }   // value > 0
-interface PieBody { kind: 'pie'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; showData: boolean; slices: PieSlice[] }
-
-interface QuadrantAxis { near: string; far?: string }
-// Upstream per-point styling (direct \`radius:/color:/stroke-color:/stroke-width:\`
-// tails, \`classDef\` tables, \`:::class\` assignments) is structured content:
-// preserved by every op and serialized canonically. strokeWidth may carry px.
-interface QuadrantPointStyle { radius?: number; color?: string; strokeColor?: string; strokeWidth?: string; extra?: string[] }
-interface QuadrantPoint { label: string; x: number; y: number; className?: string; style?: QuadrantPointStyle }   // x,y in [0,1]
-// quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
-// (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
-interface QuadrantBody { kind: 'quadrant'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[]; classDefs?: Record<string, QuadrantPointStyle> }
-
-// Radar (spider) chart: axes = spokes; curves = one value per axis (axis order).
-interface RadarBodyAxis { id: string; label: string }
-interface RadarBodyCurve { id: string; label: string; values: number[] }
-interface RadarBody { kind: 'radar'; title?: string; axes: RadarBodyAxis[]; curves: RadarBodyCurve[]; min: number; max?: number; ticks: number; graticule: 'circle' | 'polygon'; showLegend: boolean }
-
-// Sankey flow diagram: CSV rows of source,target,value. Nodes are implied by
-// the labels (the label IS the node identity); parallel duplicate rows are legal.
-interface SankeyBodyLink { source: string; target: string; value: number }
-interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }
-
-type C4Variant = 'C4Context' | 'C4Container' | 'C4Component' | 'C4Dynamic' | 'C4Deployment'
-type C4Direction = 'LR' | 'RL' | 'TB' | 'BT'
-type C4Style = { [property: string]: string | undefined; bgColor?: string; fontColor?: string; borderColor?: string; textColor?: string; lineColor?: string; offsetX?: string; offsetY?: string }
-interface C4ArgumentInput { name?: string; value: string }
-interface C4Argument extends C4ArgumentInput { raw: string }
-interface C4ElementInput { id: string; label: string; macro?: string; kind?: 'person'|'system'|'container'|'component'; shape?: 'person'|'rectangle'|'database'|'queue'; external?: boolean; technology?: string; description?: string; parentId?: string; tags?: string[]; link?: string; sprite?: string }
-interface C4BoundaryInput { id: string; label: string; macro?: string; kind?: 'boundary'|'enterprise'|'system'|'container'|'deployment'; type?: string; description?: string; parentId?: string; tags?: string[]; link?: string; sprite?: string }
-interface C4RelationshipInput { id?: string; from: string; to: string; label: string; macro?: string; technology?: string; description?: string; index?: string; tags?: string[]; link?: string; sprite?: string }
-interface C4Element extends C4ElementInput { effectiveLink?: string; macro: string; kind: 'person'|'system'|'container'|'component'; shape: 'person'|'rectangle'|'database'|'queue'; external: boolean; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string }
-interface C4Boundary extends C4BoundaryInput { effectiveLink?: string; macro: string; kind: 'boundary'|'enterprise'|'system'|'container'|'deployment'; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string; alignment?: 'left'|'right' }
-interface C4Relationship extends C4RelationshipInput { effectiveLink?: string; id: string; macro: string; source: string; target: string; order: number; bidirectional: boolean; reversed: boolean; direction?: C4Direction; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string }
-interface C4Directive { id: string; name: string; args: C4Argument[]; category: string; statementId: string }
-interface C4Body { kind: 'c4'; variant: C4Variant; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; elements: C4Element[]; boundaries: C4Boundary[]; relationships: C4Relationship[]; directives: C4Directive[]; statements: { id:string;kind:string;raw:string;span:{start:number;end:number;line:number;column:number};entityId?:string;signature?:string }[]; diagnostics: {code:string;message:string;severity:'warning'|'error';statementId?:string}[]; layout:{direction?:C4Direction;shapesPerRow?:number;boundariesPerRow?:number;hints:{from:string;to:string;direction:C4Direction;statementId:string}[]} }
-type C4MutationOp =
-  | { kind: 'add_element'; element: C4ElementInput }
-  | { kind: 'update_element'; id: string; changes: Partial<Omit<C4ElementInput,'id'|'parentId'>> }
-  | { kind: 'rename_element'; from: string; to: string }
-  | { kind: 'reparent_element'; id: string; parentId: string|null }
-  | { kind: 'remove_element'; id: string; cascade?: boolean }
-  | { kind: 'add_boundary'; boundary: C4BoundaryInput }
-  | { kind: 'update_boundary'; id: string; changes: Partial<Omit<C4BoundaryInput,'id'|'parentId'>> }
-  | { kind: 'rename_boundary'; from: string; to: string }
-  | { kind: 'reparent_boundary'; id: string; parentId: string|null }
-  | { kind: 'remove_boundary'; id: string; cascade?: boolean }
-  | { kind: 'add_relationship'; relationship: C4RelationshipInput }
-  | { kind: 'update_relationship'; id: string; changes: Partial<Omit<C4RelationshipInput,'id'>> }
-  | { kind: 'remove_relationship'; id: string }
-  | { kind: 'set_title'; title: string|null }
-  | { kind: 'set_variant'; variant: C4Variant }
-  | { kind: 'add_directive'; name: string; args: C4ArgumentInput[] }
-  | { kind: 'update_directive'; id: string; args: C4ArgumentInput[] }
-  | { kind: 'remove_directive'; id: string }
-
-
-type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
-// start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
-// end: a date, a duration token ('3d', '2w'), or 'until id…'.
-interface GanttTask { id: string; taskId?: string; label: string; tags: GanttTaskTag[]; start?: string; end: string }
-interface GanttSection { id: string; label?: string; tasks: GanttTask[] }
-// Segment-preserving body: calendar directives (dateFormat, excludes, weekend…),
-// click lines, and comments ride along VERBATIM as opaque-block segments — they
-// are preserved, not typed-editable. Tasks inside opaque segments are invisible
-// to mutation ops.
-type GanttStatement =
-  | { kind: 'title' }
-  | { kind: 'section'; ref: number }
-  | { kind: 'task'; section: number; ref: number }
-  | { kind: 'opaque-block'; lines: string[] }
-interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
-
-type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
-interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown?: true; icon?: string; className?: string; children: MindmapNode[] }
-interface MindmapBody { kind: 'mindmap'; root: MindmapNode; accessibilityTitle?: string; accessibilityDescription?: string }
-
-type GitGraphCommitType = 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' | 'MERGE' | 'CHERRY_PICK'
-interface GitGraphCommit { id: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
-interface GitGraphBranch { name: string; order: number; sequence: number; head?: string }
-type GitGraphStatement = { kind: 'commit'; ref: string } | { kind: 'branch'; name: string; order?: number } | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' } | { kind: 'merge'; ref: string; branch: string } | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
-interface GitGraphBody { kind: 'gitgraph'; direction: 'LR' | 'TB' | 'BT'; mainBranchName: string; title?: string; commits: GitGraphCommit[]; branches: GitGraphBranch[]; statements: GitGraphStatement[]; accessibilityTitle?: string; accessibilityDescription?: string }
-
-type FlowchartMutationOp =
-  // shape also accepts any Mermaid v11 @{ shape } name/alias (e.g. 'manual-input')
-  | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
-  | { kind: 'remove_node'; id: string }
-  | { kind: 'rename_node'; from: string; to: string }
-  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'
-  | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' | 'invisible' }
-  | { kind: 'remove_edge'; id: string }                    // id: authored edge ID (e1), or 'from->to'/'from->to#k'
-  | { kind: 'set_shape'; id: string; shape: string }       // geometry name or v11 @{ shape } name/alias
-  | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; subgraph?: string }   // omit subgraph = diagram direction
-  | { kind: 'add_subgraph'; id: string; label?: string; parent?: string; members?: string[] }   // members MOVE into the new subgraph
-  | { kind: 'remove_subgraph'; id: string; removeMembers?: boolean }   // default dissolves; true deletes members + their edges
-  | { kind: 'move_node'; id: string; subgraph: string | null }         // null = top level
-  | { kind: 'define_class'; name: string; style: string }              // CSS-like pairs 'fill:#f96,stroke:#333'
-  | { kind: 'set_node_class'; id: string; className: string | null }   // null removes the assignment
-  | { kind: 'set_node_style'; id: string; style: string | null }       // null clears the inline style
-
-type StateMutationOp =
-  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null; region?: number }
-  | { kind: 'remove_state'; id: string; recursive?: boolean }   // recursive: true removes a non-empty composite's whole subtree
-  | { kind: 'rename_state'; from: string; to: string }
-  | { kind: 'set_state_label'; id: string; label: string | null }
-  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null; region?: number }   // from/to may be '[*]' or a history ref ('X[H]')
-  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null; region?: number }
-  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null; region?: number }
-  | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
-  | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; state?: string | null }   // omit state = diagram direction; composite id = its override
-  | { kind: 'move_state'; id: string; parent: string | null; region?: number }   // null = top level; region addresses a concurrent composite
-  | { kind: 'dissolve_composite'; id: string }                  // hoists children + inner transitions; rejects while referenced
-  | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }   // side defaults to 'right'
-  | { kind: 'remove_note'; index: number }
-  | { kind: 'set_note_text'; index: number; text: string }
-  | { kind: 'define_class'; name: string; style: string }
-  | { kind: 'set_state_class'; id: string; className: string | null }
-  | { kind: 'set_state_style'; id: string; style: string | null }
-  | { kind: 'set_transition_style'; index?: number; default?: boolean; style: string | null; parent?: string | null; region?: number }
-
-type SequenceMutationOp =
-  | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }
-  | { kind: 'remove_participant'; id: string }
-  | { kind: 'add_message'; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }   // index = top-level insert position; omitted = append
-  | { kind: 'remove_message'; index: number }
-  | { kind: 'set_message_text'; index: number; text: string }
-  | { kind: 'move_message'; from: number; to: number }   // top-level indices
-  | { kind: 'set_participant_label'; id: string; label: string }
-  | { kind: 'add_fragment'; fragmentKind: SeqFragmentKind; label?: string; index?: number }
-  | { kind: 'remove_fragment'; index: number }
-  | { kind: 'set_fragment_label'; index: number; label: string | null }
-  | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
-  | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
-  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }
-  | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
-  | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
-
-type TimelineMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string; index?: number }             // index = insert position; omit to append
-  | { kind: 'remove_section'; index: number }
-  | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[]; index?: number }
-  | { kind: 'remove_period'; sectionIndex: number; periodIndex: number }
-  | { kind: 'set_period_label'; sectionIndex: number; periodIndex: number; label: string }
-  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string; index?: number }
-  | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
-  | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
-  // Chronology reorder (journey move_task/move_section convention): toIndex is
-  // the insert position in the target container, applied after removal.
-  | { kind: 'move_period'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
-  | { kind: 'move_event'; fromSection: number; fromPeriod: number; fromIndex: number; toSection: number; toPeriod: number; toIndex: number }
-  | { kind: 'move_section'; from: number; to: number }
-  | { kind: 'set_accessibility_title'; title: string | null }
-  | { kind: 'set_accessibility_description'; description: string | null }
-
-type ClassMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; generic?: string; members?: string[]; namespace?: string }
-  | { kind: 'remove_class'; id: string }
-  | { kind: 'rename_class'; from: string; to: string }
-  | { kind: 'set_class_generic'; class: string; generic: string | null }
-  | { kind: 'add_member'; class: string; text: string }
-  | { kind: 'remove_member'; class: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
-  | { kind: 'remove_relation'; index: number }
-  | { kind: 'add_note'; text: string; for?: string }
-  | { kind: 'remove_note'; index: number }
-  | { kind: 'set_class_namespace'; class: string; namespace: string | null }
-  | { kind: 'define_class'; name: string; style: string }
-  | { kind: 'set_css_class'; class: string; className: string | null }
-  | { kind: 'set_class_style'; class: string; style: string | null }
-
-type ErMutationOp =
-  | { kind: 'add_entity'; id: string; label?: string; attributes?: string[] }
-  | { kind: 'remove_entity'; id: string }
-  | { kind: 'rename_entity'; from: string; to: string }
-  | { kind: 'set_entity_label'; entity: string; label: string | null }
-  | { kind: 'add_attribute'; entity: string; text: string }
-  | { kind: 'remove_attribute'; entity: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
-  | { kind: 'remove_relation'; index: number }
-  | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-  | { kind: 'define_class'; name: string; style: string }
-  | { kind: 'set_entity_class'; entity: string; className: string | null }
-  | { kind: 'set_entity_style'; entity: string; style: string | null }
-
-type JourneyMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string; index?: number }
-  | { kind: 'remove_section'; index: number }
-  | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[]; index?: number }
-  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
-  | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
-  | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
-  | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
-  | { kind: 'rename_actor'; from: string; to: string }
-  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
-  | { kind: 'move_section'; from: number; to: number }
-  | { kind: 'set_accessibility_title'; title: string | null }
-  | { kind: 'set_accessibility_description'; description: string | null }
-
-type ArchitectureMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'set_accessibility_title'; title: string | null }
-  | { kind: 'set_accessibility_description'; description: string | null }
-  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
-  | { kind: 'remove_service'; id: string }
-  | { kind: 'rename_service'; from: string; to: string }
-  | { kind: 'set_service_label'; id: string; label: string }
-  | { kind: 'set_service_icon'; id: string; icon: string | null }
-  | { kind: 'move_service'; id: string; group: string | null }
-  | { kind: 'add_junction'; id: string; group?: string | null }
-  | { kind: 'remove_junction'; id: string }
-  | { kind: 'rename_junction'; from: string; to: string }
-  | { kind: 'move_junction'; id: string; group: string | null }
-  | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
-  | { kind: 'set_group_label'; id: string; label: string }
-  | { kind: 'remove_group'; id: string }
-  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
-  | { kind: 'update_edge'; index: number; from?: string; to?: string; fromSide?: ArchitectureSide; toSide?: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
-  | { kind: 'remove_edge'; index?: number; id?: string }
-
-type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
-type XyChartMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'set_x_axis'; axis: XyChartAxisSpec | null }
-  | { kind: 'set_y_axis'; axis: XyChartAxisSpec | null }
-  | { kind: 'add_series'; kind2: 'bar' | 'line'; name?: string | null; values: number[] }
-  | { kind: 'remove_series'; index: number }
-  | { kind: 'set_series_values'; index: number; values: number[] }
-  | { kind: 'set_series_name'; index: number; name: string | null }
-  | { kind: 'reorder_series'; from: number; to: number }
-  | { kind: 'set_orientation'; horizontal: boolean }
-  | { kind: 'set_data_point'; seriesIndex: number; index: number; value: number }
-
-type PieMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'set_show_data'; showData: boolean }
-  | { kind: 'add_slice'; label: string; value: number }   // value > 0
-  | { kind: 'remove_slice'; label: string }
-  | { kind: 'rename_slice'; from: string; to: string }
-  | { kind: 'set_slice_value'; label: string; value: number }
-  | { kind: 'reorder_slice'; from: number; to: number }
-
-type QuadrantMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'set_axis_labels'; axis: 'x' | 'y'; near: string | null; far?: string | null }
-  | { kind: 'set_quadrant_label'; quadrant: number; label: string | null }   // quadrant 1..4
-  | { kind: 'add_point'; label: string; x: number; y: number }   // x,y in [0,1]
-  | { kind: 'remove_point'; label: string }
-  | { kind: 'move_point'; label: string; x: number; y: number }
-  | { kind: 'rename_point'; from: string; to: string }
-
-type MindmapMutationOp =
-  | { kind: 'add_node'; id: string; label: string; parent: string; shape?: MindmapShape; index?: number }
-  | { kind: 'remove_node'; id: string; recursive?: boolean }
-  | { kind: 'rename_node'; from: string; to: string }
-  | { kind: 'set_label'; id: string; label: string }
-  | { kind: 'move_node'; id: string; parent: string; index?: number }
-  | { kind: 'set_shape'; id: string; shape: MindmapShape }
-  | { kind: 'set_icon'; id: string; icon: string | null }
-  | { kind: 'set_node_class'; id: string; className: string | null }
-  | { kind: 'set_accessibility_title'; title: string | null }
-  | { kind: 'set_accessibility_description'; description: string | null }
-
-type GitGraphMutationOp =
-  | { kind: 'append_commit'; id?: string; message?: string; type?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags?: string[] }
-  | { kind: 'create_branch'; name: string; order?: number }
-  | { kind: 'checkout_branch'; name: string }
-  | { kind: 'merge_branch'; name: string; id?: string; type?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags?: string[] }
-  | { kind: 'cherry_pick'; id: string; parent?: string; tags?: string[] }
-  | { kind: 'set_commit_message'; id: string; message: string | null }
-  | { kind: 'set_commit_type'; id: string; type: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' }
-  | { kind: 'set_commit_tags'; id: string; tags: string[] }
-  | { kind: 'rename_branch'; from: string; to: string }
-  | { kind: 'set_accessibility_title'; title: string | null }
-  | { kind: 'set_accessibility_description'; description: string | null }
-
-type RadarMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_axis'; id: string; label?: string | null; index?: number; fill?: number }
-  | { kind: 'remove_axis'; id: string }
-  | { kind: 'rename_axis'; from: string; to: string }
-  | { kind: 'set_axis_label'; id: string; label: string | null }
-  | { kind: 'reorder_axis'; from: number; to: number }
-  | { kind: 'add_curve'; id: string; label?: string | null; values: number[]; index?: number }
-  | { kind: 'remove_curve'; id: string }
-  | { kind: 'set_curve_values'; id: string; values: number[] }
-  | { kind: 'set_curve_value'; curve: string; axis: string; value: number }
-  | { kind: 'set_curve_label'; id: string; label: string | null }
-  | { kind: 'rename_curve'; from: string; to: string }
-  | { kind: 'reorder_curve'; from: number; to: number }
-  | { kind: 'set_config'; max?: number | null; min?: number | null; ticks?: number | null; graticule?: 'circle' | 'polygon' | null; showLegend?: boolean | null }
-
-type SankeyMutationOp =
-  | { kind: 'add_link'; source: string; target: string; value: number; index?: number }
-  | { kind: 'remove_link'; source: string; target: string; occurrence?: number }
-  | { kind: 'set_link_value'; source: string; target: string; value: number; occurrence?: number }
-  | { kind: 'rename_node'; from: string; to: string }
-
-type GanttMutationOp =
-  | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
-  | { kind: 'rename_section'; index: number; label: string }
-  | { kind: 'remove_section'; index: number }
-  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttTaskTag[]; start?: string; end: string; index?: number }
-  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
-  | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
-  | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
-  | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
-  | { kind: 'set_task_flags'; sectionIndex: number; taskIndex: number; milestone?: boolean; vert?: boolean }
-  // set_task_id rewrites structured after/until references on rename; rejects
-  // while referenced from opaque lines (click/comments), and null rejects
-  // while referenced at all.
-  | { kind: 'set_task_id'; sectionIndex: number; taskIndex: number; taskId: string | null }
-  // Source order IS gantt scheduling semantics: moves are rejected with a
-  // prescriptive error when they would change an implicit-start task's
-  // predecessor (materialize an explicit start via set_task_dates first).
-  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
-  | { kind: 'move_section'; from: number; to: number }
+${SDK_FAMILY_TYPE_MAPS}
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
 //   <br> splits lines, XML entities decode to one char),
 //   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail),
-//   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source).
-// Tier 2 (geometric): CONTENT_OCCLUDED is an error; LAYOUT_LIMIT_EXCEEDED,
+//   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source
+//   or its configuration; origin: 'source' | 'config'),
+//   INTERNAL_ERROR (an Agentic Mermaid defect, not the source; defaultRender:
+//   'succeeds-unchecked' | 'fails' says whether an ordinary render still produces output;
+//   do not rewrite the diagram to work around it).
+// Tier 2 (geometric): CONTENT_OCCLUDED is an error; so is LAYOUT_UNCERTIFIED
+// (no layout candidate passed certification, so the best one was drawn anyway;
+// violation: the failed check, targets: its ids). LAYOUT_LIMIT_EXCEEDED,
 // NODE_OVERLAP, ROUTE_SELF_CROSS and the following tripwires are advisory.
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
@@ -822,27 +324,15 @@ type GanttMutationOp =
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
 // DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
-// BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
+// SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, EDGE_RANK_SLACK,
+// EDGE_UNDER_GROUP_TITLE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
-type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
-type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
-type LayoutRect={x:number;y:number;w:number;h:number}
-interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};cellSpans?:Array<{row:number;start:number;end:number}>;sourceLine?:number }
-interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;tooltip?:string;security:DiagramActionSecurity;executable:false;message?:string }
-interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; labels?: Array<{ id: string; text: string; bounds?: LayoutRect; container?: LayoutRect; visibility?: 'visible' | 'hidden' | 'semantic' }>; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }
+${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 
-type WarningCode =
-  | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
-  | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
-  | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
-  | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
-  | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO'
-  | 'VALUES_OUTSIDE_RANGE'
-  | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
+${SDK_WARNING_CODE_DECLARATIONS}
 
 interface VerifyResult {
+  checks?: { renderability: 'passed' | 'failed' | 'not-checked'; sourceLoss: 'detected' | 'not-detected'; taskCorrectness: 'not-checked' }
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
   layout: RenderedLayout
@@ -855,7 +345,6 @@ interface DiagramAnalysis {
   gantt?: { criticalPathTaskIds: string[]; slackByTaskId: Record<string, number>; projectStart: number; projectEnd: number; entryTaskIds: string[]; sinkTaskIds: string[] }
 }
 
-${SDK_ANY_MUTATION_OP_DECLARATION}
 
 declare const mermaid: {
   parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
@@ -864,8 +353,8 @@ declare const mermaid: {
   // buildMermaid folds a typed op list over that empty diagram; on failure the
   // error carries opIndex of the op that failed. direction applies to
   // flowchart/state only.
-  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; c4Variant?: C4Variant }): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; c4Variant?: C4Variant }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  createMermaid<K extends DiagramKind>(kind: K, opts?: CreateMermaidOptions): FamilyDiagrams[K]
+  buildMermaid<K extends DiagramKind>(kind: K, ops: FamilyMutationOps[NoInfer<K>][], opts?: CreateMermaidOptions): Result<FamilyDiagrams[K], { code: string; message: string; opIndex: number }>
 ${SDK_NARROWER_METHOD_DECLARATIONS}
 ${SDK_MUTATE_METHOD_DECLARATIONS}
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
@@ -878,6 +367,7 @@ ${SDK_MUTATE_METHOD_DECLARATIONS}
   serializeMermaid(d: ParsedDiagram): string
   // Compatibility conveniences return only bytes/text; use the receipt-aware
   // methods below for transport parity and projection/security evidence.
+  renderResolvedScene(input: ParsedDiagram | string, opts?: SvgRenderOptions): ResolvedScene
   renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
   renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
 ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
@@ -886,8 +376,14 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // values, and constraint/default notes (e.g. score "finite number 1..5", shape
   // "default: rectangle"); opSignatures returns compact one-liners like
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
-  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
+  // Structured bodies: any op; untouched authored lines are kept and
+  // value.preservation.method is 'local', or 'canonical' (with reason) when
+  // the edit had to be re-serialized. Opaque Class: add_member/remove_member;
+  // opaque Flowchart: set_label/rename_node; ambiguous ownership refuses.
+  // Save value.source exactly; verify value.diagram.
+  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram; preservation?: { method: 'local' | 'canonical'; reason?: string } }, { code: string; message: string }>
 }
 
 // Conventions:

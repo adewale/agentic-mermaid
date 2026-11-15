@@ -6,9 +6,12 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { geometrySignature, geometryEquivalent } from '../../eval/metamorphic/render-diff.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { geometrySignature, geometryEquivalent, layoutGeometrySignature } from '../../eval/metamorphic/render-diff.ts'
 import { reduceSource } from '../../eval/shared/ddmin.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { layoutMermaid, parseRegisteredMermaid } from '../agent/index.ts'
+import { toFinite } from '../agent/types.ts'
 
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
 // A permutation of one fixed glyph multiset (narrow i/l, wide m/w): the tag
@@ -41,7 +44,7 @@ describe('GraphicsFuzz render-diff: relabeling preserves geometry', () => {
           })
           throw new Error(`relabel changed geometry for ${family} k=${k}; minimal repro:\n${minimal}`)
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
   }
@@ -50,5 +53,19 @@ describe('GraphicsFuzz render-diff: relabeling preserves geometry', () => {
     // Guards against a vacuous signature that calls everything equal.
     const fc2 = METAMORPHIC_FAMILIES.flowchart
     expect(geometryEquivalent(fc2.build(2, 'q'), fc2.build(4, 'q'))).toBe(false)
+  })
+
+  test('same-width state labels ignore only floating arithmetic residue', () => {
+    const state = METAMORPHIC_FAMILIES.state
+    expect(geometryEquivalent(state.build(2, 'swqzkmil'), state.build(2, 'szwlimqk'))).toBe(true)
+    const parsed = parseRegisteredMermaid(METAMORPHIC_FAMILIES.flowchart.build(2, 'q'))
+    if (!parsed.ok) throw new Error('invalid flowchart fixture')
+    const layout = layoutMermaid(parsed.value)
+    const residue = structuredClone(layout)
+    residue.nodes[0]!.x = toFinite(residue.nodes[0]!.x + 1e-12)
+    expect(layoutGeometrySignature(residue)).toBe(layoutGeometrySignature(layout))
+    const moved = structuredClone(layout)
+    moved.nodes[0]!.x = toFinite(moved.nodes[0]!.x + 0.001)
+    expect(layoutGeometrySignature(moved)).not.toBe(layoutGeometrySignature(layout))
   })
 })

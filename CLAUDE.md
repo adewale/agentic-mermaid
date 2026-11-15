@@ -8,19 +8,30 @@ Guidance for AI agents working in this repository.
 that renders Mermaid diagrams to SVG/PNG/ASCII/Unicode with a typed, agent-native
 editing surface. Source lives in `src/`; the layout pipeline is in
 `src/layout-engine.ts`, the deterministic layout-quality rubric in `src/layout-rubric.ts`.
+Project terms (admission, receipt, custody, witness, certification, segment)
+are defined in `docs/contributing/glossary.md`.
 
 ## Commands
 
-- `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.2);
+- `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.4);
   older Bun mishandles `node:vm` timeouts and the MCP server refuses to start. In
   cloud sessions the SessionStart hook (`scripts/ci/session-start.sh`) upgrades an
   older Bun and runs `bun install` for you, in the background: if `bun --version`
   is still below 1.4.0 right after a session starts, wait a few seconds.
-- `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
+- `bun run test` — prepare website fixtures once, then run the full unit suite
+  with the canonical timeout (the CI gate). CI validates and reuses its build
+  artifacts. Focused `bun test <file>` commands prepare website fixtures only
+  when their tests consume them; rerun the command after editing build inputs.
+  `bun run test:coverage` adds the weekly/on-demand coverage diagnostic. fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.
+- `bun run check:pre-push` — CI's quality gates plus the website payload budgets;
+  run it before pushing a PR update so the push is not the gates' first run.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
+- `bun run reference:mermaid` — clone the pinned Mermaid source to `../mermaid` and install
+  the matching reference in `../mermaid-reference` (idempotent); `bun run test:mermaid-modern`
+  needs both.
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
 - `bun run website` — build the Cloudflare Workers site into `website/public/`, a
   **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
@@ -46,7 +57,7 @@ Write strictly, read generously, warn.
 1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 12.2.0.
 2. What we **read** may be more generous than Mermaid. If the author's meaning
    is clear, parse and draw it, and have `verify` report `UNSUPPORTED_SYNTAX`
-   saying Mermaid rejects it (see `journeySemicolonExtensionWarnings`). Reject
+   saying Mermaid rejects it (see `journeyUnsupportedSyntaxWarnings`). Reject
    only when we cannot tell what was meant.
 3. For source Mermaid accepts, keep the author's meaning. Where Mermaid's
    behaviour is a quirk (it drops information, or orders things by accident),
@@ -76,15 +87,23 @@ already catch it. Then:
   staleness checks, no tests of test helpers.
 - No copied inventories, manifests or export lists, no source greps, and no
   expected values produced by the code under test.
+- For property tests, apply the Hegel guidance in `docs/testing-strategy.md`
+  while keeping fast-check. Wrap explicit runner options with `fcParameters`
+  so finder/replay controls override local pins and raise case counts. Check
+  generated values against independent expectations, choose string domains
+  explicitly, and keep reduced counterexamples as `examples`.
 
-### Don't commit derived artifacts
+### Generated artifacts
 
-If a file can be generated from the repo, generate it in the build or in CI and
-gitignore it (as `website/public/` is). Don't commit it and don't add a test
-that compares a committed copy with a fresh one. Don't hash our own inputs for
-provenance or change detection. Hashes belong only on bytes we ship or fetch.
-Committed exceptions: reviewed rendering goldens under `src/__tests__/testdata/`
-and files production code imports at runtime.
+Generate transient build outputs and one-off benchmark/evidence reports in the
+build or CI and gitignore them (as `website/public/` is). Keep reviewed rendering
+goldens, runtime-consumed data and published reference documentation generated
+from one maintained source. Regeneration checks protect those public references;
+do not add inventories or staleness gates for other derived outputs.
+
+Git records source revisions. Hash shipped or fetched bytes when their identity
+matters; avoid source-tree fingerprints and document hashes as substitutes for
+explicit build ownership or behavioral verification.
 
 ### Change shape
 
@@ -95,9 +114,31 @@ and files production code imports at runtime.
 - One coherent change per commit, at the owning boundary: all the sites of one
   rule together, not one commit per bug.
 - Locally run typecheck, lint and the tests that exercise what you changed. The
-  full suite runs in CI (3 shards, about 4 minutes); don't run it locally per
+  full suite runs in CI (3 shards); don't run it locally per
   commit.
 - Parallel agents only on disjoint files, at most 2–3 at a time.
+
+### Contracts before implementation and review
+
+- Before a cross-surface change, state the observable contract, its owning
+  producer and consumers, the distinctions it must preserve, and evidence that
+  would disprove it. Use the PR description; a separate plan is unnecessary.
+  Keep independently shippable research, tooling and runtime work separate.
+  If scope expands, state the added contracts and verification cost before
+  implementing them; do not silently inherit a broader readiness claim.
+- When fixing a finding, review the failed assumption through the whole path
+  before choosing the regression case. Record whether the defect was already
+  present or introduced by a fix. Resolve the demonstrated failure class or
+  state the remaining gap; passing the reported example alone does not close it.
+- Follow [contract review and completion](docs/testing-strategy.md#contract-review-and-completion).
+  When multiple reviewers are requested, assign hypotheses and interacting
+  boundaries explicitly. A reviewer may report no finding. Audit count and
+  passing-test count are not completion criteria.
+- Before reporting a PR ready, follow CI for the exact final head through
+  completion, investigate failures, and recheck the current base and PR head.
+  A new push invalidates the previous readiness result. A base update requires
+  checking the combined candidate again; requalify affected evidence after
+  code or dependency changes.
 
 ### Shared meaning and output-specific geometry
 
@@ -142,22 +183,14 @@ The seven dimensions:
    unrelated refactoring smuggled in.
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
    Verify red→green and state the result (e.g. "N tests fail without the fix").
-   CI's `red-green` job checks this: at least one changed test must fail against
-   the base branch's production code. It skips itself when no `src/`/`bin/`
-   production file or no test changed; label `no-red-green` only a pure
-   refactor that changes both. A label approves only the head it was applied
-   to: CI removes it when new commits arrive, so re-apply it after a push.
+   For bug fixes, demonstrate the intended failure and passing repair at the
+   owning boundary. The optional `scripts/ci/red-green.ts --base <sha>` diagnostic
+   can help; one failing assertion does not prove every changed contract.
+   Behavior-preserving refactors do not need a failing-base test or opt-out label.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable
    without reading the diff.
 7. **Trust** — be honest about readiness, limitations, and any test that is a
    regression guard rather than a bug-discriminating test.
-
-Quick automated hygiene check (diff size, tests touched, secrets, debug
-statements, UI files):
-
-```bash
-bash scripts/ci/check-pr-readiness.sh main
-```
 
 Do not create a PR unless explicitly asked.

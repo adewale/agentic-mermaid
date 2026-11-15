@@ -1,3 +1,5 @@
+import { linearFraction } from '../shared/linear-range.ts'
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   AxisTick,
@@ -13,7 +15,7 @@ import type {
   XYChart,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
@@ -36,6 +38,7 @@ const BAR_PADDING_PERCENT = 0.05
 const BOTTOM_LABEL_RENDERED_ALLOWANCE_EM = 0.6
 
 /** Legend swatch geometry, shared with the renderer and pinned by tests. */
+export const XY_DOT_RADIUS = 4
 export const LEGEND_SWATCH_SIZE = 12
 export const LEGEND_SWATCH_GAP = 6
 
@@ -66,7 +69,6 @@ interface XYTextMeasure {
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
-  axisTitle(title: string, fontSize: number): number
 }
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
@@ -86,7 +88,6 @@ function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
     wrapTitle: (title, fontSize, maxWidth) => preparePixelText(title, { display: 'literal', transform: style.groupTextTransform, fontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth }),
     tick: (label, fontSize) => block('tick', label, fontSize).width,
     legend: (label, fontSize) => block('legend', label, fontSize).width,
-    axisTitle: (label, fontSize) => block('axisTitle', label, fontSize).width,
   }
 }
 
@@ -116,9 +117,27 @@ export function layoutXYChart(
     config.yAxis.tickWidth = style.lineWidth
   }
   const measure = xyTextMeasure(style)
-  const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure) : layoutVertical(chart, config, measure)
+  // How far a line series' ink reaches past its points: half its stroke, or a
+  // drawn dot (its radius and half its 2px ring), as the renderer paints them.
+  let lineIndex = 0
+  const lineReach = Math.max(0, ...chart.series.flatMap(series => {
+    if (series.type !== 'line') return []
+    const width = resolveRoleStyle(styleFace, 'series', { category: `line-${lineIndex++}` }, { includeFallback: false })?.lineWidth ?? style.lineWidth
+    const dots = options.interactive || series.pointLabels?.some(label => label !== undefined)
+    return [Math.max(width / 2, dots ? XY_DOT_RADIUS + 1 : 0)]
+  }))
+  const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure, lineReach) : layoutVertical(chart, config, measure, lineReach)
   for (const axis of [positioned.xAxis, positioned.yAxis]) {
-    if (axis.title) axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
+    if (axis.title) {
+      const block = axis.title.block ??= measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
+      // Lines are centered on the anchor, so authored line breaks move it into
+      // the room the axis reserved for them, away from the canvas edge. So does
+      // a line box taller than the nominal one (accents, stacked marks,
+      // joining scripts), which the axis reserved too.
+      const shift = (block.lines.length - 1) * block.lineHeight / 2 + (block.lineHeight - axis.config.titleFontSize * LINE_HEIGHT_RATIO) / 2
+      if (axis.title.rotate) axis.title.x += shift
+      else axis.title.y += chart.horizontal ? shift : -shift
+    }
     for (const tick of axis.ticks) {
       const block = tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
       const left = tick.textAnchor === 'start' ? 0 : tick.textAnchor === 'end' ? block.width : block.width / 2
@@ -150,10 +169,44 @@ export function layoutXYChart(
       }
     }
   }
+  {
+    for (const bar of positioned.bars) bar.tooltip = layoutTooltip(positioned.horizontal ? bar.x + bar.width : bar.x + bar.width / 2, positioned.horizontal ? bar.y + bar.height / 2 : bar.y, formatBarValue(bar.value))
+    for (const line of positioned.lines) for (const point of line.points) point.tooltip = layoutTooltip(point.x, point.y - XY_DOT_RADIUS, formatBarValue(point.value))
+  }
   return positioned
 }
 
-function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
+/** Width of the grid lines the renderer draws at each value tick. */
+const GRID_LINE_WIDTH = 1
+
+/**
+ * How far marks centered on a plot edge can reach beyond it, along each axis,
+ * so a plot that meets the canvas edge leaves that ink on the canvas. A value
+ * tick's grid line and tick, and a line series' points (each clamped into the
+ * range), sit anywhere up to the plot's value ends; a linear position axis
+ * places ticks and points up to its ends. A grid or tick line draws half its
+ * width past them; a line series its reach.
+ */
+function plotEdgeInk(
+  chart: XYChart,
+  lineReach: number,
+  valueAxis: ResolvedXYAxisRenderConfig,
+  linearPositionAxis?: ResolvedXYAxisRenderConfig,
+): { value: number; position: number } {
+  const lines = chart.series.some(series => series.type === 'line') ? lineReach : 0
+  const tick = (axis: ResolvedXYAxisRenderConfig): number => axis.showLabel && axis.showTick ? axis.tickWidth / 2 : 0
+  return {
+    value: Math.max(GRID_LINE_WIDTH / 2, tick(valueAxis), lines),
+    position: linearPositionAxis ? Math.max(tick(linearPositionAxis), lines) : 0,
+  }
+}
+
+/** Half an axis line, which runs along the plot edge it is drawn on. */
+function axisLineInk(axis: ResolvedXYAxisRenderConfig): number {
+  return axis.showAxisLine ? axis.axisLineWidth / 2 : 0
+}
+
+function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure, lineReach: number): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -175,32 +228,39 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - xAxisConfig.size)
 
-  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure)
+  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure, totalH)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - yAxisConfig.size)
 
   // Value-axis labels are centered on their ticks, so the end ticks' labels
   // reach half a line beyond the plot. Reserve that where no title or x-axis
   // band already does, so an untitled chart keeps its top label on canvas.
   const valueLabelOverhang = yAxisConfig.config.showLabel && yTickLabels.length > 0 ? config.yAxis.labelFontSize / 2 : 0
-  const plotTop = Math.max(titleHeight, valueLabelOverhang)
-  const plotHeight = Math.max(0, totalH - plotTop - Math.max(xAxisConfig.size, valueLabelOverhang))
+  // Marks centered on a plot edge draw past it; keep that ink on the canvas.
+  const ink = plotEdgeInk(chart, lineReach, yAxisConfig.config, chart.xAxis.range ? xAxisConfig.config : undefined)
+  const plotTop = Math.max(titleHeight, valueLabelOverhang, ink.value)
+  const plotHeight = Math.max(0, totalH - plotTop - Math.max(xAxisConfig.size, valueLabelOverhang, ink.value, axisLineInk(xAxisConfig.config)))
   const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight, measure)
 
+  const plotX = Math.max(yAxisConfig.size, ink.position, axisLineInk(yAxisConfig.config))
   const plotArea: PlotArea = {
-    x: yAxisConfig.size,
+    x: plotX,
     y: plotTop,
-    width: Math.max(0, totalW - yAxisConfig.size - legend.size),
+    width: Math.max(0, totalW - plotX - Math.max(legend.size, ink.position)),
     height: plotHeight,
   }
 
+  // A bar is a band around its point. On a numeric x-axis Mermaid insets the
+  // axis by half a band at each end when the chart has bars, so the end bars
+  // stay on the plot; lines on the same axis share the inset.
+  const xInset = chart.xAxis.range && chart.series.some(series => series.type === 'bar') ? plotArea.width / Math.max(1, dataCount) / 2 : 0
   const xScaleValue = chart.xAxis.range
-    ? (value: number) => plotArea.x + ((value - chart.xAxis.range!.min) / (chart.xAxis.range!.max - chart.xAxis.range!.min || 1)) * plotArea.width
+    ? (value: number) => plotArea.x + xInset + linearFraction(value, chart.xAxis.range!.min, chart.xAxis.range!.max) * (plotArea.width - 2 * xInset)
     : undefined
   const xPoint = (index: number) => xScaleValue ? xScaleValue(dataXValues[index]!) : plotArea.x + (index + 0.5) * (plotArea.width / dataCount)
   const xPointSpacing = xScaleValue
     ? getPointSpacing(dataXValues, xScaleValue, plotArea.width / Math.max(2, dataCount))
     : plotArea.width / Math.max(1, dataCount)
-  const yScale = (value: number) => plotArea.y + plotArea.height - ((value - yRange.min) / (yRange.max - yRange.min || 1)) * plotArea.height
+  const yScale = (value: number) => plotArea.y + plotArea.height - linearFraction(value, yRange.min, yRange.max) * plotArea.height
 
   const xTicks = !xAxisConfig.config.showLabel
     ? []
@@ -234,7 +294,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
 
   const colorMap = chart.series.map((_, index) => index)
   const bars = layoutBars(chart, xPoint, xPointSpacing, yScale, yRange, categoryLabels, colorMap, false)
-  const lines = layoutLines(chart, xPoint, yScale, categoryLabels, colorMap, false)
+  const lines = layoutLines(chart, xPoint, yScale, yRange, categoryLabels, colorMap, false)
 
   return {
     width: totalW,
@@ -267,7 +327,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   }
 }
 
-function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
+function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure, lineReach: number): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -287,10 +347,12 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   const topAxisConfig = fitTopAxisConfig(config.yAxis, chart.yAxis.title, valueTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - topAxisConfig.size)
 
-  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure)
+  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure, totalH)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
-  const plotTop = titleHeight + topAxisConfig.size
+  // Marks centered on a plot edge draw past it; keep that ink on the canvas.
+  const ink = plotEdgeInk(chart, lineReach, topAxisConfig.config)
+  const plotTop = Math.max(titleHeight + topAxisConfig.size, axisLineInk(topAxisConfig.config))
   // Category labels are centered on their rows, so when rows are shorter than
   // a label the last label's descenders reach below the plot, which ends at
   // the canvas edge. Reserve just that difference; roomy rows reserve nothing.
@@ -308,8 +370,8 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     ? Math.max(...[valueTickLabels[0]!, valueTickLabels[valueTickLabels.length - 1]!]
       .map(label => measure.tick(label, config.yAxis.labelFontSize) / 2))
     : 0
-  const leftReserve = Math.max(0, valueLabelOverhang - leftAxisConfig.size)
-  const rightReserve = Math.max(0, valueLabelOverhang - legend.size)
+  const leftReserve = Math.max(0, Math.max(valueLabelOverhang, ink.value, axisLineInk(leftAxisConfig.config)) - leftAxisConfig.size)
+  const rightReserve = Math.max(0, valueLabelOverhang - legend.size, ink.value - legend.size)
   const plotArea: PlotArea = {
     x: leftAxisConfig.size + leftReserve,
     y: plotTop,
@@ -317,7 +379,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     height: plotHeight,
   }
 
-  const valueScale = (value: number) => plotArea.x + ((value - yRange.min) / (yRange.max - yRange.min || 1)) * plotArea.width
+  const valueScale = (value: number) => plotArea.x + linearFraction(value, yRange.min, yRange.max) * plotArea.width
   const categoryPoint = (index: number) => plotArea.y + (index + 0.5) * (plotArea.height / dataCount)
   const categorySpacing = plotArea.height / Math.max(1, dataCount)
 
@@ -343,7 +405,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
 
   const colorMap = chart.series.map((_, index) => index)
   const bars = layoutBars(chart, categoryPoint, categorySpacing, valueScale, yRange, categoryLabels, colorMap, true)
-  const lines = layoutLines(chart, categoryPoint, valueScale, categoryLabels, colorMap, true)
+  const lines = layoutLines(chart, categoryPoint, valueScale, yRange, categoryLabels, colorMap, true)
 
   return {
     width: totalW,
@@ -496,8 +558,9 @@ function fitVerticalAxisConfig(
   labels: string[],
   budget: number,
   measure: XYTextMeasure,
+  totalHeight: number,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))), title ? measure.block('axisTitle', title, config.titleFontSize).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize)
+  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))), title ? measure.block('axisTitle', title, config.titleFontSize, Math.max(1, totalHeight - 4)).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize)
 }
 
 function buildBottomAxisTicks<T extends string | number>(
@@ -526,7 +589,10 @@ function buildBottomAxisTicks<T extends string | number>(
   const keepEvery = Number.isFinite(minSpacing) && minSpacing > 0 ? Math.max(1, Math.ceil((maxW + 6) / minSpacing)) : 1
 
   return values.map((value, index) => {
-    const label = index % keepEvery === 0 ? labels[index]! : ''
+    // A label wider than the canvas cannot be clamped inside it; like a
+    // thinned label it is not drawn, and verify reports it as hidden.
+    const fitsCanvas = totalWidth === undefined || widths[index]! <= totalWidth - 4
+    const label = index % keepEvery === 0 && fitsCanvas ? labels[index]! : ''
     // Clamp the label box inside the canvas: the last tick sits AT the plot's
     // right edge and a centered label pokes past the right padding otherwise.
     let labelX = scale(value)
@@ -649,10 +715,14 @@ function buildLeftAxisTitle(
   // Rotated, the title runs vertically, centered on the plot. Clamp that run
   // inside the canvas, as the bottom axis clamps its end labels, when the
   // title is longer than the room below or above the plot's center.
-  const half = measure.axisTitle(title, config.titleFontSize) / 2
+  // A rotated title's line width consumes canvas height. Use the same wrapped
+  // block for fitting the left gutter, placement and the final text writer.
+  const block = measure.block('axisTitle', title, config.titleFontSize, Math.max(1, totalHeight - 4))
+  const half = block.width / 2
   const center = plotArea.y + plotArea.height / 2
   return {
     text: title,
+    block,
     x: config.titlePadding + config.titleFontSize * 0.8,
     y: 2 * half + 4 >= totalHeight ? totalHeight / 2 : Math.min(totalHeight - 2 - half, Math.max(2 + half, center)),
     rotate: -90,
@@ -829,6 +899,7 @@ function layoutLines(
   chart: XYChart,
   categoryPoint: (index: number) => number,
   valueScale: (value: number) => number,
+  valueRange: { min: number; max: number },
   labels: string[],
   colorMap: number[],
   horizontal: boolean,
@@ -843,9 +914,11 @@ function layoutLines(
       continue
     }
     lines.push({
+      // A point clamps into the axis range, as a bar does, so a line never
+      // leaves the plot; the point keeps its value.
       points: series.data.map((value, index) => {
         const category = categoryPoint(index)
-        const position = valueScale(value)
+        const position = valueScale(clampToAxisRange(valueRange, value))
         return {
           x: horizontal ? position : category,
           y: horizontal ? category : position,

@@ -1,3 +1,6 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations, eventLanes } from '../eventmodeling/parser.ts'
+import { stableFamilyCount } from './stable-family-source-hooks.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
 //
@@ -72,10 +75,24 @@ function countSubgraphs(subgraphs: MermaidSubgraph[]): number {
 export function countStructuralElements(d: ParsedDiagram): StructuralCount | null {
   const body = d.body
   switch (body.kind) {
+    case 'agentflow':
+    case 'swimlane':
     case 'flowchart': {
       const g = body.graph
       return { nodes: g.nodes.size, edges: g.edges.length, groups: countSubgraphs(g.subgraphs) }
     }
+    case 'usecase':
+      return { nodes: body.nodes.length + body.jsonNodes.length + body.notes.length, edges: body.relationships.length, groups: body.boundaries.length }
+    case 'wardley':
+      return { nodes: body.nodes.length, edges: body.links.length + body.trends.length, groups: body.pipelines.length }
+    case 'venn':
+      return { nodes: body.subsets.length + body.textNodes.length, edges: 0, groups: 0 }
+    case 'cynefin':
+      return { nodes: body.domains.reduce((sum,domain) => sum + domain.items.length,0), edges: body.transitions.length, groups: 5 }
+    case 'railroad':
+      return { nodes: body.rules.length, edges: 0, groups: 0 }
+    case 'treeview':
+      return { nodes: body.nodes.length, edges: body.nodes.filter(node => node.parentId !== undefined).length, groups: 0 }
     case 'sequence':
       return { nodes: body.participants.length, edges: sequenceMessages(body).length, groups: 0 }
     case 'state': {
@@ -145,6 +162,18 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'zenuml': {
+      const model = projectZenUMLSequence(body)
+      return { nodes: model.actors.filter(actor => !actor.external).length, edges: model.messages.length, groups: model.blocks.length }
+    }
+    case 'eventmodeling': return { nodes: body.frames.length, edges: eventRelations(body).length, groups: eventLanes(body).length }
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      return stableFamilyCount(body)
     case 'opaque':
     case 'extension':
     case 'preserved':
@@ -178,14 +207,4 @@ export function faithfulnessWarning(before: StructuralCount | null, after: Struc
   if (!after) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: { nodes: 0, edges: 0, groups: 0 } }]
   if (!countsEqual(before, after)) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]
   return []
-}
-
-/**
- * Boolean view of {@link faithfulnessWarning} for the differential gates
- * (corpus / seqbench / upstream), which only need "did content drop?" — reads
- * better than `faithfulnessWarning(...).length > 0` at the call sites and is
- * independently testable.
- */
-export function isDrop(before: StructuralCount | null, after: StructuralCount | null): boolean {
-  return faithfulnessWarning(before, after).length > 0
 }

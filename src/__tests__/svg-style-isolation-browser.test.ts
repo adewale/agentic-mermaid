@@ -9,6 +9,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { existsSync } from 'node:fs'
 import { chromium, type Browser, type Page } from 'playwright'
 
@@ -149,7 +150,7 @@ describeBrowser('inline SVG diagrams do not repaint each other', () => {
         expect(await paints(page, a + b, 'a')).toEqual(await paints(page, a, 'a'))
         expect(await paints(page, a + b, 'b')).toEqual(await paints(page, b, 'b'))
       }),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
     await page.close()
   })

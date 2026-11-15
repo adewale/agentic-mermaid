@@ -4,12 +4,468 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Deprecated
+
+- **0.6.0 will make the compact agent views the defaults.** Nothing changes in
+  this release; every compact view below is opt-in today, and each current
+  default has a name you can pin now so the flip does not affect you:
+
+  | Surface | 0.6.0 default | Keep today's output with |
+  |---|---|---|
+  | MCP `render_svg`, `render_ascii`, `render_png` | `receipt: "summary"` | `receipt: "full"` |
+  | MCP `render_png` (local and hosted) | `output: "image"` | `output: "base64"` |
+  | `am verify` | `--summary` | `--full` |
+  | `am mutate --json` | `--summary` | `--full` |
+  | `am capabilities` | `--summary` (index) | `--full` |
+
+  The `--help` text of those commands and both MCP servers' `instructions`
+  carry the same notice.
+- **0.6.0 will make source-preserving edits the default for `am mutate` and
+  MCP `mutate`.** Today both still write the whole diagram canonically; pin that
+  output now with `am mutate --canonical` or `mode: "structured"`.
+  `am mutate --help` and the MCP `mutate` tool description carry the notice.
+
+### Added
+
+- The hosted MCP server has a new `preview` tool and its first MCP Apps view.
+  `preview` renders and verifies a diagram in one call. Its text result is
+  verify's facts `{ ok, family, summary, warnings, checks }` without the
+  layout, or verify's failure payload when the source does not parse; the SVG
+  goes only in `structuredContent`, which MCP Apps hosts keep out of the
+  model's context. Hosts that support MCP Apps show a read-only diagram view
+  (`ui://agentic-mermaid/preview`) with the family, the verify verdict and any
+  warnings; other hosts receive the text result. The view is one
+  self-contained page that loads nothing from the network, so its declared CSP
+  allows no external origin. The hosted server now advertises the `resources`
+  capability to serve it. A heavy diagram's preview runs under the same
+  CPU-bounded isolate as `render_svg` and `verify`. The local server is
+  unchanged and publishes no resources.
+- Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
+  `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
+  `mode: "source-preserving"` and `am mutate --preserve-source` now accept every
+  operation of every structured family (they previously refused structured
+  bodies). The edit is replayed on the authored lines: comments, blank lines,
+  indentation, quoting, `:::class` shorthand, directives and frontmatter that
+  the edit does not touch are kept byte for byte, and new statements are written
+  in portable Mermaid next to related ones. A result is returned only when it
+  reads back as the same diagram as the canonical edit; otherwise the canonical
+  source is returned and `preservation: { method: "canonical", reason }` says so
+  (`method: "local"` otherwise; `am mutate` also notes it on stderr). On the 56
+  held-out edit-arms tasks a typed operation can express, scripted typed edits
+  kept 99.7% of untouched lines (canonical: 18.6%) with no collateral damage
+  (canonical: 10 damaged). `am mutate --canonical` names the current default.
+  A statement written over several physical lines (a quoted label continued on
+  the next line) is edited and removed as one statement instead of falling back,
+  and a fallback reason names the statement or misreading that blocked a local
+  edit. A statement declared on several lines (a label given again, a class
+  named by `Class : member` lines, an entity block opened twice) is edited on
+  every line it is read from instead of falling back. A message or branch added
+  inside a sequence fragment takes the indentation of the fragment's authored
+  body or branch lines, also as the first line of an empty branch or loop, and
+  the fragment's untouched messages keep their authored spelling.
+
+- Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
+  request digest, acceptance, unselected capabilities, layout fallbacks, the
+  layout certification verdict and diagnostics grouped by code with counts
+  (an 8-node SVG receipt goes from 7.7 KB to 158 B). `render_png` takes
+  `output: "image"` on local and hosted servers and returns the PNG as an MCP
+  image content block beside a small JSON block, instead of base64 inside the
+  JSON text (51 KB, ~32k tokens, of text for an 8-node flowchart).
+  `am verify --summary` prints the MCP verify payload and
+  `am mutate --json --summary` embeds it (17.4 KB → 1.6 KB for 30 nodes).
+  `am capabilities --summary` prints an index (132 KB → 12 KB) and
+  `--family <id>[,<id>…]` one or more full family entries.
+- `describe_sdk` `capability: "render-options"` lists every render option's
+  applicable families and terminal treatment, and with `field` returns that
+  option's full annotated schema; `capability: "code-mode"` returns the
+  `execute` SDK declaration.
+- `agentic-mermaid-mcp --tool-profile slim` serves a 26 KB `tools/list`
+  (instead of 99 KB) under the server name `agentic-mermaid-mcp-slim`: render
+  arguments one level deep, and `execute` pointing at `describe_sdk`
+  `capability: "code-mode"`. Validation is unchanged. Local server only.
+- `/capabilities.json` is served minified (261 KB → 155 KB, same JSON).
+
+- Sequence notes are typed. Top-level `Note left of A: …`, `Note right of A:
+  …` and `Note over A,B: …` lines are typed statements instead of preserved
+  source: facts list them as `note#<i> …` with `note#<i> before message#<n>`,
+  `describe` reads them in order, verify checks their length, and canonical
+  writing spells them `Note …` with two-space indentation. New operations
+  `add_note` (`position`, `actorIds`, `text`, `wrap`, placed with
+  `afterMessage` or `beforeMessage`, else appended), `remove_note`,
+  `set_note_text` and `move_note` edit them in both canonical and
+  source-preserving modes. `remove_participant` refuses a participant a note
+  names until the note is removed. Notes inside a fragment branch are typed
+  too: `add_fragment_note`, `remove_fragment_note`, `set_fragment_note_text`
+  and `move_fragment_note` address them like fragment messages
+  (`fragmentIndex`, `branchIndex`, `index` among the branch's notes; anchors
+  are branch message indexes). Facts number notes in drawing order and state
+  each one's address (`note#N op index K` or `note#N op fragmentIndex F
+  branchIndex B index K`).
+
+- `create`/`destroy` lines inside `alt`, `opt`, `loop` and `par` fragments are
+  typed. Such a fragment used to become preserved source as a whole (verify
+  named it `(alt fragment, destroy)`); it now stays a typed fragment whose
+  branches list the directives in place (`branch.statements`), writes back
+  byte for byte, appears in facts (`destroy B fragment#0 branch#0 before
+  message#2`) and `describe`, and accepts fragment operations, which keep each
+  binding or are refused. Directives bind as at top level, across fragment
+  boundaries too. Verify warns `sequence_lifecycle_gap` where a fragment
+  boundary, note, activation or `autonumber` stands between a directive and
+  its message: Mermaid binds the directive to that line and draws no creation
+  or destruction.
+
+- `critical` (with `option` branches), `break` and `rect` fragments are typed
+  like `alt`/`opt`/`loop`/`par`: their messages and `create`/`destroy` lines
+  are in facts and `describe`, and the fragment operations edit them
+  (`add_fragment` takes the three kinds, `add_fragment_branch` adds an
+  `option` to a `critical`). A `rect`'s label is its fill color: `add_fragment`
+  and the label setters refuse one the renderer cannot read. A `rect` holding
+  another fragment, or whose argument is a `#` comment, stays preserved
+  source, as does any fragment nested in another.
+
+- Sequence facts state the address each message op takes. `message#N`
+  numbers every message in drawing order, fragment messages included, while
+  `add_message`, `set_message_text`, `move_message` and the note anchors take a
+  top-level message index and the fragment-message ops an index in the branch,
+  so an agent reading `message#N` after a fragment picked the wrong message.
+  Each message now also has `message#N op index K` (top-level) or
+  `message#N op fragmentIndex F branchIndex B index K`; the op schema notes
+  point at it, and `describe` tree edges of fragment messages carry `index`.
+  What each op's index means is unchanged.
+
+- Insert and remove empty concurrency regions in composite states with
+  `add_region` and `remove_region`. State, transition, move and floating-note
+  edits can append the next region while preserving scoped notes and comments.
+
+### Changed
+
+- The local stdio MCP `execute` tool now reports failures in the same envelope
+  as the hosted server: `{ ok: false, error: { code, message }, logs }` instead
+  of `{ ok: false, error: "<message>", logs }`. `code` is `EXECUTE_TIMEOUT` when
+  the time budget stopped the code and `EXECUTE_FAILED` otherwise, on both
+  channels; `message` keeps each runner's wording. Clients that read
+  `error` as a string should read `error.message`.
+
+- Sequence message styles now name Mermaid's arrows: `async` writes `-)` and
+  `async-dashed` writes `--)` (open head), as in Mermaid, instead of `->` and
+  `-->`, which draw no head. Those are now `line` and `line-dashed`, and
+  `<<->>` / `<<-->>` are `bidirectional` / `bidirectional-dashed`. Parsed
+  `-)`, `--)` and bidirectional messages no longer read as `sync`; facts state
+  every non-`sync` style, and a half-arrow's operator as `arrow`. A message
+  whose `style` was changed in place is written with that style's arrow.
+
+- Render tool schemas are compact: each render tool's `inputSchema` defines
+  the StyleSpec record once, under `$defs` at the schema root, instead of
+  inlining it for both a single style and a style stack, and every `$ref`
+  resolves from the tool schema itself. Hosted `tools/list` falls from 208 KB
+  to 147 KB. `/.well-known/mcp.json` and `/.well-known/mcp/server-card.json`
+  carry each tool's schema once, as the `inputSchema` `tools/list` returns (the
+  second `parameters` copy is gone), and are served minified: 487 KB → 132 KB
+  and 987 KB → 133 KB.
+
+- `tools/list` answers a request carrying a `cursor` with `-32602`, on the
+  hosted and local servers: the whole list is one page and the server issues
+  no cursors, so no cursor can name a page.
+
+- Terminal renders (`renderMermaidASCII`, `renderMermaidASCIIWithReceipt`,
+  `renderMermaidASCIIWithMeta`) refuse an unknown or misspelt option with the
+  same `Invalid RenderOptions: unknown render option "…"` error as
+  `renderMermaidSVG`, instead of ignoring it. Terminal-only fields
+  (`useAscii`, padding, `colorMode`, `theme`, widths, `onProjectionDiagnostic`)
+  are unchanged.
+
+### Fixed
+
+- ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
+  `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
+  failed as `INTERNAL_ERROR`, a 50 × 50 fan only after ~94 s. Terminal work
+  ceilings now throw `TerminalWorkLimitError` (`TERMINAL_WORK_LIMIT`, reported
+  as `RENDER_FAILED` with origin `source`), and composing the owners of shared
+  route cells is counted, so these refuse within about 5 s. 26 × 26 and
+  28 × 28 fans, which drew in about 30 and 40 s, now refuse the same way.
+
+- `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
+  affects. `padding` is consumed by Requirement, Block, Packet, Kanban and
+  Event Modeling, `nodeSpacing` by Event Modeling and `layerSpacing` by
+  Requirement, which no longer warn; `shadow` draws on C4 and ZenUML cards
+  (no warning) but on no XYChart, Pie, Quadrant, Gantt, Mindmap or GitGraph
+  shape, which now warn instead of silently ignoring it.
+
+- State ids holding a combining mark or a non-ASCII digit (`é` written
+  decomposed, `x٣`, `一¼`) and ER entity names holding any non-ASCII
+  character (`éx`, `a😀`, `a¼`) are read, drawn and edited like other names.
+  Mermaid accepts them; they used to fall back to opaque source that the SVG,
+  PNG and terminal renderers refused.
+
+- `render_png` and `render_ascii` describe `options` with the registered
+  Looks and Palettes, as `render_svg` does; all render tools share one
+  description.
+
+- Render tools report config warnings for the `mermaidConfig` the caller
+  passed (hosted `render_svg`/`render_ascii`/`render_png`, local `render_png`,
+  `am render --options`), such as an unknown `flowchart.madeUpKey` or a
+  misspelled `theme`, in `warnings`; before, they reached only the console.
+
+- A JSON-RPC response object posted by a client is accepted and ignored
+  (hosted: HTTP 202, no body; stdio: no reply) instead of being answered with
+  `-32600`. `notifications/initialized` sent with an `id` is a request and is
+  answered (`-32601`) instead of being swallowed.
+
+- Agent-facing docs: the site publishes the skill's `references/hosted-mcp.md`
+  that `SKILL.md` tells hosted agents to read; the getting-started hosted
+  `render_svg` example nests `style` and `seed` in `options`; generator and
+  audit comments no longer appear in `agent-instructions.md`, `start.md`,
+  `SKILL.md` or `am --agent-instructions`; `/docs/mcp/` and the skill page list
+  the local server's six tools; `/errors/verify-failed/` names every
+  error-severity code instead of claiming only structural warnings block. The
+  guide explains `SCALE_RANGE_EXCLUDES_ZERO` and says `BELOW_READABLE_SIZE` and
+  `PNG_FONT_COVERAGE` are PNG raster warnings, not verify codes. The build now
+  fails when a served skill file names an unpublished reference or a published
+  page shows hosted arguments `/mcp` rejects.
+
+- Sequence facts and `describe` (text, tree, summaries) show participant
+  names, message text, titles and fragment captions as the renderers draw
+  them: `participant A as "Alice"` reads `participant A : Alice`, not
+  `"Alice"`, and `<br/>` reads as a line break (`\n` in facts), as in
+  Flowchart facts. The typed body and serialized source are unchanged.
+
+- Sequence notes are in facts: `note over A,B : text` (also `left of` /
+  `right of`) and `preserved-note#<segment>.<index> …`, including notes
+  inside `rect`, `critical` or note-bearing fragments.
+
+- `am describe --json` carries `warnings` in every format (`text`, `facts`,
+  `json`), as the MCP `describe` tool does.
+
+- A valid diagram no longer fails to render because no layout candidate passed
+  certification. Since group containment and the other hard checks became
+  refusals (a9a71f0c, and the #449-era candidate loop), about 2.6% of
+  generated subgraph flowcharts in the default look, and up to 12.6% in
+  `accessible-high-contrast`, failed every render with "No certified layout"
+  and verify reported `INTERNAL_ERROR`. With the default `layoutSafety:
+  'report'`, Flowchart and State (and Architecture placement, and every
+  family's final geometry check) now draw the candidate with the fewest
+  misleading violations, then the fewest violations, then the first in
+  candidate order. A failed final paint proof (covered text or markers, a
+  connector across an unrelated card) also renders now, as it already did on
+  rough backends, unless paint falls outside the final viewport. `receipt.layoutCertification.geometry` records the
+  candidate drawn and its failed checks, and verify returns `ok: false` with
+  the new error-severity `LAYOUT_UNCERTIFIED` warning per failed check
+  (`violation`, `targets`) or `GROUP_BREACH` for containment. `layoutSafety:
+  'strict'` still refuses; candidates that would lose or change content,
+  clipped paint and broken layout-pass contracts (for example an
+  `alignLabeledSourcePort` metric budget) remain `INTERNAL_ERROR`.
+
+- `execute` failures now say where the agent's own code failed:
+  `error.location` is the 1-based `{ line, column }` of an uncaught error (or
+  of the token where code that does not parse stopped), on both the hosted and
+  stdio servers, with no runner frames or host paths. A caught `e.stack` is
+  left as the engine produced it; its `user.js` / `codemode.ts` frames are one
+  line below the agent's line numbers.
+
+- Make repeated `verify` calls in one process (`am batch`, the stdio and hosted
+  MCP servers, library loops) report the same warnings as the first call.
+  Cached layouts lost the proof that a bundled route's bends are deliberate,
+  so later calls reported spurious `ROUTE_HITCH` warnings.
+
+- Rebase declaration positions when grouping states after transition removal,
+  and preserve inferred declaration order across edits to legacy state bodies.
+- Reject region removal that cannot preserve both composite and surviving
+  region directions in Mermaid source.
+
+## 0.5.6 — 2026-11-02
+
+### Performance
+
+- Load the native PNG rasterizer only when PNG rendering reaches rasterization,
+  avoiding its initialization for parsing, verification and SVG rendering.
+- Reuse one captured request and positioned result for SVG/PNG action rendering,
+  removing duplicate positioning work.
+
+### Fixed
+
+- Keep SVG/PNG action hit regions aligned with the drawing when render options
+  have stateful getters. Isolate mutable projections from cached geometry and
+  reject unsupported projections before drawing hooks run.
+- Detect moved dashes in the Chromium resolved-scene CI comparer while accepting
+  equivalent path encodings and symmetric dashed reversals.
+- Prepare website test fixtures once per invocation instead of reusing stale
+  output after repeated dirty build-config edits. Keep the editor build child's
+  deadline within its existing 60-second test budget.
+
+### Changed
+
+- Use one agent operating guide across the CLI, installed skills and website.
+  `am init-agent` includes an offline copy and pins MCP configuration to the
+  installed package version.
+- Enforce layout-repair dependencies and route-write restrictions while retaining
+  the existing pass order, placement rules and geometry budgets.
+- Use Bun 1.4.4 for CI and release/deployment builds, avoiding Bun 1.4.2's
+  independently reproduced pipe-GC subprocess hang. Install a payload comparison's
+  base Bun through npm so it works in browser containers without `unzip`.
+- Share qualified build artifacts, select documentation checks for recognized
+  Markdown changes, and verify exact npm identity before MCP registration.
+  Strengthen executable-example, fresh-output and JSON-RPC checks.
+- Remove redundant verification gates, unused pass metadata and historical raw
+  measurement packets from the current checkout. Immutable links retain access
+  to the archived evidence; maintained generated public references remain.
+
+## 0.5.5 — 2026-10-31
+
+### Changed
+
+- Generate website MCP tool lists, verification wording and backend-limit
+  documentation from shared authorities; repair family navigation and obsolete
+  contributor commands and links.
+- Add `bun run release:prepare VERSION [--date YYYY-MM-DD]` to update version
+  projections and run their existing generators together. Failed generation
+  restores prior file contents; preparation leaves publication explicit.
+- Consolidate the release checklist, record completed 0.5.4 delivery, and
+  separate the current backend contract from dated design and experiments.
+- Keep directory-submission records in repository-only project documentation
+  rather than shipping operational status snapshots in the npm package.
+
+### Fixed
+
+- Preserve distinct XY axis ticks for tiny and large finite ranges, and avoid
+  overflow when projecting a range that crosses both numeric extremes.
+- Treat soft hyphens and zero-width spaces as discretionary line-break hints
+  in pixel and terminal text, preserving authored source positions and styles.
+
+### Added
+
+- Expose resolved scenes through Code Mode and agent capability discovery, with
+  on-demand painted primitive declarations and typed unsupported-artwork errors.
+- Add `am verify --markdown` to check Mermaid fences with physical document
+  lines while keeping ordinary verification and Markdown rendering behavior.
+
+## 0.5.4 — 2026-10-30
+
+### Fixed
+
+- Render 128-card Class chains with Agentic and 128-entity ER chains with either
+  backend without exhausting paint certification or falling back to another
+  backend. Preserve authored identities and directed relationship endpoints.
+- Give independent self-loops and labelled relationships separate channels
+  where they previously shared unrelated connector segments. Reserve source
+  and target arrowhead clearance separately and measure the complete straight
+  terminal run, including redundant waypoints. Crowded fixed ports can still
+  prevent a short terminal from being extended.
+- Keep Scene group inspection and emitted paint consistent for joins, open and
+  closed paths, and transforms. Preserve immutable text ownership in private
+  cache copies while keeping public copies independent.
+
+### Performance
+
+- Reuse spatial queries in ER layout and paint certification, choosing linear
+  scans for small query batches and rebuilding indexes after routes move.
+  Supported sparse ER diagrams with 4,096–5,000 entities complete certification
+  within the existing 400,000-operation allowance; Agentic retains its
+  4,096-node cap. Avoid duplicate scene capture and immutable text processing
+  on large ER renders.
+
+### Changed
+
+- Stop opening release-to-do issues automatically when deployment skips an
+  unpublished version. Keep the warning and Actions summary; verified
+  deployments still close existing release-to-do issues.
+
+- Refresh MCP directory evidence, submission requirements and dated publication
+  status, including Smithery's 31 October service transition.
+
+## 0.5.3 — 2026-10-29
+
+Includes the 0.5.2 changes below. Its registry publication was blocked when
+GitHub could not allocate a macOS arm64 runner; its source tag is retained.
+
+### Fixed
+
+- Keep styled arrowheads clear of connector bends in Flowchart, Architecture,
+  Block, Class, Requirement, C4, Event Modeling and Gantt dependencies by
+  reserving the painted marker depth plus 4 px of straight shaft through
+  routing and rounding.
+- Run the required macOS release build and rendering contracts on a standard
+  Intel macOS 26 runner. Windows coverage, the rendering suite, build heap
+  allowance and verified-artifact publication gates are unchanged.
+
+## 0.5.2 — 2026-10-29
+
+### Fixed
+
+- Parse long same-line Flowchart chains without rescanning the remaining
+  chain for each node's edge-ID diagnostic. Preserve the existing syntax
+  warnings and source-map spans.
+- Align ELK routes whose straight runs differ only by floating-point roundoff
+  as they are read back, so wide Class diagrams with padded cards keep their
+  card contacts instead of refusing to render, and Flowchart, State, ER and
+  Requirement routes start exactly orthogonal.
+- Render Class diagrams with rounded relationship corners, such as the
+  `publication-figure` style, when a relationship must bypass a namespace
+  header, including nested namespaces.
+- Render publication-styled Flowcharts with compound long links when joined
+  route sections differ only by floating-point roundoff, retaining their
+  endpoint contacts and existing route-safety checks.
+- Keep Flowchart relationship ends readable: clear endpoint labels and styled
+  arrowheads, symmetric grouped fan-outs with safe caption seats, and distinct
+  terminals for differently painted or separately captioned relationships.
+- Reject shared buses that imply invisible or differently painted relationships,
+  including replacements that introduce a new misleading overlap without
+  increasing the overlap count.
+
+## 0.5.1 — 2026-10-29
+
+Includes the 0.5.0 changes below. That version's npm and MCP Registry
+publication was blocked by the macOS declaration build; its GitHub source tag
+is retained.
+
+### Fixed
+
+- Give release-platform builds a 4 GiB Node old-space limit so tsup's declaration
+  worker can finish on macOS runners. The limit applies only to the build step;
+  rendering smoke tests and verified-artifact publication retain their checks.
+
+## 0.5.0 — 2026-10-28
+
+Changes since 0.4.1, including the unpublished 0.4.2 development cycle.
+
+### Added
+
+- Explicit source-preserving edits for opaque Class and Flowchart diagrams
+  across library, CLI, MCP and editor-worker workflows. Class supports adding
+  members and removing owned whole-line members; Flowchart supports label
+  overrides and owned node renames. Edits retain other source bytes and require
+  complete native-model read-back; ambiguous ownership, dependencies and
+  semantic changes outside the requested edit are refused atomically.
+
+- Serve existing Markdown directly from the canonical API, warning and error
+  page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
+  discovery, `Content-Location` and cache-safe `Vary: Accept` headers.
+
+- Generate the website's library reference and Markdown download from the
+  canonical API documentation, with task-first examples, runtime-derived option
+  defaults, source/release version information and a separate advanced reference.
+
+- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 2`
+  from the main entry. Resolved parts retain their Scene nodes and expose
+  backend-painted paths, text runs, concrete paint, transforms and expanded
+  markers without a browser. The returned SVG matches `renderMermaidSVG`;
+  unsupported artwork fails with its owning part instead of being dropped.
+
+### Performance
+
+- Source-preserving edits avoid duplicate Flowchart parsing when authored and
+  rendered parser inputs are identical, and avoid redundant Class quote-provenance
+  work when the authored grammar is unchanged. Distinct text interpretations
+  retain independent read-back. Local edit-kernel measurements do not establish
+  an end-to-end CLI, MCP or browser speedup.
+- Published Node bundles compact whitespace without rewriting syntax or renaming
+  callable exports. The package keeps its existing exports, resources and lazy ELK
+  boundary.
+- Benchmarks retain verified packed inputs, dependency locks, complete peer
+  observations and explicit cache/assertion policy. Scoped findings and remaining
+  competitor gaps are in the benchmark report linked from the documentation hub.
+
 ### Known limitations
 
-- A preexisting combined Sequence box/`alt` case can omit the header and divider
-  from terminal ink while retaining them in SVG. The witness is recorded in
-  `docs/project/divergences.md`; CONS-46's text work does not fix this CONS-45
-  geometry limit.
 - The #363 decision record distinguishes generous reads from portable
   structured output. Quadrant text/style exports, unsupported Architecture
   IDs/icons and empty Class output retain named limitations; Class, Quadrant
@@ -22,6 +478,206 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- GitGraph string exports preserve authored values through Mermaid reload;
+  Class namespace admission and Kanban authored-source provenance retain their
+  respective identity and text contracts. Marker certification checks the
+  serialized marker paint and placement used by the shipped SVG (#572).
+
+- Preserve Class direction-like label text in portable exports, refuse lossy
+  empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
+  header handling between direct rendering and typed reads (#548–#552).
+
+- Canonical writes preserve empty accessibility descriptions using native
+  metadata comments, protect directive-looking Kanban labels and metadata,
+  and move C4 global metadata out of nested boundaries. Sequence message IDs
+  that collide with keyword prefixes stay diagnosed and source-only rather
+  than entering a typed body with no portable spelling.
+
+- Resolved scenes report the input diagram's registered family. Both State
+  headers return `state` instead of their shared `flowchart` rendering family.
+  Resolved Scene version 2 records this metadata change; SVG artwork and part
+  ownership are unchanged.
+
+- Use one vocabulary for diagram families, source objects, Scene parts,
+  resolved primitives and typed-family narrowing across reference docs,
+  website guidance, CLI help and agent discovery, retaining existing API names.
+
+- Sequence terminal output retains fragment headers and dividers inside wide
+  participant boxes, including combined `box`/`alt`/note cases, in both ASCII
+  and Unicode. The historical witness remains pinned in the test suite.
+- Architecture layouts separate expanded aligned group frames and reconcile
+  cross-group alignment after child reordering, preserving complete group contents
+  and routing from the final endpoint positions.
+- XY charts wrap rotated axis titles into the authored canvas height and reserve
+  their complete multiline gutter, preserving fixed chart dimensions and text.
+
+- Kanban edits retain keyword-like column and task IDs such as `kanban` and
+  `kanban-board` in Mermaid-readable source, preserving labels and membership.
+- Mixed labelled and unlabelled parallel edges can use a clear target-side
+  corridor when a feedback loop blocks the source-side jog. Placement reserves
+  the full painted label halo and retains prior routing when the label cannot
+  fit the proposed lanes.
+- A copied or stale `bundle` route certificate can no longer hide a hitch.
+  Exemptions remain bound to the routes constructed by the shared-trunk,
+  symmetric-convergence and parallel-lane producers.
+- Losing cosmetic centering proposals retain the previous feasible geometry.
+  Straight-route repairs retain canonical ports unless higher-priority conflicts
+  improve. Four generated valid-flowchart failures now render.
+- Wildcard HTTP listeners advertise a connectable loopback URL while retaining
+  their configured bind address and bearer-token policy.
+- Lazy browser SVG loading fetches ELK only when placement needs it, and keeps
+  one admitted request across deferred dependencies. Ordinary native rendering
+  avoids declaration-ledger reconciliation and full text inspection evidence;
+  strict, verify, extension admission and final paint/security checks remain.
+- An inexpensive Scene admission cannot bypass a later strict cross-check.
+- Class layouts preserve authored `ns:` IDs, actual namespace ancestry, empty
+  namespace frames and freestanding notes. Notes-only terminal output retains
+  its content too.
+
+### Maintenance
+
+- Retire copied discovery/API inventories, the empty-divergence pin and
+  exclusions-ledger hygiene gates. Keep live generated discovery, executable
+  divergence behavior and shipped/external artifact integrity checks.
+- Family portfolio selects four distinct inputs for all 23 native families.
+  Degenerate-route failures always retain their complete diagnostic report.
+
+### Earlier fixes
+
+- `verify` on a source string checks the request `render` makes from that
+  string, including its `%%{init}%%` and frontmatter config. It used to check
+  a canonical copy that drops that config, so it measured a different layout
+  (for example ignoring `flowchart.rankSpacing`) and passed sources `render`
+  refuses: raw `themeCSS`, an unsafe `themeVariables.fontFamily`, or spacing
+  so large the canvas exceeds its cap. These are now `RENDER_FAILED`.
+- Refused config no longer makes `parseMermaid` and `verify` throw: config
+  the admission refuses (a reserved key such as `__proto__`, nesting or size
+  past its bounds) is a new `CONFIG_REJECTED` parse error, which `verify`
+  reports as `RENDER_FAILED` with origin `config`. `verify` reports any
+  non-empty source that fails to parse (a syntax error, frontmatter that is
+  not valid YAML, a diagram over a work limit) as `RENDER_FAILED` with the
+  parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
+  longer makes such a source verify `ok`. A work limit only the render path
+  enforces (state nesting) no longer escapes `verify` as an exception.
+- `verify` on a Flowchart or State diagram whose render fails (refused config
+  such as raw `themeCSS`, or a layout past the canvas cap) still reports the
+  findings it reads from the diagram itself (`LABEL_OVERFLOW`,
+  `EDGE_MISANCHORED`, `UNKNOWN_SHAPE` and the advisory lints) beside
+  `RENDER_FAILED`, so fixing the config does not surface them one at a time.
+  A refused color is still the whole finding.
+- A registered family whose parse hook throws no longer makes `parseMermaid`
+  and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
+  which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A State transition to a state that another composite or concurrency region
+  already holds (`state B { y }` then `state A { x --> y }`) draws the
+  transition across to it. Each mention used to add the state to every
+  composite, which the layout refused as a duplicate (`INTERNAL_ERROR`). The
+  first composite to mention a state owns it; Mermaid moves it into the last,
+  a difference recorded in `docs/project/divergences.md`.
+- A parsed State diagram, and the source `serializeMermaid` writes for it,
+  lay out as its source does. The writer put every declared state and
+  composite block ahead of the transitions, so a state described or declared
+  after the transitions that introduce its siblings (including one a
+  `C:::hot` shorthand declares) moved in the layout, and `[*]` nodes were
+  renumbered. The writer now keeps each scope's states in the order the source
+  creates them, the typed body lists them in that order (it used to list
+  declared states first), and a `[*]` inside composite `X` is `X_start`,
+  `X_start2`, … (`X_end`, …), numbered within `X` rather than across the
+  diagram. Top-level ids stay `_start`, `_start2`, ….
+- A State diagram that names a state `_start` or `_end` (or `_start2`, …)
+  keeps its `[*]` start and end nodes. The generated pseudostate took the
+  author's id, so the start node vanished into the authored state and
+  `verify` still reported `ok`; a generated id now skips any an author wrote.
+- A Flowchart, State, Sequence, Class or ER diagram with a frontmatter title
+  and nothing else draws its title, as every other family does and as its
+  terminal output already did. Flowchart and State used to fail the render
+  (`LayoutCertificationError`: the title fell outside a 0×0 canvas); Sequence,
+  Class and ER drew an empty canvas without it. `verify` still reports
+  `EMPTY_DIAGRAM`.
+- A `theme` config value that is not a string (`%%{init: {"theme": 5}}%%`)
+  no longer crashes every render and makes `verify` report `INTERNAL_ERROR`.
+  Like an unknown theme name, it names no theme and the default colors apply.
+- The MCP `describe` tool no longer reports success for a source that does
+  not parse in its default text format. Every format returns `ok: false`
+  with the parser's errors (text also keeps its prose line), as JSON and
+  facts did and as `am describe` exits non-zero.
+- A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
+  ER, Journey, Architecture, any source-preserved body, and extension families
+  that render canonically) renders, lays out and verifies under its authored
+  config wrapper (frontmatter title and config, `%%{init}%%` directives), as
+  its source and its serialized output do (an edited diagram already did).
+  `renderMermaidSVG(parsed)`, `layoutMermaid(parsed)` and
+  `verifyMermaid(parsed)` used to drop that wrapper for a freshly parsed
+  diagram, losing the title, theme and spacing the saved source would draw.
+  `renderMermaidWithActions` takes its target regions from that layout, so
+  under a frontmatter title they sat a title band above the targets the
+  output draws, for a source string too; they now cover them.
+- A state diagram that reopens a composite state (a second `state A { … }`
+  block, one-line or not) draws one state A holding both blocks' states, as
+  Mermaid does. Each block used to add its own container with the same id,
+  which the layout engine could not resolve, so the render failed. A stays
+  where its first block is, a block reopening a `--`-split composite
+  continues its last region, and the first block's `direction` holds. A
+  later block's label labels A, joined with any other label or description
+  as one composite's are (`state_composite_description` where Mermaid
+  rejects them). The readings that differ from Mermaid's are recorded in
+  `docs/project/divergences.md`.
+- Sankey and XYChart SVGs draw the canvas that `layoutMermaid`, `verify` and
+  `renderMermaidWithActions` regions describe. The final paint check
+  over-measured their ink (half a line width past the butt-capped ends of
+  XYChart axis and grid lines, which end on the canvas edge; far past the ends
+  of thick Sankey ribbons, and twice their width in every direction once a
+  ribbon's control point had been rounded), so the SVG widened its `viewBox`
+  beyond the layout's bounds (an XYChart's 700×500 became 701×500.71, a
+  Sankey's 648×448 became 672×464.59 or as much as 1728×1194.67) and drew the
+  whole diagram scaled down inside the same width and height. A Sankey ribbon
+  thicker than its bend, which folds past the node it meets, now widens the
+  canvas to hold that ink.
+- A diagram whose ink touches the canvas edge only by floating-point noise
+  keeps its canvas. A Journey actor legend title whose top came out at
+  -3.6e-15 made the SVG floor its `viewBox` to `0 -1 409.43 373` against the
+  layout's 408×372; the final paint check now treats ink within 1e-6 of the
+  edge as on the canvas.
+- An XYChart line series clamps a value past the axis range to the plot edge,
+  as a bar already does, and keeps its value (`verify` still reports
+  `VALUES_OUTSIDE_RANGE`). The line used to run off the plot, and the SVG
+  widened its `viewBox` to hold it (`0 -457 1622.6 1159` for one out-of-range
+  value), drawing the chart at under half size. Where the plot meets the
+  canvas edge, it now leaves room for the marks centered on that edge: a line
+  point's cap or dot at a linear x-axis end, the last tick there, and the end
+  grid lines and ticks of a chart with no title or value labels beside them.
+  Each of these widened the `viewBox` by a pixel or two. A line point's
+  measurement footprint is the part of it inside the plot.
+- Font families may be double-quoted, as Mermaid's own default
+  `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
+  `fontFamily` config, theme variables, Journey font config, style-role fonts
+  and Architecture group fonts accept them. A font written into a style
+  attribute or stylesheet is written single-quoted; a `font-family`
+  attribute escapes the quotes. A quote that does not close, a name holding
+  the other quote character, and whitespace other than space and tab stay
+  refused.
+- Paint inspection applies enclosing group opacity to inline connector labels,
+  including hidden labels, consistently with the SVG writer.
+
+- Journey `taskFontFamily` and `titleFontFamily` config values are written
+  into CSS only when they are safe font-family lists; an unsafe value (one
+  that closes the rule or fetches with `url()`) is ignored with an
+  `INEFFECTIVE_CONFIG` warning instead of restyling the whole diagram.
+- C4 relationships between facing cards of different heights run straight.
+  Ports spaced evenly along each face sat a few pixels apart, which drew a
+  small dogleg on each such relationship.
+- Drawings that disagreed with their certified paint now draw it: a Pie
+  slice's role or semantic-slot border and its highlight emphasis, which
+  stylesheet rules overrode; abstract, static and non-ASCII Class members,
+  which painted in SVG's default black instead of the member ink; a Journey
+  `titleFontSize` in `em`/`ex`, which drew squashed. (A Journey title's letter
+  spacing is now on its `<text>` too, but its per-glyph spans already drew it.)
+  Sketch styles now draw Radar areas with the translucent fill and opaque
+  outline the default style draws, XYChart series lines with round caps and
+  joins, and a done Gantt bar's border. Under a sketch look stacked with a dark palette
+  (for example `watercolor` with `dusk`), Architecture labels, Journey task
+  text and Timeline event text take the sketch's legible ink instead of a
+  family stylesheet's dark ink.
 - Context codecs preserve entity-derived tags, emphasis and backslash-n as
   literal text beside authored formatting in Flowchart, ER, Sequence and Class.
   Parsed aliases and labels retain their meaning through edits and reload;
@@ -30,6 +686,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   graphical and terminal projections. Physical message line breaks serialize
   as Mermaid break markup. Class members and annotations share their display
   formatter with layout and label metrics (CONS-46).
+- Sequence text holding a character reference is text on every surface. The
+  renderer decodes references before reading statements, so `&#35;hash` hid
+  the rest of a message as a comment, `&#59;` split it and failed the render,
+  and `&nbsp;`, which that decode leaves as written, split it too. The typed
+  body read the undecoded source, so `A->>B: a &amp; b` became two statements
+  there and `verify` reported `RENDER_FAILED`. The SVG and terminal renderers,
+  the typed body and its lints now read one Sequence text: XML references
+  decode to their characters, except that `#` and `;` read as `#35;` and
+  `#59;`, and an HTML name such as `&nbsp;` reads as `#nbsp;`, so each draws its
+  character (`&amp;nbsp;` still draws `&nbsp;`, and `R&D;`, which names no
+  character, still ends its statement). Parsed diagrams and their
+  serialization draw what the source draws, and serialization writes text
+  Mermaid reads (`a & b`, `#35;`), escaping an `&` that would read back as a
+  reference. `verify` reports `UNSUPPORTED_SYNTAX` with
+  `sequence_named_reference_semicolon` where pinned Mermaid ends the statement
+  at a named reference's `;`.
 - Class namespace labels use the same break and formatting rules in native and
   typed rendering. ER attribute diagnostics measure rendered columns rather
   than entity spellings or grammar delimiters. C4 relationship receipts retain
@@ -229,16 +901,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
-- The hosted MCP server has a new `preview` tool and its first MCP Apps view.
-  `preview` renders and verifies a diagram in one call. Its text result is
-  `{ ok, family, summary, warnings }`; the SVG goes only in
-  `structuredContent`, which MCP Apps hosts keep out of the model's context.
-  Hosts that support MCP Apps show a read-only diagram view
-  (`ui://agentic-mermaid/preview`) with the family, the verify verdict and
-  any warnings; other hosts receive the text result. The view is one self-contained page that loads nothing from
-  the network, so its declared CSP allows no external origin. The hosted
-  server now advertises the `resources` capability to serve it. The local
-  server is unchanged.
+
+- Prepared-text reuse, certified forest layout and bounded positioned-result
+  reuse are enabled by default, with startup opt-outs. Their limits and selection are
+  documented in `docs/project/flagged-performance-experiments.md`.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;
@@ -253,6 +919,35 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Extension core compatibility now follows the 0.5 release line. External
+  extensions declaring only `^0.4.0` must explicitly declare support for 0.5;
+  the Scene contract remains version 2. Bundled descriptors bind to their
+  shipped core version.
+- Every built-in family's shapes, text and connectors are now written by one
+  SVG writer from the typed fields paint certification reads, so a render's
+  certificate describes the drawing it ships. Families no longer attach their
+  own SVG strings, and family stylesheets no longer paint marks (paint is
+  written on each element; hover and tooltip rules remain). SVG bytes change:
+  attribute order, inline paint and omitted SVG defaults. Default-style
+  rasters of the 562-input corpus are unchanged apart from Sankey link
+  opacity (at most 3/255 per channel) and the anti-aliasing of the Sequence
+  actor link-menu glyph. `verify` no longer compares each mark with its SVG,
+  which the writer makes hold by construction.
+- `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
+  render-path failure raised by one of the engine's own consistency checks or
+  by a runtime error such as a `TypeError` is the new Tier 1 error
+  `INTERNAL_ERROR`; its `defaultRender` says whether an ordinary render still
+  produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
+  `RENDER_FAILED` now covers faults in the source or its configuration only,
+  and its new `origin` field says which. `am verify`, `am mutate` and
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit is
+  accepted when its only errors are the same `INTERNAL_ERROR` defects the
+  diagram already had; `am capabilities --json` lists each code's possible
+  `origins`. Authored values that reach the Scene's range, extent and
+  identity checks (a negative stroke width, an oversized canvas, a reused id)
+  stay `RENDER_FAILED`. Invalid render options, Style inputs and theme fonts,
+  and sources too long for the request receipt (with their configuration),
+  are now typed refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records

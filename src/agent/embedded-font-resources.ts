@@ -8,30 +8,9 @@ import {
   type ResourceResolutionCode,
 } from '../node-resource-resolver.ts'
 import { snapshotResourceManifest, type ResourceManifest } from '../resource-manifest.ts'
+import { registeredEmbeddedFontResourceFiles, type EmbeddedFontResourceFile } from './embedded-font-registry.ts'
 
-/**
- * One file embedded by a host executable. `manifestPath` is the canonical
- * package-relative resource or licence path; `embeddedPath` is the opaque
- * path returned by the host bundler (for Bun compile, a `/$bunfs/...` path).
- */
-export interface EmbeddedFontResourceFile {
-  readonly manifestPath: string
-  readonly embeddedPath: string
-}
-
-let registeredFiles: readonly EmbeddedFontResourceFile[] | undefined
-
-/** Register the closed font-resource set supplied by a binary-only host. */
-export function registerEmbeddedFontResourceFiles(files: readonly EmbeddedFontResourceFile[]): void {
-  if (registeredFiles) throw new Error('INVALID_RESOURCE_MANIFEST: embedded font resources are already registered')
-  registeredFiles = Object.freeze(Array.from(files, file => {
-    if (typeof file?.manifestPath !== 'string' || file.manifestPath === ''
-      || typeof file.embeddedPath !== 'string' || file.embeddedPath === '') {
-      throw new TypeError('INVALID_RESOURCE_MANIFEST: embedded font resource paths must be non-empty strings')
-    }
-    return Object.freeze({ manifestPath: file.manifestPath, embeddedPath: file.embeddedPath })
-  }))
-}
+export { registerEmbeddedFontResourceFiles, type EmbeddedFontResourceFile } from './embedded-font-registry.ts'
 
 interface ManifestPathOwner {
   readonly resourceId: string
@@ -110,5 +89,6 @@ export function verifyEmbeddedFontResourceFiles(
 export function verifyRegisteredEmbeddedFontResources(
   manifest: ResourceManifest,
 ): InstalledResourceVerification | undefined {
+  const registeredFiles = registeredEmbeddedFontResourceFiles()
   return registeredFiles ? verifyEmbeddedFontResourceFiles(manifest, registeredFiles) : undefined
 }

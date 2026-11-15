@@ -13,7 +13,7 @@ import type { AsciiTheme, ColorMode } from './ascii/types.ts'
 import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ResolvedRenderRequest } from './render-contract.ts'
-import { renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
+import { producedRenderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
 import { safeCssColor } from './shared/css-color.ts'
 import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import { toHex, tryParseCssColor } from './shared/color-math.ts'
@@ -265,7 +265,10 @@ export function projectTerminalStyle(
   )
   const semanticFallbacks = ['labels', 'symbols', 'markers', 'line-patterns'] as const
   const receipt = { version: TERMINAL_STYLE_VERSION, colorMode, theme, diagnostics, semanticFallbacks, connectorProjection }
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+  // Built here from frozen parts; its connector projection grows with the
+  // diagram's relationships, so it is hashed as produced evidence.
+  let digest: string | undefined
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest ??= producedRenderContractDigest(receipt) } })
 }
 
 /** Add optional graphical evidence without resolving terminal appearance twice. */
@@ -276,9 +279,18 @@ export function withTerminalConnectorScene(
 ): ResolvedTerminalStyle {
   const diagnostics = [...appearance.diagnostics]
   const connectorProjection = projectConnectorScene(scene, diagnostics, failed)
-  const { digest: _digest, ...base } = appearance
-  const receipt = { ...base, diagnostics, connectorProjection }
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+  const receipt = {
+    version: appearance.version,
+    colorMode: appearance.colorMode,
+    theme: appearance.theme,
+    diagnostics,
+    semanticFallbacks: appearance.semanticFallbacks,
+    connectorProjection,
+  }
+  // Built here from frozen parts; its connector projection grows with the
+  // diagram's relationships, so it is hashed as produced evidence.
+  let digest: string | undefined
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest ??= producedRenderContractDigest(receipt) } })
 }
 
 function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnostic[]): void {
@@ -286,13 +298,17 @@ function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnos
   diagnostics.push({
     code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED',
     feature: 'terminal-text',
-    message: 'User-derived C0/C1 terminal control characters were replaced with inert single-cell text before layout and color projection.',
+    message: 'User-derived C0/C1 terminal control characters, bidi embedding/override/isolate controls, noncharacters and lone surrogates were replaced with inert single-cell text before layout and color projection.',
   })
 }
 
 function connectorMarks(nodes: readonly SceneNode[]): ConnectorMark[] {
   const result: ConnectorMark[] = []
-  visitSceneNodes(nodes, node => { if (node.kind === 'connector') result.push(node) })
+  visitSceneNodes(nodes, node => {
+    // A chrome carrier contributes artwork to its declared subject; it does
+    // not add a second semantic relationship to terminal adapters.
+    if (node.kind === 'connector' && !(node.role === 'chrome' && node.owner && node.owner.id !== node.identity?.id)) result.push(node)
+  })
   return result
 }
 
@@ -397,5 +413,5 @@ function projectConnectorScene(
     connectors: Object.freeze(projectedConnectors),
     capabilities: terminalConnectorCapabilityClaims(),
   }
-  return Object.freeze({ ...body, digest: renderContractDigest(body) })
+  return Object.freeze({ ...body, digest: producedRenderContractDigest(body) })
 }

@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Client as Client
+    participant Server as MCP Server (Resource Server)
+    participant AuthServer as Authorization Server 
+
+    Client->>Server: MCP request without access token
+    Server-->>Client: HTTP 401 Unauthorized with WWW-Authenticate header
+    Note over Client: Analyze and delegate tasks
+    Client->>Server: GET /.well-known/oauth-protected-resource
+    Server-->>Client: Resource metadata with authorization server URL
+    Note over Client: Validate RS metadata, build AS metadata URL
+    Client->>AuthServer: GET /.well-known/oauth-authorization-server
+    AuthServer-->>Client: Authorization server metadata
+    Note over Client,AuthServer: OAuth 2.0 authorization flow happens here
+    Client->>AuthServer: Token request
+    AuthServer-->>Client: Access token
+     Client->>Server: MCP request with access token
+    Server-->>Client: MCP response
+    Note over Client,Server: MCP communication continues with valid token

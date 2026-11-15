@@ -10,6 +10,7 @@
 // their SVG does; they are covered by the meta check only.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidSVG } from '../index.ts'
 import { decodeXML } from 'entities'
 import { parseRegisteredMermaid, mutate, serializeMermaid } from '../agent/core.ts'
@@ -179,12 +180,14 @@ end`
     let checked = 0
     fc.assert(fc.property(labelArb, fc.integer({ min: 0, max: SOURCES.length - 1 }), (label, which) => {
       const source = SOURCES[which]!(label)
-      for (const region of claims(source)) {
+      const regions = claims(source)
+      expect(regions.length, source).toBeGreaterThan(0)
+      for (const region of regions) {
         checked++
         expect({ source, id: region.id, projectedText: region.projectedText })
           .toEqual({ source, id: region.id, projectedText: region.drawn })
       }
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
     expect(checked).toBeGreaterThan(0)
   })
 

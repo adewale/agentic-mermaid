@@ -56,9 +56,11 @@ export function parseJourneyDiagram(
   // Walker callbacks retain normalized statement contents and the supplied
   // line index, including multiple statements on one semicolon-joined line.
   walkJourneyLines(lines, 1, {
-    title: (text, lineIndex) => {
+    title: (text, lineIndex, content) => {
       if (parserObservationActive('journey')) observeParserStatement('journey', 'title', text, { line: lineIndex + 1, unit: 'normalized' })
       diagram.title = text
+      if (content) diagram.titleContent = content
+      else delete diagram.titleContent
       if (parserObservationActive('journey')) observeParserMutation('journey', 'setTitle', text, { line: lineIndex + 1, unit: 'normalized' })
     },
     accTitle: (text, lineIndex) => {
@@ -71,23 +73,26 @@ export function parseJourneyDiagram(
       diagram.accessibilityDescription = text
       if (parserObservationActive('journey')) observeParserMutation('journey', 'setAccessibilityDescription', text, { line: lineIndex + 1, unit: 'normalized' })
     },
-    section: (label, lineIndex) => {
+    section: (label, lineIndex, content) => {
       if (parserObservationActive('journey')) observeParserStatement('journey', 'section', label, { line: lineIndex + 1, unit: 'normalized' })
       currentSection = {
         id: `section-${sectionIndex++}`,
         label,
+        ...(content ? { labelContent: content } : {}),
         tasks: [],
       }
       diagram.sections.push(currentSection)
       if (parserObservationActive('journey')) observeParserMutation('journey', 'addSection', currentSection, { line: lineIndex + 1, unit: 'normalized' })
     },
-    task: (text, score, actors, lineIndex) => {
+    task: (text, score, actors, lineIndex, content, actorContents) => {
       if (parserObservationActive('journey')) observeParserStatement('journey', 'task', text, { line: lineIndex + 1, unit: 'normalized' })
       const task: JourneyTask = {
         id: `task-${taskIndex++}`,
         text,
+        ...(content ? { textContent: content } : {}),
         score,
         actors,
+        ...(actorContents ? { actorContents } : {}),
       }
       ensureSection().tasks.push(task)
       if (parserObservationActive('journey')) observeParserMutation('journey', 'addTask', { ...task, sectionId: currentSection!.id }, { line: lineIndex + 1, unit: 'normalized' })

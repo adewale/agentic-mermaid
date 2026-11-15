@@ -14,8 +14,9 @@
 // add/remove/reorder-axis re-shape every curve's value vector and the mutator
 // keeps `curve.values.length === axes.length` by construction.
 //
-// Structured-or-opaque: accTitle/accDescr and any unmodeled/malformed line
-// returns null so the caller falls back to a lossless opaque body. The
+// Structured-or-opaque: any unmodeled/malformed line returns null so the
+// caller falls back to a lossless opaque body. Identities that Mermaid cannot
+// spell portably stay opaque too. Accessibility rides the universal envelope. The
 // serializer emits a canonical form the legacy parser re-parses identically
 // (differential-tested). Empty (no axes) → opaque, so the loud "no axes" render
 // error still surfaces.
@@ -23,34 +24,46 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  RadarBody, RadarMutationOp,
+  Accessibility, RadarBody, RadarMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
-import { MAX_RADAR_TICKS, parseRadarChart } from '../radar/parser.ts'
+import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
+import { mermaidNumber as formatNumber } from '../shared/mermaid-number.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 
 // ---- Shared lexical shapes --------------------------------------------------
 
-const HEADER_RE = /^radar-beta\s*:?\s*$/i
-const ID_RE = /^[\w](?:[\w-]*[\w])?$/
+const ID_RE = /^[A-Za-z_](?:[\w-]*[\w])?$/
+const ID_KEYWORDS = new Set(['radar-beta', 'axis', 'curve', 'showLegend', 'ticks', 'max', 'min', 'graticule'])
+// NUMBER, BOOLEAN, GRATICULE and TITLE precede ID in the pinned lexer.
+// Unlike keywords, these terminals also take the prefix of a longer name.
+const ID_TOKEN_PREFIX_RE = /^(?:true|false|circle|polygon|title)/
 
-function formatNumber(n: number): string { return String(n) }
+function portableId(id: string): boolean {
+  return ID_RE.test(id) && !ID_KEYWORDS.has(id) && !ID_TOKEN_PREFIX_RE.test(id)
+}
 
 // ---- Parser (structured-or-opaque) ------------------------------------------
 
 /**
  * Construct the typed body only after the renderer parser has fully recognized
- * the source. Accessibility remains source-preserved/opaque, and model states
- * that cannot uphold stable identity plus axis↔value coupling stay opaque.
+ * the source. Model states that cannot uphold stable identity plus axis↔value
+ * coupling stay opaque. `accessibility` is what the grammar read after a
+ * statement on its line, as authored, for the source envelope.
  */
-export function parseRadarBody(lines: string[]): RadarBody | null {
-  if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
-  const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['radar-beta', ...lines]
+export function parseRadarBody(lines: string[]): { body: RadarBody; accessibility: Accessibility } | null {
+  // A line inside a quoted label is text, whatever it holds.
+  const ends = radarStatementEnds(lines)
+  for (let index = 0; index < lines.length; index = ends[index]! + 1) {
+    if (/^\s*acc(?:Title|Descr)\b/i.test(lines[index]!)) return null
+  }
   try {
-    const chart = parseRadarChart(sourceLines)
+    const chart = parseRadarChart(['radar-beta', ...lines])
     const body: RadarBody = {
       kind: 'radar',
       title: chart.title,
@@ -62,7 +75,7 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
       graticule: chart.graticule,
       showLegend: chart.showLegend,
     }
-    return radarBodyProblem(body, true) === null ? body : null
+    return radarBodyProblem(body, true) === null ? { body, accessibility: chart.statementAccessibility ?? {} } : null
   } catch {
     return null
   }
@@ -72,8 +85,8 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
 export function radarBodyProblem(body: RadarBody, allowEmptyDraft = false): string | null {
   const emptyDraft = allowEmptyDraft && body.axes.length === 0 && body.curves.length === 0
   if (body.axes.length === 0 && !emptyDraft) return 'Radar requires at least one axis before curves can exist.'
-  if (body.axes.some(axis => !ID_RE.test(axis.id))) return 'Every typed radar axis id must satisfy the Mermaid identifier grammar.'
-  if (body.curves.some(curve => !ID_RE.test(curve.id))) return 'Every typed radar curve id must satisfy the Mermaid identifier grammar.'
+  if (body.axes.some(axis => !portableId(axis.id))) return 'Every typed radar axis id must have a portable Mermaid identifier spelling.'
+  if (body.curves.some(curve => !portableId(curve.id))) return 'Every typed radar curve id must have a portable Mermaid identifier spelling.'
   if (body.axes.some(axis => axis.label.trim().length === 0)) return 'Typed radar axis labels must be non-empty.'
   if (body.curves.some(curve => curve.label.trim().length === 0)) return 'Typed radar curve labels must be non-empty.'
   if (body.title !== undefined && body.title.trim().length === 0) return 'A typed radar title must be non-empty.'
@@ -144,8 +157,8 @@ function cloneRadar(b: RadarBody): RadarBody {
 }
 
 function validId(value: unknown, field: string): Result<string, MutationError> {
-  if (typeof value !== 'string' || !ID_RE.test(value.trim())) {
-    return err({ code: 'INVALID_OP', message: `Radar ${field} must be an identifier (letters/digits/_/-, not ending in -), got ${JSON.stringify(value)}` })
+  if (typeof value !== 'string' || !portableId(value.trim())) {
+    return err({ code: 'INVALID_OP', message: `Radar ${field} must start with a letter or _, keep dashes inside, and avoid reserved words or prefixes true/false/circle/polygon/title, got ${JSON.stringify(value)}` })
   }
   return ok(value.trim())
 }
@@ -360,11 +373,41 @@ function reorder(len: number, from: unknown, to: unknown, what: string): Result<
 
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
 
+/** Nonportable identities and conflicting accessibility statements keep their
+ * native reading and source-preserved body, with a portability diagnostic. */
+export function radarUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const source = normalizeMermaidSource(canonicalSource)
+  let chart: ReturnType<typeof parseRadarChart>
+  try { chart = parseRadarChart(source.familyLines) } catch { return [] }
+  const warnings: LayoutWarning[] = []
+  for (const [role, items] of [['axis', chart.axes], ['curve', chart.curves]] as const) {
+    for (const { id } of items) {
+      if (portableId(id)) continue
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'radar_id', node: id,
+        message: `Radar ${role} id "${id}" is read as written, but pinned Mermaid reads it as another token. The source is preserved; use an id starting with a letter or _, avoiding reserved words and prefixes true/false/circle/polygon/title, before typed editing.`,
+      })
+    }
+  }
+  return warnings.concat(statementAccessibilityConflicts(chart.statementAccessibility ?? {}, source.accessibility).map(directive => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'radar_accessibility_order',
+    message: `Radar chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+  })))
+}
+
 export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   // Labels are drawn as written (upstream sets them as text), so they are
   // measured literally.
   const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
+  const range = resolveRadarScale(body)
+  if (body.min > 0) warnings.push({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range, baseline: body.min, message: 'Radar radii use value minus min; a non-zero baseline exaggerates relative differences.' })
+  for (const curve of body.curves) {
+    const values = curve.values.filter(value => value < range.min || value > range.max)
+    if (values.length) warnings.push({ code: 'VALUES_OUTSIDE_RANGE', series: curve.id, values, range, message: 'Radar values outside the authored range are clipped to its boundary.' })
+  }
+
   if (body.axes.length === 0 && body.curves.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const a of body.axes) overflow(a.id, a.label)

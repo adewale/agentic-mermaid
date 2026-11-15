@@ -5,7 +5,6 @@ import {
   type ExecuteResult,
   type HostedMcpContext,
 } from '../mcp/hosted-server.ts'
-import { handleRequest } from '../mcp/server.ts'
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
 import { EXTERNAL_FAMILY_DESCRIBE_UNAVAILABLE_CODE } from '../mcp/describe-payload.ts'
 import {
@@ -30,7 +29,7 @@ function descriptor(onVerify: () => void = () => {}): FamilyDescriptor {
       id: FAMILY,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'extension-mcp-parity-test', source: 'test', reference: EVIDENCE },
     }),
     id: FAMILY,
@@ -141,13 +140,16 @@ describe('registered external family MCP parity', () => {
     }
   })
 
-  test('hosted and local describe return one stable unavailable capability diagnostic', async () => {
+  // The local server runs describe, like verify and render, in its supervised
+  // renderer process, which cannot receive a descriptor registered in this
+  // process; the local server is reached only through the CLI, which registers
+  // no external families.
+  test('hosted describe returns one stable unavailable capability diagnostic', async () => {
     const unregister = registerFamily(descriptor())
     try {
       for (const format of ['text', 'json', 'facts'] as const) {
         const responses = [
           payloadOf(await handleHostedRequest(call('describe', { source: SOURCE, format }), hostedContext())),
-          payloadOf(await handleRequest(call('describe', { source: SOURCE, format }))),
         ]
         for (const payload of responses) {
           expect(payload).toMatchObject({

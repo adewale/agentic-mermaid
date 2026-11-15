@@ -13,12 +13,23 @@ import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.t
 import type { ValidDiagramPayload } from '../agent/types.ts'
 
 /** The JSON payload `am parse` emits and `am serialize` reads back: Maps
- *  become records (the CLI's replacer), everything else is plain JSON. */
+ *  become records (the CLI's replacer), Sets become arrays; all remaining values are plain JSON. */
 function toWirePayload(diagram: { kind: string; body: unknown }): ValidDiagramPayload {
-  return JSON.parse(JSON.stringify({ kind: diagram.kind, body: diagram.body }, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value))
+  return JSON.parse(JSON.stringify({ kind: diagram.kind, body: diagram.body }, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value instanceof Set ? [...value] : value))
 }
 
 describe('synthesizeFromGraph accepts every declared body kind', () => {
+  it('serializes the edited body instead of stale canonical source retained in a JSON payload', () => {
+    const result = synthesizeFromGraph({
+      kind: 'pie',
+      body: { kind: 'pie', title: 'Budget', showData: false, slices: [{ id: 'slice0', label: 'Authored', value: 7 }] },
+      canonicalSource: 'pie\n  "Stale" : 999\n',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(serializeMermaid(result.value)).toBe('pie\n  title Budget\n  "Authored" : 7\n')
+  })
+
   it('publicly types the registered structured radar payload without a cast', () => {
     const payload = {
       kind: 'radar',
@@ -47,9 +58,17 @@ describe('synthesizeFromGraph accepts every declared body kind', () => {
       const result = synthesizeFromGraph(toWirePayload(parsed.value))
       expect(result.ok).toBe(true)
       if (!result.ok) return
-      // Nothing is lost on the way through: same body, same canonical source.
-      expect(result.value.body).toEqual(parsed.value.body)
-      expect(result.value.canonicalSource).toBe(serializeMermaid(parsed.value))
+      // Semantic records survive JSON. AgentFlow's parser-owned attachment
+      // coordinates follow the canonical text admitted by synthesis.
+      const semanticBody = (body: typeof parsed.value.body) => body.kind === 'agentflow' ? { ...body, mappings: undefined } : body
+      expect(semanticBody(result.value.body)).toEqual(semanticBody(parsed.value.body))
+      const canonicalSource = serializeMermaid(parsed.value)
+      expect(result.value.canonicalSource).toBe(canonicalSource)
+      if (result.value.body.kind === 'agentflow') {
+        const canonical = parseMermaid(canonicalSource)
+        if (!canonical.ok || canonical.value.body.kind !== 'agentflow') throw new Error('Canonical AgentFlow must parse natively')
+        expect(result.value.body.mappings).toEqual(canonical.value.body.mappings)
+      }
     })
   }
 

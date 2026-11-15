@@ -19,7 +19,9 @@
 // guessed (e.g. a timeline period line adds a period AND an event ⇒ nodeDelta 2;
 // state has no standalone-state syntax that stays structured ⇒ no add-primary).
 
+import type fc from 'fast-check'
 import type { DiagramKind } from '../../agent/types.ts'
+import { STRUCTURAL_FAMILY_ARBS } from './family-structural-arbs.ts'
 
 export interface AddPrimary {
   /** Source appended to add primary entities. */
@@ -38,12 +40,67 @@ export interface FamilyMetamorphic {
   addPrimary: AddPrimary | null
   /** Append one relation (edges += 1, nodes unchanged), or null for edgeless families. */
   addRelation: ((k: number, tag: string) => string) | null
+  /** Structural generator (nesting, styles, notes, hostile quoted text) for
+   * the oracles that need no predictable tally; see family-structural-arbs.ts. */
+  arb?: fc.Arbitrary<string>
 }
 
 const range = (k: number) => Array.from({ length: k }, (_, i) => i)
 const lines = (...xs: string[]) => xs.join('\n')
 
 export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
+  agentflow: { family: 'agentflow', build: (k, tag) => lines('agentflow-beta TB', `flow team[${tag} team]`, ...range(k).map(i => `${tag}${i}[Task ${i}]@{shape: task}`), ...range(k - 1).map(i => `${tag}${i} --> ${tag}${i + 1}`), 'end'), kRange: [2, 6], addPrimary: { snippet: (_k, tag) => `\n${tag}extra[Extra task]@{shape: task}`, nodeDelta: 1 }, addRelation: (_k, tag) => `\n${tag}1 --> ${tag}0` },
+  usecase: { family: 'usecase', build: (k, tag) => lines('usecase-beta', `actor ${tag}0`, ...range(k - 1).map(i => `${tag}${i + 1}("Case ${i + 1}")`), ...range(k - 1).map(i => `${tag}0 --> ${tag}${i + 1}`)), kRange: [2, 6], addPrimary: { snippet: (_k, tag) => `\n${tag}extra("Extra case")`, nodeDelta: 1 }, addRelation: (_k, tag) => `\n${tag}0 --> ${tag}1` },
+  wardley: { family: 'wardley', build: (k, tag) => lines('wardley-beta', ...range(k).map(i => `component ${tag}${i} [0.5, ${((i + 1) / (k + 1)).toFixed(3)}]`)), kRange: [2, 6], addPrimary: { snippet: (_k, tag) => `\ncomponent ${tag}extra [0.6,0.6]`, nodeDelta: 1 }, addRelation: (_k, tag) => `\n${tag}0 -> ${tag}1` },
+  venn: { family: 'venn', build: (k, tag) => lines('venn-beta', ...range(k).map(i => `set ${tag}${i}["Set ${i}"]:10`)), kRange: [2, 4], addPrimary: { snippet: (_k, tag) => `\nset ${tag}extra["Extra set"]:5`, nodeDelta: 1 }, addRelation: null },
+  cynefin: { family: 'cynefin', build: (k, tag) => lines('cynefin-beta', 'complex', ...range(k).map(i => `  "${tag} item ${i}"`)), kRange: [1, 6], addPrimary: { snippet: (_k, tag) => `\n  "${tag} extra item"`, nodeDelta: 1 }, addRelation: () => '\ncomplex --> clear: "Learning"' },
+  railroad: { family: 'railroad', build: (k, tag) => lines('railroad-beta', ...range(k).map(i => `${tag}${i} = terminal("Literal ${i}");`)), kRange: [1, 6], addPrimary: { snippet: (_k, tag) => `\n${tag}extra = terminal("Extra literal");`, nodeDelta: 1 }, addRelation: null },
+  swimlane: { family: 'swimlane', build: (k, tag) => lines('swimlane-beta LR', `subgraph lane[${tag} lane]`, ...range(k).map(i => `${tag}${i}[Task ${i}]`), 'end', ...range(k - 1).map(i => `${tag}${i} --> ${tag}${i + 1}`)), kRange: [2, 6], addPrimary: { snippet: (_k, tag) => `\n${tag}extra[Extra task]`, nodeDelta: 1 }, addRelation: (_k, tag) => `\n${tag}1 --> ${tag}0` },
+  treeview: { family: 'treeview', build: (k, tag) => lines('treeView-beta', `${tag}Root/`, ...range(k).map(i => `    ${tag}${i}.ts`)), kRange: [1, 6], addPrimary: { snippet: (_k, tag) => `\n${tag}extra.ts`, nodeDelta: 1 }, addRelation: null },
+  zenuml: { family: 'zenuml', build: (k, tag) => lines('zenuml', ...range(k).map(i => `${tag}${i}`)), kRange: [1, 6], addPrimary: { snippet: (k, tag) => `\n${tag}${k}`, nodeDelta: 1 }, addRelation: (k, tag) => `\n${tag}0->${tag}${k - 1}: request` },
+  eventmodeling: { family: 'eventmodeling', build: (k, tag) => `eventmodeling\n${Array.from({length: k}, (_, i) => `rf ${i} evt E${i} {${tag}}`).join('\n')}`, kRange: [1, 8], addPrimary: { snippet: (k, tag) => `\nrf ${k} evt Extra {${tag}}`, nodeDelta: 1 }, addRelation: null },
+  packet: {
+    family: 'packet',
+    build: (k, tag) => lines('packet', ...range(k).map(i => `+8: "${tag} field ${i}"`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n+8: "${tag} extra"`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  kanban: {
+    family: 'kanban',
+    build: (k, tag) => lines('kanban', `  ${tag}todo[To do]`, ...range(k).map(i => `    ${tag}${i}[Task ${i}]@{assigned: "Owner ${i % 2}"}`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n    ${tag}extra[Extra task]`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  requirement: {
+    family: 'requirement',
+    build: (k, tag) => lines('requirementDiagram', ...range(k).map(i => `  requirement ${tag}${i} {\n    id: R${i}\n    text: "Requirement ${i}"\n    risk: medium\n    verifymethod: test\n  }`), ...range(k - 1).map(i => `  ${tag}${i} - traces -> ${tag}${i + 1}`)),
+    kRange: [2, 5],
+    addPrimary: { snippet: (_k, tag) => `\n  element ${tag}extra {\n    type: "test"\n  }`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 - refines -> ${tag}0`,
+  },
+  treemap: {
+    family: 'treemap',
+    build: (k, tag) => lines('treemap', `"${tag} Portfolio"`, ...range(k).map(i => `  "${tag} Investment ${i}": ${(i + 1) * 10}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n"${tag} Extra": 7`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  ishikawa: {
+    family: 'ishikawa',
+    build: (k, tag) => lines('ishikawa', `  ${tag} Outcome`, `  ${tag} Process`, ...range(k).map(i => `    ${tag} Cause ${i}`)),
+    kRange: [1, 6],
+    addPrimary: null,
+    addRelation: null,
+  },
+  block: {
+    family: 'block',
+    build: (k, tag) => lines('block', '  columns 3', ...range(k).map(i => `  ${tag}${i}["Step ${i}"]`), ...range(k - 1).map(i => `  ${tag}${i} --> ${tag}${i + 1}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n  ${tag}extra["Extra"]`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 --> ${tag}0`,
+  },
   c4: {
     family: 'c4',
     build: (k, t) => lines('C4Container', `  System_Boundary(${t}g, "Platform") {`, ...range(k).map(i => `    Container(${t}${i}, "Service ${i}", "HTTP")`), '  }', ...range(k - 1).map(i => `  Rel(${t}${i}, ${t}${i + 1}, "Call ${i}")`)),
@@ -199,3 +256,5 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
     addRelation: (_k, t) => `\n  ${t}0,${t}sink,7`,
   },
 }
+
+for (const [family, arb] of Object.entries(STRUCTURAL_FAMILY_ARBS) as [DiagramKind, fc.Arbitrary<string>][]) METAMORPHIC_FAMILIES[family].arb = arb

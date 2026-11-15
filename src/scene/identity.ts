@@ -2,6 +2,7 @@ import { decodeXML } from 'entities'
 import type { SceneRole } from './roles.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { escapeAttr } from '../multiline-utils.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
 
 /** Public semantic identity carried by every structured Scene mark. */
 export interface SvgSemanticIdentity {
@@ -27,6 +28,15 @@ export function semanticRelationId(from: string, to: string, prefix = ''): strin
     ? `${from}->${to}`
     : `relation:${JSON.stringify([from, to])}`
   return prefix ? `${prefix}:${body}` : body
+}
+
+/** Relation IDs for one SVG, unique beside the authored node IDs it reserves:
+ * a node authored as `a->b` keeps its name, and the relation a→b, or a
+ * second relation between the same endpoints, takes an occurrence suffix. */
+export function semanticRelationIds(reserved: Iterable<string>, prefix = ''): (from: string, to: string) => string {
+  const allocate = generatedIds(reserved)
+  let occurrence = 0
+  return (from, to) => allocate(semanticRelationId(from, to, prefix), ['relation', occurrence++])
 }
 
 export function semanticChildId(base: string, ...parts: Array<string | number>): string {
@@ -71,7 +81,8 @@ export function hasDomSvgIdentityRole(role: SceneRole): boolean {
 
 /**
  * Attach the all-family X4 identity attributes to the first source-semantic
- * SVG element in a crisp mark. Existing family-authored values win. Layout
+ * SVG element of markup (a group's open tag, a rough sketch's first element);
+ * the typed identity overwrites any value already there. Layout
  * furniture (grids, axes, halos, labels) keeps typed Scene identity but does
  * not bloat the DOM contract.
  */
@@ -83,7 +94,8 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
   const set = (source: string, name: string, value: string): string => {
     const encoded = escapeAttr(value)
     const pattern = new RegExp(`\\s${name}="[^"]*"`)
-    if (pattern.test(source)) return source.replace(pattern, ` ${name}="${encoded}"`)
+    // A function replacement: authored text may spell `$&` or `$'`.
+    if (pattern.test(source)) return source.replace(pattern, () => ` ${name}="${encoded}"`)
     const close = source.endsWith('/>') ? '/>' : '>'
     const body = source.slice(0, -close.length).trimEnd()
     return `${body} ${name}="${encoded}"${close === '/>' ? ' /' : ''}>`
@@ -92,5 +104,5 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
 
   if (identity.from !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-from', identity.from)
   if (identity.to !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-to', identity.to)
-  return authoritativeOpening === opening ? svg : svg.replace(opening, authoritativeOpening)
+  return authoritativeOpening === opening ? svg : svg.replace(opening, () => authoritativeOpening)
 }

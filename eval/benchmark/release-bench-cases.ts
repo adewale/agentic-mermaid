@@ -4,16 +4,14 @@
 // finishes each case in seconds. Every generator is deterministic.
 
 import type { DiagramKind } from '../../src/agent/types.ts'
+import { flowchartMesh } from '../shared/graph-fixtures.ts'
+export { flowchartMesh } from '../shared/graph-fixtures.ts'
 
 export interface BenchCase {
   id: string
   family: DiagramKind
   source: string
-}
-
-function lcg(seed: number): () => number {
-  let state = seed >>> 0
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296
+  expectedSvgLabels?: readonly string[]
 }
 
 function lines(header: string, count: number, line: (i: number) => string | string[]): string {
@@ -22,15 +20,14 @@ function lines(header: string, count: number, line: (i: number) => string | stri
   return out.join('\n')
 }
 
-function flowchartTree(nodes: number): string {
+function architectureJunctions(count: number): string {
+  return lines('architecture-beta', count, i => [`junction j${i}`, ...(i ? [`j${i - 1}:R<-->L:j${i}`] : [])])
+}
+
+export function flowchartTree(nodes: number): string {
   return lines('flowchart TD', nodes - 1, i => `  n${Math.floor(i / 3)}[Node ${Math.floor(i / 3)}] --> n${i + 1}[Node ${i + 1}]`)
 }
 
-function flowchartMesh(nodes: number, labelled: number): string {
-  const rnd = lcg(7)
-  const edges = lines('flowchart TD', nodes - 1, i => `  n${Math.floor(rnd() * (i + 1))} --> n${i + 1}`)
-  return edges + '\n' + Array.from({ length: labelled }, (_, i) => `  n${Math.floor(rnd() * nodes)} -->|label ${i}| n${Math.floor(rnd() * nodes)}`).join('\n')
-}
 
 function flowchartSubgraphs(groups: number, perGroup: number): string {
   const out = ['flowchart LR']
@@ -46,12 +43,34 @@ function flowchartSubgraphs(groups: number, perGroup: number): string {
 // A new native family must supply a real scaling workload at this owning
 // boundary. The type closes enrollment without a second family inventory.
 const WORKLOADS = {
+  swimlane: [{ id: '4-lanes-40-tasks', source: ['swimlane-beta LR', ...Array.from({ length: 4 }, (_, lane) => [`subgraph lane${lane}[Team ${lane}]`, ...Array.from({ length: 10 }, (_, item) => `n${lane}_${item}[Task ${lane}.${item}]`), 'end']), ...Array.from({ length: 10 }, (_, item) => Array.from({ length: 3 }, (_, lane) => `n${lane}_${item} --> n${lane + 1}_${item}`))].flat(2).join('\n') }],
+  treeview: [{ id: '20-directories-200-files', source: lines('treeView-beta', 20, directory => [`folder${directory}/`, ...Array.from({ length: 10 }, (_, file) => `    file${directory}_${file}.ts`)]), expectedSvgLabels: Array.from({ length: 20 }, (_, directory) => Array.from({ length: 10 }, (_, file) => `file${directory}_${file}.ts`)).flat() }],
+  usecase: [{ id: '20-actors-20-cases', source: lines('usecase-beta\ndirection LR', 20, i => [`actor A${i}("Actor ${i}")`, `U${i}("Action ${i}")`, `A${i} --> U${i}`]) }],
+  agentflow: [{ id: '100-tasks-with-metadata', source: lines('agentflow-beta TB', 100, i => [`n${i}[Task ${i}]@{ shape: task, retries: ${i % 4}, tags: ["authoring", "execution"] }`, ...(i ? [`n${i - 1} --> n${i}`] : [])]), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `Task ${i}`) }],
+  wardley: [{ id: '30-positioned-components', source: lines('wardley-beta', 30, i => `component Component${i} [${(0.1 + Math.floor(i / 10) * 0.35).toFixed(2)}, ${(0.05 + i % 10 * 0.1).toFixed(2)}]`), expectedSvgLabels: Array.from({ length: 30 }, (_, i) => `Component${i}`) }],
+  cynefin: [{ id: '5-domains-100-items', source: ['cynefin-beta', ...['complex', 'complicated', 'clear', 'chaotic', 'confusion'].flatMap(domain => [domain, ...Array.from({ length: 20 }, (_, i) => `  "${domain} item ${i}"`)])].join('\n') }],
+  railroad: [{ id: '40-branching-rules', source: lines('railroad-beta', 40, i => `rule${i} = sequence(terminal("start${i}"), choice(terminal("left${i}"), optional(terminal("right${i}"))), zeroOrMore(terminal(",")));`), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => [`start${i}`, `left${i}`, `right${i}`]).flat() }],
+  venn: [{ id: '32-sets-with-owned-text', source: lines('venn-beta', 32, i => [`set S${i}["Set ${i}"]:${10 + i}`, `  text note${i}["Owned text ${i}"]`]), expectedSvgLabels: Array.from({ length: 32 }, (_, i) => [`Set ${i}`, `Owned text ${i}`]).flat() }],
+
+  // Scale variable-width bit encoding with complete field names; narrow flag
+  // wrapping has separate family tests. Authored bitWidth keeps one-bit names
+  // readable without changing the encoded inclusive ranges or label oracle.
+  packet: [{ id: '240-fields', source: lines('---\nconfig:\n  packet:\n    bitWidth: 80\n---\npacket\n  title Protocol fields', 240, i => `+${1 + (i % 24)}: "Field ${i}"`), expectedSvgLabels: Array.from({ length: 240 }, (_, i) => `Field ${i}`) }],
+  kanban: [{ id: '12-columns-240-cards', source: lines('kanban', 12, i => [`  stage${i}[Stage ${i}]`, ...Array.from({ length: 20 }, (_, j) => `    task${i}_${j}[Task ${i}.${j}]@{assigned: "Owner ${j % 4}", ticket: "AM-${i * 20 + j}"}`)]) }],
+  requirement: [{ id: '100-requirements-99-relations', source: lines('requirementDiagram', 100, i => [`  requirement r${i} {`, `    id: R${i}`, `    text: "Requirement ${i}"`, '    risk: medium', '    verifymethod: test', '  }', ...(i ? [`  r${i - 1} - traces -> r${i}`] : [])]) }],
+  treemap: [{ id: '20-groups-240-leaves', source: lines('treemap\ntitle Product allocation', 20, i => [`"Group ${i}"`, ...Array.from({ length: 12 }, (_, j) => `  "Investment ${i}.${j}": ${(j + 1) * 10}`)]) }],
+  ishikawa: [{ id: '12-categories-120-causes', source: lines('ishikawa\n  Delayed delivery', 12, i => [`  Category ${i}`, ...Array.from({ length: 10 }, (_, j) => `    Cause ${i}.${j}`)]) }],
+  block: [{ id: '120-grid-blocks', source: lines('block\n  columns 12', 120, i => [`  b${i}["Component ${i}"]`, ...(i ? [`  b${i - 1} --> b${i}`] : [])]) }],
   flowchart: [
-    { id: 'tree-300', source: flowchartTree(300) },
-    { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40) },
+    { id: 'tree-300', source: flowchartTree(300), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `Node ${i}`) },
+    { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
   ],
-  sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`) }],
+  sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `message ${i}`) }],
+  zenuml: [{ id: '20-participants-100-messages', source: lines('zenuml', 100, i => `P${i % 20}->P${(i + 1) % 20}: message${i}`), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `message${i}`) }],
+  // Each Event frame emits its canonical id/type and entity in one text block;
+  // the release observer compares the complete block after removing SVG tags.
+  eventmodeling: [{ id: '100-frames', source: lines('eventmodeling', 100, i => `tf ${i + 1} ${i % 2 ? 'evt' : 'cmd'} Step${i}`), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `${i + 1} · ${i % 2 ? 'event' : 'command'}Step${i}`) }],
   class: [{ id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
   state: [{ id: '80-states', source: lines('stateDiagram-v2', 80, i => [`  S${i} --> S${i + 1}: e${i}`, ...(i % 5 === 0 ? [`  S${i + 1} --> S${Math.max(0, i - 3)}`] : [])]) }],
   er: [{ id: '40-entities', source: lines('erDiagram', 40, i => [`  E${i} {`, '    int id PK', `    string name${i}`, '  }', ...(i > 0 ? [`  E${Math.floor((i - 1) / 2)} ||--o{ E${i} : has`] : [])]) }],
@@ -61,7 +80,11 @@ const WORKLOADS = {
   timeline: [{ id: '100-events', source: lines('timeline\n  title History', 100, i => [...(i % 10 === 0 ? [`  section Decade ${i / 10}`] : []), `    ${1900 + i} : Event ${i} : Detail ${i}`]) }],
   sankey: [{ id: '120-links', source: lines('sankey-beta', 120, i => `Source ${i % 12},Target ${(i * 5) % 30},${1 + (i % 9)}`) }],
   journey: [{ id: '120-tasks', source: lines('journey\n  title Product delivery', 120, i => [...(i % 12 === 0 ? [`  section Stage ${i / 12}`] : []), `    Task ${i}: ${1 + (i % 5)}: Alice, Bob`]) }],
-  architecture: [{ id: '40-services', source: lines('architecture-beta', 40, i => [`  service s${i}(server)[Service ${i}]`, ...(i > 0 ? [`  s${i - 1}:R --> L:s${i}`] : [])]) }],
+  architecture: [
+    { id: '40-services', source: lines('architecture-beta', 40, i => [`  service s${i}(server)[Service ${i}]`, ...(i > 0 ? [`  s${i - 1}:R --> L:s${i}`] : [])]) },
+    ...[16, 32].map(count => ({ id: `${count}-junctions`, source: architectureJunctions(count) })),
+    { id: '32-large-junctions', source: `---\nconfig:\n  architecture:\n    iconSize: 40\n---\n${architectureJunctions(32)}` },
+  ],
   xychart: [
     {
       id: '12-series-80-points',
@@ -77,7 +100,7 @@ const WORKLOADS = {
     },
   ],
   c4: [{ id: '40-services', source: ['C4Container', ...Array.from({ length: 40 }, (_, i) => [`  Container(s${i}, "Service ${i}", "Node", "Capability ${i}")`, ...(i > 0 ? [`  Rel(s${i - 1}, s${i}, "Calls ${i}")`] : [])]).flat()].join('\n') }],
-} satisfies Record<DiagramKind, readonly { id: string; source: string }[]>
+} satisfies Record<DiagramKind, readonly { id: string; source: string; expectedSvgLabels?: readonly string[] }[]>
 
 export function releaseBenchCases(): readonly BenchCase[] {
   return Object.entries(WORKLOADS).flatMap(([family, cases]) => cases.map(input => ({ ...input, id: `${family}:${input.id}`, family: family as DiagramKind })))

@@ -45,7 +45,7 @@ synonym is still an invalid call.
 ## Direct tools
 
 <!-- complete: hosted-mcp-tools -->
-- `verify({ source })` returns structural `ok`, detected `family`, `summary`,
+- `verify({ source })` returns `ok`, detected `family`, `summary`,
   `warnings`, and layout counts. Confirm the family as well as `ok`.
 - `describe({ source, format })` uses `text` for prose, `json` for an AX tree,
   and `facts` for compact deterministic semantic fact lines.
@@ -61,10 +61,15 @@ synonym is still an invalid call.
   `mermaid.*` global. Reserve it for custom control flow that a direct tool or
   op list cannot express.
 - `preview({ source, options? })` renders and verifies a diagram for the user
-  to see. It returns `{ ok, family, summary, warnings }`, or
-  `{ ok: false, errors }` when the source does not parse. Hosts that support
+  to see. It returns verify's `{ ok, family, summary, warnings, checks }`
+  without the layout, or verify's failure payload when the source does not
+  parse. `options` takes the same object as `render_svg`. Hosts that support
   MCP Apps show the diagram in a read-only view; its SVG is only in
   `structuredContent`. Use `render_svg` when you need the SVG yourself.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
 
 There is no hosted `capabilities` tool. Use the MCP client's `tools/list` for
 tool discovery and `describe_sdk` for one family's mutation schema.

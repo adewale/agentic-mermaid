@@ -1,6 +1,8 @@
 // Loop 9 M3 + M4 — `am render --format layout|unicode|ascii` round-trips.
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { layoutMermaid, parseRegisteredMermaid } from '../agent/index.ts'
 import { runCli } from '../cli/index.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
@@ -29,6 +31,8 @@ describe('am render --format layout', () => {
     expect(withCerts.code).toBe(0)
     const plain = JSON.parse(regular.out) as { edges: Array<{ route?: unknown }> }
     const debug = JSON.parse(withCerts.out) as { edges: Array<{ route?: { routeClass: string; invariant: string } }> }
+    expect(plain.edges).toHaveLength(2)
+    expect(debug.edges).toHaveLength(2)
     expect(plain.edges.every(e => e.route === undefined)).toBe(true)
     expect(debug.edges.every(e => e.route?.routeClass === 'primary-forward')).toBe(true)
     expect(debug.edges.every(e => typeof e.route?.invariant === 'string')).toBe(true)
@@ -58,11 +62,8 @@ describe('am render --format ascii vs unicode', () => {
     const f = tmpFile(SRC)
     const { code, out } = capture(() => runCli(['render', '--format', 'unicode', f]))
     expect(code).toBe(0)
-    // Either dashes / forward arrows — but at minimum it must NOT be pure
-    // ASCII. We do a permissive check: bytes above 0x7f exist.
-    let hasHigh = false
-    for (let i = 0; i < out.length; i++) if (out.charCodeAt(i) > 0x7f) { hasHigh = true; break }
-    expect(hasHigh).toBe(true)
+    expect(out).toMatch(/[\u2500-\u257f]/)
+    for (const label of ['Alpha', 'Beta', 'Gamma']) expect(out).toContain(label)
   })
 
   test('ascii emits only 7-bit characters', () => {
@@ -72,19 +73,20 @@ describe('am render --format ascii vs unicode', () => {
     for (let i = 0; i < out.length; i++) expect(out.charCodeAt(i)).toBeLessThan(0x80)
   })
 
-  test('unicode and ascii produce different output for the same diagram', () => {
+  test('--json success is an ok envelope; --output keeps the plain artifact and reports the write', () => {
     const f = tmpFile(SRC)
-    const a = capture(() => runCli(['render', '--format', 'unicode', f]))
-    const b = capture(() => runCli(['render', '--format', 'ascii', f]))
-    expect(a.out).not.toBe(b.out)
-  })
-
-  test('json wrap uses correct key per format', () => {
-    const f = tmpFile(SRC)
-    // Boolean classification is authority-derived, so --json never consumes the file.
-    const a = capture(() => runCli(['render', '--format', 'unicode', '--json', f]))
-    const b = capture(() => runCli(['render', '--format', 'ascii', '--json', f]))
-    expect(JSON.parse(a.out)).toHaveProperty('unicode')
-    expect(JSON.parse(b.out)).toHaveProperty('ascii')
+    for (const format of ['svg', 'ascii', 'unicode', 'layout'] as const) {
+      const plain = capture(() => runCli(['render', '--format', format, f]))
+      // Boolean classification is authority-derived, so --json never consumes the file.
+      const wrapped = JSON.parse(capture(() => runCli(['render', '--format', format, '--json', f])).out)
+      expect(wrapped, format).toMatchObject({ ok: true, receipt: { sharedRequestDigest: expect.any(String) } })
+      if (format !== 'layout') expect({ format, wrapsPlain: wrapped[format].length > 0 && plain.out.startsWith(wrapped[format]) }).toEqual({ format, wrapsPlain: true })
+      const output = join(temp.dir('am-render-out-'), `diagram.${format}`)
+      const written = capture(() => runCli(['render', '--format', format, '--output', output, '--json', f]))
+      const file = readFileSync(output, 'utf8')
+      expect({ format, code: written.code, file }).toEqual({ format, code: 0, file: plain.out })
+      if (format === 'svg') expect(file.startsWith('<svg')).toBe(true)
+      expect(JSON.parse(written.out), format).toEqual({ ok: true, path: output, bytes: Buffer.byteLength(file), receipt: wrapped.receipt, warnings: [] })
+    }
   })
 })

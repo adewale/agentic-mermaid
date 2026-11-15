@@ -9,7 +9,8 @@
 //   x-axis <near> [--> <far>]
 //   y-axis <near> [--> <far>]
 //   quadrant-1..quadrant-4 <label>
-//   <Label>[:::class]: [x, y] [styles]   x,y in [0,1]
+//   <Label>[:::class]: [x, y] [styles]   x,y in [0,1]; a repeated label is
+//                                        another point, addressed as Label#2, …
 //   classDef <class> <styles>
 //
 // Per-point styling (upstream mermaid#5173) is STRUCTURED content: `:::`
@@ -29,8 +30,9 @@
 // Unmodeled family syntax falls back to a lossless opaque body. The serializer re-emits a
 // canonical form the legacy parser re-parses identically (differential-tested).
 // The legacy renderer ERRORS LOUDLY on malformed lines / out-of-range coords;
-// here those fall back to opaque (preserved verbatim) and still surface the
-// loud render-time error.
+// a malformed line falls back to opaque (preserved verbatim) and still surfaces
+// the loud render-time error, while a coordinate that is not a number in [0, 1]
+// is a parse failure of a modeled statement (Mermaid rejects it too).
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -41,8 +43,9 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
-import { renderPointStyleEntries } from '../quadrant/point-style.ts'
-import { parseQuadrantChart, quadrantTextRejections, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { isValidPointClassName, renderPointStyleEntries } from '../quadrant/point-style.ts'
+import { parseQuadrantChart, QuadrantCoordinateError, quadrantPointIds, quadrantStatementEnds, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { statementText } from '../shared/trailing-comment.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Number format ----------------------------------------------------------
@@ -55,19 +58,77 @@ function isCoord(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1
 }
 
+/** Preserve native styles, but admit only values with an exact 12.2 spelling. */
+function portableStyleProblem(style: QuadrantPointStyle | undefined): string | undefined {
+  if (!style) return
+  if (style.radius !== undefined && (!Number.isSafeInteger(style.radius) || style.radius < 0)) return 'radius requires a non-negative integer'
+  for (const [name, value] of [['color', style.color], ['stroke-color', style.strokeColor]] as const) {
+    if (value !== undefined && !/^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(value)) return `${name} requires a three- or six-digit hexadecimal color`
+  }
+  if (style.strokeWidth !== undefined && (!/^\d+(?:\.\d+)?(?:px)?$/.test(style.strokeWidth) || !Number.isSafeInteger(Number(style.strokeWidth.replace(/px$/, ''))))) {
+    return 'stroke-width requires a non-negative integer pixel width'
+  }
+  if (style.extra?.length) return `style property ${JSON.stringify(style.extra[0]!.split(':')[0])} is not supported`
+}
+
+function canonicalStyle(style: QuadrantPointStyle): QuadrantPointStyle {
+  return { ...style, ...(style.strokeWidth === undefined ? {} : { strokeWidth: `${Number(style.strokeWidth.replace(/px$/, ''))}px` }) }
+}
+
+type QuadrantContent = Pick<QuadrantBody, 'xAxis' | 'yAxis' | 'quadrants' | 'points' | 'classDefs'>
+
+function quadrantWriteProblems(body: QuadrantContent): Array<{ syntax: string; message: string }> {
+  const problems: Array<{ syntax: string; message: string }> = []
+  const text = (value: string | undefined, subject: string) => {
+    if (value !== undefined && !quadrantTextWritable(value)) problems.push({ syntax: 'quadrant_text', message: `${subject} ${JSON.stringify(value)} has no supported lossless Mermaid text spelling` })
+  }
+  const style = (value: QuadrantPointStyle | undefined, subject: string) => {
+    const problem = portableStyleProblem(value)
+    if (problem) problems.push({ syntax: value?.extra?.length ? 'quadrant_style_property' : 'quadrant_style_value', message: `${subject}: ${problem}` })
+  }
+  const className = (name: string | undefined, definition: boolean) => {
+    if (name === undefined) return
+    // Definitions use ordinary text tokens (no underscores or keywords),
+    // whereas ::: enters a word-only lexer state (keywords are ordinary IDs).
+    // Neither position accepts quotes; entities change the stored identity.
+    const portable = isValidPointClassName(name) && (definition
+      ? !name.includes('_') && quadrantTextSource(name) === name
+      : !name.includes('-'))
+    if (!portable) problems.push({ syntax: 'quadrant_class_name', message: `Quadrant class ${definition ? 'definition' : 'reference'} ${JSON.stringify(name)} has no supported lossless Mermaid spelling` })
+  }
+  text(body.xAxis?.near, 'Quadrant x-axis near label')
+  text(body.xAxis?.far, 'Quadrant x-axis far label')
+  text(body.yAxis?.near, 'Quadrant y-axis near label')
+  text(body.yAxis?.far, 'Quadrant y-axis far label')
+  for (const [index, value] of body.quadrants.entries()) if (value != null) text(value, `Quadrant quadrant-${index + 1} label`)
+  for (const point of body.points) {
+    text(point.label, 'Quadrant point label')
+    className(point.className, false)
+    style(point.style, `Quadrant point ${JSON.stringify(point.label)}`)
+  }
+  for (const [name, value] of Object.entries(body.classDefs ?? {})) {
+    className(name, true)
+    style(value, `Quadrant classDef ${JSON.stringify(name)}`)
+  }
+  return problems
+}
+
 // ---- Parser -----------------------------------------------------------------
 
 /**
  * Parse quadrant body lines (header excluded). Returns a structured body only
  * if EVERY non-blank, non-comment line is a modeled title / axis / quadrant /
- * point directive with in-range coordinates and no duplicate point labels.
- * Otherwise returns null (opaque fallback). Unlike pie/xychart, an empty
+ * point directive with in-range coordinates. A repeated point label is another
+ * point (Mermaid draws both); typed edits address it by its quadrantPointIds id.
+ * A coordinate outside [0, 1] throws QuadrantCoordinateError: the statement is
+ * modeled, so that source does not parse. Otherwise returns null (opaque fallback). Unlike pie/xychart, an empty
  * quadrant chart (header only) still renders, so there is no minimum-content
  * floor.
  */
 export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
   try {
     const parsed = parseQuadrantChart(['quadrantChart', ...lines])
+    if (quadrantWriteProblems(parsed).length > 0) return null
     const body: QuadrantBody = {
       kind: 'quadrant',
       ...(parsed.title === undefined ? {} : { title: parsed.title }),
@@ -76,14 +137,15 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
       quadrants: [...parsed.quadrants],
       points: parsed.points.map(point => ({
         ...point,
-        ...(point.style === undefined ? {} : { style: { ...point.style } }),
+        ...(point.style === undefined ? {} : { style: canonicalStyle(point.style) }),
       })),
     }
     if (Object.keys(parsed.classDefs).length > 0) {
-      body.classDefs = Object.assign(Object.create(null), parsed.classDefs)
+      body.classDefs = Object.assign(Object.create(null), Object.fromEntries(Object.entries(parsed.classDefs).map(([name, style]) => [name, canonicalStyle(style)])))
     }
     return body
-  } catch {
+  } catch (error) {
+    if (error instanceof QuadrantCoordinateError) throw error
     return null
   }
 }
@@ -92,17 +154,15 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
 
 /** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
 function encodeMultilineText(text: string): string {
-  return text.replace(/\r?\n/g, '<br/>')
+  return text.replaceAll('&', '&amp;').replace(/\r?\n/g, '<br/>')
 }
 
-/** Label, axis or quadrant text, quoted where Mermaid reads it only quoted. */
+/** Label, axis or quadrant text, quoted where Mermaid reads it only quoted.
+ * A "…" string runs across a line break, so the break is written as one. */
 function renderText(text: string): string {
-  const source = quadrantTextSource(encodeMultilineText(text))
-  // These lexer keywords outrank ordinary text even inside an axis or point
-  // label. Quoting punctuation alone would turn "x-axis-1" into syntax.
-  return !source.startsWith('"') && (source !== source.trim() || /(?:^|[^A-Za-z])(?:x-axis|y-axis|quadrant-[1-4]|quadrantChart|classDef|accTitle|accDescr|title)/i.test(source))
-    ? `"${source}"`
-    : source
+  // The shared render request resolves XML transport references once. Keep
+  // literal reference-looking text intact through that same source boundary.
+  return quadrantTextSource(text.replaceAll('&', '&amp;'), true)
 }
 
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
@@ -111,6 +171,8 @@ function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
 }
 
 export function renderQuadrant(body: QuadrantBody): string {
+  const problem = quadrantWriteProblems(body)[0]
+  if (problem) throw new Error(problem.message)
   const lines: string[] = ['quadrantChart']
   appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`  title ${encodeMultilineText(body.title)}`)
@@ -124,12 +186,12 @@ export function renderQuadrant(body: QuadrantBody): string {
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
-    const tail = renderPointStyleEntries(p.style)
+    const tail = renderPointStyleEntries(p.style && canonicalStyle(p.style))
     lines.push(`  ${renderText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
   }
   // classDefs after points (the upstream docs' canonical order).
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {
-    lines.push(`  classDef ${name} ${renderPointStyleEntries(style)}`)
+    lines.push(`  classDef ${name} ${renderPointStyleEntries(canonicalStyle(style))}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -186,7 +248,7 @@ function validLabel(value: unknown, field: string, opts: { point?: boolean; titl
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must be non-empty single-line text` })
   }
   if (!opts.title && !quadrantTextWritable(trimmed)) {
-    return err({ code: 'INVALID_OP', message: `Quadrant ${field} ${JSON.stringify(trimmed)} needs quoting for Mermaid, and a quoted string cannot hold a double quote` })
+    return err({ code: 'INVALID_OP', message: `Quadrant ${field} ${JSON.stringify(trimmed)} has no supported lossless Mermaid text spelling` })
   }
   if (opts.point && (trimmed.includes(':') || trimmed.includes('[') || trimmed.includes(']'))) {
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must not contain ':' or brackets` })
@@ -211,11 +273,15 @@ function validCoord(value: unknown, field: string): Result<number, MutationError
   return ok(value)
 }
 
-function findPoint(body: QuadrantBody, label: string): number {
-  return body.points.findIndex(p => p.label === label)
+/** A point by its identity: its label, or `<label>#<n>` for a repeated label's
+ * later points (quadrantPointIds, the rule the renderer's element ids use). */
+function findPoint(body: QuadrantBody, id: string): number {
+  return quadrantPointIds(body.points.map(point => point.label)).indexOf(id)
 }
 
 export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Result<QuadrantBody, MutationError> {
+  const problem = quadrantWriteProblems(body)[0]
+  if (problem) return err({ code: 'INVALID_OP', message: problem.message })
   const next = cloneQuadrant(body)
 
   switch (op.kind) {
@@ -229,6 +295,8 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
         return err({ code: 'INVALID_OP', message: `Quadrant set_axis_labels axis must be 'x' or 'y', got ${JSON.stringify(op.axis)}` })
       }
       if (op.near === null) {
+        // `x-axis` names its near label first; a far label alone has no spelling.
+        if (op.far !== undefined && op.far !== null) return err({ code: 'INVALID_OP', message: `Quadrant ${op.axis}-axis far label needs a near label; near: null removes the axis` })
         if (op.axis === 'x') delete next.xAxis
         else delete next.yAxis
         break
@@ -322,6 +390,7 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
   const header = lines.findIndex(line => /^quadrant(?:Chart)?\b/i.test(line.trim()))
   if (header < 0) return []
   const warnings: LayoutWarning[] = []
+  const ends = quadrantStatementEnds(lines)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -329,14 +398,25 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       index = directive.endIndex
       continue
     }
-    for (const what of quadrantTextRejections(lines[index]!.trim())) {
-      warnings.push({
-        code: 'UNSUPPORTED_SYNTAX',
-        syntax: 'quadrant_unquoted_text',
-        line: index + 1,
+    try {
+      const rejections: string[] = []
+      const parsed = parseQuadrantChart(['quadrantChart', statementText(lines, index, ends[index]!).trim()], what => rejections.push(what))
+      for (const what of rejections) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'quadrant_unquoted_text', line: index + 1,
         message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes.`,
       })
-    }
+      for (const problem of quadrantWriteProblems(parsed)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', ...problem, line: index + 1,
+        message: `${problem.message}. Pinned Mermaid rejects this; the source and native rendering are preserved, and typed editing is unavailable.`,
+      })
+      for (const style of [...parsed.points.map(point => point.style), ...Object.values(parsed.classDefs)]) {
+        if (style?.strokeWidth !== undefined && !portableStyleProblem(style) && !/^\d+px$/.test(style.strokeWidth)) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'quadrant_stroke_width', line: index + 1,
+          message: `Quadrant stroke-width ${JSON.stringify(style.strokeWidth)} is read as a pixel width. Pinned Mermaid requires integer px units; canonical export writes ${canonicalStyle(style).strokeWidth}.`,
+        })
+      }
+    } catch { /* Malformed statements already produce a render diagnostic. */ }
+    index = ends[index]!
   }
   return warnings
 }

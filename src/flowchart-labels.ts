@@ -65,13 +65,14 @@ function decodeLabelEntities(text: string): string {
  * double quotes (a quoted shape, `@{ label }`).
  */
 export function parseFlowchartLabel(raw: string, alreadyUnquoted = false): ParsedFlowchartLabel {
-  const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
-    ? raw.slice(1, -1)
-    : raw
+  const unquoted = alreadyUnquoted ? raw : unquoteFlowchartLabel(raw)
   const quoteConsumed = alreadyUnquoted || unquoted !== raw
   const markdown = quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')
   const authored = markdown ? `\`${unquoted.slice(1, -1).trim()}\`` : unquoted.trim()
   const normalized = markdown ? normalizeBrTags(unquoted.slice(1, -1).trim(), false) : normalizePlainLabel(authored)
+  // Only entity decoding can make the public string need a distinct display
+  // reading. Ordinary labels have no sidecar to retain or compare here.
+  if (!normalized.includes('#') && !normalized.includes('ﬂ°')) return { text: normalized, markdown }
   const text = decodeLabelEntities(normalized)
   const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized), /&#(?:\d+|[xX][0-9a-fA-F]+);|#\w+;/g,
     token => token.startsWith('&') ? token : decodeMermaidEntities(token, ENTITY_REFUSAL))
@@ -79,6 +80,17 @@ export function parseFlowchartLabel(raw: string, alreadyUnquoted = false): Parse
   // entity-produced formatting tag needs runs to distinguish it from markup.
   const labelContent = preparedDisplayTextValue(prepared) === displayText(text) ? undefined : { value: text, prepared, authored }
   return { text, markdown, ...(labelContent ? { labelContent } : {}) }
+}
+
+/** Label text as authored, without the quotes of a string: the whole text
+ * quoted (`"a"`), or a string upstream's text joins to the text after it
+ * (`"a" b` is `a b` there), when that text holds no `"`. A markdown string
+ * keeps its quotes unless it is the whole text. */
+export function unquoteFlowchartLabel(raw: string): string {
+  if (raw.length < 2 || !raw.startsWith('"')) return raw
+  if (raw.endsWith('"')) return raw.slice(1, -1)
+  const close = raw.indexOf('"', 1)
+  return close > 0 && !raw.startsWith('"`') && !raw.includes('"', close + 1) ? raw.slice(1, close) + raw.slice(close + 1) : raw
 }
 
 /** Characters no label text holds literally: `"` would close a quoted label

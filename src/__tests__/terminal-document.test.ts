@@ -82,7 +82,21 @@ describe('owned terminal composition', () => {
     expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
     doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'family.r.route', message: 'The route uses an owned endpoint summary.' })
     expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
-    doc.text(0, 3, 'A --> B', { owner: edge })
+    doc.text(0, 3, 'unrelated', { owner: owner('r') })
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.text(0, 4, 'A', { owner: edge })
+    expect(() => doc.serialize()).not.toThrow()
+    // Proof observations must describe the current public cells/diagnostics,
+    // including owners replaced with equivalent non-interned records.
+    const cell = doc.cell(0, 4)!
+    cell.owners = [{ ...edge }] as unknown as typeof cell.owners
+    expect(() => doc.serialize()).not.toThrow()
+    cell.glyph = ' '
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    cell.glyph = 'A'
+    const diagnostic = doc.diagnostics.pop()!
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.diagnostics.push(diagnostic)
     expect(() => doc.serialize()).not.toThrow()
   })
 
@@ -144,10 +158,10 @@ describe('owned terminal composition', () => {
   })
 
   test.each([
-    ['sourceLine', 2], ['parent', { id: 'parent', kind: 'cluster' }], ['bundle', 'other'],
+    ['sourceLine', 2], ['parent', { id: 'parent', kind: 'cluster' }], ['annotationTarget', { id: 'other', kind: 'node' }], ['bundle', 'other'],
     ['from', 'other'], ['to', 'other'], ['members', ['other']],
   ] as const)('imported definitions validate the immutable %s field', (field, value) => {
-    const definition: TerminalOwner = { ...route('r'), sourceLine: 1, parent: { id: 'parent', kind: 'node' }, bundle: 'shared', from: 'A', to: 'B', members: ['A', 'B'] }
+    const definition: TerminalOwner = { ...route('r'), sourceLine: 1, parent: { id: 'parent', kind: 'node' }, annotationTarget: { id: 'target', kind: 'node' }, bundle: 'shared', from: 'A', to: 'B', members: ['A', 'B'] }
     const doc = new TerminalDocument()
     doc.element(definition)
     const foreign = new TerminalDocument().element({ ...definition, [field]: value })
@@ -170,6 +184,24 @@ describe('owned terminal composition', () => {
     expect(compatible.textBlock(0, 0, 'OK', { owner: child })).toBeDefined()
     expect(compatible.serialize()).toBe('OK')
     expect(compatible.regions().find(region => region.id === 'child')).toMatchObject({ parentId: 'same', parentKind: 'node' })
+  })
+
+  test('annotation references remain immutable through composition without authorizing target overlap', () => {
+    const reference: { id: string; kind: 'node' | 'cluster' } = { id: 'same', kind: 'node' }
+    const source = new TerminalDocument(), note = source.element({ id: 'note', kind: 'node', annotationTarget: reference })
+    reference.id = 'changed'; reference.kind = 'cluster'
+    expect(note.annotationTarget).toEqual({ id: 'same', kind: 'node' })
+    expect(Object.isFrozen(note.annotationTarget)).toBe(true)
+    source.textBlock(3, 0, 'Note', { owner: note })
+    const composed = new TerminalDocument()
+    composed.overlay(source, 2, 1)
+    composed.flip(true, true)
+    expect(composed.regions().find(region => region.id === 'note')).toMatchObject({ annotationTarget: { id: 'same', kind: 'node' }, projectedText: 'Note' })
+    expect(composed.regions().find(region => region.id === 'note')?.parentId).toBeUndefined()
+    const blocked = new TerminalDocument()
+    blocked.fill(0, 0, 2, 1, { owner: { id: 'same', kind: 'node' } })
+    expect(blocked.textBlock(0, 0, 'NO', { owner: note })).toBeUndefined()
+    expect(blocked.diagnostics[0]?.code).toBe('TERMINAL_GEOMETRY_COLLISION')
   })
 
   test.each(['text', 'textBlock'] as const)('arbitrary owner and group strings retain independent %s allocations', method => {

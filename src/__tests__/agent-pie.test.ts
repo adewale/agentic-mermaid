@@ -8,6 +8,7 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -39,6 +40,22 @@ function apply(d: PieValidDiagram, op: PieMutationOp): PieValidDiagram {
 }
 
 describe('pie structured parse', () => {
+  test('directive-like slice labels export without changing label-based addressing', async () => {
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      const d = pie('pie\n"%%{slice" : 2\n"Other" : 3')
+      const out = serializeMermaid(d)
+      expect(await upstream.accepts(out)).toBe(true)
+      expect(pie(out).body).toEqual(d.body)
+      expect(await upstream.project(out, diagram => [...diagram.db.getSections().entries()])).toEqual({ ok: true, value: [['%%{slice', 2], ['Other', 3]] })
+      const edited = apply(d, { kind: 'set_slice_value', label: '%%{slice', value: 5 })
+      expect(pie(serializeMermaid(edited)).body.slices[0]).toMatchObject({ label: '%%{slice', value: 5 })
+      const renamed = apply(edited, { kind: 'rename_slice', from: 'Other', to: '%%{renamed' })
+      expect(await upstream.accepts(serializeMermaid(renamed))).toBe(true)
+      expect(pie(serializeMermaid(renamed)).body.slices[1]!.label).toBe('%%{renamed')
+    } finally { upstream.close() }
+  })
   test('models showData, title, and labelled positive-valued slices', () => {
     const d = pie()
     expect(d.kind).toBe('pie')
@@ -71,6 +88,32 @@ describe('pie structured parse', () => {
     const d2 = pie(out)
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
+  })
+
+  // Pie shows `<br/>` as text, so the writer keeps the line break inside the
+  // quotes, where Mermaid reads it too.
+  test('a label authored across lines stays typed and is written across lines', () => {
+    const label = 'First\n  Indented\n\nLast'
+    const source = `pie\n  "${label}" : 1\n  "b" : 2`
+    expect(parsePieChart(source.split('\n')).entries[0]).toMatchObject({ label, displayLabel: 'First Indented Last' })
+    const d = pie(source)
+    expect(d.body.slices.map(slice => slice.label)).toEqual([label, 'b'])
+    const out = serializeMermaid(d)
+    expect(out).toContain(`  "${label}" : 1\n`)
+    expect(pie(out).body).toEqual(d.body)
+  })
+
+  test('a label across lines is addressed by every slice op', () => {
+    const d = pie('pie\n  "multi\n    label" : 1\n  "b" : 2')
+    const labels = (op: Parameters<typeof mutate>[1]) => {
+      const r = mutate(d, op)
+      if (!r.ok) throw new Error(JSON.stringify(r.error))
+      return pie(serializeMermaid(r.value)).body.slices.map(slice => `${slice.label}=${slice.value}`)
+    }
+    expect(labels({ kind: 'set_slice_value', label: 'multi\n    label', value: 5 })).toEqual(['multi\n    label=5', 'b=2'])
+    expect(labels({ kind: 'rename_slice', from: 'multi\n    label', to: 'new\nname' })).toEqual(['new\nname=1', 'b=2'])
+    expect(labels({ kind: 'remove_slice', label: 'multi\n    label' })).toEqual(['b=2'])
+    expect(labels({ kind: 'add_slice', label: 'c\nd', value: 3 })).toEqual(['multi\n    label=1', 'b=2', 'c\nd=3'])
   })
 
   test('serializes Pie-authored br tags as literal one-line text', () => {
@@ -286,13 +329,20 @@ describe('pie round-trip property', () => {
           if (title) lines.push(`  title ${title}`)
           for (const s of slices) lines.push(`  "${s.label}" : ${s.value}`)
           const d = pie(lines.join('\n'))
+          const expected = { showData, title, slices }
+          const meaning = (diagram: PieValidDiagram) => ({
+            showData: diagram.body.showData,
+            title: diagram.body.title,
+            slices: diagram.body.slices.map(({ label, value }) => ({ label, value })),
+          })
+          expect(meaning(d)).toEqual(expected)
           const out = serializeMermaid(d)
           const d2 = pie(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(expected)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),
-      { numRuns: 50 },
+      fcParameters({ numRuns: 50 }),
     )
   })
 

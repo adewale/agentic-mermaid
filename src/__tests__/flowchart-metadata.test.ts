@@ -1,10 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import {
   asFlowchart,
   layoutMermaid,
+  mutate,
   parseRegisteredMermaid as parseMermaid,
   renderMermaidASCII,
   renderMermaidSVG,
@@ -50,6 +54,45 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart @{...} node metadata preservation (issue #29)', () => {
+  test('directive-like metadata labels keep literal text in portable output and typed edits', async () => {
+    const source = 'flowchart TD\nA@{ shape: rounded, label: "%%{t" }'
+    const diagram = asFlowchart(parseAgent(source))!
+    expect(diagram.body.graph.nodes.get('A')?.label).toBe('%%{t')
+    const edited = mutate(diagram, { kind: 'set_label', target: 'A', label: 'Keep %%{value} text' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(edited.error.message)
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [candidate, label] of [[diagram, '%%{t'], [edited.value, 'Keep %%{value} text']] as const) {
+        const written = serializeMermaid(candidate)
+        const projected = await upstream.project(written, mermaid => mermaid.db.getVertices().get('A').text)
+        expect(projected.ok).toBe(true)
+        if (!projected.ok) throw new Error(projected.error)
+        expect(projectEntityMarkers(projected.value)).toBe(label)
+        expect(parseGraph(written).nodes.get('A')?.label).toBe(label)
+        expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(candidate))
+      }
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    ['|', 'First line\nSecond line'],
+    ['>-', 'First line Second line'],
+  ])('block scalar %s retains its indentation through public rendering and typed edits', (scalar, label) => {
+    const source = `flowchart TD\n  A@{\n    shape: rect\n    label: ${scalar}\n      First line\n      Second line\n  }\n  A --> B[Done]`
+    expect(parseMermaid(source).ok).toBe(true)
+    const diagram = parseAgent(source)
+    const typed = asFlowchart(diagram)
+    expect(typed?.body.graph.nodes.get('A')?.label).toBe(label)
+    const edited = mutate(diagram, { kind: 'rename_node', from: 'B', to: 'Completed' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    const serialized = serializeMermaid(edited.value)
+    expect(asFlowchart(parseAgent(serialized))?.body.graph.nodes.get('A')?.label).toBe(label)
+    for (const text of [renderMermaidSVG(source), renderMermaidASCII(source)]) {
+      for (const line of label.split('\n')) expect(text).toContain(line)
+    }
+  })
+
   for (const c of ISSUE_29_CASES) {
     // Documented `@{ shape, label }` metadata is MODELED now (repo #44): the
     // agent body is structured, the authored shape spelling survives
@@ -119,7 +162,7 @@ describe('flowchart @{...} node metadata preservation (issue #29)', () => {
         expect(graph.edges[0]!.source).toBe(id)
         expect(graph.edges[0]!.target).toBe('B')
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

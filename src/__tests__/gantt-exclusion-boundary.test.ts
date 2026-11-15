@@ -131,3 +131,41 @@ describe('exclude-boundary: (start, end] walk (upstream fixTaskDates)', () => {
     expect(s.tasks[0]!.end).toBe(UTC(2019, 3, 22))
   })
 })
+
+describe('long calendar durations retain exception and observation boundaries', () => {
+  test.each([
+    [14, '2024-01-06', UTC(2024, 1, 19), UTC(2024, 1, 19)],
+    [15, '2024-01-06', UTC(2024, 1, 22), UTC(2024, 1, 20)],
+    [15, '2024-01-06 2024-01-20', UTC(2024, 1, 20), UTC(2024, 1, 20)],
+  ] as const)('%sd with explicit includes %s preserves chain and drawn ends', (duration, includes, end, renderEnd) => {
+    // In (Jan 1, Jan 19], the fourteen working dates are Jan 2–6, 8–9,
+    // 11–12 and 15–19. Jan 10 is explicitly excluded. The fifteenth is
+    // Monday Jan 22 unless Saturday Jan 20 is explicitly included.
+    const s = scheduleOf(`gantt
+excludes weekends 2024-01-10
+includes ${includes}
+A :a, 2024-01-01, ${duration}d
+B :b, after a, 1d`)
+    expect(s.tasks[0]).toMatchObject({ start: UTC(2024, 1, 1), end, renderEnd })
+    expect(s.tasks[1]!.start).toBe(end)
+  })
+
+  test('one excluded date fits exactly 10000 observed days, but the next day keeps the structured overflow', () => {
+    // Only Jan 2 is excluded, so a 9999-day duration needs exactly 10000
+    // observations; 10000 days needs one more. No weekday recurrence is
+    // involved in this arithmetic oracle.
+    const s = scheduleOf('gantt\nexcludes 2024-01-02\nA :a, 2024-01-01, 9999d')
+    const end = UTC(2024, 1, 1) + 10000 * 24 * 60 * 60 * 1000
+    expect(s.tasks[0]).toMatchObject({ end, renderEnd: end })
+    let failure: unknown
+    try {
+      scheduleOf('gantt\nexcludes 2024-01-02\nA :a, 2024-01-01, 10000d')
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toMatchObject({
+      name: 'GanttError', code: 'GANTT_SCHEDULE_OVERFLOW', line: 3,
+      message: 'GANTT_SCHEDULE_OVERFLOW: Calendar exclusion walk exceeded 10000 days (is every day excluded?)',
+    })
+  })
+})

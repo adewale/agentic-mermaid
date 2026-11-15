@@ -4,6 +4,7 @@ import type { FamilyConfigContract, FamilyOperations } from '../agent/families.t
 import type { ConfigValueRule } from './config-value-rules.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
+import { mermaidThemeConfigDiagnostics } from '../color-resolver.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
 
@@ -90,6 +91,19 @@ function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] 
     })
 }
 
+// Mermaid's top-level `look` ('classic' | 'handDrawn' | 'neo') and
+// `handDrawnSeed`. This renderer's looks are the `style` render option, so the
+// config keys are named instead of being dropped silently; `classic` is the
+// default look and needs no warning.
+function mermaidLookConfigDiagnostics(root: unknown): ConfigDiagnostic[] {
+  const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : {}
+  const { look, handDrawnSeed } = record
+  return [
+    ...(look != null && look !== 'classic' ? [{ field: 'look', message: `Mermaid look ${JSON.stringify(look)} has no effect here; choose looks with the style option (style 'hand-drawn', CLI --style hand-drawn).` }] : []),
+    ...(handDrawnSeed != null ? [{ field: 'handDrawnSeed', message: 'Mermaid handDrawnSeed has no effect here; use the seed option (CLI --seed N).' }] : []),
+  ].map(diagnostic => ({ code: 'INEFFECTIVE_CONFIG' as const, ...diagnostic }))
+}
+
 /** Descriptor-owned diagnostics for source wrappers or explicit config roots. */
 export function familyConfigDiagnostics(
   kind: FamilyId,
@@ -97,11 +111,13 @@ export function familyConfigDiagnostics(
   spec?: FamilyConfigContract,
   hook?: FamilyOperations['configDiagnostics'],
 ): ConfigDiagnostic[] {
-  if (!spec) return []
+  // `theme` and `look` are shared by every family, so a family descriptor cannot own them.
+  const theme = roots.flatMap(root => [...mermaidThemeConfigDiagnostics(root), ...mermaidLookConfigDiagnostics(root)])
+  if (!spec) return stableDiagnostics(theme)
   const diagnose = hook ?? getInstalledFamilyDescriptor(kind)?.configDiagnostics
-  return stableDiagnostics(roots.flatMap(root => diagnose
+  return stableDiagnostics([...theme, ...roots.flatMap(root => diagnose
     ? [...diagnose({ root, config: spec })]
-    : diagnoseFamilyConfig(kind, { root, config: spec })))
+    : diagnoseFamilyConfig(kind, { root, config: spec }))])
 }
 
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */

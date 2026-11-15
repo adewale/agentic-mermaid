@@ -6,7 +6,7 @@
 > transport API and records actual HTTP requests; pinned/latest Python results
 > and their coverage limits are recorded below. Client probes remain manual.
 > (`src/__tests__/mcp-client-interop.test.ts`; the original lane used SDK `1.29.0`,
-> current devDependency `1.31.0`; see the historical red→green record below). This document specifies
+> current devDependency `1.32.1`; see the historical red→green record below). This document specifies
 > a test lane that drives both MCP servers in this repo with the **reference MCP client
 > SDK** (`@modelcontextprotocol/sdk`), so compatibility is *observed against a real
 > client* rather than *asserted from our own reading of the spec*. It supplies

@@ -37,7 +37,7 @@ version-controlled public `StyleSpec` records with schema validation, executable
 fixtures, deterministic screenshot gates, strict rendering, inspect-only
 constraints, and optional process-local registration. The reviewed image hashes
 are pinned in
-[`eval/style-prototype-evidence/visual-approval.json`](../eval/style-prototype-evidence/visual-approval.json).
+[`eval/style-prototype-evidence/visual-approval.json`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/style-prototype-evidence/visual-approval.json).
 They are not package-owned built-ins, installed BrandPacks, claims of pixel
 equivalence, or endorsements.
 
@@ -52,7 +52,7 @@ runtime identity, expose it in a built-in catalog or picker, or retain a
 registered short name. Load the JSON explicitly when you want to study or
 adapt the prototype:
 
-![Documentation-only Cupertino prototype](./assets/style-cookbook/cupertino-prototype.png)
+![Documentation-only Cupertino prototype](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/cupertino-prototype.png)
 
 ```bash
 am render examples/styles/cupertino-prototype.mmd --format svg \
@@ -104,7 +104,7 @@ or endorsed implementation.
 Complete file:
 [`examples/styles/vercel-inspired-prototype.style.json`](../examples/styles/vercel-inspired-prototype.style.json).
 
-![Documentation-only Vercel-inspired prototype](./assets/style-cookbook/vercel-inspired-prototype.png)
+![Documentation-only Vercel-inspired prototype](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/vercel-inspired-prototype.png)
 
 ```bash
 am verify examples/styles/vercel-inspired-prototype.mmd \
@@ -129,7 +129,7 @@ implementation.
 Complete file:
 [`examples/styles/cloudflare-workers-inspired-prototype.style.json`](../examples/styles/cloudflare-workers-inspired-prototype.style.json).
 
-![Documentation-only Cloudflare Workers-inspired prototype](./assets/style-cookbook/cloudflare-workers-inspired-prototype.png)
+![Documentation-only Cloudflare Workers-inspired prototype](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png)
 
 ```bash
 am verify examples/styles/cloudflare-workers-inspired-prototype.mmd \
@@ -154,7 +154,7 @@ product or endorsed implementation.
 Complete file:
 [`examples/styles/transit-route-map.style.json`](../examples/styles/transit-route-map.style.json).
 
-![Transit route map custom style](./assets/style-cookbook/transit-route-map.png)
+![Transit route map custom style](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/transit-route-map.png)
 
 This style is a good route-map example because it stresses brand colors and
 connector weight. It also shows the current limit: JSON styles can set a
@@ -185,7 +185,7 @@ Use it when you want to test whether a style keeps connectors readable:
 Complete file:
 [`examples/styles/mid-century-report.style.json`](../examples/styles/mid-century-report.style.json).
 
-![Mid-century report custom style](./assets/style-cookbook/mid-century-report.png)
+![Mid-century report custom style](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/mid-century-report.png)
 
 This is the easiest uncovered cluster to teach with today's StyleSpec. It is
 mostly palette, typography, and page treatment. No new backend capability is
@@ -216,7 +216,7 @@ technical connectors:
 Complete file:
 [`examples/styles/star-chart-atlas.style.json`](../examples/styles/star-chart-atlas.style.json).
 
-![Star chart atlas custom style](./assets/style-cookbook/star-chart-atlas.png)
+![Star chart atlas custom style](https://raw.githubusercontent.com/adewale/agentic-mermaid/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/assets/style-cookbook/star-chart-atlas.png)
 
 This example exercises the page axis: dark host, grid backdrop, pale strokes,
 serif labels, and lightly rough geometry. It is useful because it reveals

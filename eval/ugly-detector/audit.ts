@@ -241,10 +241,8 @@ function main(): void {
     for (const { r, f } of soft) console.log(`  [${r.d.corpus}/${r.d.name}] (${r.format}) ${f.kind}: ${f.detail}`)
   }
   if (errors.length) {
-    console.log(`\nRender errors (diagram type unsupported by a renderer — not a layout defect):`)
-    const byErr = new Map<string, number>()
-    for (const r of errors) { const k = `${r.format}: ${r.error!.split('\n')[0]!.slice(0, 70)}`; byErr.set(k, (byErr.get(k) ?? 0) + 1) }
-    for (const [k, n] of byErr) console.log(`  ×${n}  ${k}`)
+    console.log('\nRender errors:')
+    for (const r of errors) console.log(`  [${r.d.corpus}/${r.d.name}] (${r.format}) ${r.error!.split('\n')[0]}`)
   }
   process.exit(hard.length || errors.length ? 1 : 0)
 }

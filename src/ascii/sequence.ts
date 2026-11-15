@@ -1,9 +1,9 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Terminal sequence layout owns cell bounds before painting. Lexical fragment
 // boundaries distinguish notes and empty sections sharing a message cursor.
 import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
 import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
-import type { SequenceMessageHead } from '../sequence/types.ts'
+import type { SequenceDiagram, SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -16,37 +16,43 @@ import { concatDisplayText, prepareDisplayText, resolveLabelContent, type Displa
 
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
-interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number }
-interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ y: number; lines: string[] }> ; parentId?: string }
+interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number; loopX?: number }
+interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ x?: number; y: number; lines: string[] }> ; parentId?: string }
 
 function messageLabelX(message: PositionedMessage, line: string): number {
   return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
 }
 
-export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
+export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined, authoredColumn?: (index: number, column: number) => number | undefined): TerminalArtifact {
+  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}), ...(authoredColumn ? { authoredColumn } : {}) })
+  return renderSequenceDiagramTerminal(diagram, config, colorMode, theme, seqConfig, targetWidth)
+}
+
+/** Native sequence-language adapters share cell layout without a text roundtrip. */
+export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
-  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), seqConfig)
-  diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
+  const diagram = input.title === undefined && config.title !== undefined ? { ...input, title: normalizeBrTags(config.title) } : input
   if (!diagram.actors.length && !diagram.blocks.length) {
     const empty = new TerminalDocument()
     if (diagram.title) for (const line of wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
     return terminalArtifact(empty, { colorMode, theme, trimEnd: true })
   }
-  const generated = terminalIds(diagram.actors.map(actor => actor.id))
+  const generated = terminalIds([...diagram.actors.map(actor => actor.id), ...[...diagram.messages, ...diagram.blocks, ...diagram.notes].flatMap(item => item.id === undefined ? [] : [item.id])])
+  const blockId = (index: number) => diagram.blocks[index]!.id ?? generated(`block:${index}`)
   const ascii = config.useAscii
   const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
   const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
-  const prepared = (value: DisplayTextInput) => wrapText(prepareDisplayText(value), budget)
+  const prepared = (value: DisplayTextInput, wrap?: boolean) => wrapText(prepareDisplayText(value), wrap === false ? undefined : wrap ? Math.min(budget ?? 40, 40) : budget)
   const actorLines = diagram.actors.map(actor => {
     const label = prepareDisplayText(resolveLabelContent(actor.label, actor.labelContent))
-    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]))
+    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]), actor.wrap)
   })
-  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message)))
-  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent)))
-  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type))
-  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']'])) : ['']))
+  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message), message.wrap))
+  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent), note.wrap))
+  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type, block.wrap))
+  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']']), divider.wrap) : ['']))
   const actorWidths = actorLines.map(lines => Math.max(0, ...lines.map(visualWidth)) + 4)
-  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent)) : [])
+  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent), box.wrap) : [])
   diagram.boxes?.forEach((box, index) => {
     const members = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
     if (members.length !== 1) return
@@ -57,13 +63,23 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   const halfBox = actorWidths.map(width => Math.ceil(width / 2))
   const actorBoxH = diagram.actors.length ? Math.max(3, ...actorLines.map(lines => lines.length + 2)) : 0
   const gaps = new Array<number>(Math.max(0, diagram.actors.length - 1)).fill(0)
+  // A creation message meets the created card's side on the card's middle
+  // row, as the SVG header does, so the card's half (and the head beside it)
+  // is part of the message's span; a self-message that creates its
+  // participant leaves from the card's side.
+  const createdBy = (index: number): number | undefined => {
+    const to = actorIndex.get(diagram.messages[index]!.to)!
+    return diagram.actors[to]!.createMessageIndex === index ? to : undefined
+  }
+  const cardOf = (actor: number) => ({ x: llX[actor]! - Math.floor(actorWidths[actor]! / 2), width: actorWidths[actor]! })
   diagram.messages.forEach((message, index) => {
     const from = actorIndex.get(message.from)!, to = actorIndex.get(message.to)!
     const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const card = createdBy(index) === undefined ? 0 : halfBox[to]! + 1
     if (from === to) {
-      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5)
+      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5 + card)
     } else {
-      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / Math.abs(to - from)))
+      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4 + card) / Math.abs(to - from)))
     }
   })
   diagram.boxes?.forEach((_, index) => {
@@ -96,15 +112,90 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   if (maxDepth) leftMargin += maxDepth * 4
   const llX = [leftMargin]
   for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
+  // Where a message's arrow runs: from the sender's lifeline to the
+  // receiver's, or to the side of the card it creates (a self-message that
+  // creates its participant leaves from that side, `loopX`), its label
+  // between them (right of a self-message's loop).
+  const messageGeometry = (index: number) => {
+    const message = diagram.messages[index]!
+    const receiver = actorIndex.get(message.to)!, created = createdBy(index)
+    const card = created === undefined ? undefined : cardOf(created)
+    const fromX = llX[actorIndex.get(message.from)!]!, self = message.from === message.to
+    const toX = card && !self ? (fromX < llX[receiver]! ? card.x - 1 : card.x + card.width) : llX[receiver]!
+    const loopX = card && self ? card.x + card.width : fromX
+    const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const labelX = self ? loopX + (loopX === fromX ? 6 : 5) : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2)
+    const x = Math.min(fromX, toX, labelX, card?.x ?? fromX)
+    return { created, card, fromX, toX, loopX, self, width, labelX, x, right: Math.max(fromX, toX, labelX + width - 1, card ? card.x + card.width - 1 : fromX) }
+  }
+  const messageSpans = diagram.messages.map((_, index) => {
+    const { x, right } = messageGeometry(index)
+    return { x, width: right - x + 1 }
+  })
+  const noteSpans = diagram.notes.map((note, index) => {
+    const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
+    // An over-note's addressed lifelines are part of its geometry, even when
+    // the caption is short. Centering a text-sized box between them loses its
+    // visible owners; include both endpoints and all intervening lifelines.
+    const width = Math.max(Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4, note.position === 'over' ? Math.abs(last - first) + 3 : 0)
+    // Cell-box centers use (width - 1) / 2; width / 2 loses the right
+    // interior margin when the addressed lifelines have odd separation.
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last - width + 1) / 2)
+    return { x: Math.max(0, x), width }
+  })
+  const frameSpans = new Map<number, { x: number; width: number }>()
+  const frameSpan = (index: number): { x: number; width: number } => {
+    const cached = frameSpans.get(index)
+    if (cached) return cached
+    const scope = scopes[index]!, block = diagram.blocks[index]!
+    const contents = [...messageSpans.slice(block.startIndex, scope.endMessageExclusive), ...scope.noteIndices.map(ni => noteSpans[ni]!), ...scope.childBlockIndices.map(frameSpan)]
+    const x = Math.max(0, (contents.length ? Math.min(...contents.map(item => item.x)) : llX[0]!) - 4)
+    const right = contents.length ? Math.max(...contents.map(item => item.x + item.width)) : llX.at(-1)!
+    const labelWidth = Math.max(0, ...headerLines[index]!.map(visualWidth), ...dividerLines[index]!.flatMap(lines => lines.map(visualWidth)))
+    const span = { x, width: Math.max(right + 4 - x, labelWidth + 2) + (block.type === 'par_over' ? labelWidth : 0) }
+    frameSpans.set(index, span)
+    return span
+  }
   const messages: PositionedMessage[] = []
   const notes: PositionedText[] = []
   const frames = new Map<number, SequenceFrame>()
   const closedFrames: SequenceFrame[] = []
   const activeFrames: number[] = []
   const actorTop = new Map<number, number>()
-  const currentParent = () => activeFrames.length ? generated(`block:${activeFrames.at(-1)!}`) : undefined
+  const destroyCrosses = new Map<number, CellBounds>()
+  const currentParent = () => activeFrames.length ? blockId(activeFrames.at(-1)!) : undefined
   let cursor = participantTop + actorBoxH
   const ownedBounds = new Map<number, CellBounds[]>()
+  const overlays = new Map<number, { start: number; bottom: number; prior: CellBounds[]; pending?: number }>()
+  const clearOverlay = (bounds: CellBounds): number => {
+    let shift = 0
+    const obstacles = [...overlays.values()].flatMap(state => state.prior)
+    for (let pass = 0; pass <= obstacles.length; pass++) {
+      const hit = obstacles.find(other => bounds.x < other.x + other.width + 1 && bounds.x + bounds.width + 1 > other.x
+        && bounds.y + shift < other.y + other.height + 1 && bounds.y + bounds.height + shift + 1 > other.y)
+      if (!hit) break
+      shift = hit.y + hit.height + 1 - bounds.y
+    }
+    return shift
+  }
+  const overlayContent = (bounds: CellBounds): number => {
+    let candidate = { ...bounds }
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      const extra = tag.lines.length ? tag.lines.length + 1 : 0
+      candidate = { x: candidate.x, y: candidate.y - extra, width: Math.max(candidate.width, ...tag.lines.map(visualWidth)), height: candidate.height + extra }
+    }
+    const shift = clearOverlay(candidate)
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      tag.x = bounds.x; tag.y = bounds.y + shift - tag.lines.length - 1
+      if (tag.lines.length) own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      delete state.pending
+    }
+    return shift
+  }
   const own = (bounds: CellBounds) => {
     // Every ancestor owns its full contents; frame completion adds its margins.
     for (const index of activeFrames) {
@@ -112,24 +203,64 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       list.push(bounds); ownedBounds.set(index, list)
     }
   }
+  const finishEmptyOverlayLabel = (index: number): void => {
+    const state = overlays.get(index)
+    if (state?.pending === undefined) return
+    const tag = frames.get(index)!.dividers[state.pending]!
+    tag.x = llX[0]!; tag.y = Math.max(cursor, state.bottom) + 1
+    if (tag.lines.some(Boolean)) {
+      own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      cursor = tag.y + tag.lines.length
+      state.bottom = Math.max(state.bottom, cursor)
+    }
+    delete state.pending
+  }
   let messageCursor = 0, noteCursor = 0, boundaryCursor = 0
-  const boundaries = getSequenceBlockBoundaries(diagram) ?? []
+  const boundaries = getSequenceBlockBoundaries(input) ?? []
   const consumeBoundaries = () => {
     while (boundaryCursor < boundaries.length) {
       const event = boundaries[boundaryCursor]!
       if (event.messageIndex > messageCursor || event.noteIndex > noteCursor) break
       const index = event.blockIndex
       if (event.kind === 'open') {
+        if (overlays.size) {
+          const span = frameSpan(index)
+          for (const [overlayIndex, state] of overlays) {
+            const tagRows = state.pending === undefined ? 0 : frames.get(overlayIndex)!.dividers[state.pending]!.lines.length + 1
+            for (const ink of state.prior) {
+              if (span.x < ink.x + ink.width + 1 && span.x + span.width + 1 > ink.x) cursor = Math.max(cursor, ink.y + ink.height + tagRows + 1)
+            }
+          }
+          cursor += overlayContent({ ...span, y: cursor + 1, height: 1 })
+        }
         cursor++
-        frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: currentParent() })
+        frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: diagram.blocks[index]!.parentId ?? currentParent() })
         activeFrames.push(index)
         cursor += Math.max(1, headerLines[index]!.length)
+        if (diagram.blocks[index]!.type === 'par_over') {
+          cursor += Math.max(0, ...dividerLines[index]!.map(lines => lines.length ? lines.length + 1 : 0))
+          overlays.set(index, { start: cursor, bottom: cursor, prior: [] })
+        }
       } else if (event.kind === 'divider') {
+        const overlay = overlays.get(index)
+        if (overlay) {
+          finishEmptyOverlayLabel(index)
+          overlay.bottom = Math.max(overlay.bottom, cursor)
+          overlay.prior = [...ownedBounds.get(index) ?? []]
+          cursor = overlay.start
+          const frame = frames.get(index)!
+          frame.dividers.push({ y: cursor, lines: dividerLines[index]![event.dividerIndex!]! })
+          overlay.pending = frame.dividers.length - 1
+          boundaryCursor++
+          continue
+        }
         cursor++
         const lines = dividerLines[index]![event.dividerIndex!]!
         frames.get(index)!.dividers.push({ y: cursor, lines })
         cursor += Math.max(1, lines.length)
       } else {
+        const overlay = overlays.get(index)
+        if (overlay) { finishEmptyOverlayLabel(index); cursor = Math.max(cursor, overlay.bottom); overlays.delete(index) }
         cursor++
         const frame = frames.get(index)!
         const contents = ownedBounds.get(index) ?? []
@@ -154,29 +285,53 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (note && note.afterIndex < messageCursor) {
       cursor++
       const lines = noteLines[noteCursor]!
-      const width = Math.max(0, ...lines.map(visualWidth)) + 4
-      const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!
-      const last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
-      const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
-      const positioned = { index: noteCursor, x: Math.max(0, x), y: cursor, width, height: lines.length + 2, lines, parentId: currentParent() }
+      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: diagram.notes[noteCursor]!.parentId ?? currentParent() }
+      const shift = overlayContent(positioned)
+      cursor += shift; positioned.y += shift
       notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++
     } else if (messageCursor < diagram.messages.length) {
       const message = diagram.messages[messageCursor]!
-      // A created actor's complete header precedes its creation message.
-      diagram.actors.forEach((actor, index) => {
-        if (actor.createMessageIndex !== messageCursor) return
-        cursor++; actorTop.set(index, cursor); cursor += actorBoxH
-        own({ x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index)!, width: actorWidths[index]!, height: actorBoxH })
-      })
       cursor++
       const lines = messageLines[messageCursor]!
-      const fromX = llX[actorIndex.get(message.from)!]!, toX = llX[actorIndex.get(message.to)!]!
-      const self = fromX === toX
-      const width = Math.max(0, ...lines.map(visualWidth))
-      const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: currentParent() }
+      const { created, card, fromX, toX, loopX, self, width, labelX, x, right } = messageGeometry(messageCursor)
+      // The card a message creates is centred on the arrow's row, as the SVG
+      // header is, so the arrow ends at its side. A self-message that creates
+      // its participant takes a lower interior row, so its loop returns to
+      // the lifeline below the card.
+      const middle = !card ? 0 : self ? Math.min(actorBoxH - 2, Math.max(1, actorBoxH - 1 - lines.length)) : Math.floor((actorBoxH - 1) / 2)
+      const arrowY = cursor + (self ? middle : Math.max(lines.length, middle))
+      const positioned: PositionedMessage = { index: messageCursor, x: labelX, y: self ? arrowY + 1 : arrowY - lines.length, width, height: lines.length, lines, arrowY, fromX, toX, ...(loopX === fromX ? {} : { loopX }), parentId: message.parentId ?? currentParent() }
+      const cardTop = arrowY - middle
+      const lastRow = self ? arrowY + lines.length + 1 : arrowY
+      const contentBottom = Math.max(lastRow, card ? cardTop + actorBoxH - 1 : lastRow)
+      const shift = overlayContent({ x, y: cursor, width: right - x + 1, height: contentBottom - cursor + 1 })
+      positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
-      own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
-      cursor += lines.length + (self ? 2 : 1); messageCursor++
+      own({ x, y: cursor + shift, width: right - x + 1, height: lastRow - cursor + 1 })
+      if (card) {
+        actorTop.set(created!, cardTop + shift)
+        own({ ...card, y: cardTop + shift, height: actorBoxH })
+      }
+      cursor = contentBottom + shift + 1
+      // A participant created at a message it does not receive starts just
+      // below the message, as the SVG header does.
+      const belowTop = lastRow + shift + 2
+      diagram.actors.forEach((actor, index) => {
+        if (actor.createMessageIndex !== messageCursor || index === created) return
+        actorTop.set(index, belowTop); own({ ...cardOf(index), y: belowTop, height: actorBoxH })
+        cursor = Math.max(cursor, belowTop + actorBoxH)
+      })
+      // A destroyed lifeline runs through its last endpoint on this message
+      // (a self-message's return row); that cell is the message's marker, so
+      // the cross takes the cell below it (or below the participant's own
+      // card when the message also creates it).
+      diagram.actors.forEach((actor, index) => {
+        if (actor.destroyMessageIndex !== messageCursor) return
+        const cross = { x: llX[index]!, y: Math.max(lastRow + shift + 1, actorTop.has(index) && actor.createMessageIndex === messageCursor ? actorTop.get(index)! + actorBoxH : 0), width: 1, height: 1 }
+        destroyCrosses.set(index, cross); own(cross)
+        cursor = Math.max(cursor, cross.y)
+      })
+      messageCursor++
     } else if (note) {
       // A parser-owned note is always reachable at the current final cursor.
       messageCursor = Math.max(messageCursor, note.afterIndex + 1)
@@ -211,14 +366,15 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   // foreground routes and labels still meet the ordinary collision checks.
   const foreground = closedFrames.flatMap(frame => [
     { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.header.map(visualWidth)), height: frame.header.length },
-    ...frame.dividers.map(divider => ({ x: frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
+    ...frame.dividers.map(divider => ({ x: divider.x ?? frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
   ])
   foreground.push(...notes)
   messages.forEach(message => message.lines.forEach((line, row) => foreground.push({ x: messageLabelX(message, line), y: message.y + row, width: visualWidth(line), height: 1 })))
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
     const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
     foreground.push(card)
-    if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
+    if (!destroyCrosses.has(index)) foreground.push({ ...card, y: footerY })
   })
   const backgroundGaps = new Map<number, Array<{ start: number; end: number }>>()
   for (const bounds of foreground) for (let row = bounds.y; row < bounds.y + bounds.height; row++) {
@@ -229,38 +385,57 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   // Participant-group frames are background geometry with distinct ownership.
   participantGroups.forEach(group => {
     const element = doc.element({ id: generated(`box:${group.index}`), kind: 'group', members: group.members })
-    frame({ x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element)
+    paintTerminalFrame(doc, { x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element, ascii, false, reservedForeground)
     doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
   })
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) { owner(actor.id); return }
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
-    const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
+    const end = (destroyCrosses.get(index)?.y ?? footerY + 1) - 1
     for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
-  // Activations are owned spans, drawn behind opaque labels and notes.
+  // Activations are owned spans, drawn behind opaque labels and notes. A
+  // destroyed participant's activation ends with its lifeline, on the row
+  // above the cross, however late it is closed.
   const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
   let activationIndex = 0
-  const activation = (id: string, y: number, enable: boolean) => {
+  const activation = (id: string, closeY: number, enable: boolean) => {
     const stack = activationStacks.get(id) ?? []
-    if (enable) stack.push({ y, id: activationIndex++ })
+    if (enable) stack.push({ y: closeY, id: activationIndex++ })
     else if (stack.length) {
-      const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      // An activation the creation message opens starts below the card.
+      const opened = stack.pop()!, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      const start = Math.max(opened.y, (actorTop.get(ai) ?? participantTop) + actorBoxH)
+      const crossY = destroyCrosses.get(ai)?.y
+      const y = crossY !== undefined && start < crossY ? Math.min(closeY, crossY - 1) : closeY
       const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
       doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
       for (let row = start; row <= y; row++) for (const column of [x - 1, x + 1]) if (!reservedForeground(column, row)) stroke(column, row, 5, 'line', element)
     }
     activationStacks.set(id, stack)
   }
+  // A standalone activate/deactivate applies where the message before it ends
+  // (below a self-message's label), as the `+`/`-` arrow suffix does; commands
+  // ahead of every message anchor to the first.
+  const activationEventsAt = (boundary: number, y: number, nextMessage = false) => {
+    for (const event of diagram.activationEvents ?? []) {
+      if (event.messageIndex === boundary && (event.anchor === 'next-message') === nextMessage) activation(event.actorId, y, event.kind === 'activate')
+    }
+  }
   diagram.messages.forEach((message, index) => {
-    const y = messages[index]!.arrowY
-    for (const event of diagram.activationEvents ?? []) if (event.messageIndex === index) activation(event.actorId, messages[index]!.y, event.kind === 'activate')
+    const positioned = messages[index]!, y = positioned.arrowY
+    if (index === 0) activationEventsAt(0, y)
+    activationEventsAt(index, positioned.y, true)
     if (message.activate) activation(message.to, y, true)
     if (message.deactivate) activation(message.from, y, false)
+    activationEventsAt(index + 1, message.from === message.to ? positioned.y + positioned.height : y)
   })
-  for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
+  if (diagram.messages.length === 0) activationEventsAt(0, footerY - 1)
+  activationEventsAt(diagram.messages.length, footerY - 1, true)
   for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const drawActor = (top: number) => {
       const width = actorWidths[index]!, lines = actorLines[index]!, x = llX[index]! - Math.floor(width / 2)
@@ -268,38 +443,43 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       doc.scope(element, () => lines.forEach((line, row) => doc.text(x + 2 + Math.floor((width - 4 - visualWidth(line)) / 2), top + 1 + row, line, { owner: element, role: 'text', kind: 'text' })))
     }
     drawActor(actorTop.get(index) ?? participantTop)
-    if (actor.destroyMessageIndex === undefined) drawActor(footerY)
-    else marker(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', element)
+    const cross = destroyCrosses.get(index)
+    if (cross) marker(cross.x, cross.y, 'X', element)
+    else drawActor(footerY)
     if (!ascii) {
       if (actor.createMessageIndex === undefined) stroke(llX[index]!, participantTop + actorBoxH - 1, 14, 'junction', element)
-      if (actor.destroyMessageIndex === undefined) stroke(llX[index]!, footerY, 11, 'junction', element)
+      if (!destroyCrosses.has(index)) stroke(llX[index]!, footerY, 11, 'junction', element)
     }
   })
   for (const positioned of messages) {
     const message = diagram.messages[positioned.index]!, self = message.from === message.to
-    const element = doc.element({ id: generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
+    const element = doc.element({ id: message.id ?? generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
     const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
     const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
       const semantic = sequenceMarker(start ? message.startHead : message.endHead, right, ascii, start ? message.centralStart : message.centralEnd)
       if (semantic) doc.marker(x, row, semantic, { owner: element, role: 'arrow' })
     }
-    doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: 'lifeline' })
-    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: 'lifeline' })
+    // A creation message meets the created card's side, not its lifeline.
+    const loop = positioned.loopX ?? from, creates = diagram.actors[actorIndex.get(message.to)!]!.createMessageIndex === positioned.index
+    doc.port(element, { nodeId: message.from, x: loop, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: loop === from ? 'lifeline' : 'frame' })
+    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: creates && !self ? 'frame' : 'lifeline' })
     const startMarker = sequenceMarker(message.startHead, !self && from > to, ascii, message.centralStart)
     const endMarker = sequenceMarker(message.endHead, !self && from < to, ascii, message.centralEnd)
     doc.expectMarkers(element, 'start', startMarker ? [startMarker] : [])
     doc.expectMarkers(element, 'end', endMarker ? [endMarker] : [])
     if (self) {
-      stroke(from, y, 7, 'junction', element)
-      for (let x = from + 1; x < from + 4; x++) stroke(x, y, 10, 'line', element, style)
-      stroke(from + 4, y, 12, 'corner', element)
-      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(from + 4, row, 5, 'line', element)
+      // The loop leaves its lifeline, or the side of the card it creates.
+      const corner = loop === from ? from + 4 : loop + 3
+      if (loop === from) stroke(from, y, 7, 'junction', element)
+      for (let x = loop === from ? from + 1 : loop; x < corner; x++) stroke(x, y, 10, 'line', element, style)
+      stroke(corner, y, 12, 'corner', element)
+      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(corner, row, 5, 'line', element)
       const bottom = y + positioned.lines.length + 1
-      for (let x = from + 1; x < from + 4; x++) stroke(x, bottom, 10, 'line', element, style)
-      stroke(from + 4, bottom, 9, 'corner', element)
+      for (let x = from + 1; x < corner; x++) stroke(x, bottom, 10, 'line', element, style)
+      stroke(corner, bottom, 9, 'corner', element)
       endpoint(from, bottom, false, false)
-      endpoint(from, y, true, false)
+      endpoint(loop, y, true, false)
     } else {
       for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) stroke(x, y, 10, 'line', element, style)
       endpoint(from, y, true, from > to)
@@ -311,16 +491,18 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   }
   // Frames use measured owned bounds, including complete conditions and notes.
   for (const positioned of [...closedFrames].reverse()) {
-    const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    const element = owner(blockId(positioned.index), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element)
     doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
     positioned.dividers.forEach(divider => {
-      for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
-      doc.textBlock(positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
+      if (diagram.blocks[positioned.index]!.type !== 'par_over') {
+        for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
+      }
+      doc.textBlock(divider.x ?? positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
     })
   }
   for (const positioned of notes) {
-    const element = owner(generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    const element = owner(diagram.notes[positioned.index]!.id ?? generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element, true)
     doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
   }
@@ -341,7 +523,3 @@ function sequenceMarker(head: SequenceMessageHead, right: boolean, ascii: boolea
   return { shape: head === 'filled' ? 'triangle' : head === 'open' ? 'open-arrow' : head === 'cross' ? 'sequence-cross' : head, direction: right ? 'R' : 'L', ascii }
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderSequenceAscii(...args: Parameters<typeof renderSequenceTerminal>): string {
-  return serializeTerminalArtifact(renderSequenceTerminal(...args))
-}

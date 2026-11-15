@@ -6,7 +6,7 @@
 // must agree through both the typed parse and the rendered SVG.
 
 import { afterAll, describe, expect, test } from 'bun:test'
-import { parseRegisteredMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -61,10 +61,12 @@ const COMMENT_ENDS_STATEMENT: ReadonlyArray<readonly [string, string, number]> =
   ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  weekend friday\n  excludes weekends\n  Build :a1, 2024-01-01, 3d', 2],
 ]
 
-// `%%` that Mermaid reads as text: inside a quoted string, or after a
-// statement whose grammar runs to the end of the line.
+// `%%` that Mermaid reads as text: inside a quoted string, also one that runs
+// across lines, or after a statement whose grammar runs to the end of the line.
 const PERCENTS_ARE_TEXT: ReadonlyArray<readonly [string, string]> = [
   ['pie', 'pie\n  "Dogs %% cats" : 3'],
+  ['radar', "radar-beta\n  axis a['x\ny %% z'], b\n  curve c{1, 2}"],
+  ['architecture', "architecture-beta\n  service a(server)['x\ny %% z']"],
   ['xychart', 'xychart-beta\n  x-axis [a, "b %% c"]\n  bar [1, 2]'],
   ['gitgraph', 'gitGraph\n  commit id: "a %% b"'],
   ['quadrant', `quadrantChart\n  title Risk ${COMMENT}\n  p: [0.5, 0.5]`],
@@ -91,11 +93,36 @@ describe('a trailing %% comment, as pinned Mermaid reads it', () => {
       mermaid: (await upstream.database(source))?.includes(text),
       typed: parsed.ok && parsed.value.body.kind !== 'opaque' && JSON.stringify(parsed.value.body).includes(text),
       renders: !ours(source).svg.startsWith('render error'),
-    }).toEqual({ mermaid: true, typed: true, renders: true })
+      dropped: verifyMermaid(source).warnings.some(warning => warning.code === 'COMMENT_DROPPED'),
+    }).toEqual({ mermaid: true, typed: true, renders: true, dropped: false })
   })
 
-  test('a comment the typed serialization drops is announced, not silently lost', () => {
-    const verdict = verifyMermaid(`pie\n  "Dogs" : 3 ${COMMENT}`)
-    expect(verdict.warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
+  test('a trailing comment survives typed serialization exactly once', () => {
+    const parsed = parseRegisteredMermaid(`pie\n  "Dogs" : 3 ${COMMENT}`)
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value).split(COMMENT)).toHaveLength(2)
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
   })
+})
+
+test.each(['flowchart TD', 'agentflow-beta', 'swimlane-beta'])('%s keeps literal percent pairs in multiline shape payloads out of comment ownership', async header => {
+  const { mutateChecked } = await import('../agent/mutate.ts')
+  const source = `${header}\na[Plain %% literal suffix\n%% literal line\nlabel]\n%% actual authored comment\nb[Other]`
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || !['flowchart', 'agentflow', 'swimlane'].includes(parsed.value.body.kind)) throw new Error('Expected typed graph grammar')
+  if (parsed.value.body.kind !== 'flowchart' && parsed.value.body.kind !== 'agentflow' && parsed.value.body.kind !== 'swimlane') throw new Error('Expected graph body')
+  const expected = 'Plain %% literal suffix\n%% literal line\nlabel'
+  expect(parsed.value.body.graph.nodes.get('a')?.label).toBe(expected)
+  expect(parsed.value.meta.comments.map(comment => comment.text)).toEqual(['actual authored comment'])
+  expect(parsed.value.meta.bodyComments?.map(comment => comment.raw)).toEqual(['%% actual authored comment'])
+  const edited = mutateChecked(parsed.value, { kind: 'set_label', target: 'b', label: 'Changed' })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(saved.match(/^%% actual authored comment$/gm)).toHaveLength(1)
+  expect(saved).not.toMatch(/^%% literal (?:suffix|line)$/m)
+  const reload = parseRegisteredMermaid(saved)
+  if (!reload.ok || (reload.value.body.kind !== 'flowchart' && reload.value.body.kind !== 'agentflow' && reload.value.body.kind !== 'swimlane')) throw new Error('Expected graph reload')
+  expect(reload.value.body.graph.nodes.get('a')?.label).toBe(expected)
+  expect(reload.value.body.graph.nodes.get('b')?.label).toBe('Changed')
+  expect(reload.value.meta.comments.map(comment => comment.text)).toEqual(['actual authored comment'])
 })

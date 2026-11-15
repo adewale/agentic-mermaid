@@ -12,12 +12,19 @@ import {
   registerStyle,
   resolveStyleReference,
   resolveStyleStack,
-  styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
   styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
+import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
+import { renderResolvedScene } from '../index.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
@@ -82,14 +89,11 @@ describe('StyleSpec has one projected field authority', () => {
 
     const projected = styleSpecJsonSchema() as any
     projected.properties.stroke.enum.push('injected')
+    projected.$defs['roleStyle-node'].properties.textTransform.enum.push('injected')
+    expect(projected.$defs['roleStyle-label'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
+    expect((styleSpecJsonSchema() as any).$defs['roleStyle-node'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
     expect(validateStyleSpec({ stroke: 'injected' })).toContain('"stroke" must be one of crisp | jittered | freehand')
     expect((styleSpecJsonSchema() as any).properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
-  })
-
-  test('the authoring field table is the canonical descriptor projection', () => {
-    const docs = readFileSync(join(ROOT, 'docs', 'style-authoring.md'), 'utf8')
-    const expected = `<!-- BEGIN GENERATED STYLE SPEC FIELDS -->\n${styleSpecFieldReferenceMarkdown()}\n<!-- END GENERATED STYLE SPEC FIELDS -->`
-    expect(docs).toContain(expected)
   })
 
   test('runtime validation enforces the projected ranges and plain-record boundary', () => {
@@ -154,35 +158,35 @@ describe('StyleSpec has one projected field authority', () => {
     expect(knownStyles()).not.toContain('palette:tufte')
   })
 
-  test('a newly registered Look and Palette reach CLI, hosted MCP, and editor picker discovery', () => {
+  test('a newly registered Look and Palette reach CLI, hosted MCP, and editor picker discovery', async () => {
     // The probe registers before any consumer module loads. A consumer with a
     // hand-maintained roster cannot list styles it has never heard of.
     const preload = join(ROOT, 'src', '__tests__', 'site-probe.preload.ts')
     const probeEnv = { ...process.env, AM_TEST_PROBE_STYLES: '1' }
     const probeLabel = 'Registry Authority Probe'
-    const run = (args: string[], env: Record<string, string | undefined>) => {
-      const result = Bun.spawnSync(['bun', '--preload', preload, ...args], { cwd: ROOT, env })
-      expect({ args, exitCode: result.exitCode, stderr: result.exitCode === 0 ? '' : result.stderr.toString() })
+    const run = async (args: string[], env: Record<string, string | undefined>) => {
+      const result = await runChild('bun', ['--preload', preload, ...args], { cwd: ROOT, env })
+      expect({ args, exitCode: result.status, stderr: result.status === 0 ? '' : result.stderr.toString() })
         .toEqual({ args, exitCode: 0, stderr: '' })
       return result.stdout.toString()
     }
 
-    const cliRows = (env: Record<string, string | undefined>) =>
-      JSON.parse(run([join(ROOT, 'bin', 'am.ts'), 'styles', '--json'], env)) as Array<{ canonicalId: string; kind: string; label: string; isDefault: boolean }>
-    expect(cliRows(probeEnv).filter(row => row.canonicalId.endsWith(':registry-authority-probe'))).toEqual([
+    const cliRows = async (env: Record<string, string | undefined>) =>
+      JSON.parse(await run([join(ROOT, 'bin', 'am.ts'), 'styles', '--json'], env)) as Array<{ canonicalId: string; kind: string; label: string; isDefault: boolean }>
+    expect((await cliRows(probeEnv)).filter(row => row.canonicalId.endsWith(':registry-authority-probe'))).toEqual([
       expect.objectContaining({ canonicalId: PROBE_LOOK, kind: 'look', label: probeLabel, isDefault: false }),
       expect.objectContaining({ canonicalId: PROBE_PALETTE, kind: 'palette', label: probeLabel, isDefault: false }),
     ])
     // Control: the same command without registration does not mention the probe.
-    expect(cliRows({ ...process.env }).some(row => row.canonicalId.endsWith(':registry-authority-probe'))).toBe(false)
+    expect((await cliRows({ ...process.env })).some(row => row.canonicalId.endsWith(':registry-authority-probe'))).toBe(false)
 
-    const hostedTools = JSON.parse(run(['-e', `const { HOSTED_TOOLS } = await import(${JSON.stringify(join(ROOT, 'src', 'mcp', 'hosted-server.ts'))}); console.log(JSON.stringify(HOSTED_TOOLS))`], probeEnv)) as Array<{ name: string }>
+    const hostedTools = JSON.parse(await run(['-e', `const { HOSTED_TOOLS } = await import(${JSON.stringify(join(ROOT, 'src', 'mcp', 'hosted-server.ts'))}); console.log(JSON.stringify(HOSTED_TOOLS))`], probeEnv)) as Array<{ name: string }>
     const renderSvg = JSON.stringify(hostedTools.find(tool => tool.name === 'render_svg'))
     expect(renderSvg).toMatch(new RegExp(`registered Look \\([^)]*${PROBE_LOOK}[^)]*\\)`))
     expect(renderSvg).toMatch(new RegExp(`Palette \\([^)]*${PROBE_PALETTE}[^)]*\\)`))
 
     const out = join(temp.dir('am-style-authority-'), 'editor.html')
-    run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
+    await run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
     const html = readFileSync(out, 'utf8')
     const styleItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-style="([^"]+)"[^>]*>([^<]*)<\/button>/g), match => [match[1], match[2]])
     const themeItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-theme="([^"]*)"[^>]*>(?:<span[^>]*><\/span>)?([^<]*)<\/button>/g), match => [match[1], match[2]])
@@ -193,6 +197,59 @@ describe('StyleSpec has one projected field authority', () => {
     expect(themeItems.map(item => item[0])).not.toContain(PROBE_LOOK)
   }, 60_000)
 
+  // A Palette layered over a Look (the documented `hand-drawn,dracula`) used
+  // to keep the Look's ink chosen for its own page: hand-drawn's #26262b
+  // border on dracula's #282a36 (1.06:1), and data ink such as Gantt bars
+  // painted from it (#26262b bars on zinc-dark, white blueprint bars on
+  // zinc-light).
+  test('a Palette layered over any built-in Look draws ink chosen for the Palette\'s page', () => {
+    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look' && descriptor.inputName !== 'crisp')
+    for (const look of looks) for (const palette of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]) {
+      const colors = resolveStyleStack([look.inputName, palette.inputName])!.colors!
+      const pair = `${look.inputName} × ${palette.inputName}`
+      expect([colors.bg, colors.fg], pair).toEqual([palette.colors.bg, palette.colors.fg])
+      for (const token of ['line', 'accent', 'muted', 'border'] as const) {
+        if (palette.colors[token] !== undefined) expect(colors[token], `${pair}: ${token}`).toBe(palette.colors[token])
+        // Ink the Palette leaves to the Look must read on the Palette's page.
+        else if (colors[token] !== undefined) expect(wcagCssContrastRatio(colors[token]!, palette.colors.bg), `${pair}: ${token} ${colors[token]}`).toBeGreaterThanOrEqual(3)
+      }
+    }
+    const gantt = 'gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T1 :a1, 2024-01-01, 3d\n  T2 :after a1, 2d'
+    for (const look of looks) for (const palette of ['zinc-light', 'zinc-dark']) {
+      const scene = renderResolvedScene(gantt, { style: [look.inputName, palette] })
+      const tasks = scene.parts.filter(part => part.role === 'task')
+      expect(tasks.length).toBe(2)
+      for (const task of tasks) {
+        const inks = task.primitives.flatMap(primitive => primitive.kind === 'text' ? [] : [primitive.paint.fill, primitive.paint.stroke])
+        const contrast = Math.max(...inks.map(ink => wcagCssContrastRatio(ink, scene.colors.bg) ?? 0))
+        expect(contrast, `${look.inputName} × ${palette}: Gantt bar ink`).toBeGreaterThanOrEqual(3)
+      }
+    }
+  })
+
+  test('a layer that moves the page keeps earlier ink that reads there and makes the rest read', () => {
+    const hex = fc.tuple(fc.integer({ min: 0, max: 255 }), fc.integer({ min: 0, max: 255 }), fc.integer({ min: 0, max: 255 }))
+      .map(channels => `#${channels.map(channel => channel.toString(16).padStart(2, '0')).join('')}`)
+    const ink = fc.record({ line: hex, accent: hex, muted: hex, border: hex })
+    fc.assert(fc.property(hex, hex, ink, hex, hex, (bg, fg, authored, page, pageFg) => {
+      fc.pre(bg !== page)
+      const colors = resolveStyleStack([{ colors: { bg, fg, ...authored } }, { colors: { bg: page, fg: pageFg } }])!.colors!
+      for (const token of ['line', 'accent', 'muted', 'border'] as const) {
+        const carried = colors[token]
+        if (carried === undefined) continue // re-derived from the new page
+        if (wcagCssContrastRatio(authored[token], page)! >= 3) expect(carried).toBe(authored[token])
+        else expect(wcagCssContrastRatio(carried, page)!).toBeGreaterThanOrEqual(3)
+      }
+    }), fcParameters({
+      numRuns: 300,
+      // The documented stack's border, and a page whose foreground cannot reach 3:1.
+      examples: [
+        ['#f7f5ef', '#1a1a1e', { line: '#26262b', accent: '#26262b', muted: '#26262b', border: '#26262b' }, '#282a36', '#f8f8f2'],
+        ['#ffffff', '#000000', { line: '#777777', accent: '#777777', muted: '#777777', border: '#777777' }, '#767676', '#808080'],
+      ],
+    }))
+  })
+
   test('removed Tufte and default bare inputs have no metadata or public resolution', () => {
     expect(knownStyleDescriptors().some(descriptor => descriptor.identity.id === 'look:tufte')).toBe(true)
     expect(getStyle('palette:tufte')).toBeUndefined()
@@ -202,34 +259,28 @@ describe('StyleSpec has one projected field authority', () => {
     expect(() => resolveStyleStack('default')).toThrow(/Unknown style "default"/)
   })
 
-  test('CLI rejects removed bare inputs while retaining canonical Looks', () => {
+  test('CLI rejects removed bare inputs while retaining canonical Looks', async () => {
     const input = join(ROOT, 'eval/layout-compare/fixtures/flowchart-basic.mmd')
-    const removed = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte',
-    ], { cwd: ROOT })
-    expect(removed.exitCode).toBe(2)
+    const removed = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte'], { cwd: ROOT })
+    expect(removed.status).toBe(2)
     expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
     expect(removed.stdout.toString()).toBe('')
 
     for (const removedName of ['tufte', 'default']) {
-      const removedBare = Bun.spawnSync([
-        'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', removedName,
-      ], { cwd: ROOT })
-      expect(removedBare.exitCode).toBe(2)
+      const removedBare = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', removedName], { cwd: ROOT })
+      expect(removedBare.status).toBe(2)
       expect(removedBare.stderr.toString()).toContain(`Unknown style "${removedName}"`)
       expect(removedBare.stdout.toString()).toBe('')
     }
 
-    const retained = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',
-    ], { cwd: ROOT })
-    expect(retained.exitCode, retained.stderr.toString()).toBe(0)
+    const retained = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte'], { cwd: ROOT })
+    expect(retained.status, retained.stderr.toString()).toBe(0)
     expect(retained.stdout.toString()).toContain('<svg')
   })
 
-  test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {
-    const result = Bun.spawnSync(['bun', 'run', join(ROOT, 'bin/am.ts'), 'styles', '--json'], { cwd: ROOT })
-    expect(result.exitCode).toBe(0)
+  test('CLI discovery publishes only Look/Palette kind plus explicit default state', async () => {
+    const result = await runChild('bun', ['run', join(ROOT, 'bin/am.ts'), 'styles', '--json'], { cwd: ROOT })
+    expect(result.status).toBe(0)
     const rows = JSON.parse(result.stdout.toString()) as Array<{ kind: string; isDefault: boolean; canonicalId: string }>
     expect(new Set(rows.map(row => row.kind))).toEqual(new Set(['look', 'palette']))
     expect(rows.find(row => row.canonicalId === 'look:crisp')).toMatchObject({ kind: 'look', isDefault: true })

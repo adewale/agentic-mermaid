@@ -8,41 +8,56 @@
 // serialized header (`flowchart <dir>` vs `stateDiagram-v2`).
 //
 // Contract differences from the narrow structured families, kept on purpose:
-//   - parse ERRORS on bad syntax instead of falling back to opaque. The
-//     legacy parser is broad and has no lossless bail-out mode; silent
-//     opaque fallback would convert crisp parse errors on the flagship
-//     family into render-time failures.
+//   - parse ERRORS on bad syntax. Readable keyword vertex identities that
+//     cannot be serialized portably keep an opaque source-preserved body;
+//     native rendering still reads their authored identities.
 //   - parse consumes the full canonical source (the legacy parser needs the
 //     header) and contributes a SourceMap via the buildSourceMap hook.
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import {
+  coalesceFlowchartLines,
+  FLOWCHART_LINK_SOURCE,
+  type FlowchartLineGroup,
   type FlowchartRegion,
   type FlowchartScan,
+  flowchartGroupPosition,
   flowchartStatementSpans,
   flowchartTextArrowLabelRanges,
   scanFlowchart,
+  checkedFlowchartStyleProps,
+  flowchartStyleValueCanSerialize,
 } from '../flowchart-lexer.ts'
 import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
 import type {
-  DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
+  DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceLocation, SourceMap,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
+import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
+import { normalizeMermaidSource, normalizeMermaidRenderSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
+import { sourceLineStarts } from '../shared/source-spans.ts'
+import { appendSourceStatement, applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
 
 export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
 interface SourceStatementSegment {
   readonly text: string
+  /** A dialect-owned declaration prefix is not a vertex occurrence. */
+  readonly nodePrefixEnd?: number
+  /** Where the statement begins in its group's text. */
   readonly start: number
-  readonly line: number
+  /** The lines the parser reads as one (coalesceFlowchartLines). */
+  readonly group: FlowchartLineGroup
   /** The statement as flowchart-lexer.ts reads it. */
   readonly scan: FlowchartScan
   /** The outermost region opening at each offset. */
@@ -58,22 +73,80 @@ interface SourceStatementSegment {
 
 // ---- Parser -----------------------------------------------------------------
 
-export function parseFlowchartBody(canonicalSource: string): Result<FlowchartBody, ParseError[]> {
+// These tokens cannot be used as vertex identities, even with a quoted label
+// or quoted id. A subgraph declaration has a separate, more generous id rule.
+const NONPORTABLE_NODE_ID = /^\d*(?:classDef|class|style|linkStyle|graph|flowchart|subgraph|end|interpolate)\b/
+
+// Property-name diagnostics belong to the lexer before value spellability is
+// considered. Native CSS reading remains generous; preserve unspellable source.
+function portableStyle(props: Record<string, string>, classDefinition = false): boolean {
+  checkedFlowchartStyleProps(props)
+  return Object.values(props).every(value => flowchartStyleValueCanSerialize(value, classDefinition))
+}
+
+function portableGraphStyles(graph: MermaidGraph): boolean {
+  return [...graph.classDefs.keys(), ...[...graph.classAssignments.values()].flatMap(graphClassNames)].every(name => !NONPORTABLE_NODE_ID.test(name))
+    && [...graph.classDefs.values()].every(props => portableStyle(props, true))
+    && [...graph.nodeStyles.values(), ...graph.linkStyles.values()].every(props => portableStyle(props))
+}
+
+function nonportableNodeId(graph: MermaidGraph): string | undefined {
+  for (const id of graph.nodes.keys()) if (NONPORTABLE_NODE_ID.test(id)) return id
+  for (const edge of graph.edges) {
+    if (NONPORTABLE_NODE_ID.test(edge.source)) return edge.source
+    if (NONPORTABLE_NODE_ID.test(edge.target)) return edge.target
+  }
+  return undefined
+}
+
+/** The one admission rule for an identity a typed edit writes (add_node,
+ * rename_node, add_edge endpoints): the bare id, written as a statement of
+ * its own, must read back as exactly that node. Otherwise `A;B` writes two
+ * statements, `A[B]` a labelled node, `a b` a parse error and ` A` another
+ * id; each would change the diagram's meaning instead of naming a node. */
+function nodeIdError(id: string): MutationError | undefined {
+  if (NONPORTABLE_NODE_ID.test(id)) return { code: 'INVALID_OP', message: `Flowchart node id "${id}" is read as a reserved token by Mermaid and has no portable vertex spelling` }
+  if (!readsBackAs(id, `flowchart TD\n  ${id}\n`, graph => graph.nodes.size === 1 && !graph.subgraphs.length && graph.nodes.get(id)?.label === id)) {
+    return { code: 'INVALID_OP', message: `Flowchart node id ${JSON.stringify(id)} does not read back as one node id; an id cannot hold edge whitespace, line breaks, statement separators, brackets, quotes, link operators, comment markers or non-ASCII characters other than letters` }
+  }
+  return undefined
+}
+
+/** A subgraph id reads back from `subgraph <id>` as itself, titled itself. */
+function subgraphIdError(id: string): MutationError | undefined {
+  return readsBackAs(id, `flowchart TD\n  subgraph ${id}\n  end\n`, graph => !graph.nodes.size && graph.subgraphs.length === 1 && graph.subgraphs[0]!.id === id && graph.subgraphs[0]!.label === id)
+    ? undefined
+    : { code: 'INVALID_OP', message: `Flowchart subgraph id ${JSON.stringify(id)} does not read back as one subgraph id; an id cannot hold edge whitespace, line breaks, brackets, quotes, comment markers or non-ASCII characters other than letters (put display text in label)` }
+}
+
+function readsBackAs(id: string, source: string, same: (graph: MermaidGraph) => boolean): boolean {
+  // Our reader is generous; Mermaid 12.2.0's flowchart lexer reads a
+  // non-ASCII identifier character only when it is a letter (not `¹`, `٣`,
+  // a combining mark, an emoji or a joiner).
+  if (/[\r\n\u2028\u2029]|[^\x00-\x7F\p{L}]/u.test(id)) return false
+  try {
+    return same(parseFlowchartLegacy(source))
+  } catch {
+    return false
+  }
+}
+
+export function parseFlowchartBody(canonicalSource: string, opaqueSource = canonicalSource): Result<FlowchartBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try {
     const graph = parseFlowchartLegacy(canonicalSource)
+    if (nonportableNodeId(graph) !== undefined || !portableGraphStyles(graph)) return ok({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
-    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
+    if (e instanceof DiagramWorkLimitError && e.resource === 'sourceCharacters') throw e
+    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e), ...(e instanceof MermaidSyntaxError ? { line: e.line, column: e.column, col: e.column, diagramType: e.diagramType } : {}) }])
   }
 }
 
 // ---- SourceMap --------------------------------------------------------------
 
-export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
-  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-  const lines = canonicalSource.split(/\r?\n/)
-  const sourceSegments: SourceStatementSegment[] = lines.flatMap((line, lineIndex) =>
-    flowchartStatementSpans(line).map(segment => {
+function flowchartSourceSegments(lines: readonly string[]): SourceStatementSegment[] {
+  return coalesceFlowchartLines(lines).flatMap(group =>
+    flowchartStatementSpans(group.text).map(segment => {
       const scan = scanFlowchart(segment.text)
       const regionsByStart = new Map<number, FlowchartRegion>()
       for (const region of scan.regions) if (!regionsByStart.has(region.start)) regionsByStart.set(region.start, region)
@@ -82,7 +155,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
       const operatorRanges = compactOperatorRanges(segment.text, topLevel)
       return {
         ...segment,
-        line: lineIndex + 1,
+        group,
         scan,
         regionsByStart,
         pipeLabels: scan.regions.filter(region => region.kind === 'pipe' && region.closed && region.parent === -1),
@@ -93,6 +166,18 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
         operatorEnds: new Set(operatorRanges.map(range => range.end)),
       }
     }))
+}
+
+export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string, groupKeyword: 'subgraph' | 'flow' = 'subgraph'): SourceMap {
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const lines = canonicalSource.split(/\r?\n/)
+  // Statements as the parser reads them: a label, string or link may run on
+  // across lines. Each location is placed on the line its text came from.
+  const sourceSegments = flowchartSourceSegments(lines).slice(1).filter(segment => groupKeyword !== 'flow' || !/^\s*(?:flow(?=\s|@|$)|global\s*$)/.test(segment.text))
+  if (groupKeyword === 'flow') for (const segment of sourceSegments) {
+    const prefix = /^\s*connector\s+/.exec(segment.text)
+    if (prefix) Object.assign(segment, { nodePrefixEnd: prefix[0].length })
+  }
 
   const nodeIdTrie = buildNodeIdTrie(body.graph.nodes.keys())
   const nodeSegments = new Map<string, SourceStatementSegment[]>()
@@ -111,14 +196,14 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
         nodeSegments.set(id, occurrences)
       }
       if (map.nodes.has(id)) continue
-      map.nodes.set(id, { line: segment.line, col: segment.start + column + 1 })
+      map.nodes.set(id, sourceLocation(segment, column))
       const node = body.graph.nodes.get(id)
       const labelCol = node ? nodeLabelColumn(segment, node.label, column + id.length) : -1
-      if (labelCol >= 0) map.labels.set(`node:${id}`, { line: segment.line, col: segment.start + labelCol + 1 })
+      if (labelCol >= 0) map.labels.set(`node:${id}`, sourceLocation(segment, labelCol))
     }
   }
 
-  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map)
+  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map, groupKeyword)
 
   const edgeOccurrences = new Map<string, number>()
   const edgeMatches = new Map<string, Array<{
@@ -158,11 +243,11 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
     const match = matches[Math.min(occurrence, Math.max(0, matches.length - 1))]
     if (match) {
       const { segment, sourceCol: relativeCol, labelCol } = match
-      const loc = { line: segment.line, col: segment.start + relativeCol + 1 }
+      const loc = sourceLocation(segment, relativeCol)
       map.edges.set(indexedKey, loc)
       if (!map.edges.has(pairKey)) map.edges.set(pairKey, loc)
       if (edge.label && labelCol >= 0) {
-        map.labels.set(indexedKey, { line: segment.line, col: segment.start + labelCol + 1 })
+        map.labels.set(indexedKey, sourceLocation(segment, labelCol))
       }
     }
   })
@@ -171,6 +256,12 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
 }
 
 interface TextRange { start: number; end: number }
+
+/** The 1-based line and column of a statement's `column`. */
+function sourceLocation(segment: SourceStatementSegment, column: number): SourceLocation {
+  const position = flowchartGroupPosition(segment.group, segment.start + column)
+  return { line: position.line + 1, col: position.col + 1 }
+}
 
 /** The pipe labels (`-->|label|`) of a statement that lie between `from` and
  * `to`, as the lexer delimits them (sorted by opening pipe). */
@@ -244,7 +335,7 @@ function nodeTokenAt(
   start: number,
 ): boolean {
   const { text: line, topLevel, textLabelRanges: labelRanges, operatorStarts, operatorEnds } = segment
-  if (nonNodeStatement(line) || !topLevel[start]) return false
+  if (nonNodeStatement(line) || !topLevel[start] || start < (segment.nodePrefixEnd ?? 0)) return false
   if (labelRanges.some(range => start >= range.start && start < range.end)) return false
   const before = line[start - 1]
   const idEnd = start + id.length
@@ -307,8 +398,7 @@ function candidateNodeTokens(line: string, trie: NodeIdTrie): Array<{ id: string
   return candidates
 }
 
-const COMPACT_EDGE_OPERATOR_SOURCE = '(?:(?:<)?(?:~{3,}|-{2,}>|-{3,}|-{2,}[ox]|-\\.+->?|\\.+->|={2,}>|={3,})|[ox]-{2,}[ox])'
-const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(COMPACT_EDGE_OPERATOR_SOURCE, 'y')
+const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(FLOWCHART_LINK_SOURCE, 'y')
 
 function matchLengthAt(expression: RegExp, line: string, index: number): number {
   expression.lastIndex = index
@@ -316,7 +406,8 @@ function matchLengthAt(expression: RegExp, line: string, index: number): number 
 }
 
 function nodeIdCharacter(char: string | undefined): boolean {
-  return char !== undefined && /[\p{L}\p{N}_-]/u.test(char)
+  // A character a node id can hold (flowchart-lexer.ts flowchartNodeIdLength).
+  return char !== undefined && /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u.test(char)
 }
 
 function edgeIdOperatorAt(
@@ -333,7 +424,7 @@ function edgeIdOperatorAt(
     && /^(?:<)?(?:-{2,}|-\.+|={2,})\s*$/.test(line.slice(operator, range.start)))
 }
 
-function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `edge#${index}:${edge.source}->${edge.target}` }
+export function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `edge#${index}:${edge.source}->${edge.target}` }
 
 interface EdgeMention { sourceCol: number; targetCol: number }
 
@@ -423,18 +514,19 @@ function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCo
   return labelColumnInRanges(segment.text, label, ranges.reverse())
 }
 
-function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
-  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?:\\b|\\[|$)`, 'i')
+function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap, groupKeyword: 'subgraph' | 'flow'): void {
+  const re = new RegExp(`^(\\s*${groupKeyword}\\s+)${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    if (!re.test(line)) continue
-    const col = line.indexOf(sg.id)
+    const declaration = re.exec(line)
+    if (!declaration) continue
+    const col = declaration[1]!.length
     map.groups.set(sg.id, { line: i + 1, col: col + 1 })
     const labelCol = sg.label && sg.label !== sg.id ? titleColumn(line, sg.label, col + sg.id.length) : -1
     if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })
     break
   }
-  for (const child of sg.children) mapSubgraphSource(child, lines, map)
+  for (const child of sg.children) mapSubgraphSource(child, lines, map, groupKeyword)
 }
 
 function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
@@ -442,14 +534,14 @@ function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g
 // ---- Serializer -------------------------------------------------------------
 
 export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | 'state'): string {
+  const invalidId = nonportableNodeId(graph)
+  if (invalidId !== undefined) throw new Error(nodeIdError(invalidId)!.message)
+  if (!portableGraphStyles(graph)) throw new Error('Flowchart style contains tokens that cannot be written as Mermaid style properties')
   const lines: string[] = [headerKind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`]
   const declaredInline = new Set<string>()
 
-  // Subgraph blocks MUST come before edges: the legacy parser associates a
-  // node with the subgraph in whose block it FIRST appears. If an edge at the
-  // top declared the node first, a later bare reference inside the subgraph is
-  // ignored and membership is lost on re-parse. Emitting members (with their
-  // shape declaration) inside the block first makes round-trip stable.
+  // Publish the resolved membership tree before its links. Edge endpoints
+  // must not claim a node for another block before its owning block closes.
   const membersDeclared = new Set<string>()
   const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
     lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${escapeNodeLabel(sg.label, sg.labelContent)}]` : ''}`)
@@ -487,15 +579,23 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [id, node] of graph.nodes) {
     if (declaredInline.has(id) || membersDeclared.has(id)) continue
     const orphan = graph.edges.every(e => e.source !== id && e.target !== id)
-    if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
+    // An orphan labelled by an id that holds a `"` is written bare: in shape
+    // text the `"` would be `#quot;`, which upstream keeps in its raw label.
+    // No keyword holds a `"`, so the bare id is a node statement.
+    if (orphan && !needsExplicitDeclaration(node) && node.id.includes('"')) lines.push(`  ${node.id}`)
+    else if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
   }
 
-  for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
+  for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props, true)}`)
   for (const [id, names] of graph.classAssignments) for (const name of graphClassNames(names)) lines.push(`  class ${id} ${name}`)
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
   // Mermaid rejects an index that names no link, and its style draws nothing.
   for (const [idx, style] of graph.linkStyles) {
     if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
+  }
+  for (const [idx, curve] of graph.linkCurves ?? []) {
+    if (!/^[a-z][a-z0-9-]*$/i.test(curve)) throw new Error('Link interpolation must be a curve name')
+    if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} interpolate ${curve}`)
   }
   for (const node of graph.nodes.values()) {
     if (node.href) lines.push(`  click ${node.id} href ${quoteValue(node.href)}`)
@@ -505,7 +605,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
 }
 
 function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
+  return node.label !== node.id || node.shape !== 'rectangle' || node.borders !== undefined || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
 }
 
 function renderShape(node: MermaidNode): string {
@@ -527,9 +627,14 @@ function renderShape(node: MermaidNode): string {
     return `@{ shape: ${node.authoredShape}${label} }`
   }
   const lbl = escapeNodeLabel(node.label, node.labelContent)
+  if (node.shape === 'rectangle' && node.borders !== undefined) {
+    if (!/^[lrtb]*$/.test(node.borders)) throw new Error('Rectangle borders must contain only l, r, t and b')
+    return `[|borders:${node.borders || 'none'}|${lbl}]`
+  }
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
+    case 'ellipse': return `(-${lbl}-)`
     case 'stadium': return `([${lbl}])`
     case 'subroutine': return `[[${lbl}]]`
     case 'cylinder': return `[(${lbl})]`
@@ -551,7 +656,13 @@ function renderShape(node: MermaidNode): string {
     case 'state-join':
     case 'state-choice':
     case 'state-history': return ''
+    case 'state-note': throw new Error('Floating State notes require the State serializer')
   }
+}
+
+/** Preprocessing recognizes directives and direction before quoted labels. */
+function protectLabelSyntax(text: string): string {
+  return text.replace(/%%(?=\{)/g, '%#37;').replace(/direction(?=\s+(?:TB|BT|RL|LR|TD))/g, '#100;irection')
 }
 
 /** The ONE quoted-label form for bracket, pipe and subgraph labels: the
@@ -559,7 +670,7 @@ function renderShape(node: MermaidNode): string {
  *  because upstream's quoted strings have no escapes. A leading backtick is
  *  written `#96;`: `"` and a backtick open a markdown string. */
 function quoteLabel(label: string, content?: LabelContent): string {
-  const text = writeFlowchartLabelText(label, content)
+  const text = protectLabelSyntax(writeFlowchartLabelText(label, content))
   const authoredMarkdown = content?.value === label && content.authored?.startsWith('`') && content.authored.endsWith('`')
   return `"${text.startsWith('`') && !authoredMarkdown ? `#96;${text.slice(1)}` : text}"`
 }
@@ -568,7 +679,9 @@ function quoteLabel(label: string, content?: LabelContent): string {
  *  double-quoted scalar that upstream's `@{}` reader, and ours
  *  (shared/metadata-yaml.ts), reads back. */
 function quoteMetadataLabel(label: string, content?: LabelContent): string {
-  return quoteMetadataString(writeFlowchartLabelText(label, content))
+  // Mermaid strips directive-like `%%{` text before parsing metadata, even
+  // inside quotes. Its entity prepass shields this percent until display.
+  return quoteMetadataString(writeFlowchartLabelText(label, content).replace(/%%(?=\{)/g, '%#37;'))
 }
 
 /** A `click` href: `"` and `\` backslash-escaped, the form its parser reads
@@ -583,8 +696,10 @@ function escapeLabel(label: string, content?: LabelContent): string {
   if (label === '') return '" "'
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
-  if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
-  return writeFlowchartLabelText(label, content)
+  // A bare label also ends at a U+2028/U+2029 line terminator, which the
+  // quoted form holds.
+  if (/[\[\]{}()|"@\u2028\u2029]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
+  return protectLabelSyntax(writeFlowchartLabelText(label, content))
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric
@@ -646,8 +761,16 @@ function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): str
   return 'x'
 }
 
-function styleProps(props: Record<string, string>): string {
-  return Object.entries(props).map(([k, v]) => `${k}:${v}`).join(',')
+function styleProps(props: Record<string, string>, classDefinition = false): string {
+  const entries = Object.entries(checkedFlowchartStyleProps(props))
+  return entries.map(([key, value], index) => {
+    const field = `${key}:${classDefinition ? value.replace(/,/g, '\\,') : value}`
+    // addClass resolves every backslash/comma pair after rejoining fields.
+    // Separate a trailing payload backslash from the next field's comma;
+    // the owning CSS consumer trims this style-token whitespace.
+    const boundary = classDefinition && value.endsWith('\\') ? ' ,' : ','
+    return field + (index < entries.length - 1 ? boundary : '')
+  }).join('')
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -656,11 +779,100 @@ function styleProps(props: Record<string, string>): string {
 // upstream's flowchart DB does), so a typed edit stores the label that its
 // serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
+  return mutateFlowchartGraph(cloneGraph(body.graph), op)
+}
+
+/** Each interpretation remains independent unless its exact parser input is
+ * identical. Reuse is private to this call; public diagrams are never cached. */
+function readFlowchartSourceViews(source: string): readonly [MermaidGraph, MermaidGraph] {
+  const authored = normalizeMermaidSource(source).familyBody
+  const graph = parseFlowchartLegacy(authored)
+  const rendered = normalizeMermaidRenderSource(source).familyBody
+  return [graph, authored === rendered ? graph : parseFlowchartLegacy(rendered)]
+}
+
+/** Rename only lexical node occurrences owned by the existing flowchart
+ * scanner. Directive references require their own ownership and stay refused. */
+function renameFlowchartSource(source: string, op: Extract<FlowchartMutationOp, { kind: 'rename_node' }>, before: readonly MermaidGraph[]): Result<readonly SourceEdit[], MutationError> {
+  const refuse = (): Result<never, MutationError> => err({ code: 'INVALID_OP', message: 'Node rename requires complete lexical ownership; class/style/click references and colliding group identities are unsupported' })
+  if (before.some(graph => !graph.nodes.has(op.from))) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.from}" not found in both source views` })
+  if (op.from === op.to) return ok([])
+  const invalid = nodeIdError(op.to)
+  if (invalid) return err(invalid)
+  if (before.some(graph => graph.nodes.has(op.to))) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.to}" already exists` })
+  if (before.some(graph => graph.classAssignments.has(op.from) || graph.nodeStyles.has(op.from) || graph.nodes.get(op.from)?.href !== undefined || findSubgraph(graph, op.from) || findSubgraph(graph, op.to))) return refuse()
+  const payload = preservedMermaidFamilySource(normalizeMermaidSource(source), 'authored')
+  if (payload.text.includes('\r')) return refuse()
+  const segments = flowchartSourceSegments(payload.text.split('\n')), starts = sourceLineStarts(payload.text)
+  if (segments.some(segment => /^(?:class|style|click|href)\b/i.test(segment.text))) return refuse()
+  const edits = new Map<number, SourceEdit>()
+  for (const segment of segments) {
+    if (segment.group.directive || segment.text.startsWith('%%') || nonNodeStatement(segment.text)) continue
+    if ([...segment.text.matchAll(/%%/g)].some(match => segment.topLevel[match.index])) return refuse()
+    for (let at = segment.text.indexOf(op.from); at >= 0; at = segment.text.indexOf(op.from, at + op.from.length)) {
+      if (!nodeTokenAt(segment, op.from, at)) continue
+      const position = flowchartGroupPosition(segment.group, segment.start + at)
+      const offset = starts[position.line]! + position.col
+      const start = payload.sourceOffset(offset, 'end'), end = payload.sourceOffset(offset + op.from.length, 'start')
+      if (source.slice(start, end) !== op.from) return refuse()
+      edits.set(start, { start, end, text: op.to })
+    }
+  }
+  if (!edits.size) return refuse()
+  const plan = [...edits.values()], candidate = applySourceEdits(source, plan)
+  const after = readFlowchartSourceViews(candidate)
+  for (const [index, graph] of before.entries()) {
+    if (index === 1 && graph === before[0] && after[1] === after[0]) continue
+    const expected = mutateFlowchart({ kind: 'flowchart', graph }, op)
+    if (!expected.ok) return expected
+    // A source rename substitutes identity at its existing declaration ordinal;
+    // ordinary canonical mutation's Map reinsertion is not a requested reorder.
+    const rename = (id: string) => id === op.from ? op.to : id
+    expected.value.graph.nodes = new Map([...graph.nodes.keys()].map(id => [rename(id), expected.value.graph.nodes.get(rename(id))!]))
+    if (!sameSourceMeaning(expected.value.graph, after[index])) return refuse()
+  }
+  return ok(plan)
+}
+
+/** Edit a label or fully owned identity, preserving both native graph frames. */
+export function mutateFlowchartSource(source: string, op: FlowchartMutationOp): Result<readonly SourceEdit[], MutationError> {
+  if (op.kind !== 'set_label' && op.kind !== 'rename_node') return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart edits support set_label and owned rename_node only' })
+  try {
+    const before = readFlowchartSourceViews(source)
+    if (op.kind === 'rename_node') return renameFlowchartSource(source, op, before)
+    if (before.some(graph => !graph.nodes.has(op.target))) return err({ code: 'NODE_NOT_FOUND', message: `Source-preserving Flowchart label target "${op.target}" must name an existing native node in both source views` })
+    const label = op.label.trim()
+    if (before.every(graph => graph.nodes.get(op.target)!.label === label)) return ok([])
+    const first = mutateFlowchart({ kind: 'flowchart', graph: before[0] }, op)
+    const expected = [first, before[1] === before[0] ? first : mutateFlowchart({ kind: 'flowchart', graph: before[1] }, op)]
+    const edits = appendSourceStatement(source, `${op.target}@{ label: ${quoteMetadataLabel(label)} }`)
+    const candidate = applySourceEdits(source, edits)
+    const after = readFlowchartSourceViews(candidate)
+    for (let index = 0; index < before.length; index++) {
+      if (index === 1 && before[1] === before[0] && after[1] === after[0]) continue
+      const result = expected[index]!
+      if (!result.ok) return result
+      if (!sameSourceMeaning(result.value.graph, after[index])) return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart label cannot be written without changing the requested value or another native graph field' })
+    }
+    return ok(edits)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: `Source-preserving Flowchart label could not be verified: ${error instanceof Error ? error.message : String(error)}` })
+  }
+}
+
+export function createFlowchartMutationDraft(body: FlowchartBody): (op: FlowchartMutationOp) => Result<FlowchartBody, MutationError> {
   const graph = cloneGraph(body.graph)
+  return op => mutateFlowchartGraph(graph, op)
+}
+
+function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
   const done = (): Result<FlowchartBody, MutationError> => ok({ kind: 'flowchart', graph })
   switch (op.kind) {
     case 'add_node': {
+      const invalidId = nodeIdError(op.id)
+      if (invalidId) return err(invalidId)
       if (graph.nodes.has(op.id)) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.id}" already exists` })
+      if (findSubgraph(graph, op.id)) return err({ code: 'INVALID_OP', message: `Identifier "${op.id}" is already a subgraph — subgraph ids and node ids share one namespace` })
       const resolved = resolveShapeValue(op.shape ?? 'rectangle')
       if (!resolved) {
         return err({ code: 'INVALID_OP', message: `Unknown shape "${op.shape}" — pass a geometry (${GEOMETRY_SHAPES.join(', ')}) or a Mermaid v11 @{ shape } name/alias (e.g. manual-input, document, delay)` })
@@ -686,8 +898,11 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'rename_node': {
+      const invalidId = nodeIdError(op.to)
+      if (invalidId) return err(invalidId)
       if (!graph.nodes.has(op.from)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.from}" not found` })
       if (graph.nodes.has(op.to)) return err({ code: 'DUPLICATE_NODE', message: `Cannot rename to "${op.to}" — already exists` })
+      if (findSubgraph(graph, op.to)) return err({ code: 'INVALID_OP', message: `Identifier "${op.to}" is already a subgraph — subgraph ids and node ids share one namespace` })
       const node = graph.nodes.get(op.from)!
       graph.nodes.delete(op.from)
       graph.nodes.set(op.to, { ...node, id: op.to, label: node.label === op.from ? op.to : node.label })
@@ -705,6 +920,8 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'set_label': {
+      // A node wins over an edge with its id, as the SVG identifies them; the
+      // endpoint forms name that edge.
       if (graph.nodes.has(op.target)) {
         const n = graph.nodes.get(op.target)!
         if (op.label.trim() !== n.label) delete n.labelContent
@@ -721,8 +938,10 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return err({ code: 'NODE_NOT_FOUND', message: `Target "${op.target}" matches no node or edge` })
     }
     case 'add_edge': {
+      const invalidId = nodeIdError(op.from) ?? nodeIdError(op.to)
+      if (invalidId) return err(invalidId)
       ensureNode(graph, op.from); ensureNode(graph, op.to)
-      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
+      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: op.style !== 'invisible' })
       return done()
     }
     case 'remove_edge': {
@@ -743,6 +962,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
         shape: resolved.shape,
         semanticShape: resolved.semanticShape,
         authoredShape: resolved.authoredShape,
+        borders: undefined,
       })
       return done()
     }
@@ -757,6 +977,8 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'add_subgraph': {
+      const invalidId = subgraphIdError(op.id)
+      if (invalidId) return err(invalidId)
       if (findSubgraph(graph, op.id)) return err({ code: 'INVALID_OP', message: `Subgraph "${op.id}" already exists` })
       if (graph.nodes.has(op.id)) return err({ code: 'INVALID_OP', message: `Identifier "${op.id}" is already a node — subgraph ids and node ids share one namespace` })
       const members: string[] = []
@@ -810,8 +1032,9 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'define_class': {
-      if (!/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
-      const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333')
+      // Mermaid's flowchart lexer reads `--` as a link, even inside a classDef name.
+      if (!/^[\w-]+$/.test(op.name) || op.name.includes('--') || NONPORTABLE_NODE_ID.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or single hyphens and must not collide with a Mermaid keyword' })
+      const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333', true)
       if ('message' in props) return err({ code: 'INVALID_OP', message: props.message })
       graph.classDefs.set(op.name, props.value)
       return done()
@@ -820,7 +1043,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       if (op.className === null) graph.classAssignments.delete(op.id)
       else {
-        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
+        if (!/^[\w-]+$/.test(op.className) || NONPORTABLE_NODE_ID.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen and must not collide with a Mermaid keyword' })
         graph.classAssignments.set(op.id, op.className)
       }
       return done()
@@ -850,7 +1073,7 @@ function edgeLabelInput(label: string | undefined): string | undefined {
 /** Runtime NodeShape vocabulary for set_shape/add_node — mirrors the
  *  NodeShape type (the op-schema enum is transcribed from the same list). */
 const GEOMETRY_SHAPES: readonly NodeShape[] = [
-  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine',
+  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine',
   'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt',
   'lean-r', 'lean-l', 'state-start', 'state-end',
 ]
@@ -877,9 +1100,15 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  grammar, two consumers). A style that parses to nothing, or that paints with
  *  something other than a CSS color, is rejected prescriptively instead of
  *  writing a directive the renderer would refuse. */
-function parseStylePropsForOp(style: string, subject: string, example: string): { value: Record<string, string> } | { message: string } {
+function parseStylePropsForOp(style: string, subject: string, example: string, classDefinition = false): { value: Record<string, string> } | { message: string } {
   const parsed = parseMutableStyleProps(style)
-  if (parsed.ok) return { value: parsed.value }
+  if (parsed.ok) {
+    try {
+      if (!portableStyle(parsed.value, classDefinition)) return { message: 'Flowchart style value cannot be written losslessly by Mermaid inline-style tokens' }
+      return { value: parsed.value }
+    }
+    catch (error) { return { message: error instanceof Error ? error.message : String(error) } }
+  }
   if (parsed.reason === 'UNSAFE_PAINT') return { message: unsafeStylePaintError(subject, parsed.paint).message }
   return { message: `Style "${style}" parses to no properties — expected CSS-like pairs such as "${example}"` }
 }
@@ -931,27 +1160,19 @@ function retainEdges(
   }
   graph.edges = edges
   graph.linkStyles = linkStyles
+  if (graph.linkCurves) graph.linkCurves = new Map([...graph.linkCurves].flatMap(([target, curve]) => {
+    if (target === 'default' || !Number.isInteger(target) || target < 0 || target >= oldEdges.length) return [[target, curve] as const]
+    const remapped = oldToNew.get(target)
+    return remapped === undefined ? [] : [[remapped, curve] as const]
+  }))
 }
 
 export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
   return idx === 0 ? `${edge.source}->${edge.target}` : `${edge.source}->${edge.target}#${idx}`
 }
 
-function findEdgeIndexById(graph: MermaidGraph, id: string): number {
-  // Authored v11.6 edge IDs are the primary selector (`e1@-->` identity);
-  // the endpoint forms `from->to` / `from->to#k` remain valid.
-  const authored = graph.edges.findIndex(e => e.id === id)
-  if (authored >= 0) return authored
-  const [endpoints, suffix] = id.split('#')
-  const [from, to] = (endpoints ?? '').split('->')
-  if (!from || !to) return -1
-  const occ = suffix ? parseInt(suffix, 10) : 0
-  let seen = 0
-  for (let i = 0; i < graph.edges.length; i++) {
-    const e = graph.edges[i]!
-    if (e.source === from && e.target === to) { if (seen === occ) return i; seen++ }
-  }
-  return -1
+export function findEdgeIndexById(graph: MermaidGraph, id: string): number {
+  return edgeSelectorIndices(graph.edges).get(id) ?? -1
 }
 
 function ensureNode(graph: MermaidGraph, id: string): void {
@@ -984,6 +1205,7 @@ function cloneGraph(graph: MermaidGraph): MermaidGraph {
     classAssignments: new Map(graph.classAssignments),
     nodeStyles: new Map(Array.from(graph.nodeStyles, ([k, v]) => [k, { ...v }])),
     linkStyles: new Map(Array.from(graph.linkStyles, ([k, v]) => [k, { ...v }])),
+    ...(graph.linkCurves ? { linkCurves: new Map(graph.linkCurves) } : {}),
   }
 }
 function cloneSubgraph(sg: MermaidGraph['subgraphs'][number]): MermaidGraph['subgraphs'][number] {

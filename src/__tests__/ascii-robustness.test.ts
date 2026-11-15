@@ -53,6 +53,7 @@ describe('#67 root detection', () => {
     const out = renderMermaidASCII('flowchart TD\n  A --> B\n  Start --> A')
     const lines = out.split('\n')
     const rowOf = (label: string) => lines.findIndex(l => l.includes(label))
+    for (const label of ['Start', 'A', 'B']) expect(rowOf(label)).toBeGreaterThanOrEqual(0)
     expect(rowOf('Start')).toBeLessThanOrEqual(rowOf('A'))
     expect(rowOf('Start')).toBeLessThan(rowOf('B'))
   })

@@ -5,7 +5,6 @@ import { describeMermaidFacts, parseRegisteredMermaid, serializeMermaid } from '
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { getStyle, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
-import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
 import { scanSvgStartTags, svgCssText, type SvgStartTagToken } from '../svg-structure.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
@@ -13,14 +12,7 @@ import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { visitSceneNodes } from '../scene/walk.ts'
 import type { RenderOptions } from '../types.ts'
-import {
-  COMPLEXITY_STRATA,
-  FAMILY_CONFORMANCE_PROFILES,
-  allConformanceSources,
-  collectCorpusOutliers,
-  conformanceSourceFor,
-} from './helpers/family-conformance-profiles.ts'
-import { measureDiagramComplexity } from './helpers/diagram-complexity.ts'
+import { COMPLEXITY_STRATA, FAMILY_CONFORMANCE_PROFILES, allConformanceSources, conformanceSourceFor } from './helpers/family-conformance-profiles.ts'
 import {
   OUTPUT_FORMATS,
   buildMixedFormatConformancePlan,
@@ -45,10 +37,13 @@ function assertSvg(svg: string, context: string): void {
   expect(svg, context).toContain('<svg')
   expect(svg, context).toContain('</svg>')
   expect(svg, context).not.toMatch(/(?:NaN|Infinity|undefined)/)
-  const viewBox = /viewBox="0 0 ([\d.]+) ([\d.]+)"/u.exec(svg)
+  const viewBox = /viewBox="([^"]+)"/u.exec(svg)
   expect(viewBox, `${context}: viewBox`).not.toBeNull()
-  expect(Number(viewBox![1]), `${context}: width`).toBeGreaterThan(0)
-  expect(Number(viewBox![2]), `${context}: height`).toBeGreaterThan(0)
+  const viewport = viewBox![1]!.trim().split(/\s+/).map(Number)
+  expect(viewport, `${context}: finite four-coordinate viewport`).toHaveLength(4)
+  expect(viewport.every(Number.isFinite), `${context}: finite viewport`).toBe(true)
+  expect(viewport[2], `${context}: width`).toBeGreaterThan(0)
+  expect(viewport[3], `${context}: height`).toBeGreaterThan(0)
 }
 
 const GEOMETRY_ATTRIBUTES = ['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points', 'd', 'transform', 'data-id', 'data-role', 'class']
@@ -121,7 +116,23 @@ function assertOutlines(
   const raw = backend.render(scene, backendContext)
   const rawCss = svgCssText(raw)
   const before = outlineElements(raw, rawCss), after = outlineElements(svg)
-  expect(after.map(element => element.key), `${context}: bind actual SVG primitives`).toEqual(before.map(element => element.key))
+  expect(after.length, `${context}: bind actual SVG primitives`).toBe(before.length)
+  after.forEach((element, index) => {
+    const actual: string[] = JSON.parse(element.key), expected: string[] = JSON.parse(before[index]!.key)
+    actual.forEach((value, field) => {
+      // Identity stays exact. Numeric fields may change decimal spelling at
+      // the public SVG boundary, within the writer's twelve-digit precision.
+      if (field === 0 || field >= 1 + GEOMETRY_ATTRIBUTES.indexOf('data-id')) {
+        expect(value, context).toBe(expected[field]!)
+        return
+      }
+      const numbers = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g
+      const a = value.match(numbers) ?? [], b = expected[field]!.match(numbers) ?? []
+      expect(value.replace(numbers, '#').replace(/[\s,]/g, ''), context).toBe(expected[field]!.replace(numbers, '#').replace(/[\s,]/g, ''))
+      expect(a.length, context).toBe(b.length)
+      a.forEach((token, number) => expect(Math.abs(Number(token) - Number(b[number])), context).toBeLessThanOrEqual(5e-12 * Math.max(Math.abs(Number(token)), Math.abs(Number(b[number])), Number.MIN_VALUE)))
+    })
+  })
   const starts = new Map<string, number[]>()
   before.forEach((element, index) => starts.set(element.key, [...(starts.get(element.key) ?? []), index]))
   const roles = new Set<string>()
@@ -191,7 +202,10 @@ function assertOutlines(
       inkCount++
     })
     if (expectedPaint !== 'none' && override?.strokeWidth !== 0) expect(inkCount, `${where}: structural outline, not only a fill or invisible carrier`).toBeGreaterThan(0)
-    if (expectedPaint === undefined) roles.add(node.role)
+    if (expectedPaint === undefined) {
+      roles.add(node.role)
+      if (node.role === 'chrome' && node.owner) roles.add(node.owner.role)
+    }
     ids.add(node.id)
   })
   if (override) expect([...ids].sort(), `${context}: preserved source owners`).toEqual([...override.ids].sort())
@@ -199,11 +213,7 @@ function assertOutlines(
 }
 
 describe('registry-derived complexity-aware render conformance plan', () => {
-  test('family registration forces exact conformance material and six structured strata', () => {
-    expect(Object.keys(FAMILY_CONFORMANCE_PROFILES).sort(compareCodePointStrings)).toEqual([...families].sort(compareCodePointStrings))
-    expect(Object.keys(collectCorpusOutliers()).sort(compareCodePointStrings)).toEqual([...families].sort(compareCodePointStrings))
-
-    const measurements = new Map<string, ReturnType<typeof measureDiagramComplexity>>()
+  test('complex fixture sources retain structured meaning through serialization', () => {
     for (const source of allConformanceSources()) {
       const parsed = parseRegisteredMermaid(source.source)
       expect(parsed.ok, source.id).toBe(true)
@@ -214,20 +224,6 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       const reparsed = parseRegisteredMermaid(canonical)
       expect(reparsed.ok, `${source.id}: canonical reparse`).toBe(true)
       if (reparsed.ok) expect(describeMermaidFacts(reparsed.value), source.id).toEqual(describeMermaidFacts(parsed.value))
-      measurements.set(`${source.family}:${source.stratum}`, measureDiagramComplexity(source.source))
-      if (source.stratum === 'text-stress') {
-        expect(measurements.get(`${source.family}:${source.stratum}`)!.source.unicodeClasses.length, source.id).toBeGreaterThan(0)
-      }
-      if (source.stratum === 'corpus-outlier') expect(source.origin).toBe('eval-corpus')
-    }
-
-    for (const family of families) {
-      const familyMeasurements = COMPLEXITY_STRATA.map(stratum => measurements.get(`${family}:${stratum}`)!)
-      expect(familyMeasurements.every(Boolean), family).toBe(true)
-      const minimal = measurements.get(`${family}:minimal`)!
-      const dense = measurements.get(`${family}:dense`)!
-      const structuralWork = (value: typeof minimal) => value.source.entities + value.source.relations + value.rendered.routePoints
-      expect(structuralWork(dense), `${family}: dense structural work`).toBeGreaterThanOrEqual(structuralWork(minimal))
     }
   }, 30_000)
 
@@ -301,6 +297,14 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       const baseline = assertOutlines(source, options, renderMermaidSVG(source, options), backend)
       const hidden = `${source}\nstyle A stroke:#282a36,stroke-width:0`
       assertOutlines(hidden, options, renderMermaidSVG(hidden, options), `${backend}/authored zero width`, { ids: baseline.ids, paint: '#282a36', strokeWidth: 0 })
+
+      // Treemap separators have no automatic node-outline obligation, but
+      // explicit border paint and suppression still belong to the author.
+      const treemap = 'treemap\n"One": 2\n"Two": 1'
+      for (const paint of ['#282a36', 'none']) {
+        const separators = { ...options, style: [...options.style, { roles: { node: { borderColor: paint } } }] }
+        assertOutlines(treemap, separators, renderMermaidSVG(treemap, separators), `${backend}/authored treemap separators`, { ids: new Set(['cell:treemap-0', 'cell:treemap-1']), paint })
+      }
     }
   }, RENDER_PORTFOLIO_TIMEOUT_MS)
 

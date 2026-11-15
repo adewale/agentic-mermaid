@@ -165,9 +165,15 @@ describe('actor palette', () => {
   it('guarantees unique derived colors through the documented finite bound', () => {
     const actors = Array.from({ length: 256 }, (_unused, index) => `Actor${index}`)
     const svg = renderMermaidSVG(`journey\n  Task: 3: ${actors.join(', ')}`)
-    const colors = [...svg.matchAll(/\.journey-actor-\d+ \{ fill: ([^;]+);/g)].map(match => match[1])
-    expect(colors).toHaveLength(256)
-    expect(new Set(colors).size).toBe(256)
+    // The color each actor's dots are drawn in, by actor.
+    const colors = new Map<string, Set<string>>()
+    for (const [dot] of svg.matchAll(/<circle class="journey-actor-dot [^>]*>/g)) {
+      const actor = / data-actor="([^"]*)"/.exec(dot)![1]!
+      colors.set(actor, (colors.get(actor) ?? new Set()).add(/ fill="([^"]*)"/.exec(dot)![1]!))
+    }
+    expect(colors.size).toBe(256)
+    expect([...colors.values()].every(fills => fills.size === 1)).toBe(true)
+    expect(new Set([...colors.values()].flatMap(fills => [...fills])).size).toBe(256)
     const warning = verifyMermaid(`journey\n  Task: 3: ${[...actors, 'Over'].join(', ')}`).warnings
       .find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'journey_actor_palette_limit')
     expect(warning).toBeDefined()
@@ -175,12 +181,15 @@ describe('actor palette', () => {
 })
 
 describe('section label contrast (WCAG AA)', () => {
+  /** The fill of the first element drawn with a class token. */
+  const drawnFill = (svg: string, cls: string): string | undefined =>
+    svg.match(new RegExp(`<[a-z]+\\b[^>]*\\bclass="(?:[^"]*\\s)?${cls}(?:\\s[^"]*)?"[^>]*>`))?.[0].match(/\sfill="([^"]*)"/)?.[1]
   const sectionPair = (svg: string, index: number): [string, string] => {
-    const band = svg.match(new RegExp(`\\.journey-section-band-${index} \\{ fill: ([^;]+);`))
-    const label = svg.match(new RegExp(`\\.journey-section-label-${index} \\{ fill: ([^;]+);`))
-    expect(band).not.toBeNull()
-    expect(label).not.toBeNull()
-    return [label![1]!.trim(), band![1]!.trim()]
+    const band = drawnFill(svg, `journey-section-band-${index}`)
+    const label = drawnFill(svg, `journey-section-label-${index}`)
+    expect(band).toBeDefined()
+    expect(label).toBeDefined()
+    return [label!, band!]
   }
 
   it('honors Mermaid stock section fills with readable label text', () => {
@@ -203,8 +212,8 @@ journey
     const cases: Array<[string, string]> = [['#00a000', '#ffffff'], ['#f0f0f0', 'white'], ['rgb(240,240,240)', 'white']]
     for (const [band, requested] of cases) {
       const svg = renderMermaidSVG(`%%{init: ${JSON.stringify({ journey: { sectionFills: [band], sectionColours: [requested] } })}}%%\njourney\n  section S\n    Task: 3: Me`)
-      const emittedBand = /\.journey-section-band-0 \{ fill: ([^;]+);/.exec(svg)?.[1] ?? band
-      const emittedText = /\.journey-section-label-0 \{ fill: ([^;]+);/.exec(svg)?.[1]
+      const emittedBand = drawnFill(svg, 'journey-section-band-0') ?? band
+      const emittedText = drawnFill(svg, 'journey-section-label-0')
       expect(emittedText).toBeDefined()
       expect(wcagCssContrastRatio(emittedText!, emittedBand, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
     }

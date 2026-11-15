@@ -76,7 +76,10 @@ const GRAPHS: Array<{ name: string; source: string }> = [
 describe('label centring (labelMidpointOffset)', () => {
   for (const { name, source } of GRAPHS) {
     test(`${name}: every labelled edge's label is centred on its route`, () => {
-      const positioned = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.edges.filter(edge => edge.label).map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.filter(edge => edge.label).map(edge => [edge.source, edge.target, edge.label]).sort())
+      for (const edge of positioned.edges.filter(edge => edge.label)) expect(edge.labelPosition).toBeDefined()
       const labelled = positioned.edges.filter(e => e.label && e.labelPosition)
       expect(labelled.length).toBeGreaterThan(0)
       const offenders = labelled

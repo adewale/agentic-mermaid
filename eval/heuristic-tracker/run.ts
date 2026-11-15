@@ -12,12 +12,18 @@
  * (src/family-rubric.ts) over their RenderedLayout instead — journey adds its
  * layered assessor (tiling / marker centring / score monotonicity / actor
  * dots). A committed baseline lets any heuristic change be judged improvement
- * vs. regression at a glance, for EVERY family, not just flowchart.
+ * vs. regression at a glance, for EVERY family, not just flowchart. Every row
+ * also records the verify compactness lint (informational, never gated):
+ * `slack`, the largest EDGE_RANK_SLACK excess in layers (0 when none is
+ * reported), and `titleStrip`, the EDGE_UNDER_GROUP_TITLE count.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { layoutMermaid, parseRegisteredMermaid as parseAgentMermaid } from '../../src/agent/index.ts'
-import type { DiagramKind } from '../../src/agent/types.ts'
+import { positionFamilyArtifact } from '../../src/agent/family-layouts.ts'
+import { positionedToRenderedLayout } from '../../src/agent/layout-to-rendered.ts'
+import type { DiagramKind, LayoutWarning } from '../../src/agent/types.ts'
+import { compactnessLintWarnings, graphCompactnessWarnings } from '../../src/agent/verify.ts'
 import { assessJourneyLayout, assessRenderedLayout, assessSankeyLayout, familyHardViolations } from '../../src/family-rubric.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../src/journey/layout.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
@@ -43,6 +49,10 @@ interface Row {
    *  labels are so a regression of the symmetric-dogleg hugging class trips the
    *  gate; null when the example has no labelled edges. */
   labelOff: number | null
+  /** Informational: largest EDGE_RANK_SLACK excess in layers (0 when none). */
+  slack: number
+  /** Informational: EDGE_UNDER_GROUP_TITLE count. */
+  titleStrip: number
 }
 
 /** Family-rubric row for non-flowchart examples. `hard` folds in the journey
@@ -63,6 +73,20 @@ interface FamilyRow {
   journeyScore: number | null
   /** Sankey assessor ribbon crossings (lower better); null for other families. */
   sankeyCrossings: number | null
+  /** Informational, as on flowchart rows. */
+  slack: number
+  titleStrip: number
+}
+
+/** The compactness lint columns from verify's warnings. */
+function compactnessColumns(warnings: readonly LayoutWarning[]): { slack: number; titleStrip: number } {
+  let slack = 0,
+    titleStrip = 0
+  for (const w of warnings) {
+    if (w.code === 'EDGE_RANK_SLACK') slack = Math.max(slack, w.spannedLayers - w.requiredLayers)
+    if (w.code === 'EDGE_UNDER_GROUP_TITLE') titleStrip++
+  }
+  return { slack, titleStrip }
 }
 
 // A "designated" attachment point: the four cardinal side-midpoints for every
@@ -107,12 +131,15 @@ export type ScoreResult = Row | FamilyRow | { error: string }
  */
 export function scoreFamily(source: string, family: DiagramKind): ScoreResult {
   let result
+  let compactness
   try {
     const p = parseAgentMermaid(source)
     if (!p.ok) return { error: 'parse' }
     const layout = layoutMermaid(p.value)
     if (layout.nodes.length === 0) return { error: 'empty layout' }
     result = assessRenderedLayout(layout)
+    const artifact = positionFamilyArtifact(p.value)
+    compactness = compactnessColumns(artifact ? compactnessLintWarnings(p.value, artifact) : [])
   } catch (e) {
     return { error: String(e).slice(0, 60) }
   }
@@ -149,6 +176,7 @@ export function scoreFamily(source: string, family: DiagramKind): ScoreResult {
     labelled: Number(m.labelledBoxRate.toFixed(3)),
     journeyScore,
     sankeyCrossings,
+    ...compactness,
   }
 }
 
@@ -187,6 +215,7 @@ export function score(source: string): ScoreResult {
     crossings: r.metrics.edgeCrossings,
     symErr: fanInSymmetryError(pos),
     labelOff: hasLabel ? Number(r.metrics.worstLabelOffset.toFixed(3)) : null,
+    ...compactnessColumns(graphCompactnessWarnings(pos, graph, positionedToRenderedLayout(pos, 'flowchart'))),
   }
 }
 
@@ -314,7 +343,7 @@ if (import.meta.main) {
 
   const baseline = loadBaseline()
   const fmt = (v: any) => (v === null ? '·' : String(v))
-  console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym  lblOff  Δ(vs baseline)')
+  console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym  lblOff slk ttl  Δ(vs baseline)')
   for (const ex of examples) {
     const key = `${ex.group}/${ex.name}`
     const c = current[key] as any
@@ -346,6 +375,7 @@ if (import.meta.main) {
         `score ${String(c.score).padStart(5)}`,
         c.journeyScore !== null ? `journey ${String(c.journeyScore).padStart(5)}` : c.sankeyCrossings !== null ? `xing ${String(c.sankeyCrossings).padStart(8)}` : ''.padEnd(13),
         `lbl ${c.labelled.toFixed(3)}`,
+        `slk ${c.slack} ttl ${c.titleStrip}`,
         '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
       )
       continue
@@ -368,7 +398,7 @@ if (import.meta.main) {
         deltas.push(`lblOff${d > 0 ? '+' : ''}${d.toFixed(3)}${d < 0 ? '✓' : '✗'}`)
       }
     }
-    console.log(key.padEnd(34), String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4), String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5), fmt(c.labelOff).padStart(6), '  ' + (deltas.join(' ') || (b ? '=' : 'new')))
+    console.log(key.padEnd(34), String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4), String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5), fmt(c.labelOff).padStart(6), String(c.slack).padStart(3), String(c.titleStrip).padStart(3), '  ' + (deltas.join(' ') || (b ? '=' : 'new')))
   }
   const report = compareToBaseline(current, baseline)
   console.log('—'.repeat(70))

@@ -8,13 +8,13 @@ import {
   renderMermaidASCIIWithReceipt,
   renderMermaidPNGWithReceipt,
   renderMermaidSVGWithReceipt,
+  renderMermaidWithActions,
   toFinite,
   type ExternalFamilyId,
   type FamilyDescriptor,
   type ParsedDiagram,
 } from '../agent/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { SDK_CORE_DECLARATION } from '../mcp/sdk-discovery.ts'
 import {
   renderMermaidASCIIWithReceipt as renderRootASCIIWithReceipt,
   renderMermaidSVGWithReceipt as renderRootSVGWithReceipt,
@@ -33,7 +33,7 @@ function descriptor(): FamilyDescriptor {
       id: FAMILY_ID,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'parsed-render-composition-test', source: 'test' },
     }),
     id: FAMILY_ID,
@@ -88,6 +88,56 @@ function parsedExtension(): ParsedDiagram {
 }
 
 describe('open parsed-diagram render composition', () => {
+  test.each(['svg', 'png'] as const)('%s action output shares one external layout without cloning executable metadata', format => {
+    const original = descriptor()
+    let layouts = 0, projections = 0, renders = 0
+    let debugOption = false
+    const unregister = registerFamily({
+      ...original,
+      layout: () => { layouts++; return { width: 120, height: 40, callback: () => 17 } },
+      projectPositioned: context => { projections++; debugOption = Object.hasOwn(context.options, 'debug'); return original.projectPositioned!(context) },
+      renderSvg: context => { renders++; return original.renderSvg!(context) },
+    })
+    try {
+      layouts = projections = renders = 0
+      const artifact = renderMermaidWithActions(parsedExtension(), { format })
+      expect(artifact.output.length).toBeGreaterThan(0)
+      expect({ layouts, projections, renders }).toEqual({ layouts: 1, projections: 1, renders: 1 })
+      expect(debugOption).toBe(true)
+    } finally { unregister() }
+  })
+
+  test('strict action projection rejects an external family before any render hook', () => {
+    const original = descriptor()
+    let renders = 0
+    const unregister = registerFamily({ ...original, renderSvg: context => { renders++; return original.renderSvg!(context) } })
+    try {
+      renders = 0
+      expect(() => renderMermaidWithActions(parsedExtension(), { format: 'svg', options: { layoutSafety: 'strict' } })).toThrow(/Strict layout safety requires native Scene evidence/)
+      expect(renders).toBe(0)
+    } finally { unregister() }
+  })
+
+  test('a failed action projection does not invoke the external renderer', () => {
+    const original = descriptor()
+    let renders = 0
+    let fail = false
+    const unregister = registerFamily({
+      ...original,
+      projectPositioned: context => {
+        if (fail) throw new Error('projection unavailable')
+        return original.projectPositioned!(context)
+      },
+      renderSvg: context => { renders++; return original.renderSvg!(context) },
+    })
+    try {
+      renders = 0
+      fail = true
+      expect(() => renderMermaidWithActions(parsedExtension(), { format: 'svg' })).toThrow(/projection unavailable/)
+      expect(renders).toBe(0)
+    } finally { unregister() }
+  })
+
   test.each([undefined, null, 'invalid'])('rejects an invalid source policy result %s at registration', result => {
     expect(() => registerFamily({
       ...descriptor(),
@@ -246,15 +296,7 @@ describe('open parsed-diagram render composition', () => {
     }
   })
 
-  test('advertises the open parser/render envelope while keeping built-in ops closed', async () => {
-    expect(SDK_CORE_DECLARATION).toContain('type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidSVGWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidASCIIWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('layoutMermaidWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('mutate(diagram: ValidDiagram, op: MutationOp)')
-    expect(SDK_CORE_DECLARATION).not.toContain('mutate(diagram: ParsedDiagram')
-
+  test('executes open parsed inputs across graphical, terminal and layout Code Mode outputs', async () => {
     const unregister = registerFamily(descriptor())
     try {
       const executed = await executeInSandbox(`

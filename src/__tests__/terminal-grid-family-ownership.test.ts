@@ -8,6 +8,7 @@ import { renderSequenceTerminal as renderSequenceAscii } from '../ascii/sequence
 import { renderC4Terminal } from '../ascii/c4.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { certifyTerminalLayout } from '../ascii/terminal-certification.ts'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
 import { serializeTerminalArtifact, type TerminalArtifact } from '../ascii/terminal-artifact.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
@@ -95,7 +96,8 @@ note for A "owned note with é and 🙂"`
     expect(region('A:compartment:2').ownedCellSpans.length).toBeGreaterThan(0)
     expect(region('relationship:0').kind).toBe('edge')
     expect(region('relationship:0').ownedCellSpans.length).toBeGreaterThan(1)
-    expect(region('note:0').parentId).toBe('A')
+    expect(region('note:0').annotationTarget).toEqual({ id: 'A', kind: 'node' })
+    expect(region('note:0').parentId).toBeUndefined()
     for (const [, , cell] of doc.entries()) if (cell.kind === 'text') expect(cell.owners.length).toBeGreaterThan(0)
     expect(doc.diagnostics.filter(item => item.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
   })
@@ -133,7 +135,8 @@ class A hot`, config, 'none'))
     expect(output).toContain('Generated note')
     expect(region('note:0').projectedText).toBe('Authored')
     expect(region('note:0#1').projectedText).toBe('Generated note')
-    expect(region('note:0#1').parentId).toBe('note:0')
+    expect(region('note:0#1').annotationTarget).toEqual({ id: 'note:0', kind: 'node' })
+    expect(region('note:0#1').parentId).toBeUndefined()
     expect(region('relationship:0').kind).toBe('node')
     expect(region('relationship:0#1').kind).toBe('edge')
     expect(new Set(regions.map(item => `${item.kind}:${item.id}`)).size).toBe(regions.length)
@@ -149,6 +152,7 @@ namespace Domain["First<br/>Second<br/>Third"] {
 }`, config))
     const rows = output.split('\n')
     expect(rows[0]).toContain('Diagram title')
+    for (const part of ['First', 'Second', 'Third']) expect(output).toContain(part)
     expect(rows.findIndex(row => row.includes('First'))).toBeLessThan(rows.findIndex(row => row.includes('Second')))
     expect(rows.findIndex(row => row.includes('Second'))).toBeLessThan(rows.findIndex(row => row.includes('Third')))
     expect(rows.findIndex(row => row.includes('Third'))).toBeLessThan(region('A').canvasRow)
@@ -347,7 +351,7 @@ root((Root))
     expect(doc.diagnostics).toEqual([])
   })
 
-  test('Class and ER self relations have complete exterior loops and owned labels', () => {
+  test('Class and ER self relations retain exterior ink and owned labels', () => {
     for (const source of ['classDiagram\nA --> A : recursive', 'erDiagram\nA ||--o{ A : recursive']) {
       const { output, doc, region } = capture(config => source.startsWith('class') ? renderClassAscii(source, config) : renderErAscii(source, config))
       expect(output).toContain('recursive')
@@ -399,16 +403,19 @@ root((Root))
   })
 
   for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) test.each([
+    { name: 'Class self', family: 'classDiagram', declarations: '', relationships: ['A --> A'] },
+    { name: 'ER self', family: 'erDiagram', declarations: '', relationships: ['A ||--o{ A'] },
     { name: 'mixed Class', family: 'classDiagram', declarations: '', relationships: ['C --> D', 'A ..> F', 'C --* F', 'C --o B', 'A --> D', 'C ..> F'] },
     { name: 'mixed ER', family: 'erDiagram', declarations: '', relationships: ['C ||--o{ F', 'A }o..|| B', 'C ||--|| F', 'E ||--o{ B', 'E }o..|| B', 'E ||--|| D', 'E ||--o{ B', 'E }o..|| D'] },
     { name: 'namespace Class', family: 'classDiagram', declarations: 'class A["Actual source"]\nnamespace A["First 界<br/>complete header"] {\n class B["Actual target"]\n}', relationships: ['A --> B'] },
     { name: 'grouped ER', family: 'erDiagram', declarations: 'A["Actual source"]\nsubgraph G["First 界<br/>complete header"]\n B["Actual target"]\nend', relationships: ['A ||--o{ B'] },
     { name: 'nested parallel C4', family: 'C4Deployment', declarations: 'Deployment_Node(Outer,"Region","Cloud") {\n Node(Inner,"Host 界","VM") {\n Container(A,"Source","TypeScript")\n ContainerDb(B,"Target","SQL")\n }\n}\nSystem_Ext(C,"Partner")', relationships: ['Rel(A,B,"relation 0")', 'Rel(A,B,"relation 1")', 'Rel_Back(A,B,"relation 2")', 'BiRel(B,C,"relation 3")', 'Rel(B,B,"relation 4")'] },
-  ])('crossing $name routes retain protected endpoint ink in ' + direction, ({ family, declarations, relationships }) => {
+  ])('crossing $name routes retain protected endpoint ink in ' + direction, ({ name, family, declarations, relationships }) => {
     const directions = { T: [0, -1, 1, 4], R: [1, 0, 2, 8], B: [0, 1, 4, 1], L: [-1, 0, 8, 2] } as const
     for (const useAscii of [false, true]) {
       const source = `${family}\ndirection ${direction}\n${declarations}\n${relationships.map((relation, index) => family === 'C4Deployment' ? relation : `${relation} : relation ${index}`).join('\n')}`
       const { output, doc, regions } = capture(config => family === 'classDiagram' ? renderClassAscii(source, config) : family === 'C4Deployment' ? renderC4Terminal(parseC4Diagram(source), config) : renderErAscii(source, config), useAscii)
+      if (name === 'mixed ER') expect(certifyTerminalLayout(doc, output, 'none')).toMatchObject({ status: 'passed', issues: [] })
       const edges = regions.filter(region => region.kind === 'edge')
       expect(edges).toHaveLength(relationships.length)
       for (const edge of edges) {

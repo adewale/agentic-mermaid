@@ -71,10 +71,14 @@ function expectCode(run: () => unknown, code: ResourceResolutionError['code']): 
   }
 }
 
+/** A synchronous spawn blocks the test runner, whose own timeout then cannot
+ * fire: a child that never exits must be killed here, inside the test's 30s. */
+const SPAWN_BOUND = { encoding: 'utf8', timeout: 20_000, killSignal: 'SIGKILL' } as const
+
 /** A working `node` (NODE_BINARY wins), or undefined when none is installed. */
 const NODE = (() => {
   for (const candidate of [process.env.NODE_BINARY, 'node'].filter((value): value is string => Boolean(value))) {
-    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+    try { if (spawnSync(candidate, ['--version'], SPAWN_BOUND).status === 0) return candidate } catch {}
   }
   return undefined
 })()
@@ -134,8 +138,9 @@ describe('content-addressed installed resource manifest', () => {
         diagnostics: result.diagnostics.length,
       }));
     `
-    const run = spawnSync(node, ['--input-type=module', '-e', script], { encoding: 'utf8' })
-    expect(run.status, run.stderr).toBe(0)
+    const run = spawnSync(node, ['--input-type=module', '-e', script], SPAWN_BOUND)
+    expect({ status: run.status, signal: run.signal, error: run.error?.message }, run.stderr)
+      .toEqual({ status: 0, signal: null, error: undefined })
     expect(JSON.parse(run.stdout)).toEqual({
       resources: HOSTED_FONT_RESOURCES.length,
       diagnostics: 0,
@@ -200,7 +205,7 @@ describe('content-addressed installed resource manifest', () => {
       const identity: Record<string, unknown> = {
         kind: 'resource',
         version: '1.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: { owner: 'test', source: 'getter-sabotage' },
       }
       Object.defineProperty(identity, 'id', {

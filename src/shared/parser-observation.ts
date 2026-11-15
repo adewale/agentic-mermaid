@@ -27,6 +27,7 @@ export type ParserObserver = (event: Readonly<ParserObservation>) => void
 interface Scope {
   family: string
   observer: ParserObserver
+  mutations?: ReadonlySet<string>
 }
 let active: Scope | undefined
 
@@ -40,9 +41,9 @@ export function parserObservationActive(family: string): boolean {
 /** Nested scopes replace, then restore, their caller's observer. Async work is
  * deliberately outside this contract: no parser context survives a promise.
  */
-export function withParserObservation<T>(family: string, observer: ParserObserver, parse: () => T): T {
+export function withParserObservation<T>(family: string, observer: ParserObserver, parse: () => T, options?: { mutations?: readonly string[] }): T {
   const previous = active
-  active = { family, observer }
+  active = { family, observer, mutations: options?.mutations ? new Set(options.mutations) : undefined }
   try {
     const result = parse()
     if (result !== null && typeof result === 'object' && 'then' in result && typeof result.then === 'function') {
@@ -55,6 +56,16 @@ export function withParserObservation<T>(family: string, observer: ParserObserve
   } finally {
     active = previous
   }
+}
+
+/** A dialect can reuse the actual shared grammar's consumption and writes.
+ * Forward those events under the dialect's observation scope; the grammar's
+ * normalized source coordinates and mutation snapshots remain unchanged. */
+export function withParserObservationGrammar<T>(family: string, grammar: string, parse: () => T): T {
+  const scope = active
+  if (scope?.family !== family) return parse()
+  return withParserObservation(grammar, event => scope.observer({ ...event, family }), parse,
+    scope.mutations ? { mutations: [...scope.mutations] } : undefined)
 }
 
 function snapshot(value: unknown, seen = new Map<object, string>(), path = '$'): ParserObservationValue {
@@ -101,9 +112,11 @@ function deliver(family: string, event: ParserObservation): void {
   }
 }
 
-export function observeParserStatement(family: string, kind: string, text: string, source?: ParserObservationSource): void {
+/** A parser may publish the structured value it actually consumes. Capture it
+ * only inside an active scope, before a callback can change parser-owned data. */
+export function observeParserStatement(family: string, kind: string, text: string, source?: ParserObservationSource, value?: unknown): void {
   if (!parserObservationActive(family)) return
-  deliver(family, { family, unit: 'statement', kind, text, ...(source ? { source: { ...source } } : {}) })
+  deliver(family, { family, unit: 'statement', kind, text, ...(source ? { source: { ...source } } : {}), ...(value === undefined ? {} : { value: snapshot(value) }) })
 }
 
 export function observeParserToken(family: string, kind: string, text: string, source?: ParserObservationSource): void {
@@ -116,5 +129,8 @@ export function observeParserToken(family: string, kind: string, text: string, s
  */
 export function observeParserMutation(family: string, kind: string, value: unknown, source?: ParserObservationSource): void {
   if (!parserObservationActive(family)) return
+  // Select before copying: source-map consumers need only generated identities,
+  // not snapshots of every still-unprocessed nested subtree.
+  if (active?.mutations && !active.mutations.has(kind)) return
   deliver(family, { family, unit: 'mutation', kind, value: snapshot(value), ...(source ? { source: { ...source } } : {}) })
 }

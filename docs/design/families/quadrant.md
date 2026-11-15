@@ -51,9 +51,8 @@ The style grammar and the precedence rule live in ONE module,
 
 Rendering details:
 
-- resolved fills/strokes are emitted as an inline `style=""` attribute so
-  they win over the `.quadrant-point` stylesheet rules; unstyled points keep
-  byte-identical markup to the pre-styling renderer;
+- each circle is written with its resolved fill/stroke/stroke-width (the
+  theme defaults for an unstyled point); no stylesheet rule restyles it;
 - `:::class` names are additionally emitted as SVG CSS classes on the circle
   (`class="quadrant-point class1"`), following the flowchart convention, so a
   point referencing an unknown classDef still exposes its class to external
@@ -160,7 +159,9 @@ The quadrant point-label marks carry their REAL collision-aware position
 drift class where a lowering claimed one label position while the crisp SVG
 drew another. Styled backends redraw from semantic fields, so the styled
 quadrant goldens moved when this was fixed — the styled looks now place
-labels where the crisp renderer does.
+labels where the crisp renderer does. Since 0.5 the default backend writes
+every text mark from those same fields (`src/scene/svg-writer.ts`), so the
+two can no longer differ; the oracle remains a test over the corpus.
 
 ## Verification
 

@@ -5,9 +5,13 @@
 // the render contract instead, so source normalization and the common SVG core
 // do not need to import every family hook merely to identify a header.
 
+import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
+export { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
 import type { FamilyDescriptor } from './families.ts'
 import type { FamilyId } from './types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
+export { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 
 export type RegisteredFamilyResolver = (
   firstLine: string,
@@ -18,31 +22,14 @@ export type RegisteredFamilyByIdResolver = (id: FamilyId | string) => FamilyDesc
 let registeredFamilyResolver: RegisteredFamilyResolver | undefined
 let registeredFamilyByIdResolver: RegisteredFamilyByIdResolver | undefined
 const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
+let routingRevision = 0
+/** Changes whenever family routing can change: an installed resolver, a loaded
+ * descriptor, or the registry behind them. Registry-dependent results (source
+ * normalization) are reusable only within one revision. */
+export function familyRoutingRevision(): number { return routingRevision }
+export function noteFamilyRoutingChange(): void { routingRevision++ }
 
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
-
-export function normalizeFamilyDetectionLine(firstLine: string): string {
-  return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-}
-
-/** Lightweight compatibility-parser ownership, deliberately independent of
- * the complete family registry so direct graph-parser imports remain usable. */
-export function detectsFlowchartFamily(firstLine: string): boolean {
-  // Keep this detector self-contained: the browser catalog generator embeds
-  // descriptor detectors via Function#toString at build time.
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line)
-}
-
-export function detectsStateFamily(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?\s*$/.test(line)
-}
-
-export function detectsStateFamilyLoose(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?(?:\s|$)/.test(line)
-}
 
 export function detectCompatibilityGraphFamilyFromFirstLine(
   firstLine: string,
@@ -55,10 +42,12 @@ export function detectCompatibilityGraphFamilyFromFirstLine(
 
 export function installRegisteredFamilyResolver(resolver: RegisteredFamilyResolver): void {
   registeredFamilyResolver = resolver
+  routingRevision++
 }
 
 export function installRegisteredFamilyByIdResolver(resolver: RegisteredFamilyByIdResolver): void {
   registeredFamilyByIdResolver = resolver
+  routingRevision++
 }
 
 /** Add one descriptor without importing the complete registry. This is
@@ -66,6 +55,7 @@ export function installRegisteredFamilyByIdResolver(resolver: RegisteredFamilyBy
  * one another's parser routing state. */
 export function installLoadedFamilyDescriptor(descriptor: FamilyDescriptor): void {
   loadedFamilyDescriptors.set(descriptor.id, descriptor)
+  routingRevision++
 }
 
 export function getInstalledFamilyDescriptor(id: FamilyId | string): FamilyDescriptor | undefined {
@@ -86,6 +76,15 @@ export function detectInstalledFamilyDescriptorFromFirstLine(
     mode === 'loose'
       ? (descriptor.detectLoose ?? descriptor.detect)(line)
       : descriptor.detect(line)) ?? null
+}
+
+/** For each of `lines`, the last line of the statement that starts there, by
+ * the rule of the installed family `firstLine` names (statementEnds), when
+ * the lines hold an accessibility directive a statement's text could hide. */
+export function installedFamilyStatementEnds(firstLine: string, lines: readonly string[], capturedFamily?: FamilyDescriptor | null): readonly number[] | undefined {
+  if (!lines.some(line => /acc(?:Title|Descr)/i.test(line))) return undefined
+  const family = capturedFamily === undefined ? detectInstalledFamilyDescriptorFromFirstLine(firstLine, 'loose') : capturedFamily
+  return family?.statementEnds?.(lines)
 }
 
 export function detectInstalledFamilyFromFirstLine(

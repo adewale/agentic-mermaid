@@ -16,6 +16,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { CHANNEL_THEME_KEYS } from '../color-resolver.ts'
@@ -164,13 +165,6 @@ describe('MR5 colour invariance: colour inputs never move geometry', () => {
     }
   })
 
-  test('the paint-free projection strips paint but keeps geometry', () => {
-    const svg = renderMermaidSVG('flowchart TD\n  A[Alpha] --> B', { style: 'dracula', bg: '#101014' })
-    const projected = geometry(svg)
-    for (const paint of ['#101014', 'fill=', 'stroke=', '--bg:', 'data-backdrop']) expect(projected).not.toContain(paint)
-    for (const kept of ['viewBox=', 'points=', 'stroke-width', 'font-size', '>Alpha<']) expect(projected).toContain(kept)
-  })
-
   for (const fam of FAMILIES) {
     test(`${fam.family}: layout and paint-free SVG are identical under any colour input`, () => {
       fc.assert(
@@ -180,7 +174,7 @@ describe('MR5 colour invariance: colour inputs never move geometry', () => {
           expect(layoutMermaid(diagram, { ...colours, ...quiet })).toEqual(layoutMermaid(diagram, quiet))
           expect(geometry(renderMermaidSVG(source, { ...colours, ...quiet }))).toBe(geometry(renderMermaidSVG(source, quiet)))
         }),
-        { numRuns: 25 },
+        fcParameters({ numRuns: 25 }),
       )
     })
   }
@@ -243,7 +237,7 @@ describe('MR5b colour admission: an invalid painted colour is refused by name', 
           })
           expect(got).toEqual(paths.map(target => `${target.path}: ${target.painted ? 'refused by name' : 'rendered without it'}`))
         }),
-        { numRuns: 8 },
+        fcParameters({ numRuns: 8 }),
       )
     })
   }

@@ -2,20 +2,42 @@ import type { ArchitectureDiagram } from '../architecture/types.ts'
 import type { ClassDiagram, ClassNamespace } from '../class/types.ts'
 import type { C4Body } from '../c4/types.ts'
 import type { ErDiagram } from '../er/types.ts'
+import type { BlockBody, Block } from '../block/types.ts'
+import type { RequirementBody } from '../requirement/types.ts'
 import type { MermaidGraph, MermaidSubgraph } from '../types.ts'
 
-/** Host work budgets. Mermaid source, frontmatter, and Style cannot raise them. */
-export const DIAGRAM_WORK_LIMITS = Object.freeze({ nodes: 5_000, edges: 5_000, nesting: 64 })
+/** Host work budgets. Mermaid source, frontmatter, and Style cannot raise them.
+ * `sourceCharacters` counts the authored and the normalized source together,
+ * the two copies a render request receipt digests under its 2,000,000-character
+ * data budget. */
+export const DIAGRAM_WORK_LIMITS = Object.freeze({ nodes: 5_000, edges: 5_000, nesting: 64, sourceCharacters: 2_000_000 })
 export type DiagramWorkResource = keyof typeof DIAGRAM_WORK_LIMITS
+/** Aggregate budgets of the drawn Scene (SCENE_VALIDATION_LIMITS). A diagram
+ * inside the graph budgets can still draw more than they admit. */
+export type DrawnSceneResource = 'scenePoints' | 'sceneNodes' | 'sceneTextBytes' | 'sceneSerializationBytes'
+
+const DRAWN_SCENE_LABELS: Readonly<Record<DrawnSceneResource, string>> = Object.freeze({
+  scenePoints: 'points', sceneNodes: 'nodes', sceneTextBytes: 'text bytes', sceneSerializationBytes: 'serialized bytes',
+})
 
 export class DiagramWorkLimitError extends RangeError {
   readonly code = 'DIAGRAM_WORK_LIMIT'
 
-  readonly resource: DiagramWorkResource
+  readonly resource: DiagramWorkResource | DrawnSceneResource
   readonly requested: number
 
-  constructor(resource: DiagramWorkResource, requested: number) {
-    super(`DIAGRAM_WORK_LIMIT: expanded graph ${resource} ${requested} exceeds the host limit of ${DIAGRAM_WORK_LIMITS[resource]}; split the diagram or reduce its ${resource}`)
+  /** `withConfiguration`: the source fits alone, but not with the parsed
+   * configuration the receipt digests beside it. A drawn-Scene resource
+   * carries its own `limit`; `requested` is then the first count over it. */
+  constructor(resource: DiagramWorkResource, requested: number, withConfiguration?: boolean)
+  constructor(resource: DrawnSceneResource, requested: number, withConfiguration: false, limit: number)
+  constructor(resource: DiagramWorkResource | DrawnSceneResource, requested: number, withConfiguration = false, limit?: number) {
+    const message = resource in DRAWN_SCENE_LABELS
+      ? `the drawn diagram needs more than ${limit} scene ${DRAWN_SCENE_LABELS[resource as DrawnSceneResource]}, the host limit; split the diagram or reduce its nodes and relationships`
+      : `${resource === 'sourceCharacters'
+        ? `authored plus normalized source of ${requested} characters${withConfiguration ? ', with its configuration,' : ''}`
+        : `expanded graph ${resource} ${requested}`} exceeds the host limit of ${DIAGRAM_WORK_LIMITS[resource as DiagramWorkResource]}; split the diagram${resource === 'sourceCharacters' ? '' : ` or reduce its ${resource}`}`
+    super(`DIAGRAM_WORK_LIMIT: ${message}`)
     this.name = 'DiagramWorkLimitError'
     this.resource = resource
     this.requested = requested
@@ -24,6 +46,29 @@ export class DiagramWorkLimitError extends RangeError {
 
 export function assertDiagramWorkLimit(resource: DiagramWorkResource, requested: number): void {
   if (requested > DIAGRAM_WORK_LIMITS[resource]) throw new DiagramWorkLimitError(resource, requested)
+}
+
+export function assertRequirementDiagramWork(body: RequirementBody): void {
+  assertDiagramWorkLimit('nodes', body.requirements.length + body.elements.length)
+  assertDiagramWorkLimit('edges', body.relations.length)
+}
+
+/** The implicit Block root and leaf cells do not consume container depth. */
+export function assertBlockDiagramWork(body: BlockBody): void {
+  assertDiagramWorkLimit('edges', body.edges.length)
+  assertDiagramWorkLimit('nodes', body.root.children?.length ?? 0)
+  const pending: Array<{ node: Block; depth: number }> = (body.root.children ?? []).map(node => ({ node, depth: 0 }))
+  const seen = new Set<Block>([body.root])
+  let nodes = 0
+  while (pending.length) {
+    const { node, depth } = pending.pop()!
+    if (seen.has(node)) throw new TypeError('Block children must form a tree without repeated objects')
+    seen.add(node)
+    const nesting = depth + (node.type === 'composite' ? 1 : 0)
+    assertDiagramWorkLimit('nesting', nesting)
+    assertDiagramWorkLimit('nodes', ++nodes + pending.length + (node.children?.length ?? 0))
+    for (const child of node.children ?? []) pending.push({ node: child, depth: nesting })
+  }
 }
 
 /** Admit programmatic graphs before recursive conversion, measurement, or layout. */

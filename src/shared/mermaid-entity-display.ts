@@ -26,7 +26,7 @@ const DEFAULT_REFUSAL: EntityRefusal = { subject: 'Mermaid entity', example: '#3
 
 /**
  * Expand markers as the browser does: `ﬂ°°123¶ß` is `&#123;` (0, surrogates
- * and values past U+10FFFF give U+FFFD; 0x80–0x9F map through Windows-1252),
+ * noncharacters and values past U+10FFFF give U+FFFD; 0x80–0x9F map through Windows-1252),
  * and `ﬂ°name¶ß` is `&name;` resolved against the full HTML5 table, legacy
  * prefix matches included (`#notit;` → `¬it;`). An unknown name stays
  * literal as `&name;`. Throws a syntax error for a terminal control.
@@ -36,7 +36,10 @@ export function projectEntityMarkers(text: string, refusal: EntityRefusal = DEFA
     let decoded: string
     if (numeric !== undefined) {
       const codePoint = Number(numeric)
+      // A noncharacter (U+FDD0\u2013U+FDEF, U+nFFFE/U+nFFFF) displays as U+FFFD
+      // too: XML cannot carry U+FFFE/U+FFFF, so every output draws the same.
       decoded = codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        || (codePoint >= 0xfdd0 && codePoint <= 0xfdef) || (codePoint & 0xfffe) === 0xfffe
         ? '\ufffd'
         : codePoint >= 0x80 && codePoint <= 0x9f
           ? windows1252.decode(Uint8Array.of(codePoint))

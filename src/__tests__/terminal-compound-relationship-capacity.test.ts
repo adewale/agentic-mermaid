@@ -237,6 +237,12 @@ function connectedRelationship(document: TerminalDocument, glyphs: Map<string, s
       && occupied.has(key(x, y)) && cell.kind === 'marker' && cell.glyph === markerGlyph
       && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)), `protected ${expected.marker} at ${edge.id}/${port.end}`).toBe(true)
   }
+  if (!expected.marker) {
+    const arrows = useAscii ? { T: 'v', B: '^', L: '>', R: '<' } : { T: '▼', B: '▲', L: '►', R: '◄' }
+    expect([...document.entries()].some(([x, y, cell]) => Math.abs(x - end.x) + Math.abs(y - end.y) <= 1
+      && occupied.has(key(x, y)) && cell.kind === 'marker' && cell.glyph === arrows[end.side!]
+      && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)), `authored arrow at ${edge.id}/end`).toBe(true)
+  }
 }
 
 function witness(fixture: Fixture, direction: Direction, useAscii: boolean, targetWidth?: number): void {

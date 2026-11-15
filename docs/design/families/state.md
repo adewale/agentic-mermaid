@@ -37,6 +37,13 @@ hosted render tools share the classifier in `src/state/config.ts`;
 
 ## Input model
 
+Rendering a parsed State diagram uses its `canonicalSource` to retain global
+statement and paint order, which the nested `StateBody` does not record.
+`mutate`, builders and payload loading rebuild that source when publishing
+changes. Use `mutate` for typed edits; after manual body edits, serialize and
+reparse before rendering. Serialization preserves ownership and content but
+does not promise the original interleaving of statements across scopes.
+
 Modeled constructs (both surfaces):
 
 - `stateDiagram-v2` / `stateDiagram`
@@ -147,6 +154,9 @@ unchanged over the rebuilt geometry (`self-loop-arcs.test.ts` pins both).
 - typed class definitions, per-state class/inline paint, default and indexed
   transition paint
 - history endpoints preserved verbatim on `StateTransition.from/to`
+- a class on a `[*]` or history endpoint (`[*]:::c --> A`) on
+  `StateTransition.fromClass/toClass`: the endpoint is no state, and that
+  inline form is its only Mermaid spelling (`class [*] c` is rejected)
 
 Serialization: definitions before transitions (definition-before-use), notes
 last; single-line note form when the text has no `\n`, block form otherwise.

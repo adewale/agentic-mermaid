@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { describeMermaidTree, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
+import type { PositionedEdge } from '../types.ts'
 
 const SOURCE = `flowchart TD
   subgraph Outer[Outer Region]
@@ -13,6 +15,80 @@ const SOURCE = `flowchart TD
 `
 
 describe('stable region tree MVP', () => {
+  test('terminal State and Class annotations retain target references without claiming containment', () => {
+    const cases = [
+      { source: 'stateDiagram-v2\nstate Outer {\n A --> B\n}\nnote left of Outer: Note', note: 'note#0', target: { id: 'Outer', kind: 'cluster' } },
+      { source: 'stateDiagram-v2\nstate Outer {\n A --> B\n}\nnote left of B: Note', note: 'note#0', target: { id: 'B', kind: 'node' } },
+      { source: 'classDiagram\nnamespace Domain {\n class A\n}\nnote for A "Note"', note: 'note:0', target: { id: 'A', kind: 'node' } },
+    ] as const
+    for (const fixture of cases) for (const useAscii of [false, true]) {
+      const native = renderMermaidASCIIWithMeta(fixture.source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+      expect(native.warnings.some(warning => warning.code === 'ASCII_RENDER_FAILED')).toBe(false)
+      const note = native.regions.find(region => region.id === fixture.note)!
+      expect(note).toMatchObject({ projectedText: 'Note', annotationTarget: fixture.target })
+      expect(note.parentId).toBeUndefined()
+      const target = native.regions.find(region => region.id === fixture.target.id && region.kind === fixture.target.kind)!
+      expect(target).toBeDefined()
+      expect(target.members ?? []).not.toContain(fixture.note)
+    }
+  })
+
+  for (const backend of ['elk', 'agentic'] as const) test.each([false, true])(`${backend} parallel edge identities remain distinct through regions and edits (named=%s)`, named => {
+    const source = `flowchart TD
+      subgraph Frame
+        A ${named ? 'first@' : ''}-->|one| B
+        A ${named ? 'second@' : ''}-->|two| B
+      end
+      B -->|out| C`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const options = { graphLayout: { backend } }
+    const layout = layoutMermaid(parsed.value, { ...options, debug: true })
+    const firstId = named ? 'first' : 'A->B'
+    const secondId = named ? 'second' : 'A->B#1'
+    expect(Object.fromEntries(layout.edges.map(edge => [edge.label?.text, edge.id]))).toEqual({ one: firstId, two: secondId, out: 'B->C' })
+    const regions = layout.regions ?? []
+    expect(new Set(regions.map(region => region.id)).size).toBe(regions.length)
+    expect(regions).toContainEqual(expect.objectContaining({ id: `label:${secondId}`, parentId: `edge:${secondId}`, elementId: secondId }))
+
+    const edited = mutate(parsed.value, { kind: 'set_label', target: secondId, label: 'changed' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    expect(describeMermaidTree(edited.value).edges.map(edge => edge.label)).toEqual(['one', 'changed', 'out'])
+    const svg = renderMermaidSVG(edited.value, options)
+    const svgEdges = [...svg.matchAll(/data-id="([^"]+)" data-role="edge"/g)].map(match => match[1]!.replaceAll('&gt;', '>'))
+    expect(svgEdges).toContain(named ? firstId : 'edge:A->B#0')
+    expect(svgEdges).toContain(named ? secondId : 'edge:A->B#1')
+    expect(svg).toContain('changed')
+  })
+
+  test('parallel endpoint selectors follow source indices after backend extraction reorders edges', () => {
+    const makeEdge = (edgeIndex: number, label: string): PositionedEdge => ({ source: 'A', target: 'B', edgeIndex, label,
+      style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 0, y: edgeIndex }, { x: 20, y: edgeIndex }] })
+    const layout = positionedToRenderedLayout({ nodes: [], groups: [], edges: [makeEdge(1, 'second'), makeEdge(0, 'first')], width: 20, height: 20 }, 'flowchart')
+    expect(layout.edges.map(edge => [edge.label?.text, edge.id])).toEqual([['second', 'A->B#1'], ['first', 'A->B']])
+  })
+
+  for (const backend of ['elk', 'agentic'] as const) test.each([
+    ['node identity', 'flowchart TD\n A A@-->|one| B\n A second@-->|two| B', 'A->B', 'second'],
+    ['repeated authored identity', 'flowchart TD\n A same@-->|one| B\n A same@-->|two| B', 'same', 'A->B#1'],
+  ])(`${backend} projected selectors remain editable with %s`, (_kind, source, firstId, secondId) => {
+    const parsed = parseMermaid(source!)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const layout = layoutMermaid(parsed.value, { graphLayout: { backend }, regions: true })
+    expect(layout.edges.map(edge => edge.id)).toEqual([firstId, secondId])
+    const regions = layout.regions ?? []
+    expect(new Set(regions.map(region => region.id)).size).toBe(regions.length)
+    for (const [index, target] of [firstId!, secondId!].entries()) {
+      const edited = mutate(parsed.value, { kind: 'set_label', target, label: 'changed' })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok) continue
+      expect(describeMermaidTree(edited.value).edges.map(edge => edge.label)).toEqual(index === 0 ? ['changed', 'two'] : ['one', 'changed'])
+    }
+  })
+
   test('flowchart layout JSON flattens nested subgraphs with parent ids and direct members', () => {
     const parsed = parseMermaid(SOURCE)
     expect(parsed.ok).toBe(true)
@@ -63,6 +139,7 @@ describe('stable region tree MVP', () => {
     const layout = layoutMermaid(parsed.value, { debug: true })
     const edge = layout.edges[0]!
     const label = layout.regions?.find(r => r.id === `label:${edge.id}`)
+    expect(edge.label).toBeDefined()
     expect(label).toBeDefined()
     if (!edge.label || !label) return
     expect(label.bounds.x).toBe(edge.label.x)
@@ -132,6 +209,7 @@ describe('stable region tree MVP', () => {
         .filter(region => region.kind === 'cluster')
         .map(region => region.id)
         .sort()
+      expect(graphical.length).toBeGreaterThan(0)
       expect(terminal).toEqual(graphical)
     }
   })

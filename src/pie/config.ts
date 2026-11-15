@@ -37,6 +37,8 @@ export interface PieVisualConfig {
   donutHole: number
   /** Legend placement relative to the circle. Upstream default 'right'. */
   legendPosition: PieLegendPosition
+  /** Provenance retained so opt-in fitting does not replace authored placement. */
+  legendPositionExplicit?: true
   /** Static slice label to emphasize, or `hover` for interactive-only emphasis. */
   highlightSlice?: string
   /** pie1..pie12 fills, index = source order; null or missing entries use the derived palette. */
@@ -96,6 +98,7 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   const legendPosition = pie.legendPosition
   if (typeof legendPosition === 'string' && (LEGEND_POSITIONS as readonly string[]).includes(legendPosition)) {
     config.legendPosition = legendPosition as PieLegendPosition
+    config.legendPositionExplicit = true
   }
   if (typeof pie.highlightSlice === 'string' && pie.highlightSlice.trim()) {
     config.highlightSlice = pie.highlightSlice.trim()

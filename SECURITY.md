@@ -21,6 +21,9 @@ Types):
 3. **CSP / Trusted Types incompatibility (#7695).** Output that requires
    inline event handlers or `eval`-like constructs can't run under a strict
    Content-Security-Policy.
+4. **Compute exhaustion.** Layout cost depends on a diagram's shape, not its
+   byte size. Small, valid, densely connected source can hold a renderer for
+   minutes (see [time bounds](#time-bounds)).
 
 ## What we guarantee
 
@@ -71,9 +74,45 @@ expanded edges. Graph layout also counts container nodes and rejects nesting
 deeper than 64 levels before recursive conversion or ELK execution. These host
 budgets apply in every security mode; diagram configuration cannot raise them.
 Exceeding a budget throws `DIAGRAM_WORK_LIMIT` without drawing a partial graph.
+ASCII and Unicode drawing also stops at its own cell-composition ceilings with
+`TERMINAL_WORK_LIMIT` ([terminal output](./docs/ascii.md)).
+
+These budgets bound a diagram's **size, not its running time**. Layout runs
+synchronously and its cost follows the graph's shape. Measured on the 0.6.0
+development branch (one x86-64 core), all well inside the budgets:
+
+| Source | Bytes | In-process render |
+|---|---:|---:|
+| `a0 & … & a29 --> b0 & … & b29` | 352 | ~7 s |
+| the same with 50 × 50 nodes | 592 | ~74 s |
+| complete DAG on 30 nodes (435 edges) | 4,942 | ~72 s |
+| 150-node chain plus 150 long links | 3,761 | ~24 s |
+| `stateDiagram` 30 × 30 transitions | 10,215 | ~43 s |
+
+### Time bounds
+
+A synchronous render cannot be interrupted in its own thread. Each surface
+that accepts source from someone else therefore runs layout where it can stop
+it, and a deadline only aborts: it never changes the geometry of a render that
+finishes.
+
+| Surface | Bound | On expiry |
+|---|---|---|
+| Library `renderMermaid*`, `verifyMermaid`, `layoutMermaid*` | none in-process | Run them in a worker you terminate ([Node and Bun](./docs/api.md#untrusted-input-and-deadlines), [browser](./docs/browser.md#untrusted-input-in-a-worker)). |
+| `am render`, `verify`, `mutate`, `describe`, `preview`, `render-markdown` | 120 s wall clock by default (`--timeout <s>`; `0` = none) in a child process | Exit 124, `RENDER_TIMEOUT`. `--watch` and `batch` take no deadline. |
+| Local MCP tools that lay out (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`) | 15 s wall clock per call, including queue and start-up, in a supervised subprocess; 32 queued calls; sampled 512 MiB RSS | `RENDER_TIMEOUT`; the subprocess is terminated. |
+| Local MCP `execute` | 5 s default, capped by `--max-sandbox-timeout-ms` (30 s) | `EXECUTE_TIMEOUT` |
+| Hosted MCP tools that lay out | Heavy diagrams (by pre-layout cost estimate): 10 s CPU per call in a Dynamic Worker. Others: inline, within the Worker's 30 s per-request CPU limit. One request's calls share 30 s | `RENDER_TIMEOUT` |
+| Hosted MCP `execute` | `timeoutMs` CPU in a Dynamic Worker (default 5 s, max 30 s) | `EXECUTE_TIMEOUT` |
+| Browser editor on agentic-mermaid.dev | 30 s, Worker terminated | render error |
 
 ## What we do NOT guarantee
 
+- **Library calls do not bound time.** `security: 'strict'` constrains what
+  the output may reference, not how long producing it takes, and the work
+  budgets bound size only. A service rendering untrusted source in-process can
+  be held for minutes by one request; use a terminable worker or child process
+  with a deadline, as below.
 - **`node:vm` is not an OS/container security boundary.** Code Mode containment
   is for local MCP use and accidental/agentic misuse reduction. Do not expose
   `execute(code)` to arbitrary hostile users without process/container
@@ -106,6 +145,20 @@ const check = verifyNoExternalRefs(svg)
 if (!check.ok) throw new Error(`external refs leaked: ${check.refs.join(', ')}`)
 // safe to display
 ```
+
+That call still runs for as long as layout takes. When the source is untrusted
+and a slow render would hold a request, an agent turn or a server, run it in a
+worker thread (or child process) and terminate that at a deadline:
+
+```js
+const worker = new Worker(new URL('./render-worker.mjs', import.meta.url), { workerData: { source } })
+const timer = setTimeout(() => worker.terminate(), 10_000) // stops layout mid-run
+worker.once('message', result => { clearTimeout(timer); worker.terminate(); /* use result.svg */ })
+```
+
+[Untrusted input and deadlines](./docs/api.md#untrusted-input-and-deadlines)
+gives the complete worker and error handling. From an agent, prefer the CLI or
+an MCP server, which apply deadlines already.
 
 For raster output, `renderMermaidPNG` is offline by construction (no network
 during rasterization, bundled fonts).

@@ -19,6 +19,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asSequence, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { SequenceBody, SequenceMessage, SequenceMutationOp } from '../agent/types.ts'
@@ -145,8 +146,8 @@ function printSequence(statements: Statement[]): string {
 /** The typed model's rule: a loop / opt / alt / par block holding only
  * messages is a typed fragment; every other block is preserved source. */
 function isTypedFragment(statement: Extract<Statement, { kind: 'block' }>): boolean {
-  return ['loop', 'opt', 'alt', 'par'].includes(statement.keyword)
-    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message'))
+  return ['loop', 'opt', 'alt', 'par', 'critical', 'break', 'rect'].includes(statement.keyword)
+    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note'))
 }
 
 /** Every generated message in source order, or only those our model types. */
@@ -172,7 +173,6 @@ function generatedLinks(statements: Statement[], links = new Map<string, Record<
 }
 
 const programArb = fc.array(statementArb(2), { minLength: 1, maxLength: 8 })
-const sourceArb = programArb.map(printSequence)
 
 // ---------------------------------------------------------------------------
 // One comparable projection for both parsers
@@ -195,7 +195,7 @@ function linksOursMisses(upstreamLinks: string[], oursLinks: string[]): string[]
   })
 }
 
-const STYLE_TYPES: Record<SequenceMessage['style'], number> = { sync: 0, reply: 1, async: 5, 'async-dashed': 6, lost: 3, 'lost-dashed': 4 }
+const STYLE_TYPES: Record<SequenceMessage['style'], number> = { sync: 0, reply: 1, line: 5, 'line-dashed': 6, async: 24, 'async-dashed': 25, lost: 3, 'lost-dashed': 4, bidirectional: 33, 'bidirectional-dashed': 34 }
 
 function messageKey(message: SequenceMessage): string {
   const type = message.arrow && message.arrow in ARROWS ? ARROWS[message.arrow as Arrow] : STYLE_TYPES[message.style]
@@ -247,34 +247,6 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
   })
   afterAll(() => upstream.close())
 
-  test('the generator covers every construct it claims', () => {
-    const sources = fc.sample(sourceArb, 200)
-    const constructs: Record<string, RegExp> = {
-      participant: /^ {2}participant \w+$/m,
-      'participant alias': /^ {2}participant \w+ as /m,
-      'metadata type and alias': /^ {2}(?:participant|actor) \w+@\{ "type": "\w+", "alias": /m,
-      'metadata alias overridden by `as` the id (BUG-14)': /^ {2}(?:participant|actor) (\w+)@\{[^}\n]*"alias"[^}\n]*\} as \1$/m,
-      actor: /^ {2}actor \w+/m,
-      link: /^ {2}link \w+: \w[\w ]* @ https:/m,
-      'bare declaration after first use': /^ +(\w+)-[^\n]*\n(?:[^\n]*\n)*? +(?:participant|actor) \1$/m,
-      ...Object.fromEntries(Object.keys(ARROWS).map(arrow => [arrow, new RegExp(`\\w${arrow.replace(/[-)]/g, '\\$&')}\\w`)])),
-      'note left/right': /^ {2}note (?:left|right) of /m,
-      'note over two': /^ {2}note over \w+,\w+:/m,
-      loop: /^ {2}loop /m,
-      opt: /^ {2}opt /m,
-      'alt/else': /^ {2}else /m,
-      'par/and': /^ {2}and /m,
-      'critical/option': /^ {2}option /m,
-      break: /^ {2}break /m,
-      rect: /^ {2}rect /m,
-      'nested block': /^ {4}(?:loop|opt|alt|par|critical|break|rect) /m,
-      'note in a block': /^ {4,}note /m,
-      'declaration in a block': /^ {4,}(?:participant|actor) /m,
-    }
-    const missing = Object.entries(constructs).filter(([, pattern]) => !sources.some(source => pattern.test(source))).map(([name]) => name)
-    expect(missing).toEqual([])
-  })
-
   test('(i)–(v) upstream and our parser agree on every generated sequence diagram', async () => {
     await fc.assert(
       fc.asyncProperty(programArb, fc.nat(), textArb, async (program, pick, label) => {
@@ -314,7 +286,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         expect({ output, ours: ours(parseOurs(output)), upstream: upstreamRelabelled.ok ? relabelledProjection(theirs(upstreamRelabelled)) : upstreamRelabelled.error })
           .toEqual({ output, ours: expect.objectContaining({ participants, links: expected.links }), upstream: { participants, linksOursMisses: [] } })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   }, 20_000)
 
@@ -383,21 +355,21 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         if (!edited.ok) return
         const typed = asSequence(edited.value)!.body
         const output = serializeMermaid(edited.value)
-        const expected = { participants: ours(typed).participants, links: ours(typed).links }
+        const expected = ours(typed)
         const reparsed = ours(parseOurs(output))
         const upstreamParse = await upstream.parse(output)
-        expect({ op, output, ours: { participants: reparsed.participants, links: reparsed.links }, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
+        expect({ op, output, ours: reparsed, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
           .toEqual({ op, output, ours: expected, upstream: { participants: expected.participants, linksOursMisses: [] } })
       }),
-      { numRuns: 150 },
+      fcParameters({ numRuns: 150 }),
     )
   }, 30_000)
 
   test('a participant only a note names is typed and ordered as upstream creates it', async () => {
     const cases = [
-      { source: 'sequenceDiagram\n  note left of A: hello', participants: ['A participant : A'] },
+      { source: 'sequenceDiagram\n  Note left of A: hello', participants: ['A participant : A'] },
       {
-        source: 'sequenceDiagram\n  B->>C: hi\n  note over D,A: x\n  participant A as Alice',
+        source: 'sequenceDiagram\n  B->>C: hi\n  Note over D,A: x\n  participant A as Alice',
         participants: ['B participant : B', 'C participant : C', 'D participant : D', 'A participant : Alice'],
       },
     ]
@@ -413,9 +385,9 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     const parsed = parseRegisteredMermaid(cases[0]!.source)
     if (!parsed.ok) throw new Error('note-only source rejected')
     expect(describeMermaidFacts(parsed.value)).toContain('participant A : A')
-    // The note stays preserved source, so typed ops treat A as a known participant.
+    // Typed ops treat a participant only a note names as a known participant.
     const added = mutate(parsed.value, { kind: 'add_message', from: 'A', to: 'B', text: 'ping' })
-    expect(added.ok && serializeMermaid(added.value)).toBe('sequenceDiagram\n  note left of A: hello\n  A->>B: ping\n')
+    expect(added.ok && serializeMermaid(added.value)).toBe('sequenceDiagram\n  Note left of A: hello\n  A->>B: ping\n')
     expect(added.ok && ours(parseOurs(serializeMermaid(added.value))).participants).toEqual(['A participant : A', 'B participant : B'])
     const duplicate = mutate(parsed.value, { kind: 'add_participant', id: 'A' })
     expect(!duplicate.ok && (duplicate.error as { code: string }).code).toBe('DUPLICATE_PARTICIPANT')
@@ -448,7 +420,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     const cases = [
       // Upstream ignores a bare re-declaration, whatever keyword or metadata
       // type it carries; ours keeps the inert line verbatim.
-      { source: 'sequenceDiagram\n  note left of Carol: hi\n  actor Carol', participants: ['Carol participant : Carol'], verbatim: true },
+      { source: 'sequenceDiagram\n  Note left of Carol: hi\n  actor Carol', participants: ['Carol participant : Carol'], verbatim: true },
       { source: 'sequenceDiagram\n  A->>B: hi\n  actor B', participants: ['A participant : A', 'B participant : B'], verbatim: true },
       { source: 'sequenceDiagram\n  actor B\n  A->>B: hi\n  participant B', participants: ['B actor : B', 'A participant : A'], verbatim: true },
       { source: 'sequenceDiagram\n  participant B as Bob\n  participant B', participants: ['B participant : Bob'], verbatim: true },

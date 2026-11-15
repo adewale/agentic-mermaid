@@ -32,12 +32,10 @@ describe('#111 labeled TB fan-out shares one trunk, labels on vertical drops', (
     // The source's bottom-side siblings must branch off a single horizontal
     // trunk via ┬ tees. There must be exactly one trunk row directly under the
     // source carrying the tee glyph.
-    const teeRows = lines.filter(l => l.includes('┬'))
-    expect(teeRows.length).toBeGreaterThanOrEqual(1)
     // The branch trunk leaves the Source box: the row with the box-start ├ must
     // also carry the horizontal trunk with ┬ tees feeding the other siblings.
-    const trunkRow = lines.find(l => l.includes('├') && l.includes('┬'))
-    expect(trunkRow).toBeDefined()
+    const trunkRows = lines.filter(line => line.includes('├') && line.includes('┬'))
+    expect(trunkRows).toHaveLength(1)
     // No SECOND horizontal run carrying a label: labels never appear flanked by
     // horizontal line glyphs (that is the L-shaped detour we are removing).
     expect(out).not.toMatch(/─(left|center|right)\*─/)

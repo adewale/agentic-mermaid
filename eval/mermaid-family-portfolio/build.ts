@@ -31,8 +31,9 @@ export function buildBalancedPortfolio(repo: string): PortfolioEntry[] {
   const docsByFamily = new Map<string, typeof docs>()
   for (const entry of docs) docsByFamily.set(entry.family, [...(docsByFamily.get(entry.family) ?? []), entry])
   for (const family of BUILTIN_FAMILY_METADATA.map(entry => entry.id)) {
-    for (const entry of (docsByFamily.get(family) ?? []).slice(0, 2)) {
+    for (const entry of docsByFamily.get(family) ?? []) {
       addCandidate(candidates, { family, source: entry.source, origin: `eval/mermaid-docs-corpus/${entry.origin}#${entry.index}`, sourceClass: 'upstream-docs' })
+      if (candidates.get(family)!.length === 2) break
     }
   }
 
@@ -47,6 +48,11 @@ export function buildBalancedPortfolio(repo: string): PortfolioEntry[] {
     if (!directory) continue
     const path = `skill-evals/fixtures/${directory}/input.mmd`
     addCandidate(candidates, { family, source: readSource(repo, path), origin: path, sourceClass: 'skill-fixture' })
+  }
+
+  for (const family of BUILTIN_FAMILY_METADATA.map(entry => entry.id)) {
+    const path = `eval/stable-families/fixtures/${family}.mmd`
+    if (existsSync(join(repo, path))) addCandidate(candidates, { family, source: readSource(repo, path), origin: path, sourceClass: 'family-corpus' })
   }
 
   const familyManifestPath = join(repo, 'eval/mindmap-gitgraph-content-corpus/manifest.json')
@@ -92,6 +98,7 @@ export function portfolioProvenance(portfolio: PortfolioEntry[]): object {
       'skill-evals/fixtures',
       'eval/mindmap-gitgraph-content-corpus/manifest.json',
       'eval/mermaid-radar-bench/harvest.json',
+      'eval/stable-families/fixtures',
       'src/agent/families.ts',
     ],
   }

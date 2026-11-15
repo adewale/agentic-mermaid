@@ -1,6 +1,8 @@
-import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
+import { projectNativeEventModelingOperations, projectReferenceEventModelingOperations } from './grammar-native-eventmodeling.ts'
 import { normalizeBrTags } from '../../src/multiline-utils.ts'
 import type { ParserObservation } from '../../src/shared/parser-observation.ts'
+import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
+import { projectNativeStableOperations, projectReferenceStableOperations } from './grammar-native-stable.ts'
 import { REFERENCE_SEQUENCE_SIGNALS as SIGNALS } from './grammar-sequence-kinds.ts'
 import type { GrammarReferenceReply } from './grammar-types.ts'
 import type { Json } from './reference.ts'
@@ -13,6 +15,21 @@ export interface NativeOperationProjection {
   unmapped: Record<string, number>
   unmappedOperands: Record<string, number>
 }
+
+/** These parsers expose actual models and independent semantic scopes, but
+ * no reviewed mapping of ordered write operands is claimed for them yet.
+ * Keeping this gap explicit prevents returned models from becoming fake traces. */
+const UNAVAILABLE_ORDERED_SCOPES: Readonly<Record<string, string>> = {
+  treeview: 'TreeView native add-node observations have no reviewed ordered Mermaid builder projection',
+  usecase: 'UseCase native grammar publication has no reviewed ordered Mermaid builder projection',
+  swimlane: 'Swimlane Flowchart composition has no reviewed family-specific ordered builder projection',
+  agentflow: 'AgentFlow metadata and container writes have no reviewed ordered Mermaid builder projection',
+  wardley: 'Wardley native builder observations have no reviewed ordered Mermaid builder projection',
+  cynefin: 'Cynefin native domain and transition observations have no reviewed ordered Mermaid builder projection',
+  venn: 'Venn native database writes are observed, but their ordered Mermaid operand projection is not qualified',
+  railroad: 'Railroad grammar alternatives publish typed expressions without a homologous ordered builder projection',
+}
+export function unavailableOrderedOperationScope(family: string): string | undefined { return UNAVAILABLE_ORDERED_SCOPES[family] }
 
 const SCOPES: Readonly<Record<string, readonly string[]>> = {
   flowchart: ['ordered links: endpoints, authored ID, labels, shaft and both markers', 'ordered individual class appends; node/group construction omitted'],
@@ -55,7 +72,10 @@ function account(result: NativeOperationProjection, kind: string, selected: bool
  * Operations are never sorted; ignored implementation-specific work is counted.
  */
 export function projectNativeOperations(family: string, events: readonly ParserObservation[]): NativeOperationProjection | undefined {
+  if (family === 'eventmodeling') return projectNativeEventModelingOperations(family, events)
   if (family === 'c4') return projectNativeC4Operations(events)
+  const stable = projectNativeStableOperations(family, events)
+  if (stable) return stable
   const result = projection(family, events.length)
   if (!result) return undefined
   const add = (...operation: Json[]): void => {
@@ -97,11 +117,16 @@ export function projectNativeOperations(family: string, events: readonly ParserO
         else selected = false
         break
       case 'class':
-        if (kind === 'add-relationship')
+        // Resolve generated interface occurrences only from actual preceding
+        // declaration observations, never from a returned/reparsed model.
+        if (kind === 'add-class' && item.isInterface === true) {
+          nodes.set(text(item.id), item)
+          selected = false
+        } else if (kind === 'add-relationship')
           add(
             'relationship',
-            text(item.from),
-            text(item.to),
+            nodes.has(text(item.from)) ? text(nodes.get(text(item.from))!.label) : text(item.from),
+            nodes.has(text(item.to)) ? text(nodes.get(text(item.to))!.label) : text(item.to),
             label(item.label),
             text(item.fromCardinality),
             text(item.toCardinality),
@@ -197,7 +222,10 @@ export function projectNativeOperations(family: string, events: readonly ParserO
  * calls. Getter snapshots, returned IR and canonical serialization are unused.
  */
 export function projectReferenceOperations(family: string, reply: GrammarReferenceReply): NativeOperationProjection | undefined {
+  if (family === 'eventmodeling') return projectReferenceEventModelingOperations(family, reply)
   if (family === 'c4') return projectReferenceC4Operations(reply)
+  const stable = projectReferenceStableOperations(family, reply)
+  if (stable) return stable
   if (reply.actions.status !== 'available') return undefined
   const result = projection(family, reply.actions.value.length)
   if (!result) return undefined

@@ -88,11 +88,16 @@ xychart
   line [25, 55, 50]`
 
 function getSvgSize(svg: string): { width: number; height: number } {
-  const sizeMatch = svg.match(/<svg[^>]*viewBox="0 0 (\d+) (\d+)"/)
-  if (!sizeMatch) throw new Error('SVG missing viewBox attribute')
+  const viewBox = /<svg\b[^>]*\bviewBox="([^"]+)"/.exec(svg)
+  if (!viewBox) throw new Error('SVG missing viewBox attribute')
+  const coordinates = viewBox[1]!.trim().split(/\s+/).map(Number)
+  expect(coordinates).toHaveLength(4)
+  expect(coordinates.every(Number.isFinite)).toBe(true)
+  expect(coordinates[2]).toBeGreaterThan(0)
+  expect(coordinates[3]).toBeGreaterThan(0)
   return {
-    width: Number(sizeMatch[1]),
-    height: Number(sizeMatch[2]),
+    width: coordinates[2]!,
+    height: coordinates[3]!,
   }
 }
 
@@ -220,10 +225,12 @@ describe('xychart – Mermaid parity', () => {
     expect(svg).toContain('class="xychart-data-label')
     expect(svg).toContain('--xychart-color-0: #ff6b6b;')
     expect(svg).toContain('--xychart-color-1: #0ea5e9;')
-    expect(svg).toContain('.xychart-title { fill: #123456; }')
-    expect(svg).toContain('.xychart-x-label { fill: #654321; }')
-    expect(svg).toContain('.xychart-x-tick { stroke: #aa5500; }')
-    expect(svg).toContain('.xychart-y-axis-line { stroke: #0055aa; }')
+    expect(svg).toMatch(/<text [^>]*class="xychart-title"[^>]* fill="#123456"/)
+    // The x labels and ticks are hidden here; shown, they take the theme colors.
+    const labelled = await renderMermaidSVGAsync(FRONTMATTER_XYCHART.replace('      showLabel: false\n', ''))
+    expect(labelled).toMatch(/<text [^>]*class="xychart-label xychart-x-label"[^>]* fill="#654321"[^>]*>Q1<\/text>/)
+    expect(labelled).toMatch(/<line class="xychart-tick xychart-x-tick"[^>]* stroke="#aa5500" /)
+    expect(svg).toMatch(/<line class="xychart-axis-line xychart-y-axis-line"[^>]* stroke="#0055aa" /)
     expect(svg).toContain('--bg:#f8fafc')
     expect(svg).toContain('class="xychart-axis-line xychart-x-axis-line"')
     expect(svg).toContain('class="xychart-tick xychart-y-tick"')
@@ -251,6 +258,7 @@ describe('xychart – Mermaid parity', () => {
     expect(svg).not.toContain('>Revenue</text>')
     expect(svg).toMatch(/class="xychart-label xychart-x-label"[^>]*>A<\/text>/)
     expect(svg).toMatch(/class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+    expect(svg).toContain('max-width:720px')
     expect(configuredSize.width).toBeGreaterThan(defaultSize.width)
     expect(configuredSize.height).toBeLessThan(defaultSize.height)
   })

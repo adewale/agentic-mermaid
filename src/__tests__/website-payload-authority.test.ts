@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { join, normalize, sep } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { useTempDirs } from './helpers/temp-dir.ts'
 import {
   WEBSITE_PAYLOAD_AUTHORITY,
   WEBSITE_PAYLOAD_COMPRESSION,
@@ -13,8 +15,7 @@ import {
 } from '../../scripts/site/website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
-const PUBLIC = join(REPO, 'website', 'public')
+const temp = useTempDirs('am-payload-path-')
 
 // A synthetic capture that satisfies every route budget. The live capture is
 // checked against the same budgets by `bun run website:payload:check` in the
@@ -23,7 +24,7 @@ const SAMPLE_REQUESTS: Record<string, string[]> = {
   home: ['/', '/styles.css', '/fonts/Inter-Regular.subset-0123456789ab.woff2', '/fonts/Inter-Medium.subset-0123456789ab.woff2'],
   examples: ['/examples/', '/styles.css', '/examples-0123456789ab.js', '/examples-0123456789ab.css'],
   demo: ['/demo/', '/demo/browser-lazy/index-0123456789ab.js', '/demo/browser-lazy/chunks/timeline-ABCD2345.js', '/generated/inline-0123456789ab.js'],
-  'editor-empty': ['/editor/', '/editor/editor-0123456789ab.js'],
+  'editor-empty': ['/editor/', '/editor/editor-0123456789ab.js', '/editor/runtime/browser-hosted-abcd1234.js'],
 }
 
 function sampleReport(): WebsitePayloadReport {
@@ -52,14 +53,6 @@ function sampleReport(): WebsitePayloadReport {
   }
 }
 const report = sampleReport()
-
-function independentPublicFile(requestPath: string): string {
-  const pathname = new URL(requestPath, 'https://independent.invalid').pathname
-  const relative = pathname === '/' ? 'index.html' : pathname.slice(1).replace(/\/$/, '/index.html')
-  const absolute = normalize(join(PUBLIC, decodeURIComponent(relative)))
-  if (!absolute.startsWith(normalize(PUBLIC) + sep)) throw new Error(`independent path escape: ${requestPath}`)
-  return absolute
-}
 
 describe('website payload budget authority', () => {
   test('every captured route has a budget and the sample capture satisfies all of them', () => {
@@ -120,12 +113,13 @@ describe('website payload budget authority', () => {
   })
 
   test('independently maps route documents and fails closed on encoded traversal', () => {
-    expect(independentPublicFile('/')).toBe(join(PUBLIC, 'index.html'))
-    expect(independentPublicFile('/examples/')).toBe(join(PUBLIC, 'examples', 'index.html'))
-    expect(independentPublicFile('/demo/')).toBe(join(PUBLIC, 'demo', 'index.html'))
-    expect(independentPublicFile('/editor/')).toBe(join(PUBLIC, 'editor', 'index.html'))
-    expect(independentPublicFile('/styles.css')).toBe(join(PUBLIC, 'styles.css'))
-    expect(() => independentPublicFile('/..%2f..%2fpackage.json')).toThrow('independent path escape')
-    expect(() => publicRequestPathToFile(PUBLIC, '/..%2f..%2fpackage.json')).toThrow('Payload request escapes website/public')
+    const publicRoot = temp.dir()
+    for (const [requestPath, relative] of [['/', 'index.html'], ['/examples/', 'examples/index.html'], ['/demo/', 'demo/index.html'], ['/editor/', 'editor/index.html'], ['/styles.css', 'styles.css']]) {
+      const expected = join(publicRoot, relative!)
+      mkdirSync(dirname(expected), { recursive: true })
+      writeFileSync(expected, '')
+      expect(publicRequestPathToFile(publicRoot, requestPath!)).toBe(expected)
+    }
+    expect(() => publicRequestPathToFile(publicRoot, '/..%2f..%2fpackage.json')).toThrow('Payload request escapes website/public')
   })
 })

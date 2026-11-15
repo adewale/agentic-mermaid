@@ -1,18 +1,14 @@
 // The shared Mermaid entity codec (src/shared/mermaid-entities.ts and its
 // display half, src/shared/mermaid-entity-display.ts).
 //
-// Decoding follows the HTML character-reference rules upstream relies on (its
-// final SVG goes through the browser's parser; e2e/browser.test.ts checks Pie
-// against pinned 11.16 in a real browser). Encoding is checked by round trip
-// and by pinned upstream itself: upstream's DB, read through the entity
-// layer, must hold the text we encoded.
+// Fixed decoded values and authored codec roundtrips own entity meaning.
+// Real DOM display and portable grammar/DB interoperability have separate witnesses.
 
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { decodeHTML } from 'entities'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { encodeMermaidEntities, fromEntityMarkers, mermaidEntityPrepass, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities, projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
-import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 describe('decodeMermaidEntities', () => {
   test('resolves codes as the HTML parser resolves upstream\'s &name; / &#123; output', () => {
@@ -75,7 +71,7 @@ describe('encodeMermaidEntities', () => {
     fc.assert(fc.property(textArb, reservedArb, (text, reserved) => {
       expect({ text, reserved, decoded: decodeMermaidEntities(encodeMermaidEntities(text, reserved)) })
         .toEqual({ text, reserved, decoded: text })
-    }), { numRuns: 500 })
+    }), fcParameters({ numRuns: 500 }))
   })
 
   test('the encoding is canonical: it re-encodes to itself and leaves plain text alone', () => {
@@ -85,7 +81,7 @@ describe('encodeMermaidEntities', () => {
         .toEqual({ text, reserved, again: encoded })
       const needsEscape = [...reserved].some(char => text.includes(char)) || /#\w+;|ﬂ°|¶ß/.test(text)
       if (!needsEscape) expect({ text, reserved, encoded }).toEqual({ text, reserved, encoded: text })
-    }), { numRuns: 500 })
+    }), fcParameters({ numRuns: 500 }))
   })
 
   test('no reserved character or marker piece survives literally, and the spellings are upstream\'s', () => {
@@ -98,7 +94,7 @@ describe('encodeMermaidEntities', () => {
       const grammarView = toEntityMarkers(encoded)
       expect({ encoded, reserved, literal: [...reserved].filter(char => grammarView.includes(char)), markerPieces: /ﬂ°|¶ß/.test(encoded) })
         .toEqual({ encoded, reserved, literal: [], markerPieces: false })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
     expect(encodeMermaidEntities('say "hi" #1; & <b>', '"&<>')).toBe('say #quot;hi#quot; #35;1; #amp; #lt;b#gt;')
     expect(encodeMermaidEntities('a;b#c', ';#')).toBe('a#59;b#35;c')
     expect(encodeMermaidEntities('#quot; and #', '')).toBe('#35;quot; and #')
@@ -109,53 +105,4 @@ describe('encodeMermaidEntities', () => {
     expect(() => encodeMermaidEntities('a\nb', '\n')).toThrow(RangeError)
     expect(() => encodeMermaidEntities('a', '\u0085')).toThrow(RangeError)
   })
-})
-
-/** What upstream displays for DB text: its `decodeEntities` (utils.ts),
- * which replaces marker pieces one by one, then the browser's character
- * references. SVG text (sequence) is serialized by d3, which escapes a raw
- * `&` first; an HTML label (flowchart) is parsed as HTML, so a caller writing
- * one reserves `&`, `<` and `>` as well as the grammar's `"`. */
-function upstreamDisplayed(db: string, context: 'html' | 'svg-text'): string {
-  const serialized = context === 'svg-text' ? db.replaceAll('&', '&amp;') : db
-  return decodeHTML(serialized.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';'))
-}
-
-// Pinned upstream reads what we write. Both contexts trim their text and
-// reject an empty one.
-describe('pinned upstream Mermaid displays encodeMermaidEntities output as the text', () => {
-  let upstream: UpstreamMermaid
-  beforeAll(() => {
-    upstream = startUpstreamMermaid()
-  })
-  afterAll(() => upstream.close())
-
-  // A raw tab is whitespace the grammars trim or split on.
-  const labelArb = textArb.map(text => text.replaceAll('\t', ' ').trim()).filter(text => text.length > 0)
-
-  test('a quoted flowchart label reserves `"`, and `&<>` for its HTML display', async () => {
-    let checked = 0
-    await fc.assert(fc.asyncProperty(labelArb, async text => {
-      const source = `flowchart TD\n  A["${encodeMermaidEntities(text, '"&<>')}"]`
-      const parsed = await upstream.parse(source)
-      const label = parsed.ok ? parsed.flowchart?.vertices[0]?.text : parsed.error
-      expect({ source, displayed: label === undefined ? label : upstreamDisplayed(label, 'html') })
-        .toEqual({ source, displayed: text })
-      checked++
-    }), { numRuns: 150 })
-    expect(checked).toBeGreaterThan(0)
-  }, 30_000)
-
-  test('a sequence message reserves `#` and `;`', async () => {
-    let checked = 0
-    await fc.assert(fc.asyncProperty(labelArb, async text => {
-      const source = `sequenceDiagram\n  A->>B: ${encodeMermaidEntities(text, '#;')}`
-      const parsed = await upstream.parse(source)
-      const message = parsed.ok ? parsed.sequence?.messages[0]?.message : parsed.error
-      expect({ source, displayed: message === undefined ? message : upstreamDisplayed(message, 'svg-text') })
-        .toEqual({ source, displayed: text })
-      checked++
-    }), { numRuns: 150 })
-    expect(checked).toBeGreaterThan(0)
-  }, 30_000)
 })

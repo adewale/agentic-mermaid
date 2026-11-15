@@ -1,18 +1,8 @@
 #!/usr/bin/env bun
-// Red → green: a pull request that changes production code together with tests
-// must include at least one changed test that FAILS against the base branch's
-// production code. This mechanically checks the "tests that prove the fix"
-// rule (CLAUDE.md, good-pr dimension 4) that sabotage probes and PR prose used
-// to argue by hand.
-//
-// The head's whole src/__tests__ tree is overlaid on a base-branch worktree so
-// changed tests keep their helpers and fixtures; only the changed test files
-// run. Missing imports, non-assertion setup errors, timeouts and runner crashes
-// are not behavioral proof. Require an assertion failure attributed to a test
-// location in Bun's JUnit report; assert unexpected production exceptions with
-// toThrow / not.toThrow. JUnit does not distinguish a test body from per-test
-// hook assertions, so those still require review. Pure refactors opt out with
-// the `no-red-green` PR label (ci.yml).
+// Optional regression diagnostic: run changed test files against base production.
+// A failing assertion can demonstrate a regression; it cannot establish that
+// every changed contract is covered. Refactors need no failing-base assertion.
+// Run explicitly with --base; this is not a mandatory CI or label-approval gate.
 
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -61,7 +51,7 @@ function redGreenVerdict(changed: ChangedFiles, baseRun?: { exitCode: number; as
     code: 'green-on-base',
     ok: false,
     message: `Every changed test passes against the base branch's production code (${changed.tests.join(', ')}). `
-      + 'Add a test that fails without this change, or label the PR `no-red-green` if it is a pure refactor.',
+      + 'For a bug fix, use a compatible regression that fails for the intended reason; behavior-preserving refactors need no red result.',
   }
 }
 

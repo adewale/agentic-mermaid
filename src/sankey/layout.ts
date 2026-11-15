@@ -9,6 +9,7 @@ import {
   type SankeyLink,
   type SankeyNode,
 } from 'd3-sankey'
+import { ribbonEndOvershoot } from '../scene/bounds.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
@@ -289,6 +290,17 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     const labelY = flowTop + nodeY.get(node)! + nodeHeights.get(node)! / 2
     minY = Math.min(minY, labelY - plan.block.height / 2)
     maxY = Math.max(maxY, labelY + plan.block.height / 2)
+  }
+  // A ribbon thicker than its bend folds past the node faces it joins. Hold
+  // that ink on the canvas, as final paint measures it, instead of letting the
+  // SVG widen its viewBox beyond the layout's bounds.
+  for (const link of links) {
+    const sx = flowLeft + requiredCoordinate((link.source as D3Node).x1, `x1 for node ${(link.source as D3Node).id}`)
+    const tx = flowLeft + requiredCoordinate((link.target as D3Node).x0, `x0 for node ${(link.target as D3Node).id}`)
+    if (!(tx > sx)) continue
+    const overshoot = ribbonEndOvershoot((tx - sx) / 2, (tx - sx) / 2, Math.abs(targetY.get(link)! - sourceY.get(link)!), linkWidths.get(link)! / 2)
+    minX = Math.min(minX, sx - overshoot)
+    maxX = Math.max(maxX, tx + overshoot)
   }
   const shiftX = SANKEY.padding - minX
   const shiftY = flowTop - minY

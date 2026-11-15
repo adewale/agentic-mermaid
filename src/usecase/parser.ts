@@ -1,0 +1,82 @@
+import { accessibilityFields, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
+import { quotedTextEnds } from '../shared/trailing-comment.ts'
+import { parseUsecase } from './grammar/parser.ts'
+import type { GraphStatement, UsecaseModel } from './grammar/types.ts'
+import type { UsecaseBody, UsecaseNode } from './types.ts'
+export const isUsecaseHeader = (line: string): boolean => /^usecase-beta\s*$/.test(line.trim())
+export const usecaseStatementEnds = (lines: readonly string[]) => quotedTextEnds(lines, { escapes: false, spanning: '"', opensAfter: /[\s([=:,]/ })
+const read = (text: string) => readGrammarText(readGrammarAuthoredText(text), '\r\n')
+
+/** Visit source occurrences in preorder without copying each group's children. */
+export function visitUsecaseStatements(statements: readonly GraphStatement[], visit: (statement: GraphStatement) => void): void {
+  const pending = [...statements].reverse()
+  while (pending.length) {
+    const statement = pending.pop()!
+    visit(statement)
+    const children = statement.children
+    if (children) for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]!)
+  }
+}
+
+export function usecaseBody(model: UsecaseModel): UsecaseBody {
+  const nodes: UsecaseNode[] = [], seen = new Set<string>()
+  visitUsecaseStatements(model.statements, statement => {
+    for (const { id } of statement.nodes ?? []) {
+      if (seen.has(id)) continue
+      seen.add(id)
+      const actor = model.actors.get(id), usecase = actor ? undefined : model.useCases.get(id)
+      if (!actor && !usecase) continue
+      const node: UsecaseNode = actor ? { ...actor, kind: 'actor' } : { ...usecase!, kind: 'usecase' }
+      node.label = read(node.label)
+      if (node.stereotype) node.stereotype = read(node.stereotype)
+      if (node.kind === 'actor' && node.icon) node.icon = read(node.icon)
+      nodes.push(node)
+    }
+  })
+  return {
+    kind: 'usecase',
+    direction: model.direction === 'TD' ? 'TB' : model.direction,
+    nodes,
+    boundaries: [...model.systemBoundaries.values()].map(boundary => ({ ...boundary, label: read(boundary.label) })),
+    relationships: model.relationships.map(edge => ({ ...edge, ...(edge.label === undefined ? {} : { label: read(edge.label) }) })),
+    notes: [...model.notes.values()].map(note => ({ ...note, label: read(note.label) })),
+    jsonNodes: [...model.jsonNodes.values()].map(node => ({ ...node, propertyOrder: [...node.propertyOrder] })),
+    classDefs: [...model.classDefs.values()],
+    ...(model.title === undefined ? {} : { title: read(model.title) }),
+    ...(model.accTitle ? { accessibilityTitle: read(model.accTitle) } : {}),
+    ...(model.accDescription ? { accessibilityDescription: read(model.accDescription) } : {}),
+  }
+}
+
+/** Admission is shared by the native model and its editable projection. */
+export function assertUsecaseWork(model: UsecaseModel): void {
+  assertDiagramWorkLimit('nodes', model.actors.size + model.useCases.size + model.systemBoundaries.size + model.notes.size + model.jsonNodes.size)
+  assertDiagramWorkLimit('edges', model.relationships.length)
+  const pending: Array<{ value: unknown; depth: number }> = []
+  for (const node of model.jsonNodes.values()) pending.push({ value: node.value, depth: 0 })
+  while (pending.length) {
+    const { value, depth } = pending.pop()!
+    assertDiagramWorkLimit('nesting', depth)
+    if (value && typeof value === 'object') for (const child of Object.values(value)) pending.push({ value: child, depth: depth + 1 })
+  }
+}
+
+export function parseUsecaseDiagram(input: string | readonly string[], observeModel?: (model: UsecaseModel) => void): UsecaseBody {
+  const original = typeof input === 'string' ? input.split(/\r?\n/) : [...input]
+  assertDiagramWorkLimit(
+    'sourceCharacters',
+    original.reduce((length, line) => length + line.length + 1, 0),
+  )
+  const scanned = scanAccessibilityDirectives(original, usecaseStatementEnds(original))
+  requireClosedAccessibility(scanned)
+  const first = scanned.familyLines.findIndex(line => line.trim() && !line.trim().startsWith('%%'))
+  if (!isUsecaseHeader(scanned.familyLines[first] ?? '')) throw new Error('UseCase source must start with usecase-beta')
+  const model = parseUsecase(scanned.familyLines.slice(first).join('\n'))
+  assertUsecaseWork(model)
+  const body = usecaseBody(model)
+  Object.assign(body, accessibilityFields(readAuthoredGrammarAccessibility(scanned.accessibility)))
+  observeModel?.(model)
+  return body
+}

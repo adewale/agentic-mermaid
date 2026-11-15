@@ -13,7 +13,10 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 function uncertified(source: string): string[] {
-  const p = layoutGraphSync(parseMermaid(source))
+  const graph = parseMermaid(source)
+  const p = layoutGraphSync(graph)
+  expect(p.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(p.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
   return p.edges.filter(e => e.routeCertificate === undefined).map(e => `${e.source}->${e.target}`)
 }
 
@@ -31,13 +34,16 @@ describe('certificate completeness: every edge out of the pipeline is certified'
   })
   test('tracked corpus (76 flowchart examples)', () => {
     const bad: string[] = []
+    let exercised = 0
     for (const ex of trackedExamples()) {
       // Route certificates are an ELK-routed-graph contract; family examples
       // (journey, pie, …) are scored by the family rubric instead.
       if (ex.family) continue
+      exercised++
       const missing = uncertified(ex.source)
       if (missing.length) bad.push(`${ex.name}: ${missing.join(',')}`)
     }
+    expect(exercised).toBeGreaterThan(0)
     expect(bad).toEqual([])
   })
   test('fixed-seed duplicate-edge sweep (the #83 input class)', () => {

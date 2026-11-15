@@ -6,11 +6,40 @@ the diagram source known before the page is served?**
 | Your case | Use | JS shipped |
 |---|---|---|
 | Source is fixed at publish time — blog post, docs page, README | [Pre-render before delivery](#framework-neutral-pre-rendering) | none |
-| Source is authored or edited in the page — editor, playground, user input | [Async family-loaded renderer](#async-family-loaded-esm) | 41 KB initial; 162 KB for a first Timeline render, gzip |
-| One classic script with a synchronous global matters more than transfer | [Compatibility bundle](#classic-one-file-compatibility-bundle) | 896 KB gzip |
+| Source is authored or edited in the page — editor, playground, user input | [Async family-loaded renderer](#async-family-loaded-esm) | loader plus the selected family and shared core |
+| Synchronous source-to-SVG without editing or terminal APIs | [Focused SVG entry](#focused-synchronous-svg) | SVG families and the default backend |
+| One classic script with a synchronous global matters more than transfer | [Compatibility bundle](#classic-one-file-compatibility-bundle) | complete renderer and library APIs |
 
 Most sites are the first row. `renderMermaidSVG` is synchronous and needs no DOM,
 so a static site never has to ship the renderer to a reader.
+
+## Focused synchronous SVG
+
+Use `agentic-mermaid/svg` when a consumer needs source-to-SVG rendering without
+the typed editing, terminal, or PNG APIs. It uses the same request, security,
+geometry and final-paint certification pipeline as the complete library, and
+offers `renderMermaidSVGWithReceipt` as well as the string projection:
+
+```ts
+import { renderMermaidSVGWithReceipt } from 'agentic-mermaid/svg'
+const { svg, receipt } = renderMermaidSVGWithReceipt('flowchart LR\n API --> DB', {
+  security: 'strict',
+})
+```
+
+This entry accepts Mermaid source strings. Parsed diagrams and extension
+registration remain on the complete library/agent entries. Palette changes use
+the default backend. To enable sketch looks synchronously, explicitly import
+`agentic-mermaid/svg/styles` before rendering with a sketch style. Browser
+bundlers can consume the same focused ESM entry. A second monolithic SVG bundle
+is deliberately not shipped: it would duplicate ELK in every npm installation.
+
+The async browser entry loads optional sketch backends on demand and also
+exports `renderMermaidSVGWithReceiptAsync`. An unloaded loader is not a usable
+renderer: compare the complete first-family request graph when choosing an entry.
+
+The hosted editor uses separate modules for rendering, verification, text output
+and PNG export. The standalone `bun run editor` build remains self-contained.
 
 ## Framework-neutral pre-rendering
 
@@ -252,6 +281,48 @@ bootstrap instead. Agentic Mermaid does not depend on Alpine; this is only an
 adapter example.
 Loaded modules are cached by the browser, so repeated renders do not re-fetch a
 family or ELK.
+
+#### Untrusted input in a Worker
+
+Rendering is synchronous once its modules load, and a small densely connected
+diagram can lay out for over a minute. For user- or agent-authored source, render
+in a module Worker and terminate it at a deadline; this site's editor does the
+same with a 30-second limit. Keep one warm Worker and replace it only after a
+deadline fires or it fails.
+
+```js
+// render-worker.js
+import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
+
+self.onmessage = async ({ data }) => {
+  try {
+    self.postMessage({ ok: true, svg: await renderMermaidSVGAsync(data.source, { security: 'strict' }) })
+  } catch (error) {
+    self.postMessage({ ok: false, code: error.code ?? 'RENDER_FAILED', message: String(error.message ?? error) })
+  }
+}
+```
+
+```js
+let worker
+function renderWithDeadline(source, timeoutMs = 30_000) {
+  worker ??= new Worker(new URL('./render-worker.js', import.meta.url), { type: 'module' })
+  const current = worker
+  return new Promise((resolve, reject) => {
+    const retire = () => { current.terminate(); if (worker === current) worker = undefined }
+    const timer = setTimeout(() => { retire(); reject(Object.assign(new Error('render timed out'), { code: 'RENDER_TIMEOUT' })) }, timeoutMs)
+    current.onmessage = ({ data }) => {
+      clearTimeout(timer)
+      data.ok ? resolve(data.svg) : reject(Object.assign(new Error(data.message), { code: data.code }))
+    }
+    current.onerror = error => { clearTimeout(timer); retire(); reject(error) }
+    current.postMessage({ source })
+  })
+}
+```
+
+Send one render at a time to a Worker (or give each request an ID); then
+parse and insert the returned SVG as shown above.
 
 ### Classic one-file compatibility bundle
 

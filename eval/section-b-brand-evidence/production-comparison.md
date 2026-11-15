@@ -1,5 +1,19 @@
 # Visual review and production comparison
 
+## Typed SVG writer refresh — 2026-10-19
+
+The regenerated reviewed PNG is **1560×9464**, with SHA-256
+`1c911e827bb74398ea18fc9f448a0a12230a86900aafec30af3f27f8a5574c27`. A per-cell pixel comparison against the previously approved artifact
+found changes in **five of 68 cells**; the other 63 cells and every heading are
+pixel-identical. A Claude Code agent inspected each changed cell at native
+520×380 beside its predecessor. This is **agent review, not human approval**,
+and no deployed website was rechecked.
+
+| Changed cells | Observations |
+|---|---|
+| Sankey (all four treatments) | At most 2/255 per channel: link stroke opacity is written unrounded. Not visible. |
+| Pie (Sentinel) | The highlighted Pro slice's emphasis border is 5px, the width its typed paint already certified (bound `selected` slot width 4, plus 1). A stylesheet rule computed from the base slice width used to override it to 4px. Wedge geometry, fills, labels and legend are unchanged. |
+
 ## PR #394 final agent review — 2026-10-17
 
 The regenerated reviewed PNG is **1560×9464**, with SHA-256
@@ -336,3 +350,41 @@ paint without changing dates, event text or geometry. The reviewed 1560×9464
 PNG SHA-256 is
 `3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`.
 This is agent review, not human approval or arbitrary palette/font coverage.
+
+## Final paint certification refresh — 2026-10-18
+
+The production candidate at
+`366eae2a5e75703a05a83c0d91d40b7e34ffb915` regenerates the existing
+1560×9464, 68-cell sheet. Compared with the previously approved PNG
+`3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`,
+exactly 76,480 pixels change in eight cells:
+
+| Family | Treatment | Changed pixels |
+|---|---|---:|
+| Journey | Sentinel | 18,730 |
+| Journey | Light technical | 10,253 |
+| Journey | Dark operations | 12,234 |
+| XY chart | Sentinel | 8,382 |
+| XY chart | Warm editorial | 6,752 |
+| XY chart | Light technical | 6,535 |
+| XY chart | Dark operations | 7,125 |
+| Flowchart | Dark operations | 6,469 |
+
+The other 60 cells and every heading remain pixel-identical. The independent
+Codex AI auditor inspected all eight changed before/after pairs at native
+520×380 and confirmed that the final regenerated crops match those reviewed
+bytes. Journey's fitted viewport retains the task and actor labels, score
+positions and complete rail arrow. XY retains its Revenue title, USD axis,
+0–100 ticks, Q1–Q3 categories and authored relative bar heights after viewport
+fitting. Flowchart's NO label moves into the decision-side corridor while YES,
+both destination labels, connecting routes and arrowheads remain complete.
+These counts describe final artifact differences rather than attributing every
+pixel to one repair.
+
+The reviewed PNG SHA-256 is
+`147a364dca5e02da89bd6b01c438c2ed3d21949f1051bd0a45d95e299a195cbb`.
+This is independent AI agent review, not human approval or deployed-site
+parity. The sheet does not establish arbitrary input, font or dense-layout
+coverage. Separate owned-geometry regressions exercise initially occluded
+endpoint markers, including a single feedback label that previously bypassed
+repair; the sheet is not presented as a reproduction of that defect.

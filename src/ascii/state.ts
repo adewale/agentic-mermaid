@@ -1,5 +1,5 @@
 import { resolveLabelContent } from '../shared/display-text.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MermaidGraph, StateNoteSpec } from '../types.ts'
 import { Left, Right, type AsciiConfig, type AsciiGraph, type AsciiNode, type AsciiSubgraph, type AsciiTheme, type ColorMode, type GridCoord } from './types.ts'
 import { convertToAsciiGraph } from './converter.ts'
@@ -69,7 +69,7 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
       const candidate = { ...footprint, y }
       return ![...occupied, ...footprints].some(other => intersects(candidate, other)) && !ink.some(([x, y]) => contains(candidate, x, y))
     })!
-    layer.scope({ id: note.id, kind: 'node', parent: { id: note.target, kind: target.kind } }, () => layer.overlay(canvas, box.x, box.y))
+    layer.scope({ id: note.id, kind: 'node', annotationTarget: { id: note.target, kind: target.kind } }, () => layer.overlay(canvas, box.x, box.y))
     plans.push({ note, target, box })
     placed.push(box)
     footprints.push(noteFootprint(box, note.side))
@@ -135,8 +135,8 @@ function shiftRight(graph: AsciiGraph, delta: number): void {
 
 function attachNote(background: TerminalDocument, layer: TerminalDocument, graph: AsciiGraph, cards: readonly Box[], target: NoteTarget, note: Box, noteBoxes: readonly Box[], reserved: readonly GridCoord[], side: StateNoteSpec['side'], owner: TerminalOwner): void {
   const right = side === 'right', dx = right ? 1 : -1
-  const source = { nodeId: owner.from!, end: 'start' as const, side: right ? 'R' as const : 'L' as const, x: right ? target.box.x + target.box.width - 1 : target.box.x, y: target.box.y + Math.floor(target.box.height / 2) }
-  const destination = { nodeId: owner.to!, end: 'end' as const, side: right ? 'L' as const : 'R' as const, x: right ? note.x : note.x + note.width - 1, y: note.y + Math.floor(note.height / 2) }
+  const source = { nodeId: owner.from!, markers: [], end: 'start' as const, side: right ? 'R' as const : 'L' as const, x: right ? target.box.x + target.box.width - 1 : target.box.x, y: target.box.y + Math.floor(target.box.height / 2) }
+  const destination = { nodeId: owner.to!, markers: [], end: 'end' as const, side: right ? 'L' as const : 'R' as const, x: right ? note.x : note.x + note.width - 1, y: note.y + Math.floor(note.height / 2) }
   const end = { x: destination.x - dx, y: destination.y }
   const frames = new Set(target.frames.filter(frame => target.kind !== 'cluster' || frame.id !== owner.from).map(frame => frame.id))
   const forbidden = [...cards]
@@ -149,9 +149,9 @@ function attachNote(background: TerminalDocument, layer: TerminalDocument, graph
     return !cell || !!cell.stroke && cell.owners.length > 0 && cell.owners.every(element => element.kind === 'edge'
       || element.kind === 'cluster' && frames.has(element.id))
   }
-  const canStep = (a: GridCoord, b: GridCoord): boolean => {
-    const mask = a.x === b.x ? 5 : 10
-    return [a, b].every(point => {
+  const canStep = (ax: number, ay: number, bx: number, by: number): boolean => {
+    const mask = ax === bx ? 5 : 10
+    return [{ x: ax, y: ay }, { x: bx, y: by }].every(point => {
       if (!free(point)) return false
       const cell = background.cell(point.x, point.y), above = layer.cell(point.x, point.y)
       if (cell?.stroke && (cell.stroke.mask & mask)) return false
@@ -182,7 +182,3 @@ function contains(box: Box, x: number, y: number): boolean {
   return x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderStateAscii(...args: Parameters<typeof renderStateTerminal>): string {
-  return serializeTerminalArtifact(renderStateTerminal(...args))
-}

@@ -18,7 +18,7 @@
 //                        SVG and ASCII surfaces agree
 //
 //   NOOP (accepted for config-shape compatibility, no geometry/paint here —
-//   verify names each present key via INEFFECTIVE_CONFIG): wrap, mirrorActors,
+//   verify names each present key via INEFFECTIVE_CONFIG): mirrorActors,
 //   fonts, loop-box label metrics, alignment, and the interactivity knobs.
 //   Font keys deliberately stay unwired: typography routes through the style
 //   system (RenderOptions.style roles), not per-family config.
@@ -28,10 +28,11 @@
 // ============================================================================
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
-import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
+import { getFrontmatterScalar } from '../mermaid-source.ts'
 
 /** Wired keys, resolved and validated. All optional: absent = default. */
 export interface ResolvedSequenceConfig {
+  wrap?: boolean
   actorMargin?: number
   width?: number
   height?: number
@@ -48,7 +49,7 @@ const WIRED_NUMBER_FIELDS = [
   'messageMargin', 'noteMargin', 'activationWidth',
 ] as const
 
-export const SEQUENCE_WIRED_CONFIG_FIELDS = [...WIRED_NUMBER_FIELDS, 'showSequenceNumbers'] as const
+export const SEQUENCE_WIRED_CONFIG_FIELDS = [...WIRED_NUMBER_FIELDS, 'showSequenceNumbers', 'wrap'] as const
 
 /**
  * Resolve the wired `sequence` config section from the merged frontmatter map
@@ -57,7 +58,7 @@ export const SEQUENCE_WIRED_CONFIG_FIELDS = [...WIRED_NUMBER_FIELDS, 'showSequen
  * ignored rather than propagated into geometry.
  */
 export function resolveSequenceConfig(frontmatter: MermaidFrontmatterMap | undefined): ResolvedSequenceConfig {
-  if (!frontmatter || !getFrontmatterMap(frontmatter, ['sequence'])) return {}
+  if (!frontmatter) return {}
   const out: ResolvedSequenceConfig = {}
   for (const field of WIRED_NUMBER_FIELDS) {
     const value = getFrontmatterScalar<number>(frontmatter, ['sequence', field])
@@ -65,5 +66,9 @@ export function resolveSequenceConfig(frontmatter: MermaidFrontmatterMap | undef
   }
   const numbers = getFrontmatterScalar<boolean>(frontmatter, ['sequence', 'showSequenceNumbers'])
   if (numbers === true) out.showSequenceNumbers = true
+  const globalWrap = getFrontmatterScalar<boolean>(frontmatter, ['wrap'])
+  const familyWrap = getFrontmatterScalar<boolean>(frontmatter, ['sequence', 'wrap'])
+  if (typeof globalWrap === 'boolean') out.wrap = globalWrap
+  else if (typeof familyWrap === 'boolean') out.wrap = familyWrap
   return out
 }

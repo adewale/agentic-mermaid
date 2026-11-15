@@ -41,6 +41,7 @@ function familyEdgeRouteProof(cert: FamilyEdgeRouteCertificate): LayoutCertifica
       return familyBoxRouteProof(cert.invariant)
     case 'architecture':
       return architectureRouteProof(cert.invariant)
+    case 'zenuml':
     case 'sequence':
       return sequenceRouteProof(cert.invariant)
     default:
@@ -68,7 +69,7 @@ function architectureRouteProof(invariant: Extract<FamilyEdgeRouteCertificate, {
   }
 }
 
-function sequenceRouteProof(invariant: Extract<FamilyEdgeRouteCertificate, { family: 'sequence' }>['invariant']): LayoutCertificateProof {
+function sequenceRouteProof(invariant: Extract<FamilyEdgeRouteCertificate, { family: 'sequence' | 'zenuml' }>['invariant']): LayoutCertificateProof {
   switch (invariant) {
     case 'lifeline-message':
     case 'self-message':

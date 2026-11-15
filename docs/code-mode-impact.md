@@ -59,7 +59,7 @@ the operation list cannot express.
 Local and hosted Code Mode share the same `mermaid.*` facade. Differential
 tests compare result envelopes, errors, trace behaviour, read-only enforcement,
 and serialization across both runtimes. The
-[hosted MCP as-built record](./project/archive/hosted-mcp-cloudflare-plan.md) documents
+[hosted MCP as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md) documents
 the remaining runtime differences and abuse controls.
 
 ## Measured effect
@@ -189,9 +189,10 @@ The local and hosted sandboxes have deliberate constraints:
 - Local `node:vm` is hardened but is not an operating-system or container
   security boundary. It is a local tool for trusted use.
 - Hosted execution contacts a billable Dynamic Worker on every call. Worker
-  Loader IDs are content-addressed so identical code can reuse a warm isolate,
-  while direct tools and their private compute cache keep routine work off that
-  path.
+  Loader IDs are content-addressed so identical code can reuse a warm isolate.
+  Direct tools lay out inline unless their pre-layout cost estimate is heavy;
+  heavy calls lay out in one shared per-deploy isolate under a 10 s CPU
+  budget. Their private compute cache keeps repeated work off both paths.
 - Hosted `execute` responses are never compute-cached: Code Mode exposes time
   and randomness, so retaining the first result would violate its observable
   contract.

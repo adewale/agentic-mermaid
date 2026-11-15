@@ -7,8 +7,11 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { knownStyleDescriptors, renderMermaidSVG, renderResolvedScene, verifyNoExternalRefs } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import type { ResolvedPart } from '../scene/resolved-types.ts'
+import { contrastRatio } from '../shared/color-math.ts'
+import { deltaEOK } from '../shared/perceptual-color.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
@@ -56,11 +59,12 @@ describe('renderMermaidSVG — gantt', () => {
     for (const fg of ['#27272A', '#FAFAFA'] as const) {
       const bg = fg === '#FAFAFA' ? '#18181B' : '#FFFFFF'
       const svg = renderMermaidSVG(REPRESENTATIVE, { bg, fg })
-      for (const m of svg.matchAll(/class="gantt-(?:task|section)-label"[^>]*x="(\d+(?:\.\d+)?)"/g)) {
-        expect(Number(m[1])).toBeLessThan(60) // label column, not plot area
+      const labels = [...svg.matchAll(/<text\b[^>]*\bclass="gantt-(?:task|section)-label"[^>]*>/g)].map(([tag]) => tag)
+      expect(labels).toHaveLength(7)
+      for (const label of labels) {
+        expect(Number(/ x="([^"]*)"/.exec(label)![1])).toBeLessThan(60) // label column, not plot area
+        expect(label).toContain(` fill="${fg}"`)
       }
-      expect(svg).toContain(`.gantt-task-label { fill: ${fg}; }`)
-      expect(svg).toContain(`.gantt-section-label { fill: ${fg}; }`)
     }
   })
 
@@ -81,20 +85,15 @@ describe('renderMermaidSVG — gantt', () => {
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke-width:5px,stroke:#0f0,opacity:0.5\n  A :a, 2024-01-01, 10d'
     const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
     const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-    expect(line).toContain('style="stroke-width:5px;stroke:#0f0;opacity:0.5"')
+    for (const paint of ['stroke="#0f0"', 'stroke-width="5px"', 'opacity="0.5"']) expect(line).toContain(paint)
     // Without a clock the marker (and its style) never draws.
     expect(renderMermaidSVG(src)).not.toContain('<line class="gantt-today-marker"')
   })
 
   it('rejects style-attr injection in the todayMarker payload', () => {
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#0f0"onload="alert(1),opacity:0.5\n  A :a, 2024-01-01, 10d'
-    const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
-    expect(svg).not.toContain('onload')
-    expect(svg).not.toContain('alert(')
-    // The safe property still applies; the poisoned one is dropped whole.
-    const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-    expect(line).toContain('opacity:0.5')
-    expect(line).not.toContain('#0f0')
+    expect(() => renderMermaidSVG(src, { ganttToday: '2024-01-05' }))
+      .toThrow('todayMarker: stroke "#0f0\\"onload=\\"alert(1)" is not a CSS color')
   })
 
   it('a plain todayMarker line stays byte-identical (no style attr)', () => {
@@ -130,13 +129,98 @@ describe('renderMermaidSVG — gantt', () => {
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-done"')
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-active"')
     expect(svg).toContain('<path class="gantt-milestone gantt-milestone-crit"')
-    expect(svg).toContain('<path class="gantt-milestone" d=')
-    expect(svg).toContain('.gantt-milestone-done {')
-    expect(svg).toContain('.gantt-milestone-active {')
+    expect(svg).toContain('<path class="gantt-milestone" data-task="m4"')
     // Charts without done/active milestones carry no dead CSS for them.
     const bare = renderMermaidSVG('gantt\n  dateFormat YYYY-MM-DD\n  A :a, 2024-01-01, 5d\n  M :milestone, m, 2024-01-03, 0d')
     expect(bare).not.toContain('gantt-milestone-done')
     expect(bare).not.toContain('gantt-milestone-active')
+  })
+
+  // The terminal tells the four statuses apart (█ plain, ▓ active, ▒ crit,
+  // ░ done); SVG/PNG must too, in every look and palette, by the ink a task
+  // actually owns — never by opacity alone. Opacity is ignored here on
+  // purpose: two tasks whose owned fills and outlines read alike differ only
+  // in how translucent they are.
+  describe('task status ink', () => {
+    const STATUSES = `gantt
+      dateFormat YYYY-MM-DD
+      Plain bar :p, 2024-01-01, 4d
+      Active bar :active, a, 2024-01-02, 4d
+      Crit bar :crit, c, 2024-01-03, 4d
+      Done bar :done, d, 2024-01-01, 3d
+      Plain milestone :milestone, pm, 2024-01-05, 0d
+      Active milestone :milestone, active, am, 2024-01-06, 0d
+      Crit milestone :milestone, crit, cm, 2024-01-07, 0d
+      Done milestone :milestone, done, dm, 2024-01-08, 0d
+    `
+    const STATUS_TASKS = { plain: ['p', 'pm'], active: ['a', 'am'], crit: ['c', 'cm'], done: ['d', 'dm'] } as const
+    /** Colors closer than this (OKLab ΔE) read as one ink beside each other:
+     *  the separation categorical palettes guarantee between their slices. */
+    const SAME_COLOR = 0.1
+    /** A line this much heavier than another reads as a different line. */
+    const HEAVIER = 1.5
+    /** A fill has no line weight; a line is drawn at its stroke width. */
+    type Ink = { color: string; dashed: boolean; width?: number }
+
+    /** Every fill and outline ink a task part paints, opacity ignored. */
+    function ownedInks(part: ResolvedPart): Ink[] {
+      const inks: Ink[] = []
+      for (const primitive of part.primitives) {
+        if (primitive.kind !== 'path') continue
+        const { fill, stroke, strokeWidth, dashArray } = primitive.paint
+        if (fill !== 'none') inks.push({ color: fill, dashed: false })
+        if (stroke !== 'none' && strokeWidth > 0) inks.push({ color: stroke, dashed: (dashArray?.length ?? 0) > 0, width: strokeWidth })
+      }
+      return inks
+    }
+
+    const alike = (a: Ink, b: Ink) => a.dashed === b.dashed
+      && (deltaEOK(a.color, b.color) ?? 0) < SAME_COLOR
+      && (a.width === undefined || b.width === undefined || Math.max(a.width, b.width) / Math.min(a.width, b.width) < HEAVIER)
+    const covers = (inks: readonly Ink[], ink: Ink) => inks.some(other => alike(other, ink))
+    /** Two tasks read apart when one paints an ink the other has nothing like. */
+    const readApart = (a: readonly Ink[], b: readonly Ink[]) => a.some(ink => !covers(b, ink)) || b.some(ink => !covers(a, ink))
+
+    const LOOKS = ['default', ...knownStyleDescriptors().filter(d => d.kind === 'look' && !d.isDefault).map(d => d.inputName)]
+    const PALETTES = [{}, { accent: '#d00000' }, { bg: '#18181B', fg: '#FAFAFA' }] as const
+
+    for (const look of LOOKS) {
+      it(`${look}: every status reads apart from every other, bar and milestone alike`, () => {
+        for (const palette of PALETTES) {
+          const scene = renderResolvedScene(STATUSES, { ...(look === 'default' ? {} : { style: look }), ...palette })
+          const inksOf = (task: string) => {
+            const part = scene.parts.find(candidate => candidate.node.kind === 'shape' && (candidate.node.attributes?.data as Record<string, string> | undefined)?.task === task)
+            expect(part, `${look} ${JSON.stringify(palette)}: task ${task}`).toBeDefined()
+            return ownedInks(part!)
+          }
+          const statuses = Object.keys(STATUS_TASKS) as (keyof typeof STATUS_TASKS)[]
+          for (const [i, a] of statuses.entries()) {
+            for (const b of statuses.slice(i + 1)) {
+              for (const k of [0, 1]) {
+                expect(readApart(inksOf(STATUS_TASKS[a][k]!), inksOf(STATUS_TASKS[b][k]!)), `${look} ${JSON.stringify(palette)}: ${a} vs ${b} ${k ? 'milestone' : 'bar'}`).toBe(true)
+              }
+            }
+            // A milestone carries its status the way a bar of that status does.
+            expect(readApart(inksOf(STATUS_TASKS[a][0]), inksOf(STATUS_TASKS[a][1])), `${look} ${JSON.stringify(palette)}: ${a} milestone vs bar`).toBe(false)
+          }
+        }
+      })
+    }
+
+    it('draws theme line and accent ink through the legibility repair', () => {
+      // A line and an accent that vanish on their own page: the grid, the bars
+      // and the critical outline still read at the 3:1 of non-text contrast.
+      const bg = '#FFFFFF'
+      const scene = renderResolvedScene(STATUSES, { bg, fg: '#27272A', line: '#FAFAFA', accent: '#F4F4F5' })
+      const grid = scene.parts.filter(part => part.id.startsWith('grid:') && part.node.kind === 'shape' && part.node.geometry.kind === 'line')
+      expect(grid.length).toBeGreaterThan(0)
+      const strokes = (part: ResolvedPart) => part.primitives.flatMap(p => p.kind === 'path' && p.paint.stroke !== 'none' ? [p.paint.stroke] : [])
+      const fills = (part: ResolvedPart) => part.primitives.flatMap(p => p.kind === 'path' && p.paint.fill !== 'none' ? [p.paint.fill] : [])
+      const task = (id: string) => scene.parts.find(part => (part.node.attributes?.data as Record<string, string> | undefined)?.task === id)!
+      for (const ink of [...grid.flatMap(strokes), ...fills(task('p')), ...strokes(task('c'))]) {
+        expect(contrastRatio(ink, bg)!, ink).toBeGreaterThanOrEqual(3)
+      }
+    })
   })
 
   it('strict security: no external refs, click hrefs never become fetchable output', () => {

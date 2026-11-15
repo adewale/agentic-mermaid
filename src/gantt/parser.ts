@@ -22,6 +22,8 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
+import { readGanttTaskLabel } from './task-text.ts'
+import { parseTodayMarkerStyle } from './today-marker.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
 
@@ -30,6 +32,29 @@ const WEEKDAYS: readonly GanttWeekday[] = [
 ]
 
 export const GANTT_DURATION_RE = /^(\d+(?:\.\d+)?)(ms|s|m|h|d|w|M|y)$/
+// Pinned Mermaid reads a task length only as a number followed directly by
+// one of the units above (ganttDb.js parseDuration). It ignores any other
+// spelling and gives the task no length, which drops what the author wrote.
+// Ours also reads a blank before the unit and the English unit names (`2min`,
+// `3 hours`, `1.5 days`, any case) as that length, verify reports them
+// (gantt_duration_spelling), and the writer writes Mermaid's spelling.
+const GANTT_SPACED_DURATION_RE = /^(\d+(?:\.\d+)?)\s+(ms|s|m|h|d|w|M|y)$/
+const GANTT_NAMED_DURATION_RE = /^(\d+(?:\.\d+)?)\s*(milliseconds?|msecs?|seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|wks?|months?|years?|yrs?)$/i
+const GANTT_DURATION_UNIT_NAMES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^(?:millisecond|msec)/i, 'ms'], [/^sec/i, 's'], [/^min/i, 'm'], [/^(?:hour|hr)/i, 'h'],
+  [/^day/i, 'd'], [/^(?:week|wk)/i, 'w'], [/^month/i, 'M'], [/^(?:year|yr)/i, 'y'],
+]
+
+/** A task length as Mermaid spells it (`2m`), from Mermaid's own spelling
+ *  or one ours also reads (`2min`); null when `raw` is no length. */
+export function ganttDuration(raw: string): string | null {
+  if (GANTT_DURATION_RE.test(raw)) return raw
+  const spaced = raw.match(GANTT_SPACED_DURATION_RE)
+  if (spaced) return `${spaced[1]}${spaced[2]}`
+  const named = raw.match(GANTT_NAMED_DURATION_RE)
+  if (!named) return null
+  return `${named[1]}${GANTT_DURATION_UNIT_NAMES.find(([name]) => name.test(named[2]!))![1]}`
+}
 const TICK_INTERVAL_RE = /^([1-9][0-9]*)(millisecond|second|minute|hour|day|week|month)$/
 
 export interface ParsedTaskMeta {
@@ -68,7 +93,7 @@ export function parseGanttTaskMeta(rawMeta: string): ParsedTaskMeta | null {
   const classifyEnd = (raw: string): GanttEndExpr => {
     const until = raw.match(/^until\s+(.+)$/)
     if (until) return { kind: 'until', refs: until[1]!.split(/\s+/).filter(Boolean) }
-    if (GANTT_DURATION_RE.test(raw)) return { kind: 'duration', raw }
+    if (ganttDuration(raw) !== null) return { kind: 'duration', raw }
     return { kind: 'date', raw }
   }
 
@@ -81,12 +106,13 @@ export function parseGanttTaskMeta(rawMeta: string): ParsedTaskMeta | null {
 }
 
 /** Canonical re-emission of a parsed task metadata (used by the agent body
- *  serializer and the parser↔body differential tests). */
+ *  serializer and the parser↔body differential tests). A length is written
+ *  as Mermaid spells it. */
 export function renderGanttTaskMeta(meta: ParsedTaskMeta): string {
   const parts: string[] = [...meta.tags]
   if (meta.id !== undefined) parts.push(meta.id)
   if (meta.start) parts.push(meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw)
-  parts.push(meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw)
+  parts.push(meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : ganttDuration(meta.end.raw) ?? meta.end.raw)
   return parts.join(', ')
 }
 
@@ -114,13 +140,45 @@ const DIRECTIVE_RES = {
   click: /^click\s+([\w-]+)\s+(href|call)\s+(.+)$/i,
 } as const
 
+// Mermaid's lexer takes the line break after a click's task id with the id,
+// so its href or call may start the next line. Ours also reads it after blank
+// and comment lines: the normalized line view the renderer reads has dropped
+// them, so the lossless body must read past them too to agree with it.
+// Mermaid ends a task's data, and these directives' values, at `;`, and
+// reads what follows as the next statement (a task whose label starts with
+// the `;`). A todayMarker's CSS keeps its `;`.
+const SEMICOLON_DIRECTIVE_RE = /^(?:dateFormat|axisFormat|tickInterval|excludes|includes)\s/i
+const FREE_TEXT_STATEMENT_RE = /^(?:title|section|click|todayMarker|weekday|weekend|acc(?:Title|Descr))\b/i
+
+/** Where `;` ends the statement on `line`, or -1. */
+function ganttSemicolonEnd(line: string): number {
+  if (SEMICOLON_DIRECTIVE_RE.test(line)) return line.indexOf(';')
+  const colon = line.indexOf(':')
+  if (FREE_TEXT_STATEMENT_RE.test(line) || colon <= 0) return -1
+  const semicolon = line.indexOf(';', colon + 1)
+  const comment = trailingCommentStart(line.slice(colon + 1))
+  return comment >= 0 && semicolon > colon + comment ? -1 : semicolon
+}
+
+const CLICK_TASK_RE = /^click\s+[\w-]+$/i
+const CLICK_ACTION_RE = /^(?:href|call)\s/i
+
+/** The line holding the href or call of the `click <id>` on `lines[index]`,
+ * or -1 when that click is complete or has none. */
+function ganttClickActionLine(lines: readonly string[], index: number): number {
+  if (!CLICK_TASK_RE.test(lines[index]!.trim())) return -1
+  let next = index + 1
+  while (next < lines.length && (!lines[next]!.trim() || lines[next]!.trim().startsWith('%%'))) next++
+  return next < lines.length && CLICK_ACTION_RE.test(lines[next]!.trim()) ? next : -1
+}
+
 type GanttSyntax =
   | { kind: 'comment' | 'blank' }
   | { kind: 'accessibility'; directive: ParsedAccessibilityDirective }
   | { kind: 'title' | 'section'; value: string }
   | { kind: 'directive'; name: Exclude<keyof typeof DIRECTIVE_RES, 'title' | 'section' | 'click'> | 'inclusiveEndDates' | 'topAxis'; value: string }
   | { kind: 'click'; taskId: string; action: 'href' | 'call'; rest: string }
-  | { kind: 'task'; label: string; meta: ParsedTaskMeta }
+  | { kind: 'task'; label: string; labelSource: string; meta: ParsedTaskMeta }
   | { kind: 'invalid'; code: 'GANTT_BAD_DIRECTIVE' | 'GANTT_BAD_TASK'; message: string; structural?: boolean }
 
 export type GanttSourceStatement = GanttSyntax & {
@@ -128,7 +186,11 @@ export type GanttSourceStatement = GanttSyntax & {
   raw: string[]
   startLine: number
   endLine: number
+  /** 1-based column on the start line of a title's or section's value, or a
+   * task's label, also when a `;` or an accDescr block comes before it. */
   valueColumn?: number
+  /** Follows a `;` that ended the statement before it on its line. */
+  afterSemicolon?: true
 }
 
 /** One statement authority; render and edit projections choose their own
@@ -138,11 +200,11 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
   for (let index = 0; index < lines.length; index++) {
     const start = index
     const rawLine = lines[index]!
-    const line = rawLine.trim()
-    const append = (syntax: GanttSyntax, raw = [rawLine]): void => {
+    let line = rawLine.trim()
+    const append = (syntax: GanttSyntax, raw = lines.slice(start, index + 1)): void => {
       const valueColumn = syntax.kind === 'section' || syntax.kind === 'title'
         ? rawLine.indexOf(syntax.value, rawLine.search(/\S/) + syntax.kind.length) + 1
-        : undefined
+        : syntax.kind === 'task' ? rawLine.search(/\S/) + 1 : undefined
       statements.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1, valueColumn })
     }
     if (!line || line.startsWith('%%')) {
@@ -169,6 +231,29 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
           valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset })))
       }
       continue
+    }
+    if (ganttSemicolonEnd(line) >= 0) {
+      // Read each `;`-separated part as a line of its own.
+      let rest = rawLine
+      let offset = 0
+      for (let part = 0; ; part++) {
+        const semicolon = ganttSemicolonEnd(rest.trim())
+        const end = semicolon < 0 ? rest.length : rest.length - rest.trimStart().length + semicolon
+        statements.push(...readGanttStatements([rest.slice(0, end)]).map((statement, at) => ({
+          ...statement, startLine: index + 1, endLine: index + 1,
+          valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset,
+          ...(part > 0 && at === 0 ? { afterSemicolon: true as const } : {}),
+        })))
+        if (semicolon < 0) break
+        offset += end + 1
+        rest = rest.slice(end + 1)
+      }
+      continue
+    }
+    const action = ganttClickActionLine(lines, index)
+    if (action > index) {
+      index = action
+      line = `${line}\n${lines[index]!.trim()}`
     }
     let matched = false
     for (const [name, pattern] of Object.entries(DIRECTIVE_RES)) {
@@ -204,7 +289,7 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
       const rawMeta = stripTrailingComment(line.slice(colon + 1)).trim()
       const meta = parseGanttTaskMeta(rawMeta)
       if (meta) {
-        append({ kind: 'task', label, meta }, [commentOffset < 0 ? rawLine : rawLine.slice(0, commentOffset)])
+        append({ kind: 'task', label: readGanttTaskLabel(label), labelSource: label, meta }, [commentOffset < 0 ? rawLine : rawLine.slice(0, commentOffset)])
         if (commentOffset >= 0) append({ kind: 'comment' }, [rawLine.slice(commentOffset)])
       } else append({ kind: 'invalid', code: 'GANTT_BAD_TASK', message: `Invalid task metadata "${rawMeta}"` })
     } else append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: `Unrecognized gantt line "${line}"` })
@@ -316,6 +401,8 @@ export function parseGanttModel(lines: string[]): GanttModel {
     }
   }
 
+  // Admit authored marker paint before output or clock selection can skip it.
+  if (model.todayMarker?.style !== undefined) parseTodayMarkerStyle(model.todayMarker.style)
   return model
 }
 

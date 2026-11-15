@@ -1,8 +1,12 @@
+import type { ReleaseRssDiagnostics } from './release-memory.ts'
+
 // The file protocol between the release benchmark and its isolated Node worker.
 export interface BenchInput {
   id: string
   family: string
   source: string
+  expectedSvgLabels?: readonly string[]
+  workflow?: 'edit-flowchart'
 }
 export type Outcome = { ok: true; output: string } | { ok: false; error: string }
 export interface OutputFingerprint {
@@ -23,12 +27,18 @@ export interface TimeResult {
     deterministic: boolean
     ms: number
     samplesMs: number[]
+    missingSvgLabels: string[]
   }>
 }
 export interface MemoryResult {
   perInput: Array<{ id: string; allocatedBytes: number; peakHeapBytes: number }>
   passAllocatedBytes: number
   passPeakHeapBytes: number
+  settledHeapBytes: number
+  retainedHeapBytes: number
   retainedGrowthBytes: number
+  /** Process-lifetime getrusage high-water mark; retained for compatibility. */
   peakRssBytes: number
+  /** Diagnostic checkpoints only; absent from historical worker receipts. */
+  rss?: ReleaseRssDiagnostics
 }

@@ -4,6 +4,7 @@ import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { layoutC4Diagram } from '../c4/layout.ts'
+import { lowerC4Scene } from '../c4/renderer.ts'
 import type { Point, PositionedGroup } from '../types.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 
@@ -117,6 +118,49 @@ Rel(api, api, "Retry", "timer")`
     expect(svg).toContain('data-relationship="c4-Rel_Back"')
   })
 
+  test('mixed C4 composition preserves reserved IDs, companion labels, stroke defaults and paint order', () => {
+    const source = `C4Dynamic
+AddRelTag("async", $lineStyle="dotted", $lineColor="navy", $textColor="maroon")
+System_Boundary(scope, "Scope") {
+  System(a, "API")
+  System(b, "Store")
+  System("c4:c4-rel-1:relationship", "Reserved")
+}
+Rel(a,b,"First\trequest", $tags="async")
+Rel(a,b,"Again", $tags="async")
+Rel_Back(a,b,"Reply")
+Rel(b,b,"Retry")`
+    const positioned = layoutC4Diagram(parseC4Diagram(source), { diagramTitle: 'Composition title' })
+    const scene = lowerC4Scene({ positioned, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
+    expect(scene.parts.slice(0, 8).map(part => part.id)).toEqual([
+      'prelude', 'defs', 'diagram-title', 'c4:scope:frame',
+      'c4:c4-rel-1:relationship#1', 'c4:c4-rel-2:relationship', 'c4:c4-rel-3:relationship', 'c4:c4-rel-4:relationship',
+    ])
+    expect(scene.parts.slice(-4).map(part => part.id)).toEqual([
+      'c4:a:card', 'c4:b:card', 'c4:c4:c4-rel-1:relationship:card', 'svg-close',
+    ])
+    const routes = scene.parts.filter(part => part.kind === 'connector')
+    expect(routes.map(route => [route.identity?.id, route.endpoints.from, route.endpoints.to, route.labels[0]?.id])).toEqual([
+      ['c4-rel-1', 'a', 'b', 'edge:a->b#0:label'], ['c4-rel-2', 'a', 'b', 'edge:a->b#1:label'],
+      ['c4-rel-3', 'b', 'a', 'edge:b->a#0:label'], ['c4-rel-4', 'b', 'b', 'edge:b->b#0:label'],
+    ])
+    expect(routes.map(route => route.labels[0]?.visual)).toEqual([
+      { kind: 'companion', markId: 'c4:c4-rel-1:label-text' }, { kind: 'companion', markId: 'c4:c4-rel-2:label-text' },
+      { kind: 'companion', markId: 'c4:c4-rel-3:label-text' }, { kind: 'companion', markId: 'c4:c4-rel-4:label-text' },
+    ])
+    expect(routes[0]?.labels[0]?.text).toBe('1: First request\n[tags: async]')
+    expect(routes[0]?.labels[0]?.paint).toEqual({ fill: 'maroon' })
+    for (const route of routes.slice(0, 2)) {
+      expect(route.stroke).toMatchObject({ color: 'navy', dash: { array: '1 3' }, lineCap: 'butt', lineJoin: 'miter', miterLimit: 4, nonScaling: false })
+      expect(route.hit).toMatchObject({ closed: false, strokeWidth: 6, pointerEvents: 'stroke' })
+      expect(route.route).toMatchObject({ ownership: 'layout', closed: false })
+      expect(route.labels[0]?.visual?.kind).toBe('companion')
+    }
+    const definitions = scene.parts.find(part => part.id === 'defs')
+    if (definitions?.kind !== 'document') throw new Error('Expected C4 definitions')
+    for (const route of routes) expect(definitions.markerResources).toContainEqual(route.markers.end!)
+  })
+
   test('nested boundary endpoints reach actual frames while routes and labels clear leaf cards and header bands', () => {
     const model = parseC4Diagram(NESTED), positioned = layoutC4Diagram(model), frames = groups(positioned.groups)
     for (const edge of positioned.edges) {
@@ -161,7 +205,7 @@ UpdateRelStyle(client,db,$lineColor="blue",$textColor="navy")
 SHOW_LEGEND()`
     const svg = renderMermaidSVG(source), text = renderMermaidASCII(source, { colorMode: 'none' })
     expect(svg).toContain('data-href="https://example.com/current" role="link" tabindex="0"')
-    expect(svg).toContain('data-href="https://example.com/relation" tabindex="0"')
+    expect(svg).toMatch(/<polyline class="edge"[^>]* data-href="https:\/\/example\.com\/relation" tabindex="0"[^>]* data-role="edge"/)
     expect(svg).toContain('fill="navy"')
     expect(svg).toContain('stroke="blue"')
     for (const phrase of ['Critical service', 'PostgreSQL', '[tags: critical]', 'First', 'Second']) { expect(svg).toContain(phrase); expect(text).toContain(phrase) }

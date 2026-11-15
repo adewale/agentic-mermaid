@@ -9,7 +9,10 @@ function assertRectangularBorder(lines: string[], label: string): void {
   const bottom = lines.slice(row).find(line => /[└+].*[┘+]$/.test(line.trimEnd()))
   expect(top).toBeDefined()
   expect(bottom).toBeDefined()
-  expect(visualWidth(top!.trimEnd())).toBe(visualWidth(bottom!.trimEnd()))
+  const borderWidth = visualWidth(top!.trimEnd())
+  expect(borderWidth).toBe(visualWidth(bottom!.trimEnd()))
+  const bottomRow = lines.indexOf(bottom!, row)
+  for (const line of lines.slice(row, bottomRow)) if (line.trimEnd().endsWith('│')) expect(visualWidth(line.trimEnd())).toBe(borderWidth)
 }
 
 describe('Class and ER terminal Unicode geometry', () => {

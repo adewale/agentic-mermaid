@@ -1,3 +1,6 @@
+import { WeightedLru } from './experimental/weighted-lru.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
+import { estimatedResidency } from './experimental/cache-residency.ts'
 // ============================================================================
 // Theme system — CSS custom property-based theming for mermaid SVG diagrams.
 //
@@ -15,7 +18,9 @@
 // Types
 // ============================================================================
 
-import { scanSvgStartTags, transformSvgCssValues } from './svg-structure.ts'
+import { decodeXML } from 'entities'
+import { escapeAttr } from './multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, projectSvgCss, transformSvgCssValues, type SvgCssProjection } from './svg-structure.ts'
 
 /**
  * Diagram color configuration.
@@ -385,7 +390,8 @@ export function svgOpenTag(
     attrs?: Record<string, string | undefined>
   },
 ): string {
-  if (colors.font !== undefined) requireSafeCssFontFamily(colors.font)
+  // The safe spelling is single-quoted, so it cannot close the style attribute.
+  const font = colors.font === undefined ? undefined : requireSafeCssFontFamily(colors.font)
   for (const field of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
     const value = colors[field]
     if (value !== undefined) requireSafeCssPaint(value, field)
@@ -401,7 +407,7 @@ export function svgOpenTag(
     colors.muted   ? `--muted:${colors.muted}` : '',
     colors.surface ? `--surface:${colors.surface}` : '',
     colors.border  ? `--border:${colors.border}` : '',
-    colors.font    ? `--font:${colors.font}` : '',
+    font           ? `--font:${font}` : '',
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'
@@ -415,8 +421,8 @@ export function svgOpenTag(
   const attrBlock = extraAttrs ? ` ${extraAttrs}` : ''
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-    `width="${overrides?.width ?? width}" height="${overrides?.height ?? height}" style="${style}"${attrBlock}>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${formatSvgNumber(width)} ${formatSvgNumber(height)}" ` +
+    `width="${formatSvgNumericAttribute('width', String(overrides?.width ?? width))}" height="${formatSvgNumericAttribute('height', String(overrides?.height ?? height))}" style="${style}"${attrBlock}>`
   )
 }
 
@@ -452,8 +458,7 @@ export interface ResolvedColors {
 
 /** resolveColors is pure, and families ink text against its tones one label
  * at a time, so each palette's resolution is kept (a small, bounded cache). */
-const resolvedColorsCache = new Map<string, ResolvedColors>()
-const RESOLVED_COLORS_CACHE_LIMIT = 64
+const resolvedColorsCache = new WeightedLru<string, ResolvedColors>(64, 256 * 1024)
 
 /**
  * Resolve all derived colors from a DiagramColors to concrete hex values.
@@ -465,8 +470,8 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   const cached = resolvedColorsCache.get(key)
   if (cached) return cached
   const resolved = Object.freeze(deriveColors(concretePalette(colors) ?? colors))
-  if (resolvedColorsCache.size >= RESOLVED_COLORS_CACHE_LIMIT) resolvedColorsCache.delete(resolvedColorsCache.keys().next().value!)
-  resolvedColorsCache.set(key, resolved)
+  const weight = key.length * 2 + estimatedResidency(resolved, 256 * 1024)
+  resolvedColorsCache.set(key, resolved, weight)
   return resolved
 }
 
@@ -595,15 +600,11 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
 /** Read each owned CSS context separately: a final root declaration need not
  * end with a semicolon. Family aliases may contain exact non-hex paints or
  * live references, including intentionally absent outlines. */
-function cssPaintDefinitions(svg: string): Map<string, string> {
+function cssPaintDefinitions(projection: SvgCssProjection): Map<string, string> {
   const definitions = new Map<string, string>()
-  for (const tag of scanSvgStartTags(svg)) {
-    const contexts = tag.attributes.filter(attribute => attribute.name === 'style').map(attribute => attribute.value)
-    if (tag.name === 'style' && !tag.selfClosing) {
-      const close = svg.indexOf('</style', tag.end)
-      if (close >= 0) contexts.push(svg.slice(tag.end, close))
-    }
-    for (const css of contexts) for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
+  for (const range of projection.styleContexts) {
+    const css = projection.source.slice(range.start, range.end)
+    for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
       const value = match[2]!.trim()
       if (value === 'none' || value.toLowerCase() === 'currentcolor' || tryParseCssColor(value) || (value.startsWith('var(') && safeCssPaint(value))) definitions.set(match[1]!, value)
     }
@@ -628,28 +629,68 @@ function cssPaintDefinitions(svg: string): Map<string, string> {
  * is returned as-is since the eventual host supplies their values.
  */
 export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
-  const palette = diagramColorVariables(colors)
-  if (!palette) return svg
-  const rc = resolveColors(colors)
+  const resolution = colorResolution(colors, svg)
+  return resolution ? resolveSvgColors(svg, resolution) : svg
+}
 
-  // Build mapping of CSS variable names → resolved hex values
-  const vars = new Map<string, string>()
-  for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border']) {
-    const value = palette.get(name)
-    if (value !== undefined) vars.set(name, value)
+/** Resolve one Scene paint with the same CSS and XML rules as an SVG fill.
+ * Keep the escaped attribute representation through substitution: an authored
+ * character reference or whitespace must not acquire a different fallback.
+ * No SVG context exists here, so there are no family variable definitions. */
+export function resolveInlineColorAttribute(value: string, colors: DiagramColors): string | undefined {
+  const escaped = escapeAttr(value)
+  const resolution = colorResolution(colors)
+  return resolvedInlineColorAttribute(escaped, resolution)
+}
+
+/** One consumer can reuse immutable palette preparation without retaining it
+ * across calls. Mutable, inherited and accessor colors still resolve afresh. */
+export function createInlineColorAttributeResolver(): typeof resolveInlineColorAttribute {
+  let palette: DiagramColors | undefined
+  let resolution: ReturnType<typeof colorResolution>
+  return (value, colors) => {
+    const escaped = escapeAttr(value)
+    if (colors !== palette) {
+      const fields = Object.isFrozen(colors) ? Object.getOwnPropertyDescriptors(colors) as Record<PropertyKey, PropertyDescriptor> : undefined
+      const reusable = fields && Reflect.ownKeys(fields).every(name => 'value' in fields[name]!)
+        && ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].every(name => {
+          const field = fields[name]
+          return Object.hasOwn(fields, name) && (field!.value === undefined || typeof field!.value === 'string')
+        })
+      if (!reusable) return resolvedInlineColorAttribute(escaped, colorResolution(colors))
+      resolution = colorResolution(colors)
+      palette = colors
+    }
+    return resolvedInlineColorAttribute(escaped, resolution)
   }
+}
+
+function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
+  const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
+  // Scene admission excludes context-breaking palette values. Preserve the
+  // full SVG path even for a direct caller that supplies such a substitution.
+  if (resolution && /[<"]/.test(resolved)) {
+    const svg = resolveSvgColors(`<rect fill="${escaped}"/>`, resolution)
+    return decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+  }
+  return decodeXML(resolved)
+}
+
+function colorResolution(colors: DiagramColors, svg?: string) {
+  const palette = diagramColorVariables(colors)
+  if (!palette) return undefined
+  const rc = resolveColors(colors)
 
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
-  for (const [name, value] of cssPaintDefinitions(svg)) vars.set(name, value)
+  const projection = svg === undefined ? undefined : projectSvgCss(svg)
+  const vars = projection ? cssPaintDefinitions(projection) : new Map<string, string>()
+  for (const [name, value] of palette) if (name.startsWith('_') || value !== undefined && !vars.has(name)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.
   vars.set('bg', rc.bg)
   vars.set('fg', rc.fg)
-
-  // Derived internal variables
-  for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
 
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase
@@ -690,20 +731,47 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     return text
   }
 
+  return { vars, SKIP_VARS, resolveCss, projection }
+}
+
+function resolveSvgColors(svg: string, resolution: NonNullable<ReturnType<typeof colorResolution>>): string {
+  const { vars, SKIP_VARS, resolveCss } = resolution
+  const projection = resolution.projection ?? projectSvgCss(svg)
   // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
   // data attributes are authored content, even when they happen to contain a
   // string such as `var(--fg)` or `color-mix(...)`.
-  let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
+  const resolvedValues = new Map<string, string>()
+  let text = transformSvgCssValues(svg, css => {
+    const prior = resolvedValues.get(css)
+    if (prior !== undefined) return prior
+    const resolved = resolveCss(css, vars, 10)
+    resolvedValues.set(css, resolved)
+    return resolved
+  }, projection)
+
+  // Phase 2 rewrites only var() references it may resolve and color-mix()
+  // calls. When neither occurs anywhere in the document it would return the
+  // text unchanged, so skip its rescan of every tag. The lookahead examines
+  // every `var(`, including one inside a skipped name such as `--f_var(`.
+  let mayResolve = text.includes('color-mix(')
+  if (!mayResolve) {
+    for (const match of text.matchAll(/var\((?=\s*--([\w-]+))/g)) {
+      if (!SKIP_VARS.has(match[1]!)) { mayResolve = true; break }
+    }
+  }
+  if (!mayResolve) return text
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
-  const cssDefs = cssPaintDefinitions(text)
+  let textProjection = projectSvgCss(text)
+  const cssDefs = cssPaintDefinitions(textProjection)
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {
-      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1))
+      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1), textProjection)
       if (resolved === text) break
       text = resolved
+      textProjection = projectSvgCss(text)
     }
   }
 

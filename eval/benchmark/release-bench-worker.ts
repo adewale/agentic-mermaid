@@ -1,3 +1,4 @@
+import 'trident/ci-policy-enforce.ts'
 // One release-benchmark measurement in a fresh Node process, against one built
 // package. Run by release-bench.ts; Node strips the types.
 //
@@ -12,6 +13,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { GCProfiler } from 'node:v8'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
+import { missingSvgLabels, renderAgentEdit } from './release-bench-fidelity.ts'
+import { rssCheckpoint } from './release-memory.ts'
+
+// This is worker entry after static imports, not a pre-exec observation.
+const workerStartRss = rssCheckpoint('after-static-imports-before-job-and-package-loading')
 
 interface Job {
   entry: string
@@ -57,6 +63,8 @@ function median(values: number[]): number {
 const importStart = performance.now()
 const mod = (await import(pathToFileURL(job.entry).href)) as Renderer
 const importMs = performance.now() - importStart
+const agent = job.inputs.some(input => input.workflow) ? await import(pathToFileURL(job.entry.replace(/index\.js$/, 'agent.js')).href) as Parameters<typeof renderAgentEdit>[0] : undefined
+const renderSvg = (input: BenchInput) => input.workflow ? renderAgentEdit(agent!, input.source) : mod.renderMermaidSVG(input.source)
 
 function timeMode(): TimeResult {
   const firstStart = performance.now()
@@ -67,10 +75,10 @@ function timeMode(): TimeResult {
   // Correctness: render twice to check determinism; ASCII once each way too.
   const svgFingerprints: OutputFingerprint[] = []
   const results = job.inputs.map(input => {
-    const svg = attempt(() => mod.renderMermaidSVG(input.source))
+    const svg = attempt(() => renderSvg(input))
     const svgFingerprint = fingerprint(svg)
     svgFingerprints.push(svgFingerprint)
-    const again = fingerprint(attempt(() => mod.renderMermaidSVG(input.source)))
+    const again = fingerprint(attempt(() => renderSvg(input)))
     const ascii = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
     const asciiAgain = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
     return {
@@ -78,6 +86,7 @@ function timeMode(): TimeResult {
       svg,
       ascii,
       deterministic: same(svgFingerprint, again) && same(ascii, asciiAgain),
+      missingSvgLabels: svg.ok ? missingSvgLabels(svg.output, input.expectedSvgLabels) : [],
     }
   })
 
@@ -86,11 +95,14 @@ function timeMode(): TimeResult {
   for (let rep = 0; rep < job.reps; rep++) {
     job.inputs.forEach((input, index) => {
       const start = performance.now()
-      const rendered = attempt(() => mod.renderMermaidSVG(input.source))
+      const rendered = attempt(() => renderSvg(input))
       samples[index]!.push(performance.now() - start)
       // Consume and compare the complete output after the measured API call.
       const current = fingerprint(rendered)
       results[index]!.deterministic &&= same(svgFingerprints[index]!, current)
+      if (rendered.ok) for (const label of missingSvgLabels(rendered.output, input.expectedSvgLabels)) {
+        if (!results[index]!.missingSvgLabels.includes(label)) results[index]!.missingSvgLabels.push(label)
+      }
     })
   }
   return {
@@ -131,8 +143,9 @@ function measureHeap(work: () => void): { allocatedBytes: number; peakHeapBytes:
 function memoryMode(): MemoryResult {
   const gc = globalThis.gc
   if (!gc) throw new Error('memory mode needs node --expose-gc')
+  const beforeMemoryWork = rssCheckpoint('after-package-imports-before-memory-warmup')
   const render = (input: BenchInput) => {
-    const outcome = attempt(() => mod.renderMermaidSVG(input.source))
+    const outcome = attempt(() => renderSvg(input))
     if (!outcome.ok) throw new Error(`${input.id}: memory render failed: ${outcome.error}`)
   }
   const pass = () => {
@@ -148,14 +161,18 @@ function memoryMode(): MemoryResult {
   const settled = process.memoryUsage().heapUsed
   const corpusPass = measureHeap(pass)
   gc()
-  const retainedGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - settled)
+  const retained = process.memoryUsage().heapUsed
+  const retainedGrowthBytes = Math.max(0, retained - settled)
   return {
     perInput,
     passAllocatedBytes: corpusPass.allocatedBytes,
     passPeakHeapBytes: corpusPass.peakHeapBytes,
+    settledHeapBytes: settled,
+    retainedHeapBytes: retained,
     retainedGrowthBytes,
-    // resourceUsage reports kilobytes.
+    // Keep the existing process-lifetime maximum, including any inherited floor.
     peakRssBytes: process.resourceUsage().maxRSS * 1024,
+    rss: { workerStart: workerStartRss, beforeMemoryWork, afterMemoryWork: rssCheckpoint('after-memory-measurement-and-final-gc') },
   }
 }
 

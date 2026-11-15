@@ -71,6 +71,7 @@ export interface AsciiNode {
   displayLabel: string
   /** Node shape from the parser (e.g. "rectangle", "diamond", "circle"). */
   shape: AsciiNodeShape
+  borders?: string
   index: number
   gridCoord: GridCoord | null
   drawingCoord: DrawingCoord | null
@@ -159,7 +160,7 @@ export interface AsciiEdge {
   attachFromSubgraph?: AsciiSubgraph
   attachToSubgraph?: AsciiSubgraph
   /** Physical face slots reserved from complete incident demand before paint. */
-  cellAllocation?: { startOffset: number; endOffset: number }
+  cellAllocation?: { startOffset: number; endOffset: number; startEscape?: number; endEscape?: number }
   /** Final cell route and label origin, consumed unchanged by drawing. */
   cellRoute?: { points: DrawingCoord[]; label?: DrawingCoord }
 }
@@ -224,7 +225,9 @@ export interface AsciiGraph {
   /** Edge bundles for parallel link visualization. Set during bundling analysis. */
   bundles: EdgeBundle[]
   /** Grid coordinates where sibling-edge trunk branches need explicit T-junctions. */
-  trunkJunctions: GridCoord[]
+  trunkJunctions: Array<GridCoord & { trunk: string }>
+  /** Grow the private affected-unit closure and reproject before publication. */
+  reserveRouteUnits?: (edges: ReadonlySet<AsciiEdge>) => boolean
   /** Flat placement was replaced by an atomic compound-tree embedding. */
   compoundRepacked?: true
 }

@@ -7,21 +7,24 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
-  TimelineMutationOp, MutationError, Result, Accessibility,
+  TimelineBody, TimelineSection, TimelinePeriod,
+  TimelineMutationOp, MutationError, Result, Accessibility, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
-  TIMELINE_CONTINUATION_RE,
   TIMELINE_PERIOD_RE,
-  TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
   normalizeTimelineBreaks,
-  splitTimelineEvents,
+  parseTimelineHeader,
+  readTimelineSection,
 } from '../timeline/parse-core.ts'
+import { parseTimelineDiagram, readTimelineStatements } from '../timeline/parser.ts'
+import { writeTimelineText } from '../timeline/text.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { sourceLineStarts } from '../shared/source-spans.ts'
+import { applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -40,161 +43,92 @@ function normalizeTimelineText(value: string): string {
   return normalizeTimelineBreaks(value.trim().replace(/\r\n?/g, '\n'))
 }
 
-function serializeTimelineText(value: string): string {
-  return value.replace(/\n/g, '<br>')
-}
-
-function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
-  return value.length > 0 && (opts.allowColon || !value.includes(':'))
-}
-
-function parseTimelineEventSegments(raw: string): string[] | null {
+/** Both projections use the same reader; field writers protect delimiters
+ * and keyword contexts without removing the author's typed structure. */
+export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}, source?: string): TimelineBody | null {
   try {
-    return splitTimelineEvents(raw)
-      .map(normalizeTimelineText)
-      .filter(segment => validTimelineText(segment, { allowColon: true }))
+    const diagram = parseTimelineDiagram(['timeline', ...lines], accessibility)
+    return { kind: 'timeline', ...diagram, ...(source !== undefined ? { source } : {}) }
   } catch {
     return null
   }
 }
 
-export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
-  const scanned = scanAccessibilityDirectives(lines)
-  if (scanned.unclosedIndex !== undefined) return null
-  lines = scanned.familyLines
-  const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
-  const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
-  const body: TimelineBody = {
-    kind: 'timeline',
-    sections: [],
-    ...(accessibilityTitle !== undefined ? { accessibilityTitle } : {}),
-    ...(accessibilityDescription !== undefined ? { accessibilityDescription } : {}),
+// ---- Verifier ---------------------------------------------------------------
+
+/** Timeline lines ours reads where pinned Mermaid's lexer reads a keyword,
+ * each on its canonical line. Mermaid reads the word `timeline` starting a
+ * line as the header, and rejects it there; ours reads a period. */
+export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => parseTimelineHeader(line) !== null)
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index < lines.length; index++) {
+    let line = lines[index]!.trim()
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) {
+      index = directive.endIndex
+      if (!directive.suffixLine) continue
+      line = directive.suffixLine.trim()
+    }
+    if (isTimelineCommentLine(line) || TIMELINE_TITLE_RE.test(line)) continue
+    const period = line.match(TIMELINE_PERIOD_RE)
+    const label = period ? period[1]!.trim() : line.includes(':') ? undefined : line
+    if (label !== undefined && /^timeline\b/i.test(line)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_in_body', line: index + 1,
+      message: `Pinned Mermaid reads "timeline" starting a line as the diagram header, and rejects it after the header. Ours reads this line as the period ${JSON.stringify(label)}; remove a repeated header, or start the period with another word.`,
+    })
   }
-  let currentSection: TimelineSection | undefined
-  let currentPeriod: TimelinePeriod | undefined
-  let sIdx = 0, pIdx = 0, eIdx = 0
-
-  const implicitSection = (): TimelineSection => {
-    if (!currentSection) {
-      currentSection = { id: `section-${sIdx++}`, periods: [] }
-      body.sections.push(currentSection)
-    }
-    return currentSection
+  for (const [index, line] of lines.entries()) {
+    if (index > header && line.includes('%%{') && !isTimelineCommentLine(line)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_text_directive', line: index + 1,
+      message: 'Directive-looking text is retained as text. Pinned Mermaid preprocesses this opener; the writer protects its percent signs with entity codes.',
+    })
+    if (index > header && /^(?:title|section)$/i.test(line.trim()) && lines.slice(index + 1).some(next => next.trim())) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_cross_line_keyword', line: index + 1,
+      message: 'This bare period keyword remains a period. Pinned Mermaid can consume the following line as its argument; the writer protects the keyword with an entity code.',
+    })
   }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!.trim()
-    if (!line) continue
-    if (isTimelineCommentLine(line)) continue
-
-    const tm = line.match(TIMELINE_TITLE_RE)
-    if (tm) {
-      // Unlike section/period/event labels, pinned Mermaid draws titles raw.
-      const title = tm[1]!.trim()
-      if (!validTimelineText(title, { allowColon: true })) return null
-      body.title = title
-      continue
-    }
-
-    const sm = line.match(TIMELINE_SECTION_RE)
-    if (sm) {
-      const label = normalizeTimelineText(sm[1]!)
-      if (!validTimelineText(label, { allowColon: true })) return null
-      currentSection = { id: `section-${sIdx++}`, label, periods: [] }
-      body.sections.push(currentSection)
-      currentPeriod = undefined
-      continue
-    }
-
-    // `: <continuation>` — extra event on the previous period.
-    const cont = line.match(TIMELINE_CONTINUATION_RE)
-    if (cont) {
-      if (!currentPeriod) return null
-      const eventTexts = parseTimelineEventSegments(line)
-      if (!eventTexts || eventTexts.length === 0) return null
-      for (const text of eventTexts) {
-        currentPeriod.events.push({ id: `event-${eIdx++}`, text })
-      }
-      continue
-    }
-
-    // `<label> : <event> [ : <event2> : <event3> …]`
-    const pm = line.match(TIMELINE_PERIOD_RE)
-    if (pm) {
-      const label = normalizeTimelineText(pm[1]!)
-      if (!validTimelineText(label, { allowColon: false })) return null
-      // Multi-event lines allow `: extra` segments to add more events to the same period.
-      const eventTexts = parseTimelineEventSegments(pm[2]!)
-      if (!eventTexts || eventTexts.length === 0) return null
-      const events: TimelineEvent[] = eventTexts.map(text => ({
-        id: `event-${eIdx++}`, text,
-      }))
-      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events }
-      implicitSection().periods.push(period)
-      currentPeriod = period
-      continue
-    }
-
-    // Upstream parity: a bare colon-free line is a period with no events.
-    if (!line.includes(':')) {
-      const label = normalizeTimelineText(line)
-      if (!validTimelineText(label, { allowColon: false })) return null
-      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events: [] }
-      implicitSection().periods.push(period)
-      currentPeriod = period
-      continue
-    }
-
-    // Unmodeled line → opaque fallback.
-    return null
-  }
-
-  return body
+  return warnings
 }
 
 // ---- Serializer -------------------------------------------------------------
 
-export function renderTimeline(body: TimelineBody): string {
+function renderTimelineUnchecked(body: TimelineBody): string {
   const lines: string[] = [body.direction ? `timeline ${body.direction}` : 'timeline']
-  if (body.title) lines.push(`  title ${body.title}`)
-  if (body.accessibilityTitle) lines.push(`  accTitle: ${body.accessibilityTitle}`)
+  if (body.title) lines.push(`  title ${writeTimelineText(body.title, 'title')}`)
+  if (body.accessibilityTitle) lines.push(`  accTitle: ${writeTimelineText(body.accessibilityTitle, 'accessibility')}`)
   if (body.accessibilityDescription) {
     if (body.accessibilityDescription.includes('\n')) {
       lines.push('  accDescr {')
       for (const line of body.accessibilityDescription.split(/\r?\n/)) {
-        lines.push(`    ${line.trim()}`)
+        lines.push(`    ${writeTimelineText(line.trim(), 'accessibility')}`)
       }
       lines.push('  }')
     } else {
-      lines.push(`  accDescr: ${body.accessibilityDescription}`)
+      lines.push(`  accDescr: ${writeTimelineText(body.accessibilityDescription, 'accessibility')}`)
     }
   }
   for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${serializeTimelineText(section.label)}`)
+    if (section.label !== undefined) lines.push(`  section ${writeTimelineText(section.label, 'section')}`)
     for (const period of section.periods) {
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
-        lines.push(`  ${serializeTimelineText(period.label)}`)
+        lines.push(`  ${writeTimelineText(period.label, 'period')}`)
         continue
       }
-      let line = `  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`
-      for (let i = 1; i < period.events.length; i++) {
-        const text = serializeTimelineText(period.events[i]!.text)
-        if (period.events[i - 1]!.text.endsWith(':')) {
-          // A trailing colon remains authored event text only when the next
-          // separator follows on this line (`A:: B`). A newline before that
-          // separator would make pinned Mermaid reject or misparse the period.
-          line += `: ${text}`
-        } else {
-          lines.push(line)
-          line = `       : ${text}`
-        }
-      }
-      lines.push(line)
+      lines.push(`  ${writeTimelineText(period.label, 'period')} : ${writeTimelineText(period.events[0]!.text, 'event')}`)
+      for (const event of period.events.slice(1)) lines.push(`       : ${writeTimelineText(event.text, 'event')}`)
     }
   }
   return lines.join('\n') + '\n'
+}
+
+export function renderTimeline(body: TimelineBody): string {
+  return body.source ?? renderTimelineUnchecked(body)
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -226,13 +160,18 @@ function makeTimelineIdAllocator(body: TimelineBody): (prefix: 'section' | 'peri
   return prefix => allocators[prefix]()
 }
 
-function normalizeTimelineOpText(value: string, opts: { field: string; allowColon?: boolean }): Result<string, MutationError> {
+function normalizeTimelineOpText(value: string, opts: { field: string }): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be a string` })
   const normalized = normalizeTimelineText(value)
-  if (!validTimelineText(normalized, { allowColon: opts.allowColon ?? true })) {
-    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
+  if (!normalized.length) {
+    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty` })
   }
   return ok(normalized)
+}
+
+function normalizeTimelineSectionText(value: string): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline section label must be a string' })
+  return ok(normalizeTimelineText(value))
 }
 
 function normalizeTimelineTitleOpText(value: string): Result<string, MutationError> {
@@ -247,28 +186,13 @@ function normalizeTimelineTitleOpText(value: string): Result<string, MutationErr
   return ok(title)
 }
 
-/** Use the same separator grammar as the render/agent parsers. Colons in
- * clock times and URLs are text; a colon followed by whitespace starts a new
- * event and would change the structure after serialization. */
+/** Typed values are text. The event writer owns all separators. */
 function normalizeTimelineEventOpText(value: string): Result<string, MutationError> {
-  const normalized = normalizeTimelineOpText(value, { field: 'event text' })
-  if (!normalized.ok) return normalized
-  // renderTimeline always appends a newline. Pinned Mermaid treats a trailing
-  // colon before that newline as a separator, rejecting or swallowing the next
-  // period even though the local splitter sees it as ordinary text.
-  if (normalized.value.endsWith(':')) {
-    return err({ code: 'INVALID_OP', message: 'Timeline event text must not end with : (upstream event separator)' })
-  }
-  try {
-    if (splitTimelineEvents(`: ${normalized.value}`).length === 1) return normalized
-  } catch { /* malformed event separator is an invalid mutation */ }
-  return err({ code: 'INVALID_OP', message: 'Timeline event text must not contain a colon followed by whitespace (event separator)' })
+  return normalizeTimelineOpText(value, { field: 'event text' })
 }
 
-/** Accessibility text is line-oriented free text, but `{`/`}` delimit the
- *  accDescr block form and `;` is a statement separator in wrapper contexts —
- *  text carrying them would not survive serialize → re-parse. null clears.
- *  (Journey normalizeAccessibilityOpText convention.) */
+/** Accessibility values keep their line-oriented normalization; the writer
+ * protects block delimiters in their text. null clears the field. */
 function normalizeTimelineAccessibilityText(
   value: string | null,
   field: string,
@@ -276,8 +200,8 @@ function normalizeTimelineAccessibilityText(
   if (value === null) return ok(undefined)
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${field} must be a string or null` })
   const normalized = value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
-  if (!normalized || /[;{}]/.test(normalized)) {
-    return err({ code: 'INVALID_OP', message: `Timeline ${field} must be non-empty and must not contain ;, {, or }` })
+  if (!normalized) {
+    return err({ code: 'INVALID_OP', message: `Timeline ${field} must be non-empty` })
   }
   return ok(normalized)
 }
@@ -289,6 +213,217 @@ function indexRangeHint(count: number): string {
 }
 
 export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Result<TimelineBody, MutationError> {
+  const result = mutateTimelineBody(input, op)
+  if (!result.ok || input.source === undefined) return result
+  try {
+    const edits = timelineSourceEdits(input, result.value, op)
+    const source = applySourceEdits(input.source, edits)
+    const actual = parseTimelineDiagram(source.split(/\r?\n/), { title: result.value.accessibilityTitle, descr: result.value.accessibilityDescription })
+    if (!sameSourceMeaning(timelineMeaning(actual), timelineMeaning(result.value))) {
+      return err({ code: 'INVALID_OP', message: 'Timeline edit would change statement ownership or meaning beyond the requested operation' })
+    }
+    result.value.source = source
+    return result
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
+}
+
+/** Generated occurrence IDs are parse-local. Compare the complete ordered
+ * semantic projection, including accessibility and every event's owner. */
+function timelineMeaning(body: Omit<TimelineBody, 'kind'>): unknown {
+  return {
+    direction: body.direction, title: body.title,
+    accessibilityTitle: body.accessibilityTitle, accessibilityDescription: body.accessibilityDescription,
+    sections: body.sections.map(section => ({ label: section.label, periods: section.periods.map(period => ({
+      label: period.label, events: period.events.map(event => event.text),
+    })) })),
+  }
+}
+
+/** Patch only source owned by the edited occurrence. The native reader gives
+ * continuation ownership, including continuations after a section change. */
+function timelineSourceEdits(input: TimelineBody, next: TimelineBody, op: TimelineMutationOp): SourceEdit[] {
+  const source = input.source!, lines = source.split(/\r?\n/), starts = [...sourceLineStarts(source)]
+  const newline = source.includes('\r\n') ? '\r\n' : '\n'
+  const read = readTimelineStatements(lines, { title: input.accessibilityTitle, descr: input.accessibilityDescription })
+  if (!sameSourceMeaning(timelineMeaning(read.diagram), timelineMeaning(input))) throw new Error('Timeline source does not match its typed body')
+  // Rebase parse-local source IDs to the live body's stable occurrence IDs.
+  const sections = new Map<string, string>(), periods = new Map<string, string>()
+  read.diagram.sections.forEach((section, si) => {
+    const owner = input.sections[si]!
+    sections.set(section.id, owner.id)
+    section.periods.forEach((period, pi) => periods.set(period.id, owner.periods[pi]!.id))
+  })
+  const statements = read.statements.map(statement => ({ ...statement,
+    sectionId: statement.sectionId ? sections.get(statement.sectionId) : undefined,
+    periodId: statement.periodId ? periods.get(statement.periodId) : undefined,
+  }))
+  const ownedPeriods = new Map<string, typeof statements>(), periodDeclarations = new Map<string, number>(), sectionDeclarations = new Map<string, number>()
+  for (const statement of statements) {
+    if (statement.periodId) {
+      const owned = ownedPeriods.get(statement.periodId) ?? []
+      owned.push(statement)
+      ownedPeriods.set(statement.periodId, owned)
+      if (statement.kind === 'period') periodDeclarations.set(statement.periodId, statement.line)
+    }
+    if (statement.kind === 'section' && statement.sectionId) sectionDeclarations.set(statement.sectionId, statement.line)
+  }
+  const replacements = new Map<number, string>(), insertions = new Map<number, string>()
+  const rowText = (row: number): string => source.slice(starts[row]!, starts[row + 1] ?? source.length)
+  const replace = (row: number, text: string): void => {
+    const ending = rowText(row).match(/\r?\n$/)?.[0] ?? ''
+    replacements.set(row, text ? text.replace(/\r?\n/g, newline) + ending : '')
+  }
+  const insert = (row: number, text: string, verbatim = false): void => {
+    const prefix = starts[row] === source.length && source.length > 0 && !/[\r\n]$/.test(source) ? newline : ''
+    const payload = verbatim ? text + (/[\r\n]$/.test(text) ? '' : newline) : text.replace(/\r?\n/g, newline) + newline
+    insertions.set(row, (insertions.get(row) ?? '') + prefix + payload)
+  }
+  const main = (id: string): number | undefined => periodDeclarations.get(id)
+  const sectionRow = (id: string): number | undefined => sectionDeclarations.get(id)
+  const periodText = (period: TimelinePeriod): string => {
+    const label = `  ${writeTimelineText(period.label, 'period')}`
+    return period.events.length ? label + period.events.map(event => ` : ${writeTimelineText(event.text, 'event')}`).join('') : label
+  }
+  const removePeriod = (id: string): void => {
+    for (const statement of ownedPeriods.get(id) ?? []) {
+      if (statement.kind === 'section') {
+        // Its prefix still declares a different section. Only the event
+        // suffix belongs to the edited period.
+        const raw = lines[statement.line]!, colon = raw.indexOf(':')
+        if (colon < 0) throw new Error('Timeline section continuation has no owned delimiter')
+        replace(statement.line, raw.slice(0, colon).trimEnd())
+      } else replace(statement.line, '')
+    }
+  }
+  const updatePeriod = (period: TimelinePeriod): void => {
+    removePeriod(period.id)
+    replace(main(period.id)!, periodText(period))
+  }
+  const endRow = lines.length - 1
+  const destination = (section: TimelineSection, index: number): number => {
+    const following = section.periods.slice(index + 1).find(period => main(period.id) !== undefined)
+    if (following) return main(following.id)!
+    const si = next.sections.indexOf(section)
+    for (const later of next.sections.slice(si + 1)) {
+      const row = sectionRow(later.id)
+      if (row !== undefined) return row
+    }
+    // A final unterminated row cannot be an insertion boundary before itself.
+    return /[\r\n]$/.test(source) ? endRow : lines.length
+  }
+  const appendAt = (row: number, text: string, verbatim = false): void => {
+    if (row === lines.length) {
+      // Sentinel addresses EOF independently of the last physical line.
+      starts[row] = source.length
+      lines[row] = ''
+    }
+    insert(row, text, verbatim)
+  }
+
+  switch (op.kind) {
+    case 'set_title': {
+      const titles = statements.filter(statement => statement.kind === 'title')
+      titles.forEach(statement => replace(statement.line, ''))
+      if (next.title !== undefined) {
+        if (titles.length) replace(titles.at(-1)!.line, `  title ${writeTimelineText(next.title, 'title')}`)
+        else appendAt(1, `  title ${writeTimelineText(next.title, 'title')}`)
+      }
+      break
+    }
+    case 'set_accessibility_title':
+    case 'set_accessibility_description': {
+      const isTitle = op.kind === 'set_accessibility_title'
+      let last: number | undefined
+      for (let row = 1; row < lines.length; row++) {
+        const directive = parseAccessibilityDirective(lines, row)
+        if (!directive) continue
+        if (directive.title === isTitle) {
+          if (directive.suffixLine) throw new Error('Accessibility source shares its closing line with a Timeline statement')
+          last = row
+          for (let owned = row; owned <= directive.endIndex; owned++) replace(owned, '')
+        }
+        row = directive.endIndex
+      }
+      const value = isTitle ? next.accessibilityTitle : next.accessibilityDescription
+      if (value !== undefined) {
+        const text = isTitle ? `  accTitle: ${writeTimelineText(value, 'accessibility')}`
+          : value.includes('\n') ? `  accDescr {\n${value.split('\n').map(line => `    ${writeTimelineText(line, 'accessibility')}`).join('\n')}\n  }` : `  accDescr: ${writeTimelineText(value, 'accessibility')}`
+        if (last !== undefined) replace(last, text)
+        else appendAt(1, text)
+      }
+      break
+    }
+    case 'set_section_label': {
+      const section = next.sections[op.index]!, row = sectionRow(section.id)
+      if (row === undefined) appendAt(main(section.periods[0]!.id)!, `  section ${writeTimelineText(section.label!, 'section')}`)
+      else {
+        const raw = lines[row]!, parsed = readTimelineSection(raw.trimStart())!
+        replace(row, `  section ${writeTimelineText(section.label!, 'section')}${parsed.eventSource}`)
+      }
+      break
+    }
+    case 'set_period_label':
+    case 'add_event':
+    case 'remove_event':
+    case 'set_event_text':
+      updatePeriod(next.sections[op.sectionIndex]!.periods[op.periodIndex]!)
+      break
+    case 'move_event': {
+      const from = input.sections[op.fromSection]!.periods[op.fromPeriod]!, to = input.sections[op.toSection]!.periods[op.toPeriod]!
+      const touched = new Set([from.id, to.id])
+      next.sections.flatMap(section => section.periods).filter(period => touched.has(period.id)).forEach(updatePeriod)
+      break
+    }
+    case 'remove_period':
+      removePeriod(input.sections[op.sectionIndex]!.periods[op.periodIndex]!.id)
+      break
+    case 'add_period':
+    case 'move_period': {
+      if (op.kind === 'move_period') removePeriod(input.sections[op.fromSection]!.periods[op.fromIndex]!.id)
+      const section = next.sections[op.kind === 'add_period' ? op.sectionIndex : next.sections.findIndex(section => section.id === input.sections[op.toSection]!.id)]!
+      const period = op.kind === 'move_period' ? section.periods[op.toIndex]! : section.periods.find(period => !periodsHas(input, period.id))!
+      appendAt(destination(section, section.periods.indexOf(period)), periodText(period))
+      break
+    }
+    case 'add_section': {
+      const section = next.sections.find(section => !input.sections.some(before => before.id === section.id))!, index = next.sections.indexOf(section)
+      const following = next.sections[index + 1], row = following ? sectionRow(following.id) : undefined
+      appendAt(row ?? (/[\r\n]$/.test(source) ? endRow : lines.length), `  section ${writeTimelineText(section.label!, 'section')}`)
+      break
+    }
+    case 'remove_section': {
+      const section = input.sections[op.index]!, row = sectionRow(section.id)
+      section.periods.forEach(period => removePeriod(period.id))
+      if (row !== undefined) {
+        const raw = lines[row]!, continuation = readTimelineSection(raw.trimStart())?.eventSource
+        replace(row, continuation?.trim() ? `  ${continuation.trimStart()}` : '')
+      }
+      break
+    }
+    case 'move_section': {
+      const section = input.sections[op.from]!, row = sectionRow(section.id)
+      if (row === undefined) throw new Error('An implicit Timeline section has no movable source declaration')
+      const nextRow = input.sections.slice(op.from + 1).map(section => sectionRow(section.id)).find(row => row !== undefined) ?? lines.length
+      const block = source.slice(starts[row]!, starts[nextRow] ?? source.length)
+      for (let owned = row; owned < nextRow; owned++) replacements.set(owned, '')
+      const following = next.sections[op.to + 1], destinationRow = following ? sectionRow(following.id) : undefined
+      appendAt(destinationRow ?? (/[\r\n]$/.test(source) ? endRow : lines.length), block, true)
+      break
+    }
+  }
+  return [...new Set([...replacements.keys(), ...insertions.keys()])].map(row => ({
+    start: starts[row]!, end: starts[row + 1] ?? source.length,
+    text: (insertions.get(row) ?? '') + (replacements.get(row) ?? rowText(row)),
+  }))
+}
+
+function periodsHas(body: TimelineBody, id: string): boolean {
+  return body.sections.some(section => section.periods.some(period => period.id === id))
+}
+
+function mutateTimelineBody(input: TimelineBody, op: TimelineMutationOp): Result<TimelineBody, MutationError> {
   const body = cloneTimeline(input)
   const nextTimelineId = makeTimelineIdAllocator(body)
 
@@ -328,7 +463,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       break
     }
     case 'add_section': {
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineSectionText(op.label)
       if (!label.ok) return label
       const index = resolveInsertIndex(op.index, body.sections.length, 'Timeline')
       if (!index.ok) return index
@@ -343,7 +478,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return sectionNotFound(op.index)
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineSectionText(op.label)
       if (!label.ok) return label
       s.label = label.value
       break
@@ -351,7 +486,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'add_period': {
       const s = getSection(op.sectionIndex)
       if (!s) return sectionNotFound(op.sectionIndex)
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'period label' })
       if (!label.ok) return label
       const events: TimelinePeriod['events'] = []
       for (const raw of op.events ?? []) {
@@ -380,7 +515,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_period_label': {
       const p = getPeriod(op.sectionIndex, op.periodIndex)
       if (!p) return periodNotFound(op.sectionIndex, op.periodIndex)
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'period label' })
       if (!label.ok) return label
       p.label = label.value
       break
@@ -452,6 +587,11 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('timeline', _x) })
     }
+  }
+  // A section directive owns every following period until another named
+  // section. Moving implicit periods behind one would silently reparent them.
+  if (body.sections.some((section, index) => index > 0 && section.label === undefined)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline unnamed section must remain first; name it before inserting or moving a named section ahead of it' })
   }
   return ok(body)
 }

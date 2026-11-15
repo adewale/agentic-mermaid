@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
+import { describeMermaid } from '../agent/describe.ts'
+import { checkMermaid, describeMermaidFacts, describeMermaidFactsSource } from '../agent/facts.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asClass, mutate, serializeMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { runCli } from '../cli/index.ts'
+import { mcpDescribePayload } from '../mcp/describe-payload.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -16,7 +21,6 @@ function facts(source: string): string[] {
   if (!parsed.ok) throw new Error(`parse failed: ${JSON.stringify(parsed.error)}`)
   return describeMermaidFacts(parsed.value)
 }
-
 
 describe('deterministic Mermaid facts', () => {
   const cases: Array<{ family: string; source: string; expected: string[] }> = [
@@ -44,6 +48,18 @@ describe('deterministic Mermaid facts', () => {
     })
   }
 
+  test('XY point-label facts retain sparse authored labels and stable series/point identities on readback', () => {
+    const source = 'xychart\n x-axis [Q1,Q2,Q3]\n line [25 "Launch",45,90 "Target Hit"]'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const expected = ['series#0 point#0 : Launch', 'series#0 point#2 : Target Hit']
+    for (const input of [source, serializeMermaid(parsed.value)]) {
+      const out = facts(input)
+      expect(out.filter(fact => fact.includes(' point#'))).toEqual(expected)
+    }
+    expect(checkMermaid(parsed.value, expected).ok).toBe(true)
+  })
+
   test('source helper returns the same facts as parsed diagrams', () => {
     const source = 'pie title Traffic\n  "Docs" : 3'
     const parsed = parseMermaid(source)
@@ -52,6 +68,62 @@ describe('deterministic Mermaid facts', () => {
     const fromSource = describeMermaidFactsSource(source)
     expect(fromSource.ok).toBe(true)
     if (fromSource.ok) expect(fromSource.value).toEqual(describeMermaidFacts(parsed.value))
+  })
+
+  test('recognized messages in preserved Sequence controls remain observable without claiming typed edit indexes', () => {
+    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n critical Connect\n A->>B: attempt\n activate B\n option timeout\n B-->>A: retry\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
+    const out = facts(source)
+    for (const message of ['message A -> B : start', 'message A -> B : attempt', 'message B -> A : retry', 'message A -> B : <b>literal</b>']) expect(out).toContain(message)
+    expect(out).toContain('title Checkout')
+    expect(out.filter(fact => fact.startsWith('preserved-message#') && fact.includes(' -> '))).toHaveLength(3)
+    expect(out.filter(fact => /^message#\d+ (?:top-level|fragment#)/.test(fact))).toEqual(['message#0 top-level A -> B : start'])
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(checkMermaid(parsed.value, ['message A -> B : attempt', 'message B -> A : retry']).ok).toBe(true)
+    expect(facts(serializeMermaid(parsed.value))).toEqual(out)
+  })
+
+  test('Sequence notes are facts with their placement and participants, wherever they are preserved', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A,B: shared<br/>step\n  rect rgb(1, 2, 3)\n    loop again\n      Note left of A: "quoted"\n    end\n  end\n  alt ok\n    A->>B: yes\n    Note right of B: wrap: done\n  end'
+    const expected = ['note over A,B : shared\\nstep', 'note left of A : quoted', 'note right of B : done']
+    const out = facts(source)
+    expect(out.filter(fact => fact.startsWith('note '))).toEqual([...expected].sort())
+    // Typed notes are numbered in drawing order with the address their ops
+    // take; a note in a nested fragment stays preserved source.
+    expect(out).toContain('note#0 over A,B : shared\\nstep')
+    expect(out).toContain('note#0 op index 0')
+    expect(out).toContain('note#1 right of B : done')
+    expect(out).toContain('note#1 op fragmentIndex 0 branchIndex 0 index 0')
+    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toHaveLength(1)
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(facts(serializeMermaid(parsed.value))).toEqual(out)
+    // The same notes, placed on the same participants, as the SVG draws them.
+    const drawn = [...renderMermaidSVG(source).matchAll(/<g class="note" data-position="(\w+)" data-actors="([^"]*)"/g)]
+      .map(([, position, actors]) => `${position === 'over' ? 'over' : `${position} of`} ${actors}`)
+    expect(drawn).toEqual(expected.map(fact => fact.slice('note '.length, fact.indexOf(' : '))))
+  })
+
+  test('Sequence text reads as drawn: alias quotes and line breaks are interpreted, as in the SVG', () => {
+    // Visible lines, joined by an authored break spelling; the alias may be quoted.
+    const lineArb = fc.stringMatching(/^[A-Z][a-z]{0,5}(?: [a-z]{1,4})?$/)
+    fc.assert(fc.property(fc.array(lineArb, { minLength: 1, maxLength: 3 }), fc.constantFrom('<br/>', '<br>', '<br />'), fc.constantFrom('', ' '), fc.boolean(),
+      (lines, br, pad, quoted) => {
+        const authored = lines.join(`${pad}${br}${pad}`)
+        const drawn = lines.join(`${pad}\n${pad}`)
+        const source = `sequenceDiagram\n  participant A as ${quoted ? `"${authored}"` : authored}\n  A->>A: ${authored}\n  alt ${authored}\n    A->>A: x\n  end`
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        const shown = drawn.replace(/\n/g, '\\n')
+        const expected = [`participant A : ${shown}`, `message A -> A : ${shown}`, `fragment#0 branch#0 : ${shown}`]
+        expect({ source, missing: checkMermaid(parsed.value, expected).missing }).toEqual({ source, missing: [] })
+        // The renderer's own reading of the participant name.
+        const label = renderMermaidSVG(source).match(/<g class="actor" data-id="A" data-label="([^"]*)"/)?.[1]?.replace(/&#10;/g, '\n')
+        expect({ source, label }).toEqual({ source, label: drawn })
+        const tree = JSON.parse(describeMermaid(parsed.value, { format: 'json' }))
+        expect({ source, node: tree.nodes[0].label, edge: tree.edges[0].label }).toEqual({ source, node: drawn, edge: drawn })
+        expect(describeMermaid(parsed.value)).toStartWith(`A sequence diagram between ${drawn}.`)
+      }), fcParameters({ numRuns: 40, examples: [[['Alice', 'Smith'], '<br/>', ' ', true], [['Alice'], '<br/>', '', true]] }))
   })
 })
 
@@ -64,22 +136,15 @@ describe('checkMermaid semantic read-back', () => {
     expect(expected).toContain('relation#0 Person inheritance Animal marker to')
     expect(checkMermaid(intended.value, expected).ok).toBe(true)
     expect(checkMermaid(reversed.value, expected)).toMatchObject({
-      ok: false, missing: ['relation#0 Person inheritance Animal marker to'],
+      ok: false,
+      missing: ['relation#0 Person inheritance Animal marker to'],
     })
-    const legacy = [
-      'class Animal', 'class Person', 'family class',
-      'relation Person inheritance Animal', 'relation#0 Person inheritance Animal',
-    ]
+    const legacy = ['class Animal', 'class Person', 'family class', 'relation Person inheritance Animal', 'relation#0 Person inheritance Animal']
     expect(checkMermaid(intended.value, { include: legacy, exact: true })).toMatchObject({
-      ok: false, unexpected: [
-        'relation#0 Person inheritance Animal line solid',
-        'relation#0 Person inheritance Animal marker to',
-      ],
+      ok: false,
+      unexpected: ['relation#0 Person inheritance Animal line solid', 'relation#0 Person inheritance Animal marker to'],
     })
-    expect(checkMermaid(intended.value, { include: [...legacy,
-      'relation#0 Person inheritance Animal line solid',
-      'relation#0 Person inheritance Animal marker to',
-    ], exact: true }).ok).toBe(true)
+    expect(checkMermaid(intended.value, { include: [...legacy, 'relation#0 Person inheritance Animal line solid', 'relation#0 Person inheritance Animal marker to'], exact: true }).ok).toBe(true)
   })
 
   test.each([
@@ -105,11 +170,7 @@ describe('checkMermaid semantic read-back', () => {
     const intended = parseMermaid('classDiagram\nWhole o--* Part')
     const swapped = parseMermaid('classDiagram\nWhole *--o Part')
     if (!intended.ok || !swapped.ok) throw new Error('expected Class diagrams')
-    const expected = [
-      'relation#0 Whole aggregation Part marker both',
-      'relation#0 from marker aggregation',
-      'relation#0 to marker composition',
-    ]
+    const expected = ['relation#0 Whole aggregation Part marker both', 'relation#0 from marker aggregation', 'relation#0 to marker composition']
     expect(checkMermaid(intended.value, expected).ok).toBe(true)
     expect(checkMermaid(swapped.value, expected).ok).toBe(false)
   })
@@ -122,10 +183,10 @@ describe('checkMermaid semantic read-back', () => {
   ] as const)('keeps default $relKind marker facts through programmatic creation and reload', ({ relKind, markerAt }) => {
     const parsed = parseMermaid('classDiagram\nclass A\nclass B')
     if (!parsed.ok) throw new Error('expected Class diagram')
-    const edited = mutate(asClass(parsed.value)!, { kind: 'add_relation', from: 'A', to: 'B', relKind })
+    const edited = mutate(asClass(parsed.value)!, relKind === 'lollipop' ? { kind: 'add_interface', class: 'B', label: 'A', side: 'from' } : { kind: 'add_relation', from: 'A', to: 'B', relKind })
     if (!edited.ok) throw new Error(JSON.stringify(edited.error))
     const expected = describeMermaidFacts(edited.value)
-    expect(expected).toContain(`relation#0 A ${relKind} B marker ${markerAt}`)
+    expect(expected).toContain(`relation#0 ${relKind === 'lollipop' ? 'interface0' : 'A'} ${relKind} B marker ${markerAt}`)
     const reloaded = parseMermaid(serializeMermaid(edited.value))
     if (!reloaded.ok) throw new Error('expected Class diagram after reload')
     expect(describeMermaidFacts(reloaded.value)).toEqual(expected)
@@ -171,14 +232,17 @@ describe('checkMermaid semantic read-back', () => {
 
 describe('facts through Code Mode and CLI surfaces', () => {
   test('Code Mode exposes facts and checks through mermaid.*', async () => {
-    const result = await executeInSandbox(`
+    const result = await executeInSandbox(
+      `
       const parsed = mermaid.parseRegisteredMermaid('classDiagram\\n  class Duck {\\n    +quack()\\n  }')
       if (!parsed.ok) return { error: 'parse' }
       return {
         facts: mermaid.describeMermaidFacts(parsed.value),
         check: mermaid.checkMermaid(parsed.value, ['member Duck +quack()']),
       }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(result.ok).toBe(true)
     expect((result.value as any).facts).toContain('member Duck +quack()')
     expect((result.value as any).check.ok).toBe(true)
@@ -206,5 +270,15 @@ describe('facts through Code Mode and CLI surfaces', () => {
     const json = capture(() => runCli(['describe', file, '--format', 'facts', '--json']))
     expect(json.code).toBe(0)
     expect(JSON.parse(json.out).facts).toContain('edge Processing -> [*] : done')
+  })
+
+  test('am describe --json carries verify warnings in every format, as MCP describe does', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  activate A'
+    const file = temp.file('activation.mmd', source)
+    for (const format of ['text', 'facts', 'json']) {
+      const result = capture(() => runCli(['describe', file, '--format', format, '--json']))
+      expect({ format, code: result.code, out: JSON.parse(result.out) }).toEqual({ format, code: 0, out: mcpDescribePayload(source, { format }) })
+    }
+    expect(mcpDescribePayload(source, { format: 'facts' }).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' }))
   })
 })

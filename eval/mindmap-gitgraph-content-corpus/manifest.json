@@ -92,7 +92,10 @@
         "classes": [
           "reference important"
         ],
-        "warningCodes": [],
+        "warningCodes": [
+          "UNSUPPORTED_SYNTAX",
+          "UNSUPPORTED_SYNTAX"
+        ],
         "svgText": [
           "Research map",
           "Official docs",
@@ -125,7 +128,10 @@
           "Payment processor",
           "Cohort analysis"
         ],
-        "warningCodes": [],
+        "warningCodes": [
+          "UNSUPPORTED_SYNTAX",
+          "UNSUPPORTED_SYNTAX"
+        ],
         "svgText": [
           "Production incident",
           "Payment processor",
@@ -195,7 +201,8 @@
           "👨‍👩‍👧‍👦"
         ],
         "warningCodes": [
-          "LABEL_OVERFLOW"
+          "LABEL_OVERFLOW",
+          "UNSUPPORTED_SYNTAX"
         ],
         "svgText": [
           "Global launch 🌍",
@@ -232,7 +239,9 @@
           "Dead code elimination",
           "Machine code"
         ],
-        "warningCodes": [],
+        "warningCodes": [
+          "UNSUPPORTED_SYNTAX"
+        ],
         "svgText": [
           "Compiler",
           "Dead code elimination",
@@ -266,7 +275,9 @@
           "src/__tests__/",
           "Incident response"
         ],
-        "warningCodes": [],
+        "warningCodes": [
+          "UNSUPPORTED_SYNTAX"
+        ],
         "svgText": [
           "Platform group",
           "src/__tests__/",
@@ -373,12 +384,14 @@
         "svgText": [
           "Long release labels in top-to-bottom history",
           "Add traces, logs, metrics, and structured events",
-          "release-2026.08-observability-general-availability"
+          "release-2026.08-observability-general-availability",
+          "observability-merge"
         ],
         "terminalText": [
           "Long release labels in top-to-bottom history",
           "feature/observability",
-          "main"
+          "main",
+          "observability-merge"
         ],
         "parentCount": 4,
         "parentRelations": {
@@ -390,7 +403,6 @@
         "commitLabelFontSize": 18,
         "rotateCommitLabel": false,
         "warningCodes": [
-          "LABEL_OVERFLOW",
           "LABEL_OVERFLOW",
           "LABEL_OVERFLOW"
         ]
@@ -512,12 +524,14 @@
         "svgText": [
           "Merge commit backports",
           "selected-backport",
-          "Verify maintenance release"
+          "Verify maintenance release",
+          "MERGE"
         ],
         "terminalText": [
           "Merge commit backports",
           "release/1.x",
-          "Feature B"
+          "Feature B",
+          "MERGE"
         ],
         "parentCount": 9,
         "parentRelations": {
@@ -535,9 +549,7 @@
         },
         "cherrySource": "MERGE",
         "cherryParent": "feature-b",
-        "warningCodes": [
-          "LABEL_OVERFLOW"
-        ]
+        "warningCodes": []
       }
     },
     {

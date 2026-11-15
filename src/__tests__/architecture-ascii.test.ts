@@ -1,8 +1,162 @@
 import { describe, expect, it } from 'bun:test'
-import { renderMermaidASCII } from '../ascii/index.ts'
+import fc from 'fast-check'
+import { readFileSync } from 'node:fs'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { terminalDocumentOf, type TerminalCell, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { AsciiWidthError } from '../ascii/width-error.ts'
+
+function connectedOwnedInk(doc: TerminalDocument, edge: TerminalRegion): boolean {
+  const [start, end] = edge.ports ?? []
+  if (!start || !end) return false
+  const cells = new Set([...doc.entries()]
+    .filter(([, , cell]) => (cell.kind === 'stroke' || cell.kind === 'marker') && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id))
+    .map(([x, y]) => `${x},${y}`))
+  const first = `${start.x},${start.y}`, last = `${end.x},${end.y}`
+  if (!cells.has(first) || !cells.has(last)) return false
+  const queue = [first], seen = new Set(queue)
+  for (let index = 0; index < queue.length; index++) {
+    const [x, y] = queue[index]!.split(',').map(Number)
+    for (const [nx, ny] of [[x! - 1, y!], [x! + 1, y!], [x!, y! - 1], [x!, y! + 1]]) {
+      const next = `${nx},${ny}`
+      if (cells.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+    }
+  }
+  return seen.has(last)
+}
+
+/**
+ * How far an edge's owned label text sits from its owned route ink, and
+ * whether the finished drawing still has an empty one-row seat for the label
+ * within two cells of that route (label cells themselves count as empty).
+ */
+function labelSeat(doc: TerminalDocument, edge: TerminalRegion, label: string): { distance: number; nearSeatFree: boolean } {
+  const owned = (cell: TerminalCell) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)
+  const ink: Array<[number, number]> = [], text = new Set<string>()
+  for (const [x, y, cell] of doc.entries()) {
+    if (!owned(cell)) continue
+    if (cell.kind === 'stroke' || cell.kind === 'marker') ink.push([x, y])
+    else if (cell.kind === 'text' && label.includes(cell.glyph)) text.add(`${x},${y}`)
+  }
+  const near = (x: number, y: number) => Math.min(...ink.map(([ix, iy]) => Math.max(Math.abs(y - iy), ix < x ? x - ix : ix > x + label.length - 1 ? ix - x - label.length + 1 : 0)))
+  const distance = Math.min(...[...text].map(key => { const [x, y] = key.split(',').map(Number); return Math.min(...ink.map(([ix, iy]) => Math.max(Math.abs(x! - ix), Math.abs(y! - iy)))) }))
+  const empty = (x: number, y: number) => text.has(`${x},${y}`) || !doc.cell(x, y)?.owners.length
+  let nearSeatFree = false
+  for (const [ix, iy] of ink) for (let y = iy - 2; y <= iy + 2 && !nearSeatFree; y++) for (let x = ix - 1 - label.length; x <= ix + 2 && !nearSeatFree; x++) {
+    if (x < 0 || y < 0 || near(x, y) > 2) continue
+    nearSeatFree = Array.from({ length: label.length }, (_, index) => empty(x + index, y)).every(Boolean)
+  }
+  return { distance, nearSeatFree }
+}
 
 describe('renderMermaidASCII – architecture diagrams', () => {
+  // A label is drawn beside its own route: on the row above or below one of
+  // its runs, or one blank column beside a vertical run; never detached below
+  // the drawing. Every edge keeps connected owned ink and its arrowheads.
+  it.each([false, true])('seats every edge label beside its own connected route (ASCII=%s)', useAscii => {
+    const sides = ['L', 'R', 'T', 'B'] as const
+    const graph = fc.record({
+      services: fc.integer({ min: 2, max: 5 }),
+      grouped: fc.array(fc.boolean(), { minLength: 5, maxLength: 5 }),
+      edges: fc.uniqueArray(fc.record({
+        from: fc.nat(4), to: fc.nat(4), fromSide: fc.constantFrom(...sides), toSide: fc.constantFrom(...sides),
+        start: fc.boolean(), end: fc.boolean(), label: fc.stringMatching(/^[a-z]{1,9}$/),
+      }), { minLength: 1, maxLength: 4, selector: edge => `${edge.from}:${edge.fromSide}` }),
+    })
+    fc.assert(fc.property(graph, ({ services, grouped, edges }) => {
+      const lines = ['architecture-beta', '  group private(server)[Private]']
+      for (let index = 0; index < services; index++) lines.push(`  service s${index}(server)[S${index}]${grouped[index] ? ' in private' : ''}`)
+      const authored = edges.map(edge => ({ ...edge, from: edge.from % services, to: edge.to % services })).filter(edge => edge.from !== edge.to)
+      fc.pre(authored.length > 0)
+      for (const edge of authored) lines.push(`  s${edge.from}:${edge.fromSide} ${edge.start ? '<' : ''}-[${edge.label}]-${edge.end ? '>' : ''} ${edge.toSide}:s${edge.to}`)
+      const source = lines.join('\n')
+      const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      const doc = terminalDocumentOf(rendered)!
+      const regions = doc.regions().filter(region => region.kind === 'edge')
+      expect(regions, source).toHaveLength(authored.length)
+      for (const edge of regions) {
+        // Edge owners are numbered in authored order; the generated ids never collide.
+        const spec = authored[Number(edge.id.replace('edge:', ''))]!
+        // An unroutable edge is reported and keeps its label in an owned
+        // endpoint summary instead of a route.
+        if (doc.diagnostics.some(diagnostic => diagnostic.feature === `architecture.${edge.id}.route`)) {
+          expect(rendered.text, source).toContain(`: ${spec.label}`)
+          continue
+        }
+        expect(connectedOwnedInk(doc, edge), `${source}\n${rendered.text}`).toBe(true)
+        const markers = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === edge.id)).map(([x, y]) => `${x},${y}`)
+        expect(markers.includes(`${edge.ports![0]!.x},${edge.ports![0]!.y}`), source).toBe(spec.start)
+        expect(markers.includes(`${edge.ports![1]!.x},${edge.ports![1]!.y}`), source).toBe(spec.end)
+        expect(rendered.text, source).toContain(`[${spec.label}]`)
+        // Only a drawing with no empty seat near the route may push it further.
+        const seat = labelSeat(doc, edge, `[${spec.label}]`)
+        if (seat.nearSeatFree) expect(seat.distance, `${spec.label} is ${seat.distance} cells from its route\n${source}\n${rendered.text}`).toBeLessThanOrEqual(2)
+      }
+    }), fcParameters({ numRuns: 40 }))
+  })
+
+  const corpus = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
+  it.each([false, true])('keeps every aligned and junction relationship connected through visible owned ink (ASCII=%s)', useAscii => {
+    for (const backend of ['elk', 'agentic'] as const) for (const [index, endpoints] of [
+      [3, [['src_a', 'db_one'], ['src_b', 'db_two'], ['src_c', 'db_three'], ['db_two', 'brief'], ['brief', 'analyst'], ['analyst', 'delivery']]],
+      [4, [['left_disk', 'junctionCenter'], ['top_disk', 'junctionCenter'], ['bottom_disk', 'junctionCenter'], ['junctionCenter', 'junctionRight'], ['top_gateway', 'junctionRight'], ['bottom_gateway', 'junctionRight']]],
+    ] as const) {
+      const source = corpus.find(entry => entry.family === 'architecture' && entry.index === index)!.source
+      const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend } })
+      const doc = terminalDocumentOf(rendered)!, edges = doc.regions().filter(region => region.kind === 'edge')
+      expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual([...endpoints].map(pair => [...pair]).sort())
+      for (const edge of edges) {
+        expect(connectedOwnedInk(doc, edge), `${backend}/${index}/${edge.id}`).toBe(true)
+        for (const port of edge.ports!) {
+          const dx = port.side === 'L' ? 1 : port.side === 'R' ? -1 : 0
+          const dy = port.side === 'T' ? 1 : port.side === 'B' ? -1 : 0
+          expect(doc.cell(port.x + dx, port.y + dy)?.owners.some(owner => owner.id === port.nodeId && owner.kind === 'node')).toBe(true)
+        }
+      }
+      for (const match of source.matchAll(/^\s*align (row|column) ([\w -]+)$/gm)) {
+        const values = match[2]!.trim().split(/\s+/).map(id => {
+          const node = doc.regions().find(region => region.kind === 'node' && region.id === id)!
+          return match[1] === 'row' ? node.canvasRow + ((node.rowSpan ?? 1) - 1) / 2 : (node.canvasColStart + node.canvasColEnd - 1) / 2
+        })
+        // Integer-cell boxes can differ in parity; rounding may cost half a cell.
+        expect(Math.max(...values) - Math.min(...values), `${backend}/${index}/${match[0]}`).toBeLessThanOrEqual(0.5)
+      }
+      expect(doc.diagnostics).toEqual([])
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    }
+  })
+
+  it('refuses aligned geometry that cannot fit the caller cell width', () => {
+    const source = corpus.find(entry => entry.family === 'architecture' && entry.index === 3)!.source
+    expect(() => renderMermaidASCIIWithReceipt(source, { maxWidth: 24, colorMode: 'none' })).toThrow(AsciiWidthError)
+  })
+
+  it.each([false, true])('keeps reciprocal container contacts on real frame ink beside wide headers (ASCII=%s)', useAscii => {
+    for (const backend of ['elk', 'agentic'] as const) for (const side of ['T', 'R', 'B', 'L'] as const) {
+      const source = `architecture-beta
+group outer(cloud)[Outer]
+group inner(server)[Header 界👩🏽‍💻 complete] in outer
+service edge-label-0(server)[入口 界👩🏽‍💻] in inner
+junction edge-0 in outer
+service external(database)[External]
+edge-label-0{group}:${side} <--> L:external
+external:R --> ${side}:edge-label-0{group}
+edge-label-0:B --> T:edge-0
+edge-label-0:B --> T:edge-0`
+      const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend } })
+      const doc = terminalDocumentOf(rendered)!, edges = doc.regions().filter(region => region.kind === 'edge')
+      expect(rendered.text).toContain('Header 界👩🏽‍💻 complete')
+      expect(rendered.text).toContain('入口 界👩🏽‍💻')
+      expect(edges).toHaveLength(4)
+      for (const edge of edges) expect(connectedOwnedInk(doc, edge), `${backend}/${side}/${edge.id}`).toBe(true)
+      expect(edges.find(edge => edge.from === 'edge-label-0' && edge.to === 'external')?.ports?.[0]).toMatchObject({ nodeId: 'edge-label-0', boundary: { id: 'inner', kind: 'group' }, side })
+      expect(edges.find(edge => edge.from === 'external')?.ports?.[1]).toMatchObject({ nodeId: 'edge-label-0', boundary: { id: 'inner', kind: 'group' }, side })
+      expect(rendered.receipt.layoutCertification?.status, `${backend}/${side}`).toBe('passed')
+      expect(doc.diagnostics).toEqual([])
+    }
+  })
+
   it('renders services with icon indicators and group frames', () => {
     const ascii = renderMermaidASCII(`architecture-beta
       group app(cloud)[Application]
@@ -139,15 +293,17 @@ config:
   })
 
   it('draws a group-boundary edge through the authored frame side', () => {
-    const ascii = renderMermaidASCII(`architecture-beta
+    const rendered = renderMermaidASCIIWithReceipt(`architecture-beta
       group app(cloud)[Application]
       service api(server)[API] in app
       service db(database)[Database]
       api{group}:R -[reads]-> L:db`, { useAscii: true })
+    const ascii = rendered.text, doc = terminalDocumentOf(rendered)!, edge = doc.regions().find(region => region.kind === 'edge')!
     expect(ascii).toContain('[reads]')
     expect(ascii).not.toContain('API:R')
-    const labelRow = ascii.split('\n').find(line => line.includes('[reads]'))!
-    expect(labelRow).toMatch(/[|+][-+]*\[reads\][-+>]*[+|]/)
+    expect(edge.ports?.[0]).toMatchObject({ nodeId: 'api', boundary: { id: 'app', kind: 'group' }, side: 'R' })
+    expect(connectedOwnedInk(doc, edge)).toBe(true)
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   })
 
   it('honors hard display-cell width without splitting CJK or ZWJ graphemes', () => {

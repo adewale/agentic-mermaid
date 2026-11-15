@@ -1,13 +1,15 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
-import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const MULTILINE = `sequenceDiagram
   participant A as Alice
@@ -56,6 +58,54 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     if (agent.ok) expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(expectedLabels)
   })
 
+  // The render waist decodes XML references before any grammar runs. Sequence
+  // reads a reference to `#` or `;`, and a named one the waist leaves as
+  // written, as text (sequence/family-source.ts), so the renderer, the typed
+  // body and its serialization read the same statements and draw the text the
+  // author encoded. Verify warns where pinned Mermaid ends the statement at a
+  // reference's `;`, and the written text is one Mermaid reads.
+  describe('character references', () => {
+    let upstream: ReturnType<typeof startUpstreamMermaid>
+    beforeAll(() => { upstream = startUpstreamMermaid() })
+    afterAll(async () => { await upstream.close() })
+
+    test.each([
+      ['an XML reference in a message', 'Alice->>Bob: a &amp; b', 'a & b'],
+      ['an XML reference in a note', 'Note over Alice,Bob: a &amp; b', 'a & b'],
+      ['XML references in a participant alias', 'participant A as 1 &lt; 2 &gt; 0\nA->>Bob: hi', '1 < 2 > 0'],
+      ['references that spell formatting', 'Alice->>Bob: &lt;b&gt;bold&lt;/b&gt; &quot;q&quot;', 'bold "q"'],
+      ['an XML reference in a metadata alias', 'participant A@{ "alias": "a &amp; b" }\nA->>Bob: hi', 'a & b'],
+      ['a numeric reference to #', 'Alice->>Bob: x &#35;hash &#x23;hex', 'x #hash #hex'],
+      ['a numeric reference to #, in a note', 'Note over Alice: n &#35;1', 'n #1'],
+      ['a numeric reference to ;', 'Alice->>Bob: a &#59; b', 'a ; b'],
+      ['an HTML named reference', 'Alice->>Bob: a&nbsp;b &copy;', 'a\u00a0b ©'],
+      ['a double-encoded reference', 'Alice->>Bob: a &amp;amp; b', 'a &amp; b'],
+      ['a double-encoded HTML named reference', 'Alice->>Bob: a &amp;nbsp; b', 'a &nbsp; b'],
+      ['a double-encoded numeric reference', 'Alice->>Bob: a &amp;#35; b', 'a &#35; b'],
+      ['a name that is no reference, whose ; ends the statement', 'Alice->>Bob: R&D; Bob->>Alice: ok', 'R&D\nok'],
+    ] as const)('%s is text the renderer, the typed body and its output draw alike', async (_context, body, expectedText) => {
+      const source = `sequenceDiagram\n${body}`
+      const svgText = (svg: string): string => [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('\n')
+      const sourceAccepted = await upstream.accepts(source)
+      const warnings = verifyMermaid(source).warnings
+      expect(warnings.filter(warning => warning.code !== 'UNSUPPORTED_SYNTAX')).toEqual([])
+      const syntaxes = warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? warning.syntax : '')
+      expect(syntaxes.includes('sequence_named_reference_semicolon')).toBe(!sourceAccepted)
+      expect(syntaxes).not.toContain('sequence_statement')
+      const drawn = svgText(renderMermaidSVG(source))
+      expect(drawn).toContain(expectedText)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const written = serializeMermaid(parsed.value)
+      expect(svgText(renderMermaidSVG(parsed.value))).toBe(drawn)
+      expect(svgText(renderMermaidSVG(written))).toBe(drawn)
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+      expect(await upstream.accepts(written)).toBe(true)
+    })
+  })
+
   test('entity-heavy input stays bounded at the lexical boundary', () => {
     const bodyLine = `A->>B: ${'#59;'.repeat(16_000)}`
     const source = `sequenceDiagram\n${bodyLine}`
@@ -63,19 +113,23 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', bodyLine])
     expect(parseRegisteredMermaid(source).ok).toBe(true)
     // A growing-prefix/suffix copy at every entity took seconds through the
-    // public parser even below the hosted 64 KiB input limit: tens of thousands
-    // of plain scans of the source. The whole linear parse costs 170-1010 scans
-    // (measured idle and under load).
-    const cost = costRelativeToLinearScan(source, () => {
-      splitSequenceStatementLines(source.split('\n'))
-      parseRegisteredMermaid(source)
-    })
-    expect(cost).toBeLessThan(5_000)
+    // public parser even below the hosted 64 KiB input limit. Judge growth
+    // between 2,000 and 16,000 entities rather than a ratio to one sub-
+    // millisecond scan, which swung from 1,600 to 5,300 with load and JIT.
+    expectNearLinearGrowth('entity-heavy sequence line', entities => {
+      const sized = `sequenceDiagram\nA->>B: ${'#59;'.repeat(entities)}`
+      splitSequenceStatementLines(sized.split('\n'))
+      parseRegisteredMermaid(sized)
+    }, 16_000)
   })
 
-  test('block boundaries and continuations have the same message order', () => {
-    const source = 'sequenceDiagram; alt yes; A->>B: one; else no; B-->>A: two; end; A->>B: three;'
-    const native = parseSequenceDiagram([source])
+  // `end` takes no argument, so Mermaid reads what follows it as the next
+  // statement even without a separator.
+  test.each([
+    'sequenceDiagram; alt yes; A->>B: one; else no; B-->>A: two; end; A->>B: three;',
+    'sequenceDiagram\nalt yes\nA->>B: one\nelse no\nB-->>A: two\nend A->>B: three',
+  ])('block boundaries and continuations have the same message order: %j', source => {
+    const native = parseSequenceDiagram(source.split('\n'))
     expect(native.messages.map(message => message.label)).toEqual(['one', 'two', 'three'])
     expect(native.blocks).toMatchObject([{ type: 'alt', label: 'yes', dividers: [{ label: 'no' }] }])
     const agent = parseRegisteredMermaid(source)
@@ -86,7 +140,7 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     }
   })
 
-  test('opaque note between packed messages survives agent serialization', () => {
+  test('a note between packed messages survives agent serialization', () => {
     const source = 'sequenceDiagram; A->>B: first; Note right of B: keep this; B-->>A: second;'
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
@@ -94,7 +148,7 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     const sequence = asSequence(parsed.value)
     expect(sequence).not.toBeNull()
     if (!sequence) return
-    expect(sequence.body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block', 'message'])
+    expect(sequence.body.statements.map(statement => statement.kind)).toEqual(['message', 'note', 'message'])
     const serialized = serializeMermaid(sequence)
     expect(serialized).toContain('Note right of B: keep this')
     const native = parseSequenceDiagram(serialized.trimEnd().split('\n').map(line => line.trim()))

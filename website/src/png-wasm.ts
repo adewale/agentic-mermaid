@@ -8,6 +8,9 @@
 // Worker-only module: the .wasm/.ttf imports resolve via wrangler bundling
 // rules. build.ts copies the artifacts into ./generated/.
 
+// This adapter can load before the MCP server. Enroll its render descriptors
+// explicitly instead of depending on the server's full family registry.
+import '../../src/browser-lazy/generated/synchronous.ts'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import resvgWasmModule from './generated/resvg.wasm'
 import fontInterRegular from './generated/Inter-Regular.ttf'
@@ -31,13 +34,15 @@ import {
   assertHostedPngRasterBudget,
   omitPngOutputOptions,
   PNG_WASM_RUNTIME,
-  prepareSvgForPngRasterization,
   projectPortablePngOutputOptions,
   type PortablePngOutputOptions,
+  PngRasterizerError,
+  withPngRasterizer,
 } from '../../src/png-contract.ts'
-import { renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
+import { finalizePngRasterSvg, renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
 import { hostedFontResource } from '../../src/font-manifest.ts'
 import { verifyResourceBytes } from '../../src/resource-manifest.ts'
+import type { HostedPngProjector } from '../../src/mcp/hosted-server.ts'
 
 let ready: Promise<void> | undefined
 
@@ -63,16 +68,20 @@ async function initializeRasterResources(): Promise<void> {
   })
 }
 
-export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}): Promise<PngRasterResult> {
+/** `project` is the layout step; the Worker runs it in a CPU-bounded isolate
+ * and rasterizes here, where the wasm module and fonts live. */
+export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}, project?: HostedPngProjector): Promise<PngRasterResult> {
   // Integrity checks and initWasm each run once per isolate.
   ready ??= initializeRasterResources()
-  await ready
+  await ready.catch((error: unknown) => {
+    throw new PngRasterizerError('loading its resources', error)
+  })
   const outputOptions = projectPortablePngOutputOptions(opts as Readonly<Record<string, unknown>>)
   const renderOptions = omitPngOutputOptions(opts as Readonly<Record<string, unknown>>) as RenderOptions
-  const graphical = renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
+  const graphical = project ? await project(source, renderOptions, outputOptions) : renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
   assertHostedPngRasterBudget(graphical.rasterDimensions)
   const outputPolicy = graphical.outputPolicy
-  const svg = prepareSvgForPngRasterization(
+  const svg = finalizePngRasterSvg(
     prepareResvgMarkerOrientation(inlineFontVarForRaster(graphical.svg)),
     graphical.rasterDimensions,
   )
@@ -81,7 +90,7 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
     ...buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers)),
     ...graphical.legibilityWarnings,
   ]
-  const resvg = new Resvg(svg, {
+  const png = withPngRasterizer('rasterizing', () => applyPngColorProfile(new Resvg(svg, {
     background: graphical.rasterBackground,
     fitTo: { mode: 'zoom', value: 1 },
     font: {
@@ -89,19 +98,20 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
       fontBuffers,
       defaultFontFamily: outputPolicy.fonts.defaultFamily,
     },
-  })
-  const png = applyPngColorProfile(resvg.render().asPng())
+  }).render().asPng()))
   if (png.byteLength > MAX_HOSTED_PNG_BYTES) {
     throw new RangeError(`hosted PNG output exceeds the ${MAX_HOSTED_PNG_BYTES}-byte response cap`)
   }
-  const actualDimensions = inspectPngDimensions(png)
-  if (actualDimensions.width !== graphical.rasterDimensions.width
-    || actualDimensions.height !== graphical.rasterDimensions.height) {
-    throw new Error(
-      `hosted PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
-      + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
-    )
-  }
+  withPngRasterizer('checking its output', () => {
+    const actualDimensions = inspectPngDimensions(png)
+    if (actualDimensions.width !== graphical.rasterDimensions.width
+      || actualDimensions.height !== graphical.rasterDimensions.height) {
+      throw new Error(
+        `hosted PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
+        + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
+      )
+    }
+  })
   return {
     png,
     warnings,

@@ -1,3 +1,5 @@
+export { ResolvedSceneError, type ResolvedSceneFeature } from './scene/resolved-error.ts'
+export { PaintLayoutCertificationError, type PaintLayoutCertification } from './scene/paint-certification.ts'
 // ============================================================================
 // Agentic Mermaid — public API (published as agentic-mermaid)
 //
@@ -18,15 +20,19 @@
 // Install the complete synchronous built-in/extension resolver. The lazy
 // browser entry intentionally does not import this module.
 import './agent/families.ts'
+import './scene/builtin-backends.ts'
 
 export type { LabelContent, PreparedDisplayText, DisplayRun } from './shared/display-text.ts'
 
-export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { GraphLayoutHints, RenderOptions, GraphLayoutOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export { GraphLayoutUnsupportedError } from './layout/backend.ts'
+export type { GraphLayoutDecision } from './layout/backend.ts'
 export type { ArchitectureVisualOverrides } from './architecture/config.ts'
 export type { DiagramColors, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseRegisteredMermaid } from './agent/parse.ts'
+export * from './diagram-parsers.ts'
 export type {
   ParsedDiagram,
   ExtensionValidDiagram,
@@ -129,6 +135,11 @@ export type {
   BackendCapabilityConformanceStatus, BackendCapabilityConformanceResult,
 } from './scene/backend-conformance.ts'
 export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
+export { renderResolvedScene } from './resolved-scene.ts'
+export { RESOLVED_SCENE_VERSION } from './scene/resolved-types.ts'
+export type {
+  ResolvedScene, ResolvedPart, ResolvedPrimitive, ResolvedPaint, ResolvedPath, ResolvedText, Matrix,
+} from './scene/resolved-types.ts'
 export type {
   SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
   ShapeMark, TextMark, GroupMark, DocumentMark, ConnectorMark, LinearGradientDescriptor,
@@ -303,11 +314,11 @@ export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = 
   return Object.freeze({
     renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId }).svg
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions }).svg
     },
     renderMermaidSVGWithReceipt(text: ParsedDiagram | string, options: RenderOptions = {}): RenderedSvg {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId })
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions })
     },
   })
 }
@@ -317,7 +328,7 @@ export function renderMermaidSVGWithReceipt(
   options: RenderOptions = {},
 ): RenderedSvg {
   const input = prepareRenderInput(text)
-  return executeGraphicalRequest(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+  return executeGraphicalRequest(input.source, options, 'svg', undefined, input.resolutionOptions)
 }
 
 /**

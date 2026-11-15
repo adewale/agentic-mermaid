@@ -174,8 +174,23 @@ describe('canonical browser PNG adapter', () => {
     expect(rasterCalls).toBe(0)
   })
 
-  test('forces offline security before invoking a rasterizer even when a backend is conditionally unsafe', async () => {
-    const id = 'backend:test/conditional-external-image'
+  test.each([
+    ['external-image', (svg: string, unsafe: boolean) => unsafe ? svg.replace('</svg>', '<image href="https://example.invalid/tracker.png"/></svg>') : svg, 'strict verification failed'],
+    // Logical SVG has no contiguous active scheme. Raster font fallback joins
+    // these fragments, so the final raster input must be checked again.
+    ['font-joining', (svg: string, unsafe: boolean) => unsafe ? svg.replace('</svg>', '<style>.probe{font-family:var(--font, java)script:alert(1)}</style></svg>') : svg, 'active content'],
+    ['canvas-expansion', (_svg: string, unsafe: boolean) => {
+      const prefix = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="0 0 1 1"><!--'
+      const suffix = '--></svg>'
+      const copies = Math.floor((8_000_000 - prefix.length - suffix.length - 10) / 3)
+      // Both logical inputs fit; root pinning alone pushes only the first
+      // beyond the final UTF-8 byte cap. The positive leaves 300 bytes spare.
+      const svg = `${prefix}${'界'.repeat(copies - (unsafe ? 0 : 100))}${suffix}`
+      expect(new TextEncoder().encode(svg).length).toBeLessThan(8_000_000)
+      return svg
+    }, '8000000-byte final SVG limit'],
+  ] as const)('forces offline security before invoking a rasterizer for conditional %s output', async (suffix, project, diagnostic) => {
+    const id = `backend:test/conditional-${suffix}`
     const triggerSeed = 991_337
     const unregister = registerBackend({
       ...DefaultBackend,
@@ -183,12 +198,12 @@ describe('canonical browser PNG adapter', () => {
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
       render(document, context) {
         const svg = DefaultBackend.render(document, context)
-        return context.seed === triggerSeed
-          ? svg.replace('</svg>', '<image href="https://example.invalid/tracker.png"/></svg>')
+        return context.seed === triggerSeed || context.seed === triggerSeed + 1
+          ? project(svg, context.seed === triggerSeed)
           : svg
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     let rasterCalls = 0
@@ -200,12 +215,17 @@ describe('canonical browser PNG adapter', () => {
           return { png: pngFixture(context.rasterDimensions.width, context.rasterDimensions.height) }
         },
       })
-      await expect(renderer.renderMermaidPNG(
-        'flowchart LR\n A --> B',
-        { style: 'hand-drawn', seed: triggerSeed, security: 'default' },
-        { scale: 0.1 },
-      )).rejects.toThrow(/strict verification failed/i)
-      expect(rasterCalls).toBe(0)
+      await renderer.renderMermaidPNG('flowchart LR\n A --> B', { style: 'hand-drawn', seed: triggerSeed + 1 }, { scale: 0.1 })
+      expect(rasterCalls).toBe(1)
+      rasterCalls = 0
+      for (const security of ['default', 'strict'] as const) {
+        await expect(renderer.renderMermaidPNG(
+          'flowchart LR\n A --> B',
+          { style: 'hand-drawn', seed: triggerSeed, security },
+          { scale: 0.1 },
+        )).rejects.toThrow(diagnostic)
+        expect(rasterCalls).toBe(0)
+      }
     } finally {
       unregister()
     }
@@ -222,7 +242,7 @@ describe('canonical browser PNG adapter', () => {
           .replace('<svg ', '<svg data-comparison="1 > 0" ')
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     try {

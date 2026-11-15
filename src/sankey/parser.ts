@@ -27,6 +27,7 @@ import { parserObservationActive, observeParserStatement, observeParserMutation 
 
 /** Mermaid Sankey numeric tokens, including exponent and trailing-dot forms. */
 const NUMBER_RE = /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
+export const isSankeyHeader = (line: string): boolean => /^sankey(?:-beta)?\s*$/i.test(line.trim())
 
 export interface SankeyParseOptions {
   /** Frontmatter `title:` — sankey has no in-body title statement. */
@@ -41,8 +42,8 @@ export interface SankeyParseOptions {
  * Throws on malformed input:
  *   - a header that isn't `sankey` / `sankey-beta`
  *   - a row without exactly three columns
- *   - an unterminated quoted field, or text between a closing quote and the
- *     next comma
+ *   - an unterminated quoted field, text between a closing quote and the
+ *     next comma, or a quote inside an unquoted field
  *   - a value that is not a non-negative number
  *   - a self-loop (`A,A,1`) or a cycle — the layered layout requires a DAG,
  *     which upstream enforces with d3-sankey's "circular link" throw
@@ -55,7 +56,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   }
 
   const header = lines[headerIndex]!.trim()
-  if (!/^sankey(?:-beta)?\s*$/i.test(header)) {
+  if (!isSankeyHeader(header)) {
     throw new Error(`Sankey diagram must start with "sankey" or "sankey-beta", got: "${header}"`)
   }
   if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', header, { line: headerIndex + 1, unit: 'physical' })
@@ -75,6 +76,12 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
     let row = lines[i]!.replace(/\r$/, '')
     const rowNumber = i + 1
     const trimmedPhysicalLine = row.trim()
+    // A standalone repeated header is a diagnosed reader extension, not a
+    // CSV record. Quoted records are assembled below before this loop resumes.
+    if (isSankeyHeader(trimmedPhysicalLine)) {
+      if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', row, { line: rowNumber, unit: 'physical' })
+      continue
+    }
     // Empty lines are explicitly allowed by the upstream syntax page.
     if (trimmedPhysicalLine.length === 0 || trimmedPhysicalLine.startsWith('%%')) continue
 
@@ -145,7 +152,9 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
  * Split one logical CSV record into fields (RFC 4180 subset). Every field is
  * trimmed before identity assignment, and `""` inside a quoted field decodes
  * to a literal quote. Whitespace may surround a quoted field, but any other
- * text between the closing quote and the next comma errors loudly.
+ * text between the closing quote and the next comma errors loudly, as does a
+ * quote inside an unquoted field: whether it was meant literally or to open a
+ * quoted field is unclear, and Mermaid rejects both.
  */
 function parseCsvRow(line: string, lineNumber: number): string[] {
   const fields: string[] = []
@@ -187,7 +196,11 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
     } else {
       let comma = line.indexOf(',', start)
       if (comma === -1) comma = line.length
-      fields.push(line.slice(index, comma).trim())
+      const field = line.slice(index, comma).trim()
+      if (field.includes('"')) {
+        throw new Error(`Sankey row ${lineNumber} has a quote inside the unquoted field "${field}": "${line.trim()}". ` + 'Quote the whole field and double each quote inside it ("").')
+      }
+      fields.push(field)
       index = comma
     }
     if (index >= line.length) break
@@ -204,7 +217,7 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
 
 /** True when a logical CSV record ends inside a quoted field. Doubled quotes
  * are one escaped data character and therefore do not change quote state. */
-function csvQuotedFieldIsOpen(record: string): boolean {
+export function csvQuotedFieldIsOpen(record: string): boolean {
   let open = false
   for (let index = 0; index < record.length; index++) {
     if (record[index] !== '"') continue

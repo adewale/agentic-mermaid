@@ -6,6 +6,7 @@
  */
 
 import { DefaultBackend, registerBuiltInBackend } from './backend.ts'
+import './default-backend.ts'
 import { RoughBackend } from './rough-backend.ts'
 import { HybridBackend } from './hybrid-backend.ts'
 
@@ -15,4 +16,6 @@ export const BUILTIN_BACKENDS = Object.freeze([
   HybridBackend,
 ] as const)
 
-for (const backend of BUILTIN_BACKENDS) registerBuiltInBackend(backend)
+for (const backend of BUILTIN_BACKENDS) {
+  if (backend !== DefaultBackend) registerBuiltInBackend(backend)
+}

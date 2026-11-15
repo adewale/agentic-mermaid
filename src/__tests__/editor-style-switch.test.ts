@@ -446,8 +446,8 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
         get() { return mermaidValue },
         set(value) {
           const original = value.renderMermaidSVGWithReceipt
-          value.renderMermaidSVGWithReceipt = function(source: string, options: unknown) {
-            const artifact = original(source, options)
+          value.renderMermaidSVGWithReceipt = async function(source: string, options: unknown) {
+            const artifact = await original(source, options)
             ;(window as any).__sectionAEditorRender = { source, options, artifact }
             return artifact
           }
@@ -493,7 +493,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
             if (source.includes('Slow')) {
               ;(window as any).__amSlowRenderStarted = true
               await new Promise((resolve) => { ;(window as any).__amReleaseSlowRender = resolve })
-              const svg = original(source, options)
+              const svg = await original(source, options)
               ;(window as any).__amSlowRenderReturned = true
               return svg
             }

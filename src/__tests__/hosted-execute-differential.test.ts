@@ -9,11 +9,12 @@
 // are the engine's either way). The real loader wiring is covered by the
 // wrangler e2e (website/e2e-mcp.sh).
 //
-// Documented divergence (asserted explicitly at the bottom, not hidden):
-// sloppy-mode implicit globals (`x = 1`) work in the vm context but throw in
-// strict ES modules. Timeout wording also differs by host budget mechanism.
+// Both runtimes use strict function-body semantics. Timeout wording and
+// host-owned render security still differ by execution environment.
 
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { executeInSandbox, type ExecuteResult } from '../mcp/sandbox.ts'
 import { unsupportedCodeReason } from '../mcp/facade.ts'
 import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, MAX_RESULT_BYTES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
@@ -23,6 +24,11 @@ import {
   verifyNoExternalRefs,
 } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
+import { handleRequest } from '../mcp/server.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
+import { createLoaderExecute, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { runInThisContext } from 'node:vm'
 
 // Memoized: re-importing an identical data: URL deadlocks under `bun test`
 // (fine in plain bun), and the loader caches per-id isolates anyway.
@@ -55,15 +61,26 @@ async function executeHosted(code: string): Promise<ExecuteResult> {
 const PARSE = "const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')"
 
 // Each case must produce identical results through both implementations.
-const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
+const EQUIVALENT_CASES: Array<[label: string, code: string, expectedValue?: unknown]> = [
   ['bare arithmetic expression', '1 + 1'],
+  ['new.target is undefined in a normal call', 'new.target === undefined', true],
+  ['new.target in a statement body', 'const target = new.target; target === undefined', true],
+  ['strict this is undefined', 'this === undefined', true],
+  ['wrapper arguments match the public SDK parameters', 'arguments.length === 2 && arguments[0] === mermaid && arguments[1] === console', true],
+  ['ordinary nested functions retain their own arguments', 'function count() { return arguments.length }; count(1, 2, 3)', 3],
+  ['constructor new.target remains local to its constructor', 'class C { constructor() { this.ok = new.target === C } }; new C().ok', true],
+  ['return followed by a newline follows automatic semicolon insertion', 'return\n42', null],
+  ['trailing comment stays outside a captured expression', 'const value = 42; value // comment\n;;', 42],
   ['bare object literal', '{ answer: 42 }'],
   ['multi-statement body with return', 'const x = 2; return x * 21'],
+  ['final expression before empty statements and a comment', 'const x = 41; x + 1;; // done', 42],
   ['no explicit return promotes undefined to null', 'const unused = 1'],
   ['console coercion of strings and objects', "console.log('hi', { x: 1 }, [1, 'two']); console.warn(7); return 'done'"],
   ['SDK parse ok flag', `${PARSE}; return r.ok`],
   ['SDK parse → narrow → serialize round trip', `${PARSE}; const f = mermaid.asFlowchart(r.value); return mermaid.serializeMermaid(f)`],
   ['SDK mutate adds a node', `${PARSE}; const m = mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' }); return { ok: m.ok, source: m.ok ? mermaid.serializeMermaid(m.value) : null }`],
+  ['resolved-scene projection through both runtimes', `${PARSE}; const s = mermaid.renderResolvedScene(r.value, {security:'strict'}); return {version:s.version,family:s.family,count:s.parts.length}`, {version:2,family:'flowchart',count:3}],
+  ['typed resolved artwork refusal through both runtimes', `try {mermaid.renderResolvedScene('flowchart LR\\nA-->B',{shadow:true})} catch(e) {return {code:e.code,partId:e.partId,feature:e.feature}}`, {code:'RESOLVED_SCENE_UNSUPPORTED_ARTWORK',partId:'node:A',feature:'filter'}],
   ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value, { security: 'strict', embedFontImport: false }).length`],
   ['SDK render config callback survives the façade', `const warnings = []; mermaid.renderMermaidSVG('stateDiagram-v2\\n  A --> B', { mermaidConfig: { state: { titleTopMargin: 10 } }, onConfigDiagnostic: d => warnings.push(d.field) }); return warnings`],
   ['SDK verify warnings shape', `${PARSE}; const v = mermaid.verifyMermaid(r.value); return { ok: v.ok, warnings: v.warnings.length }`],
@@ -89,12 +106,40 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
 ]
 
 describe('hosted execute ≡ vm sandbox', () => {
-  for (const [label, code] of EQUIVALENT_CASES) {
+  for (const code of ['with ({ x: 1 }) { return x }', 'function f(a, a) { return a }; f(1, 2)', 'return 010', 'return arguments.callee']) {
+    test(`strict-mode rejection: ${code}`, async () => {
+      for (const result of [await executeInSandbox(code), await executeHosted(code)]) expect(result.ok).toBe(false)
+    })
+  }
+  test('generated bodies capture the expected expression across grammar boundaries', async () => {
+    await fc.assert(fc.asyncProperty(
+      fc.integer({ min: -1000, max: 1000 }), fc.integer({ min: -1000, max: 1000 }),
+      fc.constantFrom('plain', 'function', 'arrow', 'loop', 'newTarget'),
+      fc.integer({ min: 0, max: 5 }), fc.constantFrom('', '// trailing', '/* trailing */', '// newline\n'),
+      async (a, b, form, emptyStatements, comment) => {
+        const expressions = {
+          plain: `const a = ${a}; const b = ${b}; a + b`,
+          function: `function sum(a, b) { return a + b }; sum(${a}, ${b})`,
+          arrow: `const sum = (a, b) => a + b; sum(${a}, ${b})`,
+          loop: `let sum = ${a}; for (const n of [${b}]) { sum += n }; sum`,
+          newTarget: `const target = new.target; target === undefined ? ${a} + ${b} : -999999`,
+        }
+        const code = `"use strict";\n${expressions[form]};${';'.repeat(emptyStatements)} ${comment}`
+        for (const result of [await executeInSandbox(code), await executeHosted(code)]) {
+          expect(result.ok).toBe(true)
+          expect(result.value).toBe(a + b)
+          expect(result.logs).toEqual([])
+        }
+      },
+    ), fcParameters({ numRuns: 150 }))
+  })
+  for (const [label, code, expectedValue] of EQUIVALENT_CASES) {
     test(label, async () => {
       const local = await executeInSandbox(code)
       const hosted = await executeHosted(code)
       expect(hosted.ok).toBe(local.ok)
       expect(hosted.value).toEqual(local.value as never)
+      if (expectedValue !== undefined) expect(hosted.value).toEqual(expectedValue as never)
       expect(hosted.logs).toEqual(local.logs ?? [])
       // Error strings must agree except for engine-authored messages
       // (syntax/serialization errors), where both sides still must fail with
@@ -124,6 +169,96 @@ describe('hosted execute ≡ vm sandbox', () => {
     for (const r of [local, hosted]) {
       expect(r.ok).toBe(false)
       expect(r.error).toContain('must come from mermaid.parseRegisteredMermaid(...)')
+    }
+  })
+
+  test('SDK arrays answer every non-mutating Array method exactly like a plain copy', async () => {
+    // Oracle: the engine's own Array.prototype applied to a JSON copy of the
+    // same SDK array, inside the same sandbox. Element arguments are named by
+    // index so identity searches resolve within each array's own world. The
+    // object array is meta.comments; the string array is its .map result
+    // (a re-hardened array), which also covers duplicates and ''.
+    const index = fc.integer({ min: -4, max: 6 })
+    const element = fc.oneof(fc.record({ el: fc.integer({ min: 0, max: 5 }) }), fc.constantFrom('a', 'a,b', '', 'zz'))
+    const call = fc.oneof(
+      fc.record({ m: fc.constantFrom('includes', 'indexOf', 'lastIndexOf'), args: fc.oneof(fc.tuple(element), fc.tuple(element, index)) }),
+      fc.record({ m: fc.constantFrom('at', 'flat'), args: fc.tuple(index) }),
+      fc.record({ m: fc.constantFrom('slice', 'toSpliced'), args: fc.array(index, { maxLength: 2 }) }),
+      fc.record({ m: fc.constant('with'), args: fc.tuple(index, element) }),
+      fc.record({ m: fc.constant('join'), args: fc.oneof(fc.constant([]), fc.tuple(fc.constantFrom('', '|', ', '))) }),
+      fc.record({ m: fc.constant('concat'), args: fc.array(fc.oneof(element, fc.constant({ self: true }), fc.constant(['q', ['r']])), { maxLength: 3 }) }),
+      fc.record({ m: fc.constantFrom('toString', 'toLocaleString', 'toReversed', 'entries', 'keys', 'values'), args: fc.constant([]) }),
+      fc.record({ m: fc.constantFrom('map', 'filter', 'some', 'every', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flatMap', 'forEach', 'reduce', 'reduceRight', 'toSorted'), args: fc.constant([]) }),
+    )
+    await fc.assert(fc.asyncProperty(
+      fc.array(fc.constantFrom('a', 'b', 'a,b', '', 'x y'), { maxLength: 5 }),
+      fc.array(call, { minLength: 1, maxLength: 8 }),
+      async (comments, calls) => {
+        const source = ['flowchart TD', ...comments.map(text => `  %%${text ? ` ${text}` : ''}`), '  A --> B'].join('\n')
+        const code = `
+          const objects = mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value.meta.comments
+          const strings = objects.map(comment => comment.text)
+          const callbacks = {
+            map: [(x, i) => [i, x]], filter: [(x, i) => (JSON.stringify(x).length + i) % 2 === 0],
+            some: [x => JSON.stringify(x).includes('b')], every: [x => JSON.stringify(x).length > 2],
+            find: [x => JSON.stringify(x).includes('a')], findIndex: [x => JSON.stringify(x).includes('a')],
+            findLast: [x => JSON.stringify(x).includes('a')], findLastIndex: [x => JSON.stringify(x).includes('a')],
+            flatMap: [(x, i) => [x, [i]]], forEach: [() => {}], reduce: [(a, x) => a + JSON.stringify(x), '>'],
+            reduceRight: [(a, x) => a + JSON.stringify(x), '<'],
+            toSorted: [(a, b) => JSON.stringify(a) < JSON.stringify(b) ? -1 : JSON.stringify(a) > JSON.stringify(b) ? 1 : 0],
+          }
+          const outcome = (array, call) => {
+            const resolve = arg => arg && typeof arg === 'object' && !Array.isArray(arg) ? (arg.self ? array : array[arg.el]) : arg
+            try {
+              const args = callbacks[call.m] ?? call.args.map(resolve)
+              let value = array[call.m](...args)
+              if (call.m === 'entries' || call.m === 'keys' || call.m === 'values') value = [...value]
+              return { value: JSON.stringify(value) }
+            } catch (e) {
+              return { threw: true }
+            }
+          }
+          const sides = { sdk: {}, plain: {} }
+          for (const [name, array] of [['objects', objects], ['strings', strings]]) {
+            const plain = JSON.parse(JSON.stringify(array))
+            sides.sdk[name] = { length: array.length, outcomes: ${JSON.stringify(calls)}.map(call => outcome(array, call)) }
+            sides.plain[name] = { length: plain.length, outcomes: ${JSON.stringify(calls)}.map(call => outcome(plain, call)) }
+          }
+          return sides`
+        for (const result of [await executeInSandbox(code), await executeHosted(code)]) {
+          expect(result.error).toBeUndefined()
+          const { sdk, plain } = result.value as { sdk: { strings: { length: number } }; plain: unknown }
+          expect(sdk.strings.length).toBe(comments.length)
+          expect(sdk).toEqual(plain as never)
+        }
+      },
+    ), fcParameters({ numRuns: 40 }))
+  })
+
+  test('a failed narrowing passed on to any diagram verb gets the narrower guidance, not an engine TypeError', async () => {
+    // asSequence(flowchart) is null; every verb that takes a diagram must say
+    // why the input is missing instead of dereferencing it.
+    const verbs = ['mutate', 'mutatePreservingSource', 'verifyMermaid', 'analyzeMermaid', 'describeMermaidFacts', 'checkMermaid', 'serializeMermaid', 'asFlowchart', 'renderMermaidSVG', 'renderMermaidASCII', 'layoutMermaidWithReceipt']
+    const code = `${PARSE}
+      const narrowed = mermaid.asSequence(r.value)
+      const out = { narrowed }
+      for (const verb of ${JSON.stringify(verbs)}) {
+        for (const [label, input] of [['null', narrowed], ['undefined', undefined]]) {
+          try { mermaid[verb](input, { kind: 'add_node', id: 'X' }); out[verb + ':' + label] = 'returned' }
+          catch (e) { out[verb + ':' + label] = e.message }
+        }
+      }
+      return out`
+    for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
+      expect(r.ok).toBe(true)
+      const { narrowed, ...messages } = r.value as Record<string, unknown>
+      expect(narrowed).toBeNull()
+      expect(Object.keys(messages)).toHaveLength(verbs.length * 2)
+      for (const [key, message] of Object.entries(messages)) {
+        const [verb, label] = key.split(':')
+        expect({ key, message }).toEqual({ key, message: expect.stringContaining(`Code Mode ${verb} input is ${label}`) })
+        expect({ key, message }).toEqual({ key, message: expect.stringContaining('returns null when d is a different family') })
+      }
     }
   })
 
@@ -157,17 +292,19 @@ describe('hosted execute render policy', () => {
     embedFontImport: false,
   })
 
-  test('both execute SVG APIs default to the host-owned strict projection', async () => {
+  test('execute graphical APIs default to the host-owned strict projection', async () => {
     const hosted = await executeHosted(`
       const source = ${JSON.stringify(source)}
       return {
         plain: mermaid.renderMermaidSVG(source),
         artifact: mermaid.renderMermaidSVGWithReceipt(source),
+        resolved: mermaid.renderResolvedScene(source).svg,
       }
     `)
     expect(hosted.ok).toBe(true)
-    const value = hosted.value as { plain: string; artifact: typeof expected }
+    const value = hosted.value as { plain: string; artifact: typeof expected; resolved: string }
     expect(value.plain).toBe(expected.svg)
+    expect(value.resolved).toBe(expected.svg)
     expect(value.artifact).toEqual(expected)
     expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
     expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
@@ -180,18 +317,23 @@ describe('hosted execute render policy', () => {
       return {
         plain: mermaid.renderMermaidSVG(source, weaker),
         artifact: mermaid.renderMermaidSVGWithReceipt(source, weaker),
+        resolved: mermaid.renderResolvedScene(source, weaker).svg,
       }
     `)
     expect(hosted.ok).toBe(true)
-    const value = hosted.value as { plain: string; artifact: typeof expected }
+    const value = hosted.value as { plain: string; artifact: typeof expected; resolved: string }
     expect(value.plain).toBe(expected.svg)
+    expect(value.resolved).toBe(expected.svg)
     expect(value.artifact).toEqual(expected)
     expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
     expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
     expect(value.plain).not.toContain('@import')
   })
 
-  test('ASCII and layout use the same host-owned request projection', async () => {
+  // The SVG policy governs layout's request projection; terminal text has its
+  // own safety projection, so the caller's options reach ASCII unchanged (and
+  // are reported there as not applicable) while the drawing cannot change.
+  test('layout uses the host-owned request projection and ASCII the caller options', async () => {
     const hosted = await executeHosted(`
       const source = ${JSON.stringify(source)}
       const weaker = { security: 'default', embedFontImport: true }
@@ -205,13 +347,12 @@ describe('hosted execute render policy', () => {
       ascii: ReturnType<typeof renderMermaidASCIIWithReceipt>
       layout: ReturnType<typeof layoutMermaidWithReceipt>
     }
-    const expectedAscii = renderMermaidASCIIWithReceipt(source, {
-      security: 'strict', embedFontImport: false,
-    })
+    const expectedAscii = renderMermaidASCIIWithReceipt(source, { security: 'default', embedFontImport: true })
     const expectedLayout = layoutMermaidWithReceipt(source, {
       security: 'strict', embedFontImport: false,
     })
     expect(value.ascii).toEqual(JSON.parse(JSON.stringify(expectedAscii)))
+    expect(value.ascii.text).toBe(renderMermaidASCIIWithReceipt(source, { security: 'strict', embedFontImport: false }).text)
     expect(value.layout).toEqual(JSON.parse(JSON.stringify(expectedLayout)))
   })
 })
@@ -248,13 +389,176 @@ describe('bounded local/hosted Code Mode output', () => {
     expect(result.logs).toEqual(['🙂', LOGS_TRUNCATED_MARKER])
   })
 
-  test('sloppy-mode implicit globals: vm allows, strict modules throw', async () => {
+  // A function declaration that a var or another declaration of the same
+  // name redeclares is valid in a strict function body; both runners keep
+  // agent code at function scope for it (review of #611: a try block around
+  // the body made it a compile error).
+  test.each([
+    ['function f(){return 1;} var f; f()', 1],
+    ['function f(){return 1;} var f; return f()', 1],
+    ['function f(){return 1;} function f(){return 2;} return f()', 2],
+    ['var { f } = { f: 0 }; function f(){return 3;} return typeof f', 'number'],
+    ['for (var f = 0; f < 1; f++) {} function f(){} return f', 1],
+  ] as const)('both runners accept %s', async (code, value) => {
+    for (const result of [await executeInSandbox(code), await executeHosted(code)]) expect(result).toMatchObject({ ok: true, value })
+  })
+
+  test('implicit global writes fail in both strict execution bodies', async () => {
     const code = 'x = 1; return x'
     const local = await executeInSandbox(code)
     const hosted = await executeHosted(code)
-    expect(local).toEqual({ ok: true, value: 1, logs: [] })
-    expect(hosted.ok).toBe(false)
-    expect(hosted.error).toContain('x')
+    for (const result of [local, hosted]) {
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('x')
+    }
+  })
+})
+
+// The execute tool payload as each server returns it. Hosted runs the real
+// hosted-server → execute-loader → harness-runtime path; only workerd is
+// replaced, by a loader that starts an "isolate" the way dynamic-harness.ts
+// does (a module that fails to parse fails the start with workerd's
+// SyntaxError wording, which drives the loader's statement-form fallback).
+// user.js is compiled under the file name workerd's module registry gives it,
+// as a strict script whose completion value is the default export: Bun's
+// module loader transpiles and can drop stack columns, which V8 always
+// reports. Only `export default ` on wrapper line 1 changes, so agent-code
+// positions are exactly those of the module.
+function loadUserModule(source: string): unknown {
+  if (!source.startsWith('export default (function')) throw new Error('unexpected user.js shape')
+  return runInThisContext(`"use strict"; ${source.slice('export default '.length)}`, { filename: 'user.js' })
+}
+function runningLoader(): WorkerLoaderBinding {
+  return {
+    get(_id, getCode) {
+      return {
+        getEntrypoint() {
+          return {
+            async fetch() {
+              const { modules } = await getCode()
+              let fn: unknown
+              try { fn = loadUserModule(modules['user.js']!) }
+              catch (e) { throw new Error(`Uncaught SyntaxError: ${formatHarnessError(e)}`) }
+              return new Response(JSON.stringify(runUserCode(fn)), { headers: { 'content-type': 'application/json' } })
+            },
+          }
+        },
+      }
+    },
+  }
+}
+/** workerd stops an isolate that exhausts cpuMs by failing the call. */
+const cpuLimitLoader: WorkerLoaderBinding = {
+  get() { return { getEntrypoint() { return { fetch: async () => { throw new Error('Worker exceeded CPU time limit.') } } } } },
+}
+function executeCall(code: string, timeoutMs: number): JsonRpcRequest {
+  return { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'execute', arguments: { code, timeoutMs } } }
+}
+function toolPayload(response: JsonRpcResponse | null): { isError: boolean; payload: any } {
+  const result = response?.result as { isError?: boolean; content?: Array<{ text?: string }> } | undefined
+  return { isError: result?.isError === true, payload: JSON.parse(result?.content?.[0]?.text ?? 'null') }
+}
+async function stdioTool(code: string, timeoutMs = 5000) {
+  return toolPayload(await handleRequest(executeCall(code, timeoutMs)))
+}
+async function hostedTool(code: string, timeoutMs = 5000, loader: WorkerLoaderBinding = runningLoader()) {
+  return toolPayload(await handleHostedRequest(executeCall(code, timeoutMs), { execute: createLoaderExecute(loader, 'HARNESS') }))
+}
+
+describe('execute tool error envelope is one shape on stdio and hosted', () => {
+  // Messages are each runner's own wording; the shape and the code are shared.
+  const cases: Array<{ label: string; code: string; expected: string; message?: string; location?: unknown; timeoutMs?: number; hostedLoader?: WorkerLoaderBinding }> = [
+    { label: 'user throw', code: "throw new Error('boom')", expected: 'EXECUTE_FAILED', message: 'boom', location: { line: 1, column: expect.any(Number) } },
+    { label: 'sync-only pre-screen', code: 'await 1', expected: 'EXECUTE_FAILED', message: 'Code Mode is synchronous; async/await, Promise jobs, finalizers, queueMicrotask, Array.fromAsync, and dynamic import are not supported' },
+    { label: 'syntax error', code: 'return ) === (', expected: 'EXECUTE_FAILED', location: { line: 1, column: 8 } },
+    { label: 'non-serializable result', code: 'const a = {}; a.self = a; return a', expected: 'EXECUTE_FAILED' },
+    { label: 'time budget exhausted', code: 'while (true) {}', expected: 'EXECUTE_TIMEOUT', timeoutMs: 200, hostedLoader: cpuLimitLoader },
+  ]
+  for (const { label, code, expected, message, location, timeoutMs, hostedLoader } of cases) {
+    test(label, async () => {
+      const channels = { stdio: await stdioTool(code, timeoutMs), hosted: await hostedTool(code, timeoutMs, hostedLoader) }
+      for (const [channel, { isError, payload }] of Object.entries(channels)) {
+        expect({ channel, isError, ok: payload.ok, logs: payload.logs }).toEqual({ channel, isError: true, ok: false, logs: [] })
+        expect({ channel, error: payload.error }).toEqual({
+          channel,
+          error: { code: expected, message: message ?? expect.any(String), ...(location ? { location } : {}) },
+        })
+      }
+    })
+  }
+})
+
+describe('execute failures carry a location in the agent\'s own code on stdio and hosted', () => {
+  // Oracle: the generator places the failing statement at a known line and
+  // column span. Engines differ on which token of the expression they report
+  // (V8 the property name, JavaScriptCore the dot or call paren), so the
+  // column must fall inside the failing statement; the line must be exact.
+  const failures = ['throw new Error("boom")', 'null.x', 'mermaid.parseRegisteredMermaid(42)', 'undefinedName + 1', 'mermaid.serializeMermaid(mermaid.asSequence(mermaid.parseRegisteredMermaid("flowchart LR\\n A-->B").value))']
+  const indent = fc.integer({ min: 0, max: 6 }).map(n => ' '.repeat(n))
+  const expressions = failures.filter(failure => !failure.startsWith('throw'))
+  // How the failing statement ends the program: 'last' makes it the final
+  // expression statement (captured with an inserted `return (`, or the whole
+  // program in expression form when nothing precedes it — a tail call);
+  // 'return' makes it an explicit `return f(...)`; 'more' adds lines after it.
+  const ending = fc.constantFrom('last' as const, 'return' as const, 'more' as const)
+  const statementShape = fc.record({
+    shape: fc.constant('statement' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constantFrom('', 'const p = 0; ', 'let q = 1;   '),
+    ending,
+  }).chain(base => fc.record({
+    failure: fc.constantFrom(...(base.ending === 'return' ? expressions : failures)),
+    after: base.ending === 'more' ? fc.array(indent, { minLength: 1, maxLength: 2 }) : fc.constant<string[]>([]),
+  }).map(rest => ({ ...base, ...rest })))
+  const expressionShape = fc.record({
+    shape: fc.constant('expression' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constant(''),
+    ending: fc.constant('more' as const),
+    failure: fc.constantFrom(...expressions),
+    after: fc.array(indent, { maxLength: 2 }),
+  })
+  // The one-liner: the whole program is the failing expression (expression
+  // form, where the SDK call is the returned value).
+  const bareShape = fc.record({
+    shape: fc.constant('statement' as const),
+    before: fc.constant<string[]>([]),
+    indent,
+    pad: fc.constant(''),
+    ending: fc.constant('last' as const),
+    failure: fc.constantFrom(...expressions),
+    after: fc.constant<string[]>([]),
+  })
+  const syntaxShape = fc.record({
+    shape: fc.constant('syntax' as const),
+    before: fc.array(indent, { maxLength: 3 }),
+    indent,
+    pad: fc.constantFrom('', 'const p = 0; '),
+    ending: fc.constant('more' as const),
+    failure: fc.constant('const = 1'),
+    after: fc.array(indent, { maxLength: 2 }),
+  })
+
+  test('generated failing lines report their own line and a column inside the failing statement', async () => {
+    await fc.assert(fc.asyncProperty(fc.oneof(statementShape, expressionShape, bareShape, syntaxShape), async ({ shape, before, indent, pad, ending, failure, after }) => {
+      const failing = ending === 'return' ? `return ${failure}` : failure
+      const lines = shape === 'expression'
+        ? ['[', ...before.map((space, i) => `${space}${i},`), `${indent}${failing},`, ...after.map((space, i) => `${space}${i + 10},`), ']']
+        : [...before.map((space, i) => `${space}const v${i} = ${i};`), `${indent}${pad}${failing}`, ...after.map((space, i) => `${space}const w${i} = ${i};`)]
+      const code = lines.join('\n')
+      const line = (shape === 'expression' ? 1 : 0) + before.length + 1
+      const first = indent.length + pad.length + 1
+      const last = indent.length + pad.length + failing.length
+      for (const [channel, { payload }] of Object.entries({ stdio: await stdioTool(code), hosted: await hostedTool(code) })) {
+        expect({ channel, ok: payload.ok, keys: Object.keys(payload.error ?? {}).sort() }).toEqual({ channel, ok: false, keys: ['code', 'location', 'message'] })
+        const { location } = payload.error as { location: { line: number; column: number } }
+        expect({ channel, code, line: location.line }).toEqual({ channel, code, line })
+        expect({ channel, code, columnInside: location.column >= first && location.column <= last, column: location.column }).toEqual({ channel, code, columnInside: true, column: location.column })
+        expect(JSON.stringify(payload.error)).not.toMatch(/harness\.js|user\.js|codemode\.ts|sandbox\.ts|Object\.fetch/)
+      }
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

@@ -20,23 +20,24 @@ import { prepareRenderInput, type PreparedRenderInput } from '../agent/render-in
 import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
+import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
 import {
-  NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   renderContractDigest,
-  SHARED_RENDER_OPTION_FIELDS,
   receiptOf,
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
   type RenderRequestReceipt,
 } from '../render-contract.ts'
+import { sharedRenderOptionsOf } from '../shared-render-options.ts'
+import { deferredDependency } from '../layout/certification-error.ts'
 import { projectTerminalStyle, withTerminalConnectorScene, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
-import { positionResolvedFamily } from '../positioning.ts'
+import { positionResolvedFamily, retainRequestGraphLayoutDecision } from '../positioning.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -55,13 +56,16 @@ import {
 } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { pieFamilyLines } from '../pie/source-title.ts'
 import { safePieTerminalText } from './pie.ts'
 import { retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
+import { certifyTerminalLayout } from './terminal-certification.ts'
 import { nativeTerminalArtifact } from './terminal-artifact.ts'
 import { terminalInputModel, type TerminalInputModel } from './terminal-model.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
+export type { TerminalLayoutCertification } from './terminal-certification.ts'
 export { DEFAULT_ASCII_THEME, detectColorMode, diagramColorsToAsciiTheme }
 export { AsciiWidthError } from './width-error.ts'
 export type { AsciiWidthErrorReason } from './width-error.ts'
@@ -201,14 +205,8 @@ export function executeTerminalRender(
   // The terminal adapter owns its cell-grid controls. Only the canonical
   // RenderOptions projection enters the shared waist; this keeps validation
   // strict without misclassifying terminal-only fields as unknown options.
-  const sharedOptions = Object.fromEntries(
-    [...SHARED_RENDER_OPTION_FIELDS, ...NON_SERIALIZABLE_RENDER_OPTION_FIELDS]
-      .filter(field => options[field] !== undefined)
-      .map(field => [field, options[field]]),
-  ) as RenderOptions
-  const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
-    expectedFamilyId: preparedInput.expectedFamilyId,
-  })
+  const sharedOptions = sharedRenderOptionsOf(options)
+  const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, preparedInput.resolutionOptions)
   emitResolvedConfigDiagnostics(request)
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const family = executionPlan.family
@@ -223,7 +221,7 @@ export function executeTerminalRender(
   // characters created by Pie's grammar. Reflect the family-owned terminal
   // projection in the shared receipt and public diagnostics as well.
   const pieControlsReplaced = family.id === 'pie' && (() => {
-    const chart = parsePieChart(normalizedSource.authoredPieFamilyLines ?? normalizedSource.familyLines)
+    const chart = parsePieChart(pieFamilyLines(normalizedSource))
     const visibleTitle = chart.displayTitle ?? chart.title
     return (visibleTitle !== undefined && safePieTerminalText(visibleTitle) !== visibleTitle)
       || chart.entries.some(entry => {
@@ -244,12 +242,16 @@ export function executeTerminalRender(
     if (family.lowerScene && family.layout) {
       try {
         const layout = positionResolvedFamily(diagramType, request, normalizedSource)
+        // ASCII draws from the connectors' terminal projections, so their
+        // derivation is always cross-checked here.
         connectorScene = admitFamilyScene(family, family.lowerScene({
           positioned: layout.positioned,
           colors: connectorSceneColors(request.appearance.colors),
           resolved: familyContext,
-        }))
-      } catch {
+        }), true)
+      } catch (error) {
+        const deferred = deferredDependency(error)
+        if (deferred) throw deferred
         // Optional pixel evidence must not become a native layout dependency.
         failed = true
       }
@@ -262,7 +264,7 @@ export function executeTerminalRender(
   if (options.onProjectionDiagnostic) connectorStyle()
   for (const diagnostic of projectedStyle?.diagnostics ?? []) options.onProjectionDiagnostic?.(diagnostic)
   const theme: AsciiTheme = appearance.theme
-  const model = terminalInputModel(text, normalizedSource.familyText)
+  const model = terminalInputModel(text, normalizedSource.familyBody)
   const context: AsciiContext = {
     source: normalizedSource,
     ...familyContext,
@@ -276,9 +278,11 @@ export function executeTerminalRender(
       ganttToday: familyContext.renderOptions.ganttToday,
     },
   }
-  const artifact = nativeTerminalArtifact(family.renderAscii!, context, model)
+  const { artifact, legacyOutput } = withGraphLayoutDecisionObserver(decision => retainRequestGraphLayoutDecision(request, decision, 'primary'), () => {
+    const artifact = nativeTerminalArtifact(family.renderAscii!, context, model)
+    return { artifact, legacyOutput: artifact ? undefined : family.renderAscii!(context) }
+  })
   let drawing = artifact?.document
-  const legacyOutput = artifact ? undefined : family.renderAscii!(context)
   const title = frontmatterTitle(normalizedSource.frontmatter)
   if (drawing && title && !drawing.titleHandled && !drawing.hasOwner('title', 'label')) {
     const titled = new TerminalDocument()
@@ -313,9 +317,12 @@ export function executeTerminalRender(
     : admitExternalTerminalOutput(renderedOutput, colorMode)
   let receipt: RenderRequestReceipt | undefined
   const resultOf = (text: string): RenderedAscii => {
+    let certification: ReturnType<typeof certifyTerminalLayout> | undefined
+    const certificate = () => certification ??= certifyTerminalLayout(drawing, text, colorMode)
+    if (request.renderOptions.layoutSafety === 'strict' && certificate().status !== 'passed') throw new Error(`Strict terminal layout safety failed: ${certificate().issues.map(issue => issue.message).join('; ')}`)
     const result = {
       text,
-      get receipt() { return receipt ??= receiptOf(request, terminalStyle().diagnostics) },
+      get receipt() { return receipt ??= Object.freeze({ ...receiptOf(request, terminalStyle().diagnostics), layoutCertification: certificate() }) },
       get terminalStyle() { return terminalStyle() },
       outputPolicy,
     }
@@ -362,32 +369,4 @@ function terminalControlsReplaced(source: Readonly<NormalizedMermaidSource>): bo
     || containsControls(source.initDirectives)
     || containsControls(source.comments)
     || containsControls(source.accessibility)
-}
-
-/**
- * Loop 9 M13: wrap a single label string at word boundaries to fit a column
- * width. Words longer than `maxLineWidth` emit a warn and render as-is.
- * Returns the label with `<br/>` separators between wrapped lines.
- */
-export function wrapLabel(text: string, maxLineWidth: number): string {
-  if (visualWidth(text) <= maxLineWidth) return text
-  const words = text.split(/\s+/).filter(Boolean)
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    if (visualWidth(word) > maxLineWidth) {
-      // Word can't fit on its own line — emit warning, render anyway.
-      // eslint-disable-next-line no-console
-      console.warn(`wrapLabel: word "${word.slice(0, 20)}..." exceeds maxLineWidth=${maxLineWidth}`)
-      if (current) lines.push(current)
-      lines.push(word)
-      current = ''
-      continue
-    }
-    if (current.length === 0) current = word
-    else if (visualWidth(current) + 1 + visualWidth(word) <= maxLineWidth) current += ' ' + word
-    else { lines.push(current); current = word }
-  }
-  if (current) lines.push(current)
-  return lines.join('<br/>')
 }

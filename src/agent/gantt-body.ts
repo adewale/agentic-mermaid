@@ -4,16 +4,17 @@
 //
 // Segment-preserving structured body (the BUILD-18 sequence pattern): typed
 // ops cover the modeled statements — title, sections, tasks — while calendar
-// directives (dateFormat, axisFormat, excludes, includes, weekend, weekday,
+// directives (dateFormat, excludes, includes, weekend, weekday,
 // todayMarker, tickInterval, inclusiveEndDates, topAxis), click lines,
-// comments ride along VERBATIM as opaque-block segments in their original
+// comments ride along as opaque-block segments in their original
 // position. Universal accTitle/accDescr are removed by the source envelope;
 // direct body-parser callers retain them as opaque blocks through the shared
 // accessibility parser.
 //
 // Whole-opaque fallback (return null) only for structure-level failures:
-// header suffix, unclosed accDescr block, or duplicate Mermaid task ids
-// (identity becomes unsafe to model).
+// header suffix, unclosed accDescr block, duplicate Mermaid task ids, or task
+// labels whose literal text has no portable spelling. Axis formats own a
+// typed value; comments with directive openers use a safe comment spelling.
 //
 // Mutation validation is correctness-by-construction: every value an op
 // writes is rendered to its canonical line and re-parsed; the op is rejected
@@ -21,30 +22,49 @@
 // structured bodies serialize-idempotent by construction.
 // ============================================================================
 
-import { unknownOpMessage } from './mutation-ops.ts'
-import type {
-  GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag,
-  GanttStatement, GanttMutationOp, MutationError, Result, VerifyOptions, LayoutWarning,
-} from './types.ts'
-import { ok, err } from './types.ts'
-import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex } from './body-utils.ts'
+import { GANTT_DURATION_RE, GANTT_TASK_TAGS, ganttDuration, type ParsedTaskMeta, readGanttStatements, renderGanttTaskMeta } from '../gantt/parser.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { readGanttStatements, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
+import { writeMermaidComment } from '../shared/trailing-comment.ts'
+import { GANTT_ADJACENT_TASK_COLON, ganttTaskLabelNeedsShield, writeGanttTaskLabel } from '../gantt/task-text.ts'
+import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex } from './body-utils.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
+import type { GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttMutationOp, GanttStatement, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
+import { err, ok } from './types.ts'
 
 const TASK_ID_RE = /^[\w-]+$/
-
 // ---- Parser -----------------------------------------------------------------
 
-/** Inline metadata comments are read generously, then written on their own
- * line: Mermaid's Gantt lexer otherwise absorbs them into the end date. */
+/** Diagnose task text, lengths and separators read more generously than the
+ * pinned lexer; preserve literal labels and keep comments outside scheduling
+ * data. */
 export function ganttUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = readGanttStatements(source.split(/\r?\n/))
-  return statements.flatMap((statement, index) => statement.kind === 'comment'
-    && statements[index - 1]?.kind === 'task' && statements[index - 1]!.endLine === statement.startLine
-    ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_inline_task_comment', line: statement.startLine,
-      message: 'Inline task metadata comments are read as comments. Pinned Mermaid reads them into the end date; put %% comments on their own line for portability.' }]
-    : [])
+  const labelWarnings: LayoutWarning[] = statements.flatMap(statement =>
+    statement.kind === 'task' && ganttTaskLabelNeedsShield(statement.labelSource)
+      ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_task_label', line: statement.startLine, message: `Task label "${statement.label}" is drawn literally. Pinned Mermaid reads part of its authored spelling as a directive, keyword, date, or click action; the writer protects that token with an entity code.` }]
+      : [],
+  )
+  const durationWarnings: LayoutWarning[] = statements.flatMap(statement => {
+    if (statement.kind !== 'task' || statement.meta.end.kind !== 'duration' || GANTT_DURATION_RE.test(statement.meta.end.raw)) return []
+    const raw = statement.meta.end.raw
+    const written = ganttDuration(raw)
+    return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_duration_spelling', line: statement.startLine, message: `The task length "${raw}" is read as \`${written}\`. Pinned Mermaid reads a length only as a number followed directly by ms, s, m, h, d, w, M or y: it ignores this one and gives the task no length. The writer writes \`${written}\`.` }]
+  })
+  return labelWarnings.concat(durationWarnings, statements.flatMap((statement, index) =>
+    statement.kind === 'comment' && statements[index - 1]?.kind === 'task' && statements[index - 1]!.endLine === statement.startLine
+      ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_inline_task_comment', line: statement.startLine, message: 'Inline task metadata comments are read as comments. Pinned Mermaid reads them into the end date; put %% comments on their own line for portability.' }]
+      : statement.afterSemicolon
+        ? [
+            {
+              code: 'UNSUPPORTED_SYNTAX' as const,
+              syntax: 'gantt_semicolon_separator',
+              line: statement.startLine,
+              message: "A `;` after task data or a date or format value is read as a statement separator. Pinned Mermaid reads what follows it into the next task's label (`; Task`), or rejects it; put each statement on its own line.",
+            },
+          ]
+        : [],
+  ))
 }
 
 /**
@@ -74,13 +94,23 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
   for (const syntax of readGanttStatements(raw)) {
     if (syntax.kind === 'blank') continue
     if (syntax.kind === 'invalid' && syntax.structural) return null
+    if (syntax.kind === 'directive' && syntax.name === 'axisFormat') {
+      body.axisFormat = syntax.value
+      continue
+    }
+    if (syntax.kind === 'comment') {
+      appendOpaqueSegment(statements, syntax.raw.map(writeMermaidComment), ganttOpaqueBlock)
+      continue
+    }
     if (syntax.kind === 'title') {
+      if (syntax.value.includes('%%{')) return null
       body.title = syntax.value
       // Re-declared titles keep their statement position (last wins for the value).
       statements.push({ kind: 'title' })
       continue
     }
     if (syntax.kind === 'section') {
+      if (syntax.value.includes('%%{')) return null
       body.sections.push({ id: `section-${sIdx++}`, label: syntax.value, tasks: [] })
       currentSection = body.sections.length - 1
       statements.push({ kind: 'section', ref: currentSection })
@@ -99,7 +129,7 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
         label,
         tags: canonicalTags(meta.tags),
         start: meta.start ? (meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw) : undefined,
-        end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw,
+        end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : taskEnd(meta.end.raw),
       }
       body.sections[section]!.tasks.push(task)
       statements.push({ kind: 'task', section, ref: body.sections[section]!.tasks.length - 1 })
@@ -119,6 +149,8 @@ function canonicalTags(tags: GanttBodyTaskTag[]): GanttBodyTaskTag[] {
 
 const ganttOpaqueBlock = (lines: string[]): GanttStatement => ({ kind: 'opaque-block', lines })
 
+/** A task's end, with a length in Mermaid's spelling (`2min` is `2m`). */
+const taskEnd = (end: string): string => ganttDuration(end) ?? end
 
 // ---- Serializer ---------------------------------------------------------------
 
@@ -126,14 +158,8 @@ function taskMeta(task: GanttBodyTask): ParsedTaskMeta {
   return {
     tags: canonicalTags(task.tags),
     id: task.taskId,
-    start: task.start === undefined
-      ? undefined
-      : task.start.startsWith('after ')
-        ? { kind: 'after', refs: task.start.slice('after '.length).split(/\s+/).filter(Boolean) }
-        : { kind: 'date', raw: task.start },
-    end: task.end.startsWith('until ')
-      ? { kind: 'until', refs: task.end.slice('until '.length).split(/\s+/).filter(Boolean) }
-      : { kind: 'date', raw: task.end }, // duration vs date is irrelevant for emission
+    start: task.start === undefined ? undefined : task.start.startsWith('after ') ? { kind: 'after', refs: task.start.slice('after '.length).split(/\s+/).filter(Boolean) } : { kind: 'date', raw: task.start },
+    end: task.end.startsWith('until ') ? { kind: 'until', refs: task.end.slice('until '.length).split(/\s+/).filter(Boolean) } : { kind: 'date', raw: task.end }, // duration vs date is irrelevant for emission
   }
 }
 
@@ -141,11 +167,24 @@ function renderTaskLine(task: GanttBodyTask): string {
   const metadata = renderGanttTaskMeta(taskMeta(task))
   // Without this separator Mermaid's comment rule consumes a colon followed
   // by percent, even though the same metadata with whitespace is valid.
-  return `  ${task.label} :${metadata.startsWith('%') ? ' ' : ''}${metadata}`
+  const label = writeGanttTaskLabel(task.label)
+  return `  ${label}${GANTT_ADJACENT_TASK_COLON.test(label) ? '' : ' '}:${metadata.startsWith('%') ? ' ' : ''}${metadata}`
+}
+
+/** The statement token excludes #, semicolons and physical line breaks, so
+ * such a format is written as configuration (`%%{init: {"gantt": …}}%%`),
+ * which holds the identical string without a text codec. */
+export function ganttAxisFormatWrittenAsConfig(format: string): boolean {
+  return /[#;\r\n]|%%\{/.test(format)
 }
 
 export function renderGantt(body: GanttBody): string {
   const lines: string[] = ['gantt']
+  if (body.axisFormat !== undefined) {
+    if (typeof body.axisFormat !== 'string' || !body.axisFormat.trim()) throw new Error('Gantt axisFormat must be nonempty text')
+    if (ganttAxisFormatWrittenAsConfig(body.axisFormat)) lines.unshift(`%%{init: ${JSON.stringify({ gantt: { axisFormat: body.axisFormat } }).replace(/%/g, '\\u0025')}}%%`)
+    else lines.push(`  axisFormat ${body.axisFormat}`)
+  }
 
   if (body.statements && body.statements.length > 0) {
     for (const st of body.statements) {
@@ -179,6 +218,7 @@ function cloneBody(b: GanttBody): GanttBody {
   return {
     kind: 'gantt',
     title: b.title,
+    ...(b.axisFormat !== undefined ? { axisFormat: b.axisFormat } : {}),
     sections: b.sections.map(s => ({ id: s.id, label: s.label, tasks: s.tasks.map(t => ({ ...t, tags: [...t.tags] })) })),
     statements: (b.statements ?? deriveStatements(b)).map(cloneStatement),
   }
@@ -208,8 +248,8 @@ function makeIdAllocator(body: GanttBody, prefix: 'section' | 'task'): () => str
 // Correctness by construction: render the candidate task to its canonical
 // line and re-parse; reject unless the round-trip reproduces it exactly.
 function validateTask(task: GanttBodyTask): MutationError | null {
-  if (!task.label || /[:\r\n]/.test(task.label)) {
-    return { code: 'INVALID_OP', message: 'Gantt task label must be non-empty and must not contain ":" or newlines' }
+  if (!task.label || /[\r\n]/.test(task.label)) {
+    return { code: 'INVALID_OP', message: 'Gantt task label must be non-empty and must not contain newlines' }
   }
   if (task.taskId !== undefined && !TASK_ID_RE.test(task.taskId)) {
     return { code: 'INVALID_OP', message: `Gantt task id "${task.taskId}" must match ${TASK_ID_RE}` }
@@ -236,7 +276,7 @@ function validateTask(task: GanttBodyTask): MutationError | null {
 }
 
 function validateSectionLabel(label: string): MutationError | null {
-  if (!label.trim() || /[:\r\n]/.test(label)) {
+  if (!label.trim() || /[:\r\n]|%%\{/.test(label)) {
     return { code: 'INVALID_OP', message: 'Gantt section label must be non-empty and must not contain ":" or newlines' }
   }
   const line = `section ${label.trim()}`
@@ -285,10 +325,11 @@ function implicitChainError(opKind: string, before: GanttBodyTask[], after: Gant
   const names = disturbed.map(l => `"${l}"`).join(', ')
   return {
     code: 'INVALID_OP',
-    message: `${opKind} would silently change the schedule: task(s) ${names} have an implicit start `
-      + `(they begin when the previous task in source order ends) and this move changes their predecessor. `
-      + `Materialize an explicit start first — set_task_dates with the resolved start date (read it from `
-      + `describe/analyze) or an "after <taskId>" dependency — then retry the move.`,
+    message:
+      `${opKind} would silently change the schedule: task(s) ${names} have an implicit start ` +
+      `(they begin when the previous task in source order ends) and this move changes their predecessor. ` +
+      `Materialize an explicit start first — set_task_dates with the resolved start date (read it from ` +
+      `describe/analyze) or an "after <taskId>" dependency — then retry the move.`,
   }
 }
 
@@ -324,9 +365,15 @@ function opaqueLinesReferencing(body: GanttBody, id: string): string[] {
     for (const raw of st.lines) {
       const line = raw.trim()
       if (!line || line.startsWith('%%')) continue
-      if (clickRe.test(line)) { out.push(line); continue }
+      if (clickRe.test(line)) {
+        out.push(line)
+        continue
+      }
       for (const m of line.matchAll(REF_EXPR_RE)) {
-        if (m[1]!.trim().split(/\s+/).includes(id)) { out.push(line); break }
+        if (m[1]!.trim().split(/\s+/).includes(id)) {
+          out.push(line)
+          break
+        }
       }
     }
   }
@@ -336,7 +383,10 @@ function opaqueLinesReferencing(body: GanttBody, id: string): string[] {
 /** Rewrite `oldId` → `newId` inside an `after …`/`until …` expression. */
 function rewriteRefExpr(expr: string, keyword: 'after' | 'until', oldId: string, newId: string): string {
   if (!expr.startsWith(`${keyword} `)) return expr
-  const refs = expr.slice(keyword.length + 1).split(/\s+/).filter(Boolean)
+  const refs = expr
+    .slice(keyword.length + 1)
+    .split(/\s+/)
+    .filter(Boolean)
   if (!refs.includes(oldId)) return expr
   return `${keyword} ${refs.map(ref => (ref === oldId ? newId : ref)).join(' ')}`
 }
@@ -358,7 +408,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
         break
       }
       const title = op.title.trim()
-      if (!title || /[\r\n]/.test(title)) return err({ code: 'INVALID_OP', message: 'Gantt title must be a non-empty single line' })
+      if (!title || /[\r\n]|%%\{/.test(title)) return err({ code: 'INVALID_OP', message: 'Gantt title must be a non-empty single line without a directive opener' })
       const hadTitle = body.title !== undefined
       body.title = title
       if (!hadTitle) statements.unshift({ kind: 'title' })
@@ -383,8 +433,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
     case 'remove_section': {
       if (!getSection(op.index)) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
       body.sections.splice(op.index, 1)
-      removeAll(statements, s =>
-        (s.kind === 'section' && s.ref === op.index) || (s.kind === 'task' && s.section === op.index))
+      removeAll(statements, s => (s.kind === 'section' && s.ref === op.index) || (s.kind === 'task' && s.section === op.index))
       for (const s of statements) {
         if (s.kind === 'section' && s.ref > op.index) s.ref--
         if (s.kind === 'task' && s.section > op.index) s.section--
@@ -399,13 +448,16 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       }
       const index = resolveInsertIndex(op.index, s.tasks.length, 'Gantt')
       if (!index.ok) return index
+      // A tag outside Mermaid's vocabulary has no spelling; it was dropped.
+      const unknownTag = (op.tags ?? []).find(tag => !(GANTT_TASK_TAGS as readonly string[]).includes(tag))
+      if (unknownTag !== undefined) return err({ code: 'INVALID_OP', message: `Gantt task tag ${JSON.stringify(unknownTag)} is not one of ${GANTT_TASK_TAGS.join(', ')}` })
       const task: GanttBodyTask = {
         id: nextTaskId(),
         taskId: op.taskId,
         label: op.label?.trim() ?? '',
         tags: canonicalTags(op.tags ?? []),
         start: op.start?.trim() || undefined,
-        end: (op.end ?? '').trim(),
+        end: taskEnd((op.end ?? '').trim()),
       }
       const bad = validateTask(task)
       if (bad) return err(bad)
@@ -472,7 +524,9 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       oldIndexes.splice(op.from, 1)
       oldIndexes.splice(op.to, 0, op.from)
       const newIndexOf = new Array<number>(body.sections.length)
-      oldIndexes.forEach((old, nw) => { newIndexOf[old] = nw })
+      oldIndexes.forEach((old, nw) => {
+        newIndexOf[old] = nw
+      })
 
       const [moved] = body.sections.splice(op.from, 1)
       body.sections.splice(op.to, 0, moved!)
@@ -515,7 +569,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
       const candidate = { ...t, tags: [...t.tags] }
       if (op.start !== undefined) candidate.start = op.start === null ? undefined : op.start.trim()
-      if (op.end !== undefined) candidate.end = op.end.trim()
+      if (op.end !== undefined) candidate.end = taskEnd(op.end.trim())
       const bad = validateTask(candidate)
       if (bad) return err(bad)
       t.start = candidate.start
@@ -526,8 +580,14 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       const t = getTask(op.sectionIndex, op.taskIndex)
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
       const tags = new Set<GanttBodyTaskTag>(t.tags)
-      if (op.milestone !== undefined) { if (op.milestone) tags.add('milestone'); else tags.delete('milestone') }
-      if (op.vert !== undefined) { if (op.vert) tags.add('vert'); else tags.delete('vert') }
+      if (op.milestone !== undefined) {
+        if (op.milestone) tags.add('milestone')
+        else tags.delete('milestone')
+      }
+      if (op.vert !== undefined) {
+        if (op.vert) tags.add('vert')
+        else tags.delete('vert')
+      }
       const candidate = { ...t, tags: canonicalTags([...tags]) }
       const bad = validateTask(candidate)
       if (bad) return err(bad)
@@ -549,14 +609,10 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
         const structuredRefs = tasksReferencing(body, oldId).filter(rt => rt !== t)
         const opaqueRefs = opaqueLinesReferencing(body, oldId)
         if (structuredRefs.length > 0 || opaqueRefs.length > 0) {
-          const referents = [
-            ...structuredRefs.map(rt => `task "${rt.label}"`),
-            ...opaqueRefs.map(l => `opaque line "${l}"`),
-          ].join(', ')
+          const referents = [...structuredRefs.map(rt => `task "${rt.label}"`), ...opaqueRefs.map(l => `opaque line "${l}"`)].join(', ')
           return err({
             code: 'INVALID_OP',
-            message: `Cannot clear task id "${oldId}": it is referenced by ${referents}. `
-              + `Retarget or remove those references first (set_task_dates on the referencing tasks; opaque lines are edited at the source level).`,
+            message: `Cannot clear task id "${oldId}": it is referenced by ${referents}. ` + `Retarget or remove those references first (set_task_dates on the referencing tasks; opaque lines are edited at the source level).`,
           })
         }
         const cleared = { ...t, taskId: undefined }
@@ -578,8 +634,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
         if (opaqueRefs.length > 0) {
           return err({
             code: 'INVALID_OP',
-            message: `Cannot rename task id "${oldId}": it is referenced from opaque segment(s) ${opaqueRefs.map(l => `"${l}"`).join(', ')} `
-              + `— typed ops never rewrite opaque lines (click/comments/unmodeled syntax). Edit those lines at the source level first.`,
+            message: `Cannot rename task id "${oldId}": it is referenced from opaque segment(s) ${opaqueRefs.map(l => `"${l}"`).join(', ')} ` + `— typed ops never rewrite opaque lines (click/comments/unmodeled syntax). Edit those lines at the source level first.`,
           })
         }
       }
@@ -691,9 +746,9 @@ export function verifyGantt(body: GanttBody, opts: VerifyOptions): LayoutWarning
     .flatMap(s => s.lines.map(l => l.trim()))
     .filter(l => l.length > 0)
 
-  if (tasks.length === 0 && body.title === undefined && opaqueLines.length === 0) {
-    return [{ code: 'EMPTY_DIAGRAM' }]
-  }
+  // A title or calendar settings do not invent a scheduled task. Rendering
+  // can show an empty template while verification still names that state.
+  if (tasks.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
 
   // Gantt draws its text as written; only section titles break at `<br>`.
   const overflow = labelOverflowCollector(warnings, opts, cap, 'literal')
@@ -710,7 +765,11 @@ export function verifyGantt(body: GanttBody, opts: VerifyOptions): LayoutWarning
   for (const line of opaqueLines) {
     const colon = line.indexOf(':')
     if (colon <= 0) continue
-    const items = line.slice(colon + 1).split(',').map(s => s.trim()).filter(Boolean)
+    const items = line
+      .slice(colon + 1)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
     let i = 0
     while (i < items.length && (GANTT_TASK_TAGS as readonly string[]).includes(items[i]!)) i++
     const candidate = items[i]

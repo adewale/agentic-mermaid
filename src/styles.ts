@@ -9,10 +9,9 @@ import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } f
 // resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { escapeAttr, renderMultilineText } from './multiline-utils.ts'
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
-import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
+import { MONO_FONT, measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
@@ -31,7 +30,7 @@ export function estimateMonoTextWidth(text: string, fontSize: number): number {
 }
 
 /** Monospace font family used for code-like text (class members, types) */
-export const MONO_FONT = "'JetBrains Mono'" as const
+export { MONO_FONT } from './text-metrics.ts'
 
 /** Full CSS fallback chain for monospace text */
 export const MONO_FONT_STACK = `${MONO_FONT}, 'SF Mono', 'Fira Code', ui-monospace, monospace` as const
@@ -97,6 +96,7 @@ export const TEXT_BASELINE_SHIFT = '0.35em' as const
 export const ARROW_HEAD = {
   width: 8,
   height: 5,
+  strokeWidth: 0.75,
 } as const
 
 /** Flowchart dotted-edge stroke pattern; renderer emits stroke-dasharray="4 4". */
@@ -357,23 +357,28 @@ export function diagramTitleBand(
   return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
 }
 
+/** The canvas of a diagram with nothing but a title: the title alone, padded
+ * on every side, as the families whose title is their own furniture draw it.
+ * Without a title, a diagram with no content stays an empty canvas. */
+export function titleOnlyCanvas(band: DiagramTitleBand, padX: number, padY = padX): { width: number; height: number; title: PositionedDiagramTitle } {
+  const width = band.width + 2 * padX
+  return { width, height: band.height - DIAGRAM_TITLE_GAP + 2 * padY, title: positionDiagramTitle(band, width, padY) }
+}
+
 /** Where a band's title sits on a canvas `width` wide with `top` padding. */
 export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
   return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2, ...(band.block ? { block: band.block } : {}) }
 }
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
+  return marks.text(diagramTitleFields(title, style))
+}
+
+export function diagramTitleFields(title: PositionedDiagramTitle, style: ResolvedRenderStyle): Parameters<typeof marks.text>[0] {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
-  const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
-  return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
-    renderMultilineText(
-      title.block ?? title.text,
-      title.x,
-      title.y,
-      DIAGRAM_TITLE_FONT_SIZE,
-      `class="diagram-title" text-anchor="middle" font-size="${DIAGRAM_TITLE_FONT_SIZE}" font-weight="${DIAGRAM_TITLE_FONT_WEIGHT}"${font}${spacing} fill="${escapeAttr(fill)}"`,
-    ),
-  )
+  return {
+    id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
+    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing,
+    anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
+  }
 }

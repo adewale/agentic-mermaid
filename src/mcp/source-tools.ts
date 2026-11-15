@@ -1,0 +1,144 @@
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { renderConfigWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { verifyNoExternalRefs } from '../output-security.ts'
+import { projectMcpRenderOptions } from './tool-surface.ts'
+import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
+import { editToolEnvelope } from './edit-tools.ts'
+import { mcpRenderReceipt } from './receipt-summary.ts'
+import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
+import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import type { RenderOptions } from '../types.ts'
+import type { ParsedDiagram, VerifyOptions, VerifyResult } from '../agent/types.ts'
+
+export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify' | 'describe' | 'mutate' | 'build' | 'preview'
+
+/** Shared structured results for the hosted tools and the local worker: every
+ * runtime-neutral tool that parses and lays out a diagram. Adapters check
+ * their own arguments and caps first and own the catch for a thrown error. */
+export function runSourceTool(name: SourceToolName, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
+  const source = args.source as string
+  switch (name) {
+    case 'render_svg': {
+      const rendered = renderStrictSvg(source, args)
+      return {
+        ok: true as const,
+        svg: rendered.svg,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
+        warnings: sourceConfigWarnings(source, args),
+      }
+    }
+    case 'render_ascii': {
+      // The host's SVG policy (security, embedFontImport) has nothing to
+      // enforce on terminal text, so it is not added here: an option the
+      // caller did not pass must not be reported as one terminals ignore.
+      // Terminal projection diagnostics (TERMINAL_*) are receipt evidence, in
+      // receipt.diagnostics, as on the CLI; `warnings` carries the same
+      // catalogued source/config warnings every render surface reports.
+      const rendered = renderMermaidASCIIWithReceipt(source, {
+        ...projectMcpRenderOptions(args),
+        useAscii: args.useAscii === true,
+        targetWidth: args.targetWidth as number | undefined,
+        colorMode: 'none',
+      })
+      return {
+        ok: true as const,
+        text: rendered.text,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
+        warnings: sourceConfigWarnings(source, args),
+      }
+    }
+    case 'verify': return verifySummaryPayload(source)
+    case 'preview': return previewPayload(source, args)
+    case 'describe': return mcpDescribePayload(source, args)
+    case 'mutate': return editToolEnvelope(args, 'source')
+    case 'build': return editToolEnvelope(args, 'family')
+  }
+}
+
+/**
+ * The compact verification of a parsed diagram: verify's findings with the
+ * layout reduced to its bounds and element counts. MCP verify returns it, and
+ * `am verify --summary` / `am mutate --json --summary` print it, from this one
+ * function so the surfaces cannot drift.
+ */
+export function compactVerification(diagram: ParsedDiagram, v: VerifyResult) {
+  // Echo the detected family + a one-line summary so `ok:true` is never a
+  // silent pass on the wrong kind of diagram: an agent that asked for an
+  // architecture diagram and reads `family:"flowchart"` here sees the
+  // mismatch in the same result it was already going to read, without
+  // having to know to call `describe` separately.
+  return { ok: v.ok, family: diagram.kind, summary: mcpVerificationSummary(diagram), warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+}
+
+/** The MCP verify payload for source; `am verify --summary` prints the same
+ * payload, passing its own verify options. */
+export function verifySummaryPayload(source: string, options: VerifyOptions = {}): { ok: boolean } & Record<string, unknown> {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) {
+    // Self-describing tool: when the header names a known family, hand back
+    // that family's canonical example so a failed authoring attempt gets the
+    // correct dialect in the same response — no need to fetch capabilities.json.
+    // It also carries verify's own findings, so its warning codes match
+    // the library and CLI verify.
+    const hint = familyExampleForSource(source)
+    const v = verifyMermaid(source, options)
+    return { ok: false as const, errors: parsed.error, warnings: v.warnings, checks: v.checks, ...(hint ?? {}) }
+  }
+  if (parsed.value.body.kind === 'preserved') {
+    const v = verifyMermaid(parsed.value, options)
+    return {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(parsed.value.body))),
+      warnings: v.warnings,
+      checks: v.checks,
+    }
+  }
+  return compactVerification(parsed.value, verifyMermaid(parsed.value, options))
+}
+
+/** The hosted preview payload: verify's facts without the layout, plus the
+ * strict SVG that only the linked MCP Apps view reads (the hosted adapter keeps
+ * `svg` out of the model-visible text). A source that does not parse returns
+ * verify's failure payload and no diagram. */
+function previewPayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
+  const verified = verifySummaryPayload(source)
+  if (typeof verified.summary !== 'string') return verified
+  const { layout: _layout, ...facts } = verified
+  return { ...facts, svg: renderStrictSvg(source, args).svg }
+}
+
+/** Render under the host's SVG policy and enforce its no-external-reference
+ * invariant, so no client receives markup that fetches. */
+function renderStrictSvg(source: string, args: Record<string, unknown>) {
+  const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
+  const safety = verifyNoExternalRefs(rendered.svg)
+  if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
+  return rendered
+}
+
+/** Config warnings for the source and for the mermaidConfig the caller passed. */
+function sourceConfigWarnings(source: string, args: Record<string, unknown>) { return renderConfigWarningsForMermaid(source, projectMcpRenderOptions(args)) }
+
+function familyExampleForSource(source: string): { family: string; example: string } | undefined {
+  const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
+  const header = first.split(/\s+/)[0] ?? ''
+  for (const f of BUILTIN_FAMILY_METADATA) {
+    if (f.headers.some(h => header === h)) return { family: f.id, example: f.example }
+  }
+  return undefined
+}
+
+function svgOptions(args: Record<string, unknown>): RenderOptions {
+  // Public MCP SVG is commonly embedded by downstream agent UIs. It must
+  // never carry active tags/event handlers or external fetches from Mermaid
+  // init/config payloads; unlike the local library, this direct tool exposes no
+  // caller-selectable security mode.
+  const opts = projectMcpRenderOptions(args)
+  // The hosted boundary owns this policy. An advanced options object cannot
+  // weaken it even though the same canonical request fields are accepted.
+  return { ...opts, ...HOSTED_RENDER_OPTIONS }
+}
+

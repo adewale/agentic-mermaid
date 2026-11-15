@@ -1,3 +1,5 @@
+import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
+export { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 /**
  * Deterministic layout-quality rubric (docs/design/system/layout-rubric.md).
  *
@@ -15,11 +17,17 @@
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, hasBundleRouteExemption, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
+import type { PassMetrics, RubricMetric } from './layout/pass.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { graphReachability } from './layout/geometry.ts'
+import { hasConstructedBundleRoute } from './layout/bundle-routes.ts'
+import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -50,6 +58,7 @@ const RUBRIC_SEVERITY: Record<string, RubricSeverity> = {
   unexplainedBends: 'secondary',
   hitches: 'secondary',
   offOutlineEndpoints: 'cosmetic',
+  endpointApproaches: 'primary',
   labelOffRoute: 'cosmetic',
 }
 
@@ -62,6 +71,8 @@ export function rubricSeverity(metric: string): RubricSeverity {
 export interface RubricViolation {
   metric: string
   detail: string
+  /** Authored ids the violation names (edges as `source->target`). */
+  targets?: readonly string[]
   /** Evidence-based impact rank; reports are sorted by it. */
   severity: RubricSeverity
 }
@@ -70,6 +81,8 @@ export interface RubricMetrics {
   edges: number
   /** HARD (0): edge endpoints must lie on the rendered shape outline. */
   offOutlineEndpoints: number
+  /** HARD (0): exact endpoints must carry an outward, non-tangent shaft. */
+  endpointApproaches: number
   /** HARD (0): orthogonal routing must not emit diagonal segments. */
   diagonalSegments: number
   /** HARD (0): an edge certified 'straight' may not have bends. */
@@ -82,6 +95,8 @@ export interface RubricMetrics {
   labelOffRoute: number
   /** HARD (0): edge segments through a non-incident node's interior. */
   edgeThroughNode: number
+  /** Padded label/label, label/node and label/visible-route conflict pairs. */
+  labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
@@ -131,28 +146,51 @@ export function onShapeOutline(node: PositionedNode, p: Point, tol = 1.5): boole
  * renderer's geometry (shear = w * 0.15 for the trapezoid/parallelogram
  * family; the asymmetric flag indents its left point by 12px).
  */
-function slantedPolygonVertices(node: PositionedNode): Point[] {
+function slantedPolygonVertices(node: PositionedNode): number {
   const { x, y, width: w, height: h } = node
   const inset = w * 0.15
   switch (node.shape) {
     case 'trapezoid': // wider bottom
-      return [{ x: x + inset, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+      vertex(0, x + inset, y); vertex(1, x + w - inset, y); vertex(2, x + w, y + h); vertex(3, x, y + h); return 4
     case 'trapezoid-alt': // wider top
-      return [{ x, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x: x + inset, y: y + h }]
+      vertex(0, x, y); vertex(1, x + w, y); vertex(2, x + w - inset, y + h); vertex(3, x + inset, y + h); return 4
     case 'lean-r': // parallelogram leaning right
-      return [{ x: x + inset, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x, y: y + h }]
+      vertex(0, x + inset, y); vertex(1, x + w, y); vertex(2, x + w - inset, y + h); vertex(3, x, y + h); return 4
     case 'lean-l': // parallelogram leaning left
-      return [{ x, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x: x + inset, y: y + h }]
+      vertex(0, x, y); vertex(1, x + w - inset, y); vertex(2, x + w, y + h); vertex(3, x + inset, y + h); return 4
     default: // asymmetric: flag with a pointed left edge
-      return [{ x: x + 12, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x: x + 12, y: y + h }, { x, y: y + h / 2 }]
+      vertex(0, x + 12, y); vertex(1, x + w, y); vertex(2, x + w, y + h); vertex(3, x + 12, y + h); vertex(4, x, y + h / 2); return 5
   }
 }
+
+// Scratch vertices for segmentThroughShape. The predicate is synchronous and
+// never re-entered, so one buffer serves every call without allocation.
+const polygonXs = new Float64Array(6), polygonYs = new Float64Array(6)
+function vertex(index: number, x: number, y: number): void { polygonXs[index] = x; polygonYs[index] = y }
 
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
  * (not merely its bbox — a route grazing the empty corner outside a circle's
- * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
+ * disk or a diamond's facet is legal). Plain and explicitly decorated full
+ * rectangles use their open interior; curved shapes retain the tolerance.
  */
+/** A route's bounds. segmentThroughShape is false whenever a segment's box
+ * misses the node's box, and every segment lies inside its route's bounds, so
+ * a scan may skip a node the whole route misses without changing any result. */
+export interface RouteBounds { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number }
+export function routeBounds(points: readonly Point[]): RouteBounds {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const point of points) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x)
+    minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y)
+  }
+  return { minX, minY, maxX, maxY }
+}
+/** True only when no segment of the route can pass through the node (NaN never skips). */
+export function routeMissesShapeBox(bounds: RouteBounds, node: PositionedNode): boolean {
+  return bounds.maxX <= node.x || bounds.minX >= node.x + node.width || bounds.maxY <= node.y || bounds.minY >= node.y + node.height
+}
+
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
@@ -160,8 +198,18 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-  const inBbox = xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
-    yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5
+  // Independently restate the renderer's classic cylinder core (cap ry = 7).
+  // Its curved caps keep the existing graze policy; their empty corners do
+  // not justify a tolerance inside the core's straight, fully painted sides.
+  if (node.shape === 'cylinder' && (node.semanticShape === undefined || node.semanticShape === 'cyl')
+    && node.height > 14 && xHi > node.x && xLo < node.x + node.width
+    && yHi > node.y + 7 && yLo < node.y + node.height - 7) return true
+  const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
+    && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
+      || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
+  const inset = rectangularBody ? 0 : 0.5
+  const inBbox = xHi > node.x + inset && xLo < node.x + node.width - inset &&
+    yHi > node.y + inset && yLo < node.y + node.height - inset
   if (!inBbox) return false
 
   // For curved/pointed shapes, occlusion means penetrating DEEPER than the
@@ -171,20 +219,17 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   // incursion is visible against a straight side.
   const GRAZE = 2.5
   switch (node.shape) {
+    case 'ellipse':
     case 'circle':
     case 'doublecircle':
     case 'state-start':
     case 'state-end': {
       // Scale to a unit circle so ellipses work too, then test segment distance.
-      const sa = { x: (a.x - cx) / hw, y: (a.y - cy) / hh }
-      const sb = { x: (b.x - cx) / hw, y: (b.y - cy) / hh }
-      return pointToSegmentDistance({ x: 0, y: 0 }, sa, sb) < 1 - GRAZE / Math.min(hw, hh)
+      return pointToSegmentDistanceXY(0, 0, (a.x - cx) / hw, (a.y - cy) / hh, (b.x - cx) / hw, (b.y - cy) / hh) < 1 - GRAZE / Math.min(hw, hh)
     }
     case 'stadium': {
       const r = hh
-      const coreA = { x: cx - (hw - r), y: cy }
-      const coreB = { x: cx + (hw - r), y: cy }
-      return segmentToSegmentDistance(a, b, coreA, coreB) < r - GRAZE
+      return segmentToSegmentDistanceXY(a.x, a.y, b.x, b.y, cx - (hw - r), cy, cx + (hw - r), cy) < r - GRAZE
     }
     case 'diamond':
     case 'hexagon':
@@ -193,69 +238,127 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
     case 'lean-r':
     case 'lean-l':
     case 'asymmetric': {
-      const raw = node.shape === 'diamond'
-        ? [
-          { x: cx, y: node.y }, { x: node.x + node.width, y: cy },
-          { x: cx, y: node.y + node.height }, { x: node.x, y: cy },
-        ]
-        : node.shape === 'hexagon'
-          ? (() => {
-            const inset = node.height / 4
-            return [
-              { x: node.x + inset, y: node.y }, { x: node.x + node.width - inset, y: node.y },
-              { x: node.x + node.width, y: cy }, { x: node.x + node.width - inset, y: node.y + node.height },
-              { x: node.x + inset, y: node.y + node.height }, { x: node.x, y: cy },
-            ]
-          })()
-          : slantedPolygonVertices(node)
+      let count: number
+      if (node.shape === 'diamond') {
+        vertex(0, cx, node.y); vertex(1, node.x + node.width, cy)
+        vertex(2, cx, node.y + node.height); vertex(3, node.x, cy)
+        count = 4
+      } else if (node.shape === 'hexagon') {
+        const hexInset = node.height / 4
+        vertex(0, node.x + hexInset, node.y); vertex(1, node.x + node.width - hexInset, node.y)
+        vertex(2, node.x + node.width, cy); vertex(3, node.x + node.width - hexInset, node.y + node.height)
+        vertex(4, node.x + hexInset, node.y + node.height); vertex(5, node.x, cy)
+        count = 6
+      } else count = slantedPolygonVertices(node)
       const shrink = Math.max(0, 1 - GRAZE / Math.min(hw, hh))
-      const verts = raw.map(v => ({ x: cx + (v.x - cx) * shrink, y: cy + (v.y - cy) * shrink }))
-      return segmentThroughConvexPolygon(a, b, verts)
+      for (let i = 0; i < count; i++) vertex(i, cx + (polygonXs[i]! - cx) * shrink, cy + (polygonYs[i]! - cy) * shrink)
+      return segmentThroughConvexPolygon(a, b, count)
     }
     default:
       return true // rect-like (and cylinder, whose footprint is its bbox)
   }
 }
 
-function segmentThroughConvexPolygon(a: Point, b: Point, verts: Point[]): boolean {
-  const inside = (p: Point): boolean => {
-    for (let i = 0; i < verts.length; i++) {
-      const v1 = verts[i]!, v2 = verts[(i + 1) % verts.length]!
-      if ((v2.x - v1.x) * (p.y - v1.y) - (v2.y - v1.y) * (p.x - v1.x) < -0.5) return false
-    }
-    return true
-  }
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  if (inside(a) || inside(b) || inside(mid)) return true
-  for (let i = 0; i < verts.length; i++) {
-    if (segmentsIntersect(a, b, verts[i]!, verts[(i + 1) % verts.length]!)) return true
+/** Tests against the first `count` scratch vertices. */
+function segmentThroughConvexPolygon(a: Point, b: Point, count: number): boolean {
+  if (insideScratchPolygon(a.x, a.y, count) || insideScratchPolygon(b.x, b.y, count)
+    || insideScratchPolygon((a.x + b.x) / 2, (a.y + b.y) / 2, count)) return true
+  for (let i = 0; i < count; i++) {
+    const j = (i + 1) % count
+    if (segmentsIntersectXY(a.x, a.y, b.x, b.y, polygonXs[i]!, polygonYs[i]!, polygonXs[j]!, polygonYs[j]!)) return true
   }
   return false
 }
 
+function insideScratchPolygon(px: number, py: number, count: number): boolean {
+  for (let i = 0; i < count; i++) {
+    const j = (i + 1) % count
+    const v1x = polygonXs[i]!, v1y = polygonYs[i]!, v2x = polygonXs[j]!, v2y = polygonYs[j]!
+    if ((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x) < -0.5) return false
+  }
+  return true
+}
+
 function segmentToSegmentDistance(a: Point, b: Point, c: Point, d: Point): number {
-  if (segmentsIntersect(a, b, c, d)) return 0
+  return segmentToSegmentDistanceXY(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y)
+}
+
+function segmentToSegmentDistanceXY(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): number {
+  if (segmentsIntersectXY(ax, ay, bx, by, cx, cy, dx, dy)) return 0
   return Math.min(
-    pointToSegmentDistance(a, c, d), pointToSegmentDistance(b, c, d),
-    pointToSegmentDistance(c, a, b), pointToSegmentDistance(d, a, b),
+    pointToSegmentDistanceXY(ax, ay, cx, cy, dx, dy), pointToSegmentDistanceXY(bx, by, cx, cy, dx, dy),
+    pointToSegmentDistanceXY(cx, cy, ax, ay, bx, by), pointToSegmentDistanceXY(dx, dy, ax, ay, bx, by),
   )
 }
 
-function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
-  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
+function segmentsIntersectXY(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): boolean {
+  const det = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx)
   if (Math.abs(det) < 1e-9) return false
-  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
-  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / det
+  const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / det
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
 }
 
+/** Shared visible-route predicate, also used by public quality measurement. */
+export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
+  return countPolylineCrossings(edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' })), involved)
+}
+
+/** Same-endpoint parallel routes sharing visible collinear ink cannot be
+ * distinguished along that span. Endpoint distance alone does not prove this. */
+type InkEdge = Pick<PositionedEdge, 'source' | 'target' | 'style' | 'points'>
+
+export function countParallelRouteOverlaps(edges: readonly InkEdge[], involved?: ReadonlySet<number>): number {
+  const pairs = new Map<string, Array<{ edge: InkEdge; index: number }>>()
+  edges.forEach((edge, index) => {
+    if (edge.style === 'invisible' || edge.source === edge.target) return
+    const key = JSON.stringify([edge.source, edge.target])
+    const group = pairs.get(key) ?? []
+    group.push({ edge, index }); pairs.set(key, group)
+  })
+  const sharesSpan = (a: InkEdge, b: InkEdge): boolean => {
+    for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
+      const p = a.points[i - 1]!, q = a.points[i]!, r = b.points[j - 1]!, s = b.points[j]!
+      if (Math.abs(p.x - q.x) <= 0.01 && Math.abs(r.x - s.x) <= 0.01 && Math.abs(p.x - r.x) <= 0.5 && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) > 1) return true
+      if (Math.abs(p.y - q.y) <= 0.01 && Math.abs(r.y - s.y) <= 0.01 && Math.abs(p.y - r.y) <= 0.5 && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x)) > 1) return true
+    }
+    return false
+  }
+  let overlaps = 0
+  for (const group of pairs.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+    const a = group[i]!, b = group[j]!
+    if ((!involved || involved.has(a.index) || involved.has(b.index)) && sharesSpan(a.edge, b.edge)) overlaps++
+  }
+  return overlaps
+}
+
+
+export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'edges'>, visibleOnly = false): number {
+  const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+  let measured = 0, attached = 0
+  for (const edge of positioned.edges) {
+    if (visibleOnly && edge.style === 'invisible') continue
+    for (const [id, point] of [[edge.source, edge.points[0]], [edge.target, edge.points.at(-1)]] as const) {
+      const node = nodes.get(id)
+      if (!node) continue
+      measured++
+      if (point && onDesignatedPort(node, point)) attached++
+    }
+  }
+  return measured === 0 ? 1 : attached / measured
+}
+
 function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
+  return pointToSegmentDistanceXY(p.x, p.y, a.x, a.y, b.x, b.y)
+}
+
+function pointToSegmentDistanceXY(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax
+  const dy = by - ay
   const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y)
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq))
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay)
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
 /**
@@ -357,23 +460,6 @@ function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): bool
   return visit(groups)
 }
 
-function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
-  const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
-    outgoing.get(edge.source)!.push(edge.target)
-  }
-  const seen = new Set<string>()
-  const stack = [from]
-  while (stack.length > 0) {
-    const id = stack.pop()!
-    if (id === to) return true
-    if (seen.has(id)) continue
-    seen.add(id)
-    for (const next of outgoing.get(id) ?? []) stack.push(next)
-  }
-  return false
-}
 
 // The sym metric: largest cross-axis offset between a PORT_EXACT peer hub and
 // its peer barycenter — directly the fan-in/fan-out symmetry the centering
@@ -391,6 +477,7 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
 // (Still requires distinct, mutually-unreachable peers on one flow layer.)
 const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedNode[]>()
   const byTarget = new Map<string, PositionedNode[]>()
@@ -415,7 +502,7 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     if (!peers.every(peer => peerShapeOk(peer) && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
+      if (i !== j && reaches(peers[i]!.id, peers[j]!.id)) return
     }
     const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
     worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
@@ -430,24 +517,37 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
  * identical input produces identical metrics.
  */
 export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle = resolveRenderStyle({})): RubricResult {
+  return assessLayoutGeometry(graph, positioned, style, true)
+}
+
+function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle, withSoftMetrics: boolean): RubricResult {
   // Built without severity, then enriched + sorted by impact at the return.
   const violations: Array<Omit<RubricViolation, 'severity'>> = []
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
 
   let offOutline = 0
+  let endpointApproaches = 0
   let diagonal = 0
   let unexplainedBends = 0
   let labelOffRoute = 0
   let totalBends = 0
   let maxBends = 0
-  let portEnds = 0
   let portAnchoredEdges = 0
-  let measuredEnds = 0
   let worstLabelOffset = 0
+  // Targets name each edge as the edge operations do (`A->B#k` or its
+  // authored id), so a repeated pair's violation reaches the right edge.
+  const warningIds = positionedEdgeWarningIds(positioned.edges)
 
   for (const e of positioned.edges) {
-    const id = `${e.source}->${e.target}`
+    const id = `${e.source}->${e.target}`, target = warningIds.get(e)!
     const bends = Math.max(0, e.points.length - 2)
+    if (e.style !== 'invisible') {
+      const approaches = invalidEndpointApproaches(e, nodeMap.get(e.source), nodeMap.get(e.target))
+      if (approaches) {
+        endpointApproaches += approaches
+        violations.push({ metric: 'endpointApproaches', detail: `${id}: ${approaches} inward or tangent exact endpoint shaft(s)`, targets: [target] })
+      }
+    }
     // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
     // (a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's dogleg) is
     // "as good as straight" — the bend is structurally necessary to converge and
@@ -458,22 +558,22 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
     // penalty and the HARD hitch-invariant AGREE on what is justified. This does
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
-    const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
-    if (!justifiedConvergenceBend) {
+    const justifiedConvergenceBend = hasBundleRouteExemption(e)
+    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
     }
 
     if (bends > 0 && e.routeCertificate?.invariant === 'straight') {
       unexplainedBends += bends
-      violations.push({ metric: 'unexplainedBends', detail: `${id} certified straight with ${bends} bends` })
+      violations.push({ metric: 'unexplainedBends', detail: `${id} certified straight with ${bends} bends`, targets: [target] })
     }
 
     for (let i = 1; i < e.points.length; i++) {
       const a = e.points[i - 1]!, b = e.points[i]!
       if (Math.abs(a.x - b.x) > 0.01 && Math.abs(a.y - b.y) > 0.01) {
         diagonal++
-        violations.push({ metric: 'diagonalSegments', detail: `${id} segment ${i}` })
+        violations.push({ metric: 'diagonalSegments', detail: `${id} segment ${i}`, targets: [target] })
       }
     }
 
@@ -483,16 +583,14 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
     ] as const) {
       const node = nodeMap.get(nodeId)
       if (!node) continue
-      measuredEnds++
-      if (!onShapeOutline(node, pt)) {
+      if (!pt || !onShapeOutline(node, pt)) {
         offOutline++
-        violations.push({ metric: 'offOutlineEndpoints', detail: `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` })
+        violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}`, targets: [target, nodeId] })
       }
-      if (onDesignatedPort(node, pt)) portEnds++
     }
     const srcNode = nodeMap.get(e.source)
     const tgtNode = nodeMap.get(e.target)
-    const onPort = (node: PositionedNode | undefined, pt: Point) => node ? onDesignatedPort(node, pt) : false
+    const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
     if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
 
     if (e.label && e.labelPosition && e.points.length >= 2) {
@@ -513,38 +611,29 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
       }
       if (best > allow) {
         labelOffRoute++
-        violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
+        violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})`, targets: [target] })
       }
       // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
-      worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
+      if (withSoftMetrics) worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
     }
   }
 
   let edgeThroughNode = 0
   for (const e of positioned.edges) {
+    const bounds = routeBounds(e.points)
     for (const node of positioned.nodes) {
-      if (node.id === e.source || node.id === e.target) continue
+      if (node.id === e.source || node.id === e.target || routeMissesShapeBox(bounds, node)) continue
       for (let i = 1; i < e.points.length; i++) {
         if (segmentThroughShape(e.points[i - 1]!, e.points[i]!, node)) {
           edgeThroughNode++
-          violations.push({ metric: 'edgeThroughNode', detail: `${e.source}->${e.target} segment ${i} through ${node.id}` })
+          violations.push({ metric: 'edgeThroughNode', detail: `${e.source}->${e.target} segment ${i} through ${node.id}`, targets: [warningIds.get(e)!, node.id] })
           break
         }
       }
     }
   }
 
-  let crossings = 0
-  for (let i = 0; i < positioned.edges.length; i++) {
-    for (let j = i + 1; j < positioned.edges.length; j++) {
-      const e1 = positioned.edges[i]!, e2 = positioned.edges[j]!
-      for (let s = 1; s < e1.points.length; s++) {
-        for (let q = 1; q < e2.points.length; q++) {
-          if (segmentsIntersect(e1.points[s - 1]!, e1.points[s]!, e2.points[q - 1]!, e2.points[q]!)) crossings++
-        }
-      }
-    }
-  }
+  const crossings = withSoftMetrics ? countEdgeCrossings(positioned.edges) : 0
 
   let nodeOverlaps = 0
   for (let i = 0; i < positioned.nodes.length; i++) {
@@ -554,30 +643,32 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
       const oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
       if (ox > 0.5 && oy > 0.5) {
         nodeOverlaps++
-        violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
+        violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}`, targets: [a.id, b.id] })
       }
     }
   }
 
   const hitchList = findRouteHitches(positioned, graph, style)
-  for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane` })
+  for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane`, targets: [h.edge] })
 
   return {
     metrics: {
       edges: positioned.edges.length,
       offOutlineEndpoints: offOutline,
+      endpointApproaches,
       diagonalSegments: diagonal,
       unexplainedBends,
       hitches: hitchList.length,
       nodeOverlaps,
       labelOffRoute,
       edgeThroughNode,
+      labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,
-      portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
+      portEndpointRate: portEndpointRate(positioned),
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
-      peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
+      peerBarycenterDelta: withSoftMetrics ? peerBarycenterDelta(positioned, graph) : 0,
       worstLabelOffset,
     },
     violations: violations
@@ -586,9 +677,39 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
   }
 }
 
+/** Requested pass-budget metrics share the final rubric's predicates without
+ * running unrelated hard checks, collision pairs or label/hitch searches. */
+export function measureRubricMetrics(
+  graph: MermaidGraph,
+  positioned: PositionedGraph,
+  requested: readonly RubricMetric[],
+  style: ResolvedRenderStyle,
+  bundled: ReadonlySet<PositionedEdge> = new Set(),
+): PassMetrics {
+  const result: PassMetrics = {}
+  for (const metric of requested) {
+    switch (metric) {
+      case 'hard': result.hard = hardViolations(assessLayoutGeometry(graph, positioned, style, false)).length; break
+      case 'crossings': result.crossings = countEdgeCrossings(positioned.edges); break
+      case 'portRate': result.portRate = portEndpointRate(positioned, true); break
+      case 'symErr': result.symErr = peerBarycenterDelta(positioned, graph); break
+      case 'parallelOverlaps': result.parallelOverlaps = countParallelRouteOverlaps(positioned.edges); break
+      case 'opposingOverlaps': result.opposingOverlaps = countOpposingRouteOverlaps(positioned.edges); break
+      case 'endpointApproaches': {
+        const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+        result.endpointApproaches = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target))), 0)
+        break
+      }
+      case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || (edge.routeCertificate ? hasBundleRouteExemption(edge) : bundled.has(edge) && hasConstructedBundleRoute(edge)) ? 0 : Math.max(0, edge.points.length - 2)), 0); break
+      case 'straight': result.straight = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.points.length === 2).length; break
+    }
+  }
+  return result
+}
+
 /** The hard rubric metrics — must be zero for every diagram, always. */
 export const HARD_METRICS = [
-  'offOutlineEndpoints', 'diagonalSegments', 'unexplainedBends',
+  'offOutlineEndpoints', 'endpointApproaches', 'diagonalSegments', 'unexplainedBends',
   'hitches', 'nodeOverlaps', 'labelOffRoute', 'edgeThroughNode',
 ] as const
 

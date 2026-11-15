@@ -4,7 +4,7 @@ import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
@@ -36,16 +36,33 @@ import type {
 // They admit a loose id, (icon) and [title]; the terminals below say which
 // ones Mermaid's lexer rejects.
 const IDENT = '[\\w-]+'
-const ICON = '\\(([^)]+)\\)'
-const LABEL = '\\[(.+)\\]'
+const ICON = '\\((?<icon>[^)]+)\\)'
+const LABEL = '\\[(?<content>.+)\\]'
+const ICON_TEXT = String.raw`(?<iconText>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
 
-export const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-export const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
+export const GROUP_RE = new RegExp(`^group\\s+(?<id>${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(?<parentId>${IDENT}))?\\s*$`, 's')
+export const SERVICE_RE = new RegExp(`^service\\s+(?<id>${IDENT})(?:\\s*(?:${ICON}|${ICON_TEXT}))?\\s*(?:${LABEL})?(?:\\s+in\\s+(?<parentId>${IDENT}))?\\s*$`, 's')
 export const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
 export const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 export const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
-export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/
-const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
+export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/s
+const EDGE_RE = new RegExp(`^(${IDENT}(?:\\{group\\})?:[LRTB])\\s*(.+?)\\s*([LRTB]:${IDENT}(?:\\{group\\})?)$`, 's')
+
+// A [title] that is one "…" or '…' string runs to its closing quote across
+// line breaks, which it keeps. A quote elsewhere in a title is text, and a
+// title statement runs to the end of its line.
+const QUOTED_TEXT = {
+  spanning: `"'`,
+  opensAt: (line: string, index: number) => line[index - 1] === '[' || /^service\s+[\w-]+\s*$/.test(line.slice(0, index)),
+  wholeLine: (line: string) => /^title\s/i.test(line),
+}
+
+/** For each line, the last line of the statement that starts there. */
+export function architectureStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, QUOTED_TEXT)
+}
+
+export { familyParserLines as architectureSourceLines } from '../shared/parser-source.ts'
 
 // Mermaid's architecture lexer terminals. An id is word characters with
 // dashes only inside (ID); an icon is word characters, `-` and `:`
@@ -56,6 +73,10 @@ const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
 // reject (architectureTerminalRejections), and the typed serializer and
 // mutator write titles, ids and icons only in a form they accept.
 const ID_TERMINAL_RE = /^\w(?:[\w-]*\w)?$/
+const ID_KEYWORDS = new Set(['architecture-beta', 'group', 'service', 'junction', 'in', 'align', 'row', 'column'])
+// ARROW_DIRECTION and TITLE precede ID in the pinned lexer and take these
+// prefixes even in a longer id; grammar keywords only take the whole id.
+const ID_TOKEN_PREFIX_RE = /^(?:[LRTB]|title)/
 const ICON_TERMINAL_RE = /^[\w:-]+$/
 const UNQUOTED_TITLE_RE = /^[\w ]+$/ // Keep the writer's conservative bare spelling.
 const UNQUOTED_TITLE_TERMINAL_RE = /^[^[\]\r\n]+$/
@@ -63,11 +84,16 @@ const QUOTED_TITLE_RE = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/
 
 /** The syntax error Mermaid's lexer raises for an id, if any. */
 export function architectureIdError(id: string): Error | undefined {
-  return ID_TERMINAL_RE.test(id) ? undefined : syntaxError({
+  if (!ID_TERMINAL_RE.test(id)) return syntaxError({
     what: `Architecture id "${id}" must start and end with a letter, digit or _`,
     expectedForm: 'letters, digits and _, with - only between them',
     example: id.replace(/^-+|-+$/g, '') || 'api',
   })
+  return ID_KEYWORDS.has(id) || ID_TOKEN_PREFIX_RE.test(id) ? syntaxError({
+    what: `Architecture id "${id}" is read as a reserved token by Mermaid`,
+    expectedForm: 'an id other than an architecture keyword, not starting with L, R, T, B or title',
+    example: `node_${id}`,
+  }) : undefined
 }
 
 /** The syntax error Mermaid's lexer raises for an icon name, if any. */
@@ -93,11 +119,22 @@ export function architectureTitleSource(title: string): string {
 
 /** A group or service declaration: its id, icon, title (the id when it has
  * none) and parent, read as written. */
-export function architectureDeclaration(match: RegExpMatchArray): { id: string; icon?: string; title: string; parentId?: string } {
-  const [, id, rawIcon, content, parentId] = match
+export function architectureDeclaration(match: RegExpMatchArray): { id: string; icon?: string; iconText?: string; title: string; parentId?: string } {
+  const { id, icon: rawIcon, iconText: rawIconText, content, parentId } = match.groups!
   const icon = rawIcon?.trim() || undefined
   const title = content === undefined ? id! : architectureTitle(content)
-  return { id: id!, ...(icon !== undefined ? { icon } : {}), title, ...(parentId !== undefined ? { parentId } : {}) }
+  return { id: id!, ...(icon !== undefined ? { icon } : {}), ...(rawIconText !== undefined ? { iconText: architectureIconText(rawIconText) } : {}), title, ...(parentId !== undefined ? { parentId } : {}) }
+}
+
+/** The pinned grammar's Langium STRING escape vocabulary. */
+export function architectureIconText(token: string): string {
+  const escapes: Record<string, string> = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', 0: '\0' }
+  return token.slice(1, -1).replace(/\\(.)/gs, (_, char: string) => escapes[char] ?? char)
+}
+
+export function architectureIconTextSource(text: string): string {
+  const escapes: Record<string, string> = { '\b': '\\b', '\f': '\\f', '\n': '\\n', '\r': '\\r', '\t': '\\t', '\v': '\\v', '\0': '\\0', '\\': '\\\\', '"': '\\"' }
+  return `"${text.replace(/[\b\f\n\r\t\v\0\\"]/g, char => escapes[char]!)}"`
 }
 
 export type ArchitectureTerminal = 'id' | 'icon' | 'title'
@@ -108,7 +145,7 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
   const line = stripTrailingComment(statement.trim())
   const rejections: Array<{ terminal: ArchitectureTerminal; what: string }> = []
   const id = (value: string | undefined): void => {
-    if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" starts or ends with "-" and is read as written` })
+    if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" is not a portable Mermaid id and is read as written` })
   }
   const title = (content: string | undefined): void => {
     if (content !== undefined && !UNQUOTED_TITLE_TERMINAL_RE.test(content) && !QUOTED_TITLE_RE.test(content)) {
@@ -117,7 +154,7 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
   }
   const declaration = line.match(GROUP_RE) ?? line.match(SERVICE_RE)
   if (declaration) {
-    const [, declared, icon, content, parentId] = declaration
+    const { id: declared, icon, content, parentId } = declaration.groups!
     id(declared)
     const name = icon?.trim()
     if (name && architectureIconError(name)) rejections.push({ terminal: 'icon', what: `Architecture icon (${name}) has a character an icon name cannot hold, and is read as written` })
@@ -155,10 +192,11 @@ export type ArchitectureSourceStatement = ArchitectureSyntax & {
 /** Lossless syntax, before renderer or agent projection and identity checks. */
 export function readArchitectureStatements(lines: readonly string[]): ArchitectureSourceStatement[] {
   const out: ArchitectureSourceStatement[] = []
+  const ends = architectureStatementEnds(lines)
   for (let index = 0; index < lines.length; index++) {
     const start = index
     const rawLine = lines[index]!
-    const append = (syntax: ArchitectureSyntax, raw = [rawLine]): void => {
+    const append = (syntax: ArchitectureSyntax, raw = lines.slice(start, index + 1)): void => {
       out.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1 })
     }
     const rawText = rawLine.trim()
@@ -185,7 +223,8 @@ export function readArchitectureStatements(lines: readonly string[]): Architectu
       }
       continue
     }
-    const line = stripTrailingComment(rawText)
+    index = ends[index]!
+    const line = stripTrailingComment(lines.slice(start, index + 1).join('\n').trim())
     try {
       const title = line.match(/^title\s+(.+)$/i)
       const group = line.match(GROUP_RE)
@@ -265,10 +304,10 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
 
     if (statement.kind === 'service') {
       const declared = statement.declaration
-      const { id, icon, parentId } = declared
+      const { id, icon, iconText, parentId } = declared
       const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
-      const service: ArchitectureService = { id, label, icon, parentId }
+      const service: ArchitectureService = { id, label, icon, ...(iconText !== undefined ? { iconText } : {}), parentId }
       ensureParentGroup(parentId, groups, line)
       services.set(id, service)
       if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addService', service, { line: statement.startLine + 1, unit: 'normalized' })

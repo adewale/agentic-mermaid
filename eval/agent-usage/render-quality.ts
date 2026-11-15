@@ -34,6 +34,25 @@ export interface AgentUsageRenderQualitySummary {
 }
 
 const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
+  agentflow_set_search_role: ["LLM API", "Brand guide", "Plan work", "Search documents", "Publish result", "PUBLISHING"],
+  author_agentflow_source: ["LLM API", "Brand guide", "Plan work", "Search documents", "Publish result", "PUBLISHING"],
+  usecase_set_vertical_direction: ["Customer", "STOREFRONT", "Browse catalogue", "Checkout"],
+  author_usecase_source: ["Customer", "STOREFRONT", "Browse catalogue", "Checkout"],
+  wardley_evolve_service: ["PLATFORM EVOLUTION", "Customer", "Service", "Power", "Custom", "Utility", "Keep all note text", "Adopt utility"],
+  author_wardley_source: ["PLATFORM EVOLUTION", "Customer", "Service", "Power", "Custom", "Utility", "Keep all note text", "Adopt utility"],
+  venn_update_overlap: ["Alpha", "Beta", "Shared", "Owned note"],
+  author_venn_source: ["Alpha", "Beta", "Shared", "Owned note"],
+  cynefin_automate_clear_domain: ["Decisions with feedback", "Explore", "Analyse", "Automate", "Stabilise", "Investigate", "Learning", "Recover"],
+  author_cynefin_source: ["Decisions with feedback", "Explore", "Analyse", "Automate", "Stabilise", "Investigate", "Learning", "Recover"],
+  railroad_replace_item_literal: ["entry", "start", "item", "end", "datum"],
+  author_railroad_source: ["entry", "start", "item", "end", "datum"],
+  swimlane_rename_dispatch: ["CUSTOMER", "OPERATIONS", "Request order", "Receive order", "In stock?", "Ship parcel", "Yes"],
+  author_swimlane_source: ["CUSTOMER", "OPERATIONS", "Request order", "Receive order", "In stock?", "Ship parcel", "Yes"],
+  treeview_rename_component: ["PROJECT", "src/", "Application.tsx", "widgets/", "按钮.ts", "README.md", "main component"],
+  author_treeview_source: ["PROJECT", "src/", "Application.tsx", "widgets/", "按钮.ts", "README.md", "main component"],
+  zenuml_rename_inventory: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
+  author_zenuml_source: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
+  eventmodeling_add_read_model: ['Cart.UI', 'Cart.AddItem', 'Cart.ItemAdded', 'Cart.Items', 'description: string'],
   cache_between_api_and_db: ['API', 'Cache', 'DB'],
   state_add_done_transition: ['Processing', 'done'],
   sequence_alt_add_message: ['hi', 'bye', 'yes'],
@@ -53,6 +72,12 @@ const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
   author_c4_source: ['Customer', 'Shop', 'Payments', 'Places orders', 'Sells products', 'Processes payments', 'Uses', 'Charges'],
   author_auth_flow_source: ['User', 'Login Page', 'Dashboard'],
   author_api_sequence_source: ['User', 'App', 'API', 'Render SVG', 'Download'],
+  packet_add_checksum: ['Version', 'Payload', 'Checksum'],
+  kanban_move_completed_task: ['To do', 'Done', 'Build parser', 'Research', 'Maya', 'AM-1'],
+  requirement_rename_evidence: ['fast', 'evidence', 'Respond within 100ms', 'Analysis', 'verifies', 'traces'],
+  block_rename_database: ['API', 'DB'],
+  treemap_update_design_value: ['Product', 'Engineering', 'Design'],
+  ishikawa_add_cache_cause: ['Slow release', 'Process', 'Tooling', 'Manual checks', 'Slow builds', 'Cold caches'],
 }
 
 function escapeXmlText(s: string): string {
@@ -111,7 +136,7 @@ export async function scoreAgentUsageRenderedQuality(cases: AgentUsageEvalCase[]
       const labelsOk = renderOk && semanticLabelsOk(c.id, svg)
       const result: AgentUsageRenderQualityResult = {
         id: c.id,
-        family: c.family ?? (AGENT_USAGE_SUPPORTED_FAMILIES.includes(parsed.value.kind as DiagramKind) ? parsed.value.kind as DiagramKind : 'unknown'),
+        family: c.family ?? (AGENT_USAGE_SUPPORTED_FAMILIES.includes(parsed.value.kind as DiagramKind) ? (parsed.value.kind as DiagramKind) : 'unknown'),
         ok: verify.ok && renderOk && safeSvg.ok && boundsOk && labelsOk,
         sourceOk: true,
         verifyOk: verify.ok,

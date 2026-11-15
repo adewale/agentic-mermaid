@@ -1,4 +1,4 @@
-import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
+import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 import {
@@ -321,6 +321,7 @@ function validateRoleStyleRecord(raw: unknown, path: string, applicable?: Readon
     if (descriptor.kind === 'number' && !numberIsValid(candidate, descriptor)) problems.push(`"${leaf}" must be ${descriptor.expected}`)
     else if (descriptor.kind === 'font' && (typeof candidate !== 'string' || safeCssFontFamily(candidate) === undefined)) problems.push(`"${leaf}" must be a safe non-fetching CSS font family or stack`)
     else if (descriptor.kind === 'color' && !safeRoleColor(candidate)) problems.push(`"${leaf}" must be a safe non-fetching CSS paint`)
+    else if (descriptor.kind === 'color' && !isRecognizableCssColor(candidate as string)) problems.push(`"${leaf}" must be a CSS color, not ${JSON.stringify(candidate)} (use ${cssColorSpellings(true)})`)
     else if (descriptor.kind === 'enum' && (typeof candidate !== 'string' || !(descriptor.values as readonly string[]).includes(candidate))) problems.push(`"${leaf}" must be one of ${descriptor.values.join(' | ')}`)
   }
   return problems
@@ -470,6 +471,7 @@ export function validateStyleSpec(value: unknown): string[] {
           if (!Object.hasOwn(STYLE_COLOR_TOKEN_DESCRIPTORS, token)) problems.push(`unknown color token "${token}"`)
           else if (color !== undefined && typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
           else if (color !== undefined && safeCssColor(color) === undefined) problems.push(`color token "${token}" must be a safe non-fetching CSS color`)
+          else if (color !== undefined && !isRecognizableCssColor(color)) problems.push(`color token "${token}" must be a CSS color, not ${JSON.stringify(color)} (use ${cssColorSpellings(false)})`)
         }
         break
       }
@@ -480,8 +482,9 @@ export function validateStyleSpec(value: unknown): string[] {
 
 type JsonSchema = Readonly<Record<string, unknown>>
 
-function rolePropertyJsonSchemas(): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(ROLE_STYLE_PROPERTY_DESCRIPTORS).map(([name, property]) => {
+function rolePropertyJsonSchemas(properties: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(properties.map(name => {
+    const property = ROLE_STYLE_PROPERTY_DESCRIPTORS[name as keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
     if (property.kind === 'number') {
       const numeric = property as { minimum?: number; exclusiveMinimum?: number; maximum?: number; description: string }
       return [name, { type: 'number', ...(numeric.minimum !== undefined ? { minimum: numeric.minimum } : {}), ...(numeric.exclusiveMinimum !== undefined ? { exclusiveMinimum: numeric.exclusiveMinimum } : {}), ...(numeric.maximum !== undefined ? { maximum: numeric.maximum } : {}), description: numeric.description }]
@@ -492,8 +495,7 @@ function rolePropertyJsonSchemas(): Record<string, unknown> {
 }
 
 function roleStyleJsonSchema(properties: readonly string[] = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)): JsonSchema {
-  const schemas = rolePropertyJsonSchemas()
-  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
+  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: rolePropertyJsonSchemas(properties) }
 }
 
 function roleStyleDefinitionName(role: (typeof SCENE_ROLE_DESCRIPTORS)[number]): string {
@@ -696,8 +698,10 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
   const compactConstraintUnion = BRAND_CONSTRAINT_KINDS.map(kind => constraintTypeScript(kind, true)).join('|')
   const constraintUnion = BRAND_CONSTRAINT_KINDS.map(kind => `  | ${constraintTypeScript(kind, false)}`).join('\n')
   if (options.compact) {
+    // Identifier keys need no quotes; the compact form drops them.
+    const key = (name: string) => /^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name)
     const compactRole = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)
-      .map(name => `${JSON.stringify(name)}?:${rolePropertyTypeScript(name)}`).join(';')
+      .map(name => `${key(name)}?:${rolePropertyTypeScript(name)}`).join(';')
     const propertyGroups = new Map<string, string[]>()
     for (const descriptor of EXACT_SCENE_ROLE_DESCRIPTORS) {
       const signature = [...descriptor.style.applicableProperties].sort().join('|')
@@ -709,7 +713,7 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
       return `R extends ${match}?${properties}:`
     }).join('')
     const compactStyle = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
-      .map(([name, descriptor]) => `${JSON.stringify(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
+      .map(([name, descriptor]) => `${key(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
     const compactColors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `${token}?:string`).join(';')
     return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${sceneRoleUnion}\ntype ExactSceneStyleRole=${exactSceneRoleUnion}\ntype BindableSceneStyleRole=${bindableSceneRoleUnion}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyleFor<R extends ExactSceneStyleRole>=${roleStyleCases}never\ntype RoleStyles={[R in ExactSceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:BindableSceneStyleRole}\ntype BrandConstraint=${compactConstraintUnion}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
   }

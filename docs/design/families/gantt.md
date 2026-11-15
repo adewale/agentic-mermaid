@@ -79,7 +79,7 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 | `gantt` header | parse + render | Add `gantt` to registered `FamilyId` detection, CLI/MCP capabilities, docs, gallery, and editor examples. |
 | `title ...` | parse + render | Also included in label extraction and accessibility summary. |
 | `accTitle`, `accDescr` | parse + render | Use existing SVG accessibility injection. Do not duplicate family-owned ARIA. |
-| `dateFormat ...` | parse + render | Required for date parsing. Default is `YYYY-MM-DD`; test the docs claim behind [#5655](https://github.com/mermaid-js/mermaid/issues/5655). |
+| `dateFormat ...` | parse + render | Default is `YYYY-MM-DD`; task start/end dates also admit a bare four-digit year as January 1. Calendar exclusions and explicit other formats remain strict; test the docs claim behind [#5655](https://github.com/mermaid-js/mermaid/issues/5655). |
 | `axisFormat ...` | parse + render | SVG and ASCII may format differently when terminal space is constrained; both must use the same resolved tick instants. |
 | `tickInterval ...` | parse + render, bounded | Must validate interval count before generating ticks. Regression source: [PR #7197](https://github.com/mermaid-js/mermaid/pull/7197). |
 | `inclusiveEndDates` | parse + render | Apply at scheduling boundary, not by stretching bars in renderer code. |
@@ -265,6 +265,8 @@ SVG requirements:
 - Style + Palette rendering routes Gantt marks through the internal style face:
   task labels, bars, grid lines, markers, and section bands should respond to named styles and palette stacks;
 - status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-milestone-done`, `gantt-milestone-active`, `gantt-milestone-crit`, `gantt-vert-marker`, `gantt-excluded-band`;
+- each status is drawn apart from every other by ink, never by opacity alone, with one cue per terminal glyph: plain a solid body (█), active a lighter body inside an outline (▓), crit a pale body inside a heavy outline (▒), done a pale body inside a dashed outline (░); milestones take their status the same way;
+- theme line/accent/border ink is drawn through the renderer's repaired tokens (`--_line`, `--_arrow`, `--_node-stroke`), so an unreadable theme line or accent cannot leave the grid or bars faint;
 - text contrast tests for status bars in light and dark themes;
 - `displayMode: compact` uses deterministic interval packing and has a fixture where dense rows would overlap under naive spacing.
 
@@ -401,3 +403,7 @@ requires a stable owner in root `TODO.md`.
 The retained architectural direction is a clean internal dependency/calendar
 model rather than new syntax; any expansion of `describe`, overlays, row
 compaction, or editor details must first be promoted to root `TODO.md`.
+
+## Empty plans
+
+A syntactically valid plan with no tasks renders an explicit `No tasks scheduled` state in SVG and terminal output. Authored titles and section labels remain visible; no date ticks or task bars are invented. Verification retains its `EMPTY_DIAGRAM` diagnostic. The scheduler's zero extent is an empty sentinel, and layouts do not display it as a calendar date. Raw `themeCSS` remains rejected by strict security; use the declarative Style interface for supported appearance changes.

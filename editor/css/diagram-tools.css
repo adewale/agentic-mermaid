@@ -1,0 +1,25 @@
+.diagram-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.diagram-tools[hidden], .diagram-tools [hidden] { display: none; }
+.diagram-tools label { display: inline-flex; align-items: center; gap: 6px; }
+.diagram-tools select {
+  min-width: 100px;
+  max-width: min(260px, 50vw);
+  color: var(--fg2);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  padding: 4px;
+}
+.diagram-tools output { color: var(--fg2); overflow-wrap: anywhere; }
+.preview-footer.has-diagram-tools { height: auto; min-height: 36px; padding-block: 6px; gap: 12px; }
+#preview-inner g[data-field-id][tabindex] { cursor: pointer; }
+#preview-inner g[data-packet-inspected] { filter: drop-shadow(0 0 3px var(--fg2)); }
+#preview-inner g[data-field-id]:focus-visible { outline: 2px solid var(--fg2); outline-offset: 3px; }
+@media (pointer: coarse) { .diagram-tools select, .diagram-tools label { min-height: 44px; } }

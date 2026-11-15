@@ -1,4 +1,8 @@
-function getSvgNaturalSize(svgEl) {
+import { state } from './state.js';
+import { previewBody, previewInner, zoomLabel } from './elements.js';
+import { EditorMotion } from './motion.js';
+export var presentationZoom, zoomTarget, zoomSpring, zoomCommitTimer;
+export function getSvgNaturalSize(svgEl) {
   var vb = svgEl.viewBox && svgEl.viewBox.baseVal;
   if (vb && vb.width > 0 && vb.height > 0) return { w: vb.width, h: vb.height };
   var w = parseFloat(svgEl.getAttribute('width')) || svgEl.getBoundingClientRect().width || 400;
@@ -6,22 +10,20 @@ function getSvgNaturalSize(svgEl) {
   return { w: w, h: h };
 }
 
-var presentationZoom = state.zoom;
-var zoomTarget = state.zoom;
-var zoomSpring = null;
-var zoomCommitTimer = null;
 
-function constrainZoom(value) {
+export function constrainZoom(value) {
   return Math.max(0.1, Math.min(8, value));
 }
 
-function zoomAnchor(anchor) {
+
+export function zoomAnchor(anchor) {
   if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) return anchor;
   var rect = previewBody.getBoundingClientRect();
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-function preserveZoomAnchor(svgEl, anchor, mutate) {
+
+export function preserveZoomAnchor(svgEl, anchor, mutate) {
   var point = zoomAnchor(anchor);
   var before = svgEl.getBoundingClientRect();
   var x = (point.x - before.left) / (before.width || 1);
@@ -32,11 +34,13 @@ function preserveZoomAnchor(svgEl, anchor, mutate) {
   previewBody.scrollTop += (after.top + y * after.height) - point.y;
 }
 
-function getPresentationZoom() {
+
+export function getPresentationZoom() {
   return presentationZoom;
 }
 
-function setPresentationZoom(value, anchor) {
+
+export function setPresentationZoom(value, anchor) {
   presentationZoom = constrainZoom(value);
   var svgEl = previewInner.querySelector('svg');
   if (!svgEl) {
@@ -51,12 +55,14 @@ function setPresentationZoom(value, anchor) {
   return presentationZoom;
 }
 
-function clearZoomTimers() {
+
+export function clearZoomTimers() {
   if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
   zoomCommitTimer = null;
 }
 
-function commitPresentationZoom(value, anchor) {
+
+export function commitPresentationZoom(value, anchor) {
   clearZoomTimers();
   var target = constrainZoom(value == null ? presentationZoom : value);
   var svgEl = previewInner.querySelector('svg');
@@ -76,7 +82,8 @@ function commitPresentationZoom(value, anchor) {
   return target;
 }
 
-function cancelZoomMotion(commit) {
+
+export function cancelZoomMotion(commit) {
   if (zoomSpring) {
     zoomSpring.cancel();
     zoomSpring = null;
@@ -85,12 +92,14 @@ function cancelZoomMotion(commit) {
   if (commit !== false && Math.abs(presentationZoom - state.zoom) > 0.0001) commitPresentationZoom(presentationZoom);
 }
 
-function applyZoom(value, anchor) {
+
+export function applyZoom(value, anchor) {
   cancelZoomMotion(false);
   return commitPresentationZoom(value, anchor);
 }
 
-function animateZoomTo(value, anchor) {
+
+export function animateZoomTo(value, anchor) {
   var target = constrainZoom(value);
   zoomTarget = target;
   if (EditorMotion.reduced()) return applyZoom(target, anchor);
@@ -111,7 +120,8 @@ function animateZoomTo(value, anchor) {
   });
 }
 
-function queueWheelZoom(value, anchor) {
+
+export function queueWheelZoom(value, anchor) {
   zoomTarget = constrainZoom(value);
   if (zoomSpring) {
     zoomSpring.cancel();
@@ -125,17 +135,8 @@ function queueWheelZoom(value, anchor) {
   }, 120);
 }
 
-document.getElementById('zoom-in-btn').addEventListener('click', function() {
-  animateZoomTo(zoomTarget * 1.25);
-});
-document.getElementById('zoom-out-btn').addEventListener('click', function() {
-  animateZoomTo(zoomTarget / 1.25);
-});
-zoomLabel.addEventListener('click', function() {
-  animateZoomTo(1);
-});
 
-function fitToView(animate) {
+export function fitToView(animate) {
   var svgEl = previewInner.querySelector('svg');
   if (!svgEl || !previewBody) { applyZoom(1); return; }
   var nat = getSvgNaturalSize(svgEl);
@@ -150,4 +151,30 @@ function fitToView(animate) {
   else applyZoom(target);
 }
 
+export function initialize() {
+
+
+presentationZoom = state.zoom;
+
+zoomTarget = state.zoom;
+
+zoomSpring = null;
+
+zoomCommitTimer = null;
+
+
+document.getElementById('zoom-in-btn').addEventListener('click', function() {
+  animateZoomTo(zoomTarget * 1.25);
+});
+
+document.getElementById('zoom-out-btn').addEventListener('click', function() {
+  animateZoomTo(zoomTarget / 1.25);
+});
+
+zoomLabel.addEventListener('click', function() {
+  animateZoomTo(1);
+});
+
+
 document.getElementById('zoom-fit-btn').addEventListener('click', function() { fitToView(true); });
+}

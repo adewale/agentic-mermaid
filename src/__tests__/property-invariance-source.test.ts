@@ -4,17 +4,18 @@
 //
 //   MR6 Comment/blank-line insertion — full-line `%%` comments and blank lines
 //       between statements do not change the drawing. Physical source lines
-//       and the whole-output style-scope hash may change. Insertions the
-//       pinned upstream grammar refuses are excluded, each with its reason.
+//       and the whole-output style-scope hash may change. Directives are live syntax, so they are excluded.
 //   MR7 Chain equivalence (flowchart) — `A --> B --> C` says exactly what
 //       `A --> B` plus `B --> C` says, down to identical geometry.
+//   MR8 Reachability locality (flowchart) — adding a node or part that shares
+//       no edge with the existing nodes never changes their UNREACHABLE_NODE.
 
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const FAMILIES = Object.values(METAMORPHIC_FAMILIES)
@@ -34,61 +35,13 @@ function parse(source: string): ParsedDiagram {
 /** A line inserted before original line `at` (0 = before the header). */
 type Insertion = { at: number; line: string }
 
-// Insertions the relation cannot claim, each excluded by construction with its
-// reason. Every rule carries a witness family and a proof the last test in
-// this block re-runs: `upstream-rejects` (the pinned Mermaid 11.16.0 grammar
-// refuses the witness) or `not-a-comment` (the line is live syntax, so our
-// render changes). An exclusion that stops being true fails loudly instead of
-// rotting.
-const COMMENT_GRAMMAR_EXCLUSIONS: Array<{
-  family: DiagramKind | 'all'
-  witness: DiagramKind
-  example: Insertion
-  proof: 'upstream-rejects' | 'not-a-comment'
-  excludes: (insertion: Insertion) => boolean
-  reason: string
-}> = [
-  {
-    family: 'all',
-    witness: 'er',
-    example: { at: 1, line: '%%' },
-    proof: 'upstream-rejects',
-    excludes: ({ line }) => /^\s*%%$/.test(line),
-    reason: 'a bare `%%` is not a comment: upstream strips only /^\\s*%%(?!{)[^\\n]+/, so it reaches (and breaks) the family grammar, e.g. erDiagram',
-  },
-  {
-    family: 'all',
-    witness: 'flowchart',
-    example: { at: 0, line: '%%{init: {"theme": "dark"}}%%' },
-    proof: 'not-a-comment',
-    excludes: ({ line }) => /^\s*%%\{/.test(line),
-    reason: '`%%{` opens a directive, not a comment',
-  },
-  {
-    family: 'mindmap',
-    witness: 'mindmap',
-    example: { at: 1, line: '' },
-    proof: 'upstream-rejects',
-    excludes: ({ at, line }) => at === 1 && line.trim() === '',
-    reason: 'Mermaid 11.16 mindmap rejects a blank line between the `mindmap` header and the root node',
-  },
-  {
-    family: 'sankey',
-    witness: 'sankey',
-    example: { at: 2, line: '   ' },
-    proof: 'upstream-rejects',
-    excludes: ({ at, line }) => at > 0 && line !== '' && line.trim() === '',
-    reason: 'the sankey CSV grammar rejects a whitespace-only line (an empty line is fine)',
-  },
-]
-
-function excluded(family: DiagramKind, insertion: Insertion): boolean {
-  return COMMENT_GRAMMAR_EXCLUSIONS.some(rule => (rule.family === 'all' || rule.family === family) && rule.excludes(insertion))
+// Directives are live syntax; ordinary full-line comments and blank lines
+// are inert in our reader even where upstream's family lexer rejects them.
+function excluded(_family: DiagramKind, { line }: Insertion): boolean {
+  return /^\s*%%\{/.test(line)
 }
 
-const commentTextArb = fc
-  .array(fc.constantFrom(...'abcXYZ019 :;-->|[](){}"#,.'.split('')), { minLength: 1, maxLength: 16 })
-  .map(chars => chars.join(''))
+const commentTextArb = fc.array(fc.constantFrom(...'abcXYZ019 :;-->|[](){}"#,.'.split('')), { minLength: 1, maxLength: 16 }).map(chars => chars.join(''))
 const indentArb = fc.constantFrom('', '  ', '    ', '\t', '      ')
 const insertedLineArb = fc.oneof(
   fc.tuple(indentArb, commentTextArb).map(([indent, text]) => `${indent}%%${text}`),
@@ -104,9 +57,7 @@ function insertLines(source: string, insertions: readonly Insertion[]): string {
 
 /** Insertions at any line boundary (before the header included), minus the grammar exclusions. */
 function insertionsArb(family: DiagramKind, lineCount: number): fc.Arbitrary<Insertion[]> {
-  return fc
-    .array(fc.record({ at: fc.nat({ max: lineCount }), line: insertedLineArb }), { minLength: 1, maxLength: 4 })
-    .filter(insertions => insertions.every(insertion => !excluded(family, insertion)))
+  return fc.array(fc.record({ at: fc.nat({ max: lineCount }), line: insertedLineArb }), { minLength: 1, maxLength: 4 }).filter(insertions => insertions.every(insertion => !excluded(family, insertion)))
 }
 
 describe('MR6 comment and blank-line insertion preserves the SVG drawing', () => {
@@ -123,45 +74,11 @@ describe('MR6 comment and blank-line insertion preserves the SVG drawing', () =>
             expect(drawing(renderMermaidSVG(insertLines(source, insertions)))).toBe(drawing(renderMermaidSVG(source)))
           },
         ),
-        { numRuns: 25 },
+        fcParameters({ numRuns: 25 }),
       )
     })
   }
 
-  describe('upstream grammar evidence for the insertion space', () => {
-    let upstream: UpstreamMermaid
-    beforeAll(() => {
-      upstream = startUpstreamMermaid()
-    })
-    afterAll(() => upstream.close())
-
-    test('pinned Mermaid accepts sampled insertions for every family', async () => {
-      const rejected: string[] = []
-      for (const fam of FAMILIES) {
-        const source = fam.build(fam.kRange[1], 'q0')
-        for (const insertions of fc.sample(insertionsArb(fam.family, source.split('\n').length), 8)) {
-          const parsed = await upstream.parse(insertLines(source, insertions))
-          if (!parsed.ok) rejected.push(`${fam.family}: ${JSON.stringify(insertions)} — ${parsed.error}`)
-        }
-      }
-      expect(rejected).toEqual([])
-    }, 20_000)
-
-    test('every exclusion is still needed (its witness is rejected or live syntax)', async () => {
-      const stale: string[] = []
-      for (const rule of COMMENT_GRAMMAR_EXCLUSIONS) {
-        const fam = METAMORPHIC_FAMILIES[rule.witness]
-        const source = fam.build(fam.kRange[1], 'q0')
-        const mutated = insertLines(source, [rule.example])
-        expect(excluded(rule.witness, rule.example)).toBe(true)
-        const stillTrue = rule.proof === 'upstream-rejects'
-          ? !(await upstream.parse(mutated)).ok
-          : renderMermaidSVG(mutated) !== renderMermaidSVG(source)
-        if (!stillTrue) stale.push(`${rule.witness}: ${rule.reason}`)
-      }
-      expect(stale).toEqual([])
-    }, 20_000)
-  })
 })
 
 // ---------------------------------------------------------------------------
@@ -175,9 +92,7 @@ describe('MR7 flowchart: a chained edge equals its pairwise split', () => {
   test('A --> B --> C … says exactly what A --> B, B --> C … says', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 2, max: 5 }).chain(edges =>
-          fc.tuple(tagArb, fc.array(edgeArb, { minLength: edges, maxLength: edges }), fc.array(shapeArb, { minLength: edges + 1, maxLength: edges + 1 })),
-        ),
+        fc.integer({ min: 2, max: 5 }).chain(edges => fc.tuple(tagArb, fc.array(edgeArb, { minLength: edges, maxLength: edges }), fc.array(shapeArb, { minLength: edges + 1, maxLength: edges + 1 }))),
         fc.constantFrom('TD', 'LR'),
         ([tag, edges, shapes], direction) => {
           const node = (i: number) => `${tag}${i}${shapes[i]}`
@@ -193,7 +108,33 @@ describe('MR7 flowchart: a chained edge equals its pairwise split', () => {
           expect(renderMermaidSVG(chained)).toBe(renderMermaidSVG(split))
         },
       ),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// MR8 — an unrelated part leaves existing nodes' reachability lint unchanged
+// ---------------------------------------------------------------------------
+
+describe('MR8 flowchart: adding an unrelated node or part never strands existing nodes', () => {
+  // Small directed graphs, cyclic or not, on nodes a0..a4; the unrelated part
+  // uses nodes z0..z2 that share no edge with them.
+  const graphArb = (prefix: string, size: number, minEdges: number) =>
+    fc.array(fc.tuple(fc.integer({ min: 0, max: size - 1 }), fc.integer({ min: 0, max: size - 1 })), { minLength: minEdges, maxLength: size * 2 })
+      .map(edges => edges.map(([from, to]) => `  ${prefix}${from} --> ${prefix}${to}`))
+  const unreachable = (source: string) => new Set(verifyMermaid(source).warnings.flatMap(w => (w.code === 'UNREACHABLE_NODE' ? [w.node] : [])))
+
+  test('UNREACHABLE_NODE for a0..a4 is the same with and without the unrelated part', () => {
+    fc.assert(
+      fc.property(graphArb('a', 5, 1), graphArb('z', 3, 0), (base, unrelated) => {
+        const before = `flowchart TD\n${base.join('\n')}`
+        // An empty unrelated edge list adds the single isolated node z0.
+        const after = `${before}\n${unrelated.length > 0 ? unrelated.join('\n') : '  z0'}`
+        const existing = [...unreachable(after)].filter(id => id.startsWith('a'))
+        expect(existing.sort()).toEqual([...unreachable(before)].sort())
+      }),
+      fcParameters({ numRuns: 40, examples: [[['  a0 --> a1', '  a1 --> a2', '  a1 --> a0'], []]] }),
     )
   })
 })

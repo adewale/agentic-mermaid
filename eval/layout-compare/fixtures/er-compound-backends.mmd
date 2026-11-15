@@ -1,0 +1,28 @@
+erDiagram
+ direction LR
+ subgraph Accounts [Accounts and orders with retained measured headers]
+  direction TB
+  subgraph Commerce [Customer records]
+   direction TB
+  CUSTOMER {
+   int id PK "Stable customer id"
+  }
+  ORDER {
+   int id PK
+   int customer_id FK
+  }
+  CUSTOMER ||--o{ ORDER : places
+  end
+ end
+ subgraph Audit [Audit trail and records]
+  direction RL
+  AUDIT {
+   int id PK
+  }
+  RECORD {
+   int audit_id FK
+  }
+  AUDIT ||..o{ RECORD : records
+ end
+ Accounts ||--|| Audit : exchanges
+ ORDER ||..o{ AUDIT : logs

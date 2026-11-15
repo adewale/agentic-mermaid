@@ -51,7 +51,8 @@ beforeAll(() => {
         return html('/editor/', '<textarea id="code-editor"></textarea><script type="module" src="/editor/editor-abcdef123456.js"></script>')
       }
       if (url.pathname === '/docs/') return html('/docs/', '<main id="main"></main>')
-      if (url.pathname === '/examples/') return html('/examples/', '<article class="example-sample"></article>')
+      if (url.pathname === '/examples/') return html('/examples/', '<section data-example-kind="diagrams"></section>')
+      if (url.pathname === '/examples/diagrams/') return html('/examples/diagrams/', '<article class="example-sample"></article>')
       if (url.pathname === '/comparisons/') return html('/comparisons/', '<section data-comparison-engine="agentic"></section>')
       if (url.pathname === '/editor/editor-abcdef123456.js') {
         return new Response('export const editor = true', { headers: headers('text/javascript', 'public, max-age=31536000, immutable') })
@@ -161,23 +162,12 @@ describe('production website smoke deployment wiring', () => {
       writeFileSync(join(dir, 'bin', 'bun'), `#!/usr/bin/env bash\nexit ${smokeStatus}\n`)
       chmodSync(join(dir, 'bin', 'bun'), 0o755)
       writeFileSync(join(dir, 'output'), '')
-      spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], {
+      spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], { timeout: 20_000, killSignal: 'SIGKILL',
         cwd: dir,
         env: { ...process.env, GITHUB_OUTPUT: join(dir, 'output'), PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
       })
       expect({ smokeStatus, verified: readFileSync(join(dir, 'output'), 'utf8').includes('verified=true') })
         .toEqual({ smokeStatus, verified })
-    }
-  })
-
-  test('rolls back unless every post-promotion verification passes', () => {
-    // Every step after promotion that reports `verified` gates the rollback.
-    const verifications = steps.slice(promoteIndex + 1).filter(step => step.id && step.run?.includes('verified=true')).map(step => step.id!)
-    expect(verifications.length).toBeGreaterThanOrEqual(2)
-    const rollback = steps.find(step => /\bwrangler rollback\b/.test(step.run ?? ''))
-    expect(rollback?.if).toContain('always()')
-    for (const id of verifications) {
-      expect({ id, gatesRollback: rollback?.if?.includes(`steps.${id}.outputs.verified != 'true'`) }).toEqual({ id, gatesRollback: true })
     }
   })
 })

@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — timeline diagrams
 //
@@ -58,7 +58,8 @@ export function renderTimelineTerminal(
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const sectionStart = document.height
-    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.periods.map(period => period.id) }
+    // Registered once: every run the section paints names this owner.
+    const sectionOwner = document.element({ id: section.id, kind: 'band', members: section.periods.map(period => period.id) })
     owner = sectionOwner
 
     if (section.label) {
@@ -137,7 +138,3 @@ export function renderTimelineTerminal(
   return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderTimelineAscii(...args: Parameters<typeof renderTimelineTerminal>): string {
-  return serializeTerminalArtifact(renderTimelineTerminal(...args))
-}

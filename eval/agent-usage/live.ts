@@ -2,9 +2,17 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
+import type { DiscoveryObservation } from './capture-subagent-prompt-eval.ts'
 
 export type LiveProvider = 'anthropic' | 'openai-compatible'
 export type TranscriptProvider = LiveProvider | 'pi-subagent' | `${string}-subagent`
+export type LiveSurface = 'instructions' | 'skill' | 'none'
+export type LiveRequest = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+
+interface ModelReply {
+  text: string
+  usage: { inputTokens: number; outputTokens: number } | null
+}
 
 export interface LiveModelConfig {
   provider: LiveProvider
@@ -26,6 +34,15 @@ export interface LiveTranscript {
   rawResponse: string
   script: string
   result: AgentUsageEvalResult
+  surface?: LiveSurface
+  metrics?: {
+    generationMs: number
+    executionMs: number
+    totalMs: number
+    usage: ModelReply['usage']
+    /** Observed one-shot generation followed by sandbox execution, not a tool-loop agent. */
+    discovery: DiscoveryObservation | null
+  }
 }
 
 export interface LiveRunSummary {
@@ -38,6 +55,8 @@ export interface LiveRunSummary {
   safePathRate: number
   structuredPathRate: number
   transcripts: string[]
+  surface?: LiveSurface
+  discoveryObservedCases?: number
 }
 
 function argValue(args: string[], name: string): string | undefined {
@@ -101,9 +120,15 @@ export function extractCodeModeScript(text: string): string {
   return stripOuterArrowFunction(candidate)
 }
 
-async function callLiveModel(config: LiveModelConfig, system: string, user: string): Promise<string> {
+function tokenUsage(input: unknown, output: unknown): ModelReply['usage'] {
+  return typeof input === 'number' && Number.isSafeInteger(input) && input >= 0
+    && typeof output === 'number' && Number.isSafeInteger(output) && output >= 0
+    ? { inputTokens: input, outputTokens: output } : null
+}
+
+async function callLiveModel(config: LiveModelConfig, system: string, user: string, request: LiveRequest): Promise<ModelReply> {
   if (config.provider === 'anthropic') {
-    const res = await fetch(config.baseUrl ?? 'https://api.anthropic.com/v1/messages', {
+    const res = await request(config.baseUrl ?? 'https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -120,19 +145,22 @@ async function callLiveModel(config: LiveModelConfig, system: string, user: stri
     })
     const body = await res.text()
     if (!res.ok) throw new Error(`Anthropic API ${res.status}: ${body.slice(0, 500)}`)
-    const json = JSON.parse(body) as { content?: Array<{ type?: string; text?: string }> }
+    const json = JSON.parse(body) as { content?: Array<{ type?: string; text?: string }>; usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } }
     const text = json.content?.filter(p => p.type === 'text' && typeof p.text === 'string').map(p => p.text).join('\n')
     if (!text) throw new Error('Anthropic API returned no text content')
-    return text
+    const baseUsage = tokenUsage(json.usage?.input_tokens, json.usage?.output_tokens)
+    const cached = [json.usage?.cache_creation_input_tokens, json.usage?.cache_read_input_tokens].map(value => value === undefined ? 0 : typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : NaN)
+    return { text, usage: baseUsage ? tokenUsage(baseUsage.inputTokens + cached[0]! + cached[1]!, baseUsage.outputTokens) : null }
   }
 
   const base = (config.baseUrl ?? 'https://api.openai.com/v1').replace(/\/$/, '')
-  const res = await fetch(`${base}/chat/completions`, {
+  const res = await request(`${base}/chat/completions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${config.apiKey}` },
     body: JSON.stringify({
       model: config.model,
       temperature: config.temperature,
+      max_tokens: config.maxTokens,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -141,13 +169,13 @@ async function callLiveModel(config: LiveModelConfig, system: string, user: stri
   })
   const body = await res.text()
   if (!res.ok) throw new Error(`OpenAI-compatible API ${res.status}: ${body.slice(0, 500)}`)
-  const json = JSON.parse(body) as { choices?: Array<{ message?: { content?: string } }> }
+  const json = JSON.parse(body) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } }
   const text = json.choices?.[0]?.message?.content
   if (!text) throw new Error('OpenAI-compatible API returned no message content')
-  return text
+  return { text, usage: tokenUsage(json.usage?.prompt_tokens, json.usage?.completion_tokens) }
 }
 
-export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { outDir?: string; caseIds?: string[] } = {}): Promise<LiveRunSummary> {
+export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { outDir?: string; caseIds?: string[]; surface?: LiveSurface; request?: LiveRequest } = {}): Promise<LiveRunSummary> {
   const capturedAt = new Date().toISOString()
   const outDir = opts.outDir ?? join(import.meta.dir, 'transcripts', capturedAt.replace(/[:.]/g, '-'))
   const cases = opts.caseIds?.length ? DEFAULT_CASES.filter(c => opts.caseIds!.includes(c.id)) : DEFAULT_CASES
@@ -158,18 +186,40 @@ export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { out
   }
   if (cases.length === 0) throw new Error('Live eval selected zero cases')
   mkdirSync(outDir, { recursive: true })
-  const system = buildLiveEvalSystemPrompt()
+  const surface = opts.surface ?? 'instructions'
+  const guidance = surface === 'none' ? '' : readFileSync(join(import.meta.dir, '..', '..', surface === 'skill'
+    ? 'skills/agentic-mermaid-diagram-workflow/SKILL.md' : 'Instructions_for_agents.md'), 'utf8')
+  const system = buildLiveEvalSystemPrompt(guidance)
   const transcripts: string[] = []
   let passed = 0
   let safePathPassed = 0
   let structuredPathPassed = 0
   let structuredCases = 0
+  let discoveryObservedCases = 0
 
   for (const c of cases) {
     const user = buildLiveEvalUserPrompt(c)
-    const rawResponse = await callLiveModel(config, system, user)
+    const started = performance.now()
+    const reply = await callLiveModel(config, system, user, opts.request ?? fetch)
+    const generationMs = performance.now() - started
+    const rawResponse = reply.text
     const script = extractCodeModeScript(rawResponse)
-    const summary = await runAgentUsageEval([{ ...c, script }])
+    let firstProductiveMs: number | null = null
+    const executionStarted = performance.now()
+    const summary = await runAgentUsageEval([{ ...c, script }], { onTraceCall: call => {
+      // A successful parse/create has a trusted diagram ID. Failed parses
+      // and discovery-only calls cannot claim productive engagement.
+      if (firstProductiveMs === null && 'diagram' in call && call.diagram !== undefined
+        && (call.verb === 'parse' || call.verb === 'create')) firstProductiveMs = performance.now() - started
+    } })
+    const executionMs = performance.now() - executionStarted
+    const discovery: DiscoveryObservation | null = firstProductiveMs !== null && reply.usage ? {
+      turnsBeforeFirstProductiveCall: 1,
+      inputTokensBeforeFirstProductiveCall: reply.usage.inputTokens,
+      outputTokensBeforeFirstProductiveCall: reply.usage.outputTokens,
+      elapsedMsToFirstProductiveCall: firstProductiveMs,
+    } : null
+    if (discovery) discoveryObservedCases++
     const result = summary.results[0]!
     if (result.ok) passed++
     if (result.traceOk) safePathPassed++
@@ -188,14 +238,45 @@ export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { out
       rawResponse,
       script,
       result,
+      surface,
+      metrics: { generationMs, executionMs, totalMs: performance.now() - started, usage: reply.usage, discovery },
     }
     const file = join(outDir, `${c.id}.json`)
     writeFileSync(file, JSON.stringify(transcript, null, 2) + '\n')
     transcripts.push(file)
   }
 
-  const summary: LiveRunSummary = { ok: passed === cases.length, capturedAt, provider: config.provider, model: config.model, total: cases.length, passed, safePathRate: safePathPassed / cases.length, structuredPathRate: structuredPathPassed / Math.max(1, structuredCases), transcripts }
+  const summary: LiveRunSummary = { ok: passed === cases.length, capturedAt, provider: config.provider, model: config.model, total: cases.length, passed, safePathRate: safePathPassed / cases.length, structuredPathRate: structuredPathPassed / Math.max(1, structuredCases), transcripts, surface, discoveryObservedCases }
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+  return summary
+}
+
+/** Paired tasks, alternating request order to reduce a fixed ordering bias.
+ * Results describe this sample; they do not establish statistical significance. */
+export async function runLiveSkillComparison(config: LiveModelConfig, opts: { outDir?: string; caseIds?: string[]; request?: LiveRequest } = {}) {
+  const outDir = opts.outDir ?? join(import.meta.dir, 'transcripts', `skill-comparison-${new Date().toISOString().replace(/[:.]/g, '-')}`)
+  const caseIds = opts.caseIds ?? DEFAULT_CASES.map(c => c.id)
+  if (!caseIds.length || new Set(caseIds).size !== caseIds.length || caseIds.some(id => !DEFAULT_CASES.some(c => c.id === id))) throw new Error('Comparison requires unique, known case IDs')
+  const pairs: Array<{ caseId: string; none: LiveTranscript; skill: LiveTranscript }> = []
+  for (const [index, caseId] of caseIds.entries()) {
+    const pair = {} as Record<'none' | 'skill', LiveTranscript>
+    const order: Array<'none' | 'skill'> = index % 2 === 0 ? ['none', 'skill'] : ['skill', 'none']
+    for (const surface of order) {
+      const run = await runLiveAgentUsageEval(config, { outDir: join(outDir, caseId, surface), caseIds: [caseId], surface, request: opts.request })
+      pair[surface] = JSON.parse(readFileSync(run.transcripts[0]!, 'utf8')) as LiveTranscript
+    }
+    pairs.push({ caseId, ...pair })
+  }
+  const summary = {
+    model: config.model, provider: config.provider, totalPairs: pairs.length,
+    noneTaskPassed: pairs.filter(p => p.none.result.taskOk).length,
+    skillTaskPassed: pairs.filter(p => p.skill.result.taskOk).length,
+    skillOnlyPassed: pairs.filter(p => p.skill.result.taskOk && !p.none.result.taskOk).map(p => p.caseId),
+    noneOnlyPassed: pairs.filter(p => p.none.result.taskOk && !p.skill.result.taskOk).map(p => p.caseId),
+    pairs,
+  }
+  mkdirSync(outDir, { recursive: true })
+  writeFileSync(join(outDir, 'comparison.json'), JSON.stringify(summary, null, 2) + '\n')
   return summary
 }
 
@@ -203,13 +284,20 @@ if (import.meta.main) {
   try {
     const args = process.argv.slice(2)
     if (hasArg(args, '--help')) {
-      console.log(`Usage: bun run eval/agent-usage/live.ts --provider anthropic|openai-compatible --model <model> [--out-dir dir] [--cases id1,id2]\n\nEnvironment: ANTHROPIC_API_KEY or OPENAI_API_KEY, plus AGENT_USAGE_LIVE_MODEL.`)
+      console.log(`Usage: bun run eval/agent-usage/live.ts --provider anthropic|openai-compatible --model <model> [--out-dir dir] [--cases id1,id2] [--surface instructions|skill|none] [--compare-skill]\n\nEnvironment: ANTHROPIC_API_KEY or OPENAI_API_KEY, plus AGENT_USAGE_LIVE_MODEL.`)
       process.exit(0)
     }
     const config = resolveLiveModelConfig(process.env, args)
     const outDir = argValue(args, '--out-dir')
     const caseIds = argValue(args, '--cases')?.split(',').map(s => s.trim()).filter(Boolean)
-    const summary = await runLiveAgentUsageEval(config, { outDir, caseIds })
+    if (hasArg(args, '--compare-skill')) {
+      const comparison = await runLiveSkillComparison(config, { outDir, caseIds })
+      console.log(JSON.stringify(comparison, null, 2))
+      process.exit(0)
+    }
+    const surface = argValue(args, '--surface') ?? 'instructions'
+    if (!['instructions', 'skill', 'none'].includes(surface)) throw new Error(`Unknown surface: ${surface}`)
+    const summary = await runLiveAgentUsageEval(config, { outDir, caseIds, surface: surface as LiveSurface })
     console.log(JSON.stringify(summary, null, 2))
     process.exit(summary.ok ? 0 : 1)
   } catch (e) {

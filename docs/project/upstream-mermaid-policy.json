@@ -83,7 +83,7 @@
       "headers": [
         {
           "value": "swimlane-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -117,7 +117,7 @@
         },
         {
           "value": "classDiagram-v2",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -226,11 +226,11 @@
       "headers": [
         {
           "value": "requirementDiagram",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "requirement",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -321,7 +321,7 @@
       "headers": [
         {
           "value": "zenuml",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -374,11 +374,11 @@
       "headers": [
         {
           "value": "block",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "block-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -393,11 +393,11 @@
       "headers": [
         {
           "value": "packet",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "packet-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -412,7 +412,7 @@
       "headers": [
         {
           "value": "kanban",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -461,7 +461,7 @@
       "headers": [
         {
           "value": "eventmodeling",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -476,11 +476,11 @@
       "headers": [
         {
           "value": "treemap",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "treemap-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -495,7 +495,7 @@
       "headers": [
         {
           "value": "venn-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -510,11 +510,11 @@
       "headers": [
         {
           "value": "ishikawa",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "ishikawa-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -529,7 +529,7 @@
       "headers": [
         {
           "value": "wardley-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -544,7 +544,7 @@
       "headers": [
         {
           "value": "cynefin-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -559,7 +559,7 @@
       "headers": [
         {
           "value": "treeView-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -577,19 +577,19 @@
       "headers": [
         {
           "value": "railroad-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-ebnf-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-abnf-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "railroad-peg-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -604,7 +604,7 @@
       "headers": [
         {
           "value": "agentflow-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -619,7 +619,7 @@
       "headers": [
         {
           "value": "usecase-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     }

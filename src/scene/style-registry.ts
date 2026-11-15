@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 // ============================================================================
 // Style registry — ONE primitive for "how should this diagram look".
 //
@@ -32,7 +33,7 @@ import type {
   ExtensionRegistration,
 } from '../shared/extension-identity.ts'
 import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
-import { JSON_CONFIG_ADMISSION_LIMITS } from '../shared/json-config-admission.ts'
+import { assertStyleRegistryMutationAllowed, snapshotDeclarativeStyleValue, withStyleAdmission } from '../shared/declarative-style.ts'
 import { BINDABLE_ROLE_STYLE_PROPERTIES } from './role-style-contract.ts'
 
 export {
@@ -59,9 +60,11 @@ export type {
 import type {
   BrandConstraint, RoleStyleSpec, RoleStyles, SemanticBinding, SemanticSlots,
 } from './style-spec.ts'
-import type { SemanticChannels } from './ir.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
+export { resolveRoleStyle, type SemanticBindingContext } from './roles.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
+import { nearestName } from '../shared/nearest-name.ts'
+import { contrastRatio, ensureContrast, toHex, tryParseCssColor, WCAG_AA_NON_TEXT_CONTRAST } from '../shared/color-math.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
@@ -130,7 +133,7 @@ export interface StyleReferenceResolution {
 }
 
 const CORE_STYLE_VERSION = '1.0.0'
-const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: '^0.4.0' })
+const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: PACKAGE_VERSION })
 const CORE_STYLE_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',
@@ -143,110 +146,19 @@ const STYLE_REGISTRY = new Map<string, ExtensionRegistration<InternalStyleSpec, 
  * removal window and therefore live in their own projection. */
 const STYLE_INPUT_NAMES = new Map<string, string>()
 
-/** Style admission reads caller-owned accessors while reducing a public
- * StyleSpec to immutable declarative data. A getter must not be able to use a
- * nested register/dispose call to leave the registry changed when the outer
- * admission later fails. Resolution is synchronous, so one depth counter
- * protects registration, inline stacks, and disposer callbacks without
- * changing ordinary nested read-only resolution semantics. */
-let styleAdmissionDepth = 0
-
-function assertStyleRegistryMutationAllowed(): void {
-  if (styleAdmissionDepth > 0) {
-    throw new Error('Style registry mutation is forbidden while a Style input is undergoing admission')
+/** A Style input the caller supplied that names no registered style or is
+ * not a valid spec. Typed so verify attributes it to configuration. */
+export class StyleSpecError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'StyleSpecError'
   }
-}
-
-function withStyleAdmission<T>(admit: () => T): T {
-  styleAdmissionDepth++
-  try {
-    return admit()
-  } finally {
-    styleAdmissionDepth--
-  }
-}
-
-/**
- * Materialize caller-owned declarative data once. Object.entries invokes each
- * enumerable accessor once; recursive snapshots ensure nested colors (and any
- * future object-valued StyleSpec field) cannot change after validation. A
- * proxy that presents a plain-record surface is safely reduced to frozen data;
- * other object kinds remain intact so the canonical validator rejects them.
- */
-function snapshotDeclarativeStyleValue(value: unknown): unknown {
-  const snapshots = new WeakMap<object, unknown>()
-  const active = new WeakSet<object>()
-  const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor'])
-  let nodes = 0
-  let textCharacters = 0
-
-  const snapshot = (candidate: unknown, depth: number): unknown => {
-    if (depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) {
-      throw new TypeError(`Style input exceeds maximum nesting depth ${JSON_CONFIG_ADMISSION_LIMITS.maxDepth}`)
-    }
-    nodes++
-    if (nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes) {
-      throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxNodes}-node limit`)
-    }
-    if (typeof candidate === 'string') {
-      textCharacters += candidate.length
-      if (textCharacters > JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters) {
-        throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters}-character text limit`)
-      }
-      return candidate
-    }
-    if (typeof candidate !== 'object' || candidate === null) return candidate
-    if (active.has(candidate)) throw new TypeError('Style input must be acyclic')
-    const existing = snapshots.get(candidate)
-    if (existing !== undefined) return existing
-
-    if (Array.isArray(candidate)) {
-      if (candidate.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
-        throw new TypeError(`Style array must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} items`)
-      }
-      const copy: unknown[] = []
-      snapshots.set(candidate, copy)
-      active.add(candidate)
-      for (let index = 0; index < candidate.length; index++) {
-        if (!Object.prototype.hasOwnProperty.call(candidate, index)) throw new TypeError('Style arrays must not be sparse')
-        copy.push(snapshot(candidate[index], depth + 1))
-      }
-      active.delete(candidate)
-      return Object.freeze(copy)
-    }
-
-    if (!isPlainRecord(candidate)) return candidate
-    const entries = Object.entries(candidate)
-    if (entries.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
-      throw new TypeError(`Style object must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} properties`)
-    }
-    const copy = Object.create(null) as Record<string, unknown>
-    snapshots.set(candidate, copy)
-    active.add(candidate)
-    for (const [key, child] of entries) {
-      if (forbiddenKeys.has(key)) throw new TypeError(`Style input uses forbidden key "${key}"`)
-      textCharacters += key.length
-      if (textCharacters > JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters) {
-        throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters}-character text limit`)
-      }
-      Object.defineProperty(copy, key, {
-        value: snapshot(child, depth + 1),
-        enumerable: true,
-        writable: false,
-        configurable: false,
-      })
-    }
-    active.delete(candidate)
-    return Object.freeze(copy)
-  }
-
-  return snapshot(value, 0)
 }
 
 function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
   const snapshot = snapshotDeclarativeStyleValue(spec) as StyleSpec
   const problems = validateStyleSpec(snapshot)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
+  if (problems.length) throw new StyleSpecError(`Invalid style spec: ${problems.join('; ')}`)
   return snapshot
 }
 
@@ -306,6 +218,11 @@ function registrationIdentity(
   })
 }
 
+// Private invalidation for request option preparation; registry callbacks and
+// captured requests retain their existing mutation/identity rules.
+let registryRevision = 0
+export function styleRegistryRevision(): number { return registryRevision }
+
 function registerCanonicalStyle(
   spec: InternalStyleSpec,
   kind: StyleRegistryKind,
@@ -327,6 +244,7 @@ function registerCanonicalStyle(
     identity,
     value: stored,
   })
+  registryRevision++
   if (inputName !== undefined) {
     const existing = STYLE_INPUT_NAMES.get(inputName)
     const canonicalOwner = STYLE_REGISTRY.has(inputName) && inputName !== id ? inputName : undefined
@@ -341,6 +259,7 @@ function registerCanonicalStyle(
     const current = STYLE_REGISTRY.get(id)
     if (current?.identity !== identity) return false
     const removed = STYLE_REGISTRY.delete(id)
+    if (removed) registryRevision++
     if (removed && inputName !== undefined && STYLE_INPUT_NAMES.get(inputName) === id) {
       STYLE_INPUT_NAMES.delete(inputName)
     }
@@ -453,12 +372,6 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
-type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
-
-function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
-  return roles as InternalRoleStyleLookup | undefined
-}
-
 function mergeRoleStyles(left: RoleStyles | undefined, right: RoleStyles | undefined): RoleStyles | undefined {
   if (!left && !right) return undefined
   const merged: RoleStyles = { ...left }
@@ -487,10 +400,43 @@ function mergeUniquePolicy<T>(left: readonly T[] | undefined, right: readonly T[
   return values
 }
 
+/** Ink channels chosen to read against one page. */
+const PAGE_RELATIVE_INK_TOKENS = ['line', 'accent', 'muted', 'border'] as const
+
+function opaqueRgb(value: string | undefined): readonly [number, number, number] | undefined {
+  const rgba = value === undefined ? null : tryParseCssColor(value)
+  return rgba && rgba[3] === 1 ? [rgba[0], rgba[1], rgba[2]] : undefined
+}
+
+/** Ink an earlier layer chose for `from` (with foreground `fromFg`), carried
+ * onto the page `to`. Ink that still reads there (WCAG non-text contrast) is
+ * kept as authored. Otherwise it keeps its place between page and foreground,
+ * and reads: hand-drawn's near-ink border becomes near-ink on dracula rather
+ * than staying dark on dark. Undefined re-derives the channel from the new
+ * page; ink that cannot be measured is left as authored. */
+function inkForPage(ink: string, from: string | undefined, fromFg: string | undefined, to: string, toFg: string | undefined): string | undefined {
+  const value = opaqueRgb(ink), page = opaqueRgb(to)
+  if (!value || !page) return ink
+  if ((contrastRatio(toHex(...value), toHex(...page)) ?? Infinity) >= WCAG_AA_NON_TEXT_CONTRAST) return ink
+  const oldPage = opaqueRgb(from), oldFg = opaqueRgb(fromFg), newFg = opaqueRgb(toFg)
+  if (!oldPage || !oldFg || !newFg) return undefined
+  const axis = oldFg.map((channel, index) => channel - oldPage[index]!)
+  const length = axis.reduce((sum, channel) => sum + channel * channel, 0)
+  if (length === 0) return undefined
+  const position = Math.max(0, Math.min(1, axis.reduce((sum, channel, index) => sum + channel * (value[index]! - oldPage[index]!), 0) / length))
+  const carried = toHex(...page.map((channel, index) => channel + position * (newFg[index]! - channel)) as [number, number, number])
+  // A narrower palette can leave that place below the minimum; move toward
+  // its foreground just enough to read.
+  return ensureContrast(carried, toHex(...page), WCAG_AA_NON_TEXT_CONTRAST, toHex(...newFg))
+}
+
 /** Merge a stack of styles left → right: later fields win; colors merge per
- *  channel. Names resolve through the registry; unknown names throw with the
- *  known list (fail loud — a silently-crisp fallback would erode trust in
- *  style coverage). */
+ *  channel, except that a layer which moves the page (sets a different `bg`)
+ *  carries the earlier ink channels it leaves unset onto its page (inkForPage)
+ *  instead of keeping ink chosen for the old one (hand-drawn's dark border
+ *  under dracula). Names resolve through the registry; unknown names throw
+ *  with the known list (fail loud — a silently-crisp fallback would erode
+ *  trust in style coverage). */
 function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined): InternalStyleSpec | undefined {
   if (input === undefined) return undefined
   const stack = Array.isArray(input) ? input : [input]
@@ -500,7 +446,11 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       const resolved = canonicalStyleId(entry)
       if (resolved === 'look:crisp') continue
       const named = resolved ? STYLE_REGISTRY.get(resolved)?.value : undefined
-      if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
+      if (!named) {
+        const known = knownStyles()
+        const suggestion = nearestName(entry, known)
+        throw new StyleSpecError(`Unknown style "${entry}".${suggestion ? ` Did you mean "${suggestion}"?` : ''} Known styles: ${known.join(', ')}`)
+      }
       specs.push(named)
     } else {
       specs.push(validatedStyleSpecSnapshot(entry))
@@ -513,6 +463,16 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       if (value === undefined) continue
       if (key === 'colors') {
         const colors = { ...merged.colors }
+        const page = spec.colors?.bg
+        if (page !== undefined && page.trim().toLowerCase() !== merged.colors?.bg?.trim().toLowerCase()) {
+          for (const token of PAGE_RELATIVE_INK_TOKENS) {
+            const inherited = colors[token]
+            if (inherited === undefined || spec.colors?.[token] !== undefined) continue
+            const carried = inkForPage(inherited, merged.colors?.bg, merged.colors?.fg, page, spec.colors?.fg ?? merged.colors?.fg)
+            if (carried === undefined) delete colors[token]
+            else colors[token] = carried
+          }
+        }
         for (const [token, color] of Object.entries(spec.colors ?? {})) {
           if (color !== undefined) (colors as Record<string, string>)[token] = color
         }
@@ -565,41 +525,6 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
   }
 }
 
-export type SemanticBindingContext = Readonly<SemanticChannels>
-
-function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
-  const candidate = context[binding.channel]
-  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
-}
-
-/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
- * slots refine the deterministic fallback; family-authored values are applied
- * afterwards by the lowering and therefore remain authoritative. */
-export function resolveRoleStyle(
-  face: Readonly<InternalStyleFace> | undefined,
-  role: BuiltinSceneRole,
-  context: SemanticBindingContext = {},
-  options: { readonly includeFallback?: boolean } = {},
-): Readonly<RoleStyleSpec> | undefined {
-  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
-  const roles = roleStyleLookup(face?.roles)
-  const fallback = options.includeFallback === false
-    ? undefined
-    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
-  const exact = roles?.[role]
-  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
-  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
-  for (const binding of face?.bindings ?? []) {
-    if (binding.role !== undefined && binding.role !== role) continue
-    if (!bindingMatches(binding, context)) continue
-    const slot = face?.semanticSlots?.[binding.slot]
-    if (!slot) continue // final-stack admission makes this unreachable
-    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
-    merged = { ...merged, ...projected }
-  }
-  return merged ? Object.freeze(merged) : undefined
-}
-
 /** Validate dependencies only after composition: a fragment may deliberately
  * supply hachure/wash parameters before another fragment selects that fill.
  * The final stack, however, must not carry customization that merely changes
@@ -607,12 +532,12 @@ export function resolveRoleStyle(
 function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   for (const [index, binding] of (spec.bindings ?? []).entries()) {
     const slot = spec.semanticSlots?.[binding.slot]
-    if (!slot) throw new Error(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
+    if (!slot) throw new StyleSpecError(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
     const applicable: ReadonlySet<string> = binding.role === undefined
       ? new Set(BINDABLE_ROLE_STYLE_PROPERTIES)
       : new Set(SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!.style.applicableProperties)
     if (!Object.keys(slot).some(property => applicable.has(property))) {
-      throw new Error(binding.role === undefined
+      throw new StyleSpecError(binding.role === undefined
         ? `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to any executable category-binding role`
         : `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
     }
@@ -620,15 +545,15 @@ function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
   const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
   if (inactiveHachure.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
   }
   const washFields = ['washOpacity', 'washEdge'] as const
   const inactiveWash = washFields.filter(field => spec[field] !== undefined && spec.fill !== 'wash')
   if (inactiveWash.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
   }
   if (spec.fill !== undefined && inferBackend(spec) === 'default') {
-    throw new Error('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
+    throw new StyleSpecError('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
   }
 }
 
@@ -656,8 +581,7 @@ export function styleKind(spec: StyleSpec): StyleRegistryKind {
   return Object.keys(spec).every(k => k === 'formatVersion' || k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'palette' : 'look'
 }
 
-/** True when a merged spec changes anything beyond metadata — i.e. when
- *  rendering must go through the styled scene path. */
+/** True when a merged spec changes appearance beyond metadata. */
 export function isStyledSpec(spec: StyleSpec): boolean {
   return inferBackend(spec) !== 'default'
     || spec.colors !== undefined

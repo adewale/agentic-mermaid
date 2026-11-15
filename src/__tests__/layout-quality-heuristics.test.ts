@@ -9,7 +9,11 @@ function layoutOf(source: string): RenderedLayout {
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
   const verify = verifyMermaid(parsed.value)
   expect(verify.ok).toBe(true)
-  return layoutMermaid(parsed.value)
+  const layout = layoutMermaid(parsed.value)
+  if (parsed.value.body.kind !== 'flowchart') throw new Error('expected structured graph')
+  expect(layout.nodes.map(node => node.id).sort()).toEqual([...parsed.value.body.graph.nodes.keys()].sort())
+  expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text]).sort()).toEqual(parsed.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  return layout
 }
 
 function centers(layout: RenderedLayout): Map<string, { x: number; y: number }> {
@@ -138,9 +142,22 @@ describe('programmatic bad-layout heuristics', () => {
     expect(layout.bounds.h).toBeGreaterThan(layout.bounds.w * 2)
     expect(edgeNodeCollisions(layout)).toEqual([])
     const metrics = measureQuality(layout)
+    expect(metrics.paintCertification?.status).toBe('passed')
+    expect(metrics.paintCertification?.issues).toEqual([])
     expect(metrics.edgeCrossings).toBe(0)
     expect(metrics.labelLegibility).toBe(1)
     expect(checkQuality(layout, { aspectBand: [0.1, 5] }).ranked.map(item => item.message)).toEqual([])
+  })
+
+  test('a lone feedback label clears its own endpoint marker', () => {
+    const layout = layoutOf(`flowchart TD
+      A[Research] --> B[Validate research]
+      B -->|fail| A`)
+    const metrics = measureQuality(layout)
+    expect(metrics.paintCertification?.status).toBe('passed')
+    expect(metrics.paintCertification?.issues).toEqual([])
+    expect(metrics.edgeCrossings).toBe(0)
+    expect(edgeNodeCollisions(layout)).toEqual([])
   })
 
   // upstream: mermaid-js/mermaid#6336 (state) / #6049 (flowchart) — ugly self-loops

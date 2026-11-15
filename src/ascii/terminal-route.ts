@@ -4,6 +4,14 @@ import type { TerminalDocument, TerminalLineStyle, TerminalOwner, TerminalPort, 
 import { snapshotTerminalPort } from './terminal-document.ts'
 
 const allocated = new WeakSet<object>()
+interface PathAdmission { readonly route: TerminalRoute; readonly owner: TerminalOwner; readonly width: number; readonly height: number }
+const pathAdmissions = new WeakMap<object, Readonly<PathAdmission>>()
+/** Runtime authority, not a structural TypeScript brand. */
+export function terminalPathAdmission(token: unknown): Readonly<PathAdmission> | undefined {
+  if (!token || typeof token !== 'object') return undefined
+  const admission = pathAdmissions.get(token)
+  return admission && allocated.has(admission.route) ? admission : undefined
+}
 declare const routeBrand: unique symbol
 export interface TerminalRoute {
   readonly [routeBrand]: true
@@ -40,12 +48,8 @@ export function allocateTerminalRoute(id: string, source: TerminalPort & { side:
   return route
 }
 
-/** Publish declared ports only after the complete route passes stroke admission. */
-export function paintTerminalRoute(document: TerminalDocument, route: TerminalRoute, owner: TerminalOwner, ascii: boolean, style: TerminalLineStyle = 'solid'): boolean {
-  if (!allocated.has(route)) throw new TypeError('Terminal routes must come from complete path allocation')
-  owner = { ...owner }
-  if (owner.kind !== 'edge' || owner.id !== route.id || owner.from !== route.source.nodeId || owner.to !== route.target.nodeId) throw new TypeError('Terminal route identity must match its physical endpoints')
-  owner = document.element(owner)
+/** Each cell of a route with the directions the route itself draws there. */
+function routeDirections(route: TerminalRoute): Map<string, { x: number; y: number; mask: number }> {
   const directions = new Map<string, { x: number; y: number; mask: number }>()
   const add = (point: Readonly<GridCoord>, side: TerminalSide) => {
     const key = gridKey(point), previous = directions.get(key)
@@ -57,8 +61,55 @@ export function paintTerminalRoute(document: TerminalDocument, route: TerminalRo
     add(a, side); add(b, opposite[side])
   }
   add(route.points[0]!, opposite[route.source.side]); add(route.points.at(-1)!, opposite[route.target.side])
-  const strokes = [...directions.values()].map(point => ({ ...point, role: (point.mask & 10) && (point.mask & 5) ? 'corner' as const : 'line' as const }))
+  return directions
+}
+
+function admitRouteOwner(document: TerminalDocument, route: TerminalRoute, owner: TerminalOwner): TerminalOwner {
+  if (!allocated.has(route)) throw new TypeError('Terminal routes must come from complete path allocation')
+  owner = { ...owner }
+  if (owner.kind !== 'edge' || owner.id !== route.id || owner.from !== route.source.nodeId || owner.to !== route.target.nodeId) throw new TypeError('Terminal route identity must match its physical endpoints')
+  return document.element(owner)
+}
+
+/** Publish declared ports only after the complete route passes stroke admission. */
+export function paintTerminalRoute(document: TerminalDocument, route: TerminalRoute, owner: TerminalOwner, ascii: boolean, style: TerminalLineStyle = 'solid'): boolean {
+  owner = admitRouteOwner(document, route, owner)
+  const strokes = [...routeDirections(route).values()].map(point => ({ ...point, role: (point.mask & 10) && (point.mask & 5) ? 'corner' as const : 'line' as const }))
   if (!document.strokeBatch(strokes, { owner, ascii, style })) return false
-  document.port(owner, route.source); document.port(owner, route.target)
+  publishRoute(document, route, owner)
   return true
+}
+
+/**
+ * Paint routes that share cells, as one bundle drawn alike, in one admission:
+ * each shared cell is owned by every route through it, each owner retaining
+ * exactly the directions its own route draws there. Ports and path witnesses
+ * are published per route, as painting each route in turn would publish them.
+ */
+export function paintTerminalBus(document: TerminalDocument, members: readonly { route: TerminalRoute; owner: TerminalOwner }[], ascii: boolean, style: TerminalLineStyle = 'solid'): boolean {
+  const admitted = members.map(({ route, owner }) => ({ route, owner: admitRouteOwner(document, route, owner) }))
+  if (admitted.some(({ owner }) => !owner.bundle || owner.bundle !== admitted[0]!.owner.bundle)) throw new TypeError('Terminal bus routes must declare one shared bundle')
+  const cells = new Map<string, { x: number; y: number; owners: TerminalOwner[]; masks: number[] }>()
+  for (const { route, owner } of admitted)
+    for (const [key, point] of routeDirections(route)) {
+      let cell = cells.get(key)
+      if (!cell) cells.set(key, (cell = { x: point.x, y: point.y, owners: [], masks: [] }))
+      cell.owners.push(owner)
+      cell.masks.push(point.mask)
+    }
+  if (!document.sharedStrokeBatch([...cells.values()], { ascii, style })) return false
+  for (const { route, owner } of admitted) publishRoute(document, route, owner)
+  return true
+}
+
+function publishRoute(document: TerminalDocument, route: TerminalRoute, owner: TerminalOwner): void {
+  document.port(owner, route.source); document.port(owner, route.target)
+  // Exact-port witnesses are optional; other conventions retain connected BFS.
+  const first = route.points[0], last = route.points.at(-1)
+  if (owner.route === 'connected' && first?.x === route.source.x && first.y === route.source.y && last?.x === route.target.x && last.y === route.target.y) {
+    document.reserveTerminalPathWitnessWork(3) // token, immutable admission record, WeakMap entry: before allocation
+    const token = Object.freeze({})
+    pathAdmissions.set(token, Object.freeze({ route, owner, width: document.width, height: document.height }))
+    document.registerTerminalPathWitness(owner, token)
+  }
 }

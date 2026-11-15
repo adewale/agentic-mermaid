@@ -2,6 +2,41 @@
 
 This opt-in evaluation uses an independently installed Mermaid **12 or newer** as a parser/DB reference. It borrows Pele's combination of upstream documentation/spec corpora and seeded mutation testing. It does not compare layout or pixels against Mermaid.
 
+The label census observes the current upstream docs, retained official fences,
+legacy docs corpus, imported upstream benchmark and every registered family
+example. Its expectations come from the independent reference's actual DB
+getters; the benchmark's older `labelsContain` fixtures are not its oracle.
+
+```sh
+AM_MODERN_TARGET_DIR=/path/to/base bun eval/mermaid-modern-compat/run.ts \
+  --mermaid-dir ../mermaid --reference-dir ../mermaid-reference --labels \
+  --output /tmp/labels-base
+bun eval/mermaid-modern-compat/run.ts \
+  --mermaid-dir ../mermaid --reference-dir ../mermaid-reference --labels \
+  --label-baseline /tmp/labels-base/label-census.json --output /tmp/labels-head
+```
+
+`label-census.json` retains every input's status, raw reference labels, model,
+facts, describe tree, layout, SVG text, ASCII text and terminal-region text.
+It reports text-presence candidates and base/head changes. Presence does not
+establish identity, multiplicity, formatting, or equivalent drawings. Missing
+text needs review: Markdown interpretation, documented generous-read choices,
+intentional hidden labels, and source-preserved syntax can differ. The current
+selected-field scope excludes Class/ER member signatures, sequence notes and
+control captions, accessibility text, and Block space and composite identifiers.
+XY point labels are included; visibility settings require semantic review.
+Quality metrics expose aggregate label counts,
+which are recorded separately rather than presented as per-label evidence.
+Rejected inputs, unsupported families, and missing projections remain explicit
+unavailable observations. Add `--specs` to include the broader parser-spec
+literal harvest too.
+
+The semantic gate checks independent label presence on model, facts, SVG,
+ASCII and terminal metadata for every registry example. It also generates
+Sequence edits combining boxes, activation, properties, unknown metadata and
+punctuation, with explicit expected messages and independent reference actors.
+That gate protects the named behavior; the broader census is a diagnostic.
+
 `bun run eval:mermaid-grammar` runs the more detailed grammar assessment over
 **every modern core family**, with **5,000 seeded mutations per family** by
 default. It uses the same documentation/spec harvest as the rendering runner:
@@ -106,14 +141,35 @@ the requested number of mutations of at most 4,000 characters; oversized
 attempts are counted and replaced. Raw syntax disagreement is not a bug count
 under the write-strict/read-generously policy.
 
+A mutation inserts, deletes, duplicates or replaces text, drawing fragments from
+the token images Mermaid's lexer produced on the family's corpus and from the
+fixed lexer-boundary fragments in `grammar-fragments.ts`. A **silent read** is
+an input the pinned grammar rejects that ours reads as the same family (native
+parser or structured body) while `verifyMermaid` reports neither
+`UNSUPPORTED_SYNTAX` nor a source refusal (`EMPTY_DIAGRAM`,
+`UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`). The policy requires a generous read
+to be announced, so these are the bug candidates. Every run counts them per
+family in `summary.json` (`silentReads`), reduces the first eight of each
+family by line and then code point, and prints each distinct reduction with
+what ours read and Mermaid's error.
+`--native-only` restricts a run to the families ours parses. Weekly discovery
+(`.github/workflows/contract-discovery.yml`) has a ten-minute job cap and read-only
+permissions. It uses `--fuzz 100 --corpus-limit 8 --candidates-per-family 2
+--reduce-checks 8` with a recorded rolling seed. Structured contract candidates
+are retained independently of silent-read examples and rechecked through the
+existing triage oracle. Reduction preserves the same violated contract. Reports
+are JSON/artifacts for human review; no issue is created or updated automatically.
+
 Canonical CI calls the reusable semantic workflow for every PR/main revision,
 and its success is required by `CI complete` and exact-commit release attestation.
-This includes policy and corpus changes outside source paths. It runs 100 mutations **per family**, 5,000
-weekly (Monday 04:17 UTC), and defaults to 5,000 on manual dispatch. Grammar
-infrastructure failures fail that step; unsupported syntax and families remain reported diagnostics.
-Use `--families flowchart,sequence`, `--docs-only`, `--fuzz`, `--seed`,
-`--workers`, and `--output` for targeted reproductions. The independent reference
-directories use the same environment variables as the semantic gate below.
+It keeps the current pinned corpus replay, original assertions, and 100 mutations
+per family at seed 7. Larger searches are explicit manual dispatches (default
+5,000 mutations), rather than a second overlapping weekly schedule. Grammar
+infrastructure failures fail the step; unsupported syntax and families remain
+separate diagnostics. Use `--families flowchart,sequence`, `--docs-only`, `--fuzz`,
+`--seed`, `--workers`, and `--output` for targeted reproductions. Omitting the
+bounded discovery flags keeps the full corpus/manual diagnostic limits. The
+independent reference directories use the environment variables below.
 
 `bun run test:mermaid-modern` is the assertion-bearing companion. It requires
 the Mermaid source commit from `docs/project/upstream-mermaid-policy.json`
@@ -155,13 +211,11 @@ unchanged; `AM_MODERN_GATE_REPORT` selects a different report destination. This
 lets the same assertions demonstrate a regression against old code and pass
 after a fix, without blessing expectations from current output.
 
-Install reference dependencies outside this repository and check out the same exact Mermaid version:
+Install the pinned Mermaid source and an independent reference outside this
+repository (idempotent; CI runs the same script):
 
 ```sh
-git clone https://github.com/mermaid-js/mermaid ../mermaid
-git -C ../mermaid checkout mermaid@12.2.0
-mkdir -p ../mermaid-reference
-npm install --prefix ../mermaid-reference --save-exact mermaid@12.2.0 @mermaid-js/parser@2.0.1 jsdom@26.1.0
+bun run reference:mermaid   # ../mermaid at the policy pin, ../mermaid-reference
 bun run eval/mermaid-modern-compat/run.ts \
   --mermaid-dir ../mermaid \
   --reference-dir ../mermaid-reference \

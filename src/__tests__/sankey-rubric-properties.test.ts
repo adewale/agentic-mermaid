@@ -9,6 +9,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 // Enter through the agent barrel first: sankey/config.ts participates in the
 // family-config-diagnostics module cycle and TDZ-throws as a direct entry.
 import '../agent/index.ts'
@@ -33,7 +34,10 @@ const linksArb = fc
       .filter(({ i, j }) => i < j),
     { minLength: 1, maxLength: 16 },
   )
-  .map(rows => ['sankey-beta', ...rows.map(r => `  N${r.i},N${r.j},${r.value}`)].join('\n'))
+  .map(rows => ({
+    source: ['sankey-beta', ...rows.map(r => `  N${r.i},N${r.j},${r.value}`)].join('\n'),
+    links: rows.map(r => ({ source: `N${r.i}`, target: `N${r.j}`, value: r.value })),
+  }))
 
 const visualArb = fc.record({
   nodeAlignment: fc.constantFrom('justify', 'center', 'left', 'right'),
@@ -48,23 +52,44 @@ const layout = (source: string, visual: object) => layoutSankeyDiagram(parseSank
 describe('sankey layout invariants hold on arbitrary inputs', () => {
   test('no assessor violation on any layered DAG × visual config', () => {
     fc.assert(
-      fc.property(linksArb, visualArb, (source, visual) => {
-        const result = assessSankeyLayout(layout(source, visual))
+      fc.property(linksArb, visualArb, ({ source, links }, visual) => {
+        const positioned = layout(source, visual)
+        expect(positioned.links.map(({ source, target, value }) => ({ source, target, value }))).toEqual(links)
+        expect(positioned.nodes.map(node => node.label)).toEqual([...new Set(links.flatMap(link => [link.source, link.target]))])
+        for (const node of positioned.nodes) {
+          expect(node.x0).toBeGreaterThanOrEqual(0)
+          expect(node.y0).toBeGreaterThanOrEqual(0)
+          expect(node.x1).toBeLessThanOrEqual(positioned.width + 0.6)
+          expect(node.y1).toBeLessThanOrEqual(positioned.height + 0.6)
+          expect(node.x1).toBeGreaterThan(node.x0)
+          expect(node.y1).toBeGreaterThan(node.y0)
+        }
+        for (const link of positioned.links) {
+          const from = positioned.nodes.find(node => node.label === link.source)!
+          const to = positioned.nodes.find(node => node.label === link.target)!
+          expect(link.sx).toBeCloseTo(from.x1, 1)
+          expect(link.tx).toBeCloseTo(to.x0, 1)
+          expect(link.sy - link.width / 2).toBeGreaterThanOrEqual(from.y0 - 0.6)
+          expect(link.sy + link.width / 2).toBeLessThanOrEqual(from.y1 + 0.6)
+          expect(link.ty - link.width / 2).toBeGreaterThanOrEqual(to.y0 - 0.6)
+          expect(link.ty + link.width / 2).toBeLessThanOrEqual(to.y1 + 0.6)
+        }
+        const result = assessSankeyLayout(positioned)
         expect(result.violations).toEqual([])
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 
   test('crossing count is deterministic across repeated layouts', () => {
     fc.assert(
-      fc.property(linksArb, visualArb, (source, visual) => {
+      fc.property(linksArb, visualArb, ({ source }, visual) => {
         const first = assessSankeyLayout(layout(source, visual))
         const second = assessSankeyLayout(layout(source, visual))
         expect(second.metrics).toEqual(first.metrics)
         expect(JSON.stringify(layout(source, visual))).toBe(JSON.stringify(layout(source, visual)))
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

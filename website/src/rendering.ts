@@ -1,10 +1,9 @@
+import '../../src/scene/builtin-backends.ts'
 import {
-  renderMermaidASCIIWithReceipt,
   renderMermaidSVGWithReceipt,
-  type AsciiRenderOptions,
-  type RenderedAscii,
   type RenderedSvg,
-} from '../../src/index.ts'
+} from '../../src/svg.ts'
+import { renderMermaidASCIIWithReceipt, type AsciiRenderOptions, type RenderedAscii } from '../../src/ascii/index.ts'
 import type { RenderOptions } from '../../src/types.ts'
 
 /**

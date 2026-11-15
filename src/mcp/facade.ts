@@ -1,3 +1,4 @@
+import { ResolvedSceneError } from '../scene/resolved-error.ts'
 // Code Mode SDK facade — runtime-neutral. Shared by the node:vm sandbox
 // (sandbox.ts) and the hosted dynamic-worker harness: the hardened read-only
 // mermaid.* proxy, the sync-only code screen, and the expression-first code
@@ -28,9 +29,11 @@ export type ExecutionTraceCall =
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
 type TraceNarrowFamily = Extract<ExecutionTraceCall, { verb: 'narrow' }>['family']
 
-export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined): typeof mermaid {
+export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined, onTraceCall?: (call: ExecutionTraceCall) => void): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
+  const sourceResults = new WeakSet<object>()
+  const preservedSources = new WeakMap<object, { source: string; preservation?: unknown }>()
   const hardened = new WeakMap<object, unknown>()
   const raw = new WeakMap<object, object>()
   let nextId = 1
@@ -48,6 +51,15 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const arrayMutators = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
   const arrayCallbackMethods = new Set(['forEach', 'map', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'some', 'every', 'flatMap'])
+  // Non-callback, non-mutating methods. Each runs natively over a host copy
+  // of the hardened elements, so identity searches see the same element
+  // proxies index reads return and new arrays hold only hardened values (the
+  // function membrane hardens the result again).
+  const arrayHardenedCopyMethods = new Set(['at', 'concat', 'flat', 'includes', 'indexOf', 'lastIndexOf', 'slice'])
+  // String conversions run over the unwrapped data so an object element
+  // prints as it would in a plain array ("[object Object]") instead of
+  // throwing on a hardened proxy that hides toString; the result is a string.
+  const arrayStringMethods = new Set(['join', 'toLocaleString', 'toString'])
   const rawOf = <T>(value: T): T => (value && (typeof value === 'object' || typeof value === 'function') && raw.has(value as object) ? raw.get(value as object) : value) as T
   const isMap = (value: unknown): value is Map<unknown, unknown> => value instanceof Map || Object.prototype.toString.call(value) === '[object Map]'
   const isSet = (value: unknown): value is Set<unknown> => value instanceof Set || Object.prototype.toString.call(value) === '[object Set]'
@@ -61,7 +73,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     const carried = structuredErrorMetadata.get(error)
     if (carried) return carried
     let fields: Record<string, unknown> | undefined
-    if (error instanceof RenderCapabilityError) {
+    if (error instanceof ResolvedSceneError) {
+      fields = { name: error.name, code: error.code, partId: error.partId, feature: error.feature }
+    } else if (error instanceof RenderCapabilityError) {
       fields = {
         name: error.name,
         code: error.code,
@@ -98,11 +112,15 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     const prototype = Reflect.getPrototypeOf(value)
     return prototype === Object.prototype || prototype === null ? Object.assign(Object.create(prototype), value) : value
   }
-  const hostCall = <T>(fn: () => T, genericRenderFailure = false): T => {
+  const hostCall = <T>(fn: () => T, renderFailure?: { source?: string }): T => {
     try {
       return fn()
     } catch (e) {
-      const fields = structuredErrorFields(e) ?? (genericRenderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e) } : undefined)
+      // A syntax error in source the registered parser rejects is reported as
+      // that parse failure, as on every other render surface.
+      const parseFailure = renderFailure && projectKnownRenderErrorDiagnostic(e)?.code === 'MERMAID_SYNTAX_ERROR' ? projectRenderErrorDiagnostic(e, renderFailure) : undefined
+      const fields = (parseFailure?.code === 'PARSE_FAILED' ? { name: 'RenderError', ...parseFailure } : undefined)
+        ?? structuredErrorFields(e) ?? (renderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e, renderFailure) } : undefined)
       const wrapped = sandboxError((fields?.message as string) ?? (e as Error).message)
       if (fields) {
         structuredErrorMetadata.set(wrapped, fields)
@@ -124,17 +142,27 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       const encoded = JSON.stringify(value)
       return (encoded === undefined ? undefined : JSON.parse(encoded)) as T
     })
-  const iteratorOf = (items: unknown[]) => {
-    let index = 0
-    const iterator = {
-      [Symbol.iterator]() {
-        return this
+  const iteratorOf = (source: Iterator<unknown>, project: (value: unknown) => unknown = value => harden(value)) => {
+    let proxy: object
+    const next = harden(() => {
+      const step = source.next()
+      return step.done ? { value: undefined, done: true } : { value: project(step.value), done: false }
+    })
+    const iterator = harden(() => proxy)
+    const target = { next, [Symbol.iterator]: iterator }
+    // Only these owned methods cross the membrane. Ordinary object properties
+    // still hide functions; a native iterator and its prototype never escape.
+    proxy = new Proxy(target, {
+      get(_target, prop) {
+        return prop === 'next' ? next : prop === Symbol.iterator ? iterator : undefined
       },
-      next() {
-        return index < items.length ? { value: items[index++], done: false } : { value: undefined, done: true }
+      has(_target, prop) {
+        return prop === 'next' || prop === Symbol.iterator
       },
-    }
-    return harden(iterator)
+      ...readonlyTraps(),
+    })
+    hardened.set(target, proxy)
+    return rememberRaw(proxy, target)
   }
   function descriptorFor(target: object, prop: string | symbol): PropertyDescriptor | undefined {
     if (forbidden(prop)) return undefined
@@ -173,7 +201,13 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const requireTrustedDiagram = (value: unknown, verb: string): void => {
     value = rawOf(value)
-    if (value && (typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
+    // A missing diagram is almost always a narrower's null (asSequence(d) on a
+    // flowchart) passed straight on; say so instead of letting the engine
+    // report "Cannot read properties of null".
+    if (value === null || value === undefined) {
+      throw sandboxError(`Code Mode ${verb} input is ${value}; it must be a diagram from mermaid.parseRegisteredMermaid(...).value or mermaid.mutate(...). A mermaid.as<Family>(d) narrower returns null when d is a different family — check d.kind before narrowing`)
+    }
+    if ((typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
       throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseRegisteredMermaid(...) or mermaid.mutate(...)`)
     }
   }
@@ -199,9 +233,12 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           if (prop === 'get') return harden((key: unknown) => harden(target.get(rawOf(key))))
           if (prop === 'set' || prop === 'delete' || prop === 'clear' || prop === 'getOrInsert' || prop === 'getOrInsertComputed') return harden(readonly)
           if (prop === 'has') return harden((key: unknown) => target.has(rawOf(key)))
-          if (prop === Symbol.iterator || prop === 'entries') return harden(() => iteratorOf(Array.from(target.entries(), ([k, v]) => harden([harden(k), harden(v)]))))
-          if (prop === 'values') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
-          if (prop === 'keys') return harden(() => iteratorOf(Array.from(target.keys(), k => harden(k))))
+          if (prop === Symbol.iterator || prop === 'entries') return harden(() => iteratorOf(target.entries(), entry => {
+            const [key, value] = entry as [unknown, unknown]
+            return [harden(key), harden(value)]
+          }))
+          if (prop === 'values') return harden(() => iteratorOf(target.values()))
+          if (prop === 'keys') return harden(() => iteratorOf(target.keys()))
           if (prop === 'forEach')
             return harden((cb: (value: unknown, key: unknown, map: Map<unknown, unknown>) => unknown, thisArg?: unknown) => {
               for (const [k, v] of target.entries()) cb.call(thisArg, harden(v), harden(k), proxy)
@@ -223,8 +260,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           if (prop === 'size') return target.size
           if (prop === 'add' || prop === 'delete' || prop === 'clear') return harden(readonly)
           if (prop === 'has') return harden((val: unknown) => target.has(rawOf(val)))
-          if (prop === Symbol.iterator || prop === 'values' || prop === 'keys') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
-          if (prop === 'entries') return harden(() => iteratorOf(Array.from(target.values(), v => harden([harden(v), harden(v)]))))
+          if (prop === Symbol.iterator || prop === 'values' || prop === 'keys') return harden(() => iteratorOf(target.values()))
+          if (prop === 'entries') return harden(() => iteratorOf(target.values(), value => {
+            const item = harden(value)
+            return [item, item]
+          }))
           if (prop === 'forEach')
             return harden((cb: (value: unknown, value2: unknown, set: Set<unknown>) => unknown, thisArg?: unknown) => {
               for (const v of target.values()) cb.call(thisArg, harden(v), harden(v), proxy)
@@ -263,32 +303,36 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         if (forbidden(prop)) return undefined
         if (Array.isArray(target)) {
           if (typeof prop === 'string' && arrayMutators.has(prop)) return harden(readonly)
-          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.map.call(target, v => harden(v))))
-          if (prop === 'entries') return harden(() => iteratorOf(Array.prototype.map.call(target, (v, i) => harden([i, harden(v)]))))
-          if (prop === 'keys') return harden(() => iteratorOf(Array.from({ length: target.length }, (_, i) => i)))
+          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.values.call(target)))
+          if (prop === 'entries') return harden(() => iteratorOf(Array.prototype.entries.call(target), entry => {
+            const [index, value] = entry as [number, unknown]
+            return [index, harden(value)]
+          }))
+          if (prop === 'keys') return harden(() => iteratorOf(Array.prototype.keys.call(target)))
+          if (typeof prop === 'string' && arrayHardenedCopyMethods.has(prop)) {
+            const method = Reflect.get(Array.prototype, prop) as (...args: unknown[]) => unknown
+            return harden((...args: unknown[]) => Reflect.apply(method, Array.prototype.map.call(target, v => harden(v)), args))
+          }
+          if (typeof prop === 'string' && arrayStringMethods.has(prop)) {
+            const method = Reflect.get(Array.prototype, prop) as (...args: unknown[]) => unknown
+            return harden((...args: unknown[]) => Reflect.apply(method, Array.prototype.map.call(target, v => rawOf(v)), args))
+          }
           if (typeof prop === 'string' && arrayCallbackMethods.has(prop)) {
             return harden((cb: (value: unknown, index: number, array: unknown) => unknown, thisArg?: unknown) => {
-              const values = Array.prototype.map.call(target, v => harden(v))
-              const call = (v: unknown, i: number) => cb.call(thisArg, v, i, proxy)
+              const call = (v: unknown, i: number) => cb.call(thisArg, harden(v), i, proxy)
               if (prop === 'forEach') {
-                values.forEach(call)
+                Array.prototype.forEach.call(target, call)
                 return undefined
               }
-              if (prop === 'map') return values.map(call)
-              if (prop === 'filter') return values.filter((v, i) => call(v, i))
-              if (prop === 'find') return values.find((v, i) => Boolean(call(v, i)))
-              if (prop === 'findIndex') return values.findIndex((v, i) => Boolean(call(v, i)))
-              if (prop === 'findLast') {
-                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return values[i]
-                return undefined
-              }
-              if (prop === 'findLastIndex') {
-                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return i
-                return -1
-              }
-              if (prop === 'some') return values.some((v, i) => Boolean(call(v, i)))
-              if (prop === 'every') return values.every((v, i) => Boolean(call(v, i)))
-              if (prop === 'flatMap') return values.flatMap(call as any)
+              if (prop === 'map') return Array.prototype.map.call(target, call)
+              if (prop === 'filter') return Array.prototype.filter.call(target, call)
+              if (prop === 'find') return Array.prototype.find.call(target, call)
+              if (prop === 'findIndex') return Array.prototype.findIndex.call(target, call)
+              if (prop === 'findLast') return Array.prototype.findLast.call(target, call)
+              if (prop === 'findLastIndex') return Array.prototype.findLastIndex.call(target, call)
+              if (prop === 'some') return Array.prototype.some.call(target, call)
+              if (prop === 'every') return Array.prototype.every.call(target, call)
+              if (prop === 'flatMap') return Array.prototype.flatMap.call(target, call)
             })
           }
           if (prop === 'toSorted') {
@@ -317,9 +361,15 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
             })
           if (prop === 'reduce' || prop === 'reduceRight') {
             return harden(function (cb: (previous: unknown, current: unknown, index: number, array: unknown) => unknown, initial?: unknown) {
-              const values = Array.prototype.map.call(target, v => harden(v))
-              const reducer = (previous: unknown, current: unknown, index: number) => cb(previous, current, index, proxy)
-              return arguments.length >= 2 ? (prop === 'reduce' ? values.reduce(reducer, initial) : values.reduceRight(reducer, initial)) : prop === 'reduce' ? values.reduce(reducer) : values.reduceRight(reducer)
+              const supplied = arguments.length >= 2
+              let unwrappedSeed = !supplied
+              const reducer = (previous: unknown, current: unknown, index: number) => {
+                const accumulator = unwrappedSeed ? harden(previous) : previous
+                unwrappedSeed = false
+                return cb(accumulator, harden(current), index, proxy)
+              }
+              const reduce = prop === 'reduce' ? Array.prototype.reduce : Array.prototype.reduceRight
+              return Reflect.apply(reduce, target, supplied ? [reducer, initial] : [reducer])
             })
           }
         }
@@ -344,29 +394,16 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const push = (call: ExecutionTraceCall) => {
     trace?.push(call)
+    onTraceCall?.(call)
   }
   const sdkTarget = {
     parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
     createMermaid: mermaid.createMermaid,
     buildMermaid: mermaid.buildMermaid,
-    asFlowchart: mermaid.asFlowchart,
-    asState: mermaid.asState,
-    asSequence: mermaid.asSequence,
-    asTimeline: mermaid.asTimeline,
-    asClass: mermaid.asClass,
-    asEr: mermaid.asEr,
-    asJourney: mermaid.asJourney,
-    asArchitecture: mermaid.asArchitecture,
-    asXyChart: mermaid.asXyChart,
-    asPie: mermaid.asPie,
-    asQuadrant: mermaid.asQuadrant,
-    asGantt: mermaid.asGantt,
-    asMindmap: mermaid.asMindmap,
-    asGitGraph: mermaid.asGitGraph,
-    asRadar: mermaid.asRadar,
-    asSankey: mermaid.asSankey,
-    asC4: mermaid.asC4,
+    ...SDK_NARROWERS,
+
     mutate: mermaid.mutate,
+    mutatePreservingSource: mermaid.mutatePreservingSource,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,
     analyzeMermaidSource: mermaid.analyzeMermaidSource,
@@ -380,6 +417,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     renderMermaidASCII: mermaid.renderMermaidASCII,
     renderMermaidASCIIWithReceipt: mermaid.renderMermaidASCIIWithReceipt,
     layoutMermaidWithReceipt: mermaid.layoutMermaidWithReceipt,
+    renderResolvedScene: mermaid.renderResolvedScene,
     // Read-only op discovery: field shapes / enum values / constraint notes and
     // compact signatures for a family's ops, so a Code Mode script can look up
     // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
@@ -439,10 +477,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         push({ verb: 'narrow', family: narrowerFamily(prop), input, ok: r !== null })
         return harden(r)
       })
-    } else if (prop === 'mutate')
+    } else if (prop === 'mutate' || prop === 'mutatePreservingSource')
       value = harden((d: any, op: any) => {
         assertOpen()
-        requireTrustedDiagram(d, 'mutate')
+        requireTrustedDiagram(d, prop)
         const opForHost = jsonClone(op)
         const call: Extract<ExecutionTraceCall, { verb: 'mutate' }> = {
           verb: 'mutate',
@@ -454,11 +492,19 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         // mutateChecked runs the shape validator before the mutator: the SAME
         // choke point the declarative applyOps path funnels through, so an op
         // rejected here is rejected identically there (no second validator).
-        const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
+        const r = hostCall(() => prop === 'mutatePreservingSource' ? mermaid.mutatePreservingSource(rawOf(d), opForHost) : mermaid.mutateChecked(rawOf(d), opForHost))
         if (r.ok) {
-          trustDiagram(r.value)
-          call.output = idOf(r.value)
-          call.fingerprint = fingerprint(r.value)
+          const output = 'diagram' in r.value ? r.value.diagram : r.value
+          trustDiagram(output)
+          if ('diagram' in r.value) {
+            sourceResults.add(r.value)
+            preservedSources.set(output, { source: r.value.source, ...(r.value.preservation ? { preservation: r.value.preservation } : {}) })
+          }
+          call.output = idOf(output)
+          call.fingerprint = fingerprint(output)
+        }
+        if (!r.ok && Array.isArray(opForHost)) {
+          return harden({ ...r, error: { ...r.error, message: r.error.message.replace('applyOps({ source, family, ops }) to edit source', 'the declarative mutate tool to edit source') } })
         }
         return harden(r)
       })
@@ -466,7 +512,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       value = harden((input: any, opts?: any) => {
         assertOpen()
         requireTrustedDiagram(input, 'verifyMermaid')
-        const r = hostCall(() => target.verifyMermaid(rawOf(input), opts))
+        const r = hostCall(() => target.verifyMermaid(rawOf(input), jsonClone(opts)))
         const diagram = idOf(input)
         push({ verb: 'verify', diagram, ok: r.ok, inspected: false, fingerprint: fingerprint(input) })
         return harden(
@@ -539,10 +585,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
         return source
       })
-    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt')
+    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt' || prop === 'renderResolvedScene')
       value = harden((input: any, opts?: any) => {
         assertOpen()
-        if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
+        if (input == null || typeof input === 'object') requireTrustedDiagram(input, String(prop))
         const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
         const configCallback = opts?.onConfigDiagnostic
         const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
@@ -556,8 +602,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         // The host policy is applied after cloning caller data, so even an
         // explicit weaker value cannot cross any hosted render/layout boundary.
         // Local Code Mode supplies no policy and retains caller-selectable
-        // behavior.
-        if (hostPolicy) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
+        // behavior. The policy governs SVG content only; terminal text has its
+        // own safety projection, so it is not reported as a caller option there.
+        if (hostPolicy && !isAscii) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
         const configDiagnostics: unknown[] = []
         const projectionDiagnostics: unknown[] = []
         if (configCallback || projectionCallback) cloned ??= {}
@@ -567,7 +614,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         if (projectionCallback) {
           cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
         }
-        const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned), true)
+        const rawInput = rawOf(input)
+        const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawInput, cloned), typeof rawInput === 'string' ? { source: rawInput } : {})
         for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
         for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
         // Render artifacts/receipts are immutable host records. Clone to an
@@ -604,7 +652,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     try {
       const rawObj = rawOf(value)
       // Unwrap a Result<diagram> ({ ok:true, value:<diagram> }) to the diagram.
-      const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
+      let candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
+      if (candidate && typeof candidate === 'object' && sourceResults.has(candidate)) candidate = (candidate as { diagram: unknown }).diagram
       if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
         const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
         const { accepted, verification } = verifyMutationResult(d)
@@ -620,7 +669,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
             },
           }
         }
-        return { ok: true, family: d.kind, source: mermaid.serializeMermaid(d), verify: summary }
+        const exact = preservedSources.get(d)
+        return { ok: true, family: d.kind, source: exact?.source ?? mermaid.serializeMermaid(d), ...(exact !== undefined ? { mode: 'source-preserving', ...(exact.preservation ? { preservation: exact.preservation } : {}) } : {}), verify: summary }
       }
     } catch {
       // A returned value whose inspection trips a post-close proxy guard (e.g. a
@@ -685,6 +735,11 @@ function fingerprintDiagram(value: unknown): string | undefined {
 
 /** Kind/narrower lookup tables derived from the family metadata (single source of truth). */
 const FAMILY_KINDS: ReadonlySet<DiagramKind> = new Set(BUILTIN_FAMILY_METADATA.map(m => m.id))
+const SDK_NARROWERS = Object.fromEntries(BUILTIN_FAMILY_METADATA.map(({ narrower }) => {
+  const narrow = mermaid[narrower as keyof typeof mermaid]
+  if (typeof narrow !== 'function') throw new Error(`Missing public family narrower ${narrower}`)
+  return [narrower, narrow]
+}))
 const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(BUILTIN_FAMILY_METADATA.map(m => [m.narrower, m.id]))
 
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
@@ -693,34 +748,220 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
   return family
 }
 
+// ── Agent-code positions ────────────────────────────────────────────────
+// Every Code Mode wrap (node:vm and hosted module, expression and statement
+// form) puts the agent's code verbatim at column 1 of the wrap's line 2, so an
+// engine position in the wrapped script is the agent position one line down.
+// The single in-line shift is the statement form's return capture: `return (`
+// is inserted where the final expression statement starts, moving the rest of
+// that one line right by its length. agentCodeLocation undoes both, so
+// reported locations are exact. A raw `e.stack` read by agent code is the
+// engine's own value and stays unedited: its user.js/codemode.ts frames carry
+// the one-line offset, and it also lists the runner's frames.
+
+/** A position in the agent's own code: 1-based line and column (UTF-16 units). */
+export interface CodeModeLocation { line: number; column: number }
+export type CodeModeWrapForm = 'expression' | 'statement'
+
+/** Lines every wrap places above the agent's first line. */
+const CODE_MODE_LINE_OFFSET = 1
+const RETURN_CAPTURE = 'return ('
+const STATEMENT_PARSE_PREFIX = 'function __agent_code__(){"use strict";\n'
+const LINE_TERMINATOR = /\r\n|[\n\r\u2028\u2029]/g
+const MAX_STACK_CHARS = 16_384
+
+/** The agent code minus one trailing semicolon: the expression-form payload. */
+export function codeModeExpressionPayload(code: string): string {
+  return code.replace(/;\s*$/, '')
+}
+
+/** [start, end) of the final meaningful top-level expression statement, with
+ * its terminating semicolon excluded, or undefined when there is none. */
+function finalExpressionStatement(code: string): { start: number; end: number } | undefined {
+  try {
+    // Parse in the function context we execute: new.target and return are
+    // legal here, while strict-mode syntax restrictions apply in both hosts.
+    const ast = parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' })
+    const fn = ast.body[0]
+    if (fn?.type !== 'FunctionDeclaration') return undefined
+    const last = fn.body.body.findLast(statement => statement.type !== 'EmptyStatement')
+    if (last?.type !== 'ExpressionStatement') return undefined
+    const offset = STATEMENT_PARSE_PREFIX.length
+    // The injected directive belongs to the wrapper, never to user output.
+    if (last.start < offset) return undefined
+    const start = last.start - offset
+    const end = last.end - offset
+    return { start, end: code[end - 1] === ';' ? end - 1 : end }
+  } catch {
+    // The execution boundary owns syntax errors; do not repair invalid code.
+    return undefined
+  }
+}
+
+/** Preserve statement semantics and capture the final meaningful top-level
+ * expression. The capture inserts no line break before the expression, so
+ * every agent line keeps its number (see agentCodeLocation). */
+export function codeModeStatementBody(code: string): string {
+  const capture = finalExpressionStatement(code)
+  if (!capture) return code
+  const rest = code.slice(capture.end).replace(/^;/, '')
+  return `${code.slice(0, capture.start)}${RETURN_CAPTURE}${code.slice(capture.start, capture.end)}\n);${rest}`
+}
+
+/** 0-based line index and column of a UTF-16 offset in `code`. */
+function lineColumnOf(code: string, offset: number): { line: number; column: number } {
+  let line = 0
+  let lineStart = 0
+  for (const match of code.slice(0, offset).matchAll(LINE_TERMINATOR)) {
+    line += 1
+    lineStart = match.index + match[0].length
+  }
+  return { line, column: offset - lineStart }
+}
+
 /**
- * Generate candidate wrappings in order of preference: expression form first
- * (handles bare expressions including objects/arrows/templates), then
- * statement form (handles multi-statement bodies with `return` etc.). The
- * first that compiles wins. Code Mode is deliberately synchronous: allowing
- * Promise jobs after `vm.runInContext` lets sandbox code block the host event
- * loop outside the VM timeout.
+ * Map a 1-based engine position in a wrapped script back to the agent's code.
+ * Undefined when the position lies outside the agent's lines (the wrapper's
+ * own call frame).
  */
-export function expressionFirstWraps(code: string): string[] {
-  const t = code.trim()
-  const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
-  const expressionWrapped = `(() => { return (\n${stripped}\n) })()`
-  const statementWrapped = `(() => { ${code} })()`
-  // Expression form handles bare expressions including objects/arrows/templates.
-  // Pick it only if host parsing succeeds; never retry based on sandbox-thrown
-  // values, because their getters/proxy traps are attacker-controlled.
+export function agentCodeLocation(code: string, form: CodeModeWrapForm, line: number, column: number): CodeModeLocation | undefined {
+  if (!Number.isSafeInteger(line) || !Number.isSafeInteger(column) || column < 1) return undefined
+  const agentLine = line - CODE_MODE_LINE_OFFSET
+  const lineCount = (form === 'expression' ? codeModeExpressionPayload(code) : code).split(LINE_TERMINATOR).length
+  if (agentLine < 1 || agentLine > lineCount) return undefined
+  const capture = form === 'statement' ? finalExpressionStatement(code) : undefined
+  if (capture) {
+    const at = lineColumnOf(code, capture.start)
+    const zeroBased = column - 1
+    if (agentLine === at.line + 1 && zeroBased >= at.column) {
+      return { line: agentLine, column: Math.max(at.column, zeroBased - RETURN_CAPTURE.length) + 1 }
+    }
+  }
+  return { line: agentLine, column }
+}
+
+/** The first `at ... (<fileName>:line:column)` frame of an engine stack
+ * string (V8 and JavaScriptCore both print this form), in wrapped-script
+ * coordinates. Only frame lines are read, so message text cannot match. */
+export function firstStackFrame(stack: unknown, fileName: string): { line: number; column: number } | undefined {
+  if (typeof stack !== 'string') return undefined
+  const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const frame = new RegExp(`^\\s*at (?:.*[ (])?(?:[^\\s()]*/)?${escaped}:(\\d+):(\\d+)\\)?\\s*$`)
+  for (const text of stack.slice(0, MAX_STACK_CHARS).split('\n')) {
+    const match = frame.exec(text)
+    if (match) return { line: Number(match[1]), column: Number(match[2]) }
+  }
+  return undefined
+}
+
+/** Where the pre-screen parser stopped in code that does not parse, in agent
+ * coordinates. A failure past the agent's last line (an unterminated block or
+ * literal) is reported at the end of the code. */
+function codeModeSyntaxLocation(code: string): CodeModeLocation | undefined {
+  try {
+    parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script', locations: true })
+    return undefined
+  } catch (e) {
+    const loc = (e as { loc?: { line?: unknown; column?: unknown } }).loc
+    if (typeof loc?.line !== 'number' || typeof loc.column !== 'number') return undefined
+    const lines = code.split(LINE_TERMINATOR)
+    const line = loc.line - CODE_MODE_LINE_OFFSET
+    if (line < 1) return { line: 1, column: 1 }
+    if (line > lines.length) return { line: lines.length, column: lines[lines.length - 1]!.length + 1 }
+    return { line, column: loc.column + 1 }
+  }
+}
+
+/**
+ * The node:vm wrap for agent code: expression form when the code parses as a
+ * bare expression (objects/arrows/templates included), otherwise statement
+ * form (multi-statement bodies with `return` etc.). Code Mode is deliberately
+ * synchronous: allowing Promise jobs after `vm.runInContext` lets sandbox code
+ * block the host event loop outside the VM timeout.
+ *
+ * The statement body sits in `try { } finally { }` so no top-level
+ * `return f(...)` is a tail call: JavaScriptCore (Bun) performs proper tail
+ * calls in strict mode, which would drop the agent's frame from the stack of
+ * an error thrown inside f and leave nothing to locate. A block changes one
+ * thing about strict code: a top-level function declaration that shares its
+ * name with a `var` or another function declaration is an early error there.
+ * Such code keeps the plain function body (codeModeStatementWrap), where it
+ * is valid; only an error inside a tail call it makes may lack a location.
+ */
+export function expressionFirstWraps(code: string): { source: string; form: CodeModeWrapForm } {
+  const stripped = codeModeExpressionPayload(code)
+  // Pick expression form only if host parsing succeeds; never retry based on
+  // sandbox-thrown values, because their getters/proxy traps are
+  // attacker-controlled.
   try {
     // eslint-disable-next-line no-new-func
-    new Function(`return (\n${stripped}\n)`)
-    return [expressionWrapped]
+    new Function(`"use strict"; return (\n${stripped}\n)`)
+    return { source: `(function (mermaid, console) { "use strict"; try { return (\n${stripped}\n) } finally {} })(mermaid, console)`, form: 'expression' }
   } catch {
-    return [statementWrapped]
+    const [open, close] = codeModeStatementWrap(code)
+    return { source: `(function (mermaid, console) { "use strict"; ${open}\n${codeModeStatementBody(code)}\n${close} })(mermaid, console)`, form: 'statement' }
   }
+}
+
+/**
+ * The text around a statement body: `try {` … `} finally {}` unless that block
+ * would reject the code's own declarations (see expressionFirstWraps), in
+ * which case the body stays at function scope. Shared by the local and hosted
+ * runners so both scope agent code alike.
+ */
+export function codeModeStatementWrap(code: string): readonly [open: string, close: string] {
+  return blockRejectsDeclarations(code) ? ['', ''] : ['try {', '} finally {}']
+}
+
+/** Whether a top-level function declaration shares its name with another
+ *  function declaration or with a `var` anywhere in the function body. */
+function blockRejectsDeclarations(code: string): boolean {
+  let ast: AcornNode
+  try { ast = parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' }) } catch { return false }
+  const body = ((ast as unknown as { body: Array<{ body: { body: Array<AcornNode & Record<string, unknown>> } }> }).body[0]!.body.body)
+  const functions: string[] = []
+  for (const statement of body) {
+    if (statement.type === 'FunctionDeclaration') functions.push((statement.id as { name: string }).name)
+  }
+  if (functions.length === 0) return false
+  if (new Set(functions).size !== functions.length) return true
+  const vars = new Set<string>()
+  const bind = (pattern: unknown): void => {
+    if (!isAcornNode(pattern)) return
+    const node = pattern as AcornNode & Record<string, unknown>
+    if (node.type === 'Identifier') vars.add(node.name as string)
+    else if (node.type === 'ObjectPattern') for (const property of node.properties as unknown[]) bind((property as { value?: unknown; argument?: unknown }).value ?? (property as { argument?: unknown }).argument)
+    else if (node.type === 'ArrayPattern') for (const element of node.elements as unknown[]) bind(element)
+    else if (node.type === 'AssignmentPattern') bind(node.left)
+    else if (node.type === 'RestElement') bind(node.argument)
+  }
+  const visit = (node: AcornNode & Record<string, unknown>): void => {
+    if (node.type === 'VariableDeclaration' && node.kind === 'var') for (const declaration of node.declarations as Array<{ id: unknown }>) bind(declaration.id)
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'start' || key === 'end' || key === 'type') continue
+      for (const child of Array.isArray(value) ? value : [value]) {
+        // A var inside a nested function belongs to that function.
+        if (isAcornNode(child) && !/Function|Class/.test(child.type)) visit(child as AcornNode & Record<string, unknown>)
+      }
+    }
+  }
+  for (const statement of body) if (statement.type !== 'FunctionDeclaration') visit(statement)
+  return functions.some(name => vars.has(name))
+}
+
+const SYNTAX_REASON = 'Code Mode syntax must be a strict JavaScript expression or function body'
+
+/** unsupportedCodeReason plus, for code that does not parse, where it stopped. */
+export function codeModeScreen(code: string): { message: string; location?: CodeModeLocation } | undefined {
+  const message = unsupportedCodeReason(code)
+  if (message === undefined) return undefined
+  const location = message === SYNTAX_REASON ? codeModeSyntaxLocation(code) : undefined
+  return location ? { message, location } : { message }
 }
 
 export function unsupportedCodeReason(code: string): string | undefined {
   const ast = parseCodeModeAst(code)
-  if (!ast) return undefined // Let the selected runtime return the syntax error.
+  if (!ast) return SYNTAX_REASON
   let usesAsync = false
   let usesRealm = false
   walkJavaScriptAst(ast, (node, parent, parentKey) => {
@@ -752,13 +993,13 @@ const REALM_UNSUPPORTED_IDENTIFIERS = new Set(['Atomics', 'SharedArrayBuffer', '
  * distinguish regex literals from division safely and previously created both
  * false positives and a dynamic-import screening bypass. */
 function parseCodeModeAst(code: string): AcornNode | undefined {
-  const stripped = code.trim().replace(/;\s*$/, '')
+  const stripped = codeModeExpressionPayload(code)
   const candidates = [
-    `(${stripped})`,
-    `function __agent_code__(){\n${code}\n}`,
+    `function __agent_code__(){"use strict"; return (\n${stripped}\n)}`,
+    `function __agent_code__(){"use strict";\n${code}\n}`,
     // Parse otherwise-invalid top-level await so it is rejected before an
     // isolate/CPU budget is allocated and telemetry remains truthful.
-    `async function __agent_code__(){\n${code}\n}`,
+    `async function __agent_code__(){"use strict";\n${code}\n}`,
   ]
   for (const candidate of candidates) {
     try {

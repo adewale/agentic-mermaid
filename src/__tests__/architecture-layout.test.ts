@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
+import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 
 function parse(source: string) {
   return parseArchitectureDiagram(preprocessMermaidSource(source).lines)
@@ -77,6 +82,85 @@ function boxesOverlap(
 }
 
 describe('layoutArchitectureDiagram', () => {
+  it.each(raynerGroups)('keeps the original Rayner $id groups separate without losing row alignment or ports', ({ source, style }) => {
+    let svg = ''
+    expect(() => { svg = renderMermaidSVG(source, { style }) }).not.toThrow()
+    const { layout: projected } = layoutMermaidWithReceipt(source, { style, debug: true })
+    for (let i = 0; i < projected.groups.length; i++) {
+      const a = projected.groups[i]!
+      for (const b of projected.groups.slice(i + 1)) {
+        const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+        expect(overlap, `${a.id}/${b.id}`).toBe(false)
+      }
+    }
+    const nodes = ['k1', 'k2', 'k3'].map(id => projected.nodes.find(node => node.id === id)!)
+    expect(nodes[1]!.y + nodes[1]!.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    expect(nodes[2]!.y + nodes[2]!.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    expect(svg).toContain('data-id="k3"')
+    const authoredEdges = parse(source).edges
+    const anchor = (node: typeof nodes[number], side: string) => ({
+      x: side === 'L' ? node.x : side === 'R' ? node.x + node.w : node.x + node.w / 2,
+      y: side === 'T' ? node.y : side === 'B' ? node.y + node.h : node.y + node.h / 2,
+    })
+    for (const [index, edge] of projected.edges.entries()) {
+      const from = projected.nodes.find(node => node.id === edge.from)!
+      const to = projected.nodes.find(node => node.id === edge.to)!
+      expect(from).toBeDefined()
+      expect(to).toBeDefined()
+      expect(edge.path.length).toBeGreaterThan(1)
+      const start = anchor(from, authoredEdges[index]!.source.side), end = anchor(to, authoredEdges[index]!.target.side)
+      // Public layout boxes and paths round independently to integer units.
+      expect(Math.abs(edge.path[0]![0] - start.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path[0]![1] - start.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path.at(-1)![0] - end.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path.at(-1)![1] - end.y)).toBeLessThanOrEqual(1)
+      expect(edge.route).toMatchObject({
+        sourceAnchored: true, targetAnchored: true, obstacleFree: true,
+        sourceSide: authoredEdges[index]!.source.side, targetSide: authoredEdges[index]!.target.side,
+      })
+      for (const obstacle of projected.nodes.filter(node => node.id !== edge.from && node.id !== edge.to)) {
+        expect(routeCrossesBoxInterior(edge.path.map(([x, y]) => ({ x, y })), {
+          x: obstacle.x, y: obstacle.y, width: obstacle.w, height: obstacle.h,
+        }), `${edge.id} crosses ${obstacle.id}`).toBe(false)
+      }
+    }
+  })
+
+  it.each(['nested', 'columns', 'reversed row', 'reversed columns', 'wide headers'])('keeps expanded aligned group frames separate with %s', variant => {
+    let source = raynerGroups[0]!.source
+    if (variant === 'nested') {
+      source = source.replace('architecture-beta', 'architecture-beta\n  group fleet[Cluster]')
+        .replace(/group (n\d)\[ \]/g, 'group $1[ ] in fleet')
+    } else if (variant === 'columns') source += '\n  align column k1 a\n  align column k2 b\n  align column k3 c'
+    else if (variant === 'reversed columns') source += '\n  align column a k1\n  align column b k2\n  align column c k3'
+    else if (variant === 'reversed row') source = source.replace('align row k1 k2 k3', 'align row k3 k2 k1')
+    else source = source.replace(/group (n\d)\[ \]/g, 'group $1[An intentionally wide group header]')
+    const { layout: projected } = layoutMermaidWithReceipt(source, { style: 'github-light' })
+    const nodes = ['k1', 'k2', 'k3'].map(id => projected.nodes.find(node => node.id === id)!)
+    for (const node of nodes) expect(node.y + node.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    const groups = ['n1', 'n2', 'n3'].map(id => projected.groups.find(group => group.id === id)!)
+    for (let i = 0; i < groups.length; i++) for (const other of groups.slice(i + 1)) {
+      const a = groups[i]!
+      expect(a.x < other.x + other.w && other.x < a.x + a.w && a.y < other.y + other.h && other.y < a.y + a.h).toBe(false)
+    }
+    if (variant.includes('columns')) for (const [node, pod] of [['k1', 'a'], ['k2', 'b'], ['k3', 'c']]) {
+      const a = projected.nodes.find(entry => entry.id === node)!, b = projected.nodes.find(entry => entry.id === pod)!
+      expect(a.x + a.w / 2).toBeCloseTo(b.x + b.w / 2)
+    }
+    expect(renderMermaidSVG(source, { style: 'github-light' })).toContain('data-id="k1"')
+  })
+
+  it('retains the authored Output row when transitive columns constrain the preceding layers', () => {
+    const source = collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source, { debug: true })
+    const row = ['brief', 'analyst', 'delivery'].map(id => projected.nodes.find(node => node.id === id)!)
+    for (const node of row) expect(node.y + node.h / 2).toBeCloseTo(row[0]!.y + row[0]!.h / 2)
+    for (const edge of projected.edges) expect(edge.route).toMatchObject({
+      sourceAnchored: true, targetAnchored: true, obstacleFree: true, placement: 'satisfied',
+    })
+    expect(renderMermaidSVG(source)).toContain('data-id="analyst"')
+  })
+
   it('keeps grouped services and junctions inside their parent frame', () => {
     const result = layout(`architecture-beta
       group app(cloud)[Application]
@@ -173,9 +257,18 @@ describe('layoutArchitectureDiagram', () => {
       const id = `${edge.source.id}->${edge.target.id}`
       if (!edge.obstacleFree) violations.push(`router reports obstacle: ${id}`)
       for (const service of result.services) {
-        if (service.id !== edge.source.id && service.id !== edge.target.id && routeCrossesBoxInterior(edge.points, service)) {
+        if (routeCrossesBoxInterior(edge.points, service)) {
           violations.push(`route through card: ${id} crosses ${service.id}`)
         }
+      }
+      for (const [endpoint, contact, adjacent] of [
+        [edge.source, edge.points[0]!, edge.points[1]!],
+        [edge.target, edge.points.at(-1)!, edge.points.at(-2)!],
+      ] as const) {
+        const outward = endpoint.side === 'L' ? adjacent.x < contact.x
+          : endpoint.side === 'R' ? adjacent.x > contact.x
+            : endpoint.side === 'T' ? adjacent.y < contact.y : adjacent.y > contact.y
+        if (!outward) violations.push(`inward endpoint approach: ${id} at ${endpoint.id}:${endpoint.side}`)
       }
     }
     return violations
@@ -190,27 +283,20 @@ describe('layoutArchitectureDiagram', () => {
       fc.property(groupedArchitectureArb, source => {
         expect(groupedLayoutViolations(source)).toEqual([])
       }),
-      {
+      fcParameters({
         numRuns: 300,
         // Graph crossing preferences must not score the temporary routes that
         // Architecture replaces with its authored side-specific projection.
-        examples: [['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s1_1:L --> T:s0_0']],
-      },
-    )
-  })
-
-  // Known product bug BUG-37: the router sends s0_0:T --> T:s0_1 through card
-  // s0_2 (obstacleFree false). The nightly finder found it at
-  // AM_FC_SEED=1102132276; this is its shrunk counterexample, pinned as an
-  // `examples` entry. When BUG-37 is fixed this pin fails: move the example
-  // into the property above (keep it forever) and delete this test.
-  const BUG_37_SOURCE = 'architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0'
-  it.failing('BUG-37: the AM_FC_SEED=1102132276 counterexample routes an edge through a card', () => {
-    fc.assert(
-      fc.property(groupedArchitectureArb, source => {
-        expect(groupedLayoutViolations(source)).toEqual([])
+        examples: [['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s1_1:L --> T:s0_0'],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_2\n  s1_1:L --> L:s0_1\n  s0_1:L --> L:s1_0\n  s0_0:B --> B:s0_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:T --> L:s0_0\n  s1_0:L --> L:s1_1\n  s1_2:L --> L:s1_1\n  s0_0:L --> L:s1_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s1_0:L --> T:s0_0"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_2:L --> L:s0_0\n  s0_1:B --> B:s0_0\n  s0_0:L --> L:s0_1\n  s1_0:L --> L:s0_0\n  s1_0:L --> L:s0_0"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:L --> L:s0_0\n  s0_0:L --> L:s1_1\n  s1_2:B --> B:s1_0\n  s1_2:L --> L:s0_0\n  s1_2:L --> L:s1_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:T --> T:s0_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_2:B --> B:s0_1"],
+          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0']],
       }),
-      { examples: [[BUG_37_SOURCE]], numRuns: 1 },
     )
   })
 
@@ -327,8 +413,9 @@ describe('layoutArchitectureDiagram', () => {
     expect(distanceToPolyline(shortcut.labelPosition!, shortcut.points)).toBeLessThanOrEqual(0.001)
   })
 
-  it('every chain shortcut clears every intermediate card (property)', () => {
-    fc.assert(fc.property(fc.integer({ min: 3, max: 8 }), count => {
+  it('every chain shortcut clears every intermediate card', () => {
+    // A finite domain (3..8 services): every length runs.
+    for (let count = 3; count <= 8; count++) {
       const lines = ['architecture-beta']
       for (let i = 0; i < count; i++) lines.push(`service s${i}(server)[S${i}]`)
       for (let i = 1; i < count; i++) lines.push(`s${i - 1}:R --> L:s${i}`)
@@ -336,9 +423,9 @@ describe('layoutArchitectureDiagram', () => {
       const result = layout(lines.join('\n'))
       const shortcut = result.edges.at(-1)!
       const intermediates = result.services.filter(service => service.id !== 's0' && service.id !== `s${count - 1}`)
-      return shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y)
-        && intermediates.every(service => !routeCrossesBoxInterior(shortcut.points, service))
-    }), { numRuns: 60 })
+      expect({ count, orthogonal: shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y) }).toEqual({ count, orthogonal: true })
+      expect({ count, crossed: intermediates.filter(service => routeCrossesBoxInterior(shortcut.points, service)).map(service => service.id) }).toEqual({ count, crossed: [] })
+    }
   })
 
   it('routes group-boundary shortcuts around an unrelated group interior', () => {
@@ -418,4 +505,75 @@ describe('layoutArchitectureDiagram', () => {
     }
     expect(JSON.stringify(aligned)).not.toBe(JSON.stringify(plain))
   })
+})
+
+
+// The literal band/contacts below are independent of the route-obstacle helper.
+it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
+  const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  const positioned = layoutArchitectureDiagram(parse(source), options)
+  const group = positioned.groups[0]!, edge = positioned.edges[0]!
+  expect({ x: group.x, y: group.y, width: group.width, height: group.headerHeight }).toEqual({ x: 38, y: 124, width: 156, height: 28 })
+  expect(edge.source).toEqual({ id: 'a', boundary: 'item', side: 'T' })
+  expect(edge.target).toEqual({ id: 'b', boundary: 'item', side: 'B' })
+  expect(edge.points[0]).toEqual({ x: 116, y: 168 })
+  expect(edge.points.at(-1)).toEqual({ x: 116, y: 88 })
+  expect(edge.obstacleFree).toBe(true)
+  const rendered = renderMermaidSVGWithReceipt(source, { ...options, idPrefix: `owned-header-${backend}-` })
+  expect(rendered.svg).toContain('d="M38,124 H194 V152 H38 Z"')
+  const tag = [...rendered.svg.matchAll(/<polyline\b[^>]*>/g)].map(match => match[0]).find(value => value.includes('data-from="a"') && value.includes('data-to="b"'))!
+  expect(tag).toContain('data-from-side="T"')
+  expect(tag).toContain('data-to-side="B"')
+  expect(tag).toContain('data-from-boundary="item"')
+  expect(tag).toContain('data-to-boundary="item"')
+  expect(tag).toContain('marker-end="url(')
+  const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => { const [x, y] = value.split(',').map(Number); return { x: x!, y: y! } })
+  expect(points).toEqual(edge.points)
+  for (let index = 1; index < points.length; index++) {
+    const a = points[index - 1]!, b = points[index]!
+    const entersLiteralBand = Math.max(a.x, b.x) > 38 && Math.min(a.x, b.x) < 194
+      && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
+    expect(entersLiteralBand).toBe(false)
+  }
+  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
+  expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
+})
+
+
+it('draws an empty Architecture group as a visible frame under its measured header band', () => {
+  const source = 'architecture-beta\ngroup edge(cloud)[Edge]\ngroup cloud(cloud)[Cloud]\ngroup storage(disk)[Storage] in cloud\ngroup app(server)[Application] in cloud\nservice api(server)[Public API] in app\njunction bus in app\nservice db(database)[Primary DB]\napi:R --> L:db\napi:B -["async fan-out"]-> T:bus'
+  const svg = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg
+  const visual = DEFAULT_ARCHITECTURE_VISUAL
+  const frame = (id: string) => {
+    const tag = new RegExp(`<rect class="architecture-group-frame" x="([\\d.]+)" y="([\\d.]+)" width="([\\d.]+)" height="([\\d.]+)"[^>]*data-id="group-frame:${id}"`).exec(svg)!
+    const [x, y, width, height] = tag.slice(1).map(Number) as [number, number, number, number]
+    return { x, y, width, height }
+  }
+  const bands = [...svg.matchAll(/class="architecture-group-band" d="M([\d.]+),([\d.]+) H([\d.]+) V([\d.]+)/g)].map(match => match.slice(1).map(Number) as [number, number, number, number])
+  // Empty groups, top-level and nested, keep a body below the header that holds
+  // the icon and the whole title, inside any parent frame and clear of siblings.
+  for (const [id, title] of [['edge', 'Edge'], ['storage', 'Storage']] as const) {
+    const box = frame(id)
+    const titleWidth = measureMultilineText(title, visual.groupFontSize, visual.groupFontWeight, visual.groupLetterSpacing).width
+    expect(box.width, id).toBeGreaterThanOrEqual(ARCHITECTURE_GROUP_ICON_TITLE_OFFSET + titleWidth)
+    expect(box.height, id).toBeGreaterThan(28)
+    expect(bands.some(([x, y, right, bottom]) => x === box.x && y === box.y && Math.abs(right - (box.x + box.width)) < 1e-6 && bottom - y === 28), id).toBe(true)
+  }
+  const [storage, app, cloud] = [frame('storage'), frame('app'), frame('cloud')]
+  expect(storage.x >= cloud.x && storage.y >= cloud.y && storage.x + storage.width <= cloud.x + cloud.width && storage.y + storage.height <= cloud.y + cloud.height).toBe(true)
+  expect(storage.x + storage.width <= app.x || app.x + app.width <= storage.x || storage.y + storage.height <= app.y || app.y + app.height <= storage.y).toBe(true)
+  const edgeTags = [...svg.matchAll(/<polyline\b[^>]*class="architecture-edge"[^>]*>/g)].map(match => match[0])
+  expect(edgeTags.map(tag => /data-from="(\w+)" data-to="(\w+)"/.exec(tag)!.slice(1).join('->'))).toEqual(['api->db', 'api->bus'])
+  for (const tag of edgeTags) {
+    expect(tag).toContain('marker-end="url(')
+    const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => value.split(',').map(Number))
+    // No emitted route enters any group's header band.
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      for (const [x, y, right, bottom] of bands) {
+        expect(Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < right && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < bottom).toBe(false)
+      }
+    }
+  }
 })

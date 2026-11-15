@@ -1,11 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { colorizeText } from '../ascii/ansi.ts'
-import {
-  SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
-  resolveRenderRequest,
-  type SharedRenderOptionField,
-} from '../render-contract.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 import { getStyle, knownStyles, validateStyleSpec } from '../scene/style-registry.ts'
 import {
   primitiveCapabilityClaimKey,
@@ -21,6 +18,11 @@ import {
   replaceFamilyForTest,
   type AsciiContext,
 } from '../agent/families.ts'
+import fc from 'fast-check'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
+import { terminalText } from './helpers/terminal-text.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const HOSTILE = 'red" onmouseover="alert(1);background:url(https://evil.invalid/x)'
@@ -93,6 +95,20 @@ describe('terminal projection color security', () => {
 })
 
 describe('canonical terminal field applicability', () => {
+  test.each(['receipt', 'terminalStyle', 'diagnostic callback'] as const)('preserves provider suspension while collecting %s', access => {
+    const descriptor = getFamily('flowchart')!
+    const deferred = new DeferredDependencyError('Layout provider', async () => {})
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout() { throw new Error('Layout wrapper', { cause: deferred }) } })
+    try {
+      expect(() => {
+        const rendered = renderMermaidASCIIWithReceipt(SOURCE, {
+          colorMode: 'none', ...(access === 'diagnostic callback' ? { onProjectionDiagnostic() {} } : {}),
+        })
+        if (access !== 'diagnostic callback') void rendered[access]
+      }).toThrow(deferred)
+    } finally { restore() }
+  })
+
   test('deferred connector evidence preserves eager diagnostics and the complete style digest', () => {
     const descriptor = getFamily('flowchart')!
     for (const projection of ['scene', 'failed'] as const) {
@@ -228,7 +244,7 @@ describe('canonical terminal field applicability', () => {
         paint: { fill: '#111' }, fontSize: 10, textAnchor: 'middle', visual: { kind: 'inline' },
       }],
       transform: { kind: 'rotate', angle: 90, cx: 0, cy: 0 },
-    }, '<path d="M 0 0 L 5 0 L 10 0 M 20 0 L 25 0 L 30 0" fill="none" stroke="#123456" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="7 3" stroke-dashoffset="2" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="8" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-start="url(#terminal-witness-marker)" marker-mid="url(#terminal-witness-marker)" marker-end="url(#terminal-witness-marker)" />')
+    })
     const request = resolveRenderRequest(SOURCE, {}, 'ascii')
     const receipt = projectTerminalStyle(request, 'none', {}, {
       family: 'test', width: 40, height: 40, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [connector],
@@ -249,7 +265,7 @@ describe('canonical terminal field applicability', () => {
       interaction: projected.hit.pointerEvents === 'stroke',
       'hit-geometry': projected.hit.geometry.kind === 'path' && projected.hit.strokeWidth === 6,
       stroke: projected.stroke.color === '#123456' && projected.stroke.width === '3',
-      transform: projected.transform?.angle === 90,
+      transform: projected.transform?.kind === 'rotate' && projected.transform.angle === 90,
       'stroke-opacity': projected.stroke.opacity === 0.5,
       'stroke-cap': projected.stroke.lineCap === 'square',
       'stroke-join': projected.stroke.lineJoin === 'miter',
@@ -347,11 +363,11 @@ describe('canonical terminal field applicability', () => {
       embedFontImport: false, compact: true, idPrefix: 'terminal-', security: 'strict', seed: 7,
     }
     const rendered = renderMermaidASCIIWithReceipt(SOURCE, { ...options, colorMode: 'none' })
-    const features = new Set(rendered.terminalStyle.diagnostics.map(diagnostic => diagnostic.feature))
-    for (const [field, descriptor] of Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS) as Array<[SharedRenderOptionField, (typeof SHARED_RENDER_OPTION_FIELD_DESCRIPTORS)[SharedRenderOptionField]]>) {
-      if (options[field] === undefined) continue
-      if (descriptor.terminal === 'consumed') expect(features.has(`render-option:${field}`)).toBe(false)
-      else expect(features.has(`render-option:${field}`), field).toBe(true)
+    for (const [code, fields] of [
+      ['TERMINAL_RENDER_OPTION_PROJECTED', ['muted', 'surface', 'font', 'transparent', 'interactive', 'shadow']],
+      ['TERMINAL_RENDER_OPTION_NOT_APPLICABLE', ['padding', 'nodeSpacing', 'layerSpacing', 'wrappingWidth', 'componentSpacing', 'class', 'architecture', 'timeline', 'journey', 'gantt', 'embedFontImport', 'compact', 'idPrefix', 'security', 'seed']],
+    ] as const) {
+      for (const field of fields) expect(rendered.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code, feature: `render-option:${field}` }))
     }
   })
 })
@@ -374,4 +390,53 @@ test('connector receipts retain exact references while projecting inert display 
       if (label.visual?.kind === 'companion') expect(label.visual.markId).toContain(connector.endpoints.from!)
     }
   }
+})
+
+// Terminal text is displayed, not parsed: controls other than LF, the bidi
+// embedding/override/isolate controls that reorder cells ("Trojan source"),
+// noncharacters and lone surrogates must never reach it, in any color mode.
+const UNSAFE_TERMINAL_TEXT = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\p{Noncharacter_Code_Point}\p{Cs}]/u
+const terminalSourceArb = (family: (typeof BUILTIN_FAMILY_METADATA)[number]['id']) => {
+  const idSource = FAMILY_ID_SOURCES[family]
+  return idSource
+    ? fc.oneof(hostileTextArb.map(FAMILY_LABEL_SOURCES[family]), hostileTextArb.map(idSource))
+    : hostileTextArb.map(FAMILY_LABEL_SOURCES[family])
+}
+const terminalOptionsArb = fc.record({
+  colorMode: fc.constantFrom('none', 'ansi16', 'ansi256', 'truecolor', 'html') as fc.Arbitrary<'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'>,
+  useAscii: fc.boolean(),
+})
+const codePoints = (text: string) => [...text].filter(character => UNSAFE_TERMINAL_TEXT.test(character)).map(character => `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`)
+
+describe('terminal text holds no unsafe or undisplayable code points', () => {
+  test.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    fc.assert(fc.property(terminalSourceArb(family), terminalOptionsArb, (source, options) => {
+      let text: string
+      try { text = renderMermaidASCIIWithReceipt(source, options).text } catch { return }
+      expect({ source, options, unsafe: codePoints(terminalText(text, options.colorMode)) }).toEqual({ source, options, unsafe: [] })
+    }), fcParameters({
+      numRuns: 60,
+      // Reduced counterexamples (V16): a right-to-left override and an
+      // entity-spelled noncharacter reached terminal text raw.
+      examples: [
+        [FAMILY_LABEL_SOURCES[family]('a\u202eb'), { colorMode: 'none', useAscii: false }],
+        [FAMILY_LABEL_SOURCES[family]('x#65534;y'), { colorMode: 'none', useAscii: true }],
+      ],
+    }))
+  })
+})
+
+describe('terminal receipts report replaced undisplayable code points', () => {
+  test.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    const undisplayable = fc.constantFrom('\u202e', '\u2066', '\ufffe', '\ufdd0', '\u{10ffff}', '\ud800')
+    fc.assert(fc.property(undisplayable, hostileTextArb, (character, text) => {
+      const source = FAMILY_LABEL_SOURCES[family](`${text.slice(0, 20)}${character}`)
+      // Packet's template writes its label as a JSON string, escaping a lone
+      // surrogate; the receipt reports characters the authored source holds.
+      if (!source.includes(character)) return
+      let diagnostics: readonly TerminalProjectionDiagnostic[]
+      try { diagnostics = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics } catch { return }
+      expect({ source, replaced: diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED') }).toEqual({ source, replaced: true })
+    }), fcParameters({ numRuns: 30 }))
+  })
 })

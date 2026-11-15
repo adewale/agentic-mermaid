@@ -1,34 +1,87 @@
-import { drawableAuthoredCssPaint } from './css-color.ts'
+import { authoredCssPaintDescription, drawableAuthoredCssPaint } from './css-color.ts'
 import { syntaxError } from './syntax-error.ts'
 
-/** Split CSS-like Mermaid style pairs without splitting functional color commas. */
-function splitTopLevelCommas(value: string): string[] {
+export type StyleDeclaration = [property: string, value: string]
+
+export function ownStyleDeclarations(record: Readonly<Record<string, StyleDeclaration[]>> | undefined, name: string): StyleDeclaration[] | undefined {
+  return record && Object.hasOwn(record, name) ? record[name] : undefined
+}
+
+/** Earlier identical declarations are dominated by their later copy. Other
+ * repeats must survive: CSS priority and invalid-value fallback need them. */
+export function compactStyleDeclarations(entries: readonly StyleDeclaration[]): StyleDeclaration[] {
+  const seen = new Map<string, Set<string>>()
+  const retained: StyleDeclaration[] = []
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const [key, value] = entries[index]!
+    let values = seen.get(key)
+    if (!values) { values = new Set(); seen.set(key, values) }
+    if (!values.has(value)) retained.push([key, value])
+    values.add(value)
+  }
+  return retained.reverse()
+}
+
+export function retainedStyleDeclarations(entries: readonly StyleDeclaration[]): StyleDeclaration[] | undefined {
+  const compact = compactStyleDeclarations(entries)
+  return new Set(compact.map(([key]) => key)).size < compact.length ? compact : undefined
+}
+
+export function projectStyleDeclarations(entries: readonly StyleDeclaration[]): Record<string, string> {
+  const ordered = new Map<string, string>()
+  for (const [key, value] of entries) { ordered.delete(key); ordered.set(key, value) }
+  return Object.fromEntries(ordered)
+}
+
+/** A repeated declaration takes its last position as well as its last value.
+ * Keeping its first position can reverse shorthand/longhand precedence. */
+export function mergeStyleProps(...styles: (Readonly<Record<string, string>> | undefined)[]): Record<string, string> {
+  const entries = new Map<string, string>()
+  for (const style of styles) for (const [key, value] of Object.entries(style ?? {})) {
+    entries.delete(key)
+    entries.set(key, value)
+  }
+  return Object.fromEntries(entries)
+}
+
+/** Split CSS-like Mermaid style pairs at a `,` or `;` without splitting
+ *  functional color commas. Mermaid joins pairs a `;` separates into one
+ *  invalid declaration (`fill:#f9fstroke:red`); ours reads them as CSS does. */
+function splitStylePairs(value: string): string[] {
   const out: string[] = []
   let depth = 0
   let start = 0
   let escaped = false
+  let quote = ''
   for (let index = 0; index < value.length; index++) {
     const char = value[index]
     if (escaped) { escaped = false; continue }
     if (char === '\\') { escaped = true; continue }
+    if (quote) { if (char === quote) quote = ''; continue }
+    if (char === '"' || char === "'") { quote = char; continue }
     if (char === '(') depth++
     else if (char === ')') depth = Math.max(0, depth - 1)
-    else if (char === ',' && depth === 0) { out.push(value.slice(start, index)); start = index + 1 }
+    else if ((char === ',' || char === ';') && depth === 0) { out.push(value.slice(start, index)); start = index + 1 }
   }
   out.push(value.slice(start))
   return out.map(part => part.replace(/\\,/g, ','))
 }
 
 /** Parse Mermaid's `key:value,key:value` paint grammar. */
-export function parseStyleProps(source: string): Record<string, string> {
+export function parseStyleProps(source: string, options: { caseInsensitive?: boolean } = {}): Record<string, string> {
+  return projectStyleDeclarations(parseStyleDeclarations(source, options))
+}
+
+export function parseStyleDeclarations(source: string, options: { caseInsensitive?: boolean } = {}): StyleDeclaration[] {
   const cleaned = source.replace(/;\s*$/, '')
-  const props: Record<string, string> = {}
-  for (const pair of splitTopLevelCommas(cleaned)) {
+  const props: StyleDeclaration[] = []
+  for (const pair of splitStylePairs(cleaned)) {
     const colon = pair.indexOf(':')
     if (colon <= 0) continue
-    const key = pair.slice(0, colon).trim()
+    const rawKey = pair.slice(0, colon).trim()
+    const key = options.caseInsensitive ? rawKey.toLowerCase() : rawKey
     const value = pair.slice(colon + 1).trim()
-    if (key && value) props[key] = value
+    if (key && value) props.push([key, value])
   }
   return props
 }
@@ -65,7 +118,7 @@ export class AuthoredStyleColorError extends Error {
   ) {
     super(syntaxError({
       what: `${subject}: ${property} ${JSON.stringify(value)} is not a CSS color`,
-      expectedForm: `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${property === 'color' ? '' : ', none'}, or var(--name)`,
+      expectedForm: authoredCssPaintDescription(property !== 'color'),
       example: `${directive ? `${directive} ` : ''}${property}:#f96`,
     }).message)
     this.name = 'AuthoredStyleColorError'

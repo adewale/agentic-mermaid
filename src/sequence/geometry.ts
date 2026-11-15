@@ -6,6 +6,25 @@ import { concatDisplayText, prepareDisplayText, resolveLabelContent, type LabelC
 import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
+import type { MarkerDescriptor } from '../scene/ir.ts'
+import { markerBoundsAt } from '../scene/bounds.ts'
+
+/** A terminal marker's painted envelope at unit carrier width around its
+ * endpoint, on a straight carrier running in +x (as markerTerminalDepth). */
+function terminalMarkerBounds(marker: MarkerDescriptor, position: 'start' | 'end') {
+  const angle = typeof marker.orient === 'number' ? marker.orient
+    : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
+  const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
+  if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return bounds
+}
+
+/** How far the marker reaches either side of a straight carrier at its
+ * endpoint, at unit carrier width. */
+function markerLateralExtent(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const bounds = terminalMarkerBounds(marker, position)
+  return Math.max(0, -bounds.y0, bounds.y1)
+}
 
 type ResolvedRoleStyle = ReturnType<typeof resolveRoleStyle>
 
@@ -24,6 +43,156 @@ export const SEQUENCE_SELF_LOOP = {
   height: 20,
   labelPadding: 8,
 } as const
+
+// ============================================================================
+// Arrow marker definitions
+// ============================================================================
+
+export function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
+  const w = ARROW_HEAD.width
+  const h = ARROW_HEAD.height
+  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
+  const base = { size: { width: w, height: h }, orient: 'auto-start-reverse' as const }
+  const arrowPoints = [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }]
+  return [
+    { ...base, id: 'seq-arrow', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-open', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+    { ...base, id: 'seq-arrow-cross', shape: 'cross', ref: { x: w / 2, y: h / 2 }, orient: 'auto', geometry: { kind: 'path', d: `M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-half-top', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h / 2 }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-half-bottom', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: h / 2 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-stick-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-stick-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+  ] satisfies readonly MarkerDescriptor[]
+}
+
+export function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
+  if (head === 'none') return undefined
+  const id = head === 'filled' ? 'seq-arrow'
+    : head === 'cross' ? 'seq-arrow-cross'
+      : head === 'half-top' ? 'seq-arrow-half-top'
+        : head === 'half-bottom' ? 'seq-arrow-half-bottom'
+          : head === 'stick-top' ? 'seq-arrow-stick-top'
+            : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
+          : 'seq-arrow-open'
+  return markerResources.find(marker => marker.id === id)
+}
+
+/** Painted half-height of a message head across its carrier, at the message's
+ * stroke width, from the same marker resource the SVG paints. */
+function sequenceHeadHalfHeight(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead'], position: 'start' | 'end', strokeWidth: number): number {
+  const marker = sequenceMarkerFor(markerResources, head)
+  return marker ? markerLateralExtent(marker, position) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth) : 0
+}
+
+/** How far a message head paints past its endpoint along the carrier, at
+ * the message's stroke width (a cross head is centred on it; an arrow tip
+ * ends there, its stroke a little beyond). */
+export function sequenceHeadOverreach(style: ResolvedRenderStyle, head: PositionedMessage['endHead'], position: 'start' | 'end'): number {
+  const marker = sequenceMarkerFor(sequenceMarkerResources(style), head)
+  if (!marker) return 0
+  const bounds = terminalMarkerBounds(marker, position)
+  return Math.max(0, position === 'end' ? bounds.x1 : -bounds.x0) * (marker.units === 'userSpaceOnUse' ? 1 : style.lineWidth)
+}
+
+/** The `()` central-connection circle drawn where a message meets a lifeline. */
+export const SEQUENCE_CENTRAL_CIRCLE = { radius: 4, strokeWidth: 1.5 } as const
+const CENTRAL_CIRCLE_OUTER = SEQUENCE_CENTRAL_CIRCLE.radius + SEQUENCE_CENTRAL_CIRCLE.strokeWidth / 2
+
+/** How far a message's carrier stops short of the lifeline contact at one
+ * end: a head beside a central circle ends where its ink meets the circle's
+ * outline, so the circle drawn over the contact covers none of it. */
+function sequenceCentralInset(style: ResolvedRenderStyle, central: boolean | undefined, head: PositionedMessage['endHead'], position: 'start' | 'end'): number {
+  return central && head !== 'none' ? CENTRAL_CIRCLE_OUTER + sequenceHeadOverreach(style, head, position) : 0
+}
+
+/** The stick-figure `actor` glyph is a 24-unit icon scaled to 90% of its
+ * header's height and centred in it; its outer circle has a 9-unit radius. */
+export function sequenceActorIconScale(height: number): number {
+  return (height / 24) * 0.9
+}
+
+/** The frame an icon participant's glyph is drawn in (all but `participant`
+ * and the stick-figure `actor`): from 2 below the header's top, at least 24
+ * high, across the header's width. */
+export function sequenceIconGlyphFrame(x: number, y: number, width: number, height: number): { left: number; top: number; w: number; h: number } {
+  return { left: x - width / 2, top: y + 2, w: width, h: Math.max(24, height - 4) }
+}
+
+/** How far from its centre a created header's painted outline reaches on
+ * `side` (-1 left, 1 right) within `band` of its middle row, where the
+ * message creating it arrives with ink that far across the row, out to the
+ * outline stroke's edge: a card's side, the stick figure's outer circle, or
+ * the glyph piece of an icon participant that the band meets first (a
+ * database's wall, a queue's rounded end, the circle of an entity, control
+ * or boundary, a boundary's bar on its left). */
+function sequenceCreatedOutline(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, side: -1 | 1, band: number): number {
+  const half = outlineWidth / 2
+  if (type === 'participant') return spec.width / 2 + half
+  if (type === 'actor') return 9 * sequenceActorIconScale(spec.height) + half
+  // Glyph coordinates relative to the header's centre and middle row.
+  const { left, top, w, h } = sequenceIconGlyphFrame(0, -spec.height / 2, spec.width, spec.height)
+  const r = Math.min(w, h) / 2 - 3
+  // A stroked circle at (cx, cy) as far as the band crosses it.
+  const circle = (cx: number, cy: number, radius: number) => side * cx + Math.sqrt(Math.max(0, (radius + half) ** 2 - Math.max(0, Math.abs(cy) - band) ** 2))
+  switch (type) {
+    case 'database':
+    case 'collections':
+      // The row crosses both side walls (a database's, each card's outer one).
+      return w / 2 + half
+    case 'queue':
+      // A rect rounded by half its height: its ends are semicircles.
+      return Math.max(0, w / 2 - h / 2) + circle(0, top + h / 2, Math.min(w, h) / 2)
+    case 'entity':
+      return circle(0, top + h / 2 - 3, r)
+    case 'boundary':
+      return side < 0 ? -(left + 3) + half : circle(3, top + h / 2, r)
+    default:
+      return circle(0, top + h / 2, r)
+  }
+}
+
+/** How far from a created participant's lifeline the message creating it
+ * meets its header: the painted outline on the sender's side (`side`, -1
+ * left of the lifeline, 1 right of it) that the message's end ink meets
+ * across the header's middle row, plus how far the head paints past its
+ * endpoint, or a `()` circle's radius: the circle sits against the outline,
+ * outside it. A self-message that creates its participant leaves the
+ * header's right side the same way, with its start head (`position`). */
+export function sequenceCreatedContactInset(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, style: ResolvedRenderStyle, head: Message['endHead'], central: boolean | undefined, side: -1 | 1, position: 'start' | 'end' = 'end'): number {
+  const band = central ? CENTRAL_CIRCLE_OUTER : Math.max(style.lineWidth / 2, sequenceHeadHalfHeight(sequenceMarkerResources(style), head, position, style.lineWidth))
+  return sequenceCreatedOutline(type, spec, outlineWidth, side, band) + (central ? CENTRAL_CIRCLE_OUTER : sequenceHeadOverreach(style, head, position))
+}
+
+/** Half-size of the X cross ending a destroyed lifeline. */
+export const SEQUENCE_DESTROY_CROSS_RADIUS = 8
+
+export function sequenceDestroyCrossStrokeWidth(style: ResolvedRenderStyle): number {
+  return Math.max(1.5, style.lineWidth)
+}
+
+/**
+ * The destroy cross sits on the lifeline just below the destroy message's
+ * last contact with it (a self-message's return), clear of that contact's
+ * endpoint marker or central circle, so the cross never hides or imitates the
+ * message's head. `bottom` is the cross's painted lower edge: no content of
+ * the destroyed lifeline continues past it.
+ */
+export function sequenceDestroyCrossPlacement(message: PositionedMessage, style: ResolvedRenderStyle): { contactY: number; y: number; bottom: number } {
+  const contactY = message.points[message.points.length - 1]!.y
+  const markers = sequenceMarkerResources(style)
+  const endpointHalfHeight = Math.max(
+    style.lineWidth / 2,
+    sequenceHeadHalfHeight(markers, message.startHead, 'start', style.lineWidth),
+    sequenceHeadHalfHeight(markers, message.endHead, 'end', style.lineWidth),
+    message.centralStart || message.centralEnd ? CENTRAL_CIRCLE_OUTER : 0,
+  )
+  const crossHalfHeight = SEQUENCE_DESTROY_CROSS_RADIUS + sequenceDestroyCrossStrokeWidth(style) / 2
+  const y = contactY + Math.ceil(endpointHalfHeight + 4 + crossHalfHeight)
+  return { contactY, y, bottom: y + crossHalfHeight }
+}
+
+/** Pixel layout owns its wrap width; terminal output owns a cell budget. */
+export const SEQUENCE_TEXT_WRAP_WIDTH = 240
 
 export interface MeasuredSequenceLabel extends PositionedSequenceLabel {
   metrics: MultilineMetrics
@@ -87,6 +256,7 @@ export function translateSequenceLabel<T extends PositionedSequenceLabel>(label:
 // ============================================================================
 
 export interface SequenceActorGeometrySpec {
+  menuBlock?: PixelTextBlock
   fontSize: number
   fontWeight: number
   letterSpacing: number
@@ -107,7 +277,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
   const letterSpacing = roleStyle?.letterSpacing ?? style.nodeLetterSpacing
   const paddingX = roleStyle?.paddingX ?? style.nodePaddingX
   const paddingY = roleStyle?.paddingY ?? style.nodePaddingY
-  const block = preparePixelText(resolveLabelContent(actor.label, actor.labelContent), { transform, fontSize, fontWeight, letterSpacing })
+  const block = preparePixelText(resolveLabelContent(actor.label, actor.labelContent), { transform, fontSize, fontWeight, letterSpacing, ...(actor.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const displayLabel = block.text
   const labelMetrics = block
   const width = Math.max(labelMetrics.width + paddingX * 2, minActorWidth)
@@ -121,6 +291,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
     paddingY,
     displayLabel,
     block,
+    ...(actor.links ? { menuBlock: preparePixelText('⋯', { display: 'literal', fontSize: 10, fontWeight: 400 }) } : {}),
     labelMetrics,
     width,
     height,
@@ -141,6 +312,7 @@ export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometryS
       label: actor.label,
       type: actor.type,
       ...(actor.links ? { links: { ...actor.links } } : {}),
+      ...(spec.menuBlock ? { menuBlock: spec.menuBlock } : {}),
       x: centerX,
       y: topY,
       width: spec.width,
@@ -177,6 +349,7 @@ export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometryS
     label: actor.label,
     type: actor.type,
     ...(actor.links ? { links: { ...actor.links } } : {}),
+    ...(spec.menuBlock ? { menuBlock: spec.menuBlock } : {}),
     x: centerX,
     y: topY,
     width: spec.width,
@@ -215,13 +388,13 @@ export interface SequenceMessageGeometrySpec {
 export function measureSequenceMessageSpec(message: Message, style: ResolvedRenderStyle, activationWidth: number): SequenceMessageGeometrySpec {
   const label = displayMessageLabel(message)
   const labelContent = Object.freeze({ value: label, prepared: prepareDisplayText(displayMessageContent(message)) })
-  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, ...(message.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const displayLabel = block.text
   const defaultLineHeight = style.edgeLabelFontSize * LINE_HEIGHT_RATIO
   const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
   const startPad = Math.max(message.startHead !== 'none' ? ARROW_HEAD.width : 0, message.centralStart ? 5 : 0)
   const endPad = Math.max(message.endHead !== 'none' ? ARROW_HEAD.width : 0, message.centralEnd ? 5 : 0)
-  const markerHalfHeight = Math.max(style.lineWidth / 2, message.startHead !== 'none' || message.endHead !== 'none' ? ARROW_HEAD.height / 2 : 0, message.centralStart || message.centralEnd ? 4.75 : 0)
+  const markerHalfHeight = Math.max(style.lineWidth / 2, message.startHead !== 'none' || message.endHead !== 'none' ? ARROW_HEAD.height / 2 : 0, message.centralStart || message.centralEnd ? CENTRAL_CIRCLE_OUTER : 0)
   const shaftClearance = Math.max(16, startPad + endPad + 8)
   const requiredSpanWidth = labelMetrics.width + shaftClearance
   const selfRightExtent = SEQUENCE_SELF_LOOP.width + (labelMetrics.width > 0 ? SEQUENCE_SELF_LOOP.labelPadding + labelMetrics.width : 0)
@@ -244,24 +417,33 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
   }
 }
 
-export function positionSequenceMessage(message: Message, spec: SequenceMessageGeometrySpec, style: ResolvedRenderStyle, x1: number, x2: number, y: number): PositionedMessage {
+/** A self-message's loop leaves `x1` and returns to `x2` (its lifeline)
+ * `loopHeight` below; one that creates its participant leaves the created
+ * header's side and returns below the header. */
+export function positionSequenceMessage(message: Message, spec: SequenceMessageGeometrySpec, style: ResolvedRenderStyle, x1: number, x2: number, y: number, loopHeight: number = SEQUENCE_SELF_LOOP.height): PositionedMessage {
   const isSelf = message.from === message.to
+  // x1/x2 are the lifeline contacts, where a central circle is drawn; the
+  // carrier's points stop short of a circle that has a head beside it.
+  const startInset = sequenceCentralInset(style, message.centralStart, message.startHead, 'start')
+  const endInset = sequenceCentralInset(style, message.centralEnd, message.endHead, 'end')
   if (isSelf) {
     const loopW = SEQUENCE_SELF_LOOP.width
-    const loopH = SEQUENCE_SELF_LOOP.height
+    const loopH = loopHeight
     const points = [
-      { x: x1, y },
+      { x: x1 + startInset, y },
       { x: x1 + loopW, y },
       { x: x1 + loopW, y: y + loopH },
-      { x: x2, y: y + loopH },
+      { x: x2 + endInset, y: y + loopH },
     ]
     const labelX = x1 + loopW + SEQUENCE_SELF_LOOP.labelPadding
     const labelY = y + Math.max(loopH, spec.labelMetrics.height) / 2
     const labelPosition = createSequenceLabelGeometry(spec.displayLabel, labelX, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, spec.block)
+    // An end circle on the lifeline reaches left of it too.
+    const left = Math.min(x1 - spec.startPad, x2 - (message.centralEnd ? 5 : 0))
     const connectorBounds: SequenceBounds = {
-      x: x1 - spec.startPad,
+      x: left,
       y: y - spec.markerHalfHeight,
-      width: loopW + spec.startPad + style.lineWidth / 2,
+      width: x1 + loopW + style.lineWidth / 2 - left,
       height: loopH + spec.markerHalfHeight * 2,
     }
     const bounds = spec.label ? unionSequenceBounds(connectorBounds, labelPosition.bounds) : connectorBounds
@@ -286,9 +468,10 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
     }
   }
 
+  const direction = Math.sign(x2 - x1)
   const points = [
-    { x: x1, y },
-    { x: x2, y },
+    { x: x1 + direction * startInset, y },
+    { x: x2 - direction * endInset, y },
   ]
   const midX = (x1 + x2) / 2
   const minClearanceAboveShaft = Math.max(2.85, style.lineWidth / 2 + 2)
@@ -404,7 +587,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const header = block.type === 'rect' ? '' : block.label
     ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']'])
     : block.type
-  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
+  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...(block.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
   const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }
@@ -417,7 +600,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const enclosingHeaderStep = block.type === 'rect' ? style.groupPaddingY : tabHeight + style.groupPaddingY
 
   const dividers: SequenceDividerGeometrySpec[] = block.dividers.map(d => {
-    const prepared = preparePixelText(d.label ? concatDisplayText(['[', prepareDisplayText(resolveLabelContent(d.label, d.labelContent)), ']']) : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+    const prepared = preparePixelText(d.label ? concatDisplayText(['[', prepareDisplayText(resolveLabelContent(d.label, d.labelContent)), ']']) : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, ...(d.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
     const displayLabel = prepared.text
     const metrics: MultilineMetrics = d.label ? prepared : { width: 0, height: 0, lines: [], lineHeight: edgeTextHeight }
     const firstLineOffset = Math.max(14, Math.ceil(metrics.lineHeight / 2 + 6))
@@ -574,6 +757,13 @@ export function positionSequenceBlock(
     }
   }
 
+  for (const ai of involvedActors) {
+    const destroyIndex = diagram.actors[ai]?.destroyMessageIndex
+    const destroyMsg = destroyIndex === undefined ? undefined : messages[destroyIndex]
+    if (destroyMsg && destroyIndex! >= block.startIndex && destroyIndex! < scope.endMessageExclusive)
+      blockBottom = Math.max(blockBottom, sequenceDestroyCrossPlacement(destroyMsg, style).bottom + style.groupPaddingY)
+  }
+
   for (const ni of scope.noteIndices) {
     const note = notes[ni]
     if (!note) continue
@@ -594,6 +784,20 @@ export function positionSequenceBlock(
     const noteIndex = sequenceDividerLeadingNote(block, scope, diagram, di)
     const leadingNote = noteIndex === undefined ? undefined : notes[noteIndex]
     const msg = divSpec.index < scope.endMessageExclusive ? messages[divSpec.index] : undefined
+    if (block.type === 'par_over') {
+      if (!divSpec.label) return { y: blockTop + spec.tabHeight, label: '' }
+      let content: SequenceBounds | undefined = leadingNote ?? msg?.bounds
+      for (const [childIndex, ci] of scope.childBlockIndices.entries()) {
+        const child = positionedBlocks[ci]
+        if (child && scope.childSectionIndices[childIndex] === di + 1 && diagram.blocks[ci]!.startIndex === divSpec.index && (!content || child.y < content.y)) content = child
+      }
+      const x = content?.x ?? blockLeft + 8
+      const top = content ? content.y - divSpec.metrics.height - 8 : blockTop + spec.tabHeight + 8 + di * (divSpec.metrics.height + 8)
+      const measured = createSequenceLabelGeometry(divSpec.displayLabel, x, top + divSpec.metrics.height / 2, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, divSpec.block)
+      blockRight = Math.max(blockRight, measured.bounds.x + measured.bounds.width + style.groupPaddingX)
+      blockBottom = Math.max(blockBottom, measured.bounds.y + measured.bounds.height + style.groupPaddingY)
+      return { y: top, label: divSpec.label, labelPosition: measured }
+    }
     const msgY = msg?.y ?? fallbackY
     let offset = 28 + divSpec.extraLinesHeight + divSpec.extraFontOffset
 

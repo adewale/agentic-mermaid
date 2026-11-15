@@ -3,11 +3,10 @@ import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseRegisteredMermaid, verifyMermaid } from '../agent/index.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
+import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
-import { CHANNEL_THEME_KEYS } from '../color-resolver.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
-import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
+import { normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { RenderOptions } from '../types.ts'
 
@@ -22,24 +21,26 @@ import type { RenderOptions } from '../types.ts'
 // refused as INVALID_THEME_COLOR, any other `<family>.<key>` is family config
 // refused as INVALID_CONFIG_COLOR, and a trailing `[0]` authors a one-entry list.
 //
-// Shared keys come from CHANNEL_THEME_KEYS, the resolver's registry of the keys
-// it reads, so a new shared channel key is covered automatically. Family keys
-// are listed by hand: production enumerates them only as private sets inside
-// theme-color-admission.ts, the code under test, and deriving the oracle from
-// those would let a dropped key shrink this suite instead of failing it.
+// Shared aliases and family keys are independently authored supported inputs.
+// Deriving them from the production resolver would let a dropped key shrink
+// this suite and its oracle together.
 
 const FLOW = 'flowchart TD\n  A --> B'
-const PIE = 'pie\n  "A" : 3\n  "B" : 2'
+const PIE = 'pie title Pets\n  "A" : 3\n  "B" : 2'
 const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
 const TIMELINE = 'timeline\n  2020 : Start\n  2021 : End'
-const JOURNEY = 'journey\n  section S\n  Task: 3: Me'
+const JOURNEY = 'journey\n  title T\n  section S\n  Task: 3: Me'
+const SANKEY = 'sankey-beta\nA,B,1'
+const REQUIREMENT = 'requirementDiagram\nrequirement A {\ntext: Card\n}'
 const RADAR = 'radar-beta\n  title Skills\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
 const ARCHITECTURE = 'architecture-beta\n  group app(cloud)[App]\n  service api(server)[API] in app'
-const XYCHART = 'xychart\n  title Sales\n  x-axis [A, B]\n  y-axis 0 --> 2\n  bar [1, 2]'
+const XYCHART_BODY = 'xychart\n  title Sales\n  x-axis Region [A, B]\n  y-axis Units 0 --> 2\n  bar [1, 2]'
+const XYCHART = `%%{init: {"xyChart":{"showDataLabel":true}}}%%\n${XYCHART_BODY}`
 
+const INVALID_OBJECT = { nested: 'red' }
 const INVALID: readonly unknown[] = [
-  'notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)',
-  123, null, [], { nested: 'red' },
+  'notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'oklch(60% 0.2 30)', 'url(#a)',
+  123, null, [], INVALID_OBJECT,
 ]
 const VALID = [
   'rebeccapurple', '#f96', '#3b82', '#112233', '#11223380', 'rgb(255 0 0)',
@@ -55,13 +56,22 @@ const indexed = (stem: string, from: number, count: number): string[] =>
 const without = (paths: readonly string[], drop: readonly string[]): string[] =>
   paths.filter(path => !drop.includes(path))
 
-const SHARED = theme(...new Set(Object.values(CHANNEL_THEME_KEYS).flat()))
+const SHARED_CHANNELS = {
+  bg: ['background', 'mainBkg'],
+  fg: ['primaryTextColor', 'textColor', 'nodeTextColor'],
+  line: ['lineColor', 'defaultLinkColor'],
+  accent: ['arrowheadColor', 'primaryColor'],
+  muted: ['secondaryTextColor', 'tertiaryTextColor'],
+  surface: ['primaryColor', 'nodeBkg', 'mainBkg'],
+  border: ['primaryBorderColor', 'secondaryBorderColor'],
+} as const
+const SHARED = theme(...new Set(Object.values(SHARED_CHANNELS).flat()))
 // Text channels are ink: `none` would erase the label.
-const SHARED_INK = theme(...CHANNEL_THEME_KEYS.fg, ...CHANNEL_THEME_KEYS.muted)
+const SHARED_INK = theme(...SHARED_CHANNELS.fg, ...SHARED_CHANNELS.muted)
 // Architecture mixes these channels into derived color-mix() paints.
 const ARCHITECTURE_MIXED = theme(...new Set([
-  ...CHANNEL_THEME_KEYS.bg, ...CHANNEL_THEME_KEYS.surface,
-  ...CHANNEL_THEME_KEYS.line, ...CHANNEL_THEME_KEYS.accent,
+  ...SHARED_CHANNELS.bg, ...SHARED_CHANNELS.surface,
+  ...SHARED_CHANNELS.line, ...SHARED_CHANNELS.accent,
 ]))
 const TIMELINE_PAINTS = [
   ...theme(...indexed('cScale', 0, 12), ...indexed('cScaleLabel', 0, 12), ...indexed('cScaleInv', 0, 12)),
@@ -69,7 +79,7 @@ const TIMELINE_PAINTS = [
 ]
 const XYCHART_STROKES = theme('xyChart.xAxisTickColor', 'xyChart.xAxisLineColor', 'xyChart.yAxisTickColor', 'xyChart.yAxisLineColor')
 const XYCHART_PAINTS = [
-  ...theme('xyChart.backgroundColor', 'xyChart.titleColor', 'xyChart.legendTextColor', 'xyChart.plotColorPalette[0]'),
+  ...theme('xyChart.backgroundColor', 'xyChart.titleColor', 'xyChart.legendTextColor', 'xyChart.dataLabelColor', 'xyChart.plotColorPalette[0]'),
   ...theme('xyChart.xAxisLabelColor', 'xyChart.xAxisTitleColor', 'xyChart.yAxisLabelColor', 'xyChart.yAxisTitleColor'),
   ...XYCHART_STROKES,
 ]
@@ -78,8 +88,12 @@ interface FamilyAdmission {
   family: string
   /** Minimal source; it must reach every sink below. */
   body: string
-  /** Every paint path the family admits. Each refuses every INVALID value. */
+  /** Every paint path the family admits. Surviving INVALID values are refused. */
   paints: readonly string[]
+  /** Expected effects of this fixture's init program before paint admission. */
+  invalidAfterInit?: (path: string, value: unknown) => { kind: 'removed' } | { kind: 'refused'; value: unknown }
+  /** Control without the fixture's pre-existing init directive. */
+  singleInitBody?: string
   /** Paints that refuse `none`: text ink and operands of derived color-mix(). */
   refusesNone: readonly string[]
   /** Paints where `none` is a legal direct fill or stroke and still renders. */
@@ -119,11 +133,11 @@ const FAMILIES: readonly FamilyAdmission[] = [
     admitsNone: theme(...indexed('pie', 1, 12), 'pieStrokeColor', 'pieOuterStrokeColor'),
     sinks: {
       'themeVariables.pie1': 'fill="',
-      'themeVariables.pieStrokeColor': '.pie-slice { stroke: ',
-      'themeVariables.pieOuterStrokeColor': '.pie-outer-circle { stroke: ',
+      'themeVariables.pieStrokeColor': 'stroke="',
+      'themeVariables.pieOuterStrokeColor': 'stroke="',
       'themeVariables.pieSectionTextColor': 'fill="',
-      'themeVariables.pieTitleTextColor': '.pie-title { fill: ',
-      'themeVariables.pieLegendTextColor': '.pie-legend-text { fill: ',
+      'themeVariables.pieTitleTextColor': 'fill="',
+      'themeVariables.pieLegendTextColor': 'fill="',
     },
     probes: [['themeVariables.pie1', 'notacolor']],
   },
@@ -170,11 +184,37 @@ const FAMILIES: readonly FamilyAdmission[] = [
     admitsNone: ['journey.actorColours[0]'],
     // Section ink may be replaced by Journey's contrast guard, so it has no sink.
     sinks: {
-      'journey.actorColours[0]': '.journey-actor-0 { fill: ',
-      'journey.sectionFills[0]': '.journey-section-0 { fill: ',
-      'journey.titleColor': '.journey-title { fill: ',
+      'journey.actorColours[0]': 'fill="',
+      'journey.sectionFills[0]': 'fill="',
+      'journey.titleColor': 'fill="',
     },
     probes: [['journey.titleColor', 'notacolor']],
+  },
+  {
+    family: 'Requirement',
+    body: REQUIREMENT,
+    paints: ['requirement.rect_fill', 'requirement.rect_border_color', 'requirement.text_color'],
+    refusesNone: ['requirement.text_color'],
+    admitsNone: ['requirement.rect_fill', 'requirement.rect_border_color'],
+    sinks: {
+      'requirement.rect_fill': 'fill="',
+      'requirement.rect_border_color': 'stroke="',
+      'requirement.text_color': 'fill="',
+    },
+    probes: [['requirement.rect_fill', 'notacolor']],
+  },
+  {
+    family: 'Sankey',
+    body: SANKEY,
+    paints: ['sankey.linkColor', 'sankey.nodeColors.A'],
+    // Node fills also feed gradient stops, which cannot use `none`.
+    refusesNone: ['sankey.nodeColors.A'],
+    admitsNone: ['sankey.linkColor'],
+    sinks: {
+      'sankey.linkColor': 'stroke="',
+      'sankey.nodeColors.A': 'fill="',
+    },
+    probes: [['sankey.linkColor', 'notacolor'], ['sankey.nodeColors.A', 'rgb(x)']],
   },
   {
     family: 'Radar',
@@ -184,10 +224,10 @@ const FAMILIES: readonly FamilyAdmission[] = [
     refusesNone: theme('titleColor', ...indexed('cScale', 0, 12), 'radar.axisColor'),
     admitsNone: theme('radar.graticuleColor'),
     sinks: {
-      'themeVariables.titleColor': '.radar-title { fill: ',
+      'themeVariables.titleColor': 'fill="',
       'themeVariables.cScale0': 'fill="',
-      'themeVariables.radar.axisColor': '.radar-axis-line { stroke: ',
-      'themeVariables.radar.graticuleColor': '.radar-ring { stroke: ',
+      'themeVariables.radar.axisColor': 'stroke="',
+      'themeVariables.radar.graticuleColor': 'stroke="',
     },
     probes: [['themeVariables.radar.axisColor', 'url(#unsafe)']],
   },
@@ -198,7 +238,7 @@ const FAMILIES: readonly FamilyAdmission[] = [
     paints: [...SHARED, ...theme('clusterBkg', 'clusterBorder', 'secondaryColor')],
     // The group fill, like the mixed channels, feeds a derived color-mix() paint.
     refusesNone: [...SHARED_INK, ...ARCHITECTURE_MIXED, ...theme('clusterBkg')],
-    admitsNone: theme(...CHANNEL_THEME_KEYS.border, 'clusterBorder', 'secondaryColor'),
+    admitsNone: theme(...SHARED_CHANNELS.border, 'clusterBorder', 'secondaryColor'),
     sinks: {
       'themeVariables.clusterBkg': '--arch-group-fill:',
       'themeVariables.clusterBorder': '--arch-group-stroke:',
@@ -210,23 +250,31 @@ const FAMILIES: readonly FamilyAdmission[] = [
     family: 'XY Chart',
     body: XYCHART,
     paints: XYCHART_PAINTS,
+    // detectInit sanitizes an array of directives before merging it. The
+    // fixture already has one init: null object fields are removed, unknown
+    // nested keys are stripped, and null palette elements remain entries.
+    invalidAfterInit: (path, value) => value === null && !path.endsWith('[0]')
+      ? { kind: 'removed' }
+      : { kind: 'refused', value: value === INVALID_OBJECT ? {} : value },
+    singleInitBody: XYCHART_BODY,
     refusesNone: without(XYCHART_PAINTS, XYCHART_STROKES),
     admitsNone: XYCHART_STROKES,
     // This chart has no legend, so legendTextColor has no sink.
     sinks: {
       'themeVariables.xyChart.backgroundColor': '--bg:',
-      'themeVariables.xyChart.titleColor': '.xychart-title { fill: ',
-      'themeVariables.xyChart.xAxisLabelColor': '.xychart-x-label { fill: ',
-      'themeVariables.xyChart.xAxisTickColor': '.xychart-x-tick { stroke: ',
-      'themeVariables.xyChart.xAxisLineColor': '.xychart-x-axis-line { stroke: ',
-      'themeVariables.xyChart.xAxisTitleColor': '.xychart-x-axis-title { fill: ',
-      'themeVariables.xyChart.yAxisLabelColor': '.xychart-y-label { fill: ',
-      'themeVariables.xyChart.yAxisTickColor': '.xychart-y-tick { stroke: ',
-      'themeVariables.xyChart.yAxisLineColor': '.xychart-y-axis-line { stroke: ',
-      'themeVariables.xyChart.yAxisTitleColor': '.xychart-y-axis-title { fill: ',
+      'themeVariables.xyChart.titleColor': 'fill="',
+      'themeVariables.xyChart.dataLabelColor': 'fill="',
+      'themeVariables.xyChart.xAxisLabelColor': 'fill="',
+      'themeVariables.xyChart.xAxisTickColor': 'stroke="',
+      'themeVariables.xyChart.xAxisLineColor': 'stroke="',
+      'themeVariables.xyChart.xAxisTitleColor': 'fill="',
+      'themeVariables.xyChart.yAxisLabelColor': 'fill="',
+      'themeVariables.xyChart.yAxisTickColor': 'stroke="',
+      'themeVariables.xyChart.yAxisLineColor': 'stroke="',
+      'themeVariables.xyChart.yAxisTitleColor': 'fill="',
       'themeVariables.xyChart.plotColorPalette[0]': '--xychart-color-0: ',
     },
-    probes: [['themeVariables.xyChart.titleColor', 'notacolor'], ['themeVariables.xyChart.plotColorPalette[0]', 'notacolor']],
+    probes: [['themeVariables.xyChart.titleColor', 'notacolor'], ['themeVariables.xyChart.dataLabelColor', 'notacolor'], ['themeVariables.xyChart.plotColorPalette[0]', 'notacolor']],
   },
 ]
 
@@ -257,7 +305,7 @@ const initVars = (body: string, themeVariables: Record<string, unknown>): string
 const shown = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value)
 const refusal = (path: string, value: unknown): string =>
   `${path}: ${JSON.stringify(shown(value))} is not a CSS color`
-const renderFailed = (reason: string) => ({ code: 'RENDER_FAILED' as const, reason: expect.stringContaining(reason) })
+const renderFailed = (reason: string) => ({ code: 'RENDER_FAILED' as const, reason: expect.stringContaining(reason), origin: 'config' as const })
 
 function diagnosticFor(path: string, value: unknown): Record<string, string> {
   return path.startsWith('themeVariables.')
@@ -265,12 +313,14 @@ function diagnosticFor(path: string, value: unknown): Record<string, string> {
     : { code: 'INVALID_CONFIG_COLOR', path, value: shown(value) }
 }
 
-async function mcpRenderSvg(source: string, options?: RenderOptions): Promise<unknown> {
+async function mcpRender(tool: string, source: string, options?: RenderOptions): Promise<unknown> {
   const response = await handleHostedRequest(
-    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source, ...(options ? { options } : {}) } } },
+    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { source, ...(options ? { options } : {}) } } },
     {
       async execute() { return { ok: true, value: null, logs: [] } },
-      async renderPng() { throw new Error('not used') },
+      async renderPng(input, opts) {
+        return { ...renderMermaidPNGWithReceipt(input, opts), warnings: [] }
+      },
     },
   )
   return JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
@@ -287,6 +337,9 @@ async function expectRefusedOnEveryRoute(
   expect(() => renderMermaidSVG(source, options), 'svg').toThrow(named)
   expect(() => renderMermaidPNG(source, options), 'png').toThrow(named)
   await expect(renderMermaidSVGAsync(source, options)).rejects.toThrow(named)
+  for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
+    expect(() => renderMermaidASCII(source, { ...options, colorMode }), colorMode).toThrow(named)
+  }
   expect(verifyMermaid(source, { renderOptions: options }).warnings, 'verify').toContainEqual(renderFailed(named))
   const parsed = parseRegisteredMermaid(source)
   expect(parsed.ok).toBe(true)
@@ -297,23 +350,30 @@ async function expectRefusedOnEveryRoute(
     expect(runBatchLine(JSON.stringify({ op: 'render', source, options: { ...options, format } }), 0), `cli ${format}`)
       .toMatchObject({ ok: false, error: { ...diagnostic, message: expect.stringContaining(named) } })
   }
-  expect(await mcpRenderSvg(source, options), 'mcp').toMatchObject({ ok: false, error: diagnostic })
+  for (const tool of ['render_svg', 'render_ascii', 'render_png']) {
+    expect(await mcpRender(tool, source, options), `mcp ${tool}`).toMatchObject({ ok: false, error: diagnostic })
+  }
   expect(projectRenderErrorDiagnostic({ ...diagnostic, message: 'forged' }), 'forged diagnostic')
     .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
 }
 
-test('the admission table classifies only paints its family admits', () => {
-  for (const row of FAMILIES) {
-    const classified = [...row.refusesNone, ...row.admitsNone, ...Object.keys(row.sinks), ...row.probes.map(([path]) => path)]
-    expect(classified.filter(path => !row.paints.includes(path)), row.family).toEqual([])
-    expect(row.refusesNone.filter(path => row.admitsNone.includes(path)), row.family).toEqual([])
-  }
-})
-
 describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
-  test.each([...row.paints])('%s refuses every malformed paint by name', path => {
+  test.each([...row.paints])('%s refuses every surviving malformed paint by name', path => {
     for (const value of INVALID) {
-      expect(() => renderMermaidSVG(init(row.body, [path, value])), shown(value)).toThrow(refusal(path, value))
+      const source = init(row.body, [path, value])
+      const expected = row.invalidAfterInit?.(path, value) ?? { kind: 'refused', value }
+      if (expected.kind === 'removed') {
+        let effective: unknown = normalizeMermaidSource(source).config
+        for (const key of path.split('.')) effective = effective !== null && typeof effective === 'object'
+          ? (effective as Record<string, unknown>)[key]
+          : undefined
+        expect(effective, path).toBeUndefined()
+        expect(() => renderMermaidSVG(source), shown(value)).not.toThrow()
+        expect(() => renderMermaidASCII(source), shown(value)).not.toThrow()
+        expect(verifyMermaid(source).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
+      } else {
+        expect(() => renderMermaidSVG(source), shown(value)).toThrow(refusal(path, expected.value))
+      }
     }
     // Terminal output and verify admit through the same request waist as SVG,
     // so one value proves each is wired for this key.
@@ -323,6 +383,14 @@ describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
     expect(() => renderMermaidASCII(source, { useAscii: false }), 'unicode').toThrow(named)
     expect(verifyMermaid(source).warnings, 'verify').toContainEqual(renderFailed(named))
   })
+
+  if (row.singleInitBody !== undefined) {
+    test.each([...row.paints])('%s keeps single-init null/object refusal at the paint boundary', path => {
+      for (const value of [null, INVALID_OBJECT]) {
+        expect(() => renderMermaidSVG(init(row.singleInitBody!, [path, value])), shown(value)).toThrow(refusal(path, value))
+      }
+    })
+  }
 
   test.each([...row.refusesNone])('%s refuses none', path => {
     const source = init(row.body, [path, 'none'])
@@ -341,7 +409,7 @@ describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
   test('every paint admits each drawable CSS paint, and verify agrees', () => {
     const everyPaint = (value: string): string => init(row.body, ...row.paints.map((path): Entry => [path, value]))
     for (const value of VALID) expect(() => renderMermaidSVG(everyPaint(value)), value).not.toThrow()
-    expect(verifyMermaid(everyPaint(SINK)).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+    expect(verifyMermaid(everyPaint(SINK)).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
   })
 
   test.each(Object.entries(row.sinks))('%s keeps an admitted var() paint at its SVG sink', (path, sink) => {
@@ -435,8 +503,7 @@ describe('theme color admission (#303): Architecture derived paint', () => {
     ] as const) {
       const source = initVars(ARCHITECTURE, { [key]: 'none' })
       expect(renderMermaidSVG(source, colors), key).toContain('<svg')
-      expect(verifyMermaid(source, { renderOptions: colors }).warnings, key)
-        .not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+      expect(verifyMermaid(source, { renderOptions: colors }).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR'), key).toEqual([])
     }
   })
 

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1",
-  "reviewedAt": "2026-10-18",
-  "reviewer": "Independent Codex audit agent, PR #420 integration with #421 outline contrast",
-  "scope": "Independent agent review after merging main ba37758062ed8daf805a2be6a472a49ef0c2222b. The 1560×9464 sheet contains 68 family-by-variant cells. Relative to main, exactly 132,756 pixels change in the four C4 cells: Sentinel 35,487; Editorial 32,357; Technical 33,272; Operations 31,640. All 64 other cells and headings remain pixel-identical. Relative to the prior PR #420 sheet, exactly 10,071 pixels change in the three upstream Timeline holdout cells; C4 cells remain identical. An independent agent inspected all C4 and Timeline treatments at native 520×380 against both revisions: labels, arrowheads, cards, descriptions, topology and legend remain complete. This is agent review, not human approval or arbitrary palette/font coverage.",
-  "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  "artifactSha256": "f4045f4e8351c61beb2e79bfe3f1510892974448ec23d8f5c931237c907a267b",
+  "reviewedAt": "2026-11-11",
+  "reviewer": "Claude agent, merge of main into claude/agentic-mermaid-ax-assessment-brrxnj",
+  "scope": "Retains the prior reviews, including PR #601. After merging main into the AX-assessment branch, a pixel diff against main\u2019s approved sheet changes only the Gantt and GitGraph cells in each of the four variants (eight cells). Inspected them at native 520\u00d7380 and 4\u00d7 zoom. Gantt: task bars now paint over the day gridlines instead of under them (the branch\u2019s opaque task ink); labels, axis and bar geometry are unchanged. GitGraph: the feature\u2192main merge edge now ends at the merge commit rather than at release, and the branch leg leaves nearer its base commit, matching the commit graph; labels and colours are unchanged. The other 124 cells are pixel-identical. This is agent review, not human approval, deployed-site parity or an arbitrary-density guarantee.",
+  "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

@@ -1,25 +1,45 @@
-import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
-import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { parseCynefinBody } from '../../src/agent/cynefin-body.ts'
+import { parseWardleyBody } from '../../src/agent/wardley-body.ts'
+import { parseAgentflow } from '../../src/agentflow/parser.ts'
+import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { parseBlockDiagram } from '../../src/block/parser.ts'
+import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
 import { parseErDiagram } from '../../src/er/parser.ts'
-import { parseGanttModel } from '../../src/gantt/parser.ts'
+import { parseEventModeling } from '../../src/eventmodeling/parser.ts'
+import { applyResolvedGanttFrontmatterConfig, parseGanttModel, resolveGanttFrontmatterConfig } from '../../src/gantt/parser.ts'
 import { parseGitGraph } from '../../src/gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
+import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
-import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
+import { frontmatterTitle, normalizeMermaidSource, preservedMermaidFamilyText, withFrontmatterTitle } from '../../src/mermaid-source.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
-import { parseMermaid } from '../../src/parser.ts'
+import { parsePacketDiagram } from '../../src/packet/parser.ts'
+import { parseFlowchartRenderSource, parseMermaid } from '../../src/parser.ts'
 import { parsePieChart } from '../../src/pie/parser.ts'
+import { pieFamilyLines } from '../../src/pie/source-title.ts'
 import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
 import { parseRadarChart } from '../../src/radar/parser.ts'
+import { parseRailroad } from '../../src/railroad/parser.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, resolveRenderRequestForExecution } from '../../src/render-contract.ts'
+import { parseRequirementDiagram } from '../../src/requirement/parser.ts'
 import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { resolveSequenceConfig } from '../../src/sequence/config.ts'
-import { parseSequenceDiagram } from '../../src/sequence/parser.ts'
+import { sequenceFamilySource } from '../../src/sequence/family-source.ts'
+import { authoredSequenceLine, parseSequenceDiagram } from '../../src/sequence/parser.ts'
+import { withAccessibilityFields, withAccessibilityObject } from '../../src/shared/accessibility-directives.ts'
+import { familyParserLines } from '../../src/shared/parser-source.ts'
 import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
+import { parseSwimlaneRenderSource } from '../../src/swimlane/parser.ts'
 import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
+import { parseTreemapDiagram } from '../../src/treemap/parser.ts'
+import { parseTreeviewDiagram } from '../../src/treeview/parser.ts'
+import { parseUsecaseDiagram } from '../../src/usecase/parser.ts'
+import { parseVennDiagram } from '../../src/venn/parser.ts'
 import { parseXYChart } from '../../src/xychart/parser.ts'
+import { parseZenUML } from '../../src/zenuml/native-parser.ts'
 import { projectNativeSemantic } from './grammar-native-semantics.ts'
 import type { NativeParserObservation } from './grammar-types.ts'
 
@@ -31,6 +51,119 @@ export interface AgenticGrammarResult {
 
 const message = (error: unknown): string => String(error instanceof Error ? error.message : error).slice(0, 2000)
 const nativeFamilies = new Set<string>(knownBuiltinFamilies())
+
+/** The public renderer's actual normalization and native parser boundary,
+ * shared by diagnostics and original-assertion adapters. It does no layout. */
+export function parseNativeModel(family: string, source: string): unknown {
+  const request = resolveRenderRequestForExecution(source, {}, 'svg')
+  const selected = resolvedRenderExecutionPlanOf(request).family.id
+  if (selected !== family) throw new Error(`Source routes to ${selected}, not requested family ${family}`)
+  return nativeParserForRequest(family, request)()
+}
+
+function nativeParserForRequest(family: string, request: ReturnType<typeof resolveRenderRequestForExecution>): () => unknown {
+  const normalized = request.source
+  const context = resolvedFamilyRenderContextOf(request)
+  const lines = normalized.familyLines
+  return (): unknown => {
+    switch (family) {
+      case 'zenuml': {
+        const source = preservedMermaidFamilyText(normalized)
+        const body = parseZenUML(source)
+        if (body.unsupportedSource !== undefined) throw Error('Unmodeled ZenUML source remains preserved')
+        return withFrontmatterTitle(withAccessibilityFields(body, normalized.accessibility), normalized.frontmatter)
+      }
+      case 'flowchart':
+        return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
+      case 'state':
+        return parseMermaid(normalized.familyText)
+      case 'c4': {
+        const authored = normalizeMermaidSource(normalized.originalText)
+        return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
+      }
+      // As the render hooks do, the envelope's accessibility and the
+      // frontmatter title join the family's own reading.
+      case 'architecture':
+        return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(architectureSourceLines(normalized)), normalized.accessibility), normalized.frontmatter)
+      case 'class':
+        return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
+      case 'er':
+        return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
+      case 'gantt': {
+        const config = (context.familyConfig as { config?: ReturnType<typeof resolveGanttFrontmatterConfig> } | undefined)?.config ?? resolveGanttFrontmatterConfig(undefined)
+        return applyResolvedGanttFrontmatterConfig(parseGanttModel(lines), config)
+      }
+      case 'gitgraph': {
+        const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
+        return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
+      }
+      case 'journey':
+        return parseJourneyDiagram(lines, normalized.accessibility)
+      case 'mindmap':
+        return parseMindmap(normalized.familyBody)
+      case 'pie':
+        return withFrontmatterTitle(parsePieChart(pieFamilyLines(normalized)), normalized.frontmatter)
+      case 'quadrant':
+        return withFrontmatterTitle(withAccessibilityObject(parseQuadrantChart(familyParserLines(normalized)), normalized.accessibility), normalized.frontmatter)
+      case 'radar':
+        return parseRadarChart(familyParserLines({ familyBody: normalized.body, familyLines: normalized.lines }), {
+          title: typeof normalized.frontmatter.title === 'string' ? normalized.frontmatter.title : undefined,
+        })
+      case 'sankey':
+        return parseSankeyDiagram(normalized.body.split(/\r?\n/))
+      case 'sequence': {
+        const family = sequenceFamilySource(normalized, 'decoded')
+        const config = (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}
+        return withFrontmatterTitle(withAccessibilityFields(parseSequenceDiagram(family.familyLines, { ...config, authoredLine: authoredSequenceLine(family) }), normalized.accessibility), normalized.frontmatter)
+      }
+      case 'timeline':
+        return parseTimelineDiagram(lines, normalized.accessibility)
+      case 'xychart':
+        return withFrontmatterTitle(withAccessibilityObject(parseXYChart(familyParserLines(normalized)), normalized.accessibility), normalized.frontmatter)
+      case 'treeview':
+        return withFrontmatterTitle(withAccessibilityFields(parseTreeviewDiagram(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
+      case 'usecase':
+        return withFrontmatterTitle(withAccessibilityFields(parseUsecaseDiagram(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
+      case 'swimlane':
+        return { kind: 'swimlane', graph: parseSwimlaneRenderSource(normalized.authoredFamilyBody ?? normalized.familyBody, normalized.familyBody) }
+      case 'agentflow':
+        return parseAgentflow(normalized.authoredFamilyBody ?? normalized.familyBody)
+      case 'wardley':
+        return withFrontmatterTitle(parseWardleyBody(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.frontmatter)
+      case 'cynefin':
+        return withFrontmatterTitle(parseCynefinBody(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.frontmatter)
+      case 'venn':
+        return withFrontmatterTitle(withAccessibilityFields(parseVennDiagram(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
+      case 'railroad':
+        return withFrontmatterTitle(withAccessibilityFields(parseRailroad(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
+      case 'eventmodeling':
+        return withFrontmatterTitle(withAccessibilityFields(parseEventModeling(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
+      case 'packet': {
+        const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'kanban':
+        return parseKanbanDiagram(normalized.familyBody, normalized.accessibility)
+      case 'requirement': {
+        const body = parseRequirementDiagram(normalized.familyBody)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'block':
+        return parseBlockDiagram(normalized.familyBody)
+      case 'treemap': {
+        const body = parseTreemapDiagram(normalized.familyBody)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'ishikawa':
+        return parseIshikawaDiagram(normalized.familyBody)
+      default:
+        throw new Error(`Missing renderer-parser adapter for native family ${family}`)
+    }
+  }
+}
 
 function unavailable(reason: string): NativeParserObservation {
   return { statements: { status: 'unavailable', reason }, tokens: { status: 'unavailable', reason }, mutations: { status: 'unavailable', reason } }
@@ -52,53 +185,8 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
     const request = resolveRenderRequestForExecution(source, {}, 'svg')
     const selected = resolvedRenderExecutionPlanOf(request).family.id
     if (selected !== family) throw new Error(`Source routes to ${selected}, not requested family ${family}`)
-    const normalized = request.source
-    const context = resolvedFamilyRenderContextOf(request)
-    const lines = normalized.familyLines
+    const parse = nativeParserForRequest(family, request)
     stage = 'parser'
-    const parse = (): unknown => {
-      switch (family) {
-        case 'flowchart':
-        case 'state':
-          return parseMermaid(normalized.familyText)
-        case 'c4': {
-          const authored = normalizeMermaidSource(normalized.originalText)
-          return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
-        }
-        case 'architecture':
-          return parseArchitectureDiagram(lines)
-        case 'class':
-          return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
-        case 'er':
-          return parseErDiagram(lines)
-        case 'gantt':
-          return parseGanttModel(lines)
-        case 'gitgraph': {
-          const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
-          return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
-        }
-        case 'journey':
-          return parseJourneyDiagram(lines, normalized.accessibility)
-        case 'mindmap':
-          return parseMindmap(normalized.familyBody)
-        case 'pie':
-          return parsePieChart(normalized.authoredPieFamilyLines ?? lines)
-        case 'quadrant':
-          return parseQuadrantChart(lines)
-        case 'radar':
-          return parseRadarChart(normalized.lines)
-        case 'sankey':
-          return parseSankeyDiagram(normalized.body.split(/\r?\n/))
-        case 'sequence':
-          return parseSequenceDiagram(lines, (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {})
-        case 'timeline':
-          return parseTimelineDiagram(lines, normalized.accessibility)
-        case 'xychart':
-          return parseXYChart(lines)
-        default:
-          throw new Error(`Missing renderer-parser adapter for native family ${family}`)
-      }
-    }
     const events: ParserObservation[] = []
     const attempt = (run: () => unknown): { accepted: boolean; raw?: unknown; model?: ReturnType<typeof snapshotParserObservationValue>; error?: string } => {
       try {
@@ -118,7 +206,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
       let semantic: ReturnType<typeof projectNativeSemantic>, projectionError: string | undefined
       if (observed.accepted) {
         try {
-          semantic = projectNativeSemantic(family, observed.raw)
+          semantic = projectNativeSemantic(family, observed.raw, events)
         } catch (error) {
           projectionError = message(error)
         }
@@ -127,7 +215,11 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         statements: { status: 'available', method: 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
         tokens:
           family === 'flowchart' || family === 'c4'
-            ? { status: 'available', method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix', value: events.filter(event => event.unit === 'token') }
+            ? {
+                status: 'available',
+                method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix',
+                value: events.filter(event => event.unit === 'token'),
+              }
             : { status: 'unavailable', reason: 'This native parser exposes classified statements, not a homologous lexer token stream' },
         mutations: { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
         ...(observed.model !== undefined ? { model: observed.model } : {}),
@@ -157,7 +249,7 @@ function inspectEnvelope(source: string): Omit<AgenticGrammarResult, 'native'> {
         },
       }
     const diagram = parsed.value
-    const representation = diagram.body.kind === 'preserved' ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
+    const representation = diagram.body.kind === 'preserved' || (diagram.body.kind === 'zenuml' && diagram.body.unsupportedSource !== undefined) ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
     return {
       envelope: { status: 'accepted', family: diagram.kind, representation },
       // Preserved/opaque bytes are not evidence of native model fidelity.

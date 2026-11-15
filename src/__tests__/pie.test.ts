@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart, slicePath } from '../pie/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -68,6 +69,20 @@ describe('pie parser — happy paths', () => {
       showData: false,
       entries: [['Some, Long: Label', 10]],
     },
+    {
+      name: 'a label runs to its closing quote across lines, keeping the break, not the indentation',
+      src: 'pie title T\n  "multi\n    label" : 1\n  "50 %% off\n    now" : 2',
+      title: 'T',
+      showData: false,
+      entries: [['multi\nlabel', 1], ['50 %% off\nnow', 2]],
+    },
+    {
+      name: 'a title runs to the end of its line, quote and all',
+      src: 'pie\n  title "Pets\n  "Dogs" : 3',
+      title: '"Pets',
+      showData: false,
+      entries: [['Dogs', 3]],
+    },
   ]
 
   for (const c of cases) {
@@ -96,6 +111,7 @@ describe('pie parser — sad paths error loudly', () => {
     { name: 'missing colon', src: 'pie\n  "A" 5', match: /Unrecognized pie chart line/i },
     { name: 'unquoted label', src: 'pie\n  A : 5', match: /Invalid pie entry/i },
     { name: 'wrong header', src: 'notpie\n  "A" : 5', match: /must start with "pie"/i },
+    { name: 'a label the next quote closes too early', src: 'pie\n  "A : 5\n  "B" : 1', match: /Invalid pie entry/i },
   ]
 
   for (const b of bad) {
@@ -229,7 +245,7 @@ describe('pie property tests', () => {
         const legend = [...svg.matchAll(/class="pie-legend-text"[^>]*>([^<]*) \([\d.]+%\)<\/text>/g)].map(m => m[1])
         expect(legend.sort()).toEqual(unique.map(([label]) => label).sort())
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 
@@ -245,7 +261,7 @@ describe('pie property tests', () => {
         if (!agent.ok) throw new Error(`agent parse failed: ${JSON.stringify(agent.error)}`)
         expect(parsePieChart(toMermaidLines(serializeMermaid(agent.value))).entries).toEqual(generated)
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })

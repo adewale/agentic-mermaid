@@ -94,6 +94,75 @@ const cases: Array<{ name: string; source: string; links: ExpectedLink[]; title?
 ]
 
 describe('Sankey source identities correspond across graphical and terminal projections', () => {
+  test('malformed records after multiline CSV report their physical source row', () => {
+    for (const ending of ['\n', '\r', '\r\n']) {
+      const source = ['sankey-beta', '"A\nB",C,1', 'D,E,2,extra'].join(ending)
+      expect(() => renderMermaidSVG(source)).toThrow('Sankey row 4 has 4 columns')
+    }
+  })
+
+  test('a payload CR beside CRLF stays distinct in source and target identities', () => {
+    const source = 'sankey-beta\n"A""&amp;\r\r\nB","T&amp;amp;\r\r\nU",1\n"A""&amp;\r\nB","T&amp;amp;\r\nU",2\n"A""&amp;\r\r\r\nB","T&amp;amp;\r\r\r\nU",3'
+    const pairs = [
+      { from: 'A"&\r\nB', to: 'T&amp;\r\nU' },
+      { from: 'A"&\nB', to: 'T&amp;\nU' },
+      { from: 'A"&\r\r\nB', to: 'T&amp;\r\r\nU' },
+    ]
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    const layout = layoutMermaid(parsed.value)
+    expect(layout.edges.map(({ from, to }) => ({ from, to }))).toEqual(pairs)
+    expect(layout.nodes).toHaveLength(6)
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge').map(tag => ({
+      from: decodedSvgAttributeValue(tag, 'data-from'),
+      to: decodedSvgAttributeValue(tag, 'data-to'),
+    }))).toEqual(pairs)
+    for (const input of [source, parsed.value]) {
+      const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+      const edges = terminal.regions.filter(region => region.kind === 'edge')
+      expect(edges).toHaveLength(pairs.length)
+      for (const pair of pairs) expect(edges.map(({ from, to }) => ({ from, to }))).toContainEqual(pair)
+    }
+  })
+
+  test('structural CR and encoded wrappers keep quoted CSV identities across projections', () => {
+    const links = [
+      { id: 'link:A"&\rB->&amp;', from: 'A"&\rB', to: '&amp;' },
+      { id: 'link:A"&\nB->Other', from: 'A"&\nB', to: 'Other' },
+      { id: 'link:A"&\nB->Third', from: 'A"&\nB', to: 'Third' },
+    ]
+    for (const ending of ['\n', '\r', '\r\n']) {
+      const source = [
+        '---', 'title: Wrapped &amp; CSV', '---',
+        '%%{init: {}}%%', 'sankey-beta', '%% ignored "',
+        'accDescr {', 'ignored "', '}',
+        '"A""&amp;\rB",&amp;amp;,1',
+        '"A""&amp;\nB",Other,2',
+        '"A""&amp;\r\nB",Third,3',
+      ].join(ending)
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error('parse failed')
+      expect(layoutMermaid(parsed.value).edges.map(({ id, from, to }) => ({ id, from, to }))).toEqual(links)
+      for (const renderedSource of [source, source.replace(/^---(?:\r\n?|\n)/, '&#45;&#45;&#45;&#10;')]) {
+        const tags = scanSvgStartTags(renderMermaidSVG(renderedSource, { embedFontImport: false }))
+        expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge').map(tag => ({
+          id: decodedSvgAttributeValue(tag, 'data-id'),
+          from: decodedSvgAttributeValue(tag, 'data-from'),
+          to: decodedSvgAttributeValue(tag, 'data-to'),
+        }))).toEqual(links)
+        for (const input of [renderedSource, ...(renderedSource === source ? [parsed.value] : [])]) {
+          const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+          expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+          const edges = terminal.regions.filter(region => region.kind === 'edge')
+          expect(edges).toHaveLength(links.length)
+          for (const link of links) expect(edges.map(({ id, from, to }) => ({ id, from, to }))).toContainEqual(link)
+        }
+      }
+    }
+  })
+
   test.each(cases)('$name', ({ source, links, title }) => {
     const renderedSource = title ? `---\ntitle: ${title.text}\n---\n${source}` : source
     const parsed = parseRegisteredMermaid(renderedSource)

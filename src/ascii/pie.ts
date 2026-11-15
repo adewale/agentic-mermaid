@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Pie chart
 //
@@ -20,6 +20,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 import { parsePieChart } from '../pie/parser.ts'
 import { formatPieValue, formatPiePercent } from '../pie/layout.ts'
 import { pieSliceColors } from '../pie/palette.ts'
+import { pieTotal } from '../pie/semantics.ts'
 import { resolvePieVisualConfig } from '../pie/config.ts'
 import type { PieVisualConfig } from '../pie/config.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
@@ -56,7 +57,7 @@ export function renderPieTerminal(
   chart.title ??= config.title
   const barChar = config.useAscii ? '#' : '█'
 
-  const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
+  const total = pieTotal(chart.entries)
   const document = new TerminalDocument()
 
   const visual = resolvedVisual ?? resolvePieVisualConfig(frontmatter)
@@ -117,7 +118,7 @@ export function renderPieTerminal(
     const valuePart = chart.showData ? `  [${formatPieValue(entry.value)}]` : ''
     const linesForEntry = labelLines[index]!
     for (let lineIndex = 0; lineIndex < linesForEntry.length - 1; lineIndex++) {
-      document.line([{ text: ' '.repeat(markerWidth) }, { text: linesForEntry[lineIndex]!, role: 'text', color: visual.legendTextColor, textGroup: 'label', owner: { id: `slice-${index}`, kind: 'node' } }])
+      document.line([{ text: ' '.repeat(markerWidth), kind: 'surface' }, { text: linesForEntry[lineIndex]!, role: 'text', color: visual.legendTextColor, textGroup: 'label', owner: { id: `slice-${index}`, kind: 'node' } }])
     }
     const highlighted = staticHighlight === entry.label
     const cue = semanticRoles[index]?.cue ?? 'none'
@@ -131,9 +132,9 @@ export function renderPieTerminal(
     document.line([
       { text: marker, role: 'arrow', kind: 'marker', owner: { id: `slice-${index}:highlight`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
       { text: linesForEntry.at(-1) ?? '', role: 'text', color: visual.legendTextColor, textGroup: 'label', owner: { id: `slice-${index}`, kind: 'node' } },
-      { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(linesForEntry.at(-1) ?? '')) + 2) },
+      { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(linesForEntry.at(-1) ?? '')) + 2), kind: 'surface' },
       { text: bar, role: 'arrow', kind: 'mark', color: colors[index]!, owner: { id: `slice-${index}:bar`, kind: 'plot', parent: { id: `slice-${index}`, kind: 'node' } } },
-      { text: barPad },
+      { text: barPad, kind: 'surface' },
       { text: pct, role: 'text', color: visual.sectionTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
       { text: valuePart, role: 'text', color: visual.legendTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
     ])
@@ -142,7 +143,3 @@ export function renderPieTerminal(
   return terminalArtifact(document, { colorMode, theme })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderPieAscii(...args: Parameters<typeof renderPieTerminal>): string {
-  return serializeTerminalArtifact(renderPieTerminal(...args))
-}

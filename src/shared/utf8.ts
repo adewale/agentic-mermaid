@@ -2,6 +2,9 @@
  * an encoded copy. Returning `limit + 1` means the value exceeded the ceiling
  * and scanning stopped early. */
 export function boundedUtf8ByteLength(value: string, limit: number): number {
+  // UTF-16 length is a lower bound on UTF-8 bytes, including lone surrogates.
+  if (value.length !== 0 && value.length > limit) return limit + 1
+  if (!/[^\x00-\x7f]/.test(value)) return value.length
   let bytes = 0
   for (let index = 0; index < value.length; index++) {
     const code = value.charCodeAt(index)

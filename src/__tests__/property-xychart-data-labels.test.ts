@@ -5,6 +5,7 @@
 // chart labels every bar.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { knownStyles, renderMermaidSVG } from '../index.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
@@ -34,17 +35,22 @@ function sourceFor(input: { horizontal: boolean; outside: boolean; series: numbe
 
 function parse(svg: string): { bars: Bar[]; labels: Label[]; background: string; seriesColors: Map<number, string> } {
   const seriesColors = new Map([...svg.matchAll(/--xychart-color-(\d+):\s*(#[0-9a-fA-F]{6})/g)].map(match => [Number(match[1]), match[2]!]))
-  const bars = [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar xychart-color-(\d+)" data-value="([^"]+)"/g)]
-    .map(match => ({ x: Number(match[1]), y: Number(match[2]), width: Number(match[3]), height: Number(match[4]), colorIndex: Number(match[5]), value: Number(match[6]) }))
-  const labels = [...svg.matchAll(/<text\b([^>]*)class="xychart-data-label"[^>]*>([^<]*)<\/text>/g)].flatMap(match => {
+  const attribute = (tag: string, name: string): string | undefined => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]
+  const bars = [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar xychart-color-(\d+)"[^>]*>/g)].map(match => ({
+    x: Number(attribute(match[0], 'x')), y: Number(attribute(match[0], 'y')),
+    width: Number(attribute(match[0], 'width')), height: Number(attribute(match[0], 'height')),
+    colorIndex: Number(match[1]), value: Number(attribute(match[0], 'data-value')),
+  }))
+  const labels = [...svg.matchAll(/<text\b([^>]*\sclass="xychart-data-label"[^>]*)>([\s\S]*?)<\/text>/g)].flatMap(match => {
     const attributes = match[1]!
-    const x = attributes.match(/\sx="([^"]+)"/)?.[1]
-    const y = attributes.match(/\sy="([^"]+)"/)?.[1]
-    const fill = attributes.match(/\sfill="([^"]+)"/)?.[1]
+    const x = attribute(attributes, 'x')
+    const y = attribute(attributes, 'y')
+    const fill = attribute(attributes, 'fill')
     if (x === undefined || y === undefined || fill === undefined) return []
     // A halo is a stroke painted under the glyphs (paint-order="stroke").
-    const halo = /\spaint-order="stroke"/.test(attributes) ? attributes.match(/\sstroke="([^"]+)"/)?.[1] : undefined
-    return [{ x: Number(x), y: Number(y), fill, text: match[2]!, ...(halo ? { halo } : {}) }]
+    const halo = /\spaint-order="stroke"/.test(attributes) ? attribute(attributes, 'stroke') : undefined
+    // Tracked text is written as positioned fragments of the one label.
+    return [{ x: Number(x), y: Number(y), fill, text: match[2]!.replace(/<[^>]*>/g, ''), ...(halo ? { halo } : {}) }]
   })
   // Guard against a vacuous parse: every emitted label element must be read.
   expect(labels).toHaveLength((svg.match(/<text\b[^>]*class="xychart-data-label"/g) ?? []).length)
@@ -82,14 +88,14 @@ describe('xychart bar value labels', () => {
           expect({ style: name, label: label.text, fill: label.fill, ratio: ratio >= 4.5 }).toEqual({ style: name, label: label.text, fill: label.fill, ratio: true })
         }
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
   it('never removes one bar\'s label because another bar shrinks', () => {
     const arb = fc.integer({ min: 2, max: 8 }).chain(length => fc.record({
       horizontal: fc.boolean(),
-      values: fc.array(fc.integer({ min: 10, max: 100 }), { minLength: length, maxLength: length }),
+      values: fc.uniqueArray(fc.integer({ min: 10, max: 100 }), { minLength: length, maxLength: length }),
       shrink: fc.integer({ min: 0, max: length - 1 }),
     }))
     fc.assert(
@@ -104,7 +110,7 @@ describe('xychart bar value labels', () => {
           if (index !== shrink && labelled(before).has(String(value))) expect(kept.has(String(value))).toBe(true)
         })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 
@@ -127,7 +133,7 @@ describe('xychart bar value labels', () => {
         const parsed = parse(renderMermaidSVG(sourceFor({ horizontal, outside, series: [values], range })))
         expect(parsed.labels.map(label => label.text).sort()).toEqual(values.map(String).sort())
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })

@@ -7,17 +7,10 @@
 // deviation and a fixed one ("unexpected pass") both fail with the fence ids.
 
 import { describe, expect, test } from 'bun:test'
-import {
-  isBuiltinFamilyId,
-  MermaidFamilyDetectionError,
-  parseRegisteredMermaid,
-  renderMermaidSVG,
-  serializeMermaid,
-  verifyMermaid,
-} from '../agent/index.ts'
+import { extractOfficialCorpus, type OfficialFence } from '../../eval/shared/official-fences.ts'
+import { isBuiltinFamilyId, MermaidFamilyDetectionError, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, countsEqual } from '../agent/structural-count.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { extractOfficialCorpus, type OfficialFence } from '../../eval/shared/official-fences.ts'
 
 /** Outcomes that deviate from the default rule, named per observation. */
 const REGISTERED_DEVIATIONS = [
@@ -44,10 +37,6 @@ const SYNTAX_LOSS = new Set(['UNSUPPORTED_SYNTAX', 'CONTENT_DROPPED_ON_ROUNDTRIP
 // listed: registered families default to [ Pass ], unsupported families to a
 // diagnosed UNSUPPORTED_FAMILY. Remove a line when its fence starts passing.
 const EXPECTATIONS = `
-# Class: whole-diagram opaque fallbacks.
-class:official-syntax/classDiagram.md#27 [ Opaque Unsupported ] # class-level 'direction RL' statement is not modelled
-class:official-syntax/classDiagram.md#30 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
-class:official-syntax/classDiagram.md#31 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
 # Flowchart
 flowchart:official-syntax/flowchart.md#3 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
 flowchart:official-syntax/flowchart.md#68 [ Opaque Unsupported ] # '@{ icon: ... }' icon shapes are not modelled
@@ -57,24 +46,14 @@ flowchart:official-syntax/flowchart.md#102 [ Opaque Unsupported ] # markdown str
 flowchart:official-syntax/flowchart.md#103 [ Opaque Unsupported ] # click callbacks/hrefs are preserved but never executable
 flowchart:official-syntax/flowchart.md#104 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
 # Gantt
-gantt:official-syntax/gantt.md#6 [ VerifyError RenderError ] # settings-only snippet has no tasks: diagnosed EMPTY_DIAGRAM where Mermaid draws an empty chart
+gantt:official-syntax/gantt.md#6 [ VerifyError ] # settings-only snippet renders an explicit empty state and remains diagnosed EMPTY_DIAGRAM
 gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inline task comments are diagnosed and canonicalized onto their own line; the undocumented workaround tag still becomes an invalid date
-# GitGraph
-gitgraph:official-syntax/gitgraph.md#14 [ Opaque Unsupported VerifyError RenderError ] # duplicate commit id "Boston" is rejected by design (receipt gitgraph.official.main-branch-duplicate-id-diagnosed)
 # Sequence: structured bodies with source-preserved opaque segments.
-sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains source-preserved activate/deactivate and Note controls
-sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate and Note controls
-sequence:official-syntax/sequenceDiagram.md#15 [ Unsupported ] # 'create' / 'destroy' participant lifecycle
+sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains source-preserved activate/deactivate controls
+sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate controls
 sequence:official-syntax/sequenceDiagram.md#16 [ Unsupported ] # 'box' participant groups
 sequence:official-syntax/sequenceDiagram.md#18 [ Unsupported ] # explicit 'activate' / 'deactivate'
-sequence:official-syntax/sequenceDiagram.md#21 [ Unsupported ] # 'Note right of'
-sequence:official-syntax/sequenceDiagram.md#22 [ Unsupported ] # 'Note over A,B'
-sequence:official-syntax/sequenceDiagram.md#23 [ Unsupported ] # 'Note over A,B' with '<br/>'
-sequence:official-syntax/sequenceDiagram.md#24 [ Unsupported ] # 'Note over A,B' with '<br/>'
 sequence:official-syntax/sequenceDiagram.md#28 [ Unsupported ] # nested 'par ... and' blocks
-sequence:official-syntax/sequenceDiagram.md#29 [ Unsupported ] # 'critical ... option' blocks
-sequence:official-syntax/sequenceDiagram.md#30 [ Unsupported ] # 'critical' blocks
-sequence:official-syntax/sequenceDiagram.md#31 [ Unsupported ] # 'break' blocks
 sequence:official-syntax/sequenceDiagram.md#32 [ Unsupported ] # 'rect' highlight blocks with notes
 sequence:official-syntax/sequenceDiagram.md#35 [ Unsupported ] # 'autonumber' and notes
 `
@@ -107,8 +86,7 @@ function deviationsOf(fence: OfficialFence): Deviation[] {
   const deviations = new Set<Deviation>()
   if (!isBuiltinFamilyId(fence.family)) {
     const body = diagram.body
-    if (body.kind !== 'preserved' || body.diagnostic.code !== 'UNSUPPORTED_FAMILY'
-      || body.preservation.upstreamFamilyId !== fence.family) deviations.add('Undiagnosed')
+    if (body.kind !== 'preserved' || body.diagnostic.code !== 'UNSUPPORTED_FAMILY' || body.preservation.upstreamFamilyId !== fence.family) deviations.add('Undiagnosed')
     try {
       renderMermaidSVG(fence.source)
       deviations.add('RenderLeak')
@@ -132,8 +110,7 @@ function deviationsOf(fence: OfficialFence): Deviation[] {
   const reparsed = parseRegisteredMermaid(serializeMermaid(diagram))
   const before = countStructuralElements(diagram)
   const after = reparsed.ok ? countStructuralElements(reparsed.value) : null
-  if (!reparsed.ok || reparsed.value.kind !== diagram.kind
-    || (before === null ? after !== null : after === null || !countsEqual(before, after))) deviations.add('CountDrift')
+  if (!reparsed.ok || reparsed.value.kind !== diagram.kind || (before === null ? after !== null : after === null || !countsEqual(before, after))) deviations.add('CountDrift')
   return [...deviations].sort()
 }
 

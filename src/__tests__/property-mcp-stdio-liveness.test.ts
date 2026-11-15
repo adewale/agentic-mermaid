@@ -7,6 +7,7 @@
 // pinned globally (fc-seed.preload.ts).
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -55,6 +56,9 @@ async function runSession(calls: readonly ToolCall[]): Promise<Session> {
 }
 
 describe('MCP stdio server liveness', () => {
+  // The #298 race, first: a render dispatched right after execute's vm call.
+  // A hung case costs a full session timeout, so stop at the first failure.
+  const parameters = fcParameters<[ToolCall[]]>({ numRuns: RUNS, examples: [[[EXECUTE, RENDER_LARGE]]], endOnFailure: true })
   test('answers every pipelined tool call exactly once and exits when input closes', async () => {
     await fc.assert(
       fc.asyncProperty(fc.array(callArb, { minLength: 2, maxLength: 5 }), async calls => {
@@ -63,9 +67,7 @@ describe('MCP stdio server liveness', () => {
         expect(session.exitCode).toBe(0)
         expect([...session.answered].sort((a, b) => a - b)).toEqual(Array.from({ length: calls.length + 1 }, (_, id) => id))
       }),
-      // The #298 race, first: a render dispatched right after execute's vm call.
-      // A hung case costs a full session timeout, so stop at the first failure.
-      { numRuns: RUNS, examples: [[[EXECUTE, RENDER_LARGE]]], endOnFailure: true },
+      parameters,
     )
-  }, (RUNS + 1) * SESSION_TIMEOUT_MS)
+  }, ((parameters.numRuns ?? RUNS) + 1) * SESSION_TIMEOUT_MS)
 })

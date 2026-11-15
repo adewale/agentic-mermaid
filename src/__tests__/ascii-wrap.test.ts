@@ -12,8 +12,10 @@ import { breakWord, graphemes, wrapParagraph, wrapText } from '../ascii/wrap.ts'
 import { visualWidth } from '../ascii/width.ts'
 
 describe('graphemes', () => {
-  it('keeps ZWJ sequences and FE0F emoji as single clusters', () => {
+  it('keeps ZWJ sequences, FE0F emoji and CR LF as single clusters', () => {
     expect(graphemes('👩‍🔬❤️a')).toEqual(['👩‍🔬', '❤️', 'a'])
+    // ASCII outside the printable range must not take the one-unit-per-cluster path.
+    expect(graphemes('a\r\nb')).toEqual(['a', '\r\n', 'b'])
   })
 })
 
@@ -66,6 +68,7 @@ describe('wrapParagraph', () => {
       expect(visualWidth(line)).toBeLessThanOrEqual(8)
     }
     expect(lines).toContain('review')
+    expect(lines.join('').replace(/[-\s]/g, '')).toBe('国際化🙂担当reviewteam')
   })
 })
 

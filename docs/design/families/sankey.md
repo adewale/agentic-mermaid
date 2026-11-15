@@ -60,7 +60,7 @@ Pumped heat,"Heating and cooling, ""commercial""",70.672
 engine used by pinned Mermaid—for layering, all four `nodeAlignment` policies
 (justify default), barycenter relaxation, collision resolution, and ribbon
 stacking. Agentic Mermaid owns the typed projection around that engine:
-deterministic mark IDs, measured label/canvas bounds, typed connector routes,
+deterministic part IDs, measured label/canvas bounds, typed connector routes,
 and explicit visibility floors. An all-zero graph uses equal surrogate weights
 only to obtain finite d3 ordering/positions; authored node/link values and link
 widths remain zero. If the requested `width` cannot fit `nodeWidth` across the

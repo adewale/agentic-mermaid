@@ -2,16 +2,22 @@ import { assertC4DiagramWork, assertDiagramWorkLimit } from '../shared/diagram-l
 import { observeParserMutation, observeParserStatement, observeParserToken, parserObservationActive } from '../shared/parser-observation.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import { decodeXML } from 'entities'
+import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 import { c4ShapeOverride } from './config.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import type {
   C4Argument, C4Body, C4Boundary, C4Diagnostic, C4Directive, C4Direction,
   C4Element, C4Relationship, C4Statement, C4Style, C4Variant,
 } from './types.ts'
 
 export const C4_VARIANTS: readonly C4Variant[] = ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment']
+
+export class C4AmbiguousArgumentError extends MermaidSyntaxError {}
+
 const ELEMENT = /^(Person|System|Container|Component)(Db|Queue)?(_Ext)?$/
 const BOUNDARIES: Readonly<Record<string, C4Boundary['kind']>> = {
   Boundary: 'boundary', Enterprise_Boundary: 'enterprise', System_Boundary: 'system',
@@ -43,8 +49,11 @@ function statements(source: string): C4Statement[] {
     const raw = source.slice(offset, end)
     result.push({ id: `c4-statement-${result.length + 1}`, kind, raw, span: { start: offset, end, line, column } })
     if (parserObservationActive('c4')) observeParserToken('c4', `chunk:${kind}`, raw, { line, column, offset, endOffset: end, unit: 'physical' })
+    let previous = source[offset - 1]
     for (const character of raw) {
-      if (character === '\n') { line++; column = 1 } else column++
+      if (character === '\r' || character === '\n' && previous !== '\r') { line++; column = 1 }
+      else if (character !== '\n') column++
+      previous = character
     }
     offset = end
   }
@@ -56,12 +65,14 @@ function statements(source: string): C4Statement[] {
       emit(end, 'trivia'); continue
     }
     if (source.startsWith('%%', start)) {
-      const end = source.indexOf('\n', start)
-      emit(end < 0 ? source.length : end, 'trivia'); continue
+      const end = mermaidLineEnd(source, start)
+      const commentEnd = end < 0 ? source.length : end
+      const owned = !awaitingHeader && parseAccessibilityDirective([source.slice(start, commentEnd)], 0)?.form === 'native'
+      emit(commentEnd, owned ? 'accessibility' : 'trivia'); continue
     }
     if (awaitingHeader) {
       awaitingHeader = false
-      const newline = source.indexOf('\n', start)
+      const newline = mermaidLineEnd(source, start)
       const lineEnd = newline < 0 ? source.length : newline
       let headerEnd = lineEnd
       for (let index = start; index < lineEnd; index++) {
@@ -105,7 +116,7 @@ function statements(source: string): C4Statement[] {
             if (ch === quote) quote = ''
           } else if (ch === '"' || ch === "'") quote = ch
           else if (ch === '%' && source[cursor + 1] === '%') {
-            const newline = source.indexOf('\n', cursor + 2)
+            const newline = mermaidLineEnd(source, cursor + 2)
             cursor = newline < 0 ? source.length : newline
           }
           else if (ch === '{') braces++
@@ -115,7 +126,7 @@ function statements(source: string): C4Statement[] {
       }
       emit(cursor); continue
     }
-    const end = source.indexOf('\n', start)
+    const end = mermaidLineEnd(source, start)
     if (/^accDescr[ \t]*:?[ \t]*\{/i.test(rest)) {
       const close = source.indexOf('}', start)
       if (close < 0) throw new Error(`C4: unclosed accessibility block at line ${line}`)
@@ -126,10 +137,14 @@ function statements(source: string): C4Statement[] {
   return result
 }
 
+/** Mermaid's C4 grammar trims every argument, quoted or not, before its
+ * entity codes are displayed, so whitespace inside the quotes at either end
+ * is dropped and an encoded one (`#32;`) is kept. */
 function argumentValue(raw: string, decode = true): string {
   const text = raw.trim()
   if (text.length >= 2 && (text[0] === '"' || text[0] === "'") && text.at(-1) === text[0]) {
-    return decode ? decodeMermaidEntities(text.slice(1, -1)) : text.slice(1, -1)
+    const inner = text.slice(1, -1).trim()
+    return decode ? decodeMermaidEntities(inner) : inner
   }
   return decode ? decodeMermaidEntities(text) : text
 }
@@ -164,6 +179,35 @@ export function parseC4Arguments(text: string): C4Argument[] {
   })
 }
 
+/** The attribute lexer consumes an unquoted argument through the next comma,
+ * including a closing parenthesis. A final argument therefore needs a closed
+ * double-quoted token. Named values use the non-empty string_kv_value state.
+ * This checks token structure, independently of a declaration's semantics. */
+export function c4ArgumentsArePortable(args: readonly C4Argument[], positionalFields: readonly string[] = []): boolean {
+  return args.length > 0 && args.length >= positionalFields.length && args.every((arg, index) => {
+    if (arg.name && (positionalFields.includes(arg.name) || index < positionalFields.length && positionalFields[index] !== 'label')) return false
+    if (arg.raw.includes('%%{')) return false
+    const text = (arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw).trim()
+    if (arg.name) return /^ *\$[A-Za-z_][A-Za-z_0-9]* *= *"[^"]+"$/.test(arg.raw)
+    if (text.startsWith('"')) return /^ *"[^"]*"$/.test(arg.raw)
+    if (arg.raw === '' && index < args.length - 1) return true
+    return index < args.length - 1 && text.length > 0 && !/^[\$']|[(),\r\n]/.test(text)
+  })
+}
+
+function ambiguousNamedArgument(arg: C4Argument, index: number, args: readonly C4Argument[]): boolean {
+  // Mermaid's bare attribute token consumes everything through the next comma:
+  // embedded dollar text cannot start metadata inside that positional token.
+  // A quoted comma is still a delimiter to that lexer, unlike our reader's.
+  if (!arg.name && index < args.length - 1 && !/^["'$)]/.test(arg.raw.trim()) && !arg.raw.includes(',')) return false
+  const value = arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw
+  // Quoted text can literally describe `$link=...`. Outside quotes that
+  // spelling may be a missing comma or `=`, so choosing prose would lose
+  // the author's intended metadata.
+  for (const match of value.matchAll(/"[^"]*"|'[^']*'|(\$[A-Za-z_][A-Za-z_0-9]*\s*(?:=|["']))/g)) if (match[1]) return true
+  return false
+}
+
 export function c4ArgumentFields(args: readonly C4Argument[], names: readonly string[]): Record<string, string> {
   const fields: Record<string, string> = Object.create(null)
   for (let index = 0; index < args.length; index++) {
@@ -195,6 +239,15 @@ function required(fields: Record<string, string>, field: string, macro: string):
   return value
 }
 
+function argumentLabel(args: readonly C4Argument[], names: readonly string[], fields: Record<string, string>, macro: string): string {
+  const label = c4DisplayArgument(args, names, 'label')
+  if (label !== undefined) return label
+  // Named arguments address their field even in a positional label slot.
+  // Keep that field and an empty label, rather than coercing it into text.
+  if (args[names.indexOf('label')]?.name) return ''
+  return required(fields, 'label', macro)
+}
+
 /** Fields which affect authored source, excluding derived cascade/layout data. */
 export function c4RecordSignature(record: C4Element | C4Boundary | C4Relationship | C4Directive): string {
   const { args: _args, style: _style, effectiveLink: _effectiveLink, statementId: _statementId, ...fields } = record as (C4Element | C4Boundary | C4Relationship) & { name?: string; category?: string }
@@ -202,8 +255,27 @@ export function c4RecordSignature(record: C4Element | C4Boundary | C4Relationshi
   return JSON.stringify(fields)
 }
 
-function diagnostic(body: C4Body, statementId: string, message: string, severity: C4Diagnostic['severity'] = 'warning'): void {
-  body.diagnostics.push({ code: 'UNSUPPORTED_SYNTAX', severity, statementId, message })
+function diagnostic(body: C4Body, statementId: string, syntax: string, message: string, severity: C4Diagnostic['severity'] = 'warning'): void {
+  body.diagnostics.push({ code: 'UNSUPPORTED_SYNTAX', syntax, severity, statementId, message })
+}
+
+// The directives pinned Mermaid's C4 grammar knows, besides the element,
+// boundary and relationship macros.
+const MERMAID_C4_DIRECTIVES = new Set(['UpdateElementStyle', 'UpdateRelStyle', 'UpdateLayoutConfig'])
+
+export function c4DirectiveFields(name: string): readonly string[] | undefined {
+  return name === 'UpdateElementStyle' ? ELEMENT_STYLE : name === 'UpdateRelStyle' ? REL_STYLE
+    : name === 'UpdateLayoutConfig' ? ['c4ShapeInRow', 'c4BoundaryInRow'] : undefined
+}
+
+/** Style targets and all layout values are positional in the pinned DB,
+ * even when the lexer accepts a named argument in that slot. */
+export function c4DirectiveArgumentsArePortable(record: C4Directive): boolean {
+  const fields = c4DirectiveFields(record.name)
+  if (!fields) return c4ArgumentsArePortable(record.args)
+  if (record.name === 'UpdateLayoutConfig') return c4ArgumentsArePortable(record.args) && record.args.every((arg, index) => !arg.name || arg.name === fields[index])
+  const required = record.name === 'UpdateElementStyle' ? 1 : 2
+  return c4ArgumentsArePortable(record.args, fields.slice(0, required))
 }
 
 export function c4DirectiveCategory(name: string): C4Directive['category'] {
@@ -338,15 +410,29 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   if (parserObservationActive('c4')) observeParserMutation('c4', 'initialize', body)
   body.statements = statements(source)
   const parents: string[] = []
+  const boundaryStatements = new Set<string>()
   const ids = new Set<string>()
   let header = false
+  // Pinned Mermaid C4 needs a line break after each statement and after a
+  // boundary's `{`; only a closing `}` may share the line before it. Its
+  // comments take the line breaks after them, so one after a statement leaves
+  // that statement without one.
+  let sharesLine = false
+  let commented = false
   for (const statement of body.statements) {
     const text = statement.raw.trim()
     if (statement.kind === 'trivia') {
       observeC4Statement(statement, 'trivia')
-      if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+      if (!text.startsWith('%%') && text.includes(';')) {
+        diagnostic(body, statement.id, 'c4_semicolon_separator', 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+        sharesLine = commented = false
+      } else if (text.startsWith('%%')) commented ||= sharesLine
+      else if (/[\r\n]/.test(statement.raw) && !commented) sharesLine = false
       continue
     }
+    if (sharesLine && statement.kind !== 'boundary-close') diagnostic(body, statement.id, 'c4_statements_on_one_line', 'Statements sharing a line are a reader extension; pinned Mermaid C4 requires a line break after each statement and after `{`, and a comment after a statement takes its line break')
+    sharesLine = true
+    commented = false
     if (!header) {
       const headerText = decodeXML(text)
       const variant = C4_VARIANTS.find(candidate => candidate.toLowerCase() === headerText.toLowerCase())
@@ -363,15 +449,20 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (parserObservationActive('c4')) observeParserMutation('c4', 'close-boundary', { id: parent })
       statement.entityId = parent; continue
     }
+    if (mermaidEntityPrepass(text) !== text) diagnostic(body, statement.id, 'c4_entity_prepass', 'The global Mermaid entity prepass changes this statement; the writer protects its text fields without changing their values')
     if (/^title\s/i.test(text)) {
       observeC4Statement(statement, 'title')
+      if (parents.length) diagnostic(body, statement.id, 'c4_nested_header_directive', 'Metadata inside a boundary is read as global. Pinned Mermaid requires it at document scope; the writer moves it after the header')
+      if (/[#;]/.test(mermaidEntityPrepass(text.replace(/^title\s+/i, '')))) diagnostic(body, statement.id, 'c4_title_token', 'The title contains literal token delimiters; serialization writes entity escapes for pinned Mermaid')
       body.title = decodeMermaidEntities(breakLineTags(text.replace(/^title\s+/i, '')))
       if (parserObservationActive('c4')) observeParserMutation('c4', 'set-title', body.title)
       statement.kind = 'title'; statement.signature = body.title; continue
     }
-    const accessibility = parseAccessibilityDirective(text.split('\n'), 0)
+    const accessibility = parseAccessibilityDirective(text.split(/\r\n?|\n/), 0)
     if (accessibility) {
       observeC4Statement(statement, 'accessibility')
+      if (parents.length) diagnostic(body, statement.id, 'c4_nested_header_directive', 'Metadata inside a boundary is read as global. Pinned Mermaid requires it at document scope; the writer moves it after the header')
+      if (!accessibility.title && accessibility.form !== 'native' && accessibility.value === '') diagnostic(body, statement.id, 'c4_empty_accessibility_description', 'An empty accessibility description block is a reader extension; the writer preserves its value in a native metadata comment')
       if (accessibility.title) body.accessibilityTitle = accessibility.value
       else body.accessibilityDescription = accessibility.value
       if (parserObservationActive('c4')) observeParserMutation('c4', accessibility.title ? 'set-accessibility-title' : 'set-accessibility-description', accessibility.value)
@@ -394,13 +485,34 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     const call = /^([A-Za-z_][A-Za-z_0-9]*)\s*\(([\s\S]*)\)\s*(\{)?$/.exec(text)
     if (!call) {
       observeC4Statement(statement, 'unknown')
-      diagnostic(body, statement.id, `C4 statement is preserved but has no native interpretation: ${text.slice(0, 100)}`, 'error')
+      diagnostic(body, statement.id, 'c4_unknown_statement', 'C4 statement is preserved but has no native interpretation', 'error')
       continue
     }
     const macro = call[1]!, args = parseC4Arguments(call[2]!)
-    if (/[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))) diagnostic(body, statement.id, 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
-    if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
+    // The pinned grammar needs a statement inside every boundary. An empty
+    // layout argument is a true no-op: neither layout value passes its >= 1
+    // assignment guard. Treat its spelling as trivia, not an authored setting.
+    if (macro === 'UpdateLayoutConfig' && (args.length === 0 || args.length === 1 && !args[0]!.name && args[0]!.value === '') && !call[3]) {
+      if (parents.length) boundaryStatements.add(parents.at(-1)!)
+      if (text[macro.length] !== '(' || !c4ArgumentsArePortable(args)) diagnostic(body, statement.id, 'c4_empty_layout_arguments', 'An empty layout call is a no-op; the writer supplies the attribute required by pinned Mermaid')
+      statement.kind = 'trivia'; continue
+    }
+    if (/[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))) diagnostic(body, statement.id, 'c4_multiline_arguments', 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
+    if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
+    const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
+    if (mermaidMacro && parents.length) boundaryStatements.add(parents.at(-1)!)
+    if (mermaidMacro && args.some(ambiguousNamedArgument)) throw new C4AmbiguousArgumentError(`C4 argument is ambiguous in ${text}: separate named arguments with commas and use $name="value", or quote the entire value when it is literal text`)
+    // A bare positional value consumes through the next comma in Mermaid's
+    // attribute lexer, including a closing `)` when it is the last argument.
+    // `$` instead enters named-argument syntax, whose value must be quoted.
+    if (mermaidMacro && args.some((arg, index) => {
+      const raw = arg.raw.trim()
+      if (arg.name) return !/^\$[A-Za-z_][A-Za-z_0-9]*\s*=\s*"/.test(raw) && arg.value !== ''
+      return raw.startsWith('$') || index === args.length - 1 && raw !== '' && !/^["']/.test(raw)
+    })) diagnostic(body, statement.id, 'c4_unquoted_argument', 'Unquoted C4 argument text is read literally here, but pinned Mermaid requires a quoted final argument and quoted named values; serialization writes those values in double quotes')
+    // Mermaid's lexer enters a macro's state at its name and reads only `(` there.
+    if (mermaidMacro && text[macro.length] !== '(') diagnostic(body, statement.id, 'c4_space_before_arguments', `Pinned Mermaid reads "(" only straight after ${macro} and rejects whitespace between them; ours reads the call. Write ${macro}( with no space`)
     if (element && !(element[1] === 'Person' && element[2])) {
       observeC4Statement(statement, 'element')
       if (call[3]) throw new Error(`C4: ${macro} cannot open a boundary`)
@@ -411,7 +523,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const record: C4Element = {
         id, macro, kind: element[1]!.toLowerCase() as C4Element['kind'], external: Boolean(element[3]),
         shape: element[1] === 'Person' ? 'person' : element[2] === 'Db' ? 'database' : element[2] === 'Queue' ? 'queue' : 'rectangle',
-        label: c4DisplayArgument(args, c4ElementFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4ElementFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4ElementFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4ElementFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
       }
@@ -427,7 +539,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (ids.has(id)) throw new Error(`C4: duplicate declaration alias ${JSON.stringify(id)}`)
       ids.add(id)
       const record: C4Boundary = {
-        id, macro, kind: BOUNDARIES[macro]!, label: c4DisplayArgument(args, c4BoundaryFields(macro), 'label') ?? required(fields, 'label', macro),
+        id, macro, kind: BOUNDARIES[macro]!, label: argumentLabel(args, c4BoundaryFields(macro), fields, macro),
         type: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'type')), description: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         ...(macro === 'Node_L' ? { alignment: 'left' } : macro === 'Node_R' ? { alignment: 'right' } : {}),
@@ -446,7 +558,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const reversed = macro === 'Rel_Back'
       const record: C4Relationship = {
         id: '', macro, from, to, source: reversed ? to : from, target: reversed ? from : to,
-        label: c4DisplayArgument(args, c4RelationshipFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4RelationshipFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'descr')),
         tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         index: macro === 'RelIndex' ? required(fields, 'index', macro) : undefined,
@@ -456,34 +568,35 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       body.relationships.push(record)
       if (parserObservationActive('c4')) observeParserMutation('c4', 'add-relationship', record)
       statement.kind = 'relationship'
-      if (macro === 'RelIndex' && args.slice(4).some(arg => !arg.name)) diagnostic(body, statement.id, 'RelIndex positional metadata follows documented tags/link slots; pinned Mermaid instead treats them as technology/description. Named $tags/$link avoids this ambiguity')
+      if (macro === 'RelIndex' && args.slice(4).some(arg => !arg.name)) diagnostic(body, statement.id, 'c4_relindex_positional_metadata', 'RelIndex positional metadata follows documented tags/link slots; pinned Mermaid instead treats them as technology/description. Named $tags/$link avoids this ambiguity')
     } else {
       observeC4Statement(statement, 'directive')
       const directive: C4Directive = { id: statement.id, name: macro, args, category: c4DirectiveCategory(macro), statementId: statement.id }
       body.directives.push(directive)
       if (parserObservationActive('c4')) observeParserMutation('c4', 'add-directive', directive)
       statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive)
-      if (directive.category === 'unknown') diagnostic(body, statement.id, `${macro} is preserved but has no native interpretation`, 'error')
-      else if (!macro.startsWith('Update')) diagnostic(body, statement.id, `${macro} is a reader extension; pinned Mermaid does not accept this directive`)
+      if (directive.category === 'unknown') diagnostic(body, statement.id, 'c4_unknown_macro', `${macro} is preserved but has no native interpretation`, 'error')
+      else if (!macro.startsWith('Update')) diagnostic(body, statement.id, 'c4_directive_extension', `${macro} is a reader extension; pinned Mermaid does not accept this directive`)
     }
     const knownNames = element ? c4ElementFields(macro) : BOUNDARIES[macro] ? c4BoundaryFields(macro) : RELATIONS.has(macro) ? c4RelationshipFields(macro)
-      : macro === 'UpdateElementStyle' ? ELEMENT_STYLE : macro === 'UpdateRelStyle' ? REL_STYLE
-        : macro === 'UpdateLayoutConfig' ? ['c4ShapeInRow', 'c4BoundaryInRow']
-          : macro === 'AddElementTag' ? ELEMENT_TAG : macro === 'AddRelTag' ? REL_TAG : undefined
+      : c4DirectiveFields(macro) ?? (macro === 'AddElementTag' ? ELEMENT_TAG : macro === 'AddRelTag' ? REL_TAG : undefined)
     if (knownNames) {
       const assigned = new Set<string>()
       for (let index = 0; index < args.length; index++) {
         const arg = args[index]!, key = arg.name ?? knownNames[index]
         if (key === undefined || !knownNames.includes(key)) {
-          diagnostic(body, statement.id, `${macro} argument ${arg.name ?? index + 1} is retained but has no native interpretation`, 'error')
+          diagnostic(body, statement.id, 'c4_unknown_argument', `${macro} argument ${arg.name ?? index + 1} is retained but has no native interpretation`, 'error')
         } else if (assigned.has(key)) {
-          diagnostic(body, statement.id, `${macro} assigns ${key} more than once; every argument is retained`, 'error')
+          diagnostic(body, statement.id, 'c4_duplicate_argument', `${macro} assigns ${key} more than once; every argument is retained`, 'error')
         }
         if (key) assigned.add(key)
       }
     }
     if (args.some(arg => /^\s*'/.test(arg.raw) || /\\["']/.test(arg.raw))) {
-      diagnostic(body, statement.id, 'Quoted-string extension is preserved; typed edits write Mermaid entity escapes')
+      diagnostic(body, statement.id, 'c4_quoted_string_extension', 'Quoted-string extension is preserved; typed edits write Mermaid entity escapes')
+    } else if (mermaidMacro && !c4ArgumentsArePortable(args)
+      && !body.diagnostics.some(item => item.statementId === statement.id && ['c4_multiline_arguments', 'c4_empty_named_argument'].includes(item.syntax))) {
+      diagnostic(body, statement.id, 'c4_argument_spelling', 'Argument text is retained as its native value; the writer emits complete quoted argument tokens instead of ambiguous imported spelling')
     }
   }
   if (!header) throw new Error('C4: missing diagram header')
@@ -499,32 +612,37 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     statement.entityId = relationship.id; statement.signature = c4RecordSignature(relationship)
   }
   resolveC4Directives(body, admitWork)
-  const occupiedBoundaries = new Set([...body.elements, ...body.boundaries].map(record => record.parentId))
   for (const boundary of body.boundaries) {
-    if (!occupiedBoundaries.has(boundary.id)) diagnostic(body, boundary.statementId, 'An empty boundary is retained as a native draft; pinned Mermaid requires a declaration inside its block')
+    if (!boundaryStatements.has(boundary.id)) diagnostic(body, boundary.statementId, 'c4_empty_boundary', 'An empty boundary is retained; the writer supplies a no-op layout statement because pinned Mermaid requires a statement inside its block')
   }
   if (body.directives.some(directive => directive.name === 'direction')) {
     const direction = body.directives.find(directive => directive.name === 'direction')!
-    diagnostic(body, direction.statementId, 'A standalone direction directive is a reader extension to legacy C4')
+    diagnostic(body, direction.statementId, 'c4_direction', 'A standalone direction directive is a reader extension to legacy C4')
   }
   for (const record of [...body.elements, ...body.boundaries, ...body.relationships]) {
-    if (record.sprite) diagnostic(body, record.statementId, 'C4 sprite metadata is preserved; offline native output uses an explicit text fallback')
+    if (record.sprite) diagnostic(body, record.statementId, 'c4_sprite', 'C4 sprite metadata is preserved; offline native output uses an explicit text fallback')
     if (record.style.lineStyle !== undefined && !['solid', 'dashed', 'dotted'].includes(record.style.lineStyle)) {
-      diagnostic(body, record.statementId, `C4 lineStyle ${JSON.stringify(record.style.lineStyle)} is preserved but has no native paint effect; the route uses solid strokes`)
+      diagnostic(body, record.statementId, 'c4_line_style', `C4 lineStyle ${JSON.stringify(record.style.lineStyle)} is preserved but has no native paint effect; the route uses solid strokes`)
     }
     for (const property of Object.keys(record.style)) {
       if (property === 'shape' && 'external' in record && c4ShapeOverride(record.style.shape) !== undefined) continue
       if (!['bgColor', 'fontColor', 'borderColor', 'textColor', 'lineColor', 'lineStyle', 'offsetX', 'offsetY', 'legendText', 'techn'].includes(property)) {
-        diagnostic(body, record.statementId, `C4 style ${property} is preserved as metadata but has no native paint effect`)
+        diagnostic(body, record.statementId, 'c4_style_property', `C4 style ${property} is preserved as metadata but has no native paint effect`)
       }
     }
   }
   return body
 }
 
+/** A diagnostic's message with the authored statement it concerns. */
+export function c4DiagnosticMessage(body: C4Body, diagnostic: C4Diagnostic): string {
+  const statement = body.statements.find(record => record.id === diagnostic.statementId)
+  return statement ? `${diagnostic.message} (in: ${statement.raw.trim()})` : diagnostic.message
+}
+
 export function parseC4Diagram(input: string | readonly string[]): C4Body {
   const body = readC4(input, true)
   const unsupported = body.diagnostics.find(item => item.severity === 'error')
-  if (unsupported) throw new Error(`C4 unsupported syntax: ${unsupported.message}`)
+  if (unsupported) throw new Error(`C4 unsupported syntax: ${c4DiagnosticMessage(body, unsupported)}`)
   return body
 }

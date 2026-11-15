@@ -5,6 +5,8 @@ import { type TerminalRegion } from '../ascii/terminal-document.ts'
 import type { AsciiConfig, ColorMode } from '../ascii/types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt } from '../index.ts'
 
 function render(body: string, useAscii = false, targetWidth?: number) {
   const source = `sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\n${body}`
@@ -23,6 +25,62 @@ const bottom = (region: TerminalRegion) => region.canvasRow + (region.rowSpan ??
 const right = (region: TerminalRegion) => region.canvasColEnd
 
 describe('Sequence terminal ordered ownership and measured fragment bounds', () => {
+  for (const useAscii of [false, true]) for (const endpoints of ['A,C', 'C,A']) for (const alias of ['A', 'ABCDEFGHIJ', 'ABCDEFGHIJK']) test(`over-notes span their addressed lifelines (${endpoints}, ascii=${useAscii}, alias=${alias})`, () => {
+    const { output, region, doc } = render(`participant A as ${alias}\nA->>C: hello\nloop owned\nNote over ${endpoints}: 短<br/>note\nend\nC->>A: done`, useAscii)
+    const note = region('note:0')
+    for (const id of ['A', 'B', 'C']) {
+      const actor = region(id)
+      // These one-line participant cards expose their actual lifelines in the
+      // first row below the header. Exclusive bounds are not stem coordinates.
+      const stems = [...output.split('\n')[actor.canvasRow + 3]!].flatMap((char, column) => column > actor.canvasColStart && column < actor.canvasColEnd - 1 && char === (useAscii ? '|' : '│') ? [column] : [])
+      expect(stems).toHaveLength(1)
+      const stem = stems[0]!
+      expect(note.canvasColStart).toBeLessThan(stem)
+      expect(note.canvasColEnd - 1).toBeGreaterThan(stem)
+    }
+    expect(region('message:1').canvasRow).toBeGreaterThan(bottom(note))
+    expect(note.parentId).toBe('block:0')
+    expect(note.projectedText).toBe('短\nnote')
+    expect(output).toContain('note')
+    expect(doc.diagnostics.filter(item => item.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
+  })
+  test('parallel overlays share rows for independent branches and join below their complete owned ink', () => {
+    const { output, doc, region, block } = render('participant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined')
+    const lines = output.split('\n')
+    expect(output).toContain('first')
+    expect(output).toContain('second')
+    expect(lines.findIndex(line => line.includes('first'))).toBe(lines.findIndex(line => line.includes('second')))
+    expect(output).toContain('[Other]')
+    expect(region('message:0').canvasRow).toBe(region('message:2').canvasRow)
+    expect(region('message:3').canvasRow).toBeGreaterThan(bottom(block('Independent')))
+    for (const id of ['message:0', 'message:1', 'message:2']) {
+      expect(region(id).parentId).toBe('block:0')
+      expect(region(id).parentKind).toBe('compartment')
+    }
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('parallel overlays keep colliding messages and branch labels on separate rows', () => {
+    const { output, doc, region } = render('par_over Shared\nA->>B: first\nand Other\nB->>A: second\nend\nA->>C: joined')
+    expect(output).toContain('[Other]')
+    expect(region('message:1').canvasRow).toBeGreaterThan(bottom(region('message:0')))
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('empty overlay branches retain every label before the following message', () => {
+    const { output, region, block, doc } = render('par_over Work\nand Empty one\nand Empty two\nend\nA->>B: joined')
+    expect(output).toContain('[Empty one]')
+    expect(output).toContain('[Empty two]')
+    expect(region('message:0').canvasRow).toBeGreaterThan(bottom(block('Work')))
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('a later nested frame cannot cover a message from an earlier overlay branch', () => {
+    const { output, doc, region, block } = render('par_over Work\nA->>B: first\nand Other\nloop Nested\nA->>B: second\nend\nend\nA->>B: joined')
+    expect(output).toContain('first')
+    expect(block('Nested').canvasRow).toBeGreaterThan(bottom(region('message:0')))
+    expect(doc.diagnostics).toEqual([])
+  })
   test('closes a fragment before a later note at the same message cursor (#391)', () => {
     const { output, doc, region, block } = render(`loop inside
 A->>B: hi
@@ -105,7 +163,9 @@ end`, useAscii)
     expect(output).toContain('leftmost')
     expect(output).toContain('right side')
     expect(output).toContain('across actors')
-    for (const note of regions.filter(item => item.id.startsWith('note:'))) {
+    const notes = regions.filter(item => item.id.startsWith('note:'))
+    expect(notes.map(note => note.id).sort()).toEqual(['note:0', 'note:1', 'note:2'])
+    for (const note of notes) {
       for (let y = note.canvasRow + 1; y < bottom(note) - 1; y++) {
         for (let x = note.canvasColStart + 1; x < right(note) - 1; x++) {
           const cell = doc.cell(x, y)!
@@ -145,7 +205,7 @@ end`)
     expect(regions.some(item => item.id === 'B')).toBe(true)
     const cells = [...doc.entries()].filter(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.id === 'message:0'))
     expect(cells.map(([, , cell]) => cell.glyph).join('')).toContain('a very long label')
-    expect(output).toContain('retained')
+    for (const word of ['a', 'very', 'long', 'label', 'with', 'every', 'word', 'retained']) expect(output).toContain(word)
   })
 
   test.each([
@@ -176,6 +236,121 @@ end`)
     }
   })
 
+  // [unicode, ascii] glyphs each message endpoint owns on its lifeline, after
+  // the given lines ahead of the `destroy`.
+  test.each([
+    ['a filled head into the destroyed receiver', 'A->>C: bye', { end: ['▶', '>'] }, ''],
+    ['an async head into the destroyed receiver', 'A-)C: bye', { end: ['▷', '>'] }, ''],
+    ['a central head into the destroyed receiver', 'A->>()C: bye', { end: ['○', 'o'] }, ''],
+    ['a cross head into the destroyed receiver', 'A-xC: bye', { end: ['X', 'X'] }, ''],
+    ['a bidirectional message from the destroyed sender', 'C<<->>A: bye', { start: ['▶', '>'], end: ['◀', '<'] }, ''],
+    ['a self-message by the destroyed participant', 'C->>C: bye', { end: ['◀', '<'] }, ''],
+    ['a par branch followed by a note', 'par first\nA->>C: bye\nNote over C: after\nand second\nB->>A: other\nend', { end: ['▶', '>'] }, ''],
+    // Activations still open on the destroyed participant end with its lifeline.
+    ['an activation the destroy message opens', 'A->>+C: bye', { end: ['▶', '>'] }, ''],
+    ['an activation opened before the destroy', 'A->>C: bye', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+    ['nested activations around a destroyed self-message', 'C->>C: bye', { end: ['◀', '<'] }, 'A->>+C: open\nactivate C\n'],
+    ['an activation closed after the destroy', 'A->>C: bye\nA->>B: later\ndeactivate C', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+  ] as const)('ends a destroyed lifeline with its own cross below %s', (_name, body, heads, opened) => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render(`${opened}destroy C\n${body}\nB->>A: tail`, useAscii)
+      const destroyed = `message:${opened.split('\n').filter(line => line.includes('->>')).length}`
+      const ports = region(destroyed).ports!
+      for (const [end, glyphs] of Object.entries(heads)) {
+        const port = ports.find(item => item.end === end)!
+        const cell = doc.cell(port.x, port.y)!
+        expect(cell.kind).toBe('marker')
+        expect(cell.glyph).toBe(glyphs[useAscii ? 1 : 0])
+        expect(cell.owners.map(owner => owner.id)).toEqual([destroyed])
+      }
+      const crosses = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === 'C'))
+      expect(crosses).toHaveLength(1)
+      const [x, y, cross] = crosses[0]!
+      expect(cross.glyph).toBe('X')
+      expect(cross.owners.map(owner => owner.id)).toEqual(['C'])
+      // The lifeline runs through the message's last contact and stops at the cross.
+      const contacts = ports.filter(item => item.nodeId === 'C')
+      expect(x).toBe(contacts[0]!.x)
+      expect(y).toBe(Math.max(...contacts.map(item => item.y)) + 1)
+      expect([...doc.entries()].filter(([, row, cell]) => row > y && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
+      // Owned activation ink ends on the row above the cross, nothing below.
+      const activationRows = [...doc.entries()].flatMap(([, row, cell]) => cell.owners.some(owner => owner.kind === 'band' && owner.parent?.id === 'C') ? [row] : [])
+      if (/\+C|activate C/.test(opened + body)) expect(Math.max(...activationRows)).toBe(y - 1)
+      else expect(activationRows).toEqual([])
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
+  // A stacked destroy whose participant is not in its message acts at that
+  // message: the destroyed lifeline's cross shares the row below the arrow
+  // with the message's own.
+  test('acts on a destroy beside the destroyed sender at the stack\'s message', () => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render('destroy C\ndestroy B\nB->>A: bye\nA->>A: tail', useAscii)
+      const arrowRow = region('message:0').ports![0]!.y
+      const crossRows = (owner: string) => [...doc.entries()].flatMap(([, row, cell]) => cell.kind === 'marker' && cell.glyph === 'X' && cell.owners.some(item => item.id === owner) ? [row] : [])
+      expect(crossRows('C')).toEqual([arrowRow + 1])
+      expect(crossRows('B')).toEqual([arrowRow + 1])
+      expect([...doc.entries()].filter(([, row, cell]) => row > arrowRow + 1 && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
+  // A created participant's card meets its creation message where the SVG
+  // header does: centred on the arrow's row when the message reaches it, the
+  // arrow ending at the card's side, and just below the message when it is
+  // created at a message it does not receive. Both surfaces put the card on,
+  // below or above the message row alike, and strict safety certifies both.
+  test.each([
+    ['a receiver to the right', 'participant A\nparticipant B\ncreate participant D as Dynamic\nA->>D: created across B\nD-->>A: ok', 'D', 0, 'on-row'],
+    ['a receiver to the left', 'create participant D as Dynamic\nparticipant A\nA-)D: from the right\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a receiver with a two-line card', 'participant A\nA->>B: hi\ncreate participant D as Two<br/>lines\nB->>D: make', 'D', 1, 'on-row'],
+    ['a receiver whose label is taller than half its card', 'participant A\ncreate participant D\nA->>D: first<br/>second<br/>third\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a created icon participant', 'participant A\ncreate participant D@{ "type": "database" } as Orders\nA->>D: store\nD-->>A: stored', 'D', 0, 'on-row'],
+    ['a receiver the message activates', 'participant A\ncreate participant D\nA->>+D: start\nD-->>-A: done', 'D', 0, 'on-row'],
+    ['a receiver created inside a fragment', 'participant A\nalt fresh\ncreate participant D\nA->>D: make\nelse stale\nA->>A: reuse\nend\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a created and destroyed receiver', 'participant A\ncreate participant D\nA->>D: make\ndestroy D\nA-xD: drop\nA->>A: tail', 'D', 0, 'on-row'],
+    ['a self-message that creates its participant', 'participant A\ncreate participant D\nD->>D: self\nA->>D: later', 'D', 0, 'on-row'],
+    ['a participant stacked beside the receiver', 'participant A\ncreate participant D\ncreate participant E\nA->>E: make\nE->>A: ok\nD->>A: later', 'D', 0, 'below'],
+    ['a participant stacked beside a destroy', 'participant A\nparticipant C\ncreate participant D\ndestroy C\nA->>C: last\nD->>A: ok', 'D', 0, 'below'],
+  ] as const)('places the card of %s as the SVG header', (_name, body, id, index, expected) => {
+    const source = `sequenceDiagram\n${body}`
+    // SVG: the created header against the message row and its own bounds.
+    const svg = layoutSequenceDiagram(parseSequenceDiagram(source.split('\n')))
+    const header = svg.actors.find(actor => actor.id === id)!, svgMessage = svg.messages[index]!
+    const svgPlace = header.y + header.height / 2 === svgMessage.y ? 'on-row'
+      : header.bounds.y > svgMessage.bounds.y + svgMessage.bounds.height ? 'below'
+        : header.bounds.y + header.bounds.height < svgMessage.bounds.y ? 'above' : 'overlapping'
+    expect(svgPlace).toBe(expected)
+    for (const useAscii of [false, true]) {
+      const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
+      const artifact = renderSequenceAscii(source, config, 'none')
+      serializeTerminalArtifact(artifact)
+      const doc = artifact.document
+      // The created card: the first frame the participant owns below the top row.
+      const owned = [...doc.entries()].filter(([, , cell]) => cell.kind !== 'text' && cell.owners.some(owner => owner.id === id))
+      const corner = useAscii ? '+' : '┌'
+      const top = Math.min(...owned.filter(([, , cell]) => cell.glyph === corner).map(([, row]) => row))
+      const cardBottom = Math.min(...owned.filter(([, row, cell]) => row > top && cell.glyph === (useAscii ? '+' : '└')).map(([, row]) => row))
+      const left = Math.min(...owned.filter(([, row]) => row === top).map(([x]) => x)), right = Math.max(...owned.filter(([, row]) => row === top).map(([x]) => x))
+      const message = doc.regions().find(region => region.id === `message:${index}`)!
+      const start = message.ports!.find(port => port.end === 'start')!, end = message.ports!.find(port => port.end === 'end')!
+      // The arrow's row (a self-message's first), against the card's rows.
+      const rows = [message.canvasRow, bottom(message) - 1, start.y, end.y]
+      const place = start.y > top && start.y < cardBottom ? 'on-row'
+        : top > Math.max(...rows) ? 'below' : cardBottom < Math.min(...rows) ? 'above' : 'overlapping'
+      expect(place).toBe(expected)
+      if (expected === 'on-row' && start.nodeId !== id) {
+        // The arrow ends beside the card's side, its head the cell next to it.
+        expect(end.x === left - 1 || end.x === right + 1).toBe(true)
+        expect(end.y).toBe(start.y)
+      }
+      expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+    expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test('keeps the crossed lifeline on each side of a reserved message label', () => {
     const { doc, region } = render('A->>C: hello')
     const column = region('B').authoredTextCells![0]!.column
@@ -190,7 +365,7 @@ end`)
     expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
   })
 
-  test.each([false, true])('mixed-height participant labels join every lifeline to its measured card (ASCII=%s)', useAscii => {
+  test.each([false, true])('mixed-height labels keep the shorter participant lifeline joined to its card (ASCII=%s)', useAscii => {
     const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
     const artifact = renderSequenceAscii('sequenceDiagram\nparticipant A as Short\nparticipant B as First<br/>Second<br/>Third\nA->>B: message', config)
     serializeTerminalArtifact(artifact)

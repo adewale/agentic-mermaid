@@ -15,7 +15,7 @@ function extensionDescriptor(localId: string, header: string, hooks: Pick<Family
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'positioned-artifact-test', source: 'test' },
     }),
     id,
@@ -110,8 +110,8 @@ describe('canonical positioned-artifact protocol', () => {
 
     expect(layout.layout.nodes.find(node => node.id === 'B')?.y).toBeGreaterThan(baseline.nodes.find(node => node.id === 'B')!.y)
     expect(viewBox).toHaveLength(4)
-    expect(Math.round(viewBox![2]!)).toBe(layout.layout.bounds.w)
-    expect(Math.round(viewBox![3]!)).toBe(layout.layout.bounds.h)
+    expect(viewBox![2]!).toBeCloseTo(layout.layout.bounds.w, 3)
+    expect(viewBox![3]!).toBeCloseTo(layout.layout.bounds.h, 3)
     expect(svg.receipt.sharedRequestDigest).toBe(layout.receipt.sharedRequestDigest)
   })
 

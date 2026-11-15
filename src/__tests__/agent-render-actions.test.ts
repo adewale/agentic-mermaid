@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { parseRegisteredMermaid, renderMermaidWithActions } from '../agent/index.ts'
+import { layoutMermaidWithReceipt, parseRegisteredMermaid, renderMermaidWithActions, renderMermaidSVG, renderMermaidPNG, toFinite } from '../agent/index.ts'
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { withPerformanceObserver } from '../performance-observations.ts'
 
 const SOURCE = `flowchart LR
   A[Docs] --> B[Done]
@@ -10,6 +11,37 @@ const SOURCE = `flowchart LR
 `
 
 describe('renderer-neutral action surface', () => {
+  test.each(['svg', 'png'] as const)('%s captures geometry options once for output and action regions', format => {
+    let reads = 0
+    const options = { get padding() { reads++; return 54 + (reads - 1) * 33 }, embedFontImport: false }
+    let lookups = 0
+    const artifact = withPerformanceObserver(event => {
+      if (event.kind === 'cache' && event.owner === 'positioned-layout') lookups++
+    }, () => renderMermaidWithActions(SOURCE, { format, options }))
+    expect(reads).toBe(1)
+    expect(lookups).toBe(1)
+    const expected = format === 'svg'
+      ? renderMermaidSVG(SOURCE, { padding: 54, embedFontImport: false })
+      : renderMermaidPNG(SOURCE, { padding: 54, embedFontImport: false })
+    expect(artifact.output).toEqual(expected)
+    if (artifact.format === 'svg') {
+      const drawn = /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*data-id="node-shape:A"/.exec(artifact.output)!.slice(1).map(Number)
+      const { x, y, w, h } = artifact.actionSurface.actions[0]!.region!.bounds
+      for (const [index, value] of [x, y, w, h].entries()) expect(Math.abs(value - drawn[index]!)).toBeLessThan(1)
+    }
+    const reference = renderMermaidWithActions(SOURCE, { format, options: { padding: 54, embedFontImport: false } })
+    expect(artifact.actionSurface).toEqual(reference.actionSurface)
+  })
+
+  test('mutating returned action regions cannot change later layout or output', () => {
+    const before = renderMermaidWithActions(SOURCE, { format: 'svg' })
+    before.actionSurface.regions[0]!.bounds.w = toFinite(99999)
+    const after = renderMermaidWithActions(SOURCE, { format: 'svg' })
+    expect(after.output).toBe(before.output)
+    expect(after.actionSurface.regions[0]!.bounds.w).not.toBe(99999)
+    expect(layoutMermaidWithReceipt(SOURCE, { regions: true }).layout.regions).toEqual(expect.arrayContaining(after.actionSurface.regions))
+  })
+
   test('SVG, PNG, and terminal output carry the same inert action and target region', () => {
     const svg = renderMermaidWithActions(SOURCE, { format: 'svg' })
     const png = renderMermaidWithActions(SOURCE, { format: 'png' })
@@ -38,7 +70,7 @@ describe('renderer-neutral action surface', () => {
     expect(pngRegion.bounds.h / svgRegion.bounds.h).toBeCloseTo(2, 1)
   })
 
-  test('callback actions remain metadata-only on every surface', () => {
+  test('callback actions remain metadata-only in SVG output', () => {
     const call = renderMermaidWithActions('flowchart LR\n  A\n  click A call doThing()', { format: 'svg' })
     expect(call.actionSurface.actions).toContainEqual(expect.objectContaining({
       action: 'call', disposition: 'sidecar-only', executable: false,
@@ -115,6 +147,14 @@ describe('renderer-neutral action surface', () => {
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
     expect(meta.regions).toContainEqual(expect.objectContaining({ id: 'Outer', kind: 'cluster' }))
     expect(meta.regions).toContainEqual(expect.objectContaining({ id: 'Outer.Inner', kind: 'cluster' }))
+  })
+
+  test('a target region covers its drawn target under a frontmatter title', () => {
+    const rendered = renderMermaidWithActions(`---\ntitle: Docs flow\n---\n${SOURCE}`, { format: 'svg' })
+    if (rendered.format !== 'svg') throw new Error('expected SVG artifact')
+    const drawn = /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*data-id="node-shape:A"/.exec(rendered.output)!.slice(1).map(Number)
+    const { x, y, w, h } = rendered.actionSurface.actions[0]!.region!.bounds
+    for (const [index, value] of [x, y, w, h].entries()) expect(Math.abs(value - drawn[index]!)).toBeLessThan(1)
   })
 
   test('SVG disposition requires actual embedded metadata and a rendered target', () => {

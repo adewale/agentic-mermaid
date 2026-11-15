@@ -14,7 +14,7 @@
 // browser support them, which keeps raster and inline rendering in agreement.
 // ============================================================================
 
-import { replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { replaceSvgRootStartTag, svgStyleRanges, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
 
@@ -168,24 +168,20 @@ function matchingBrace(css: string, open: number): number {
 export function svgStyleScope(svg: string): string | undefined {
   const root = svgRootStartTag(svg)
   const classes = root ? svgAttribute(root, 'class')?.value.split(/\s+/) : undefined
-  return classes?.find(token => token.startsWith(SVG_STYLE_SCOPE_PREFIX) && /^am-[0-9a-z]+$/.test(token))
+  return classes?.find(token => /^am-[0-9a-z]+$/.test(token))
 }
 
 /** Scope every `<style>` block of a complete SVG document to its own root. */
 export function scopeSvgStyles(svg: string): string {
   const root = svgRootStartTag(svg)
   if (!root) return svg
-  const styleRanges: Array<{ start: number; end: number }> = []
-  for (const tag of scanSvgStartTags(svg)) {
-    if (tag.name !== 'style' || tag.selfClosing) continue
-    const close = svg.indexOf('</style', tag.end)
-    if (close >= 0) styleRanges.push({ start: tag.end, end: close })
-  }
+  const styleRanges = svgStyleRanges(svg)
   if (styleRanges.length === 0) return svg
 
   const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
   let scoped = svg
-  for (const range of [...styleRanges].sort((left, right) => right.start - left.start)) {
+  for (let index = styleRanges.length - 1; index >= 0; index--) {
+    const range = styleRanges[index]!
     scoped = `${scoped.slice(0, range.start)}${scopeCss(scoped.slice(range.start, range.end), scope)}${scoped.slice(range.end)}`
   }
 

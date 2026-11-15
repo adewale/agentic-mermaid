@@ -3,8 +3,9 @@
 // narrow / mutate / verify / serialize, the structured-or-opaque fallback, and
 // round-trip identity.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -12,6 +13,48 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asArchitecture } from '../agent/types.ts'
 import { renderMermaidSVG } from '../agent/index.ts'
 import type { ArchitectureValidDiagram, ArchitectureMutationOp } from '../agent/types.ts'
+import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { layoutArchitectureDiagram } from '../architecture/layout.ts'
+import { renderMermaidASCII } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
+
+test('literal service icons preserve text, reserve their full footprint and support typed edits', () => {
+  const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a "<b>日本 API</b>\\nSecond line" [Backend] in g\nservice b(database)[Storage]\na:R-->L:b'
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const typed = asArchitecture(parsed.value)
+  expect(typed?.body.services[0]?.iconText).toBe('<b>日本 API</b>\nSecond line')
+  if (!typed) throw new Error('Expected editable text icon')
+  const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(source.split('\n')))
+  const service = positioned.services.find(item => item.id === 'a')!
+  const icon = service.iconTextBlock!
+  expect(service.labelPosition!.x).toBeGreaterThanOrEqual(service.x + icon.width)
+  expect(service.labelPosition!.x + service.labelBlock!.width).toBeLessThan(service.x + service.width)
+  expect(icon.height).toBeLessThan(service.height)
+  const svg = renderMermaidSVG(source)
+  expect(svg).toContain('&lt;b&gt;日本 API&lt;/b&gt;')
+  expect(svg).not.toContain('<b>日本 API</b>')
+  expect(renderMermaidASCII(source)).toContain('Second line')
+  const changed = mutate(typed, { kind: 'set_service_icon_text', id: 'a', text: 'SQL' })
+  expect(changed.ok).toBe(true)
+  if (!changed.ok) throw new Error(changed.error.message)
+  expect(serializeMermaid(changed.value)).toContain('"SQL"')
+  const named = mutate(changed.value, { kind: 'set_service_icon', id: 'a', icon: 'server' })
+  expect(named.ok).toBe(true)
+  if (!named.ok) throw new Error(named.error.message)
+  expect(asArchitecture(named.value)?.body.services[0]?.iconText).toBeUndefined()
+  expect(serializeMermaid(named.value)).toContain('a(server)')
+  const added = mutate(typed, { kind: 'add_service', id: 'worker', label: 'Worker', iconText: 'jobs' })
+  expect(added.ok).toBe(true)
+  if (!added.ok) throw new Error(added.error.message)
+  expect(asArchitecture(added.value)?.body.services.find(service => service.id === 'worker')?.iconText).toBe('jobs')
+  expect(renderMermaidSVG(added.value)).toContain('jobs')
+  expect(mutate(typed, { kind: 'add_service', id: 'worker', icon: 'server', iconText: 'jobs' }).ok).toBe(false)
+})
 
 const SRC = `architecture-beta
   group api(cloud)[API Layer]
@@ -76,6 +119,20 @@ describe('architecture structured parse', () => {
     })
   })
 
+  test('quoted titles keep interior whitespace through native parsing, edits and export', () => {
+    const label = 'First\n  Indented\n\nLast'
+    const source = `architecture-beta\ngroup g["${label}"]\nservice a['${label}'] in g\nservice b[Peer]\na:R -["${label}"]-> L:b`
+    const native = parseArchitectureDiagram(source.split('\n'))
+    expect([native.groups[0]?.label, native.services[0]?.label, native.edges[0]?.label]).toEqual([label, label, label])
+    const d = architecture(source)
+    expect([d.body.groups[0]?.label, d.body.services[0]?.label, d.body.edges[0]?.label]).toEqual([label, label, label])
+    const changedLabel = 'Updated\n  Peer\n\nDone'
+    const changed = apply(d, { kind: 'set_service_label', id: 'b', label: changedLabel })
+    const body = architecture(serializeMermaid(changed)).body
+    expect([body.groups[0]?.label, body.services[0]?.label, body.edges[0]?.label]).toEqual([label, label, label])
+    expect(body.services[1]?.label).toBe(changedLabel)
+  })
+
   test('junctions and nested groups parse structurally', () => {
     const d = architecture('architecture-beta\n  group outer(cloud)[Outer]\n  group inner(server)[Inner] in outer\n  junction q in inner\n  service api(server)[API] in inner\n  api:R --> L:q')
     expect(d.body.groups.map(g => g.parentId)).toEqual([undefined, 'outer'])
@@ -133,6 +190,42 @@ describe('architecture structured parse', () => {
 
 describe('architecture structured-or-opaque fallback', () => {
   test.each([
+    ['a port token as a service id', 'service L(server)[Load balancer]\n  service db(database)[Database]\n  L:R --> L:db', 'architecture_id', 3],
+    ['a keyword as a group id', 'group group(cloud)[Application]\n  service api(server)[API] in group', 'architecture_id', 3],
+    ['the parent keyword as a service id', 'service a(server)[Aa]\n  service in(server)[aa]', 'architecture_id', 4],
+    ['a port token prefix as a junction id', 'junction Right', 'architecture_id', 3],
+    ['a title token prefix as an id', 'service titleWorker(server)[Worker]', 'architecture_id', 3],
+    ['a trailing dash in an id', 'service api-(server)[API]', 'architecture_id', 3],
+    ['a dotted service icon', 'service api(custom.server)[API]', 'architecture_icon', 3],
+    ['a dotted group icon', 'group app(custom.cloud)[Application]', 'architecture_icon', 3],
+  ])('%s stays renderable and source-preserved instead of generating rejected source', async (_name, statement, syntax, line) => {
+    const source = `%% preserved comment\narchitecture-beta\n  ${statement}\n`
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax, line,
+    }))
+    const edited = mutate(parsed.value, { kind: 'set_title', title: 'Changed' })
+    expect(edited.ok).toBe(false)
+    if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+  })
+
+  test('portable neighbours keep typed editing, including keyword prefixes and normalized icons', async () => {
+    const diagram = architecture('architecture-beta\n  group group1( cloud )[Application]\n  service rowspan( server )[Rowspan] in group1\n  service columnar( )[Columnar]\n  service inside(server)[Inside]\n  junction l1\n  rowspan:R --> L:columnar')
+    expect(diagram.body.groups[0]?.icon).toBe('cloud')
+    expect(diagram.body.services.map(service => service.icon)).toEqual(['server', undefined, 'server'])
+    expect(apply(diagram, { kind: 'set_title', title: 'Portable' }).body.title).toBe('Portable')
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    expect(await upstream.accepts(serializeMermaid(diagram))).toBe(true)
+  })
+
+  test.each([
     ['parent declared later', 'architecture-beta\n  service api(server)[API] in g\n  group g(cloud)[G]\n'],
     ['edge endpoint declared later', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:db\n  service db(database)[DB]\n'],
   ])('%s cannot be silently repaired by typed serialization', (_name, source) => {
@@ -161,6 +254,17 @@ describe('architecture structured-or-opaque fallback', () => {
 })
 
 describe('architecture mutation ops', () => {
+  test.each([
+    { kind: 'add_service', id: 'L', label: 'Load balancer' },
+    { kind: 'add_group', id: 'group', label: 'Application' },
+    { kind: 'add_junction', id: 'Right' },
+    { kind: 'rename_service', from: 'web', to: 'titleWorker' },
+  ] satisfies ArchitectureMutationOp[])('refuses a nonportable id in $kind', op => {
+    const result = mutate(architecture(), op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+  })
+
   test('set_title adds, updates, and removes the visible title', () => {
     let d = apply(architecture(), { kind: 'set_title', title: 'System Map' })
     expect(d.body.title).toBe('System Map')
@@ -259,6 +363,52 @@ describe('architecture mutation ops', () => {
     expect(rejected.ok ? '' : rejected.error.message).toContain('update the edge boundary')
   })
 
+  // A `{group}` endpoint names its group's boundary, so an edit must not leave
+  // the other end inside that group (Mermaid rejects the same-group case).
+  test('refuses edits that point a group-boundary endpoint into its own group', async () => {
+    const source = `architecture-beta
+  group cloud(cloud)[Cloud]
+  group private(server)[Private] in cloud
+  group storage(disk)[Storage] in cloud
+  group vault(disk)[Vault] in private
+  service db(database)[DB] in private
+  service api(server)[API] in private
+  service disk1(disk)[Disk] in storage
+  service key(disk)[Key] in vault
+  junction hub in cloud
+  api:R --> L:db
+  db{group}:B <--> T:disk1
+`
+    const base = architecture(source)
+    const refused: ArchitectureMutationOp[] = [
+      { kind: 'move_service', id: 'disk1', group: 'private' },
+      { kind: 'move_service', id: 'disk1', group: 'vault' },
+      { kind: 'add_edge', from: 'db', to: 'api', fromSide: 'R', toSide: 'L', fromBoundary: 'group' },
+      { kind: 'add_edge', from: 'key', to: 'db', fromSide: 'T', toSide: 'B', toBoundary: 'group' },
+      { kind: 'add_edge', from: 'db', to: 'key', fromSide: 'B', toSide: 'T', fromBoundary: 'group', toBoundary: 'group' },
+      { kind: 'update_edge', index: 0, fromBoundary: 'group' },
+      { kind: 'update_edge', index: 1, to: 'api' },
+    ]
+    for (const op of refused) {
+      const result = mutate(base, op)
+      expect({ op, ok: result.ok, code: result.ok ? null : result.error.code }).toEqual({ op, ok: false, code: 'INVALID_OP' })
+      expect(result.ok ? '' : result.error.message, JSON.stringify(op)).toMatch(/would join group "(private|vault)" to "\w+", which is inside it/)
+    }
+    // Leading out of the group stays editable, including into a sibling group.
+    for (const op of [
+      { kind: 'move_service', id: 'disk1', group: 'cloud' },
+      { kind: 'add_edge', from: 'key', to: 'db', fromSide: 'R', toSide: 'L', fromBoundary: 'group' },
+      { kind: 'add_edge', from: 'db', to: 'hub', fromSide: 'L', toSide: 'R', fromBoundary: 'group' },
+    ] satisfies ArchitectureMutationOp[]) {
+      const result = mutate(base, op)
+      if (!result.ok) throw new Error(`${JSON.stringify(op)}: ${result.error.message}`)
+      expect(await upstream.publicAccepts(serializeMermaid(result.value)), JSON.stringify(op)).toBe(true)
+    }
+    // An authored conflict stays reported rather than blocking unrelated edits.
+    const authored = architecture(source.replace('in storage', 'in private'))
+    expect(mutate(authored, { kind: 'set_service_label', id: 'api', label: 'Gateway' }).ok).toBe(true)
+  })
+
   test('sets and clears accessibility metadata through typed ops', () => {
     let d = apply(architecture(), { kind: 'set_accessibility_title', title: 'System topology' })
     d = apply(d, { kind: 'set_accessibility_description', description: 'Line one\nLine two' })
@@ -318,6 +468,29 @@ describe('architecture verify + render', () => {
     const v = verifyMermaid(d)
     expect(v.ok).toBe(true)
     expect(serializeMermaid(d)).toContain('service cache(disk)[Cache]')
+  })
+
+  test('reports a group-boundary edge whose other end is inside that group', async () => {
+    const groups = 'architecture-beta\n  group private(server)[Private]\n  group vault(disk)[Vault] in private\n  service db(database)[DB] in private\n  service key(disk)[Key] in vault\n  service web(internet)[Web]\n'
+    const cases: Array<[string, string | undefined, boolean]> = [
+      ['  db{group}:B <--> T:web\n', undefined, true],
+      ['  db:R --> L:key\n', undefined, true],
+      ['  key{group}:L --> R:db\n', undefined, true],
+      ['  db{group}:B --> T:key\n', 'private', true],
+      ['  key{group}:T --> B:db{group}\n', 'private', true],
+      ['  service api(server)[API] in private\n  api:R --> L:db{group}\n', 'private', false],
+    ]
+    for (const [edges, group, mermaidAccepts] of cases) {
+      const source = groups + edges
+      const warnings = verifyMermaid(architecture(source)).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')
+      expect(warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax), edges).toEqual(group ? ['architecture_group_edge_inside_group'] : [])
+      if (!group) continue
+      const message = warnings[0]!.code === 'UNSUPPORTED_SYNTAX' ? warnings[0]!.message : ''
+      expect(message, edges).toContain(`group "${group}"`)
+      // The Mermaid claim matches the pinned reference.
+      expect(await upstream.publicAccepts(source), edges).toBe(mermaidAccepts)
+      expect(message.includes('Pinned Mermaid rejects this edge'), edges).toBe(!mermaidAccepts)
+    }
   })
 
   test('EMPTY_DIAGRAM fires on a header-only (opaque) diagram', () => {
@@ -459,7 +632,9 @@ describe('architecture align directives (upstream v11.16.0)', () => {
 })
 
 describe('architecture round-trip property', () => {
-  const idArb = fc.stringMatching(/^[a-z][a-z0-9]{0,7}$/)
+  // A stable non-keyword prefix constructs portable IDs even when the suffix
+  // is a grammar word such as `in` or starts with the title token.
+  const idArb = fc.stringMatching(/^[a-z][a-z0-9]{0,7}$/).map(suffix => `svc_${suffix}`)
   const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z ]{0,18}[A-Za-z]$/)
   const iconArb = fc.constantFrom('server', 'database', 'cloud', 'disk')
   const sideArb = fc.constantFrom('L', 'R', 'T', 'B')
@@ -498,7 +673,7 @@ describe('architecture round-trip property', () => {
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),
-      { numRuns: 50 },
+      fcParameters({ numRuns: 50 }),
     )
   })
 })

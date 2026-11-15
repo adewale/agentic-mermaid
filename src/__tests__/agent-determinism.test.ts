@@ -3,18 +3,26 @@
 // No seed apparatus (it did nothing); determinism is structural to ELK.
 
 import { describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
+import type { RenderedLayout } from '../agent/types.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
+import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from '../experimental-performance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 function findNodeBinary(): string | null {
   const candidates = [process.env.NODE_BINARY, 'node', '/opt/node22/bin/node'].filter((x): x is string => Boolean(x))
   for (const candidate of candidates) {
-    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+    try { if (spawnSync(candidate, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0) return candidate } catch {}
   }
   return null
 }
@@ -22,7 +30,7 @@ function findNodeBinary(): string | null {
 // Cross-runtime tests need a Node binary (and some the built dist/agent.js).
 // CI's `unit` job (ci.yml) builds dist and provides Node precisely for these
 // contracts, so a missing prerequisite there is a broken pipeline: fail loudly
-// instead of skipping. Elsewhere (local runs, the red-green job, which never
+// instead of skipping. Elsewhere (local runs, the optional base-comparison diagnostic, which never
 // builds dist) skip and say why in the test name.
 type TestBody = () => void | Promise<unknown>
 function testRequiring(prerequisites: Record<string, boolean>): (name: string, body: TestBody) => void {
@@ -75,14 +83,61 @@ function expectRelativeAxisOrder(before: Map<string, { x: number; y: number }>, 
 // behind (memo or cache pollution). Byte-level cross-process and cross-runtime
 // determinism is gated below and by layout-equivalence.test.ts, so one size per
 // direction and density is enough here; the full 120-case grid added nothing.
+// Each call clears the ELK result cache, so both calls run ELK.
 describe('determinism grid (in-process, repeat call)', () => {
   const n = NODE_COUNTS[NODE_COUNTS.length - 1]!
   for (const dir of DIRECTIONS) for (const density of DENSITY) {
     test(`${dir} ${n} ${density}`, () => {
       const src = makeDiagram(dir, n, density)
-      expect(JSON.stringify(verifyMermaid(src).layout)).toEqual(JSON.stringify(verifyMermaid(src).layout))
+      const layout = () => { clearElkLayoutCache(); return JSON.stringify(verifyMermaid(src).layout) }
+      expect(layout()).toEqual(layout())
     })
   }
+})
+
+// verify is a pure function of its source. A repeat call is served from the
+// positioned-layout cache; a call with that cache off recomputes everything.
+// Both must report exactly what the first call reported, even when an earlier
+// call already warmed the cache. Fan-ins, fan-outs and duplicate edges produce
+// constructed bundle lanes, whose deliberate bends the route tripwires exempt.
+describe('determinism — verify warnings ignore process history', () => {
+  const graphArb = fc.record({
+    n: fc.integer({ min: 4, max: 12 }),
+    mult: fc.integer({ min: 2, max: 7 }),
+    offset: fc.nat(11),
+    every: fc.integer({ min: 2, max: 5 }),
+    skip: fc.integer({ min: 1, max: 11 }),
+    dir: fc.constantFrom(...DIRECTIONS),
+  })
+  const toSource = ({ n, mult, offset, every, skip, dir }: { n: number; mult: number; offset: number; every: number; skip: number; dir: string }): string => {
+    const lines = [`flowchart ${dir}`]
+    for (let i = 0; i < n; i++) {
+      lines.push(`  N${i}[node ${i}] --> N${(i * mult + offset) % n}`)
+      if (i % every === 0) lines.push(`  N${i} --> N${(i + skip) % n}`)
+    }
+    return lines.join('\n')
+  }
+  const uncached = PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache')
+
+  test('repeat and cache-off verifies of generated fan-out graphs agree', () => {
+    fc.assert(fc.property(graphArb, graph => {
+      const source = toSource(graph)
+      const verdict = () => JSON.stringify((({ ok, warnings }) => ({ ok, warnings }))(verifyMermaid(source)))
+      const first = verdict()
+      const repeat = verdict()
+      const recomputed = withPerformanceExperiments(uncached, verdict)
+      expect(repeat).toBe(first)
+      expect(recomputed).toBe(first)
+    }), fcParameters({ numRuns: 24, seed: 0x5eed_a3, includeErrorInReport: true, examples: [
+      // The reported 20-node case: calls after the first reported ROUTE_HITCH
+      // on N0->N3, N5->N18 and N5->N16, three fan-out bundle members.
+      [{ n: 20, mult: 7, offset: 3, every: 5, skip: 11, dir: 'TD' }],
+      // A duplicate pair drawn as parallel lanes (N3->N0 twice).
+      [{ n: 8, mult: 5, offset: 1, every: 3, skip: 5, dir: 'LR' }],
+      // Reduced counterexample: the N1->N2 / N3->N2 fan-in.
+      [{ n: 4, mult: 2, offset: 0, every: 4, skip: 1, dir: 'TD' }],
+    ] }))
+  }, 60_000)
 })
 
 describe('edit stability — small source mutations preserve the unchanged primary chain', () => {
@@ -158,6 +213,8 @@ describe('determinism — locale-independent ordering authority', () => {
   test('code-point comparison does not inherit locale collation', () => {
     expect(['ä', 'z', 'a'].sort(compareCodePointStrings)).toEqual(['a', 'z', 'ä'])
     expect(['\u{10000}', '\uE000'].sort(compareCodePointStrings)).toEqual(['\uE000', '\u{10000}'])
+    // Lone surrogates are their own code points; a pair is one larger code point.
+    expect(['\u{1F600}', '\uFFFF', '\uD83Db', 'b', '\uD83Da', '\uD83D'].sort(compareCodePointStrings)).toEqual(['b', '\uD83D', '\uD83Da', '\uD83Db', '\uFFFF', '\u{1F600}'])
   })
 
   const NODE = findNodeBinary()
@@ -176,7 +233,7 @@ describe('determinism — locale-independent ordering authority', () => {
       expect(built.outputs).toHaveLength(1)
       const moduleUrl = pathToFileURL(built.outputs[0]!.path).href
       const script = `import { canonicalizeSceneNodeSerialization as canonicalize } from ${JSON.stringify(moduleUrl)}; process.stdout.write(canonicalize('<svg data-z="1" data-ä="2"></svg>'))`
-      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], {
+      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], { timeout: 20_000, killSignal: 'SIGKILL',
         encoding: 'utf8',
         env: { ...process.env, LANG: lang, LC_ALL: lang },
       })
@@ -198,14 +255,34 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
   // reproducible-across-invocations.
   const RUNNER = join(import.meta.dir, 'helpers', 'layout-runner.ts')
   const samples = [
-    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
-    'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
-  ]
-  for (const src of samples) {
-    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, () => {
-      const run = () => spawnSync('bun', ['run', RUNNER, src], { encoding: 'utf8' }).stdout
-      const a = run(), b = run(), c = run()
-      expect(a.length).toBeGreaterThan(2)
+    {
+      source: 'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
+      nodeIds: ['A', 'B', 'C', 'D', 'E'],
+    },
+    {
+      source: 'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
+      nodeIds: ['N0', 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'],
+    },
+  ] as const
+  for (const { source: src, nodeIds } of samples) {
+    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, async () => {
+      const run = async () => {
+        const result = await runChild('bun', ['run', RUNNER, src])
+        expect(result.status, result.stderr).toBe(0)
+        const layout = JSON.parse(result.stdout) as RenderedLayout
+        expect(layout).toMatchObject({ version: 1, kind: 'flowchart' })
+        expect(layout.nodes.map(node => node.id).sort()).toEqual([...nodeIds])
+        expect(Array.isArray(layout.edges)).toBe(true)
+        expect(Array.isArray(layout.groups)).toBe(true)
+        expect([layout.bounds.w, layout.bounds.h].every(value => Number.isFinite(value) && value > 0)).toBe(true)
+        for (const node of layout.nodes) {
+          expect([node.x, node.y, node.w, node.h].every(Number.isFinite)).toBe(true)
+          expect(node.w).toBeGreaterThan(0)
+          expect(node.h).toBeGreaterThan(0)
+        }
+        return result.stdout
+      }
+      const a = await run(), b = await run(), c = await run()
       expect(b).toEqual(a)
       expect(c).toEqual(a)
     })
@@ -220,7 +297,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -235,7 +312,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
       const nodeOut = spawnSync(NODE!, ['-e', `
         const { verifyMermaid } = require('${DIST}')
         process.stdout.write(JSON.stringify(verifyMermaid(${JSON.stringify(src)}).layout))
-      `], { encoding: 'utf8' })
+      `], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
       expect(nodeOut.status).toBe(0)
       // Compare structurally (parsed JSON), immune to whitespace differences.
       const nodeLayout = JSON.parse(nodeOut.stdout)
@@ -257,7 +334,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
   const haveResvg = (() => {
@@ -283,7 +360,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
       const png = m.renderMermaidPNG(${JSON.stringify(src)});
       process.stdout.write(require('node:crypto').createHash('sha256').update(png).digest('hex'))
     `
-    const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
+    const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
     expect(r.status).toBe(0)
     const nodeHash = r.stdout.trim()
 
@@ -295,12 +372,12 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
 describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   // Mirrors the cross-runtime PNG test pattern. Renders the same source as
   // ASCII in bun + in node (via dist/agent.js), compares SHA-256 byte-hashes.
-  // If diverges, the test is marked test.todo with a clear comment and the
-  // gap goes into docs/project/divergences.md. Don't fake-pass.
+  // A divergence is a determinism bug: report it with the reduced source;
+  // never park it as test.todo.
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -321,11 +398,10 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
         const ascii = m.renderMermaidASCII(${JSON.stringify(src)});
         process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
       `
-      const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
-      expect(r.status).toBe(0)
+      const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
+      expect(r.status, JSON.stringify({ stderr: r.stderr, error: r.error?.message, signal: r.signal })).toBe(0)
       const nodeHash = r.stdout.trim()
-      // Honest comparison. Any divergence fails — convert to test.todo +
-      // document in DIVERGENCES if it does.
+      // Any divergence fails and is a determinism bug to fix.
       expect(nodeHash).toBe(bunHash)
     })
   }

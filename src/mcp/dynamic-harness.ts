@@ -11,8 +11,13 @@
 //
 // The isolate is created with `globalOutbound: null`, an empty env, and cpuMs
 // limits — the harness only has to run the code and report the result.
+//
+// The same bundle serves the direct tools' layout work on its /tool route, in
+// a separate per-deploy isolate whose user.js is inert: the Worker sends one
+// HostedToolRequest per call and stops the isolate at its cpuMs budget.
 
 import { runUserCode, hardenIsolateGlobals } from './harness-runtime.ts'
+import { runHostedTool } from './hosted-tool-runtime.ts'
 
 // Run at isolate startup — BEFORE the dynamic import below evaluates user.js —
 // so a wrapper breakout into top-level module scope sees stripped capability
@@ -22,7 +27,10 @@ import { runUserCode, hardenIsolateGlobals } from './harness-runtime.ts'
 hardenIsolateGlobals()
 
 export default {
-  async fetch(): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === '/tool') {
+      return new Response(JSON.stringify(runHostedTool(JSON.parse(await request.text()))), { headers: { 'content-type': 'application/json' } })
+    }
     // Dynamic form only because the bundler must leave the specifier alone
     // (the module is injected per-isolate); workerd compiled it at startup.
     const userFn = (await import('./user.js')).default

@@ -1,30 +1,7 @@
 // Loop 9 M13: ASCII maxWidth label wrapping.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidASCII, wrapLabel } from '../ascii/index.ts'
-
-describe('wrapLabel helper', () => {
-  test('short label passes through unchanged', () => {
-    expect(wrapLabel('hi', 20)).toBe('hi')
-  })
-
-  test('multi-word label wraps at word boundaries', () => {
-    const out = wrapLabel('the quick brown fox', 10)
-    expect(out).toContain('<br/>')
-    for (const line of out.split('<br/>')) expect(line.length).toBeLessThanOrEqual(10)
-  })
-
-  test('single oversized word renders anyway (with warn)', () => {
-    const orig = console.warn
-    let warned = false
-    console.warn = () => { warned = true }
-    try {
-      const out = wrapLabel('antidisestablishmentarianism', 10)
-      expect(out).toContain('antidisestablishmentarianism')
-      expect(warned).toBe(true)
-    } finally { console.warn = orig }
-  })
-})
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 describe('renderMermaidASCII with maxWidth', () => {
   test('narrow maxWidth wraps long node labels', () => {
@@ -35,6 +12,7 @@ describe('renderMermaidASCII with maxWidth', () => {
     const wideMaxCol = Math.max(...wide.split('\n').map(l => l.length))
     const narrowMaxCol = Math.max(...narrow.split('\n').map(l => l.length))
     expect(narrowMaxCol).toBeLessThan(wideMaxCol)
+    for (const word of ['the', 'quick', 'brown', 'fox', 'jumps', 'over', 'End']) expect(narrow).toContain(word)
   })
 
   test('maxWidth does not affect single-word labels', () => {

@@ -64,7 +64,7 @@ describe('native terminal semantic projection regressions', () => {
   })
 
   test('Sankey reports unresolved and translucent ANSI ink while retaining safe HTML paint', () => {
-    for (const paint of ['rgba(255,0,0,0.4)', 'oklch(60% 0.2 30)']) {
+    for (const paint of ['rgba(255,0,0,0.4)', 'var(--brand)']) {
       const source = `---\nconfig:\n  sankey:\n    linkColor: "${paint}"\n---\nsankey-beta\nA,B,1`
       const ansi = renderMermaidASCIIWithReceipt(source, { colorMode: 'truecolor' })
       expect(ansi.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_COLOR_UNREPRESENTABLE', feature: 'sankey.linkColor' }))
@@ -76,6 +76,31 @@ describe('native terminal semantic projection regressions', () => {
     const opaque = renderMermaidASCIIWithReceipt('---\nconfig:\n  sankey:\n    linkColor: "#ff0000"\n---\nsankey-beta\nA,B,1', { colorMode: 'truecolor' })
     expect(opaque.text).toContain('\x1b[38;2;255;0;0m████')
     expect(opaque.terminalStyle.diagnostics.some(diagnostic => diagnostic.feature === 'sankey.linkColor')).toBe(false)
+  })
+
+  test('Sankey absent link paint projects to transparent HTML ink and retains its authored ANSI diagnostic', () => {
+    for (const [linkColor, nodeColors, feature] of [
+      ['none', {}, 'sankey.linkColor'],
+      ['source', { toString: 'none' }, 'sankey.nodeColors.toString'],
+      ['target', { hasOwnProperty: 'none' }, 'sankey.nodeColors.hasOwnProperty'],
+    ] as const) {
+      const source = `%%{init: ${JSON.stringify({ sankey: { linkColor, nodeColors } })}}%%\nsankey-beta\ntoString,hasOwnProperty,1`
+      for (const useAscii of [true, false]) {
+        const barGlyph = useAscii ? '#' : '█'
+        const html = renderMermaidASCIIWithReceipt(source, { colorMode: 'html', useAscii })
+        expect(html.text).toContain(`<span style="color:transparent">${barGlyph.repeat(20)}</span>`)
+        expect(html.text).not.toContain('color:none')
+        const bars = [...terminalDocumentOf(html)!.entries()].filter(([, , cell]) => cell.glyph === barGlyph)
+        expect(bars).toHaveLength(20)
+        expect(bars.every(([, , cell]) => cell.color === 'transparent' && cell.owners.some(owner => owner.kind === 'edge'))).toBe(true)
+        const ansi = renderMermaidASCIIWithReceipt(source, { colorMode: 'truecolor', useAscii })
+        expect(ansi.text).toContain(barGlyph.repeat(20))
+        expect(ansi.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({
+          code: 'TERMINAL_COLOR_UNREPRESENTABLE', feature,
+          message: expect.stringContaining(`${feature}="none"`),
+        }))
+      }
+    }
   })
 
   test('authored Timeline orientation has an explicit outline projection', () => {

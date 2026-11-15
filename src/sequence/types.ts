@@ -27,8 +27,9 @@ export interface SequenceDiagram {
   blocks: Block[]
   /** Notes attached to actors */
   notes: Note[]
-  /** Ordered standalone activate/deactivate commands, anchored at the next
-   * message boundary (messages.length at the source position). */
+  /** Ordered standalone activate/deactivate commands. `messageIndex` is the
+   * message boundary at the source position (messages.length); see
+   * `SequenceActivationEvent.anchor` for where the command applies. */
   activationEvents?: SequenceActivationEvent[]
   /** `box <color?> <label?> ... end` participant groups (upstream §Grouping/Box).
    *  Optional for hand-built diagrams; the parser always populates it. */
@@ -39,6 +40,9 @@ export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control'
 export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom'
 
 export interface Actor {
+  /** An incoming endpoint outside the authored participants; no header/lifeline. */
+  external?: true
+  wrap?: boolean
   id: string
   label: string
   labelContent?: LabelContent
@@ -60,6 +64,7 @@ export interface Actor {
 
 /** A `box … end` group of participants. */
 export interface SequenceBoxGroup {
+  wrap?: boolean
   /** Title text drawn at the top of the box (may be absent). */
   label?: string
   labelContent?: LabelContent
@@ -77,9 +82,19 @@ export interface SequenceActivationEvent {
   actorId: string
   kind: 'activate' | 'deactivate'
   messageIndex: number
+  /** Where the command applies. By default it applies where the message before
+   * the boundary ends, as Mermaid's `+`/`-` arrow suffix does. `next-message`
+   * applies at the following message's row instead: a ZenUML call's occurrence
+   * spans its children up to the next message. */
+  anchor?: 'next-message'
 }
 
 export interface Message {
+  /** Identity and lexical fragment supplied by another native sequence language. */
+  id?: string
+  parentId?: string
+  /** Effective soft-wrap control; absent retains the renderer's default. */
+  wrap?: boolean
   from: string
   to: string
   label: string
@@ -101,8 +116,11 @@ export interface Message {
 }
 
 export interface Block {
+  id?: string
+  parentId?: string
+  wrap?: boolean
   /** Block type keyword */
-  type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
+  type: 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
   label: string
   labelContent?: LabelContent
@@ -113,10 +131,13 @@ export interface Block {
   /** Index of the last message inside this block (inclusive) */
   endIndex: number
   /** For alt/par blocks: indices where "else"/"and" dividers appear (message indices) */
-  dividers: Array<{ index: number; label: string; labelContent?: LabelContent }>
+  dividers: Array<{ index: number; label: string; labelContent?: LabelContent; wrap?: boolean }>
 }
 
 export interface Note {
+  id?: string
+  parentId?: string
+  wrap?: boolean
   /** Which actor(s) the note is attached to */
   actorIds: string[]
   /** Note text content */
@@ -202,6 +223,8 @@ export interface PositionedBlockHeader {
 }
 
 export interface PositionedActor {
+  external?: true
+  menuBlock?: PixelTextBlock
   id: string
   label: string
   type: SequenceActorType
@@ -227,6 +250,8 @@ export interface Lifeline {
 }
 
 export interface PositionedMessage {
+  id?: string
+  parentId?: string
   from: string
   to: string
   label: string
@@ -269,6 +294,8 @@ export interface PositionedBlockDivider {
 }
 
 export interface PositionedBlock {
+  id?: string
+  parentId?: string
   type: Block['type']
   label: string
   color?: string
@@ -285,6 +312,8 @@ export interface PositionedBlock {
 }
 
 export interface PositionedNote {
+  id?: string
+  parentId?: string
   block?: PixelTextBlock
   text: string
   x: number

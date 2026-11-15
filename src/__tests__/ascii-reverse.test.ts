@@ -81,6 +81,8 @@ describe('asciiToMermaid — structural round-trip', () => {
     const rev = asciiToMermaid(renderMermaidASCII(src, { useAscii: true }), { direction: 'LR' })
     expect(rev.ok).toBe(true)
     if (!rev.ok) return
-    expect(labelsAndEdgeCount(rev.value).labels.size).toBeGreaterThanOrEqual(2)
+    const recovered = labelsAndEdgeCount(rev.value)
+    expect([...recovered.labels].sort()).toEqual(['X', 'Y'])
+    expect(recovered.edges).toBe(1)
   })
 })

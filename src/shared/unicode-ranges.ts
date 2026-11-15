@@ -88,13 +88,14 @@ export const COMBINING_RANGES: readonly CodepointRange[] = [
 // ----------------------------------------------------------------------------
 // Special zero-width codepoints. Separate from COMBINING_RANGES because they
 // have semantic meaning beyond "no advance":
+//   - U+00AD  SOFT HYPHEN (visible only at a selected line break)
 //   - U+200B  ZERO WIDTH SPACE
 //   - U+200C  ZERO WIDTH NON-JOINER
 //   - U+200D  ZERO WIDTH JOINER (binds emoji into sequences)
 //   - U+FEFF  ZERO WIDTH NO-BREAK SPACE / BOM
 // ----------------------------------------------------------------------------
 export const ZERO_WIDTH_CODEPOINTS: ReadonlySet<number> = new Set([
-  0x200b, 0x200c, 0x200d, 0xfeff,
+  0x00ad, 0x200b, 0x200c, 0x200d, 0xfeff,
 ])
 
 // ----------------------------------------------------------------------------

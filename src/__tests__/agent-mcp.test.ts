@@ -1,24 +1,124 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
 import { beforeAll, describe, expect, spyOn, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
 import vm from 'node:vm'
 import pkg from '../../package.json'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { runCli } from '../cli/index.ts'
-import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
+import { runCli, runBatchLine } from '../cli/index.ts'
+import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS, MCP_SLIM_SERVER_NAME, SLIM_LOCAL_TOOLS } from '../mcp/server.ts'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
+import { LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
+describe('source-preserving edits across agent channels', () => {
+  test.each([
+    ['classDiagram\nnamespace `~`{class P}', { kind: 'add_member', class: 'P', text: '+read()' }],
+    ['classDiagram\nnamespace `~T~A::B` {\nclass `IPC::Sender`\n}', { kind: 'add_member', class: 'IPC::Sender', text: '+read()' }],
+    ['flowchart TD\nA[Old]-->B\nclassDef retained border:1px s:::colid red', { kind: 'set_label', target: 'A', label: 'Reviewed' }],
+  ] as const)('retains source, warnings and atomic results in library, CLI and MCP: %s', async (source, op) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    expect(result).toMatchObject({ ok: true, mode: 'source-preserving', verify: { ok: true, warnings: expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' })]) } })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.source.startsWith(source)).toBe(true)
+    expect(applyOps({ source, ops: [op] }).ok).toBe(false)
+    const file = join(temp.dir('source-mode-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    const cli = capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source', '--json']))
+    expect(cli.code).toBe(0)
+    expect(JSON.parse(cli.out)).toMatchObject({ ok: true, source: result.source, mode: 'source-preserving' })
+    expect(runBatchLine(JSON.stringify({ op: 'mutate', source, mutation: op, preserveSource: true }))).toMatchObject({ ok: true, data: { source: result.source, mode: 'source-preserving' } })
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op], mode: 'source-preserving' } } })
+    expect(JSON.parse((response!.result as any).content[0].text)).toEqual(result)
+    const script = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; const edited=mermaid.mutatePreservingSource(d,${JSON.stringify(op)}); if(!edited.ok) return edited; return {source:edited.value.source, warnings:mermaid.verifyMermaid(edited.value.diagram).warnings};`)
+    expect(script.ok).toBe(true)
+    expect(script.value).toMatchObject({ source: result.source, warnings: expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' })]) })
+    const direct = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; return mermaid.mutatePreservingSource(d,${JSON.stringify(op)});`)
+    expect(direct.ok).toBe(true)
+    expect(direct.value).toEqual(result)
+    const failed = applyOps({ source, ops: [op, { kind: 'invalid_second_op' }], mode: 'source-preserving' })
+    expect(failed).toMatchObject({ ok: false, opIndex: 1 })
+    expect('source' in failed).toBe(false)
+  })
+  // A structured body: every channel returns the library's exact bytes and its
+  // preservation receipt, `local` or the announced `canonical` fallback.
+  test.each([
+    ['flowchart TD\n  %% keep\n    A["Old"] --> B\n', { kind: 'set_label', target: 'A', label: 'New' }, 'flowchart TD\n  %% keep\n    A["New"] --> B\n', 'local'],
+    ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, 'flowchart TD\n  %% keep\n  A["Short"] --> B\n', 'local'],
+    ['flowchart TD\n  %% keep\n  A:::hot & B --> C\n  classDef hot fill:#f96\n', { kind: 'remove_edge', id: 'A->C' }, undefined, 'canonical'],
+  ] as const)('structured source-preserving edits agree across library, CLI and MCP: %j', async (source, op, expected, method) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.preservation?.method).toBe(method)
+    const structured = applyOps({ source, ops: [op] })
+    if (!structured.ok) throw new Error(structured.error.message)
+    expect(result.source).toBe(expected ?? structured.source)
+    const file = join(temp.dir('structured-source-mode-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    expect(JSON.parse(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source', '--json'])).out)).toMatchObject({ ok: true, source: result.source, mode: 'source-preserving', preservation: result.preservation })
+    const text = capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source']))
+    expect({ code: text.code, out: text.out, noted: text.err.includes('fell back to canonical serialization') }).toEqual({ code: 0, out: result.source, noted: method === 'canonical' })
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical'])).out).toBe(structured.source)
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical', '--preserve-source'])).code).toBe(2)
+    expect(runBatchLine(JSON.stringify({ op: 'mutate', source, mutation: op, preserveSource: true }))).toMatchObject({ ok: true, data: { source: result.source, mode: 'source-preserving' } })
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op], mode: 'source-preserving' } } })
+    expect(JSON.parse((response!.result as any).content[0].text)).toEqual(result)
+    const direct = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; return mermaid.mutatePreservingSource(d,${JSON.stringify(op)});`)
+    expect(direct.ok).toBe(true)
+    expect(direct.value).toEqual(result)
+  })
+  test('CLI mutate --json and batch carry the MCP mutate envelope fields on failure and success', async () => {
+    const source = 'flowchart TD\n  A --> B\n'
+    const file = join(temp.dir('mutate-envelope-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    const mcp = async (ops: unknown[]) => JSON.parse(((await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops } } }))!.result as any).content[0].text)
+    const rename = { kind: 'set_label', target: 'A', label: 'Start' }
+    const missing = { kind: 'remove_node', id: 'ZZ' }
+    for (const ops of [[rename, missing], [rename]]) {
+      const expected = await mcp(ops)
+      const { source: _source, verify: _verify, ...shared } = expected
+      expect(Object.keys(shared).sort(), JSON.stringify(ops)).toEqual(ops.length === 2 ? ['error', 'family', 'ok', 'opIndex'] : ['family', 'ok'])
+      const cli = JSON.parse(capture(() => runCli(['mutate', file, '--ops', JSON.stringify(ops), '--json'])).out)
+      expect(cli).toMatchObject(ops.length === 2 ? shared : { ...shared, source: expected.source })
+      const batch = runBatchLine(JSON.stringify({ op: 'mutate', source, mutations: ops }))
+      expect(batch).toMatchObject(ops.length === 2 ? { ...shared, op: 'mutate' } : { ok: true, op: 'mutate', data: { family: expected.family, source: expected.source } })
+    }
+  })
+
+  test('refuses invalid modes and source-preserving builders', () => {
+    for (const mode of ['unknown', null, false]) expect(applyOps({ source: 'flowchart TD\nA', ops: [], mode } as any).ok).toBe(false)
+    expect(applyOps({ family: 'class', ops: [{ kind: 'add_class', id: 'A' }], mode: 'source-preserving' }).ok).toBe(false)
+  })
+})
+
 describe('sandbox — happy', () => {
+  test('verification snapshots nested render options across the sandbox boundary', async () => {
+    const source = 'venn-beta\nset A["Alpha"]:20\nset B["Beta"]:12\nunion A,B["Shared"]:3'
+    for (const [options, expected] of [
+      [undefined, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { colors: { bg: '#ffffff', fg: '#111111' }, roles: { node: { fontSize: 18 } } } } }, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { roles: { node: { fontSize: 'wide' } } } } }, { ok: false, warningCodes: ['RENDER_FAILED'] }],
+    ] as const) {
+      const result = await executeInSandbox(`
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(source)});
+const verified = mermaid.verifyMermaid(parsed.value, ${JSON.stringify(options) ?? 'undefined'});
+return { ok: verified.ok, warningCodes: verified.warnings.map(warning => warning.code) };`)
+      expect(result).toMatchObject({ ok: true, value: expected })
+    }
+  })
+
   test('flowchart workflow', async () => {
     const r = await executeInSandbox(`
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
@@ -123,7 +223,9 @@ describe('sandbox — isolation + sad paths', () => {
     expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B'); return r.value.constructor.constructor('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return globalThis.constructor.constructor('return typeof process')()`)).ok).toBe(false)
     expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return new Error().stack[0].constructor.constructor('return process.cwd()')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return Array.isArray(new Error().stack)`)).value).toBe(false)
+    const stackOverride = await executeInSandbox(`try { Error.prepareStackTrace = (_, frames) => frames } catch {} return Array.isArray(new Error().stack)`)
+    expect(stackOverride.ok).toBe(true)
+    expect(stackOverride.value).toBe(false)
     expect((await executeInSandbox(`return typeof mermaid.registerFamily`)).value).toBe('undefined')
     expect((await executeInSandbox(`const d = Object.getOwnPropertyDescriptor(mermaid, 'registerFamily'); return d && d.value.constructor.constructor('return 7')()`)).value).toBeNull()
   })
@@ -237,9 +339,17 @@ describe('sandbox — isolation + sad paths', () => {
     const toSortedCtor = await executeInSandbox(`
       const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B\\n  C --> D')
       const flow = mermaid.asFlowchart(r.value)
-      let leaked = 'blocked'
-      flow.body.graph.edges.toSorted((a, b) => { try { leaked = a.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' }; return 0 })
-      return leaked
+      const edges = flow.body.graph.edges
+      const compared = new Set()
+      const escapes = []
+      const sorted = edges.toSorted((a, b) => {
+        for (const edge of [a, b]) {
+          compared.add(edge.source)
+          try { escapes.push(edge.constructor.constructor('return typeof process')()) } catch (_) { escapes.push('blocked') }
+        }
+        return b.source.localeCompare(a.source)
+      })
+      return { compared: [...compared].sort(), escapes: [...new Set(escapes)], sorted: sorted.map(e => e.source), original: edges.map(e => e.source) }
     `)
     const mapGetOrInsert = await executeInSandbox(`
       const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
@@ -278,13 +388,125 @@ describe('sandbox — isolation + sad paths', () => {
     expect(arrayMutation.error).toContain('read-only')
     expect(mapMutation.error).toContain('read-only')
     expect(findLastCtor).toMatchObject({ ok: true, value: 'blocked' })
-    expect(toSortedCtor).toMatchObject({ ok: true, value: 'blocked' })
+    expect(toSortedCtor).toMatchObject({
+      ok: true,
+      value: {
+        compared: ['A', 'C'],
+        escapes: ['blocked'],
+        sorted: ['C', 'A'],
+        original: ['A', 'C'],
+      },
+    })
     expect(mapGetOrInsert.error).toContain('read-only')
     expect(defineGetter.ok).toBe(false)
     expect(lookupProtoMapMutator.ok).toBe(false)
     expect(callbackThisArgEscape).toMatchObject({ ok: true, value: 'blocked' })
     expect(callbackThisArgMutation.error).toContain('read-only')
   })
+  test('owned collection iterators expose hardened methods, entry identity and exhaustion', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A[Alpha] --> B[Beta]')
+      const nodes = mermaid.asFlowchart(parsed.value).body.graph.nodes
+      const values = nodes.values()
+      const first = values.next()
+      const pair = nodes.entries().next().value
+      let blocked = 0
+      try { first.value.label = 'Changed' } catch (_) { blocked++ }
+      try { Object.defineProperty(values, 'next', { value: () => ({ done: true }) }) } catch (_) { blocked++ }
+      try { Reflect.construct(values.next, []) } catch (_) { blocked++ }
+      const second = values.next()
+      const done = values.next()
+      return {
+        self: values[Symbol.iterator]() === values,
+        descriptor: Object.getOwnPropertyDescriptor(values, 'next').value === values.next,
+        constructor: typeof values.next.constructor,
+        prototype: Object.getPrototypeOf(values),
+        first: [first.value.id, first.value.label, first.value === nodes.get('A')],
+        second: second.value.id,
+        pair: [pair[0], pair[1] === nodes.get(pair[0])],
+        keys: [...nodes.keys()],
+        entries: [...nodes].map(([key, value]) => [key, value.label]),
+        done: [done.done, done.value === undefined, values.next().done],
+        blocked,
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      self: true, descriptor: true, constructor: 'undefined', prototype: null,
+      first: ['A', 'Alpha', true], second: 'B', pair: ['A', true],
+      keys: ['A', 'B'], entries: [['A', 'Alpha'], ['B', 'Beta']], done: [true, true, true], blocked: 3,
+    } })
+  })
+
+  test('owned Set and array iterators retain pair aliases and sparse index values', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B')
+      const graph = mermaid.asFlowchart(parsed.value).body.graph
+      const node = graph.nodes.get('A')
+      const set = graph.edges.map(() => new Set([node]))[0]
+      const pair = set.entries().next().value
+      let blocked = false
+      try { set.values().next().value.label = 'Changed' } catch (_) { blocked = true }
+      const sparse = graph.edges.map(() => { const values = []; values.length = 4; values[1] = node; return values })[0]
+      return {
+        pair: [pair[0] === pair[1], pair[0] === node],
+        values: [...set].map(value => value.id),
+        keys: [...set.keys()].map(value => value.id),
+        indices: [...sparse.keys()],
+        sparse: [...sparse.entries()].map(([index, value]) => [index, value === undefined ? null : value.id]),
+        arrayIdentity: graph.edges.values().next().value === graph.edges[0],
+        blocked,
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      pair: [true, true], values: ['A'], keys: ['A'], indices: [0, 1, 2, 3],
+      sparse: [[0, null], [1, 'A'], [2, null], [3, null]], arrayIdentity: true, blocked: true,
+    } })
+  })
+
+  test('array short-circuit callbacks visit only needed values and preserve holes and reducer seeds', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B')
+      const graph = mermaid.asFlowchart(parsed.value).body.graph
+      const values = graph.edges.map(() => {
+        const a = []; a.length = 4; a[1] = graph.nodes.get('A'); a[3] = graph.nodes.get('B'); return a
+      })[0]
+      const calls = []
+      const context = { marker: 'context' }
+      const some = values.some(function (value, index, owner) {
+        calls.push([value.id, index, owner === values, this === context]); return true
+      }, context)
+      const holes = []
+      values.find((value, index) => { holes.push(index); return value === undefined })
+      const reverseHoles = []
+      values.findLast((value, index) => { reverseHoles.push(index); return value === undefined })
+      const mapped = values.map(value => value.id)
+      const reduced = values.reduce((previous, current, index, owner) =>
+        [previous === graph.nodes.get('A'), current === graph.nodes.get('B'), index, owner === values, typeof previous.constructor])
+      const right = values.reduceRight((previous, current, index) => [previous.id, current.id, index])
+      const seed = { count: 0 }
+      const seeded = values.reduce((sum, value) => { sum.count++; return sum }, seed)
+      const empty = graph.edges.map(() => [])[0]
+      let missingSeed = false
+      try { empty.reduce(() => 0) } catch (_) { missingSeed = true }
+      const explicitUndefined = empty.reduce(() => 0, undefined) === undefined
+      const lazy = graph.edges.map(() => {
+        const a = [graph.nodes.get('A')]
+        Object.defineProperty(a, 1, { get() { throw new Error('unvisited value') }, enumerable: true })
+        return a
+      })[0]
+      return {
+        some, calls, holes, reverseHoles, mapped: [0 in mapped, mapped[1], 2 in mapped, mapped[3]],
+        reduced, right, seeded: [seeded.count, seed.count], missingSeed, explicitUndefined,
+        lazy: lazy.some(value => value.id === 'A'),
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      some: true, calls: [['A', 1, true, true]], holes: [0], reverseHoles: [3, 2], mapped: [false, 'A', false, 'B'],
+      reduced: [true, true, 3, true, 'undefined'], right: ['B', 'A', 1], seeded: [2, 2],
+      missingSeed: true, explicitUndefined: true, lazy: true,
+    } })
+  })
+
   test('result getters are rejected instead of running after the VM timeout/commit point', async () => {
     const r = await executeInSandbox(
       `
@@ -545,7 +767,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     expect(tools).toBe(LOCAL_TOOLS)
-    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe'])
+    expect(tools.map((t: any) => t.name)).toEqual([...LOCAL_MCP_TOOL_NAMES])
     for (const token of [...BUILTIN_FAMILY_METADATA.map(f => f.narrower), 'MutationOp']) {
       expect(tools[0].description).toContain(token)
     }
@@ -554,9 +776,11 @@ describe('MCP — JSON-RPC happy + sad', () => {
       expect(tools[0].description).toContain(signature)
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
-    expect(tools[0].description).toContain('interface RenderRequestReceipt { version: 2;')
-    // Includes the compact strict StyleSpec contract; remain bounded.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_000)
+    expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
+    // Include metrics, layout selectors, parse positions and nested op field
+    // docs (OpFieldDoc) within this limit; family edit schemas stay
+    // progressively loaded.
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_250)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })
@@ -575,6 +799,39 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'finite number 1..5' }))
   })
+  test('describe_sdk discloses the annotated render options and the execute declaration on request', async () => {
+    const describeSdk = async (args: Record<string, unknown>) => {
+      const r = await handleRequest({ jsonrpc: '2.0', id: 33, method: 'tools/call', params: { name: 'describe_sdk', arguments: args } })
+      return r!.error ? { rpcError: r!.error.message } : JSON.parse((r!.result as any).content[0].text)
+    }
+    // The annotated schema the website publishes; tools/list carries a compact projection.
+    const published = sharedRenderOptionsJsonSchema() as { $id: string; properties: Record<string, any> }
+    const index = await describeSdk({ capability: 'render-options' })
+    expect(index.schema).toBe(published.$id)
+    expect(index.fields.map((row: { name: string }) => row.name)).toEqual(Object.keys(published.properties))
+    for (const row of index.fields) {
+      const field = published.properties[row.name]
+      expect(row).toEqual(JSON.parse(JSON.stringify({
+        name: row.name,
+        description: field.description,
+        families: field['x-agentic-mermaid-applicable-builtin-families'],
+        terminal: field['x-agentic-mermaid-terminal'],
+        terminalNote: field['x-agentic-mermaid-terminal-note'],
+      })))
+    }
+    for (const name of ['padding', 'style', 'architecture']) {
+      const detail = await describeSdk({ capability: 'render-options', field: name })
+      expect(detail.schema).toEqual(JSON.parse(JSON.stringify(published.properties[name])))
+      // Every reference resolves inside the returned definitions.
+      const refs = JSON.stringify([detail.schema, detail.$defs ?? {}]).match(/"#\/\$defs\/[^"]+"/g) ?? []
+      for (const ref of refs) expect({ name, ref, resolved: Object.hasOwn(detail.$defs ?? {}, JSON.parse(ref).slice('#/$defs/'.length)) }).toEqual({ name, ref, resolved: true })
+    }
+    const codeMode = await describeSdk({ capability: 'code-mode' })
+    expect(LOCAL_TOOLS[0]!.description.endsWith(`\n${codeMode.declaration}`)).toBe(true)
+    expect((await describeSdk({ capability: 'render-options', field: 'paddng' })).rpcError).toContain('padding')
+    expect((await describeSdk({ family: 'gantt', field: 'padding' })).rpcError).toContain('render-options')
+    expect((await describeSdk({ capability: 'code-mode', detail: 'signatures' })).rpcError).toContain('detail')
+  })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
     const r = await handleRequest(
       {
@@ -589,7 +846,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload.ok).toBe(false)
     // The reported deadline is the 25 ms transport cap, not the default
     // sandbox timeout, so the cap applied without timing the call.
-    const deadline = Number(String(payload.error).match(/timed out after (\d+)ms/)?.[1])
+    expect(payload.error.code).toBe('EXECUTE_TIMEOUT')
+    const deadline = Number(String(payload.error.message).match(/timed out after (\d+)ms/)?.[1])
     expect(deadline).toBeGreaterThan(0)
     expect(deadline).toBeLessThanOrEqual(25)
   })
@@ -628,6 +886,20 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(await handleRequest({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'ping' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'made/up' })).toBeNull()
+  })
+  test('stdio answers every request, ignores a stray response, and refuses a cursor it never issued', async () => {
+    const output: string[] = []
+    const processor = createStdioMessageProcessor({}, line => output.push(line))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 11, result: {} }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 12, error: { code: 1, message: 'client-side failure' } }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'notifications/initialized' }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 14, method: 'tools/list', params: { cursor: 'garbage' } }))
+    await processor.drain()
+    const replies = output.map(line => JSON.parse(line))
+    expect(replies.map(reply => ({ id: reply.id, code: reply.error?.code }))).toEqual([
+      { id: 13, code: -32601 },
+      { id: 14, code: -32602 },
+    ])
   })
   test('malformed JSON-RPC envelopes are rejected before dispatch', async () => {
     const missingVersion = await handleRequest({ id: 8, method: 'ping' } as any)
@@ -673,6 +945,8 @@ describe('MCP bin shim', () => {
       'secret',
       '--max-sandbox-timeout-ms',
       '1000',
+      '--tool-profile',
+      'slim',
     ])
     expect(parsed.transport).toBe('http')
     expect(parsed.httpOptions).toEqual({
@@ -687,14 +961,33 @@ describe('MCP bin shim', () => {
       maxRpcBodyBytes: 789,
       authToken: 'secret',
       maxSandboxTimeoutMs: 1000,
+      toolProfile: 'slim',
     })
   })
 
   test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
-    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport=']]) {
+    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport='], ['--tool-profile', 'tiny']]) {
       expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
     }
     expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
+    expect(parseMcpCliOptions(['--tool-profile', 'full']).httpOptions.toolProfile).toBe('full')
+  })
+
+  test('the slim tool profile advertises its own list under its own name and validates canonically', async () => {
+    const slim = { toolProfile: 'slim' as const }
+    const initialized = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } }, slim)
+    expect((initialized!.result as { serverInfo: { name: string } }).serverInfo.name).toBe(MCP_SLIM_SERVER_NAME)
+    expect(((await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, slim))!.result as { tools: unknown }).tools).toBe(SLIM_LOCAL_TOOLS)
+    expect(SLIM_LOCAL_TOOLS.map(tool => tool.name)).toEqual(LOCAL_TOOLS.map(tool => tool.name))
+    expect(SLIM_LOCAL_TOOLS[0]!.description).toContain('describe_sdk capability=code-mode')
+    // A nested role property the slim schema does not describe is still refused by the server.
+    const args = { source: 'flowchart TD\n  A --> B', options: { style: { roles: { node: { bendRadius: 3 } } } } }
+    const svg = SLIM_LOCAL_TOOLS.find(tool => tool.name === 'render_svg')!
+    expect(new AjvJsonSchemaValidator().getValidator(svg.inputSchema as never)(args).valid).toBe(true)
+    for (const context of [slim, {}]) {
+      const refused = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_svg', arguments: args } }, context)
+      expect(refused!.error?.message).toContain('arguments.options.style')
+    }
   })
 
   test('runMcpCli handles help and bad flags without launching a server', async () => {
@@ -716,6 +1009,12 @@ describe('MCP bin shim', () => {
     }
     expect(await runMcpCli(['--help'], io)).toBe(0)
     expect(out.join('')).toContain('agentic-mermaid-mcp')
+    for (const argv of [['--bogus', '--help'], ['--transport=http', '--port', '70000', '--help'], ['--help', '--help'], ['--', '-h']]) {
+      out.length = 0; err.length = 0
+      expect(await runMcpCli(argv, io)).toBe(0)
+      expect(out.join('')).toBe(MCP_CLI_HELP)
+      expect(err).toEqual([])
+    }
     expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
     expect(err.join('')).toContain('unknown transport: smtp')
     expect(await runMcpCli(['--transport', 'http', '--port', '70000'], io)).toBe(1)
@@ -860,6 +1159,48 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.verify.warnings.map((w: any) => w.code)).toContain('LABEL_OVERFLOW')
   })
 
+  test.each([
+    ['flowchart with a warning', `flowchart TD\n  A --> B\n  B --> C[${'X'.repeat(80)}]\n`],
+    ['sequence', 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok\n'],
+    ['parse failure under a known header', 'flowchart TD\n  A -->\n'],
+    ['unknown header', 'notADiagram\n  A --> B\n'],
+  ])('verify --summary prints the MCP verify payload; its counts and bounds are the full layout\'s (%s)', async (_label, source) => {
+    const tmp = tmpFile('verify-summary.mmd', source)
+    const full = capture(() => runCli(['verify', tmp]))
+    const summary = capture(() => runCli(['verify', tmp, '--summary']))
+    expect(summary.code).toBe(full.code)
+    const fullPayload = JSON.parse(full.out)
+    const summaryPayload = JSON.parse(summary.out)
+    const mcp = await handleRequest({ jsonrpc: '2.0', id: 77, method: 'tools/call', params: { name: 'verify', arguments: { source } } })
+    expect(summaryPayload).toEqual((mcp!.result as { structuredContent: unknown }).structuredContent)
+    expect({ ok: summaryPayload.ok, warnings: summaryPayload.warnings, checks: summaryPayload.checks })
+      .toEqual({ ok: fullPayload.ok, warnings: fullPayload.warnings, checks: fullPayload.checks })
+    if (summaryPayload.layout) {
+      expect(summaryPayload.layout).toEqual({ bounds: fullPayload.layout.bounds, nodes: fullPayload.layout.nodes.length, edges: fullPayload.layout.edges.length })
+      expect(full.out.length).toBeGreaterThan(summary.out.length)
+    }
+  })
+
+  test('mutate --json --summary embeds the compact verify of the edited diagram', () => {
+    const tmp = tmpFile('mutate-summary.mmd', 'flowchart TD\n  A --> B\n')
+    const op = JSON.stringify({ kind: 'add_node', id: 'C', label: 'X'.repeat(80) })
+    const full = JSON.parse(capture(() => runCli(['mutate', tmp, '--op', op, '--json'])).out)
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary']))
+    expect(code).toBe(0)
+    const summary = JSON.parse(out)
+    expect({ ok: summary.ok, family: summary.family, source: summary.source }).toEqual({ ok: full.ok, family: full.family, source: full.source })
+    expect(summary.verify).toEqual({
+      ok: full.verify.ok,
+      family: 'flowchart',
+      summary: expect.stringContaining('3-node flowchart'),
+      warnings: full.verify.warnings,
+      checks: full.verify.checks,
+      layout: { bounds: full.verify.layout.bounds, nodes: full.verify.layout.nodes.length, edges: full.verify.layout.edges.length },
+    })
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--full'])).out).toBe(`${JSON.stringify(full)}\n`)
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary', '--full'])).code).toBe(2)
+  })
+
   test('mutate supports class diagrams through the public CLI surface', () => {
     const tmp = tmpFile('class.mmd', 'classDiagram\n  class Animal\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_class', id: 'Duck', members: ['+quack()'] })]))
@@ -868,13 +1209,63 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('+quack()')
   })
 
-  test('verify exit code 3 on empty (Loop 7: EXIT_VERIFY_FAILED)', () => {
-    // Was 2 in Loop ≤6 (when verify-failed shared an exit code with arg
-    // errors); Loop 7 split out a dedicated EXIT_VERIFY_FAILED=3 so a CI
-    // script can branch on cause-of-failure.
-    const tmp = tmpFile('empty.mmd', '')
-    const { code } = capture(() => runCli(['verify', tmp]))
-    expect(code).toBe(3)
+  // A flowchart layout that raises a TypeError for any diagram naming a
+  // `Defect` node (or a different one for an `Other` node): an engine fault,
+  // which no diagram or edit should be blamed for.
+  const withLayoutDefect = (run: () => void): void => {
+    const flowchart = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', {
+      ...flowchart,
+      layout: context => {
+        if (context.source.text.includes('Other')) throw new TypeError('another layout defect')
+        if (context.source.text.includes('Defect')) throw new TypeError('layout defect')
+        return flowchart.layout!(context)
+      },
+    })
+    try {
+      run()
+    } finally {
+      restore()
+    }
+  }
+  const layoutDefect = expect.objectContaining({ code: 'INTERNAL_ERROR', defaultRender: 'fails' })
+
+  test('verify exits 3 for errors in the diagram and 4 when every error is INTERNAL_ERROR', () => {
+    // Exit 3 was 2 in Loop ≤6 (when verify-failed shared an exit code with
+    // arg errors); Loop 7 split out EXIT_VERIFY_FAILED=3 so a CI script can
+    // branch on cause-of-failure. An engine defect is not the diagram's
+    // failure, so it takes the internal code.
+    withLayoutDefect(() => {
+      for (const [name, source, exit] of [
+        ['empty', '', 3],
+        ['authored style color', 'flowchart LR\n  A --> B\n  style A fill:notacolor', 3],
+        ['engine defect', 'flowchart LR\n  Defect --> B', 4],
+      ] as const) {
+        const { code, out } = capture(() => runCli(['verify', tmpFile('verify-exit.mmd', source)]))
+        expect({ name, code }).toEqual({ name, code: exit })
+        if (exit === 4) expect(JSON.parse(out).warnings).toContainEqual(layoutDefect)
+      }
+    })
+  })
+
+  test('an edit is blocked by an engine defect only when the edit introduces it', () => {
+    withLayoutDefect(() => {
+      // The defect predates the edit: accept it, and keep reporting the defect.
+      const before = 'flowchart LR\n  Defect --> B'
+      const addC = { kind: 'add_node', id: 'C', label: 'C' }
+      expect(applyOps({ source: before, ops: [addC] })).toMatchObject({ ok: true, verify: { ok: false, warnings: expect.arrayContaining([layoutDefect]) } })
+      const accepted = capture(() => runCli(['mutate', tmpFile('defect-before.mmd', before), '--op', JSON.stringify(addC), '--json']))
+      expect(accepted.code).toBe(0)
+      expect(JSON.parse(accepted.out)).toMatchObject({ ok: true, verify: { warnings: expect.arrayContaining([layoutDefect]) } })
+      // The edit introduces it: reject the edit, with the internal exit code.
+      const addDefect = { kind: 'add_node', id: 'Defect', label: 'Defect' }
+      expect(applyOps({ source: 'flowchart LR\n  A --> B', ops: [addDefect] })).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED', details: expect.arrayContaining([layoutDefect]) } })
+      const rejected = capture(() => runCli(['mutate', tmpFile('defect-after.mmd', 'flowchart LR\n  A --> B'), '--op', JSON.stringify(addDefect)]))
+      expect(rejected.code).toBe(4)
+      // A pre-existing defect does not excuse a different one the edit adds.
+      const addOther = { kind: 'add_node', id: 'Other', label: 'Other' }
+      expect(applyOps({ source: before, ops: [addOther] })).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED' } })
+    })
   })
 
   test('verify resolves and safely admits file-backed Styles so constraints match render', () => {
@@ -946,27 +1337,27 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   // `am serialize` reads the parse JSON on stdin, so it runs as a subprocess.
-  const amSerialize = (json: string) => {
-    const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json, encoding: 'utf8' })
+  const amSerialize = async (json: string) => {
+    const r = await runChild('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json })
     return { code: r.status, out: r.stdout, err: r.stderr }
   }
 
-  test('REGRESSION: am parse | am serialize supports structured payload families', () => {
+  test('REGRESSION: am parse | am serialize supports structured payload families', async () => {
     const sources = ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']
-    sources.forEach((src, i) => {
+    for (const [i, src] of sources.entries()) {
       const parsed = capture(() => runCli(['parse', tmpFile(`structured-${i}.mmd`, src)]))
       expect(parsed.code).toBe(0)
-      const serialized = amSerialize(parsed.out)
+      const serialized = await amSerialize(parsed.out)
       expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
       expect(serialized.out.trim()).toContain(src.trim().split('\n')[0]!)
-    })
+    }
   })
 
-  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
+  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', async () => {
     const tmp = tmpFile('styled.mmd', 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
     const parsed = capture(() => runCli(['parse', tmp]))
     expect(parsed.code).toBe(0)
-    const serialized = amSerialize(parsed.out)
+    const serialized = await amSerialize(parsed.out)
     expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
     const out = serialized.out
     expect(out).toContain('classDef hot fill:#f00')
@@ -978,11 +1369,45 @@ describe('CLI — sad paths via runCli', () => {
   test('format idempotent over 3 rounds', () => {
     const tmp = tmpFile('fmt.mmd', 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')
     const r1 = capture(() => runCli(['format', tmp]))
+    expect({ code: r1.code, err: r1.err }).toEqual({ code: 0, err: '' })
     writeFileSync(tmp, r1.out)
     const r2 = capture(() => runCli(['format', tmp]))
+    expect({ code: r2.code, err: r2.err }).toEqual({ code: 0, err: '' })
     writeFileSync(tmp, r2.out)
     const r3 = capture(() => runCli(['format', tmp]))
+    expect({ code: r3.code, err: r3.err }).toEqual({ code: 0, err: '' })
+    const parsed = parseRegisteredMermaid(r3.out)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error('Expected formatted flowchart')
+    expect([...parsed.value.body.graph.nodes.values()].map(node => [node.id, node.label])).toEqual([['A', 'Alpha'], ['B', 'D'], ['C', 'End']])
+    expect(parsed.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.label])).toEqual([['A', 'B', undefined], ['B', 'C', 'yes']])
     expect(r2.out).toEqual(r1.out)
     expect(r3.out).toEqual(r1.out)
+  })
+})
+
+
+describe('declarative local editing and script results', () => {
+  test('local build and mutate work without generated JavaScript', async () => {
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
+      return JSON.parse((response!.result as any).content[0].text)
+    }
+    const built = await call('build', { family: 'flowchart', ops: [{ kind: 'add_node', id: 'A', label: 'Start' }] })
+    expect(built.ok).toBe(true)
+    const edited = await call('mutate', { source: built.source, ops: [{ kind: 'add_node', id: 'B', label: 'Finish' }, { kind: 'add_edge', from: 'A', to: 'B' }] })
+    expect(edited.ok).toBe(true)
+    expect(edited.source).toContain('Finish')
+    const rejected = await call('mutate', { source: built.source, ops: [{ kind: 'remove_node', id: 'missing' }] })
+    expect(rejected).toMatchObject({ ok: false, opIndex: 0 })
+  })
+  test.each([
+    'const x = 41; x + 1;',
+    'const x = 41; x + 1; // done',
+    'const x = 41; x + 1;;',
+    'const x = 41; x + 1;; // done',
+    'const x = 41; return x + 1; // done',
+    'const x = 41; ({ answer: x + 1 }).answer // done',
+  ])('captures a result with a trailing comment: %s', async code => {
+    expect(await executeInSandbox(code)).toMatchObject({ ok: true, value: 42 })
   })
 })

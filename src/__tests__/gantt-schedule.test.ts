@@ -4,12 +4,9 @@
 // cycles named, missing first start, schedule overflow), explicit clock.
 // All instants are UTC epoch ms — assertions use Date.UTC, never wall clock.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { parseGanttModel } from '../gantt/parser.ts'
-import {
-  resolveGanttSchedule, parseGanttDate, addGanttDuration, formatGanttInstant,
-  buildExclusionPredicate, calendarFromModel, dayOfWeek, DAY_MS,
-} from '../gantt/schedule.ts'
+import { addGanttDuration, buildExclusionPredicate, calendarFromModel, DAY_MS, dayOfWeek, formatGanttInstant, parseGanttDate, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { GanttError } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 
@@ -71,6 +68,14 @@ describe('addGanttDuration', () => {
 })
 
 describe('resolver — core rules', () => {
+  test('standard task dates admit an unambiguous bare year without relaxing strict calendar parsing', () => {
+    const schedule = scheduleOf('gantt\nIron :iron, 1982, 3y\nHouse :house, 1986, 1989')
+    expect(schedule.tasks[0]).toMatchObject({ start: UTC(1982, 1, 1), end: UTC(1985, 1, 1) })
+    expect(schedule.tasks[1]).toMatchObject({ start: UTC(1986, 1, 1), end: UTC(1989, 1, 1) })
+    expect(parseGanttDate('1982', 'YYYY-MM-DD')).toBeNull()
+    expect(() => scheduleOf('gantt\ndateFormat DD/MM/YYYY\nTask :1982, 3y')).toThrow('GANTT_BAD_DATE')
+    expect(() => scheduleOf('gantt\nexcludes weekdays\nTask :1982, 3y')).toThrow('GANTT_BAD_DATE')
+  })
   test('explicit dates, durations, and inherited starts', () => {
     const s = scheduleOf(`gantt
       dateFormat YYYY-MM-DD
@@ -115,6 +120,29 @@ describe('resolver — core rules', () => {
     expect(incl.tasks[0]!.end - base.tasks[0]!.end).toBe(DAY_MS)
   })
 
+  // Mermaid reads a length only as a number glued to ms, s, m, h, d, w, M or y
+  // and gives a task with any other spelling no length; ours keeps the
+  // length a unit name or a blank before the unit plainly states.
+  test.each([
+    ['2min', UTC(1970, 1, 1, 12, 2)],
+    ['2 m', UTC(1970, 1, 1, 12, 2)],
+    ['90 Seconds', UTC(1970, 1, 1, 12, 1) + 30_000],
+    ['250 msecs', UTC(1970, 1, 1, 12) + 250],
+    ['3 hours', UTC(1970, 1, 1, 15)],
+    ['1hr', UTC(1970, 1, 1, 13)],
+    ['2days', UTC(1970, 1, 3, 12)],
+    ['1 wk', UTC(1970, 1, 8, 12)],
+    ['1 month', UTC(1970, 2, 1, 12)],
+    ['1 M', UTC(1970, 2, 1, 12)],
+    ['2 Years', UTC(1972, 1, 1, 12)],
+  ])('a length spelled %j ends the task where it says', (length, end) => {
+    expect(scheduleOf(`gantt\n  dateFormat HH:mm\n  A :a, 12:00, ${length}`).tasks[0]).toMatchObject({ start: UTC(1970, 1, 1, 12), end })
+  })
+
+  test.each(['1h30m', '2 fortnights', 'min', '2 mn'])('a length ours cannot read, %j, stays an error', length => {
+    expect(() => scheduleOf(`gantt\n  dateFormat HH:mm\n  A :a, 12:00, ${length}`)).toThrow('GANTT_BAD_DATE')
+  })
+
   test('milestones resolve like zero/short tasks', () => {
     const s = scheduleOf('gantt\n  M :milestone, m1, 2024-01-05, 0d')
     expect(s.tasks[0]).toMatchObject({ start: UTC(2024, 1, 5), end: UTC(2024, 1, 5) })
@@ -131,29 +159,26 @@ describe('resolver — calendar exclusions', () => {
   })
 
   test('weekend friday shifts which days count as the weekend', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes weekends\n  weekend friday\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes weekends\n  weekend friday\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
-    expect(excluded(UTC(2024, 1, 5))).toBe(true)  // Friday
-    expect(excluded(UTC(2024, 1, 6))).toBe(true)  // Saturday
+    expect(excluded(UTC(2024, 1, 5))).toBe(true) // Friday
+    expect(excluded(UTC(2024, 1, 6))).toBe(true) // Saturday
     expect(excluded(UTC(2024, 1, 7))).toBe(false) // Sunday (not in friday-weekend)
   })
 
   test('explicit excluded dates and weekday names', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes 2024-01-15 friday\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes 2024-01-15 friday\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
-    expect(excluded(UTC(2024, 1, 15))).toBe(true)  // explicit date (a Monday)
-    expect(excluded(UTC(2024, 1, 12))).toBe(true)  // a Friday
+    expect(excluded(UTC(2024, 1, 15))).toBe(true) // explicit date (a Monday)
+    expect(excluded(UTC(2024, 1, 12))).toBe(true) // a Friday
     expect(excluded(UTC(2024, 1, 16))).toBe(false)
   })
 
   test('includes override excludes for explicit dates', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes weekends\n  includes 2024-01-06\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes weekends\n  includes 2024-01-06\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
     expect(excluded(UTC(2024, 1, 6))).toBe(false) // Saturday, but included
-    expect(excluded(UTC(2024, 1, 7))).toBe(true)  // Sunday still excluded
+    expect(excluded(UTC(2024, 1, 7))).toBe(true) // Sunday still excluded
   })
 
   test('everything-excluded durations fail with GANTT_SCHEDULE_OVERFLOW, not a hang', () => {
@@ -203,8 +228,12 @@ describe('resolver — structured errors', () => {
     expect(codeOf('gantt\n  A :a, 2024-01-01, 2024-88-88')).toBe('GANTT_BAD_DATE')
   })
 
-  test('empty gantt is an error', () => {
-    expect(codeOf('gantt\n  title Just a title')).toBe('GANTT_EMPTY')
+  test('empty gantt has no invented calendar extent or project analysis', () => {
+    const empty = scheduleOf('gantt\n  title Just a title')
+    expect(empty.tasks).toEqual([])
+    expect([empty.timeMin, empty.timeMax]).toEqual([0, 0])
+    expect(empty.analysis).toBeUndefined()
+    expect(empty.today).toBeUndefined()
   })
 })
 
@@ -263,5 +292,34 @@ describe('formatGanttInstant (d3-format subset)', () => {
   test('dayOfWeek is anchored to the epoch (1970-01-01 = Thursday)', () => {
     expect(dayOfWeek(UTC(1970, 1, 1))).toBe(4)
     expect(dayOfWeek(UTC(2024, 1, 7))).toBe(0) // Sunday
+  })
+})
+
+describe('resolver — long library forward-reference chains', () => {
+  test('resolves dates and critical-path slack without depending on call-stack depth', () => {
+    // The library scheduler has no source-size cap. This exercises its stack
+    // boundary; the hosted MCP source limit is a separate admission policy.
+    const count = 10000
+    const ids = Array.from({ length: count }, (_, i) => i.toString(36))
+    const source = 'gantt\n' + ids.map((id, i) =>
+      `T:${id},${i + 1 < count ? `after ${ids[i + 1]}` : '2024-01-01'},1d`,
+    ).join('\n')
+    const schedule = scheduleOf(source)
+    const start = UTC(2024, 1, 1)
+    expect(schedule.tasks).toHaveLength(count)
+    // A serial chain has one working day per task, no slack, and its first
+    // source task is the latest chronological one. No scheduler output
+    // supplies the expected dates or critical-path membership.
+    schedule.tasks.forEach((task, i) => {
+      expect(task.id).toBe(ids[i])
+      expect(task.start).toBe(start + (count - i - 1) * DAY_MS)
+      expect(task.end).toBe(start + (count - i) * DAY_MS)
+      expect(schedule.analysis!.slackByTaskId[ids[i]!]).toBe(0)
+    })
+    expect(schedule.analysis!.criticalPathTaskIds).toEqual(ids)
+    expect(schedule.analysis!.entryTaskIds).toEqual([ids[count - 1]!])
+    expect(schedule.analysis!.sinkTaskIds).toEqual([ids[0]!])
+    expect(schedule.analysis!.projectStart).toBe(start)
+    expect(schedule.analysis!.projectEnd).toBe(start + count * DAY_MS)
   })
 })

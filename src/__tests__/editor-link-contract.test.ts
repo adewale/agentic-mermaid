@@ -1,3 +1,4 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -13,7 +14,8 @@ import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SKIP_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', 'public'])
+// .claude holds untracked agent worktrees, each a copy of the repository.
+const SKIP_DIRECTORIES = new Set(['.claude', '.git', 'coverage', 'dist', 'node_modules', 'public'])
 
 function markdownFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -73,16 +75,6 @@ describe('editor link producer/consumer contract', () => {
     }
   })
 
-  test('the live-editor development skill teaches the current source of truth', () => {
-    const skill = readFileSync(join(ROOT, 'skills/agentic-mermaid-live-editor/SKILL.md'), 'utf8')
-    expect(skill).toContain('editor/js/sharing.js')
-    expect(skill).toContain('state.palette')
-    expect(skill).toContain('deflate:')
-    expect(skill).not.toContain('state.theme')
-    expect(skill).not.toContain('JSON.stringify({ source, theme })')
-    expect(skill).not.toMatch(/\bbtoa\(|\batob\(/)
-  })
-
   test('the browser consumer and build-time producer admit the same state fields', async () => {
     const consumer = browserShareConsumer()
     expect(Array.from(consumer.api.EDITOR_SHARE_STATE_KEYS)).toEqual(Array.from(EDITOR_SHARE_STATE_KEYS))
@@ -111,6 +103,8 @@ describe('editor link producer/consumer contract', () => {
   })
 })
 
+const sharingModule = await editorModuleScript('sharing.js')
+
 function browserShareConsumer() {
   const window = {
     location: { hash: '', pathname: '/editor/', search: '' },
@@ -125,7 +119,7 @@ function browserShareConsumer() {
     EDITOR_SHARE_STATE_KEYS: readonly string[]
     getHashSource(): Promise<string | null>
     readonly hashDecodeFailure: string | null
-  }>(readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8'), {
+  }>(sharingModule, {
     window,
     state,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },

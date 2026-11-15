@@ -6,6 +6,11 @@ export interface ExecuteOutputLimits {
 
 export const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
 
+/** Stable `error.code` values of a failed Code Mode execute, identical on the
+ * hosted and stdio servers. A runner tags a result EXECUTE_TIMEOUT when its
+ * own budget stopped the code; every other failure is EXECUTE_FAILED. */
+export type ExecuteErrorCode = 'EXECUTE_FAILED' | 'EXECUTE_TIMEOUT'
+
 export const DEFAULT_EXECUTE_OUTPUT_LIMITS: Readonly<ExecuteOutputLimits> = Object.freeze({
   maxResultBytes: 2 * 1024 * 1024,
   maxLogEntries: 1_000,

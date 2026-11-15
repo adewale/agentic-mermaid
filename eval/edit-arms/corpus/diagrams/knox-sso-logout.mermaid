@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant User
+    participant App as Application
+    participant Knox as Knox (logout.jsp)
+    participant IdP as Global Logout Page (IdP)
+
+    User->>Knox: GET /knoxauth/logout.jsp?originalUrl=...
+    Knox->>Knox: Validate originalUrl
+    alt Valid Redirect
+        Knox-->>User: Display Logout Page
+        alt User chooses Global Logout
+            User->>Knox: POST /knoxauth/logout.jsp (globalLogout=1)
+            Knox->>Knox: Invalidate Cookies
+            Knox-->>User: Redirect to Global Logout Page
+            User->>IdP: GET Global Logout URL
+        else User chooses Return to App
+            User->>Knox: GET /knoxauth/logout.jsp?returnToApp=1&originalUrl=...
+            Knox-->>User: Redirect to originalUrl
+        end
+    else Invalid Redirect
+        Knox-->>User: Display Error
+    end

@@ -118,7 +118,7 @@ options, output, rasterize)` or the reusable
 with the library: the host supplies `rasterize(securedSvg, context)` (for
 example with Canvas/OffscreenCanvas), which must resolve to `{ png }` bytes at
 exactly `context.rasterDimensions` on `context.rasterBackground`, and may report
-`fontSources` and `diagnostics`. See [`api.md`](./api.md#png). Otherwise, post
+`fontSources` and `diagnostics`. See [browser PNG details](./api-advanced.md#png-fonts-portability-and-rasterization). Otherwise, post
 the source to a server endpoint.
 
 ## Error handling

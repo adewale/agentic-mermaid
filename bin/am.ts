@@ -12,6 +12,7 @@ import interSemiBold from '../assets/fonts/Inter-SemiBold.ttf' with { type: 'fil
 import shareTechMono from '../assets/fonts/ShareTechMono.ttf' with { type: 'file' }
 import { registerEmbeddedFontResourceFiles } from '../src/agent/embedded-font-resources.ts'
 import { dependencyStartupMessage } from './dependency-error.ts'
+import { SOURCE_TOOL_CHILD_ARG } from '../src/mcp/source-worker-limits.ts'
 
 function bundledFilePath(value: unknown): string {
   if (typeof value !== 'string') throw new TypeError('Bun file imports must resolve to a bundled path')
@@ -35,12 +36,12 @@ registerEmbeddedFontResourceFiles([
   { manifestPath: 'assets/fonts/FONT-LICENSES.md', embeddedPath: bundledFilePath(fontLicenses) },
 ])
 
-let entry: typeof import('../src/cli/run-entrypoint.ts')
-try {
-  entry = await import('../src/cli/run-entrypoint.ts')
+if (process.argv.includes(SOURCE_TOOL_CHILD_ARG) && process.send) {
+  await import('../src/mcp/source-supervisor.ts')
+} else try {
+  const entry = await import('../src/cli/run-entrypoint.ts')
+  const code = await entry.runAmCli(process.argv.slice(2)); if (code !== 0) process.exit(code)
 } catch (error) {
   process.stderr.write(`agentic-mermaid: ${dependencyStartupMessage(error)}\n`)
   process.exit(1)
 }
-
-const code = await entry.runAmCli(process.argv.slice(2)); if (code !== 0) process.exit(code)

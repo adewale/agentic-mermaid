@@ -131,7 +131,8 @@ describe('Closing The Gap — official Mermaid 11.16 contracts', () => {
     const reparsed = parseMermaid(canonical)
     expect(reparsed.ok).toBe(true)
     if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(canonical)
-    expect(() => parseSequenceDiagram(lines('sequenceDiagram\n  participant X@{ "type": "unknown-shape" }'))).toThrow(/Unknown sequence actor type/)
+    // A type Mermaid has no glyph for still declares a plain participant.
+    expect(parseSequenceDiagram(lines('sequenceDiagram\n  participant X@{ "type": "unknown-shape" }')).actors).toEqual([{ id: 'X', label: 'X', type: 'participant' }])
 
     const svg = renderMermaidSVG(source, { embedFontImport: false })
     expect(svg).toContain('sequence-actor-database')

@@ -1,3 +1,7 @@
+import { WeightedLru } from './experimental/weighted-lru.ts'
+import { parserObservationActive } from './shared/parser-observation.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { familyRoutingRevision } from './agent/family-router.ts'
 // ============================================================================
 // Canonical render-request waist.
 //
@@ -7,13 +11,14 @@
 // lowering, graphical backends, rasterization, and terminal projection share.
 // ============================================================================
 
+import { validateJsonSchema, type SchemaProblem, type JsonSchema } from './shared/schema-validation.ts'
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
-import { decodeXML } from 'entities'
-import { splitAuthoredPieTitleLine } from './pie/source-title.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
-import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
+import { normalizeMermaidRenderSource } from './mermaid-source.ts'
+import { admitParsedModelHandoff, type ParsedRenderModelHandoff } from './agent/owned-render-model.ts'
+import { observeCache } from './performance-observations.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
@@ -22,14 +27,17 @@ import {
   resolveStyleReference,
   resolveStyleStack,
   resolveStyleStackWithFace,
+  styleRegistryRevision,
   type InternalStyleFace,
   type StyleSpec,
 } from './scene/style-registry.ts'
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
-import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
+import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import {
   assertJsonConfigAdmission,
+  isForbiddenJsonConfigKey,
+  JSON_CONFIG_ADMISSION_LIMITS,
   limitJsonConfigDiagnostics,
   validateJsonConfigAdmission,
 } from './shared/json-config-admission.ts'
@@ -47,7 +55,7 @@ import type {
   FamilyRequestNormalizationResult,
 } from './agent/families.ts'
 import type { DiagramKind, FamilyId } from './agent/types.ts'
-import { requireRegisteredMermaidFamilyDescriptor } from './family-detection.ts'
+import { classifyMermaidFamilyDescriptorFromFirstLine, familyDetectionDiagnostic, MermaidFamilyDetectionError } from './family-detection.ts'
 import { getBackendDescriptor } from './scene/backend.ts'
 import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
 import {
@@ -55,9 +63,12 @@ import {
   type EssentialScenePrimitiveCapability,
 } from './scene/capabilities.ts'
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
-import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
+import { graphLayoutDecisionsOf, type GraphLayoutDecision } from './layout/backend.ts'
+import { bundledInterMetrics } from './builtin-font-metrics.ts'
+import { layoutOptimization, type LayoutOptimizationEvidence } from './layout/optimization-context.ts'
+import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,
   type TextMeasurementExecution,
@@ -67,251 +78,8 @@ import {
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
-export const RENDER_CONTRACT_VERSION = 2 as const
-const RENDER_CONTRACT_EVIDENCE = `render-contract@${RENDER_CONTRACT_VERSION}`
-
-export type RenderTransportAvailability = 'direct' | 'projected' | 'indirect' | 'unavailable'
-
-export interface RenderTransportClaim<A extends RenderTransportAvailability = RenderTransportAvailability> {
-  readonly availability: A
-  /** Concrete public entry point, or `none` when the product does not expose the output. */
-  readonly entrypoint: string
-  /** Option/value or route that selects this logical output when an entry point is shared. */
-  readonly selector?: string
-  readonly reason?: string
-  /** Repository paths that prove this particular product/output cell. */
-  readonly evidence: readonly string[]
-}
-
-export type LibraryRenderTransport = RenderTransportClaim<'direct' | 'projected'>
-
-export type CliRenderTransport =
-  | (RenderTransportClaim<'direct'> & {
-      /** Canonical public CLI spelling. */
-      readonly format: string
-      readonly order: number
-      readonly help: string
-      readonly default?: true
-    })
-  | RenderTransportClaim<'unavailable'>
-
-export type CodeModeRenderTransport =
-  | (RenderTransportClaim<'direct' | 'projected'> & {
-      readonly method: string
-      readonly optionsType: 'SvgRenderOptions' | 'AsciiRenderOptions' | 'LayoutRenderOptions'
-      readonly returnType: 'RenderedSvg' | 'RenderedAscii' | 'RenderedLayoutArtifact'
-    })
-  | RenderTransportClaim<'unavailable'>
-
-export type ProductRenderTransport = RenderTransportClaim
-
-export interface RenderOutputTransports {
-  readonly library: LibraryRenderTransport
-  readonly cli: CliRenderTransport
-  readonly codeMode: CodeModeRenderTransport
-  readonly localMcp: ProductRenderTransport
-  readonly hostedMcp: ProductRenderTransport
-  readonly editor: ProductRenderTransport
-  readonly website: ProductRenderTransport
-}
-
-export interface RenderOutputDescriptor {
-  readonly id: RenderOutput
-  /** Public means at least one documented public transport can produce it. */
-  readonly availability: 'public' | 'internal' | 'reserved'
-  readonly security: 'enforced' | 'not-applicable' | 'reserved'
-  readonly color: 'srgb' | 'terminal-projected' | 'not-applicable' | 'reserved'
-  readonly terminal: 'projected' | 'not-applicable' | 'reserved'
-  readonly transports: RenderOutputTransports
-  readonly evidence: readonly string[]
-}
-
-// Browser renderers do not consume transport discovery. Pure factories keep its
-// metadata and CLI default validation in bundles that use those public exports.
-function outputDescriptorsById() {
-  return {
-    svg: {
-      availability: 'public', security: 'enforced', color: 'srgb', terminal: 'not-applicable',
-      transports: {
-        library: { availability: 'direct', entrypoint: 'renderMermaidSVG', evidence: ['src/index.ts'] },
-        cli: { availability: 'direct', entrypoint: 'am render', selector: '--format svg', evidence: ['src/cli/index.ts'], format: 'svg', order: 0, help: 'SVG markup', default: true },
-        codeMode: { availability: 'direct', entrypoint: 'mermaid.renderMermaidSVGWithReceipt', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'renderMermaidSVGWithReceipt', optionsType: 'SvgRenderOptions', returnType: 'RenderedSvg' },
-        localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.renderMermaidSVGWithReceipt', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
-        hostedMcp: { availability: 'direct', entrypoint: 'render_svg', evidence: ['src/mcp/hosted-server.ts'] },
-        editor: { availability: 'direct', entrypoint: 'diagram preview / Save SVG', selector: 'renderMermaidSVGWithReceipt', evidence: ['editor/js/rendering.js', 'editor/js/export.js'] },
-        website: { availability: 'direct', entrypoint: 'website build-time renderMermaidSVG', selector: 'embedded examples and diagram assets', evidence: ['website/build.ts'] },
-      },
-      evidence: ['output-security@2', RENDER_CONTRACT_EVIDENCE],
-    },
-    png: {
-      availability: 'public', security: 'enforced', color: 'srgb', terminal: 'not-applicable',
-      transports: {
-        library: {
-          availability: 'direct',
-          entrypoint: 'renderMermaidPNG / createMermaidBrowserPNGRenderer',
-          selector: 'native Node/Bun or injected browser rasterizer',
-          evidence: ['src/agent/png.ts', 'src/browser-png.ts', 'src/index.ts'],
-        },
-        cli: { availability: 'direct', entrypoint: 'am render', selector: '--format png', evidence: ['src/cli/index.ts'], format: 'png', order: 3, help: 'PNG bytes; requires --output <file.png>; no watch/multi-input' },
-        codeMode: { availability: 'unavailable', entrypoint: 'none', reason: 'PNG rasterization is a host tool, not a sandbox SDK method', evidence: ['src/mcp/sdk-decl.ts', 'src/mcp/facade.ts'] },
-        localMcp: { availability: 'direct', entrypoint: 'render_png', evidence: ['src/mcp/server.ts'] },
-        hostedMcp: { availability: 'direct', entrypoint: 'render_png', evidence: ['src/mcp/hosted-server.ts'] },
-        editor: { availability: 'direct', entrypoint: 'Save PNG / Copy PNG', selector: 'renderMermaidPNGInBrowserWithReceipt', evidence: ['editor/js/export.js', 'src/browser-png.ts'] },
-        website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build copies curated PNG assets but exposes no PNG render adapter', evidence: ['website/build.ts'] },
-      },
-      evidence: ['output-security@2', 'output-color-profile@1', `png-output-policy@${PNG_OUTPUT_POLICY_VERSION}`, RENDER_CONTRACT_EVIDENCE],
-    },
-    ascii: {
-      availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
-      transports: {
-        library: { availability: 'direct', entrypoint: 'renderMermaidASCII', selector: 'useAscii: true', evidence: ['src/ascii/index.ts'] },
-        cli: { availability: 'direct', entrypoint: 'am render', selector: '--format ascii', evidence: ['src/cli/index.ts'], format: 'ascii', order: 1, help: '7-bit ASCII art' },
-        codeMode: { availability: 'direct', entrypoint: 'mermaid.renderMermaidASCIIWithReceipt', selector: 'useAscii: true', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'renderMermaidASCIIWithReceipt', optionsType: 'AsciiRenderOptions', returnType: 'RenderedAscii' },
-        localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.renderMermaidASCIIWithReceipt({ useAscii: true })', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
-        hostedMcp: { availability: 'direct', entrypoint: 'render_ascii', selector: 'useAscii: true', evidence: ['src/mcp/hosted-server.ts'] },
-        editor: { availability: 'direct', entrypoint: 'ASCII canvas tab', selector: 'renderMermaidASCII({ useAscii: true })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
-        website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build emits one Unicode diagram asset but no 7-bit ASCII output', evidence: ['website/build.ts'] },
-      },
-      evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', RENDER_CONTRACT_EVIDENCE],
-    },
-    unicode: {
-      availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
-      transports: {
-        library: { availability: 'direct', entrypoint: 'renderMermaidASCII', selector: 'useAscii: false (default)', evidence: ['src/ascii/index.ts'] },
-        cli: { availability: 'direct', entrypoint: 'am render', selector: '--format unicode', evidence: ['src/cli/index.ts'], format: 'unicode', order: 2, help: 'Unicode box-drawing text' },
-        codeMode: { availability: 'direct', entrypoint: 'mermaid.renderMermaidASCIIWithReceipt', selector: 'useAscii: false (default)', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'renderMermaidASCIIWithReceipt', optionsType: 'AsciiRenderOptions', returnType: 'RenderedAscii' },
-        localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.renderMermaidASCIIWithReceipt({ useAscii: false })', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
-        hostedMcp: { availability: 'direct', entrypoint: 'render_ascii', selector: 'useAscii: false (default)', evidence: ['src/mcp/hosted-server.ts'] },
-        editor: { availability: 'direct', entrypoint: 'Unicode canvas tab', selector: 'renderMermaidASCII({ useAscii: false })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
-        website: { availability: 'direct', entrypoint: 'website build-time renderMermaidASCII', selector: 'diagrams/workflow.txt; useAscii: false', evidence: ['website/build.ts'] },
-      },
-      evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', RENDER_CONTRACT_EVIDENCE],
-    },
-    html: {
-      availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
-      transports: {
-        library: { availability: 'projected', entrypoint: 'renderMermaidASCII', selector: "colorMode: 'html'", evidence: ['src/ascii/index.ts'] },
-        cli: { availability: 'unavailable', entrypoint: 'none', reason: 'HTML text is not a standalone CLI format', evidence: ['src/cli/index.ts'] },
-        codeMode: { availability: 'projected', entrypoint: 'mermaid.renderMermaidASCIIWithReceipt', selector: "colorMode: 'html' (terminal projection; not a standalone CLI format)", evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'renderMermaidASCIIWithReceipt', optionsType: 'AsciiRenderOptions', returnType: 'RenderedAscii' },
-        localMcp: { availability: 'indirect', entrypoint: 'execute', selector: "mermaid.renderMermaidASCIIWithReceipt({ colorMode: 'html' })", evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
-        hostedMcp: { availability: 'indirect', entrypoint: 'execute', selector: "mermaid.renderMermaidASCIIWithReceipt({ colorMode: 'html' })", evidence: ['src/mcp/hosted-server.ts', 'src/mcp/facade.ts'] },
-        editor: { availability: 'unavailable', entrypoint: 'none', reason: 'The editor exposes diagram, Unicode and ASCII canvas tabs only', evidence: ['editor/js/buttons.js', 'editor/html/right-panel.html'] },
-        website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site does not emit terminal-HTML diagram artifacts', evidence: ['website/build.ts'] },
-      },
-      evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'html-text-escaping', RENDER_CONTRACT_EVIDENCE],
-    },
-    layout: {
-      availability: 'public', security: 'not-applicable', color: 'not-applicable', terminal: 'not-applicable',
-      transports: {
-        library: { availability: 'direct', entrypoint: 'layoutMermaid', evidence: ['src/agent/core.ts'] },
-        cli: { availability: 'direct', entrypoint: 'am render', selector: '--format layout', evidence: ['src/cli/index.ts'], format: 'layout', order: 4, help: 'Layout JSON (nodes, edges, groups, bounds)' },
-        codeMode: { availability: 'direct', entrypoint: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'layoutMermaidWithReceipt', optionsType: 'LayoutRenderOptions', returnType: 'RenderedLayoutArtifact' },
-        localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
-        hostedMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/hosted-server.ts', 'src/mcp/facade.ts'] },
-        editor: { availability: 'indirect', entrypoint: 'verification panel', selector: 'verifyMermaid(source).layout (consumed, not exported)', evidence: ['editor/js/rendering.js'] },
-        website: { availability: 'unavailable', entrypoint: 'none', reason: 'Website verification consumes layout internally but publishes no layout artifact', evidence: ['website/build.ts'] },
-      },
-      evidence: ['positioned-artifact@1', RENDER_CONTRACT_EVIDENCE],
-    },
-  } as const satisfies Record<RenderOutput, Omit<RenderOutputDescriptor, 'id'>>
-}
-
-const OUTPUT_DESCRIPTOR_BY_ID = /* @__PURE__ */ outputDescriptorsById()
-
-function freezeTransport<T extends RenderTransportClaim>(transport: T): T {
-  return Object.freeze({
-    ...transport,
-    evidence: Object.freeze([...transport.evidence]),
-  }) as T
-}
-
-export const RENDER_TRANSPORT_SURFACES = Object.freeze([
-  'library', 'cli', 'codeMode', 'localMcp', 'hostedMcp', 'editor', 'website',
-] as const satisfies readonly (keyof RenderOutputTransports)[])
-
-export type RenderTransportSurface = typeof RENDER_TRANSPORT_SURFACES[number]
-
-/** Output capability authority in the same deterministic order as RENDER_OUTPUTS. */
-function createRenderOutputDescriptors() {
-  return Object.freeze(
-    RENDER_OUTPUTS.map(id => {
-      const descriptor = OUTPUT_DESCRIPTOR_BY_ID[id]
-      return Object.freeze({
-        id,
-        ...descriptor,
-        transports: Object.freeze({
-          library: freezeTransport(descriptor.transports.library),
-          cli: freezeTransport(descriptor.transports.cli),
-          codeMode: freezeTransport(descriptor.transports.codeMode),
-          localMcp: freezeTransport(descriptor.transports.localMcp),
-          hostedMcp: freezeTransport(descriptor.transports.hostedMcp),
-          editor: freezeTransport(descriptor.transports.editor),
-          website: freezeTransport(descriptor.transports.website),
-        }),
-        evidence: Object.freeze([...descriptor.evidence]),
-      })
-    }),
-  )
-}
-
-export const RENDER_OUTPUT_DESCRIPTORS: readonly RenderOutputDescriptor[] = /* @__PURE__ */ createRenderOutputDescriptors()
-
-type DirectCliOutputDescriptor = RenderOutputDescriptor & {
-  readonly transports: RenderOutputTransports & { readonly cli: Extract<CliRenderTransport, { availability: 'direct' }> }
-}
-
-/** CLI discovery projection. HTML is intentionally absent. */
-function createCliRenderOutputDescriptors() {
-  return Object.freeze(
-    RENDER_OUTPUT_DESCRIPTORS
-      .filter((descriptor): descriptor is DirectCliOutputDescriptor => descriptor.transports.cli.availability === 'direct')
-      .sort((left, right) => left.transports.cli.order - right.transports.cli.order),
-  )
-}
-
-export const CLI_RENDER_OUTPUT_DESCRIPTORS: readonly DirectCliOutputDescriptor[] = /* @__PURE__ */ createCliRenderOutputDescriptors()
-
-type RawOutputDescriptor = typeof OUTPUT_DESCRIPTOR_BY_ID[RenderOutput]
-export type CliRenderFormat = Extract<RawOutputDescriptor['transports']['cli'], { availability: 'direct' }>['format']
-
-/** Canonical CLI spellings, generated from the output descriptors. */
-function cliRenderFormats() {
-  return Object.freeze(
-    CLI_RENDER_OUTPUT_DESCRIPTORS.map(descriptor => descriptor.transports.cli.format as CliRenderFormat),
-  )
-}
-
-export const CLI_RENDER_FORMATS: readonly CliRenderFormat[] = /* @__PURE__ */ cliRenderFormats()
-
-function defaultCliRenderFormat(): CliRenderFormat {
-  const defaults = CLI_RENDER_OUTPUT_DESCRIPTORS.filter(descriptor => descriptor.transports.cli.default)
-  if (defaults.length !== 1) throw new Error('Render output contract must declare exactly one default CLI format')
-  return defaults[0]!.transports.cli.format as CliRenderFormat
-}
-
-export const DEFAULT_CLI_RENDER_FORMAT = /* @__PURE__ */ defaultCliRenderFormat()
-
-export function isCliRenderFormat(value: string): value is CliRenderFormat {
-  return CLI_RENDER_FORMATS.includes(value as CliRenderFormat)
-}
-
-export function renderOutputForCliFormat(value: string): DirectCliOutputDescriptor | undefined {
-  return CLI_RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.transports.cli.format === value)
-}
-
-export function cliRenderFormatHelpLines(indent = '  '): string {
-  const width = Math.max(...CLI_RENDER_FORMATS.map(format => format.length))
-  return CLI_RENDER_OUTPUT_DESCRIPTORS
-    .map(descriptor => {
-      const cli = descriptor.transports.cli
-      return `${indent}--format ${cli.format.padEnd(width)}  ${cli.help}`
-    })
-    .join('\n')
-}
-
-export function cliRenderFormatJsonSchema(): { type: 'string'; enum: CliRenderFormat[] } {
-  return { type: 'string', enum: [...CLI_RENDER_FORMATS] }
-}
+import { RENDER_CONTRACT_VERSION } from './render-output-metadata.ts'
+export * from './render-output-metadata.ts'
 
 export const NON_SERIALIZABLE_RENDER_OPTION_FIELDS = ['onConfigDiagnostic'] as const satisfies readonly (keyof RenderOptions)[]
 type NonSerializableRenderOptionField = typeof NON_SERIALIZABLE_RENDER_OPTION_FIELDS[number]
@@ -379,7 +147,7 @@ const TEXT_TRANSFORM_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
-  groupHeaderHeight: positiveNumberSchema('Architecture group-header height.'),
+  groupHeaderHeight: positiveNumberSchema('Requested minimum Architecture group-header height; expands to fit measured title text.'),
   groupFontSize: positiveNumberSchema('Architecture group-label font size.'),
   groupFontWeight: fontWeightSchema('Architecture group-label font weight.'),
   groupLetterSpacing: numberSchema('Architecture group-label letter spacing.'),
@@ -427,31 +195,27 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
   'x-agentic-mermaid-runtime-validator': 'architectureVisual',
 } as const satisfies JsonSchemaNode
 
-const STYLE_SPEC_SCHEMA = (() => {
-  const styleSchema = styleSpecJsonSchema() as Record<string, unknown>
-  const definitions = styleSchema.$defs as Record<string, Record<string, unknown>> | undefined
-  const expandLocalReferences = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(expandLocalReferences)
-    if (value === null || typeof value !== 'object') return value
-    const record = value as Record<string, unknown>
-    const reference = record.$ref
-    if (typeof reference === 'string' && reference.startsWith('#/$defs/')) {
-      const definition = definitions?.[reference.slice('#/$defs/'.length)]
-      if (!definition) throw new Error(`StyleSpec schema has unresolved local reference ${reference}`)
-      return expandLocalReferences(definition)
-    }
-    return Object.fromEntries(Object.entries(record)
-      .filter(([key]) => key !== '$defs')
-      .map(([key, child]) => [key, expandLocalReferences(child)]))
+/**
+ * The StyleSpec record and the role-style records it references, as local
+ * definitions. A style input names the record by `$ref` instead of carrying
+ * it: a name-or-record input and a stack of them would otherwise inline the
+ * same ~22 KB record twice in every schema that accepts `style`. The record's
+ * own `#/$defs/roleStyle-*` references keep their names, so every schema that
+ * places these definitions at its root resolves them unchanged.
+ */
+const STYLE_SCHEMA_DEFINITIONS: Readonly<Record<string, JsonSchemaNode>> = (() => {
+  const { $schema: _dialect, $id: _id, title: _title, $defs, ...record } = styleSpecJsonSchema() as Record<string, unknown>
+  const definitions = { ...($defs as Record<string, JsonSchemaNode>), styleSpec: record as JsonSchemaNode }
+  if (Object.hasOwn($defs as object, 'styleSpec') || Object.hasOwn($defs as object, 'jsonValue')) {
+    throw new Error('StyleSpec schema definitions collide with render option definitions')
   }
-  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSchema
-  return expandLocalReferences(fragment) as Record<string, unknown>
+  return definitions
 })()
 
 const STYLE_INPUT_SCHEMA = {
   anyOf: [
     { type: 'string', description: 'Registered Style or Palette name.' },
-    STYLE_SPEC_SCHEMA,
+    { $ref: '#/$defs/styleSpec' },
   ],
   'x-agentic-mermaid-validation-expectation': 'a registered Style name or StyleSpec',
 } as const satisfies JsonSchemaNode
@@ -482,9 +246,10 @@ const GRAPH_LAYOUT_OPTION_FAMILIES = [
   'flowchart', 'state', 'class', 'er', 'architecture', 'c4',
 ] as const satisfies readonly DiagramKind[]
 
+// Families whose drawn cards match the shared drop-shadow selectors. Chart,
+// Mindmap and GitGraph shapes do not, so shadow draws nothing there.
 const SHADOW_OPTION_FAMILIES = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey',
+  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'sankey', 'c4', 'zenuml', 'swimlane', 'agentflow',
 ] as const satisfies readonly DiagramKind[]
 
 /**
@@ -492,7 +257,13 @@ const SHADOW_OPTION_FAMILIES = [
  * Output adapters may add their own fields (PNG scale/fontDirs, terminal
  * width/encoding), but must not re-declare or hand-forward this set.
  */
+const GRAPH_LAYOUT_QUALITY_FIELDS = { quality: { type: 'string', enum: ['balanced'] }, viewport: closedObjectSchema({ width: positiveNumberSchema('Target viewport width.'), height: positiveNumberSchema('Target viewport height.') }, 'Flowchart target viewport.', ['width', 'height']) } as const
+
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
+  fontMetrics: { typeScript: "'estimate' | 'bundled-inter'", description: 'Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates.', defaultLabel: '`estimate`', validationExpectation: 'be estimate or bundled-inter', schema: { type: 'string', enum: ['estimate', 'bundled-inter'] }, terminal: 'not-applicable', terminalNote: 'terminal cells do not use font advances' },
+  layoutHints: { typeScript: '{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }', description: 'Relative ranks, sibling adjacency and short-edge preferences.', defaultLabel: 'unset', validationExpectation: 'contain integer ranks, node groups and edge IDs', schema: { type: 'object', additionalProperties: false, properties: { ranks: { type: 'object', additionalProperties: { type: 'integer', minimum: 0, maximum: 10000 } }, adjacent: { type: 'array', items: { type: 'array', minItems: 2, items: { type: 'string' } } }, shortEdges: { type: 'array', items: { type: 'string' } } } }, terminal: 'not-applicable', terminalNote: 'not used by terminals', applicableBuiltinFamilies: ['flowchart', 'state', 'usecase', 'swimlane', 'agentflow'] },
+  graphLayout: { typeScript: "{ backend: 'elk' | 'agentic'; fallback?: 'none' | 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }", description: 'Graph geometry producer and explicit Agentic fallback policy.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be a graph layout selection object', schema: { anyOf: [closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout.', ['backend']), closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Owned graph layout with optional ELK fallback.', ['backend'])] }, terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
+  layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
   bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
   fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
   line: { typeScript: 'string', description: 'Connector and secondary-line color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Connector and secondary-line color.'), terminal: 'consumed' },
@@ -502,15 +273,18 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group border color.'), terminal: 'consumed' },
   font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a safe non-fetching CSS font family or stack', schema: fontFamilySchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
   style: { typeScript: 'StyleInput | StyleInput[]', description: 'Registered Style/Palette name, inline StyleSpec, or left-to-right stack.', defaultLabel: '`crisp`', validationExpectation: 'be a registered Style name or StyleSpec, or an array of them', schema: STYLE_OPTION_SCHEMA, terminal: 'consumed' },
-  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'c4'] },
-  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
-  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
+  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'c4', 'requirement', 'block', 'packet', 'kanban', 'eventmodeling', 'usecase', 'wardley', 'cynefin', 'swimlane', 'agentflow'] },
+  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [...GRAPH_LAYOUT_OPTION_FAMILIES, 'eventmodeling', 'swimlane'] },
+  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [...GRAPH_LAYOUT_OPTION_FAMILIES, 'requirement', 'usecase', 'agentflow'] },
   wrappingWidth: { typeScript: 'number', description: 'Flowchart measured-label wrapping budget in pixels.', defaultLabel: 'unset', validationExpectation: 'be a positive finite number', schema: positiveNumberSchema('Flowchart measured-label wrapping budget in pixels.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['flowchart'] },
   componentSpacing: { typeScript: 'number', description: 'Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.', defaultLabel: 'extension-defined', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.'), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [] },
   transparent: { typeScript: 'boolean', description: 'Omit the painted SVG canvas background.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Omit the painted SVG canvas background.', false), terminal: 'projected', terminalNote: 'terminal output has no painted canvas background' },
   interactive: { typeScript: 'boolean', description: 'Enable hover tooltips for supported chart data points.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Enable hover tooltips for supported chart data points.', false), terminal: 'projected', terminalNote: 'terminal output is a static semantic projection', applicableBuiltinFamilies: ['xychart', 'pie', 'quadrant'] },
   shadow: { typeScript: 'boolean', description: 'Paint explicit drop shadows on node shapes.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Paint explicit drop shadows on node shapes.', false), terminal: 'projected', terminalNote: 'elevation projects to borders and labels', applicableBuiltinFamilies: SHADOW_OPTION_FAMILIES },
   class: { typeScript: '{ hierarchicalNamespaces?: boolean }', description: 'Class-diagram rendering controls.', defaultLabel: '`hierarchicalNamespaces: true`', validationExpectation: 'be a class options object', schema: closedObjectSchema({ hierarchicalNamespaces: booleanSchema('Nest namespace compounds.', true) }, 'Class-diagram rendering controls.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical class layout', applicableBuiltinFamilies: ['class'] },
+  kanban: { typeScript: '{ maxWidth?: number }', description: 'Opt-in Kanban column wrapping with readable column widths.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a kanban options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for wrapping whole Kanban columns into rows.') }, 'Kanban layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal layout uses its own targetWidth', applicableBuiltinFamilies: ['kanban'] },
+  pie: { typeScript: '{ maxWidth?: number }', description: 'Opt-in Pie title and legend fitting without shrinking typography.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a pie options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort graphical width budget; authored legend placement retains precedence.') }, 'Pie layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal layout uses its own targetWidth', applicableBuiltinFamilies: ['pie'] },
+  radar: { typeScript: '{ maxWidth?: number }', description: 'Opt-in Radar plot and legend fitting without shrinking typography.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a radar options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort graphical width budget; authored frames retain precedence.') }, 'Radar layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal layout uses its own targetWidth', applicableBuiltinFamilies: ['radar'] },
   architecture: { typeScript: '{ visual?: ArchitectureVisualOverrides }', description: 'Sparse architecture renderer visual metric and paint overrides.', defaultLabel: 'built-in metrics', validationExpectation: 'be an architecture options object', schema: closedObjectSchema({ visual: ARCHITECTURE_VISUAL_SCHEMA }, 'Architecture renderer visual metric and paint overrides.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical architecture rendering', applicableBuiltinFamilies: ['architecture'] },
   timeline: { typeScript: '{ maxWidth?: number }', description: 'Timeline layout controls.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a timeline options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for horizontal timelines.') }, 'Timeline layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['timeline'] },
   journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only', applicableBuiltinFamilies: ['journey'] },
@@ -618,19 +392,6 @@ export function architectureVisualOverridesTypeScriptDeclaration(): string {
   return `interface ArchitectureVisualOverrides {\n${fields.join('\n')}\n}`
 }
 
-const FORBIDDEN_PROTOTYPE_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-
-interface SchemaProblem {
-  readonly path: readonly (string | number)[]
-  readonly message: string
-  /** Generic failures may use the field descriptor's clearer expectation. */
-  readonly generic: boolean
-}
-
-function schemaRecord(value: unknown): JsonSchemaNode | undefined {
-  return isPlainRecord(value) ? value : undefined
-}
-
 function cloneSchema(schema: JsonSchemaNode): Record<string, unknown> {
   const cloneValue = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(cloneValue)
@@ -653,158 +414,17 @@ function renderOptionsAdmissionMessages(value: unknown): string[] {
       : `render options ${problem.message}`), 'render options')
 }
 
-function dereferenceSchema(schema: JsonSchemaNode, root: JsonSchemaNode): JsonSchemaNode | undefined {
-  const reference = schema.$ref
-  if (typeof reference !== 'string' || !reference.startsWith('#/')) return undefined
-  let cursor: unknown = root
-  for (const encoded of reference.slice(2).split('/')) {
-    if (!isPlainRecord(cursor)) return undefined
-    const key = encoded.replaceAll('~1', '/').replaceAll('~0', '~')
-    cursor = cursor[key]
-  }
-  return schemaRecord(cursor)
-}
-
-function schemaMatchesRuntimeKind(value: unknown, schema: JsonSchemaNode, root: JsonSchemaNode): boolean {
-  const resolved = dereferenceSchema(schema, root)
-  if (resolved) return schemaMatchesRuntimeKind(value, resolved, root)
-  const anyOf = Array.isArray(schema.anyOf) ? schema.anyOf.map(schemaRecord).filter((entry): entry is JsonSchemaNode => entry !== undefined) : []
-  if (anyOf.length > 0) return anyOf.some(candidate => schemaMatchesRuntimeKind(value, candidate, root))
-  switch (schema.type) {
-    case 'null': return value === null
-    case 'string': return typeof value === 'string'
-    case 'number': return typeof value === 'number'
-    case 'integer': return typeof value === 'number'
-    case 'boolean': return typeof value === 'boolean'
-    case 'array': return Array.isArray(value)
-    case 'object': return isPlainRecord(value)
-    default: return true
-  }
-}
-
-function validateSchemaValue(
-  value: unknown,
-  schema: JsonSchemaNode,
-  root: JsonSchemaNode,
-  path: readonly (string | number)[],
-  ancestors: Set<object>,
-): SchemaProblem[] {
-  const resolved = dereferenceSchema(schema, root)
-  if (schema.$ref !== undefined) {
-    if (!resolved) return [{ path, message: 'uses an unresolved schema reference', generic: false }]
-    return validateSchemaValue(value, resolved, root, path, ancestors)
-  }
-
-  const anyOf = Array.isArray(schema.anyOf)
-    ? schema.anyOf.map(schemaRecord).filter((entry): entry is JsonSchemaNode => entry !== undefined)
-    : []
-  if (anyOf.length > 0) {
-    const compatible = anyOf.filter(candidate => schemaMatchesRuntimeKind(value, candidate, root))
-    const candidates = compatible.length > 0 ? compatible : anyOf
-    const branchProblems = candidates.map(candidate => validateSchemaValue(value, candidate, root, path, ancestors))
-    if (!branchProblems.some(problems => problems.length === 0)) {
-      const expectation = schema['x-agentic-mermaid-validation-expectation']
-      if (compatible.length === 0 && typeof expectation === 'string') return [{ path, message: `must be ${expectation}`, generic: true }]
-      return branchProblems.sort((left, right) => left.length - right.length)[0]
-        ?? [{ path, message: 'must match an allowed shape', generic: true }]
-    }
-  }
-
-  if ('const' in schema && value !== schema.const) {
-    return [{ path, message: `must equal ${String(schema.const)}`, generic: true }]
-  }
-  if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
-    return [{ path, message: `must be one of ${schema.enum.map(String).join(' | ')}`, generic: true }]
-  }
-
-  const type = schema.type
-  const typeIsValid = type === undefined
-    || (type === 'null' && value === null)
-    || (type === 'string' && typeof value === 'string')
-    || (type === 'number' && typeof value === 'number' && Number.isFinite(value))
-    || (type === 'integer' && typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value))
-    || (type === 'boolean' && typeof value === 'boolean')
-    || (type === 'array' && Array.isArray(value))
-    || (type === 'object' && isPlainRecord(value))
-  if (!typeIsValid) {
-    const expected = type === 'number' ? 'a finite number'
-      : type === 'integer' ? 'a finite integer'
-        : type === 'object' ? 'a plain JSON object'
-          : type === 'array' ? 'an array'
-            : type === 'null' ? 'null'
-              : `a ${String(type)}`
-    return [{ path, message: `must be ${expected}`, generic: true }]
-  }
-
-  if (typeof value === 'number') {
-    if (typeof schema.minimum === 'number' && value < schema.minimum) return [{ path, message: `must be at least ${schema.minimum}`, generic: true }]
-    if (typeof schema.exclusiveMinimum === 'number' && value <= schema.exclusiveMinimum) return [{ path, message: `must be greater than ${schema.exclusiveMinimum}`, generic: true }]
-    if (typeof schema.maximum === 'number' && value > schema.maximum) return [{ path, message: `must be at most ${schema.maximum}`, generic: true }]
-  }
-
-  if (typeof value === 'string' && typeof schema.pattern === 'string') {
-    let matches = false
-    try {
-      matches = new RegExp(schema.pattern).test(value)
-    } catch {
-      return [{ path, message: 'uses an invalid schema pattern', generic: false }]
-    }
-    if (!matches) return [{ path, message: `must match ${schema.pattern}`, generic: true }]
-  }
-
-  if (Array.isArray(value) && type === 'array') {
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
-    const items = schemaRecord(schema.items)
-    if (items) {
-      ancestors.add(value)
-      try {
-        const problems = value.flatMap((item, index) => validateSchemaValue(item, items, root, [...path, index], ancestors))
-        if (problems.length > 0) return problems
-      } finally {
-        ancestors.delete(value)
-      }
-    }
-  }
-
-  if (isPlainRecord(value) && type === 'object') {
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
-    ancestors.add(value)
-    try {
-      const properties = schemaRecord(schema.properties) ?? {}
-      const required = Array.isArray(schema.required) ? schema.required.filter((entry): entry is string => typeof entry === 'string') : []
-      const problems: SchemaProblem[] = []
-      for (const key of required) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) problems.push({ path: [...path, key], message: 'is required', generic: false })
-      }
-      for (const [key, child] of Object.entries(value)) {
-        if (FORBIDDEN_PROTOTYPE_KEYS.has(key)) {
-          problems.push({ path: [...path, key], message: 'uses a forbidden prototype key', generic: false })
-          continue
-        }
-        const propertySchema = schemaRecord(properties[key])
-        if (propertySchema) {
-          problems.push(...validateSchemaValue(child, propertySchema, root, [...path, key], ancestors))
-          continue
-        }
-        if (schema.additionalProperties === false) {
-          problems.push({ path: [...path, key], message: 'is not allowed', generic: false })
-          continue
-        }
-        const additionalSchema = schemaRecord(schema.additionalProperties)
-        if (additionalSchema) problems.push(...validateSchemaValue(child, additionalSchema, root, [...path, key], ancestors))
-      }
-      if (problems.length > 0) return problems
-    } finally {
-      ancestors.delete(value)
-    }
-  }
-
+/** Domain rules shared by render fields and tool-schema projections. */
+export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: readonly (string | number)[]): SchemaProblem[] {
   const runtimeValidator = schema['x-agentic-mermaid-runtime-validator']
   if (runtimeValidator === 'safeCssColor' && safeCssColor(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS color', generic: false }]
   }
   if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS paint', generic: false }]
+  }
+  if ((runtimeValidator === 'safeCssColor' || runtimeValidator === 'safeCssPaint') && !isRecognizableCssColor(value as string)) {
+    return [{ path, message: `must be a CSS color, not ${JSON.stringify(value)} (use ${cssColorSpellings(runtimeValidator === 'safeCssPaint')})`, generic: false }]
   }
   if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS font family or stack', generic: false }]
@@ -835,18 +455,29 @@ function validateSchemaValue(
 
 let validationRootSchema: JsonSchemaNode | undefined
 
+/** Option names callers guess for settings that live elsewhere. */
+const MISPLACED_RENDER_OPTION_HINTS: Readonly<Record<string, string>> = Object.freeze({
+  theme: 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style',
+  themeVariables: 'set Mermaid theme variables with mermaidConfig.themeVariables',
+})
+
+/** Where an unknown render option's setting lives, when it is a known guess. */
+export function misplacedRenderOptionHint(field: string): string | undefined {
+  return Object.hasOwn(MISPLACED_RENDER_OPTION_HINTS, field) ? MISPLACED_RENDER_OPTION_HINTS[field] : undefined
+}
+
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['render options must be a plain JSON object']
   const admissionProblems = renderOptionsAdmissionMessages(value)
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
-  const allowed = new Set<string>(SHARED_RENDER_OPTION_FIELDS)
   // The schema is a projection of frozen module constants: build it once.
   const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
-    if (!allowed.has(field)) {
-      problems.push(`unknown render option "${field}"`)
+    if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
+      const hint = misplacedRenderOptionHint(field)
+      problems.push(`unknown render option "${field}"${hint ? `; ${hint}` : ''}`)
       continue
     }
     if (fieldValue === null) {
@@ -854,7 +485,7 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
       continue
     }
     const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field as SharedRenderOptionField]
-    const schemaProblems = validateSchemaValue(fieldValue, descriptor.schema, rootSchema, [field], new Set())
+    const schemaProblems = validateJsonSchema(fieldValue, descriptor.schema, rootSchema, [field], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
     if (schemaProblems.length > 0 && schemaProblems.every(problem => problem.generic && problem.path.length === 1)) {
       problems.push(`render option "${field}" must ${descriptor.validationExpectation}`)
     } else {
@@ -888,42 +519,28 @@ export function sharedRenderOptionsJsonSchema(): Record<string, unknown> {
     type: 'object',
     additionalProperties: false,
     properties,
-    $defs: { jsonValue: cloneSchema(JSON_VALUE_SCHEMA) },
+    $defs: renderOptionsSchemaDefinitions(),
   }
 }
 
-/** Public StyleInput projection reused by advanced and convenience adapters. */
+/** The local definitions `sharedRenderOptionsJsonSchema()` references by
+ * `#/$defs/<name>`. A schema that embeds the render options object without
+ * its root (an MCP tool's `options` argument) places these at its own root. */
+export function renderOptionsSchemaDefinitions(): Record<string, unknown> {
+  return {
+    jsonValue: cloneSchema(JSON_VALUE_SCHEMA),
+    ...Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
+}
+
+/** Public StyleInput projection reused by advanced and convenience adapters.
+ * Self-contained: it carries the StyleSpec definitions its references name. */
 export function styleInputJsonSchema(description?: string): Record<string, unknown> {
-  return { ...cloneSchema(STYLE_OPTION_SCHEMA), ...(description === undefined ? {} : { description }) }
-}
-
-export const SHARED_RENDER_OPTIONS_DOC_START = '<!-- BEGIN GENERATED SHARED RENDER OPTIONS -->'
-export const SHARED_RENDER_OPTIONS_DOC_END = '<!-- END GENERATED SHARED RENDER OPTIONS -->'
-
-function markdownCell(value: string): string {
-  return value.replaceAll('|', '\\|').replaceAll('\n', ' ')
-}
-
-/** API field inventory generated from the same descriptors as validation and schema. */
-export function sharedRenderOptionsMarkdownTable(): string {
-  const rows = SHARED_RENDER_OPTION_FIELDS.map(field => {
-    const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
-    const terminalNote = 'terminalNote' in descriptor ? descriptor.terminalNote : undefined
-    const terminal = descriptor.terminal === 'consumed'
-      ? 'consumed'
-      : `${descriptor.terminal}${terminalNote ? ` — ${terminalNote}` : ''}`
-    const builtInFamilies = !('applicableBuiltinFamilies' in descriptor)
-      ? 'all'
-      : descriptor.applicableBuiltinFamilies.length === 0
-        ? 'none — extension-defined'
-        : descriptor.applicableBuiltinFamilies.join(', ')
-    return `| \`${field}\` | \`${markdownCell(descriptor.typeScript)}\` | ${descriptor.defaultLabel} | ${markdownCell(descriptor.description)} | ${markdownCell(builtInFamilies)} | ${markdownCell(terminal)} |`
-  })
-  return [
-    '| Option | Type | Effective default | Meaning | Built-in families | Terminal |',
-    '|---|---|---|---|---|---|',
-    ...rows,
-  ].join('\n')
+  return {
+    ...cloneSchema(STYLE_OPTION_SCHEMA),
+    ...(description === undefined ? {} : { description }),
+    $defs: Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
 }
 
 export interface ResolvedAppearance {
@@ -972,6 +589,10 @@ export interface ResolvedRenderRequest {
 }
 
 export interface RenderRequestReceipt {
+  /** Actual graph geometry decisions, retained outside caller-owned metadata. */
+  layoutDecisions?: readonly GraphLayoutDecision[]
+  /** Bounded evidence from the actual pixel or terminal-cell projection. */
+  layoutCertification?: import('./scene/paint-certification.ts').PaintLayoutCertification | import('./ascii/terminal-certification.ts').TerminalLayoutCertification
   version: typeof RENDER_CONTRACT_VERSION
   output: RenderOutput
   sharedRequestDigest: string
@@ -986,6 +607,8 @@ export interface RenderRequestReceipt {
   executionDecision?: RenderExecutionDecision
   /** Pixel metrics used by graphical outputs; contains no executable host inputs. */
   textMeasurement?: TextMeasurementProfileIdentity
+  /** Actual bounded optional layout work, separate from mandatory fallbacks. */
+  layoutOptimization?: LayoutOptimizationEvidence
 }
 
 export interface RenderExecutionDecision {
@@ -1003,6 +626,8 @@ export interface RenderExecutionResolutionOptions {
   readonly textMeasurement?: TextMeasurementProfile
   /** Internal identity assertion carried by ParsedDiagram adapters. */
   readonly expectedFamilyId?: FamilyId
+  /** Internal source-bound custody from native parsing; public objects cannot forge it. */
+  readonly parsedModelHandoff?: ParsedRenderModelHandoff
   /** Internal browser-lazy seam: one already-classified, already-loaded family. */
   readonly familyDescriptor?: FamilyDescriptor
 }
@@ -1074,6 +699,17 @@ export class RenderCapabilityError extends Error {
   }
 }
 
+/** Configuration the request waist refuses: invalid RenderOptions, or Mermaid
+ * config the selected security mode or layout safety forbids. It stays a
+ * TypeError, as these refusals always were, but is typed so verify attributes
+ * it to configuration rather than to an engine defect. */
+export class RenderConfigError extends TypeError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RenderConfigError'
+  }
+}
+
 const EXECUTION_PLAN_BY_REQUEST = new WeakMap<ResolvedRenderRequest, InternalRenderExecutionPlan>()
 
 /** Internal consumer seam for layout/render adapters. Not re-exported by a
@@ -1132,8 +768,12 @@ function receiptDiagnostics(
 ): readonly RenderArtifactDiagnostic[] {
   const seen = new Set<string>()
   return Object.freeze([
-    ...(request.resolutionDiagnostics ?? []),
+    ...(Object.hasOwn(request, 'resolutionDiagnostics') ? request.resolutionDiagnostics! : []),
     ...diagnostics,
+    ...graphLayoutDecisionsOf(request).flatMap(decision => decision.requested === 'agentic' && decision.selected === 'elk' ? [{
+      code: 'GRAPH_LAYOUT_FALLBACK', feature: 'graph-layout',
+      message: `Agentic graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
+    }] : []),
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)
     if (seen.has(key)) return []
@@ -1148,6 +788,11 @@ export function receiptOf(
 ): RenderRequestReceipt {
   const executionPlan = EXECUTION_PLAN_BY_REQUEST.get(request)
   const executionDecision = executionPlan?.executionDecision
+  // Frozen records still inherit optional fields. Evidence consumed later
+  // must only read fields captured by request admission, never a late getter.
+  const textMeasurement = executionPlan && Object.hasOwn(executionPlan, 'textMeasurement')
+    ? executionPlan.textMeasurement
+    : undefined
   return Object.freeze({
     version: request.version,
     output: request.output,
@@ -1157,7 +802,9 @@ export function receiptOf(
     capabilityDecision: request.capabilityDecision,
     diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
-    ...(executionPlan?.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
+    ...(textMeasurement ? { textMeasurement: textMeasurement.identity } : {}),
+    ...(layoutOptimization()?.layoutOptimizationEvidenceOf(request) ? { layoutOptimization: layoutOptimization()?.layoutOptimizationEvidenceOf(request) } : {}),
+    ...(graphLayoutDecisionsOf(request).length ? { layoutDecisions: graphLayoutDecisionsOf(request) } : {}),
   })
 }
 
@@ -1165,13 +812,22 @@ export function receiptOf(
 export function resolvedFamilyRenderContextOf(
   request: ResolvedRenderRequest,
 ): ResolvedFamilyRenderContext {
-  return Object.freeze({
+  const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
+  if (prior) return prior
+  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
+    ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
+  const context = Object.freeze({
     renderOptions: request.renderOptions,
     ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+    ...(paintBackendId ? { paintBackendId } : {}),
     ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
     ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
   })
+  if (EXECUTION_PLAN_BY_REQUEST.has(request)) FAMILY_CONTEXT_BY_REQUEST.set(request, context)
+  return context
 }
+
+const FAMILY_CONTEXT_BY_REQUEST = new WeakMap<ResolvedRenderRequest, ResolvedFamilyRenderContext>()
 
 function applyStyleDefaults(
   options: RenderOptions,
@@ -1214,31 +870,16 @@ function serializableOptionCandidate(options: RenderOptions): Record<string, unk
 
 function capturedRequestFamily(
   source: NormalizedMermaidSource,
-  authoredEnvelope: NormalizedMermaidSource = source,
+  classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine>,
 ): FamilyDescriptor {
-  return requireRegisteredMermaidFamilyDescriptor(
-    source.lines[0] ?? source.firstLine,
+  if (classification.kind === 'registered') return classification.family
+  throw new MermaidFamilyDetectionError(familyDetectionDiagnostic(
+    classification.kind === 'unknown' ? { ...classification, header: source.lines[0] ?? source.firstLine } : classification,
     source.originalText,
-    'strict',
-    authoredEnvelope.wrapperSource?.length ?? 0,
-    authoredEnvelope.lines[0] ?? authoredEnvelope.firstLine,
-  )
-}
-
-/** Decode Pie grammar while keeping exact authored quoted keys and titles. */
-function pieLinesWithAuthoredText(authored: NormalizedMermaidSource): string[] {
-  const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = authored.familyLines.map((line, index) => {
-    // Pie titles are display text, not grammar separators. Keep their entity
-    // spelling for the family-owned projection just as with quoted labels.
-    const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')
-    if (title) return title.decodedPrefix + title.authoredTitle
-    const label = quotedLabel.exec(line)?.[0]
-    return label === undefined ? decodeXML(line) : label + decodeXML(line.slice(label.length))
-  }).join('\n')
-  // Reapply normal comment/line normalization after decoding; an entity may
-  // itself spell a comment opener or a grammar newline outside a label.
-  return normalizeMermaidSource(hybrid).familyLines
+    source.authoredWrapperLength ?? source.wrapperSource?.length ?? 0,
+    source.authoredHeader ?? source.lines[0] ?? source.firstLine,
+    null,
+  ))
 }
 
 function assertFamilyGeometryOptions(
@@ -1251,7 +892,9 @@ function assertFamilyGeometryOptions(
   }
   const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
   if (problems.length > 0) {
-    throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
+    // A built-in normalizer passes the author's config through; its values are
+    // what fail here (an unsafe theme font, an out-of-range size).
+    throw new RenderConfigError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
   }
   const beforeSerializable = serializableOptions(before)
   const afterSerializable = serializableOptions(after)
@@ -1276,12 +919,13 @@ function normalizedFamilyColors(
     const candidate = value[field]
     if (candidate === undefined) continue
     const safe = safeCssPaint(candidate)
-    if (safe === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe ${field} paint`)
+    // The value is the author's theme or config, passed through by the family.
+    if (safe === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe ${field} paint`)
     out[field] = safe
   }
   if (value.font !== undefined) {
     const font = safeCssFontFamily(value.font)
-    if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
+    if (font === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe font family`)
     if (font !== base.font) {
       throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "font"`)
     }
@@ -1308,18 +952,94 @@ const FAMILY_DATA_MAX_CHARS = 2_000_000
 interface FamilyDataNormalizationBudget {
   nodes: number
   chars: number
+  opaque: boolean
+  admission?: { nodes: number; valid: boolean }
+  /** Every visited value, position-independent JSON-admission failures and
+   * the deepest object/value, so a captured subtree can record its totals. */
+  values: number
+  invalid: number
+  objectDepth: number
+  valueDepth: number
 }
 
-/** Compact JSON-like family data under explicit recursion and aggregate-size
- * limits. This guard runs before the recursive schema validator and immutable
- * snapshot, so a buggy extension cannot trigger an unbounded stack walk first. */
+function familyDataBudget(admission?: NonNullable<FamilyDataNormalizationBudget['admission']>): FamilyDataNormalizationBudget {
+  return { nodes: 0, chars: 0, opaque: false, admission, values: 0, invalid: 0, objectDepth: 0, valueDepth: 0 }
+}
+
+/** A captured snapshot's budget totals. Snapshots are deeply frozen, so the
+ * totals stay true, and a later capture can charge them without walking. Only
+ * snapshots with no JSON-admission failure are recorded; any other snapshot
+ * always takes the full walk. */
+interface AdmittedFamilyData {
+  readonly chars: number
+  readonly nodes: number
+  readonly values: number
+  readonly objectDepth: number
+  readonly valueDepth: number
+}
+const ADMITTED_FAMILY_DATA = new WeakMap<object, AdmittedFamilyData>()
+
+/** Capture compact immutable data under the bounds before schema validation.
+ * Opaque leaves remain unbranded for the owner's subsequent rejection.
+ * A snapshot this function already captured is admitted once: later captures
+ * (request receipts, cached capability decisions, family config) charge its
+ * recorded totals and reuse it. Whenever a bound could be crossed, the full
+ * walk runs instead, so every limit error keeps its exact type and path. */
 function omitUndefinedObjectFields(
   value: unknown,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0 },
+  budget: FamilyDataNormalizationBudget = familyDataBudget(),
 ): unknown {
+  if (value === null || typeof value !== 'object') return captureFamilyDataNode(value, path, depth, ancestors, budget)
+  const admitted = ADMITTED_FAMILY_DATA.get(value)
+  if (admitted && !ancestors.has(value) && depth + admitted.objectDepth <= FAMILY_DATA_MAX_DEPTH
+    && budget.chars + admitted.chars <= FAMILY_DATA_MAX_CHARS && budget.nodes + admitted.nodes <= FAMILY_DATA_MAX_NODES) {
+    budget.chars += admitted.chars
+    budget.nodes += admitted.nodes
+    budget.values += admitted.values
+    budget.objectDepth = Math.max(budget.objectDepth, depth + admitted.objectDepth)
+    budget.valueDepth = Math.max(budget.valueDepth, depth + admitted.valueDepth)
+    const admission = budget.admission
+    if (admission?.valid) {
+      admission.nodes += admitted.values
+      if (admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth + admitted.valueDepth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
+    }
+    return value
+  }
+  const chars = budget.chars, nodes = budget.nodes, values = budget.values, invalid = budget.invalid
+  const objectDepth = budget.objectDepth, valueDepth = budget.valueDepth
+  budget.objectDepth = budget.valueDepth = depth
+  const captured = captureFamilyDataNode(value, path, depth, ancestors, budget)
+  if (captured !== value && typeof captured === 'object' && captured !== null && IMMUTABLE_SNAPSHOTS.has(captured) && budget.invalid === invalid) {
+    ADMITTED_FAMILY_DATA.set(captured, {
+      chars: budget.chars - chars,
+      nodes: budget.nodes - nodes,
+      values: budget.values - values,
+      objectDepth: budget.objectDepth - depth,
+      valueDepth: budget.valueDepth - depth,
+    })
+  }
+  budget.objectDepth = Math.max(budget.objectDepth, objectDepth)
+  budget.valueDepth = Math.max(budget.valueDepth, valueDepth)
+  return captured
+}
+
+function captureFamilyDataNode(
+  value: unknown,
+  path: string,
+  depth: number,
+  ancestors: Set<object>,
+  budget: FamilyDataNormalizationBudget,
+): unknown {
+  const admission = budget.admission
+  budget.values++
+  if (depth > budget.valueDepth) budget.valueDepth = depth
+  const invalidLeaf = typeof value === 'number' ? value - value !== 0
+    : typeof value === 'undefined' || typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'function'
+  if (invalidLeaf) budget.invalid++
+  if (admission?.valid && (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth || invalidLeaf)) admission.valid = false
   if (typeof value === 'string') {
     budget.chars += value.length
     if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}`)
@@ -1327,6 +1047,7 @@ function omitUndefinedObjectFields(
   }
   if (value === null || typeof value !== 'object') return value
   if (depth > FAMILY_DATA_MAX_DEPTH) throw new TypeError(`data exceeds maximum depth ${FAMILY_DATA_MAX_DEPTH} at ${path}`)
+  if (depth > budget.objectDepth) budget.objectDepth = depth
   if (++budget.nodes > FAMILY_DATA_MAX_NODES) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_NODES}-node aggregate limit at ${path}`)
   if (ancestors.has(value)) throw new TypeError(`data must be acyclic at ${path}`)
 
@@ -1335,30 +1056,51 @@ function omitUndefinedObjectFields(
     ancestors.add(value)
     try {
       const result: unknown[] = []
+      const slot: PropertyDescriptor = Object.create(null)
+      slot.enumerable = slot.configurable = slot.writable = true
       for (let index = 0; index < value.length; index++) {
+        // An accessor or Proxy can grow the source after the length preflight.
+        if (index >= FAMILY_DATA_MAX_NODES) throw new TypeError(`data array exceeds the ${FAMILY_DATA_MAX_NODES}-entry limit at ${path}`)
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
-        result.push(omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget))
+        const child = omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget)
+        // The fresh destination must own its slots. Ambient array setters or
+        // a replaced push method cannot alter or leak this captured graph.
+        slot.value = child
+        Object.defineProperty(result, index, slot)
       }
-      return result
+      if (result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
+        budget.invalid++
+        if (admission) admission.valid = false
+      }
+      return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
     }
   }
-  if (!isPlainRecord(value)) return value
+  if (!isPlainRecord(value)) {
+    budget.opaque = true
+    if (admission) admission.valid = false
+    return value
+  }
 
   ancestors.add(value)
   try {
-    // A null-prototype staging object keeps `__proto__` as ordinary data.
-    // Using `{}` here can either mutate the clone's prototype or silently
-    // discard a `__proto__: null` field before the admission validator names
-    // and rejects it.
-    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+    const result: Record<string, unknown> = {}
+    let properties = 0
     for (const [key, child] of Object.entries(value)) {
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
-      if (child !== undefined) result[key] = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+      if (child !== undefined) {
+        if (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key)) {
+          budget.invalid++
+          if (admission) admission.valid = false
+        }
+        const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+        if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
+        else result[key] = captured
+      }
     }
-    return result
+    return freezeSnapshot(result, !budget.opaque)
   } finally {
     ancestors.delete(value)
   }
@@ -1368,11 +1110,14 @@ function normalizedFamilyData(
   family: FamilyDescriptor,
   value: Readonly<Record<string, unknown>> | undefined,
   label: 'config' | 'appearance',
+  capturedJson = false,
 ): Readonly<Record<string, unknown>> | undefined {
   if (value === undefined) return undefined
   if (!isPlainRecord(value)) {
     throw new TypeError(`Family "${family.id}" returned ${label} data that is not a plain object`)
   }
+  // This operation's bounded capture already froze and admitted every leaf.
+  if (capturedJson) return value
   let compact: unknown
   try {
     compact = omitUndefinedObjectFields(value)
@@ -1380,7 +1125,7 @@ function normalizedFamilyData(
     throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${error instanceof Error ? error.message : String(error)}`)
   }
   const root: JsonSchemaNode = { ...JSON_VALUE_SCHEMA, $defs: { jsonValue: JSON_VALUE_SCHEMA } }
-  const problems = validateSchemaValue(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], new Set())
+  const problems = validateJsonSchema(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
   if (problems.length > 0) {
     const detail = problems.map(problem => `${problem.path.join('.')} ${problem.message}`).join('; ')
     throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${detail}`)
@@ -1412,8 +1157,9 @@ function applyFamilyRequestNormalization(
   const raw = family.normalizeRequest(context)
   if (raw === undefined) return { renderOptions, colors }
   let admitted: unknown
+  const admission = { nodes: 0, valid: true }
   try {
-    admitted = boundedImmutableJsonSnapshot(raw, `Family "${family.id}" request normalizer result`)
+    admitted = boundedImmutableJsonSnapshot(raw, `Family "${family.id}" request normalizer result`, admission)
   } catch (error) {
     throw new TypeError(
       `Family "${family.id}" request normalizer returned invalid data: ${error instanceof Error ? error.message : String(error)}`,
@@ -1445,8 +1191,8 @@ function applyFamilyRequestNormalization(
   const normalizedColors = appearance?.colors
     ? normalizedFamilyColors(family, appearance.colors, colors)
     : colors
-  const familyConfig = normalizedFamilyData(family, result.familyConfig, 'config')
-  const familyAppearance = normalizedFamilyData(family, appearance?.family, 'appearance')
+  const familyConfig = normalizedFamilyData(family, result.familyConfig, 'config', admission.valid)
+  const familyAppearance = normalizedFamilyData(family, appearance?.family, 'appearance', admission.valid)
   return {
     renderOptions: normalizedOptions,
     colors: normalizedColors,
@@ -1459,67 +1205,171 @@ function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   const record = value as Record<string, unknown>
-  return `{${Object.keys(record).sort().filter(key => record[key] !== undefined).map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  let text = '{', separator = ''
+  for (const key of Object.keys(record).sort()) {
+    const child = record[key]
+    if (child === undefined) continue
+    text += `${separator}${JSON.stringify(key)}:${canonicalJson(child)}`
+    separator = ','
+  }
+  return `${text}}`
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
+/** A request receipt that overflows the digest budget is a source too large
+ * for this host, even when the source alone fit the sourceCharacters check. */
+function admittedRequestReceipt(receipt: unknown, source: { readonly originalText: string; readonly text: string }): unknown {
+  try {
+    return admitRenderContractDigestInput(receipt)
+  } catch (error) {
+    if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
+      throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
+    }
+    throw error
+  }
+}
+
 export function renderContractDigest(value: unknown): string {
+  return canonicalTextDigest(canonicalJson(admitRenderContractDigestInput(value)))
+}
+
+/** Digest of evidence this process built from frozen plain values, such as a
+ * receipt section projected from an already validated scene. The request-data
+ * admission above guards caller-supplied graphs (accessors, cycles, hostile
+ * size); applying its node bound here refused receipts for diagrams that the
+ * renderer accepts and draws. Internal only. */
+export function producedRenderContractDigest(value: unknown): string {
+  return canonicalTextDigest(canonicalJson(value))
+}
+
+/** Capture and admit now, but serialize and hash only if evidence is consumed.
+ * The closure never reads caller-owned data or mutable registries. Releasing
+ * the captured graph after hashing also avoids retaining duplicate snapshots
+ * for a long-lived receipt consumer. Internal only: public digest calls remain
+ * eager, including all their admission errors. */
+export function deferredRenderContractDigest(value: unknown): () => string {
+  return deferredAdmittedDigest(admitRenderContractDigestInput(value))
+}
+
+/** Serialize and hash an already-admitted snapshot only when consumed. */
+function deferredAdmittedDigest(admitted: unknown): () => string {
+  let snapshot: unknown = admitted
+  let digest: string | undefined
+  return () => {
+    if (digest === undefined) {
+      digest = canonicalTextDigest(canonicalJson(snapshot))
+      snapshot = undefined
+    }
+    return digest
+  }
+}
+
+function admitRenderContractDigestInput(value: unknown): unknown {
   // Public digest callers may supply accessor-backed values. Materialize that
   // graph once under the request-data bounds, then validate and canonicalize
   // only the immutable snapshot. Otherwise a getter can present valid data to
   // admission and a cycle to canonicalJson's later recursive read.
   let snapshot: unknown
+  // Capture already proves acyclicity, plain containers and a stricter text
+  // bound. Account for the remaining JSON rules without a second valid walk.
+  // Uncertain captures retain the original validator and diagnostic ordering.
+  const admission = { nodes: 0, valid: FAMILY_DATA_MAX_CHARS <= JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters
+    && FAMILY_DATA_MAX_CHARS * 3 <= JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextBytes }
   try {
-    snapshot = boundedImmutableJsonSnapshot(value, 'render contract digest input')
+    snapshot = boundedImmutableJsonSnapshot(value, 'render contract digest input', admission)
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error))
       .replace('data exceeds maximum depth', 'data exceeds maximum nesting depth')
     throw new TypeError(message)
   }
-  assertJsonConfigAdmission(snapshot, 'render contract digest input', {
+  if (!admission.valid) assertJsonConfigAdmission(snapshot, 'render contract digest input', {
     allowUndefinedObjectProperties: true,
   })
-  return canonicalTextDigest(canonicalJson(snapshot))
+  return snapshot
 }
 
 /** Internal hash primitive for already-admitted canonical JSON text.
  * Public callers still enter through renderContractDigest's data admission. */
 export function canonicalTextDigest(text: string): string {
-  let hash = 0xcbf29ce484222325n
+  // The 64-bit hash as two 32-bit halves; BigInt arithmetic per code unit made
+  // hashing each rendered SVG cost more than some of its passes. The prime is
+  // 2^40 + 0x1b3, so a multiply is each half times 0x1b3, plus the low half
+  // shifted 40 bits and the carry out of the low product into the high half.
+  let high = 0xcbf29ce4 | 0
+  let low = 0x84222325 | 0
   for (let i = 0; i < text.length; i++) {
-    hash ^= BigInt(text.charCodeAt(i))
-    hash = BigInt.asUintN(64, hash * 0x100000001b3n)
+    const xored = low ^ text.charCodeAt(i)
+    const carry = ((xored >>> 16) * 0x1b3 + (((xored & 0xffff) * 0x1b3) >>> 16)) >>> 16
+    low = Math.imul(xored, 0x1b3)
+    high = (Math.imul(high, 0x1b3) + carry + (xored << 8)) | 0
   }
-  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`
+  return `fnv1a64:${(high >>> 0).toString(16).padStart(8, '0')}${(low >>> 0).toString(16).padStart(8, '0')}`
 }
 
 /**
  * Clone and deeply freeze one request snapshot. Shared references are allowed;
  * cycles are not, because receipts must have a finite canonical form.
  */
-function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>()): T {
+const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
+
+function freezeSnapshot<T extends object>(value: T, reusable = true): T {
+  // Branding is observable if a host replaces WeakSet.prototype.add. Expose
+  // only the frozen container, after its captured descendants are frozen too.
+  Object.freeze(value)
+  if (reusable) IMMUTABLE_SNAPSHOTS.add(value)
+  return value
+}
+
+function immutableSnapshot<T>(value: T, path = '$', ancestors?: Set<object>, copies?: WeakMap<object, object>): T {
   if (value === null || typeof value !== 'object') return value
+  // Object.isFrozen is insufficient: an externally frozen object may retain
+  // getters or mutable descendants. Reuse only snapshots created here.
+  if (IMMUTABLE_SNAPSHOTS.has(value)) return value
+  ancestors ??= new Set<object>()
+  copies ??= new WeakMap<object, object>()
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
+  const existing = copies.get(value)
+  if (existing) return existing as T
   const proto = Object.getPrototypeOf(value)
   if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) {
     throw new TypeError(`render request contains a non-JSON object at ${path}`)
   }
   ancestors.add(value)
-  const clone: unknown = Array.isArray(value)
-    ? value.map((item, index) => immutableSnapshot(item, `${path}[${index}]`, ancestors))
-    : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) =>
-        [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
+  let clone: unknown
+  if (Array.isArray(value)) {
+    const length = value.length
+    const items: unknown[] = new Array(length)
+    for (let index = 0; index < length; index++) {
+      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors, copies)
+    }
+    clone = items
+  } else {
+    const record: Record<string, unknown> = {}
+    // Capture entries before descending, retaining the existing accessor-read
+    // order without allocating a second array of key/value pairs per object.
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors, copies)
+      if (key in record) Object.defineProperty(record, key, { value: captured, enumerable: true })
+      else record[key] = captured
+    }
+    clone = record
+  }
   ancestors.delete(value)
-  return Object.freeze(clone) as T
+  copies.set(value, clone as object)
+  return freezeSnapshot(clone as object) as T
 }
 
 /** Materialize a caller-owned JSON-like graph once under the same finite
  * recursion/aggregate guard used for family data, then freeze only that fresh
  * value. Validation must consume this snapshot: validating a live accessor
  * graph and cloning it later would permit a different value at execution. */
-function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
+function boundedImmutableJsonSnapshot<T>(value: T, context: string, admission?: NonNullable<FamilyDataNormalizationBudget['admission']>): T {
   try {
-    return immutableSnapshot(omitUndefinedObjectFields(value) as T)
+    // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
+    // it, after the complete budget/accessor pass has kept its error order.
+    return immutableSnapshot(admission
+      ? omitUndefinedObjectFields(value, '$', 0, new Set(), familyDataBudget(admission))
+      : omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -1528,6 +1378,34 @@ function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
 interface AdmittedRenderOptions {
   readonly serializable: Readonly<RenderOptions>
   readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
+  readonly capturedStyle?: ReturnType<typeof resolveStyleStackWithFace>
+}
+
+const EMPTY_ADMITTED_OPTIONS: AdmittedRenderOptions = Object.freeze({
+  serializable: immutableSnapshot({}),
+})
+const CAPTURED_OPTIONS = new WeakMap<object, AdmittedRenderOptions>()
+const CAPTURED_STYLE_REFERENCES = new WeakMap<object, readonly ResolvedStyleReference[]>()
+
+/** Snapshot once before an async feature load. Only this private membership,
+ * never a caller's freeze or object identity, authorizes admission reuse. */
+export function captureRenderOptions(options: RenderOptions): Readonly<RenderOptions> {
+  if (CAPTURED_OPTIONS.has(options)) return options
+  const admitted = admitRenderOptionsInput(options)
+  const capturedStyle = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
+  const problems = validateSerializableRenderOptions(admitted.serializable)
+  if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  const references = namedStyleReferences(admitted.serializable.style)
+  const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
+  CAPTURED_OPTIONS.set(captured, Object.freeze({ ...admitted, capturedStyle }))
+  CAPTURED_STYLE_REFERENCES.set(admitted.serializable, references)
+  return captured
+}
+
+export function capturedRenderBackend(options: RenderOptions): string {
+  const captured = CAPTURED_OPTIONS.get(options)?.capturedStyle
+  if (!captured) throw new TypeError('Render options have not been captured')
+  return captured.style ? inferBackend(captured.style) : 'default'
 }
 
 /** Capture the complete enumerable RenderOptions surface once. The sole
@@ -1535,8 +1413,10 @@ interface AdmittedRenderOptions {
  * recursively snapshotted, validated, normalized, and receipted. */
 function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOptions {
   if ((typeof untrusted !== 'object' && typeof untrusted !== 'function') || untrusted === null) {
-    throw new TypeError('Invalid RenderOptions: render options must be an object')
+    throw new RenderConfigError('Invalid RenderOptions: render options must be an object')
   }
+  const prior = CAPTURED_OPTIONS.get(untrusted)
+  if (prior) return prior
   const serializableEntries: Array<[string, unknown]> = []
   let onConfigDiagnostic: unknown
   for (const [field, value] of Object.entries(untrusted)) {
@@ -1547,8 +1427,9 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
     }
   }
   if (onConfigDiagnostic !== undefined && typeof onConfigDiagnostic !== 'function') {
-    throw new TypeError('Invalid RenderOptions: onConfigDiagnostic must be a function')
+    throw new RenderConfigError('Invalid RenderOptions: onConfigDiagnostic must be a function')
   }
+  if (serializableEntries.length === 0 && onConfigDiagnostic === undefined) return EMPTY_ADMITTED_OPTIONS
   const candidate = Object.fromEntries(serializableEntries)
   let serializable: Readonly<RenderOptions>
   try {
@@ -1556,7 +1437,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error))
       .replace('data exceeds maximum depth', 'render option tree exceeds maximum nesting depth')
-    throw new TypeError(`Invalid RenderOptions: ${message}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${message}`)
   }
   return Object.freeze({
     serializable,
@@ -1564,6 +1445,46 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
       ? {}
       : { onConfigDiagnostic: onConfigDiagnostic as NonNullable<RenderOptions['onConfigDiagnostic']> }),
   })
+}
+
+type PreparedOptionStyle = ReturnType<typeof resolveStyleStackWithFace>
+const NO_OPTION_STYLE: PreparedOptionStyle = Object.freeze({})
+// Keys come only from admitted own-data snapshots, never live caller objects.
+// Source, host callbacks, backend resolution and family defaults stay per call.
+const PREPARED_OPTIONS_MAX_WEIGHT = 256 * 1024
+const preparedOptions = new WeightedLru<string, PreparedOptionStyle>(32, PREPARED_OPTIONS_MAX_WEIGHT)
+let preparedOptionsRevision = -1
+
+function prepareOptionStyle(admitted: AdmittedRenderOptions): PreparedOptionStyle {
+  if (admitted.capturedStyle) return admitted.capturedStyle
+  if (admitted === EMPTY_ADMITTED_OPTIONS) return NO_OPTION_STYLE
+  const revision = styleRegistryRevision()
+  if (revision !== preparedOptionsRevision) { preparedOptions.clear(); preparedOptionsRevision = revision }
+  const candidate = admitted.serializable as Readonly<Record<string, unknown>>
+  // JSON serialization drops callable/symbol leaves and can invoke toJSON on
+  // them. Reject non-JSON data before deriving a key or dispatching a family.
+  const admissionProblems = renderOptionsAdmissionMessages(candidate)
+  if (admissionProblems.length) throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
+  const serialized = JSON.stringify(candidate)
+  const key = serialized.length <= 4096 ? serialized : undefined
+  const previous = key === undefined ? undefined : preparedOptions.get(key)
+  if (previous) return previous
+  // Keep the established StyleInput error boundary ahead of option schema
+  // failures. Only successful preparations can be reused by later requests.
+  const resolved = resolveStyleStackWithFace(admitted.serializable.style)
+  const problems = validateSerializableRenderOptions(candidate)
+  if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  if (key !== undefined && revision === styleRegistryRevision()) {
+    const weight = (key.length + JSON.stringify(resolved).length) * 2 + 256
+    if (weight <= PREPARED_OPTIONS_MAX_WEIGHT) {
+      // Native cloning owns the retained strings (including sliced parents)
+      // without normalizing optional fields, shared aliases or signed zero.
+      const retained = immutableSnapshot(structuredClone(resolved))
+      preparedOptions.set(key, retained, weight)
+      return retained
+    }
+  }
+  return immutableSnapshot(resolved)
 }
 
 function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedStyleReference[] {
@@ -1613,15 +1534,25 @@ function requiredBackendCapabilities(family: FamilyDescriptor): readonly Essenti
   return ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.filter(requirement => applicable.has(requirement.primitive))
 }
 
+const SUPPORTED_BACKEND_REQUIREMENTS = new WeakMap<BackendDescriptor['backend'], ReadonlySet<EssentialScenePrimitiveCapability>>()
+
 function backendSupportsCapability(
   backend: BackendDescriptor,
   requirement: EssentialScenePrimitiveCapability,
 ): boolean {
-  return backend.backend.capabilities.some(claim =>
-    claim.primitive === requirement.primitive
-    && claim.feature === requirement.feature
-    && claim.operation === requirement.operation
-    && claim.realization !== 'unsupported')
+  // Registration captures immutable claims. Cache by the captured backend,
+  // so replacing a registration cannot inherit its predecessor's support.
+  let supported = SUPPORTED_BACKEND_REQUIREMENTS.get(backend.backend)
+  if (!supported) {
+    supported = new Set(ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.filter(candidate =>
+      backend.backend.capabilities.some(claim =>
+        claim.primitive === candidate.primitive
+        && claim.feature === candidate.feature
+        && claim.operation === candidate.operation
+        && claim.realization !== 'unsupported')))
+    SUPPORTED_BACKEND_REQUIREMENTS.set(backend.backend, supported)
+  }
+  return supported.has(requirement)
 }
 
 function unsatisfiedCapabilityIds(decision: CapabilityDecision): string {
@@ -1658,29 +1589,134 @@ function executionCapabilityError(
   return new RenderCapabilityError(`No SVG renderer registered for Mermaid family ${family.id}${suffix}`, output, family, decision)
 }
 
-function resolveExecutionPlan(
-  family: FamilyDescriptor,
-  appearance: ResolvedAppearance,
-  output: RenderOutput,
-  resolutionOptions: RenderExecutionResolutionOptions,
-  explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
-  onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
-): InternalRenderExecutionPlan {
-  let mode: InternalRenderExecutionPlan['mode']
-  let backend: BackendDescriptor | undefined
-  let requestedBackendId: string | undefined
-  if (output === 'svg' || output === 'png') {
-    mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
-    if (mode === 'scene') {
-      requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
-      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
-    }
-  } else if (output === 'layout') {
-    mode = 'layout'
-  } else {
-    mode = 'terminal'
-  }
+const EXECUTION_CAPABILITY_DECISIONS = new Map<string, CapabilityDecision>()
 
+// Normalization is a pure function of the text, the (empty) Mermaid config
+// overrides and family routing, for the package's own family descriptors.
+// Results are reused within one routing revision and for the same explicit
+// descriptor. Each request receives its own frozen top-level snapshot over the
+// shared frozen views, so request-scoped custody keyed by source identity is
+// unchanged.
+interface RememberedNormalizedSource {
+  readonly revision: number
+  readonly descriptor: FamilyDescriptor | undefined
+  readonly source: NormalizedMermaidSource
+  readonly classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
+}
+const NORMALIZED_SOURCES = new WeightedLru<string, RememberedNormalizedSource>(64, 4 * 1024 * 1024)
+
+function rememberedNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined): RememberedNormalizedSource | undefined {
+  const remembered = NORMALIZED_SOURCES.get(text)
+  return remembered && remembered.revision === familyRoutingRevision() && remembered.descriptor === descriptor ? remembered : undefined
+}
+
+function rememberNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined, source: NormalizedMermaidSource, classification: RememberedNormalizedSource['classification']): void {
+  // The normalized views hold about eight copies of the text.
+  NORMALIZED_SOURCES.set(text, { revision: familyRoutingRevision(), descriptor, source, classification }, text.length * 18 + 4096)
+}
+
+function requestSourceSnapshot(shared: NormalizedMermaidSource): NormalizedMermaidSource {
+  return freezeSnapshot({ ...shared })
+}
+
+// resolveAppearance is a pure function of the family, the normalized source,
+// the admitted options and the style and face prepared from them; named style
+// references also read the style registry. Its deeply frozen result is reused
+// for a remembered source under the same registry revision, options and
+// prepared style identities. Entries live as long as the remembered source.
+interface RememberedAppearance {
+  readonly style: Readonly<StyleSpec> | undefined
+  readonly face: Readonly<InternalStyleFace> | undefined
+  readonly context: ResolvedAppearanceContext
+}
+const REMEMBERED_APPEARANCES = new WeakMap<NormalizedMermaidSource, Map<string, RememberedAppearance>>()
+const REMEMBERED_APPEARANCES_PER_SOURCE = 8
+
+function appearanceMemoKey(admitted: AdmittedRenderOptions): string | undefined {
+  // Captured options carry the style and references of their capture instant.
+  if (admitted.capturedStyle) return undefined
+  const options = admitted === EMPTY_ADMITTED_OPTIONS ? '' : JSON.stringify(admitted.serializable)
+  return options.length <= 4096 ? `${styleRegistryRevision()}:${options}` : undefined
+}
+
+function rememberedAppearance(
+  shared: NormalizedMermaidSource | undefined,
+  key: string | undefined,
+  input: ResolveAppearanceInput,
+): ResolvedAppearanceContext {
+  // An active parser observer asks to see the family normalizer's actual parse.
+  if (!shared || key === undefined || parserObservationActive(input.family.id)) return resolveAppearance(input)
+  let entries = REMEMBERED_APPEARANCES.get(shared)
+  const remembered = entries?.get(key)
+  if (remembered && remembered.style === input.style && remembered.face === input.styleFace) return remembered.context
+  const context = resolveAppearance(input)
+  if (!entries) REMEMBERED_APPEARANCES.set(shared, entries = new Map())
+  entries.delete(key)
+  entries.set(key, { style: input.style, face: input.styleFace, context })
+  if (entries.size > REMEMBERED_APPEARANCES_PER_SOURCE) entries.delete(entries.keys().next().value as string)
+  return context
+}
+
+/** Keys contain only captured tuple metadata, never source, hooks or policy.
+ * Length prefixes preserve order and boundaries without serialization hooks. */
+function executionCapabilityKey(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], available: boolean): string | undefined {
+  const count = offers.length + requirements.length
+  if (typeof output !== 'string' || count > 256) return undefined
+  let characters = output.length + count * 16
+  if (characters > 16384) return undefined
+  let key = `${output.length}:${output};${available};${offers.length};${requirements.length};`
+  for (const offer of offers) {
+    if (typeof offer.id !== 'string' || typeof offer.version !== 'string') return undefined
+    characters += offer.id.length + offer.version.length
+    if (characters > 16384) return undefined
+    key += `${offer.id.length}:${offer.id}${offer.version.length}:${offer.version}`
+  }
+  for (const requirement of requirements) {
+    if (typeof requirement.id !== 'string' || typeof requirement.range !== 'string' || typeof requirement.level !== 'string') return undefined
+    characters += requirement.id.length + requirement.range.length + requirement.level.length
+    if (characters > 16384) return undefined
+    key += `${requirement.id.length}:${requirement.id}${requirement.range.length}:${requirement.range}${requirement.level.length}:${requirement.level}`
+  }
+  return key.length <= 8192 ? key : undefined
+}
+
+function executionCapabilityDecision(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], outputAvailable: boolean): CapabilityDecision {
+  const key = executionCapabilityKey(output, offers, requirements, outputAvailable)
+  const retained = key === undefined ? undefined : EXECUTION_CAPABILITY_DECISIONS.get(key)
+  observeCache('capability-decision', key === undefined ? 'bypass' : retained ? 'hit' : 'miss', key === undefined ? 'tuple-budget' : undefined)
+  if (retained) return retained
+  // Admitted once here, so every request receipt that embeds this cached
+  // decision reuses it instead of copying its resolutions again.
+  const decision = omitUndefinedObjectFields(negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })) as CapabilityDecision
+  if (key !== undefined) {
+    if (EXECUTION_CAPABILITY_DECISIONS.size < 32) EXECUTION_CAPABILITY_DECISIONS.set(key, decision)
+    else observeCache('capability-decision', 'store-skipped', 'capacity')
+  }
+  return decision
+}
+
+// Descriptor identities own the executable capability tuple. Replacing a
+// family/backend naturally invalidates it; per-request policy selection and
+// measurement/config remain outside this cache.
+const DESCRIPTOR_CAPABILITY_DECISIONS = new WeakMap<FamilyDescriptor, WeakMap<object, Map<string, CapabilityDecision>>>()
+const NO_EXECUTION_BACKEND = Object.freeze({})
+
+function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput): CapabilityDecision {
+  const cacheable = Object.isFrozen(family) && (backend === undefined || Object.isFrozen(backend))
+  let decisions: Map<string, CapabilityDecision> | undefined
+  const key = `${mode}:${output}`
+  if (cacheable) {
+    let backends = DESCRIPTOR_CAPABILITY_DECISIONS.get(family)
+    if (!backends) DESCRIPTOR_CAPABILITY_DECISIONS.set(family, backends = new WeakMap())
+    const owner = backend ?? NO_EXECUTION_BACKEND
+    decisions = backends.get(owner)
+    if (!decisions) backends.set(owner, decisions = new Map())
+    const retained = decisions.get(key)
+    if (retained) {
+      observeCache('capability-decision', 'hit')
+      return retained
+    }
+  }
   const backendCapabilityRequirements = mode === 'scene'
     ? requiredBackendCapabilities(family)
     : []
@@ -1743,18 +1779,44 @@ function resolveExecutionPlan(
       break
   }
 
-  const capabilityDecision = negotiateRenderCapabilityTuple(output, {
-    offers,
-    requirements,
-    outputAvailable,
-  })
+  const capabilityDecision = executionCapabilityDecision(output, offers, requirements, outputAvailable)
+  decisions?.set(key, capabilityDecision)
+  return capabilityDecision
+}
+
+function resolveExecutionPlan(
+  family: FamilyDescriptor,
+  appearance: ResolvedAppearance,
+  output: RenderOutput,
+  resolutionOptions: RenderExecutionResolutionOptions,
+  explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
+  onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
+  fontMetrics?: RenderOptions['fontMetrics'],
+): InternalRenderExecutionPlan {
+  let mode: InternalRenderExecutionPlan['mode']
+  let backend: BackendDescriptor | undefined
+  let requestedBackendId: string | undefined
+  if (output === 'svg' || output === 'png') {
+    mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
+    if (mode === 'scene') {
+      requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
+      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
+    }
+  } else if (output === 'layout') {
+    mode = 'layout'
+  } else {
+    mode = 'terminal'
+  }
+
+  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output)
   if (!capabilityDecision.accepted) {
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }
 
+  if (mode !== 'terminal' && resolutionOptions.textMeasurement && fontMetrics === 'bundled-inter') throw new RenderConfigError('fontMetrics cannot be combined with a host textMeasurement profile')
   const textMeasurement = mode === 'terminal'
     ? undefined
-    : createTextMeasurementExecution(resolutionOptions.textMeasurement, appearance.font)
+    : createTextMeasurementExecution(resolutionOptions.textMeasurement ?? (fontMetrics === 'bundled-inter' ? bundledInterMetrics() : undefined), appearance.font)
   let executionDecision: RenderExecutionDecision | undefined
   if (mode === 'scene' || mode === 'family-svg') {
     const backendDecision: RenderExecutionDecision['backend'] = mode === 'scene'
@@ -1832,15 +1894,19 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   let effective: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : { ...options }
+  if (options.graphLayout) effective.graphLayout = { ...options.graphLayout, fallback: options.graphLayout.fallback ?? 'none' }
 
   const styled = style !== undefined && isStyledSpec(style)
   if (styled) effective = applyStyleDefaults(effective, style, source.config.themeVariables)
 
-  const font = options.font
+  const authoredFont = options.font
     ?? source.config.fontFamily
     ?? readThemeValue(source.config.themeVariables, 'fontFamily')
     ?? effective.font
     ?? 'Inter'
+  // Carry the safe spelling (double-quoted names requoted) into every sink; an
+  // unsafe value stays as authored for the option validator to name.
+  const font = safeCssFontFamily(authoredFont) ?? authoredFont
   // `style` is a public entry format (name, record, or stack), not family input.
   // Replace it with the already-resolved canonical record before any family
   // hook runs so a family can never branch on string-vs-record syntax. Keep the
@@ -1863,7 +1929,7 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   )
 
   const colors = immutableSnapshot(normalized.colors)
-  const styleReferences = namedStyleReferences(options.style)
+  const styleReferences = CAPTURED_STYLE_REFERENCES.get(options) ?? namedStyleReferences(options.style)
   const rejectedThemeColors = unsafeThemeColorKeys(source)
   const appearanceReceipt = {
     version: RENDER_CONTRACT_VERSION,
@@ -1908,59 +1974,59 @@ export function resolveRenderRequestForExecution(
 ): ResolvedRenderRequest {
   const admitted = admitRenderOptionsInput(options)
   const admittedOptions = admitted.serializable as RenderOptions
-  const serializableOptionsCandidate = admittedOptions as Readonly<Record<string, unknown>>
-  // Enforce aggregate/depth bounds before Style resolution or any other
-  // request-specific walker. Full schema validation remains below so the
-  // established StyleInput error boundary is preserved for bounded values.
-  const admissionProblems = renderOptionsAdmissionMessages(serializableOptionsCandidate)
-  if (admissionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
-  }
-  // Keep StyleInput's established public error boundary. The shared options
-  // schema still validates the field below (and every host surface uses that
-  // validator), but resolving it first means an invalid inline StyleSpec is
-  // reported as `Invalid style spec` instead of being relabelled as a generic
-  // RenderOptions failure. It also avoids resolving mutable registry state
-  // twice while constructing one canonical request.
-  const resolvedStyle = resolveStyleStackWithFace(admittedOptions.style)
+  const resolvedStyle = prepareOptionStyle(admitted)
   const style = resolvedStyle.style
   const face = immutableSnapshot(resolvedStyle.face)
-  const optionProblems = validateSerializableRenderOptions(serializableOptionsCandidate)
-  if (optionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
-  }
 
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const decodedText = decodeXML(text)
-  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, admittedOptions.mermaidConfig ?? {})
-  const authoredEnvelope = decodedText === text ? normalizedSource : normalizeMermaidSource(text)
+  let classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const detectedSource: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  let detectedSource: NormalizedMermaidSource
+  let sharedSource: NormalizedMermaidSource | undefined
+  const memoable = admittedOptions.mermaidConfig === undefined || Object.keys(admittedOptions.mermaidConfig).length === 0
+  const remembered = memoable ? rememberedNormalizedSource(text, resolutionOptions.familyDescriptor) : undefined
+  if (remembered) {
+    classification = remembered.classification
+    sharedSource = remembered.source
+    detectedSource = requestSourceSnapshot(remembered.source)
+  } else {
+    const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
+      if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
+      classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
+      return classification.kind === 'registered' ? classification.family : null
+    })
+    detectedSource = immutableSnapshot(normalizedSource)
+    const resolved = resolutionOptions.familyDescriptor ?? (classification?.kind === 'registered' ? classification.family : undefined)
+    if (memoable && resolved && isOwnedFamily(resolved)) {
+      rememberNormalizedSource(text, resolutionOptions.familyDescriptor, detectedSource, classification)
+      sharedSource = detectedSource
+      detectedSource = requestSourceSnapshot(detectedSource)
+    }
+  }
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
-  // Mermaid Pie keys sections by the label as authored, including entity
-  // spelling. Decode grammar (header, separators, values) as before, but put
-  // authored label and title text back before Pie's own display projection.
-  const source: NormalizedMermaidSource = family.id === 'pie' && decodedText !== text
-    ? Object.freeze({ ...detectedSource,
-      authoredPieFamilyLines: Object.freeze(pieLinesWithAuthoredText(authoredEnvelope)) as unknown as string[] })
-    : detectedSource
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, classification!)
+  // Pie keeps its authored label spelling in its own chunk (pieFamilyLines).
+  const source = detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }
+  // The receipt below digests both copies of the source under one data budget.
+  // Name a source too long for it as the work limit it is, before the digest
+  // would refuse it as malformed request data.
+  assertDiagramWorkLimit('sourceCharacters', source.originalText.length + source.text.length)
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
-  if (themeCssProblem) throw new TypeError(themeCssProblem)
+  if (themeCssProblem) throw new RenderConfigError(themeCssProblem)
   if (family.id !== 'architecture') checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
-  const resolvedContext = resolveAppearance({
+  const resolvedContext = rememberedAppearance(sharedSource, appearanceMemoKey(admitted), {
     family,
     source,
     options: admittedOptions,
@@ -1985,6 +2051,7 @@ export function resolveRenderRequestForExecution(
     resolutionOptions,
     admittedOptions.mermaidConfig,
     admitted.onConfigDiagnostic,
+    admittedOptions.fontMetrics,
   )
   const capabilityDecision = executionPlan.capabilityDecision
 
@@ -1992,13 +2059,12 @@ export function resolveRenderRequestForExecution(
   // callers use its digest to prove that SVG, PNG, terminal and layout
   // transports received the same source and appearance request. The full
   // request receipt below restores the exact output negotiation decision.
+  const sharedResolutions = Object.freeze(capabilityDecision.resolutions.filter(isSharedCapabilityResolution))
   const sharedCapabilityDecision: CapabilityDecision = Object.freeze({
     version: capabilityDecision.version,
-    accepted: capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)
+    accepted: sharedResolutions
       .every(resolution => resolution.level !== 'required' || resolution.status === 'selected'),
-    resolutions: Object.freeze(capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)),
+    resolutions: sharedResolutions,
   })
   const sharedRequestReceipt = {
     version: RENDER_CONTRACT_VERSION,
@@ -2010,13 +2076,17 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
+  const sharedAdmitted = admittedRequestReceipt(sharedRequestReceipt, source) as Readonly<Record<string, unknown>>
+  const sharedRequestDigest = deferredAdmittedDigest(sharedAdmitted)
+  // The full receipt restores the output negotiation over the shared fields
+  // as admitted above, so admission charges them instead of walking them again.
   const requestReceipt = {
-    ...sharedRequestReceipt,
+    ...sharedAdmitted,
     output,
     outputOptions,
     capabilities: capabilityDecision,
   }
+  const requestDigest = deferredAdmittedDigest(admittedRequestReceipt(requestReceipt, source))
   const request: ResolvedRenderRequest = Object.freeze({
     version: RENDER_CONTRACT_VERSION,
     output,
@@ -2027,9 +2097,10 @@ export function resolveRenderRequestForExecution(
     capabilityDecision,
     explicitOptionFields,
     ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
-    sharedRequestDigest,
-    requestDigest: renderContractDigest(requestReceipt),
+    get sharedRequestDigest() { return sharedRequestDigest() },
+    get requestDigest() { return requestDigest() },
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
+  admitParsedModelHandoff(resolutionOptions.parsedModelHandoff, request.source, family)
   return request
 }

@@ -18,7 +18,7 @@ duplicate official listing with an independent version authority.
 
 The current registration copy, support contact, review prompts, and directory
 status live in
-[`docs/MCP-DIRECTORY-LISTINGS.md`](../../../docs/MCP-DIRECTORY-LISTINGS.md).
+[`docs/project/mcp-directory-listings.md`](../../../docs/project/mcp-directory-listings.md).
 Keep that record synchronized with the root manifest and production endpoint.
 
 - **PulseMCP** — allow its official Registry ingestion window, then use

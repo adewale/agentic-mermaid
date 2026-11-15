@@ -1,5 +1,12 @@
 # Flowchart — family contracts
 
+Legacy `A(-text-)` nodes have an elliptical outline. Quoted labels, typed
+`set_shape {shape: "ellipse"}` edits and serialization retain that geometry
+and label independently. Layout encloses the padded label inside the curve;
+routing clips against the same ellipse that SVG and PNG paint. Terminal
+output uses the existing circular corner markers and preserves the node's
+ellipse identity and complete label.
+
 Status: living contract for the flowchart-family elevation
 (plan §Flowchart items 3, 6, 7, 8; repo issues #44 and #102).
 Last updated: 2026-09-28.
@@ -132,8 +139,9 @@ Upstream schema verified 2026-07-10
   line so emphasis cannot leak or disappear across a break.
 - Explicit line breaks: real newlines inside the backtick string (and `<br>`)
   become label line breaks. Multiline strings are coalesced pre-parse
-  (`coalesceMarkdownStringLines`), joining on `<br>` — the label pipeline's
-  canonical break token — so single-line shape grammars keep matching.
+  (`coalesceFlowchartLines`, shared with verify and action analysis), joining
+  on `<br>` — the label pipeline's canonical break token — so single-line
+  shape grammars keep matching.
 - Markdown labels auto-wrap at `flowchart.wrappingWidth` (default 200),
   matching upstream's markdown-only auto-wrap default.
 - The agent body stays **opaque** for any backtick source, so the original

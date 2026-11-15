@@ -50,6 +50,17 @@ export function mermaidEntityPrepass(line: string): string {
     stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(segment, 'style'), 'classDef'))
 }
 
+/** Build a complete statement before deciding which text needs protection.
+ * The global prepass can start in one field and reach an entity in another.
+ * Producers own their grammar punctuation and reserve colons only in text. */
+export function protectMermaidEntityPrepass(produce: (reserved: string) => string): string {
+  const written = produce('')
+  if (mermaidEntityPrepass(written) === written) return written
+  const protectedText = produce(':')
+  if (mermaidEntityPrepass(protectedText) !== protectedText) throw new Error('Mermaid statement cannot protect its text from the global entity prepass')
+  return protectedText
+}
+
 function stripEntityPrepassSemicolon(line: string, keyword: string): string {
   const lastSemicolon = line.lastIndexOf(';')
   if (lastSemicolon < 0 || !line.includes(keyword)) return line
@@ -106,6 +117,10 @@ const WORD_RE = /\w/
  *   - a `#` that would start an entity code (`#\w+;`) → `#35;`;
  *   - `ﬂ` before `°` → `#64258;`, and `¶` before `ß` → `#182;`, so no marker
  *     is spelled literally (upstream replaces even lone `ﬂ°` and `¶ß` pieces).
+ *   - the `%` between `%` and `{` → `#37;`, so the text never spells a
+ *     directive opener: upstream strips `%%{…}%%` anywhere in the source,
+ *     quoted text included. (Whether a plain `%%` is text or a comment is the
+ *     grammar context's to decide.)
  * `reserved` lists characters the grammar context cannot hold literally
  * (`"` in a quoted flowchart label, `;` or `#` in a sequence message). They
  * are written as entities: `#quot;`, `#amp;`, `#lt;`, `#gt;`, else `#<code>;`.
@@ -138,6 +153,7 @@ export function encodeMermaidEntities(text: string, reserved = ''): string {
     if (reservedSet.has(character)) out += entityFor(character)
     else if (character === '#' && startsEntityCode(index)) out += entityFor('#')
     else if ((character === 'ﬂ' && literal(index + 1) === '°') || (character === '¶' && literal(index + 1) === 'ß')) out += entityFor(character)
+    else if (character === '%' && characters[index - 1] === '%' && literal(index + 1) === '{') out += entityFor(character)
     else out += character
   }
   return out

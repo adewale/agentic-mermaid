@@ -19,6 +19,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
@@ -57,6 +58,39 @@ function assertLabelInvariants(positioned: PositionedQuadrantChart): void {
   }
 }
 
+describe('section captions keep their own space beside fixed data points', () => {
+  for (const radius of [6, 22]) it(`keeps captions clear of centered points with radius ${radius}`, () => {
+    const source = `quadrantChart
+quadrant-1 Plan
+quadrant-2 Do now
+quadrant-3 Maybe
+quadrant-4 Drop
+Alpha: [0.25, 0.75] radius: ${radius}
+Beta: [0.75, 0.75] radius: ${radius}
+Gamma: [0.25, 0.25] radius: ${radius}
+Delta: [0.75, 0.25] radius: ${radius}`
+    const chart = layout(source)
+    expect(chart.points.map(point => [point.nx, point.ny])).toEqual([[.25, .75], [.75, .75], [.25, .25], [.75, .25]])
+    expect(chart.points.every(point => !point.labelHidden)).toBe(true)
+    assertLabelInvariants(chart)
+    for (const region of chart.regions) {
+      const block = region.labelBlock!
+      const box = { x0: region.labelX - block.width / 2, y0: region.labelY - block.height / 2, x1: region.labelX + block.width / 2, y1: region.labelY + block.height / 2 }
+      expect(box.x0).toBeGreaterThanOrEqual(region.x)
+      expect(box.x1).toBeLessThanOrEqual(region.x + region.width)
+      expect(box.y0).toBeGreaterThanOrEqual(region.y)
+      expect(box.y1).toBeLessThanOrEqual(region.y + region.height)
+      for (const point of chart.points) {
+        expect(overlaps(box, { x0: point.cx - point.radius, y0: point.cy - point.radius, x1: point.cx + point.radius, y1: point.cy + point.radius })).toBe(false)
+        expect(overlaps(box, point.labelBox!)).toBe(false)
+      }
+    }
+    expect(layout(source)).toEqual(chart)
+    const svg = renderMermaidSVG(source)
+    for (const text of ['Plan', 'Do now', 'Maybe', 'Drop', 'Alpha', 'Beta', 'Gamma', 'Delta']) expect(svg).toContain(text)
+  })
+})
+
 // The quad-20 probe: 20 labeled points bunched into two clusters.
 const QUAD20 = `quadrantChart
   title Feature priorities
@@ -77,6 +111,10 @@ describe('quad-20 dense cluster placement', () => {
   })
 
   it('every label is either visible or explicitly recorded hidden — none lost', () => {
+    expect(positioned.points.map(p => p.label)).toEqual([
+      ...Array.from({ length: 10 }, (_, i) => `Cluster A item ${i}`),
+      ...Array.from({ length: 10 }, (_, i) => `Cluster B item ${i}`),
+    ])
     for (const p of positioned.points) {
       expect(Boolean(p.labelHidden) || p.labelBox !== undefined).toBe(true)
     }
@@ -173,11 +211,48 @@ describe('label placement property: invariants hold for arbitrary point sets', (
         (points) => {
           const src = 'quadrantChart\n' + points.map(p => `  ${p.label}: [${p.x}, ${p.y}]`).join('\n')
           const positioned = layout(src)
+          expect(positioned.points.map(p => [p.label, p.nx, p.ny])).toEqual(points.map(p => [p.label, p.x, p.y]))
+          expect(positioned.points[0]!.labelHidden).toBeUndefined()
+          expect(positioned.points[0]!.labelBox).toBeDefined()
           assertLabelInvariants(positioned)
           expect(JSON.stringify(layout(src))).toBe(JSON.stringify(positioned))
         },
       ),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
+  })
+})
+
+describe('large-chart filtering retains source-priority visible geometry', () => {
+  it('adding duplicate point obstacles preserves every earlier label and leader across the large-chart threshold', () => {
+    // Past the density cap, plot/canvas size is fixed. Appended points are
+    // exact duplicate circles of P0: they add no new geometric obstacle to
+    // earlier labels. Source-priority placement cannot revisit that prefix.
+    // This compares the complete earlier geometry without copied coordinates
+    // or a second copy of the candidate-placement/collision algorithm.
+    const prefix = Array.from({ length: 127 }, (_, i) =>
+      `P${i}: [${(.5 + (i % 3 - 1) / 1000).toFixed(3)}, ${(.5 + (Math.floor(i / 3) % 3 - 1) / 1000).toFixed(3)}] radius: ${[1, 6, 18][i % 3]}`)
+    const source = 'quadrantChart\n' + prefix.join('\n')
+    const before = layout(source)
+    assertLabelInvariants(before)
+    expect(before.points.some(point => point.leader !== undefined)).toBe(true)
+    for (const additional of [1, 2]) {
+      const appended = Array.from({ length: additional }, (_, i) => `Extra${i}: [0.499, 0.499] radius: 1`)
+      const afterSource = source + '\n' + appended.join('\n')
+      const after = layout(afterSource)
+      expect(after.points).toHaveLength(127 + additional)
+      expect(after.plot).toEqual(before.plot)
+      expect([after.width, after.height]).toEqual([before.width, before.height])
+      expect(after.points.slice(0, 127)).toEqual(before.points)
+      assertLabelInvariants(after)
+      const svg = renderMermaidSVG(afterSource)
+      const leaders = [...svg.matchAll(/<line\b[^>]*\bclass="quadrant-leader"[^>]*>/g)].map(([element]) => {
+        const number = (name: string) => Number(element.match(new RegExp(`\\b${name}="([^"]+)"`))![1])
+        return { x1: number('x1'), y1: number('y1'), x2: number('x2'), y2: number('y2') }
+      })
+      expect(leaders).toEqual(after.points.flatMap(point => point.leader ? [point.leader] : []))
+      expect([...svg.matchAll(/<text\b[^>]*\bclass="quadrant-point-label"[^>]*>/g)])
+        .toHaveLength(after.points.filter(point => !point.labelHidden).length)
+    }
   })
 })

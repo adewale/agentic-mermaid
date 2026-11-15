@@ -14,7 +14,7 @@ export const JOURNEY_SVG_HOOKS = {
     appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
   }),
   layout: ctx => layoutResult(layoutJourneyDiagram(
-    withFrontmatterTitle(parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
+    withFrontmatterTitle(parseJourneyDiagram(ctx.source.authoredFamilyLines ?? ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined)
       ?? resolveJourneyRequestAppearance(ctx.renderOptions),
     ctx.renderOptions,

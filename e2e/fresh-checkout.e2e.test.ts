@@ -1,6 +1,6 @@
-// Exercise the actual source-checkout entrypoints with dependencies absent.
-// This closes the gap where the formatter helper was unit-tested but the bins
-// still crashed before it could run because of top-level imports.
+// Exercise the actual source-checkout entrypoints with dependencies absent:
+// lightweight help still works, while deferred runtime imports retain the
+// prescriptive installation error instead of exposing a resolution stack.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { cpSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
@@ -24,14 +24,22 @@ afterAll(() => {
 })
 
 describe('fresh source checkout without dependencies', () => {
-  for (const [name, entry] of [
-    ['am', 'bin/am.ts'],
-    ['agentic-mermaid-mcp', 'bin/agentic-mermaid-mcp.ts'],
+  for (const [name, entry, helpArgs, startupArgs, helpText] of [
+    ['am', 'bin/am.ts', ['--help'], ['capabilities'], 'Usage: am'],
+    ['agentic-mermaid-mcp', 'bin/agentic-mermaid-mcp.ts', ['--help'], ['--transport', 'stdio'], 'agentic-mermaid-mcp'],
+    ['am mcp', 'bin/am.ts', ['mcp', '--help'], ['mcp', '--transport', 'stdio'], 'agentic-mermaid-mcp'],
   ] as const) {
-    test(`${name} gives one prescriptive error instead of a module-resolution stack`, () => {
+    test(`${name} help works offline without installed dependencies`, () => {
       // Bun auto-installs by default when node_modules is absent; --no-install
       // recreates an offline/fresh checkout instead of masking the condition.
-      const result = spawnSync('bun', ['--no-install', entry, '--help'], { cwd: checkout, encoding: 'utf8' })
+      const result = spawnSync('bun', ['--no-install', entry, ...helpArgs], { cwd: checkout, encoding: 'utf8' })
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain(helpText)
+      expect(result.stderr).toBe('')
+    })
+
+    test(`${name} startup gives one prescriptive dependency error instead of a module-resolution stack`, () => {
+      const result = spawnSync('bun', ['--no-install', entry, ...startupArgs], { cwd: checkout, encoding: 'utf8' })
       expect(result.status).toBe(1)
       expect(result.stdout).toBe('')
       expect(result.stderr).toContain('source checkout dependencies are not installed')

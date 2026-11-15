@@ -72,9 +72,9 @@ describe('Class markerless link fidelity', () => {
       expect(verified.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'empty_layout')).toBe(false)
 
       const svg = renderMermaidSVG(source)
-      expect(svg).toContain(`data-from="${from}" data-to="${to}" data-type="${item.kind}"`)
       const relation = svg.match(/<(?:path|polyline) class="class-relationship"[^>]+>/)?.[0]
       expect(relation).toBeDefined()
+      for (const attribute of [`data-from="${from}"`, `data-to="${to}"`, `data-type="${item.kind}"`]) expect(relation).toContain(attribute)
       expect(relation).not.toContain('marker-start=')
       expect(relation).not.toContain('marker-end=')
       expect(relation?.includes('stroke-dasharray="6 4"')).toBe(item.kind === 'link-dashed')

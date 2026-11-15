@@ -7,6 +7,7 @@
 // globally (fc-seed.preload.ts).
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { handleRequest } from '../mcp/server.ts'
 import type { JsonRpcRequest } from '../mcp/server.ts'
@@ -69,15 +70,14 @@ const requestArb = fc.record({
   method: methodArb,
   params: paramsArb,
 }, { requiredKeys: ['jsonrpc', 'method'] })
+type FuzzRequest = typeof requestArb extends fc.Arbitrary<infer T> ? T : never
 
 function assertWellFormedResponse(response: unknown, req: JsonRpcRequest): void {
   // JSON-RPC 2.0: a notification (no `id` member) is never answered and every
-  // request is. The one silent request today is `notifications/initialized`
-  // sent WITH an id, which the legacy handshake swallows.
+  // request is, whatever its method is called.
   const notification = !Object.hasOwn(req, 'id')
   if (response === null) {
-    expect({ method: req.method, answerable: !notification && req.method !== 'notifications/initialized' })
-      .toEqual({ method: req.method, answerable: false })
+    expect({ method: req.method, answerable: !notification }).toEqual({ method: req.method, answerable: false })
     return
   }
   expect({ method: req.method, notification }).toEqual({ method: req.method, notification: false })
@@ -107,7 +107,8 @@ describe('mcp-surface fuzz: handleRequest', () => {
         const response = await handleRequest(req as JsonRpcRequest)
         assertWellFormedResponse(response, req as JsonRpcRequest)
       }),
-      { numRuns: NUM_RUNS },
+      // Reduced counterexample: the legacy handshake once swallowed this request.
+      fcParameters<[FuzzRequest]>({ numRuns: NUM_RUNS, examples: [[{ jsonrpc: '2.0', id: 1, method: 'notifications/initialized' }]] }),
     )
   }, LONG_TIMEOUT_MS)
 
@@ -129,7 +130,7 @@ describe('mcp-surface fuzz: handleRequest', () => {
         expect(Array.isArray(result!.content)).toBe(true)
         expect(typeof result!.isError).toBe('boolean')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
 })
@@ -150,7 +151,20 @@ describe('mcp-surface fuzz: executeInSandbox', () => {
           expect(typeof result.error).toBe('string')
         }
       }),
-      { numRuns: SANDBOX_RUNS },
+      fcParameters({ numRuns: SANDBOX_RUNS }),
+    )
+  }, LONG_TIMEOUT_MS)
+  it('returns the value the code computes, and reports the message the code throws', async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.jsonValue({ maxDepth: 2 }), fc.string({ unit: 'grapheme', minLength: 1, maxLength: 20 }), async (value, message) => {
+        const returned = await executeInSandbox(`return ${JSON.stringify(value)}`, { timeoutMs: 1000 })
+        expect(returned).toMatchObject({ ok: true })
+        expect((returned as { value: unknown }).value).toEqual(JSON.parse(JSON.stringify(value)))
+        const thrown = await executeInSandbox(`throw new Error(${JSON.stringify(message)})`, { timeoutMs: 1000 })
+        expect(thrown.ok).toBe(false)
+        expect(String((thrown as { error: unknown }).error)).toContain(message)
+      }),
+      fcParameters({ numRuns: SANDBOX_RUNS }),
     )
   }, LONG_TIMEOUT_MS)
 })

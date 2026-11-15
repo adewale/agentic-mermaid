@@ -1,3 +1,6 @@
+import { positionedPaintCertification } from '../scene/positioned.ts'
+import { assertScenesOf } from '../scene/assertions.ts'
+import { PaintLayoutCertificationError, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // Canonical positioned-artifact → RenderedLayout projections.
 //
@@ -36,10 +39,12 @@
 
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { AuthoredStyleColorError } from '../shared/style-props.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { positionResolvedFamily, retainedFamilyProjection } from '../positioning.ts'
+import { clonePositioned, isRetainedPositionedSnapshot } from '../experimental/position-cache.ts'
 import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
-import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
+import { RenderConfigError, resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedDiagram, RenderOptions } from '../types.ts'
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './families.ts'
@@ -80,10 +85,13 @@ export interface PositionFamilyArtifactOptions extends FamilyPositionedProjectio
   renderOptions?: RenderOptions
   /** Internal adapter selection; public layout remains the default. */
   output?: Extract<RenderOutput, 'layout' | 'svg'>
+  /** Cross-check every built-in Scene lowered for this artifact, as verify does. */
+  assertScenes?: boolean
 }
 
 /** A descriptor layout/projection failure with enough context for public
- * adapters to distinguish it from verification and parsing failures. */
+ * adapters to distinguish it from verification and parsing failures. The hook's
+ * own error stays its ES2022 `cause`, so verify can still tell whose it is. */
 export class FamilyLayoutError extends Error {
   readonly family: FamilyId
   readonly operation: 'layout' | 'projectPositioned'
@@ -105,6 +113,7 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
     throw new Error(`Resolved request planned family ${descriptor.id}, not ${d.kind}`)
   }
   if (!descriptor.layout || !descriptor.projectPositioned) return null
+  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || d.kind.startsWith('family:'))) throw new FamilyLayoutError(d.kind, 'projectPositioned', new RenderConfigError('Strict layout safety requires native Scene evidence'))
   let result: ReturnType<typeof positionResolvedFamily>
   try {
     result = positionResolvedFamily(d.kind, request, request.source, options)
@@ -118,11 +127,39 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
   } catch (error) {
     throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
   }
-  return {
-    request,
-    layoutResult: result,
-    positioned: result.positioned,
-    rendered: stampFamilyKind(d.kind, view),
+  const rendered = stampFamilyKind(d.kind, view)
+  if (descriptor.lowerScene && !d.kind.startsWith('family:')) {
+    const certification = positionedPaintCertification(request, result)
+    if (request.renderOptions.layoutSafety === 'strict' && certification.status !== 'passed') throw new PaintLayoutCertificationError(certification)
+    retainRenderedPaintCertification(rendered, certification)
+    if (options.debug) rendered.paintCertification = certification
+  }
+  return { request, layoutResult: result, positioned: result.positioned, rendered }
+}
+
+/** Reject unsupported action projection before any drawing hook can run. */
+export function assertFamilyLayoutProjection(request: ResolvedRenderRequest): void {
+  const descriptor = resolvedRenderExecutionPlanOf(request).family
+  if (!descriptor.layout || !descriptor.projectPositioned) throw new Error(`No public layout projection registered for Mermaid family "${descriptor.id}"`)
+  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || descriptor.id.startsWith('family:'))) throw new FamilyLayoutError(descriptor.id, 'projectPositioned', new RenderConfigError('Strict layout safety requires native Scene evidence'))
+}
+
+/** Project the exact render result without another request or layout. Borrowed
+ * cache geometry stays private even when a projector returns mutable views. */
+export function projectResolvedFamilyLayout(request: ResolvedRenderRequest, result: FamilyLayoutResult, options: FamilyPositionedProjectionOptions = {}): RenderedLayout | null {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const descriptor = plan.family
+  if (!descriptor.projectPositioned) return null
+  assertFamilyLayoutProjection(request)
+  const retained = retainedFamilyProjection(result)
+  if (retained) return stampFamilyKind(descriptor.id, isRetainedPositionedSnapshot(result) ? clonePositioned(retained) : retained)
+  const snapshot = isRetainedPositionedSnapshot(result) ? clonePositioned(result) : result
+  try {
+    const view = withTextMeasurementExecution(plan.textMeasurement, () =>
+      descriptor.projectPositioned!({ positioned: snapshot.positioned, options }))
+    return stampFamilyKind(descriptor.id, view)
+  } catch (error) {
+    throw new FamilyLayoutError(descriptor.id, 'projectPositioned', error)
   }
 }
 
@@ -172,10 +209,10 @@ export function projectPositionedView(familyId: FamilyId, positioned: Positioned
 
 /**
  * Produce the one canonical positioned artifact used by every agent
- * projection. Most descriptors receive `canonicalSource`, preserving the
- * established RenderedLayout contract (including authored declaration order
- * and its historical wrapper/config policy) while removing the independent
- * family parsers and layouters that previously interpreted that source.
+ * projection. Most descriptors receive `canonicalSource` under the diagram's
+ * config wrapper, preserving authored declaration order and drawing what the
+ * saved source draws, while removing the independent family parsers and
+ * layouters that previously interpreted that source.
  * Families whose former adapter was body/config based use their canonical
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.
@@ -195,6 +232,7 @@ export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamily
   const projectSource = (text: string): ProjectedFamilyArtifact => {
     const output = options.output ?? 'layout'
     const request = resolveRenderRequest(text, options.renderOptions ?? {}, output, output === 'layout' ? projectionOptions : undefined)
+    if (options.assertScenes) assertScenesOf(request)
     return positionResolvedFamilyArtifact(d, request, projectionOptions)!
   }
 
@@ -250,7 +288,9 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     if (message.startsWith('GANTT_EMPTY')) return { code: 'EMPTY_DIAGRAM' }
-    return { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
+    return e instanceof AuthoredStyleColorError
+      ? { code: 'RENDER_FAILED', reason: message, origin: 'source' }
+      : { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
   }
 }
 

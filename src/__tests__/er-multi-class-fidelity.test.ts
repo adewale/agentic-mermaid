@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import mermaid from 'mermaid'
 import { asEr, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
@@ -14,8 +14,9 @@ const source = `erDiagram
 `
 
 describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
+  beforeAll(() => { mermaid.initialize({ startOnLoad: false }) })
+
   test('pinned Mermaid DB applies both classes to both existing entities', async () => {
-    mermaid.initialize({ startOnLoad: false })
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(source)
     const entities = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities()
     expect(entities.get('CUSTOMER')?.cssClasses).toBe('default vip hot')
@@ -69,18 +70,28 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
   test('repeated class statements accumulate in Mermaid order, with later paint winning', async () => {
     const repeated = `erDiagram
       A ||--o{ B : x
+      classDef default fill:#aabbcc,stroke:#224466,stroke-width:4px
       classDef first fill:#ff0000
       classDef second fill:#0000ff
       class A first
       class A second
+      style A stroke-width:2px
     `
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(repeated)
     const entities = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities()
     expect(entities.get('A')?.cssClasses).toBe('default first second')
     expect(parseErDiagram(repeated.trim().split('\n').map(line => line.trim())).entities[0]?.className).toBe('first second')
-    const svg = renderMermaidSVG(repeated)
-    expect(svg).toContain('class="entity first second" data-id="A"')
-    expect(svg).toContain('fill="#0000ff"')
+    for (const backend of ['agentic', 'elk'] as const) {
+      const svg = renderMermaidSVG(repeated, { graphLayout: { backend, fallback: 'none' } })
+      expect(svg).toContain('class="entity first second" data-id="A"')
+      const box = (id: string) => svg.match(new RegExp(`<rect\\b[^>]*data-id="entity-rect:${id}"[^>]*\\/>`))?.[0]
+      expect(box('A')).toContain('fill="#0000ff"')
+      expect(box('A')).toContain('stroke="#224466"')
+      expect(box('A')).toContain('stroke-width="2"')
+      expect(box('B')).toContain('fill="#aabbcc"')
+      expect(box('B')).toContain('stroke="#224466"')
+      expect(box('B')).toContain('stroke-width="4"')
+    }
   })
 
   test('later shorthand appends to statement and shorthand classes on an existing entity', async () => {
@@ -194,7 +205,7 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
       const classes = 'hot,'.repeat(200000) + 'hot';
       const chart = parseErDiagram(['erDiagram', 'A ||--o{ B : x', 'class A vip', 'class A ' + classes]);
       if (chart.entities[0]?.className?.split(' ').length !== 200002) process.exit(1);`
-    const node = spawnSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' })
+    const node = spawnSync('node', ['--input-type=module', '-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
     expect(node.status).toBe(0)
   })
 })

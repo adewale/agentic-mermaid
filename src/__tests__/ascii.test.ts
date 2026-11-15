@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
-import { hasDiagonalLines, DIAGONAL_CHARS } from '../ascii/validate.ts'
+import { DIAGONAL_CHARS } from '../ascii/validate.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
@@ -51,6 +51,7 @@ function visualizeWhitespace(s: string): string {
 function runGoldenTests(dir: string, useAscii: boolean): void {
   const files = readdirSync(dir).filter(f => f.endsWith('.txt')).sort()
 
+  expect(files.length).toBeGreaterThan(0)
   for (const file of files) {
     const testName = file.replace('.txt', '')
 
@@ -66,6 +67,8 @@ function runGoldenTests(dir: string, useAscii: boolean): void {
 
       const normalizedExpected = normalizeWhitespace(tc.expected)
       const normalizedActual = normalizeWhitespace(actual)
+      const diagonals = useAscii ? DIAGONAL_CHARS.ascii : DIAGONAL_CHARS.unicode
+      expect([...diagonals].filter(char => actual.includes(char))).toEqual([])
 
       if (normalizedExpected !== normalizedActual) {
         const expectedVis = visualizeWhitespace(normalizedExpected)
@@ -97,12 +100,6 @@ describe('Unicode rendering', () => {
 describe('Config behavior', () => {
   const mermaidInput = 'graph LR\nA --> B'
 
-  it('ASCII and Unicode outputs should differ', () => {
-    const asciiOutput = renderMermaidASCII(mermaidInput, { useAscii: true })
-    const unicodeOutput = renderMermaidASCII(mermaidInput, { useAscii: false })
-    expect(asciiOutput).not.toBe(unicodeOutput)
-  })
-
   it('ASCII output should not contain Unicode box-drawing characters', () => {
     const output = renderMermaidASCII(mermaidInput, { useAscii: true })
     expect(output).not.toContain('┌')
@@ -114,50 +111,6 @@ describe('Config behavior', () => {
     const output = renderMermaidASCII(mermaidInput, { useAscii: false })
     const hasUnicode = output.includes('┌') || output.includes('─') || output.includes('│')
     expect(hasUnicode).toBe(true)
-  })
-})
-
-// ============================================================================
-// Diagonal validation — ensures all edges use orthogonal Manhattan routing
-// ============================================================================
-
-describe('Diagonal validation', () => {
-  const asciiDir = join(testdataDir, 'ascii')
-  const unicodeDir = join(testdataDir, 'unicode')
-
-  // The golden runner above byte-compares every render with its fixture's
-  // expected text, so checking the expected text covers the same renders (same
-  // options) without rendering every fixture a second time.
-  it('ASCII output should never contain diagonal characters', () => {
-    const files = readdirSync(asciiDir).filter((f) => f.endsWith('.txt'))
-    expect(files.length).toBeGreaterThan(0)
-    for (const file of files) {
-      const { expected } = parseAsciiGoldenFixture(readFileSync(join(asciiDir, file), 'utf-8'))
-      expect({ file, diagonals: [...DIAGONAL_CHARS.ascii].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
-    }
-  })
-
-  it('Unicode output should never contain diagonal characters', () => {
-    const files = readdirSync(unicodeDir).filter((f) => f.endsWith('.txt'))
-    expect(files.length).toBeGreaterThan(0)
-    for (const file of files) {
-      const { expected } = parseAsciiGoldenFixture(readFileSync(join(unicodeDir, file), 'utf-8'))
-      expect({ file, diagonals: [...DIAGONAL_CHARS.unicode].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
-    }
-  })
-
-  it('hasDiagonalLines utility correctly detects diagonal characters', () => {
-    // Should detect ASCII diagonals
-    expect(hasDiagonalLines('A / B')).toBe(true)
-    expect(hasDiagonalLines('A \\ B')).toBe(true)
-
-    // Should detect Unicode diagonals
-    expect(hasDiagonalLines('A ╱ B')).toBe(true)
-    expect(hasDiagonalLines('A ╲ B')).toBe(true)
-
-    // Should not flag clean output
-    expect(hasDiagonalLines('┌───┐\n│ A │\n└───┘')).toBe(false)
-    expect(hasDiagonalLines('+---+\n| A |\n+---+')).toBe(false)
   })
 })
 

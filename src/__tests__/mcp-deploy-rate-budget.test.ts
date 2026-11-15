@@ -54,7 +54,7 @@ esac
 `)
   tool(join(dir, 'node_modules', '.bin', 'wrangler'), 'cat "$MOCK_ROOT/deployments.json"\n')
   writeFileSync(join(dir, 'github-output'), '')
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run!], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run!], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: dir,
     encoding: 'utf8',
     env: {
@@ -121,7 +121,7 @@ describe('production MCP deployment probe rate budget', () => {
     const parsed = spawnSync(
       'bash',
       ['-c', 'source "$1"; mcp_result_json "$2"', 'mcp-result-test', PROBE_HELPER_PATH, response],
-      { encoding: 'utf8' },
+      { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' },
     )
     expect(parsed.status).toBe(0)
     expect(JSON.parse(parsed.stdout)).toEqual({ ok: true, value: 42 })
@@ -129,7 +129,7 @@ describe('production MCP deployment probe rate budget', () => {
     const malformed = spawnSync(
       'bash',
       ['-c', 'source "$1"; mcp_result_json "$2"', 'mcp-result-test', PROBE_HELPER_PATH, '{}'],
-      { encoding: 'utf8' },
+      { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' },
     )
     expect(malformed.status).not.toBe(0)
   })

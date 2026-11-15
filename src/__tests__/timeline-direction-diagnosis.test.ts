@@ -70,8 +70,8 @@ describe('Timeline header-direction admission', () => {
       const parsed = parseRegisteredMermaid(input)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) continue
-      expect(parsed.value.body.kind).toBe('opaque')
-      expect(serializeMermaid(parsed.value)).toBe(`${input}\n`)
+      expect(parsed.value.body.kind).toBe('timeline')
+      expect(serializeMermaid(parsed.value)).toBe(input)
       expect(verifyMermaid(parsed.value).ok).toBe(true)
       expect(verifyMermaid(parsed.value).warnings).not.toEqual(expect.arrayContaining([
         expect.objectContaining({ syntax: 'timeline_header_direction' }),

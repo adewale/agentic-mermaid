@@ -39,6 +39,61 @@ describe('parseXYChart – syntax', () => {
     expect(chart.series[0]!.data).toEqual([10, 20])
   })
 
+  it('reads statements that share a line as Mermaid does, and quoted text across lines', () => {
+    const bar = (data: number[], label?: string) => ({ type: 'bar', label, data })
+    const line = (data: number[], label?: string) => ({ type: 'line', label, data })
+    const cases: Array<[string, object]> = [
+      ['bar [1, 2, 3] line [3, 2, 1]', { series: [bar([1, 2, 3]), line([3, 2, 1])] }],
+      ['line [1, 2, 3] bar [3, 2, 1]', { series: [line([1, 2, 3]), bar([3, 2, 1])] }],
+      ['bar [1, 2, 3] bar [3, 2, 1]', { series: [bar([1, 2, 3]), bar([3, 2, 1])] }],
+      ['bar [1]line [2]', { series: [bar([1]), line([2])] }],
+      ['bar "Sales" [1, 2, 3] line "Trend" [3, 2, 1]', { series: [bar([1, 2, 3], 'Sales'), line([3, 2, 1], 'Trend')] }],
+      ['x-axis [a, b, c] bar [1, 2, 3]', { xAxis: { categories: ['a', 'b', 'c'] }, series: [bar([1, 2, 3])] }],
+      ['x-axis Months bar [1, 2, 3]', { xAxis: { title: 'Months' }, series: [bar([1, 2, 3])] }],
+      ['title "T" bar [1, 2, 3]', { title: 'T', series: [bar([1, 2, 3])] }],
+      ['title My Chart bar [1, 2]', { title: 'My Chart', series: [bar([1, 2])] }],
+      ['y-axis "Y" 0 --> 10 bar [1, 2, 3]', { yAxis: { title: 'Y', range: { min: 0, max: 10 } }, series: [bar([1, 2, 3])] }],
+      // An unquoted axis title keeps its words, alone, before a range or before
+      // another statement (Mermaid runs them together: "Monthlytotals").
+      ['x-axis Monthly totals bar [1, 2]', { xAxis: { title: 'Monthly totals' }, series: [bar([1, 2])] }],
+      ['x-axis Monthly totals', { xAxis: { title: 'Monthly totals' } }],
+      ['y-axis Revenue in USD 0 --> 10 line [1]', { yAxis: { title: 'Revenue in USD', range: { min: 0, max: 10 } }, series: [line([1])] }],
+      // An accessibility directive starts at its keyword and runs to the end
+      // of the line (an accDescr block, to its brace).
+      ['x-axis [a, b]\nbar [1, 2] accTitle: hi bar [2, 1]', { xAxis: { categories: ['a', 'b'] }, series: [bar([1, 2])], accessibility: { title: 'hi bar [2, 1]' } }],
+      ['bar [1] accDescr { x } bar [2]', { series: [bar([1]), bar([2])], accessibility: { description: 'x' } }],
+      // In the block a quote or `%%` is text, to a brace on a later line too.
+      ['bar [1] accDescr { a "b\nc }\naccTitle: T\nline "s" [2]', { series: [bar([1]), line([2], 's')], accessibility: { title: 'T', description: 'a "b\nc' } }],
+      ['bar [1] accDescr { a %% b\nc }\nline [2]', { series: [bar([1]), line([2])], accessibility: { description: 'a %% b\nc' } }],
+      ['bar [1] accDescr { a %% b } line [2] %% c\nline [3]', { series: [bar([1]), line([2]), line([3])], accessibility: { description: 'a %% b' } }],
+      // A keyword stays text inside quotes, in a series label before its
+      // data, and between words of an unquoted title.
+      ['bar "bar [9] line" [1]', { series: [bar([1], 'bar [9] line')] }],
+      ['bar Product line A [1, 2, 3]', { series: [bar([1, 2, 3], 'Product line A')] }],
+      ['title The title of the x-axis vs line\nbar [1]', { title: 'The title of the x-axis vs line', series: [bar([1])] }],
+      ['x-axis Sales by line item [a, b]', { xAxis: { title: 'Sales by line item', categories: ['a', 'b'] } }],
+      // Quoted text keeps its line break, even before a line that starts with a keyword.
+      ['title "multi\nline"\nbar [1, 2]', { title: 'multi\nline', series: [bar([1, 2])] }],
+      ['x-axis "t\nx" [a, b]', { xAxis: { title: 't\nx', categories: ['a', 'b'] } }],
+      ['x-axis ["a\nb", c]', { xAxis: { categories: ['a\nb', 'c'] } }],
+      ['bar "Sa\nles" [1 "a\nb"]', { series: [{ type: 'bar', label: 'Sa\nles', data: [1], pointLabels: ['a\nb'] }] }],
+    ]
+    for (const [body, expected] of cases) {
+      for (const strict of [false, true]) {
+        const chart = parseXYChart(preprocessMermaidSource(`xychart-beta\n${body}`).lines, { strict })
+        expect(chart, `${body} (strict: ${strict})`).toMatchObject(expected)
+      }
+    }
+    // A data list cannot span lines.
+    expect(() => parse('xychart-beta\nbar [1, 2,\n3]')).toThrow()
+    // Mermaid's strings have no escapes, so its `"` closes `"C:\"`: a string
+    // only a backslash escape leaves open ends with its line.
+    expect(parse('xychart-beta\ntitle "C:\\"\nx-axis [Mon, Tue]\nbar [10, 20]\nline "Trend" [12, 18]')).toMatchObject({
+      xAxis: { categories: ['Mon', 'Tue'] },
+      series: [{ type: 'bar', data: [10, 20] }, { type: 'line', label: 'Trend', data: [12, 18] }],
+    })
+  })
+
   it('treats axis titles, ranges, and categories as independent component updates', () => {
     const after = parse(`xychart-beta
       x-axis [Jan, Feb]
@@ -78,11 +133,10 @@ describe('parseXYChart – syntax', () => {
   })
 
   it('keeps accessibility directives in semicolon-separated statements', () => {
+    // An inline directive's value runs to the end of its line, `;` included.
     const inline = parse('xychart; accTitle: Revenue chart; accDescr: Quarterly sales; bar [10, 20]')
-    expect(inline.accessibility).toEqual({
-      title: 'Revenue chart',
-      description: 'Quarterly sales',
-    })
+    expect(inline.accessibility).toEqual({ title: 'Revenue chart; accDescr: Quarterly sales; bar [10, 20]' })
+    expect(inline.series).toEqual([])
 
     const block = parse(`xychart; accDescr { First; still description
       } ; bar [10, 20]`)

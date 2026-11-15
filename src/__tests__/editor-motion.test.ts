@@ -1,8 +1,8 @@
+import { evaluateBrowserScript } from './browser-script-harness.ts'
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const source = readFileSync(join(import.meta.dir, '..', '..', 'editor', 'js', 'motion.js'), 'utf8')
+const source = await editorModuleScript('motion.js')
 
 type Frame = (time: number) => void
 type Motion = {
@@ -16,12 +16,12 @@ function loadMotion() {
   let now = 0
   let nextId = 1
   const frames = new Map<number, Frame>()
-  const motion = new Function('window', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame', `${source}; return EditorMotion;`)(
-    { matchMedia: () => ({ matches: false }) },
-    { now: () => now },
-    (frame: Frame) => { const id = nextId++; frames.set(id, frame); return id },
-    (id: number) => { frames.delete(id) },
-  ) as Motion
+  const motion = evaluateBrowserScript<Motion>(source, {
+    window: { matchMedia: () => ({ matches: false }) },
+    performance: { now: () => now },
+    requestAnimationFrame: (frame: Frame) => { const id = nextId++; frames.set(id, frame); return id },
+    cancelAnimationFrame: (id: number) => { frames.delete(id) },
+  }, 'EditorMotion')
   return {
     motion,
     step(ms: number) {

@@ -41,8 +41,7 @@ describe('ASCII multi-line labels', () => {
 
     it('renders in ASCII mode (not Unicode)', () => {
       const ascii = renderMermaidASCII('graph TD\n  A[Line1<br>Line2]', { useAscii: true })
-      expect(ascii).toContain('Line1')
-      expect(ascii).toContain('Line2')
+      expectStacked(ascii, 'Line1', 'Line2')
       // Should use ASCII box characters
       expect(ascii).toContain('+')
       expect(ascii).toContain('-')
@@ -178,7 +177,7 @@ describe('ASCII multi-line labels', () => {
       expectStacked(ascii, 'One', 'Two', 'Three')
     })
 
-    it('maxLineWidth uses longest line for box sizing', () => {
+    it('preserves the longest authored line in a multiline box', () => {
       // Box should be wide enough for the longest line
       const ascii = renderMermaidASCII('graph TD\n  A[X<br>LongLine<br>Y]', { useAscii: false })
       // The box should contain LongLine without truncation

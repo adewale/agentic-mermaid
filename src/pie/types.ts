@@ -1,3 +1,4 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 // ============================================================================
 // Pie chart types
 //
@@ -38,7 +39,8 @@ export interface PieChart {
   entries: PieEntry[]
   /** Source repeated a label; Mermaid renders only its first occurrence. */
   hasDuplicateSourceLabels?: true
-  /** Decoded source label contains an escaped control that typed emission cannot preserve. */
+  /** Decoded source label contains a control, other than a line break it runs
+   * across, that typed emission cannot preserve. */
   hasEscapedControlLabels?: true
 }
 
@@ -58,6 +60,7 @@ export interface PieSliceLabel {
 }
 
 export interface PositionedPieSlice {
+  tooltip?: TooltipLayout
   /** The original entry label. */
   label: string
   /** Visible tooltip label when Mermaid's entity projection changes text. */
@@ -105,6 +108,7 @@ export interface PositionedPieLegendItem {
 }
 
 export interface PositionedPieChart extends PositionedDiagram {
+  widthFit?: import('../shared/chart-width.ts').ChartWidthFit
   width: number
   height: number
   title?: { text: string; x: number; y: number; literalText?: true; block?: import('../shared/prepared-text.ts').PixelTextBlock }

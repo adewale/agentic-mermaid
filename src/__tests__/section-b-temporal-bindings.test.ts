@@ -44,17 +44,17 @@ describe('Section B temporal semantic bindings', () => {
     expect(branded.match(/gantt-bar-critical-path/g)?.length).toBeGreaterThanOrEqual(3)
     expect(branded).toContain('data-brand-cue="double-line"')
     expect(branded).toContain('data-brand-cue="pattern"')
-    expect(branded).toContain('stroke-dasharray:8 2 2 2')
-    expect(branded).toContain('stroke-dasharray:3 2')
-    expect(branded).toContain('fill:#ff00ff')
-    expect(branded).toContain('fill:#00ffff')
+    expect(branded).toContain('stroke-dasharray="8 2 2 2"')
+    expect(branded).toContain('stroke-dasharray="3 2"')
+    expect(branded).toContain('fill="#ff00ff"')
+    expect(branded).toContain('fill="#00ffff"')
     // Critical-path stroke and width are family-owned and remain the final
     // crisp/semantic authority instead of the deliberately conflicting slots.
     for (const mark of branded.match(/<(?:rect|path)[^>]*gantt-bar-critical-path[^>]*>/g) ?? []) {
-      expect(mark).not.toContain('stroke:#00aa00')
-      expect(mark).not.toContain('stroke:#005555')
-      expect(mark).not.toContain('stroke-width:9')
-      expect(mark).not.toContain('stroke-width:7')
+      expect(mark).not.toContain('stroke="#00aa00"')
+      expect(mark).not.toContain('stroke="#005555"')
+      expect(mark).not.toContain('stroke-width="9"')
+      expect(mark).not.toContain('stroke-width="7"')
     }
     const terminalBaseline = renderMermaidASCII(GANTT, { colorMode: 'none', useAscii: true })
     const terminalBranded = renderMermaidASCII(GANTT, { colorMode: 'none', useAscii: true, style: temporalStyle })
@@ -88,11 +88,12 @@ describe('Section B temporal semantic bindings', () => {
     expect(headerHeight(branded)).toBeGreaterThan(headerHeight(baseline))
     expect(taskWidth(branded)).toBe(taskWidth(baseline))
     expect(branded).toContain('data-score="4"')
-    expect(branded).toContain('fill:#ff00ff')
-    expect(branded).toContain('data-brand-cue="outline"')
-    expect(branded).toContain('stroke-width:4')
-    expect(branded).toContain('font-size="15" font-weight="800"')
-    expect(branded).toContain('style="fill:#2222aa"')
+    const band = (svg: string) => svg.match(/<rect class="journey-section-label-band [^>]*>/)?.[0] ?? ''
+    const label = (svg: string) => svg.match(/<text [^>]*class="journey-section-label [^>]*>/)?.[0] ?? ''
+    expect(band(branded)).toContain('data-brand-cue="outline"')
+    expect(band(branded)).toContain('fill="#ff00ff" stroke="#006600" stroke-width="4"')
+    expect(label(branded)).toContain('font-size="15" font-weight="800"')
+    expect(label(branded)).toContain('fill="#2222aa"')
     const terminalBaseline = renderMermaidASCII(body, { colorMode: 'none' })
     const terminalBranded = renderMermaidASCII(body, { colorMode: 'none', style })
     expect(terminalBranded).not.toBe(terminalBaseline)
@@ -105,8 +106,8 @@ config:
 ---
 ${body}`
     const authoredSvg = renderMermaidSVG(authored, { style })
-    expect(authoredSvg).toContain('.journey-section-label-band { fill: #123456;')
-    expect(authoredSvg).not.toContain('fill:#ff00ff')
-    expect(authoredSvg).not.toContain('style="fill:#2222aa"')
+    expect(band(authoredSvg)).toContain('fill="#123456"')
+    expect(authoredSvg).not.toContain('fill="#ff00ff"')
+    expect(label(authoredSvg)).not.toContain('fill="#2222aa"')
   })
 })

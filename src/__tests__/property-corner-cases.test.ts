@@ -172,6 +172,8 @@ describe('corner-case fuzz gate: structurally HARD-clean + deterministic across 
         const src = gen(i)
         let g, p
         try { g = parseMermaid(src); p = layoutGraphSync(g) } catch (e) { structural.push(`#${i} CRASH ${(e as Error).message}\n${src}`); continue }
+        expect(p.nodes.map(node => node.id).sort()).toEqual([...g.nodes.keys()].sort())
+        expect(p.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort()).toEqual(g.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort())
         const r = assessLayout(g, p)
         for (const v of hardViolations(r)) {
           if (v.metric === 'labelOffRoute') labelOffRoute++
@@ -197,11 +199,13 @@ describe('corner-case fuzz gate: structurally HARD-clean + deterministic across 
   // byte on a handful of each generator's cases; the broad flowchart sweep is
   // property-all-families-fuzz's job.
   test('determinism: re-layout is byte-identical on every corner-case generator', () => {
-    for (let i = 0; i < 6; i++) {
-      const src = [chainedHubs, mixedFanin, broad][i % 3]!(i * 7 + 1)
-      const a = JSON.stringify(layoutGraphSync(parseMermaid(src)))
-      const b = JSON.stringify(layoutGraphSync(parseMermaid(src)))
-      expect({ case: i, identical: a === b }).toEqual({ case: i, identical: true })
+    for (const { name, gen } of GENERATORS) {
+      for (const index of [1, 8]) {
+        const src = gen(index)
+        const a = layoutGraphSync(parseMermaid(src))
+        const b = layoutGraphSync(parseMermaid(src))
+        expect(b, `${name} case ${index}`).toEqual(a)
+      }
     }
   }, 30_000)
 })

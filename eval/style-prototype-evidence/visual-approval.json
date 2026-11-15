@@ -1,25 +1,26 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-17",
-  "reviewer": "Codex agent, reviewing native deterministic cookbook renders for PR #394",
-  "scope": "Agent visual review at native 900px width of all six existing cookbook screenshots, including before/after inspection of the three documentation-only prototypes named below. Cupertino changes from 900\u00d7192 to 900\u00d7191 after canonical text geometry; its topology, readable labels and marker contact remain intact. Vercel remains 900\u00d7643 with 22220 changed pixels as the title reserves its full text band and plot/legend positions adjust; values, series identity and complete legend labels remain visible. Cloudflare remains 900\u00d7339 with 7475 changed pixels in title/label projection; task ranges, milestone, section bindings and non-color cues remain intact. Transit Route Map, Mid-century Report and Star Chart Atlas are pixel-identical to their previous committed screenshots. This records an agent review, not human approval, endorsement or exhaustive design-system equivalence.",
+  "reviewedAt": "2026-10-30",
+  "reviewer": "Claude Code agent, AX assessment fix campaign (gantt status ink, 0530593a)",
+  "scope": "Agent review of the regenerated Cloudflare Workers-inspired cookbook capture after the gantt status-ink change. Inspected complete before/after at 900x339: the title, the EDGE and RUNTIME sections, the four tasks, the milestone diamond, the 01-11 today marker and every label are unchanged; the one difference is that the done task \"Route request\" is now drawn as a pale body inside a dashed outline (the terminal's done encoding) instead of a solid outline, so done, active, crit and plain tasks read apart by ink. Cupertino, Vercel, transit and mid-century cookbook bytes are unchanged. This is agent review, not human approval or exhaustive rendering proof.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "23ea4871312dd1902c41a335c264dd8c1e5244eb3f382dde06603aec953e4182"
+      "sha256": "7e50d010c627341c2dcf63fb30f0e364f3461027a49c78447272421c965305fd"
     },
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "a52bfa502a1f099eecdb90291056f43711d749a720f696f0358b52d0159989e4"
+      "sha256": "7183bb0113aa968609459818cd682553f31662767921095da3dbe1bd2f71305e"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",
       "path": "docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png",
-      "sha256": "9f06cfbeb1b7b76ff6f0d1d0781431230b9f52a63edea015dae467fb5aa0d7cf"
+      "sha256": "76994c8ea289a6a3df4f199a66e8e227c0b29cc618c97378b7040e676569ebd2"
     }
   ],
-  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims."
+  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims.",
+  "audit": "eval/style-prototype-evidence/rounded-axis-correctness-review.md"
 }

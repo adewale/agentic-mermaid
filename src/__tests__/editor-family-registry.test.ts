@@ -1,12 +1,11 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { EDITOR_SUPPORTED_FAMILY_LIST } from '../editor-family-data.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { evaluateBrowserScript } from './browser-script-harness.ts'
 
-const HELPERS = readFileSync(join(import.meta.dir, '..', '..', 'editor/js/helpers.js'), 'utf8')
+const HELPERS = await editorModuleScript('helpers.js')
 
 function editorErrorCard(): (error: unknown) => string {
   return evaluateBrowserScript<(error: unknown) => string>(HELPERS, { SUPPORTED_FAMILY_LIST: EDITOR_SUPPORTED_FAMILY_LIST }, 'formatRenderErrorHtml')

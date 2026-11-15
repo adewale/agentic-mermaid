@@ -1,20 +1,33 @@
-var selectedExampleId = '';
+import { ui } from './context.js';
+import { createPopupController, escAttr, escHtml, setEditorErrorLine } from './helpers.js';
+import { editor } from './elements.js';
+import { DEFAULT_SOURCE, updateThemeButton } from './init.js';
+import { state } from './state.js';
+import { hydrateConfigControls } from './config-panel.js';
+import { scheduleDraftSave, updateHash } from './sharing.js';
+import { applyThemeToPage, scheduleRender } from './rendering.js';
+import { updateCursorPos, updateLineNumbers } from './editor-helpers.js';
+import { showToast } from './toast.js';
+export var selectedExampleId, examplesSidebar, examplesSidebarBtn, examplesSidebarClose, examplesSidebarList, examplesPopup;
 
-function cloneEditorConfig(config) {
+
+export function cloneEditorConfig(config) {
   return config ? JSON.parse(JSON.stringify(config)) : {};
 }
 
-function findEditorExample(id) {
-  for (var i = 0; i < EDITOR_EXAMPLES.length; i++) {
-    if (EDITOR_EXAMPLES[i].id === id) return EDITOR_EXAMPLES[i];
+
+export function findEditorExample(id) {
+  for (var i = 0; i < ui.EDITOR_EXAMPLES.length; i++) {
+    if (ui.EDITOR_EXAMPLES[i].id === id) return ui.EDITOR_EXAMPLES[i];
   }
   return null;
 }
 
-function exampleGroups() {
+
+export function exampleGroups() {
   var groups = [];
   var groupMap = {};
-  EDITOR_EXAMPLES.forEach(function(example) {
+  ui.EDITOR_EXAMPLES.forEach(function(example) {
     var category = example.category || 'Examples';
     if (!groupMap[category]) {
       groupMap[category] = { category: category, examples: [] };
@@ -25,12 +38,14 @@ function exampleGroups() {
   return groups;
 }
 
-function exampleGlyph(example) {
+
+export function exampleGlyph(example) {
   var type = example.diagramType || 'Example';
   return example.glyph || type.slice(0, 2).toUpperCase();
 }
 
-function renderExamplePaletteHtml() {
+
+export function renderExamplePaletteHtml() {
   var examplesHtml = exampleGroups().map(function(group) {
     return '<section class="example-category">'
       + '<div class="example-category-title">' + escHtml(group.category) + '</div>'
@@ -51,32 +66,36 @@ function renderExamplePaletteHtml() {
     + '</div>';
 }
 
-function renderExamplePalettes() {
+
+export function renderExamplePalettes() {
   if (examplesSidebarList) examplesSidebarList.innerHTML = renderExamplePaletteHtml();
 }
 
-function markActiveExample(id) {
+
+export function markActiveExample(id) {
   selectedExampleId = id || '';
   document.querySelectorAll('.example-dropdown-item').forEach(function(item) {
     item.classList.toggle('active', item.dataset.example === selectedExampleId);
   });
 }
 
+
 // Unsaved work = source the user authored: non-empty and not a preset the
 // editor itself put there (an example, or the default starter diagram from
 // init.js). Loading an example replaces both the source and the autosaved
 // draft, so those cases get a confirm() before being overwritten.
-function editorHasUnsavedWork() {
+export function editorHasUnsavedWork() {
   var current = editor.value.trim();
   if (!current) return false;
   if (typeof DEFAULT_SOURCE === 'string' && current === DEFAULT_SOURCE.trim()) return false;
-  for (var i = 0; i < EDITOR_EXAMPLES.length; i++) {
-    if (EDITOR_EXAMPLES[i].source.trim() === current) return false;
+  for (var i = 0; i < ui.EDITOR_EXAMPLES.length; i++) {
+    if (ui.EDITOR_EXAMPLES[i].source.trim() === current) return false;
   }
   return true;
 }
 
-function loadEditorExample(id) {
+
+export function loadEditorExample(id) {
   var example = findEditorExample(id);
   if (!example) return;
   if (editorHasUnsavedWork()
@@ -102,12 +121,8 @@ function loadEditorExample(id) {
   showToast('Loaded ' + example.label + '.');
 }
 
-var examplesSidebar = document.getElementById('examples-sidebar');
-var examplesSidebarBtn = document.getElementById('examples-sidebar-btn');
-var examplesSidebarClose = document.getElementById('examples-sidebar-close');
-var examplesSidebarList = document.getElementById('examples-sidebar-list');
 
-function positionExamplesSidebar() {
+export function positionExamplesSidebar() {
   if (!examplesSidebar || !examplesSidebarBtn) return;
   var rect = examplesSidebarBtn.getBoundingClientRect();
   var gutter = 12;
@@ -122,7 +137,30 @@ function positionExamplesSidebar() {
   examplesSidebar.style.setProperty('--examples-max-height', Math.round(maxHeight) + 'px');
 }
 
-var examplesPopup = typeof createPopupController === 'function' ? createPopupController({
+
+export function setExamplesSidebarOpen(open, meta) {
+  examplesPopup.setOpen(open, meta || {});
+}
+
+
+export function openExamplesSidebar() {
+  setExamplesSidebarOpen(true, { focusFirst: true });
+}
+
+export function initialize() {
+selectedExampleId = '';
+
+
+examplesSidebar = document.getElementById('examples-sidebar');
+
+examplesSidebarBtn = document.getElementById('examples-sidebar-btn');
+
+examplesSidebarClose = document.getElementById('examples-sidebar-close');
+
+examplesSidebarList = document.getElementById('examples-sidebar-list');
+
+
+examplesPopup = typeof createPopupController === 'function' ? createPopupController({
   popup: examplesSidebar,
   trigger: examplesSidebarBtn,
   visibility: { manageTabStops: true, toggleTriggerClass: false },
@@ -150,22 +188,18 @@ var examplesPopup = typeof createPopupController === 'function' ? createPopupCon
   position: positionExamplesSidebar,
 }) : { setOpen: function() {} };
 
-function setExamplesSidebarOpen(open, meta) {
-  examplesPopup.setOpen(open, meta || {});
-}
-
-function openExamplesSidebar() {
-  setExamplesSidebarOpen(true, { focusFirst: true });
-}
 
 renderExamplePalettes();
+
 setExamplesSidebarOpen(false);
+
 
 if (examplesSidebarClose) {
   examplesSidebarClose.addEventListener('click', function() {
     setExamplesSidebarOpen(false, { restoreFocus: true });
   });
 }
+
 
 if (examplesSidebarList) {
   examplesSidebarList.addEventListener('click', function(e) {
@@ -175,6 +209,7 @@ if (examplesSidebarList) {
     setExamplesSidebarOpen(false);
   });
 }
+
 
 document.addEventListener('click', function(e) {
   var starter = e.target.closest('.placeholder-chip[data-example]');
@@ -187,3 +222,4 @@ document.addEventListener('click', function(e) {
     return;
   }
 });
+}

@@ -20,12 +20,12 @@ import {
 } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
 import type { ExternalFamilyId } from '../agent/types.ts'
-import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
+import { createMermaidRenderer, renderMermaidSVGWithReceipt, ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES } from '../index.ts'
 import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
 const EVIDENCE = 'src/__tests__/capability-negotiation.test.ts'
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.5.0', scene: '^2.0.0' })
 
 function extensionDescriptor(
   localId: string,
@@ -40,7 +40,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: options.version ?? '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'capability-negotiation-test', source: 'test' },
     }),
     id,
@@ -162,6 +162,23 @@ describe('versioned capability negotiation', () => {
     })
   })
 
+  test('public primitive requirements cannot be changed after warming admission', () => {
+    const source = 'eventmodeling\ntf 01 ui Screen\ntf 02 cmd Submit'
+    expect(resolveRenderRequestForExecution(source).capabilityDecision.accepted).toBe(true)
+    const requirement = ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.find(item =>
+      item.primitive === 'connector' && item.feature === 'markers' && item.operation === 'render')!
+    const feature = requirement.feature
+    const changed = Reflect.set(requirement, 'feature', 'unavailable-feature')
+    try {
+      expect(changed).toBe(false)
+      expect(resolveRenderRequestForExecution(source).capabilityDecision.resolutions).toContainEqual({
+        id: 'scene-primitive:connector/markers/render', range: '^1.0.0', level: 'required', status: 'selected', version: '1.0.0',
+      })
+    } finally {
+      if (changed) Reflect.set(requirement, 'feature', feature)
+    }
+  })
+
   test('rejects an SVG-absent extension during resolution with structured tuple detail', () => {
     const descriptor = extensionDescriptor('no-svg', 'noSvgDiagram')
     const unregister = registerFamily(descriptor)
@@ -278,16 +295,19 @@ describe('versioned capability negotiation', () => {
       provenance: { owner: 'frozen-plan-test', source: 'test-v1' },
     })
     let unregisterV2: (() => void) | undefined
+    let policyCalls = 0
     try {
       const renderer = createMermaidRenderer({
         backendPolicy: {
           selectBackend() {
-            unregisterV1()
-            unregisterV2 = registerBackend(backend('v2'), {
-              version: '2.0.0',
-              compatibility: BACKEND_COMPATIBILITY,
-              provenance: { owner: 'frozen-plan-test', source: 'test-v2' },
-            })
+            if (++policyCalls === 1) {
+              unregisterV1()
+              unregisterV2 = registerBackend(backend('v2'), {
+                version: '2.0.0',
+                compatibility: BACKEND_COMPATIBILITY,
+                provenance: { owner: 'frozen-plan-test', source: 'test-v2' },
+              })
+            }
             return id
           },
         },
@@ -307,6 +327,12 @@ describe('versioned capability negotiation', () => {
       })
       expect(knownBackendDescriptors().find(descriptor => descriptor.identity.id === id)?.identity.version)
         .toBe('2.0.0')
+      for (let repeat = 0; repeat < 2; repeat++) {
+        const next = renderer.renderMermaidSVGWithReceipt('flowchart LR\n  A --> B', { style: 'hand-drawn' })
+        expect(next.svg).toContain('data-frozen-backend="v2"')
+        expect(next.receipt.executionDecision?.backend).toMatchObject({ version: '2.0.0', hostPolicy: true })
+      }
+      expect(policyCalls).toBe(3)
     } finally {
       unregisterV2?.()
       unregisterV1()
@@ -315,6 +341,24 @@ describe('versioned capability negotiation', () => {
 
   test('rejects a backend that supports connector geometry but not the required marker feature', () => {
     const id = 'backend:test/unsupported-connector-markers'
+    const sources = ['flowchart LR\n  A --> B', 'eventmodeling\ntf 01 ui Screen\ntf 02 cmd Submit']
+    const unregisterSupported = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+    }, {
+      compatibility: BACKEND_COMPATIBILITY,
+      provenance: { owner: 'capability-negotiation-test', source: 'supported-predecessor' },
+    })
+    try {
+      for (const source of sources) {
+        expect(resolveRenderRequestForExecution(source, {}, 'svg', undefined, {
+          backendPolicy: { selectBackend: () => id },
+        }).capabilityDecision.accepted).toBe(true)
+      }
+    } finally {
+      unregisterSupported()
+    }
     const unregister = registerBackend({
       ...DefaultBackend,
       id,
@@ -345,29 +389,31 @@ describe('versioned capability negotiation', () => {
       provenance: { owner: 'capability-negotiation-test', source: 'test' },
     })
     try {
-      let failure: unknown
-      try {
-        resolveRenderRequestForExecution(
-          'flowchart LR\n  A --> B',
-          {},
-          'svg',
-          undefined,
-          { backendPolicy: { selectBackend: () => id } },
-        )
-      } catch (error) {
-        failure = error
+      for (const source of sources) {
+        let failure: unknown
+        try {
+          resolveRenderRequestForExecution(
+            source,
+            {},
+            'svg',
+            undefined,
+            { backendPolicy: { selectBackend: () => id } },
+          )
+        } catch (error) {
+          failure = error
+        }
+        expect(failure).toBeInstanceOf(RenderCapabilityError)
+        const decision = (failure as RenderCapabilityError).decision
+        expect(decision.accepted).toBe(false)
+        expect(decision.resolutions).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            id: 'scene-primitive:connector/markers/render',
+            level: 'required',
+            status: 'unsupported',
+          }),
+          expect.objectContaining({ id: 'output:svg', status: 'unsupported' }),
+        ]))
       }
-      expect(failure).toBeInstanceOf(RenderCapabilityError)
-      const decision = (failure as RenderCapabilityError).decision
-      expect(decision.accepted).toBe(false)
-      expect(decision.resolutions).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          id: 'scene-primitive:connector/markers/render',
-          level: 'required',
-          status: 'unsupported',
-        }),
-        expect.objectContaining({ id: 'output:svg', status: 'unsupported' }),
-      ]))
 
       const connectorless = resolveRenderRequestForExecution(
         'quadrantChart\n  A: [0.2, 0.8]',

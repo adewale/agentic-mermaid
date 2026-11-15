@@ -20,6 +20,7 @@
 .preview-footer.has-c4-navigation { height: auto; min-height: 40px; gap: 8px; flex-wrap: wrap; }
 
 /* Section label */
+
 .preview-label {
   font-size: var(--t-label);
   font-weight: 600;

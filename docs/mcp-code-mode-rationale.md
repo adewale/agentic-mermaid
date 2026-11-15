@@ -1,10 +1,17 @@
 # MCP Code Mode rationale
 
 <!-- complete: local-mcp-tools -->
-Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`describe_sdk`, `render_png`, and `describe`) are narrow conveniences, not a second full authoring API.
+Local `agentic-mermaid-mcp` and hosted MCP expose the same declarative `mutate`
+and `build` tools. Prefer them for ordered structured edits: JSON ops go through
+one shared validator, transaction, and verify-before-emit gate. `execute(code)`
+remains available for custom synchronous logic against `mermaid.*`. Locally it
+runs in `node:vm`, which is not an OS/container security boundary.
+The local helpers are `describe_sdk`, `render_svg`, `render_ascii`, `render_png`,
+`verify`, and `describe`. Direct SVG/text/verify calls share one render subprocess with a sampled memory budget; see
+the [transport guide](./mcp-http-transport.md#direct-rendering-and-verification) for limits.
 
 <!-- complete: hosted-mcp-tools -->
-There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools and the `preview` tool with its MCP Apps view (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` and `preview` tools force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools and the `preview` tool with its MCP Apps view (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` and `preview` tools force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
 
 ## Why the MCP server exists
 
@@ -18,13 +25,13 @@ Agents often need a multi-step diagram transaction:
 
 As separate MCP tools, that workflow becomes many tool calls and loses useful in-call state. In Code Mode it is one call: the agent writes the small algorithm and the server preserves lineage/tracing inside the execution.
 
-## Code Mode first, plus a narrow declarative edit surface
+## Declarative edits first; Code Mode for custom logic
 
-Code Mode stays the primary tool for multi-step logic. But `execute` asks the
+Code Mode handles custom multi-step logic. However, `execute` asks the
 model to write correct sandboxed JavaScript, and a weaker model drives that
 poorly (serialization pitfalls, provenance rules, sync-only constraints) when
-all it wanted was to apply a few structured edits. So the hosted surface adds
-exactly **two** declarative tools — `mutate` (edit a `source`) and `build`
+all it wanted was to apply a few structured edits. Both surfaces therefore expose
+**two** declarative tools — `mutate` (edit a `source`) and `build`
 (author from a `family`) — that take a JSON op list and return one canonical
 `{ ok, family, source, verify }` envelope. They run verify internally and only
 emit source when it passes, so the verify-before-commit contract holds without
@@ -43,11 +50,11 @@ gets wrong through `execute`. For everything richer, use `execute`, the CLI
 
 ## What the non-Code-Mode MCP tools are for
 
-Local MCP keeps only three helpers:
+Local MCP also provides three helpers:
 
 - `describe_sdk({ family, detail })` returns version-matched mutation operations for one family without running Code Mode. `detail: "signatures"` returns a compact menu; `detail: "fields"` returns the exact field schema. The initial `execute` declaration stays limited to the core SDK, while `mermaid.describeOps` and `mermaid.opSignatures` expose the same registry inside an execution.
 
-- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. Local and hosted tools share portable `scale`, `background`, `minLabelPx`, and mutually exclusive `fitTo.width`/`fitTo.height` controls; local additionally accepts trusted-host `fontDirs`/`loadSystemFonts` remedies. Both return deterministic configuration and raster-legibility warnings, with native hosts also reporting glyph coverage. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport. Because those modes create managed files, the local tool is annotated as non-read-only and non-idempotent.
+- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. Local and hosted tools share portable `scale`, `background`, `minLabelPx`, and mutually exclusive `fitTo.width`/`fitTo.height` controls; local additionally accepts trusted-host `fontDirs`/`loadSystemFonts` remedies. Both return deterministic configuration and raster-legibility warnings, with native hosts also reporting glyph coverage. For clients that cannot comfortably carry large base64 payloads, `output:"image"` (local and hosted) returns the bytes as an MCP image content block beside a small JSON block, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport. Because those modes create managed files, the local tool is annotated as non-read-only and non-idempotent.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
 <!-- complete: hosted-mcp-tools -->
@@ -58,7 +65,7 @@ nested `options` object, generated from the shared RenderOptions descriptors.
 Palette selection uses `options.style`; `theme` and top-level
 `bg`/`fg`/`style`/`seed` are not tool inputs.
 
-Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 only.
+Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 or an image content block only.
 
 ## The preview view: MCP Apps, read-only
 
@@ -140,4 +147,4 @@ npx -y agentic-mermaid mcp --transport http --host 127.0.0.1 --port 3000
 
 ## When to add more MCP tools
 
-Add another non-Code-Mode MCP tool only with evidence that a real client cannot use `execute`, hosted `mutate`/`build`, or the CLI/library path. Until then, keep the surface small: one compositional tool, direct pure render/verify/describe tools where they avoid hosted isolate cost, and the two declarative structured-edit tools.
+Add another non-Code-Mode MCP tool only with evidence that a real client cannot use `execute`, `mutate`/`build`, or the CLI/library path. Until then, keep the surface small: one compositional tool, direct pure render/verify/describe tools where they avoid hosted isolate cost, and the two declarative structured-edit tools.

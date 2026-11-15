@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="785.9" height="198.8" viewBox="0 0 785.9 198.8" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" class="am-11jl2dg1tw3r58">
+<style>
+  svg.am-11jl2dg1tw3r58 { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-11jl2dg1tw3r58 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #202a2f;
+    --_text-sec:      #60727a;
+    --_text-muted:    #60727a;
+    --_text-faint:    #858885;
+    --_line:          #38535e;
+    --_arrow:         #1f6f8b;
+    --_node-fill:     #fffaf0;
+    --_node-stroke:   #38535e;
+    --_group-fill:    #fbf7ea;
+    --_group-hdr:     #f0ede1;
+    --_inner-stroke:  #e1ded4;
+    --_key-badge:     #e5e3d7;
+  }
+</style>
+<rect width="785.9" height="198.8" fill="#fbf7ea" data-backdrop="page" />
+<defs>  <marker id="usecase-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 3, 0 6" fill="#202a2f" />
+  </marker>
+  <marker id="usecase-back-arrow" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="8 0, 0 3, 8 6" fill="#202a2f" />
+  </marker>
+  <marker id="usecase-dependency" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#202a2f" stroke-width="1" />
+  </marker>
+  <marker id="usecase-generalization" markerWidth="11" markerHeight="10" refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 11 5, 0 10" fill="#fbf7ea" stroke="#202a2f" stroke-width="1" />
+  </marker>
+  <marker id="usecase-circle" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="4" cy="4" r="3" fill="#fbf7ea" stroke="#202a2f" stroke-width="1" />
+  </marker>
+  <marker id="usecase-cross" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M1 1L7 7M7 1L1 7" fill="none" stroke="#202a2f" stroke-width="1" />
+  </marker></defs>
+<g data-id="Store" data-role="group">
+  <path d="M191.57 39.94 C396.06 39.88, 600.36 39.96, 746.03 40.07 M745.98 40.06 C745.66 66.31, 745.65 93.13, 745.85 155.28 M745.85 155.04 C611.2 154.84, 476.4 154.98, 191.54 155 M191.91 154.86 C191.69 115.46, 191.42 75.53, 191.34 39.75" fill="none" stroke="#202a2f" stroke-width="2.1025" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="468.75" y="53.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.06" fill="#202a2f" data-prepared-text="true" dy="3.85"><tspan x="428.055" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="436.035" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="444.015" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="451.995" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="459.975" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="467.955" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">F</tspan><tspan x="475.935" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="483.915" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="491.895" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.92" lengthAdjust="spacingAndGlyphs">N</tspan><tspan x="499.875" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.57" lengthAdjust="spacingAndGlyphs">T</tspan></text>
+  <g data-parent="Store" data-id="Browse" data-role="node">
+    <path d="M614.8 87.11 C628.33 86.66, 644.86 87.6, 658.16 88.79 C671.46 89.98, 684.54 91.92, 694.6 94.24 C704.66 96.57, 713.5 99.69, 718.52 102.72 C723.55 105.76, 725.66 109.2, 724.75 112.45 C723.85 115.7, 719.68 119.35, 713.11 122.22 C706.55 125.09, 696.57 127.65, 685.37 129.68 C674.16 131.71, 659.8 133.56, 645.9 134.41 C632 135.25, 616.05 135.31, 601.96 134.75 C587.86 134.18, 573.21 132.81, 561.33 131.01 C549.44 129.2, 538.33 126.63, 530.65 123.92 C522.96 121.2, 517.38 117.96, 515.24 114.72 C513.09 111.47, 513.95 107.62, 517.78 104.45 C521.6 101.28, 529.05 98.16, 538.18 95.68 C547.31 93.19, 559.71 90.96, 572.55 89.53 C585.39 88.09, 608.03 87.41, 615.24 87.08 C622.45 86.74, 615.72 87.13, 615.8 87.5" fill="none" stroke="#202a2f" stroke-width="2.1025" stroke-linecap="round" stroke-linejoin="round" />
+    <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="619.5" y="111" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="700" fill="#202a2f" data-prepared-text="true" dy="4.2" textLength="115.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">BROWSE CATALOGUE</text>
+  </g>
+  <g data-parent="Store" data-id="Checkout" data-role="node">
+    <path d="M273.16 87.01 C283.22 86.58, 296.02 88.03, 305.34 89.93 C314.66 91.83, 323.58 95, 329.09 98.42 C334.6 101.85, 338.17 106.45, 338.41 110.49 C338.64 114.52, 335.61 119.11, 330.51 122.62 C325.41 126.13, 316.81 129.5, 307.8 131.54 C298.79 133.58, 286.98 134.74, 276.44 134.84 C265.89 134.95, 253.87 134.07, 244.55 132.18 C235.23 130.29, 226.07 126.95, 220.52 123.51 C214.98 120.07, 211.55 115.54, 211.29 111.53 C211.04 107.53, 213.94 103, 219 99.48 C224.06 95.96, 232.58 92.45, 241.64 90.4 C250.7 88.34, 267.99 87.65, 273.36 87.14 C278.73 86.63, 273.78 86.93, 273.84 87.33" fill="none" stroke="#202a2f" stroke-width="2.1025" stroke-linecap="round" stroke-linejoin="round" />
+    <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="274.8" y="111" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="700" fill="#202a2f" data-prepared-text="true" dy="4.2" textLength="57.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CHECKOUT</text>
+  </g>
+</g>
+<polyline stroke-opacity="0" points="91.4607932537,111 211.6,111" fill="none" stroke="#202a2f" stroke-width="1.55" marker-end="url(#usecase-arrow)" data-relationship="association" data-direction="forward" data-id="edge-0" data-role="edge" data-from="Customer" data-to="Checkout" role="graphics-symbol" aria-roledescription="relation" aria-label="Customer to Checkout" />
+<path d="M91.4 110.66 C130.92 111.26, 170.6 110.88, 211.67 110.78" fill="none" stroke="#202a2f" stroke-width="2.2475" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" points="338,111 513.1,111" fill="none" stroke="#202a2f" stroke-width="1.55" stroke-dasharray="6 4" marker-end="url(#usecase-dependency)" data-relationship="include" data-direction="forward" data-id="edge-1" data-role="edge" data-from="Checkout" data-to="Browse" role="graphics-symbol" aria-roledescription="relation" aria-label="Checkout to Browse" />
+<path d="M337.99 111.27 C406.05 110.76, 473.83 110.72, 512.79 111.14" fill="none" stroke="#202a2f" stroke-width="2.2475" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="6 4" />
+<rect class="edge-label-halo" x="378" y="92" width="95.1" height="37" rx="4" fill="#fbf7ea" stroke="none" />
+<text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="425.55" y="110.5" text-anchor="middle" font-size="10" font-weight="700" fill="#202a2f" data-prepared-text="true" dy="3.5" textLength="71.1" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;INCLUDE&gt;&gt;</text>
+<g data-id="Customer" data-role="node">
+  <path d="M89.23 73.38 C90.62 73.34, 92.38 74.15, 93.48 75.15 C94.58 76.14, 95.61 77.88, 95.81 79.36 C96.01 80.84, 95.55 82.78, 94.71 84.01 C93.86 85.24, 92.19 86.26, 90.77 86.72 C89.34 87.18, 87.55 87.37, 86.18 86.79 C84.8 86.21, 83.22 84.59, 82.5 83.23 C81.78 81.86, 81.54 80.03, 81.86 78.61 C82.18 77.18, 83.21 75.6, 84.41 74.67 C85.61 73.75, 88.26 73.28, 89.05 73.07 C89.83 72.85, 89.1 73.21, 89.1 73.38" fill="none" stroke="#202a2f" stroke-width="2.1025" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M88.52 87.55 C88.79 95.87, 89.05 104.25, 88.83 108.9 M73.66 97.52 C80.27 97.54, 86.82 97.25, 103.58 97.39 M75.63 123.28 C79.88 119.21, 83.25 114.8, 89.06 109.14 M88.65 109.03 C91.39 112.13, 94.15 115.46, 102.04 123.52" fill="none" stroke="#202a2f" stroke-width="2.1025" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="88.8" y="143" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="700" fill="#202a2f" data-prepared-text="true" dy="4.2" textLength="57.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CUSTOMER</text>
+</g>
+</svg>

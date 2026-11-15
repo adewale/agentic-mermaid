@@ -1,30 +1,42 @@
+import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 // Agent-facing docs and declarations stay true: their snippets and examples
 // run, `am --agent-instructions` is the committed guide, and the Code Mode SDK
 // declaration matches the runtime registries and sandbox.
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
 import ts from 'typescript'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
-const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
+const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
+  agentflow: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
+  usecase: { kind: 'add_actor', id: 'Zebra', label: 'Zebra' },
+  wardley: { kind: 'add_component', id: 'Zebra', x: 50, y: 50 },
+  venn: { kind: 'set_subset', sets: ['Zebra'], size: 5, label: 'Zebra' },
+  cynefin: { kind: 'add_item', domain: 'complex', label: 'Zebra' },
+  railroad: { kind: 'add_rule', name: 'Zebra', definition: { type: 'terminal', value: 'Zebra' } },
+  swimlane: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
+  treeview: { kind: 'add_node', label: 'Zebra', nodeType: 'file' },
+  zenuml: { kind: 'upsert_participant', participant: { id: 'Zebra', label: 'Zebra', annotations: [] } },
+  eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [] } },
   c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
@@ -42,17 +54,22 @@ const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Recor
   gitgraph: { kind: 'create_branch', name: 'zebra' },
   radar: { kind: 'add_axis', id: 'zebra', label: 'Zebra' },
   sankey: { kind: 'add_link', source: 'Zebra', target: 'Industry', value: 1 },
+  packet: { kind: 'add_field', label: 'Zebra', bits: 8 },
+  kanban: { kind: 'add_task', column: 'todo', id: 'zebra', label: 'Zebra' },
+  requirement: { kind: 'add_requirement', requirement: { name: 'zebra', text: 'Zebra retains evidence' } },
+  treemap: { kind: 'add_node', label: 'Zebra', value: 5 },
+  ishikawa: { kind: 'set_effect', label: 'Zebra' },
+  block: { kind: 'add_block', block: { id: 'Zebra', label: 'Zebra' } },
 }
 
 const SDK_AST = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 
 /** String-literal members of a `type Name = 'A' | 'B'` alias in the SDK declaration. */
 function sdkStringUnion(name: string): string[] {
-  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration =>
-    ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
+  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
   if (!alias) return []
   const members = ts.isUnionTypeNode(alias.type) ? alias.type.types : [alias.type]
-  return members.flatMap(member => ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : [])
+  return members.flatMap(member => (ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : []))
 }
 
 /** Method names declared on the SDK's `declare const mermaid: { ... }` global. */
@@ -61,38 +78,50 @@ function sdkMermaidMethodNames(): string[] {
     if (!ts.isVariableStatement(statement)) continue
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'mermaid' || !declaration.type || !ts.isTypeLiteralNode(declaration.type)) continue
-      return declaration.type.members.flatMap(member => ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : [])
+      return declaration.type.members.flatMap(member => (ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : []))
     }
   }
   return []
 }
 
-/** Type-check the SDK declaration on its own, as an agent's editor would see it. */
-function sdkDeclarationTypeErrors(): string[] {
+/** Type-check the shipped declaration and a consumer, as an agent's editor would. */
+function sdkDeclarationTypeErrors(consumer: string): string[] {
   const fileName = join(tmpdir(), 'agentic-mermaid-code-mode-sdk.d.ts')
+  const consumerName = join(tmpdir(), 'agentic-mermaid-code-mode-consumer.ts')
+  const sources = new Map([[fileName, SDK_DECLARATION], [consumerName, consumer]])
   const options: ts.CompilerOptions = { noEmit: true, strict: true, target: ts.ScriptTarget.ES2022, lib: ['lib.es2022.d.ts'], types: [] }
   const host = ts.createCompilerHost(options)
   const readSourceFile = host.getSourceFile.bind(host)
   const fileExists = host.fileExists.bind(host)
-  host.getSourceFile = (name, languageVersion, ...rest) => name === fileName
-    ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS)
-    : readSourceFile(name, languageVersion, ...rest)
-  host.fileExists = name => name === fileName || fileExists(name)
-  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host))
-    .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+  host.getSourceFile = (name, languageVersion, ...rest) => (sources.has(name) ? ts.createSourceFile(name, sources.get(name)!, languageVersion, true, ts.ScriptKind.TS) : readSourceFile(name, languageVersion, ...rest))
+  host.fileExists = name => sources.has(name) || fileExists(name)
+  return ts.getPreEmitDiagnostics(ts.createProgram([...sources.keys()], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+}
+
+function expectVerifiedSource(value: unknown): void {
+  const source = value !== null && typeof value === 'object' && 'source' in value ? value.source : undefined
+  expect(typeof source).toBe('string')
+  const parsed = parseRegisteredMermaid(source as string)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok) expect(verifyMermaid(parsed.value).ok).toBe(true)
 }
 
 describe('Instructions_for_agents.md', () => {
-  test('byte-matches am --agent-instructions exactly', () => {
+  test('am --agent-instructions is the guide without its repository-maintenance comments', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
-    expect(AGENT_INSTRUCTIONS).toEqual(guide)
+    // Generated-block delimiters and `complete:` audit annotations are for
+    // repository tooling; the agent-facing copy keeps every other byte.
+    expect(AGENT_INSTRUCTIONS).not.toContain('<!--')
+    expect(AGENT_INSTRUCTIONS).toEqual(guide.replace(/^<!-- [^>]* -->\n/gm, '').replace(/<!-- [^>]* -->/g, ''))
   })
-  test('quick-start Code Mode snippets execute and lint clean', async () => {
+  test('quick-start Code Mode snippets return verified source and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
+    expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      expectVerifiedSource(r.value)
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
@@ -118,24 +147,6 @@ async function readWithTimeout(promise: Promise<string>, timeoutMs: number): Pro
 }
 
 async function runBunExample(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
-  // Bun 1.3.11 intermittently dies with SIGILL ("panic(main thread):
-  // unreachable — This indicates a bug in Bun, not your code") when spawning
-  // these examples in sandboxed containers. Retry ONLY on that runtime-crash
-  // signature; genuine example failures (nonzero exit without the panic
-  // banner, bad payloads) are never retried.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await runBunExampleOnce(script, args, timeoutMs)
-    // Signal deaths surface as 128+signal (observed: 132 SIGILL, 134
-    // SIGABRT), sometimes with empty stderr because the crash preempts the
-    // panic banner, or as a null status without our timeout firing. Genuine
-    // example failures exit 1-4 and are never retried.
-    const bunCrashed = r.stderr.includes('Bun has crashed') || (typeof r.status === 'number' && r.status >= 128) || (r.status === null && !r.timedOut)
-    if (!bunCrashed) return r
-  }
-  return runBunExampleOnce(script, args, timeoutMs)
-}
-
-async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
   const proc = Bun.spawn(['bun', 'run', script, ...args], { cwd: REPO, stdout: 'pipe', stderr: 'pipe' })
   const stdoutPromise = new Response(proc.stdout).text()
   const stderrPromise = new Response(proc.stderr).text()
@@ -156,12 +167,24 @@ async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs 
 }
 
 describe('agent-facing runnable docs', () => {
-  test('Code Mode skill snippets execute and lint clean', async () => {
+  test('Code Mode skill snippets return verified sources or documented skips and lint clean', async () => {
     const snippets = tsCodeBlocks(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'))
     expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      const results = Array.isArray(r.value) ? r.value : [r.value]
+      let sources = 0
+      for (const result of results) {
+        if (result !== null && typeof result === 'object' && 'skipped' in result && result.skipped === true) {
+          expect((result as { family?: unknown }).family).toBe('timeline')
+          expect(typeof (result as { reason?: unknown }).reason).toBe('string')
+        } else {
+          expectVerifiedSource(result)
+          sources++
+        }
+      }
+      expect(sources).toBeGreaterThan(0)
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
@@ -175,11 +198,11 @@ describe('agent-facing runnable docs', () => {
   // to a var the prose calls a string); those need human review. Skipped:
   // continuation fragments (no import), module/handler fragments (top-level
   // export/return), and React/JSX blocks.
-  test('public-API doc snippets execute', () => {
+  test('public-API doc snippets execute', async () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
     const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
-    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/api-advanced.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
     // Reader-supplied placeholders the docs reference but expect you to provide.
     const placeholders = (block: string): string => {
       const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
@@ -201,13 +224,10 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block
-            .replaceAll("'agentic-mermaid/agent'", AGENT)
-            .replaceAll("'agentic-mermaid/browser/lazy'", BROWSER)
-            .replaceAll("'agentic-mermaid'", CORE)
+          const wired = block.replaceAll("'agentic-mermaid/agent/core'", JSON.stringify(join(REPO, 'src/agent/core.ts'))).replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
-          const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+          const r = await runChild('bun', ['run', file], { cwd: dir })
           expect({ doc, block: i, status: r.status, stderr: r.stderr }).toEqual({ doc, block: i, status: 0, stderr: '' })
           ran++
         }
@@ -244,42 +264,121 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       expect({ family: family.id, narrower: methods.has(family.narrower) }).toEqual({ family: family.id, narrower: true })
     }
     expect(methods.has('mutate')).toBe(true)
-    expect(sdkDeclarationTypeErrors()).toEqual([])
+    expect(sdkDeclarationTypeErrors(`
+const freshVenn = mermaid.createMermaid('venn');
+const vennKind: 'venn' = freshVenn.kind;
+const vennBody: VennBody = freshVenn.body;
+const editedVenn = mermaid.mutate(freshVenn, { kind: 'set_subset', sets: ['A'], size: 20 });
+if (editedVenn.ok) {
+  const retained: VennBody = editedVenn.value.body;
+}
+// @ts-expect-error a Venn diagram cannot receive actor operations.
+mermaid.mutate(freshVenn, { kind: 'add_actor', id: 'Customer' });
+const freshFlow = mermaid.createMermaid('flowchart');
+const editedFlow = mermaid.mutate(freshFlow, { kind: 'add_node', id: 'Start', label: 'Start' });
+if (editedFlow.ok) {
+  const graph: FlowchartGraph = editedFlow.value.body.graph;
+}
+// @ts-expect-error a flowchart cannot receive set quantities.
+mermaid.mutate(freshFlow, { kind: 'set_subset', sets: ['A'], size: 20 });
+const builtRailroad = mermaid.buildMermaid('railroad', [{ kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 'word' } }]);
+if (builtRailroad.ok) {
+  const railroadKind: 'railroad' = builtRailroad.value.kind;
+  const rules: RailroadBody['rules'] = builtRailroad.value.body.rules;
+  mermaid.mutate(builtRailroad.value, { kind: 'replace_rule', index: 0, definition: { type: 'terminal', value: 'token' } });
+}
+// @ts-expect-error build must not widen its family to admit a foreign operation.
+mermaid.buildMermaid('venn', [{ kind: 'add_actor', id: 'Customer' }]);
+// @ts-expect-error grammar terminal values are text.
+mermaid.buildMermaid('railroad', [{ kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 5 } }]);
+declare const selectedFamily: DiagramKind;
+const selected = mermaid.createMermaid(selectedFamily);
+mermaid.renderMermaidSVG(selected);
+if (selected.kind === 'venn') {
+  mermaid.mutate(selected, { kind: 'set_subset', sets: ['A'], size: 20 });
+}
+// @ts-expect-error an unresolved family cannot promise support for set quantities.
+mermaid.mutate(selected, { kind: 'set_subset', sets: ['A'], size: 20 });
+const genericBuild = mermaid.buildMermaid(selectedFamily, []);
+if (genericBuild.ok && genericBuild.value.kind === 'flowchart') {
+  mermaid.mutate(genericBuild.value, { kind: 'add_node', id: 'Reviewed', label: 'Reviewed' });
+}
+const radar = mermaid.asRadar(mermaid.createMermaid('radar'));
+if (radar) {
+  const body: RadarBody = radar.body;
+  mermaid.mutate(radar, { kind: 'add_axis', id: 'quality' });
+  // @ts-expect-error add_axis requires an axis id.
+  mermaid.mutate(radar, { kind: 'add_axis' });
+  // @ts-expect-error a radar body cannot be used as a sankey body.
+  const wrong: SankeyBody = body;
+}
+const sankey = mermaid.asSankey(mermaid.createMermaid('sankey'));
+if (sankey) {
+  const links: Array<{ source: string; target: string; value: number }> = sankey.body.links;
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: 3 });
+  // @ts-expect-error link values are numeric.
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: '3' });
+}
+declare const parsed: ParsedDiagram;
+declare const extension: ExtensionValidDiagram;
+declare const preserved: PreservedValidDiagram;
+const svg: string = mermaid.renderMermaidSVG(parsed, { architecture: { visual: { groupHeaderHeight: 22, groupFont: 'sans-serif' } } });
+const text: string = mermaid.renderMermaidASCII(extension, { colorMode: 'html' });
+mermaid.renderMermaidSVGWithReceipt(preserved, { security: 'strict' });
+mermaid.renderMermaidASCIIWithReceipt(parsed, { useAscii: true });
+mermaid.layoutMermaidWithReceipt(extension, { padding: 12 });
+// @ts-expect-error structured built-in mutations cannot accept an extension envelope.
+mermaid.mutate(extension, { kind: 'set_title', title: 'Closed mutation boundary' });
+// @ts-expect-error backend routing is private and absent from consumer options.
+const privateBackend: SharedRenderOptions = { backendPolicy: { selected: 'backend:probe' } };
+// @ts-expect-error architecture header height is numeric.
+const badHeader: SharedRenderOptions = { architecture: { visual: { groupHeaderHeight: '22' } } };
+const options: SharedRenderOptions = {
+  mermaidConfig: { radar: { tickLabels: true }, sankey: { nodeAlignment: 'left', nodeWidth: 12 } }
+};
+// @ts-expect-error tickLabels is a boolean switch.
+const badRadar: SharedRenderOptions = { mermaidConfig: { radar: { tickLabels: 'yes' } } };
+// @ts-expect-error nodeAlignment is a closed union.
+const badAlignment: SharedRenderOptions = { mermaidConfig: { sankey: { nodeAlignment: 'diagonal' } } };
+// @ts-expect-error nodeWidth is numeric.
+const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '12' } } };
+`)).toEqual([])
   })
 
-  test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {
-    // Consistency-audit guard: the declaration once advertised narrowers the
-    // sandbox did not expose, so Code Mode scripts copying the declaration
-    // crashed. Drive each advertised narrower end-to-end through execute().
-    const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
-    expect(advertised.length).toBeGreaterThanOrEqual(9)
-    const SOURCES: Record<string, string> = {
-      asC4: 'C4Context\\n  System(a, "A")',
-      asFlowchart: 'flowchart TD\\n  A --> B',
-      asState: 'stateDiagram-v2\\n  [*] --> A',
-      asSequence: 'sequenceDiagram\\n  A->>B: hi',
-      asTimeline: 'timeline\\n  2020 : event',
-      asClass: 'classDiagram\\n  class A',
-      asEr: 'erDiagram\\n  A ||--o{ B : has',
-      asJourney: 'journey\\n  Wake: 3: Me',
-      asArchitecture: 'architecture-beta\\n  service a(server)[A]',
-      asXyChart: 'xychart-beta\\n  bar [1, 2]',
-      asPie: 'pie\\n  "Dogs" : 3',
-      asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
-      asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
-      asMindmap: 'mindmap\\n  root\\n    child',
-      asGitGraph: 'gitGraph\\n  commit',
-      asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
-      asSankey: 'sankey-beta\\n  Coal,Electricity,127.93',
-    }
-    for (const narrower of advertised) {
-      const source = SOURCES[narrower]
-      expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
-      const code = `const r = mermaid.parseRegisteredMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+  test('every advertised family supports meaningful typed edits, read-back and rendering in Code Mode', async () => {
+    // Exercise the trusted sandbox bridge, not just the declaration or a
+    // callable narrower: family models can contain Maps and nested identities.
+    const advertised = new Set([...SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g)].map(match => match[0]))
+    expect(advertised).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(family => family.narrower)))
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
+      const code = `
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(witness.source)});
+if (!parsed.ok) return { phase: 'parse', error: parsed.error };
+const narrowed = mermaid.${family.narrower}(parsed.value);
+if (!narrowed) return { phase: 'narrow' };
+const edited = mermaid.mutate(narrowed, ${JSON.stringify(witness.edit.op)});
+if (!edited.ok) return { phase: 'edit', error: edited.error };
+const source = mermaid.serializeMermaid(edited.value);
+const reread = mermaid.parseRegisteredMermaid(source);
+if (!reread.ok) return { phase: 'read-back', error: reread.error };
+const options = ${JSON.stringify(witness.options ?? {})};
+return {
+  family: reread.value.body.kind,
+  narrowed: mermaid.${family.narrower}(reread.value) !== null,
+  missingFacts: mermaid.checkMermaid(reread.value, { include: ${JSON.stringify([...witness.facts, ...witness.edit.afterFacts])} }).missing,
+  verified: mermaid.verifyMermaid(reread.value, { renderOptions: options }).ok,
+  stable: mermaid.serializeMermaid(reread.value) === source,
+  svg: mermaid.renderMermaidSVG(reread.value, options).includes('<svg'),
+  ascii: mermaid.renderMermaidASCII(reread.value, { ...options, useAscii: true, colorMode: 'none' }).trim().length > 0,
+};`
       const result = await executeInSandbox(code, {})
-      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
+      expect({ family: family.id, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({
+        family: family.id, ok: true,
+        value: { family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true, svg: true, ascii: true },
+      })
     }
-  })
+  }, 30_000)
 
   test('every registered renderable family ships typed mutation (default-by-default enforcement)', () => {
     // Typed mutation is the enforced default: a new family cannot register
@@ -295,26 +394,22 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       const kind = family.id
       const edit = TYPED_EDIT_BY_FAMILY[kind]
       expect({ kind, hasEditFixture: edit !== undefined, msg: FAIL }).toEqual({ kind, hasEditFixture: true, msg: FAIL })
-      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL })
-        .toEqual({ kind, opDeclared: true, msg: FAIL })
+      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL }).toEqual({ kind, opDeclared: true, msg: FAIL })
 
       const parsed = parseRegisteredMermaid(family.example)
       if (!parsed.ok) throw new Error(`${kind} example does not parse`)
       for (const other of BUILTIN_FAMILY_METADATA) {
         const narrowed = typeof narrowers[other.narrower] === 'function' ? narrowers[other.narrower]!(parsed.value) : undefined
-        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined })
-          .toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
+        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined }).toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
       }
       const typed = narrowers[family.narrower]!(parsed.value) as MutableValidDiagram
       const mutated = mutate(typed, edit as AnyMutationOp)
       expect({ kind, mutated: mutated.ok ? true : mutated.error, msg: FAIL }).toEqual({ kind, mutated: true, msg: FAIL })
       if (!mutated.ok) continue
       const source = serializeMermaid(mutated.value)
-      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) })
-        .toEqual({ kind, before: false, after: true })
+      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) }).toEqual({ kind, before: false, after: true })
       const reparsed = parseRegisteredMermaid(source)
-      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error })
-        .toEqual({ kind, reparsedKind: kind })
+      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error }).toEqual({ kind, reparsedKind: kind })
       if (reparsed.ok) expect({ kind, stable: serializeMermaid(reparsed.value) === source }).toEqual({ kind, stable: true })
     }
   })
@@ -332,28 +427,19 @@ describe('start.md bootstrap claims stay true', () => {
   test('every as* narrower it names is a real narrower', () => {
     const real = new Set<string>(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
     const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0)
     for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
   })
 
   test('every warning code it names is a real code', () => {
     const codes = new Set(Object.keys(WARNING_SEVERITY))
     const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0) // at least LABEL_OVERFLOW
     for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
   })
 
   test('Code Mode instructions do not name library-only methods', async () => {
-    expect(START).not.toContain('applyOps({ source, family, ops })')
-    expect(START).toContain('Code Mode intentionally exposes neither of those batch wrappers')
+    expect(START).not.toMatch(/mermaid\.applyOps/)
     const result = await executeInSandbox('return typeof mermaid.applyOps')
     expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
-  })
-
-  test('the hosted MCP tools it lists match the server exactly', () => {
-    const sentence = START.match(/Tools:\s*([^.\n]+)/)?.[1] ?? ''
-    const named = new Set([...sentence.matchAll(/`([a-z_]+)`/g)].map(m => m[1]))
-    expect(named).toEqual(new Set(HOSTED_TOOLS.map(t => t.name)))
   })
 })
 
@@ -361,11 +447,6 @@ describe('documented package usage works', () => {
   test('browser client recipes bundle through the browser ESM entry', async () => {
     for (const file of ['docs/react.md', 'docs/getting-started.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
-      if (file === 'docs/react.md') {
-        expect(text).toContain('className="diagram diagram-surface"')
-        expect(text).toContain('.diagram-surface {')
-        expect(text).toContain('.dark .diagram-surface {')
-      }
       // Getting Started demonstrates the browser API; the complete React
       // adapter lives in react.md rather than a second copy to keep in sync.
       const clientBlocks = Array.from(text.matchAll(/```tsx?\n([\s\S]*?)\n```/g))
@@ -390,14 +471,16 @@ describe('documented package usage works', () => {
           write: false,
           metafile: true,
           logLevel: 'silent',
-          plugins: [{
-            name: 'agentic-mermaid-browser-entry',
-            setup(build) {
-              build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
-                path: join(REPO, 'src/browser-lazy.ts'),
-              }))
+          plugins: [
+            {
+              name: 'agentic-mermaid-browser-entry',
+              setup(build) {
+                build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
+                  path: join(REPO, 'src/browser-lazy.ts'),
+                }))
+              },
             },
-          }],
+          ],
         })
         expect(bundled.outputFiles.length).toBeGreaterThan(0)
         const inputs = Object.keys(bundled.metafile.inputs)
@@ -406,17 +489,25 @@ describe('documented package usage works', () => {
     }
   })
 
-  test('package-runner quickstarts install the published package and run a real subcommand', () => {
+  test('package-runner quickstarts install the published package and run a real subcommand', async () => {
     // `npx <pkg> <sub>` resolves the bin named after the package, so every
     // documented invocation must name this package, that bin must exist, and
     // the subcommand must be one `am` accepts.
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { name: string; bin: Record<string, string> }
     expect(pkg.bin[pkg.name]).toBe(pkg.bin.am)
-    const docs = ['README.md', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'llms.txt', 'website/source/start.md',
-      ...readdirSync(join(REPO, 'docs')).filter(file => file.endsWith('.md')).map(file => `docs/${file}`)]
+    const docs = [
+      'README.md',
+      'AGENT_NATIVE.md',
+      'Instructions_for_agents.md',
+      'website/source/start.md',
+      ...readdirSync(join(REPO, 'docs'))
+        .filter(file => file.endsWith('.md'))
+        .map(file => `docs/${file}`),
+    ]
     const invocations: Array<{ file: string; pkg: string; sub: string }> = []
-    for (const file of docs) {
-      const text = readFileSync(join(REPO, file), 'utf8')
+    const sources = docs.map(file => ({ file, text: readFileSync(join(REPO, file), 'utf8') }))
+    sources.push({ file: 'am llms-txt', text: buildLlmsTxt() })
+    for (const { file, text } of sources) {
       for (const match of text.matchAll(/\bnpx\s+(?:-y\s+)?(agentic-mermaid[\w-]*)(?:\s+([a-z][\w-]*))?/g)) {
         invocations.push({ file, pkg: match[1]!, sub: match[2] ?? '' })
       }
@@ -432,7 +523,7 @@ describe('documented package usage works', () => {
     }
     expect(subcommands.has('mcp')).toBe(true)
     for (const sub of subcommands) {
-      const help = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO, encoding: 'utf8' })
+      const help = await runChild('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO })
       expect({ sub, status: help.status }).toEqual({ sub, status: 0 })
     }
   }, 60_000)

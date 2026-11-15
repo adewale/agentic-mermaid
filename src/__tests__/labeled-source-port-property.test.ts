@@ -76,6 +76,7 @@ function measureFanIn(c: FanInCase) {
   const nm = new Map(pos.nodes.map(n => [n.id, n]))
   const hub = nm.get(c.hub)!
   const incoming = pos.edges.filter(e => e.target === c.hub)
+  expect(incoming.map(edge => edge.source).sort()).toEqual(['A', 'B2'])
   // hub-vs-barycentre offset
   const sources = incoming.map(e => nm.get(e.source)!)
   const bary = sources.reduce((s, n) => s + crossCenter(n, c.horizontal), 0) / sources.length

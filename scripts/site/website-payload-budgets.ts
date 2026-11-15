@@ -3,16 +3,15 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 /** Route budgets checked on every PR by `bun run website:payload:check`.
  *
  * maxRequests, required, and forbidden are the structural contract: which
- * resources each route may and must load. Byte ceilings sit about 5% above the
- * measured Linux/Bun 1.4.2 totals so ordinary changes do not need a ceiling bump;
- * per-PR growth is judged against the base branch by scripts/ci/payload-delta.ts.
- * Raise a ceiling deliberately when growth accumulates; lower one after an
- * optimization. */
+ * resources each route may and must load. Byte ceilings follow the ceiling rule
+ * in docs/project/website-payload-plan.md (measured + 5%, rounded up to 1,000
+ * bytes; measured on Linux/Bun 1.4.4 for 0.5.7): they bound accumulated drift,
+ * and per-PR growth is decided by scripts/ci/payload-delta.ts. */
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 718_000,
-    maxGzipBytes: 427_000,
+    maxRawBytes: 739_000,
+    maxGzipBytes: 429_000,
     // Capped by the Brotli stop gate (70% of the pre-optimization 557,024
     // bytes; website-font-subsets.test.ts), not the usual 5% headroom.
     maxBrotliBytes: 389_900,
@@ -30,11 +29,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
-    maxRawBytes: 425_000,
-    // Prepared C4 text and the inherited root font rule measure 72,550 B gzip / 57,536 B Brotli.
-    maxGzipBytes: 72_600,
-    maxBrotliBytes: 57_600,
+    maxRawBytes: 250_000,
+    maxGzipBytes: 43_000,
+    maxBrotliBytes: 34_000,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -47,10 +44,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 31,
-    maxRawBytes: 783_000,
-    maxGzipBytes: 295_000,
-    maxBrotliBytes: 267_500,
+    // Recorded native layout delivery used 38 requests; allow one more.
+    maxRequests: 39,
+    // Optional sketch code stays out of the default Timeline delivery graph.
+    maxRawBytes: 753_000,
+    maxGzipBytes: 292_000,
+    maxBrotliBytes: 259_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,16 +63,15 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   'editor-empty': Object.freeze({
-    maxRequests: 2,
-    // Authored text, family config, typed geometry and outline repair ship here.
-    // Combined measurement: 3,677,080 raw / 1,115,690 gzip / 879,181 Brotli.
-    // Per-change growth still has its own delta gate.
-    maxRawBytes: 3_679_000,
-    maxGzipBytes: 1_117_000,
-    maxBrotliBytes: 881_000,
+    maxRequests: 3,
+    // App plus schema/bootstrap; engines and feature modules wait for work.
+    maxRawBytes: 462_000,
+    maxGzipBytes: 133_000,
+    maxBrotliBytes: 115_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',
+      '^/editor/runtime/browser-hosted-[a-z0-9]{8}\\.js$',
     ]),
     forbidden: Object.freeze([]),
   }),

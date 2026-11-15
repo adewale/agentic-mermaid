@@ -29,7 +29,10 @@ const ANSI_TRUECOLOR_SGR = new RegExp(
   `\\x1b\\[(?:0|38;2;${ANSI_COMPONENT};${ANSI_COMPONENT};${ANSI_COMPONENT})m`,
   'g',
 )
-const NON_STRUCTURAL_TERMINAL_CONTROL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/
+/** Controls and the code points sanitizeTerminalText never lets through:
+ * bidi embedding/override/isolate controls reorder neighbouring cells
+ * ("Trojan source"), and noncharacters/lone surrogates are not text. */
+const NON_STRUCTURAL_TERMINAL_CONTROL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\p{Noncharacter_Code_Point}\p{Cs}]/u
 
 function withoutAllowedSgr(value: string, colorMode: ColorMode): string {
   const grammar = allowedSgrGrammar(colorMode)
@@ -68,7 +71,7 @@ export function terminalOutputLineWidth(line: string, colorMode: ColorMode): num
   return visualWidth(terminalOutputPlainText(line, colorMode))
 }
 
-function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
+export function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
   if (colorMode === 'none') return value
   if (colorMode !== 'html') return withoutAllowedSgr(value, colorMode)
   return value

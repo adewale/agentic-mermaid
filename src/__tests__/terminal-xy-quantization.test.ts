@@ -24,6 +24,7 @@ describe('terminal XY numeric projection', () => {
     expect(tickRows).toEqual([20, 16, 12, 8, 4, 0])
     expect(rows[20]).toContain('─')
     const labels = document.regions().filter(region => /^x-category-/.test(region.id))
+    expect(labels.map(label => label.id)).toEqual(['x-category-0', 'x-category-1', 'x-category-2', 'x-category-3', 'x-category-4'])
     const values = [400, 1200, 1900, 2500, 800]
     labels.forEach((label, index) => {
       const column = Math.floor((label.canvasColStart + label.canvasColEnd) / 2)
@@ -80,6 +81,7 @@ describe('terminal XY numeric projection', () => {
           visibleCoverage += weight(emitted)
           expect(mixed.document.cell(x + dx, y + dy)?.owners.map(owner => owner.id)).not.toContain('series-1')
         }
+        expect(originalCoverage).toBeGreaterThan(0)
         expect(visibleCoverage).toBe(originalCoverage)
         // A line can be hidden behind a filled mark, but remains visible in
         // the plot outside the marks. Neither legend nor ownership alone

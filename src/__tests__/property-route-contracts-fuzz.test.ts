@@ -24,9 +24,11 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
+import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 const IDS = 'ABCDEFGH'.split('')
 const DIRECTIONS = ['TD', 'LR', 'RL', 'BT'] as const
@@ -91,13 +93,27 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
         const src = toSource(d)
         const graph = parseMermaid(src)
         const positioned = layoutGraphSync(graph)
+        expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+        expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
 
         // finiteness + containment
         expect(Number.isFinite(positioned.width) && Number.isFinite(positioned.height)).toBe(true)
         for (const node of positioned.nodes) {
-          expect(Number.isFinite(node.x) && Number.isFinite(node.y)).toBe(true)
+          expect([node.x, node.y, node.width, node.height].every(Number.isFinite)).toBe(true)
+          expect(node.x).toBeGreaterThanOrEqual(0)
+          expect(node.y).toBeGreaterThanOrEqual(0)
+          expect(node.x + node.width).toBeLessThanOrEqual(positioned.width)
+          expect(node.y + node.height).toBeLessThanOrEqual(positioned.height)
           expect(node.width).toBeGreaterThanOrEqual(0)
           expect(node.height).toBeGreaterThanOrEqual(0)
+        }
+
+        for (const edge of positioned.edges) for (const point of edge.points) {
+          expect([point.x, point.y].every(Number.isFinite)).toBe(true)
+          expect(point.x).toBeGreaterThanOrEqual(0)
+          expect(point.y).toBeGreaterThanOrEqual(0)
+          expect(point.x).toBeLessThanOrEqual(positioned.width)
+          expect(point.y).toBeLessThanOrEqual(positioned.height)
         }
 
         // the strong oracle: routes obey the contracts the passes maintain
@@ -106,7 +122,28 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
           throw new Error(`route-contract violations on:\n${src}\n→ ${JSON.stringify(findings)}`)
         }
       }),
-      { numRuns: 400, seed: 0x9e3779b9 },
+      fcParameters({ numRuns: 400, seed: 0x9e3779b9, includeErrorInReport: true, examples: [[{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 2, label: 'warnings' }, { shape: 2, label: 'x' }, { shape: 0, label: 'ok' }, { shape: 3, label: 'process the input' }],
+        parents: [0, 1, 1, 0], extra: [{ from: 4, to: 3, label: '' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 1, label: 'ok' }, { shape: 2, label: 'ok' }],
+        parents: [0, 0], extra: [{ from: 2, to: 1, label: 'yes' }, { from: 2, to: 1, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 2, label: 'ok' }, { shape: 2, label: 'process the input' }],
+        parents: [0, 0], extra: [{ from: 2, to: 1, label: 'yes' }, { from: 2, to: 1, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 3, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 2, label: 'rendered' }],
+        parents: [0, 1, 1], extra: [{ from: 1, to: 3, label: 'retry' }, { from: 0, to: 3, label: 'retry' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'warnings' }, { shape: 0, label: 'ok' }],
+        parents: [0, 0, 1, 0], extra: [{ from: 0, to: 3, label: 'no' }, { from: 0, to: 3, label: 'no' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 2, label: 'rendered' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'process the input' }, { shape: 2, label: 'ok' }],
+        parents: [0, 1, 0, 0, 0, 0], extra: [{ from: 0, to: 6, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 1, label: 'warnings' }, { shape: 3, label: 'ok' }, { shape: 3, label: 'ok' }, { shape: 3, label: 'retry now' }, { shape: 2, label: 'ok' }],
+        parents: [0, 0, 2, 1, 1], extra: [],
+      }]] }),
     )
   }, 30000)
 })
@@ -122,8 +159,22 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
 describe('regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired', () => {
   const auditCodes = (src: string): string[] => {
     const graph = parseMermaid(src)
-    return auditRouteContracts(layoutGraphSync(graph), graph).map(f => f.code)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+    for (const edge of positioned.edges.filter(edge => edge.label)) expect(edge.labelPosition).toBeDefined()
+    return auditRouteContracts(positioned, graph).map(f => f.code)
   }
+
+  it.each(['TD', 'BT', 'LR', 'RL'])('feedback exits leave a private label segment in %s', direction => {
+    const source = trackedExamples().find(example => example.group === 'contact-sheet' && example.name === 'AJ')!.source
+      .replace('flowchart TD', `flowchart ${direction}`)
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+      .toEqual(graph.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
 
   it('mixed labeled+unlabeled duplicate pair is separated into lanes (E→F twice)', () => {
     const src = [

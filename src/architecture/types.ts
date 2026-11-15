@@ -30,6 +30,8 @@ export interface ArchitectureService {
   id: string
   label: string
   icon?: string
+  /** Literal STRING icon, distinct from a bundled icon name. */
+  iconText?: string
   parentId?: string
 }
 
@@ -70,6 +72,7 @@ export interface ArchitectureDiagram {
 }
 
 export interface PositionedArchitectureGroup {
+  iconFallbackBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   headerHeight?: number
   id: string
   label: string
@@ -84,6 +87,9 @@ export interface PositionedArchitectureGroup {
 }
 
 export interface PositionedArchitectureService {
+  iconText?: string
+  iconTextBlock?: import('../shared/prepared-text.ts').PixelTextBlock
+  iconFallbackBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   id: string
   label: string
   labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock

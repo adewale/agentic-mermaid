@@ -6,12 +6,11 @@
 // Used across all diagram types (flowcharts, state, sequence, class, ER).
 // ============================================================================
 
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
-import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
+import { formatSvgNumber } from './shared/svg-number.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
-import { graphemes } from './shared/graphemes.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
 
 /**
@@ -21,7 +20,12 @@ import { sanitizeDisplayLines } from './shared/text-controls.ts'
  * maps markdown-lite emphasis (`**b**`, `*i*`, `~~s~~`) to those tags.
  */
 export function normalizeBrTags(label: string, escapedLineBreaks = true): string {
-  return normalizePlainLabel(label, escapedLineBreaks)
+  return normalizeMarkdownEmphasis(normalizePlainLabel(label, escapedLineBreaks))
+}
+
+/** Shared markdown-lite emphasis, without a family's quoting or line grammar. */
+export function normalizeMarkdownEmphasis(label: string): string {
+  return label
     // Markdown formatting → HTML tags (order matters: ** before *)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
@@ -76,10 +80,15 @@ export function displayText(label: DisplayTextInput, display: LabelDisplay = 'fo
   return prepareDisplayText(label, display).lines.map(runs => runs.map(run => run.text).join('')).join('\n')
 }
 
+const XML_SPECIAL = /[&<>"']/
+const ATTRIBUTE_SPECIAL = /[&<>"'\t\n\r]/
+
 /**
  * Escape special XML characters in text content.
  */
 export function escapeXml(text: string): string {
+  // Most values hold none of these; skip the five passes when nothing changes.
+  if (typeof text === 'string' && !XML_SPECIAL.test(text)) return text
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -94,6 +103,7 @@ export function escapeXml(text: string): string {
  * and CR; element text retains its separate display interpretation.
  */
 export function escapeAttr(text: string): string {
+  if (typeof text === 'string' && !ATTRIBUTE_SPECIAL.test(text)) return text
   return escapeXml(text).replace(/[\t\n\r]/g, character => character === '\t' ? '&#9;' : character === '\n' ? '&#10;' : '&#13;')
 }
 
@@ -122,7 +132,20 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
 
 /** Paint interpreted runs directly. Prepared labels never pass through a tag
  * parser again, even when their visible characters spell formatting tags. */
-function renderDisplayRuns(segments: readonly DisplayRun[]): string {
+function displayRunAttributes(seg: DisplayRun, fontWeight = 400): string[] {
+  const attrs: string[] = []
+  if (seg.bold) attrs.push(`font-weight="${String(fontWeight > 700 ? fontWeight : 'bold')}"`)
+  if (seg.italic) attrs.push('font-style="italic"')
+  const deco: string[] = []
+  if (seg.underline) deco.push('underline')
+  if (seg.strikethrough) deco.push('line-through')
+  if (deco.length) {
+    attrs.push(`text-decoration="${deco.join(' ')}"`)
+  }
+  return attrs
+}
+
+function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): string {
   if (segments.length === 0) return ''
 
   // If all segments are unstyled, just escape
@@ -133,16 +156,7 @@ function renderDisplayRuns(segments: readonly DisplayRun[]): string {
     const escaped = escapeXml(seg.text)
     if (!seg.bold && !seg.italic && !seg.underline && !seg.strikethrough) return escaped
 
-    const attrs: string[] = []
-    if (seg.bold) attrs.push('font-weight="bold"')
-    if (seg.italic) attrs.push('font-style="italic"')
-    // SVG text-decoration can combine values
-    const deco: string[] = []
-    if (seg.underline) deco.push('underline')
-    if (seg.strikethrough) deco.push('line-through')
-    if (deco.length) attrs.push(`text-decoration="${deco.join(' ')}"`)
-
-    return `<tspan ${attrs.join(' ')}>${escaped}</tspan>`
+    return `<tspan ${displayRunAttributes(seg, fontWeight).join(' ')}>${escaped}</tspan>`
   }).join('')
 }
 
@@ -156,35 +170,16 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   // and a combining cluster may span formatting descendants.
   if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
     const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
-    return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
+    return `<tspan x="${formatSvgNumber(center)}"${baseline === undefined ? '' : ` y="${formatSvgNumber(baseline)}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
   }
-  if (block.letterSpacing === 0) return renderDisplayRuns(line.runs)
-  let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
-  const result: string[] = []
-  for (const run of line.runs) {
-    const clusters = graphemes(run.text)
-    const groups: Array<{ text: string; natural: boolean; count: number }> = []
-    for (const cluster of clusters) {
-      const natural = /[^\x20-\x7e]/u.test(cluster)
-      const prior = groups.at(-1)
-      // Keep non-ASCII shaping runs intact. Separating Arabic/Indic clusters
-      // would lose joining and ligatures even if every character survived.
-      if (prior && prior.natural === natural && (natural || block.letterSpacing === 0)) {
-        prior.text += cluster; prior.count++
-      } else groups.push({ text: cluster, natural, count: 1 })
-    }
-    for (const [at, group] of groups.entries()) {
-      const weight = run.bold ? Math.max(700, block.fontWeight) : block.fontWeight
-      const measure = block.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-      const fontStyle = run.italic ? 'italic' : 'normal'
-      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize, 0, weight, fontStyle, block.fontFamily) : measure(group.text, block.fontSize, weight, fontStyle, block.fontFamily) - (at === groups.length - 1 || customTextMeasurementActive() ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
-      const fit = group.natural ? '' : ` textLength="${Math.max(0, width)}" lengthAdjust="spacingAndGlyphs"`
-      const tracking = group.natural ? block.letterSpacing : 0
-      result.push(`<tspan x="${x}" text-anchor="start" letter-spacing="${tracking}" data-text-fragment="true"${fit}>${renderDisplayRuns([{ ...run, text: group.text }])}</tspan>`)
-      x += width + block.letterSpacing
-    }
-  }
-  return result.join('')
+  if (block.letterSpacing === 0 && !line.fragments) return renderDisplayRuns(line.runs, block.fontWeight)
+  if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
+  const origin = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
+  return line.fragments.map(fragment => {
+    const style = displayRunAttributes(line.runs[fragment.runIndex]!, block.fontWeight)
+    const whitespace = /^ | $/.test(fragment.text) ? ' xml:space="preserve"' : ''
+    return `<tspan x="${formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
+  }).join('')
 }
 
 // ============================================================================
@@ -225,17 +220,19 @@ export function renderMultilineText(
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
-  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) attrs += ' data-literal-text="true"'
+  const literal = display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')
+  if (literal) attrs += ' data-literal-text="true"'
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
-  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
+  const preserve = /(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')
+  if (preserve) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
-  const advanceAttrs = (i: number) => block && !fragmented ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
+  const advanceAttrs = (i: number) => block && !fragmented && !block.lineBlocks[i]!.fragments ? ` textLength="${formatSvgNumber(block.lineBlocks[i]!.width)}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
 
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
-    if (nativeShaping) return `<text x="${cx}" y="${cy}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
-    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
+    if (nativeShaping) return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
+    return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
@@ -247,11 +244,11 @@ export function renderMultilineText(
     const dy = i === 0 ? firstDy : lineHeight
     // Native RTL fragments can consume relative advances in visual order.
     // Pin every baseline independently of the fragments' visual order.
-    const position = nativeShaping ? `y="${cy + firstDy + i * lineHeight}"` : `dy="${dy}"`
-    return `<tspan x="${cx}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
+    const position = nativeShaping ? `y="${formatSvgNumber(cy + firstDy + i * lineHeight)}"` : `dy="${formatSvgNumber(dy)}"`
+    return `<tspan x="${formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
   }).join('')
 
-  return `<text x="${cx}" y="${cy}" ${attrs}>${tspans}</text>`
+  return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${tspans}</text>`
 }
 
 /**

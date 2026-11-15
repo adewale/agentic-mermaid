@@ -89,7 +89,7 @@ assertions are tagged where they already covered the behavior; unsupported,
 deferred, and policy-out-of-scope cases remain recorded below.
 
 - **Issue-keyed regression fixtures** —
-  [`src/__tests__/aesthetic-issue-regressions.test.ts`](../src/__tests__/aesthetic-issue-regressions.test.ts)
+  [`src/__tests__/aesthetic-issue-regressions.test.ts`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/src/__tests__/aesthetic-issue-regressions.test.ts)
   renders a small repro graph per complaint and asserts, through the real
   renderer, that Agentic Mermaid does not exhibit it: `#6476` (avoidable edge
   crossings → 0 on a planar bipartite graph), `#5601` (planar state diagram

@@ -45,7 +45,7 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(output).toContain('►')
   })
 
-  it('sizes custom ASCII shapes by visual width too', () => {
+  it('preserves complete wide graphemes in custom ASCII shapes', () => {
     const output = renderMermaidASCII('graph TD\n  A([开始])\n  B[[처리]]\n  C[(数据🙂)]')
     expect(output).toContain('开始')
     expect(output).toContain('처리')

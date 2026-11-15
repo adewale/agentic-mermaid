@@ -9,7 +9,6 @@
     "brotli": "1.2.0",
     "requirements": "scripts/site/website-font-subset-requirements.txt"
   },
-  "requirementsSha256": "62e4d79a99706cc098541a98014e0aa0749f3796754ec8a14bb45a96aaf94fa8",
   "unicodeRanges": [
     "U+0000-00FF",
     "U+0100-024F",

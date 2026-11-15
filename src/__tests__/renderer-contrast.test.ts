@@ -8,7 +8,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { contrastTextColor } from '../color-resolver.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { contrastTextColor, createFillInkResolver } from '../color-resolver.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
@@ -31,7 +32,9 @@ describe('#116 auto-contrast node text on custom fills', () => {
 
   test('no custom fill → theme default (not forced black/white)', () => {
     const svg = renderMermaidSVG('flowchart TD\n  A')
+    expect(svg).toMatch(/<text\b[^>]*>A<\/text>/)
     const fill = firstTextFill(svg)
+    expect(fill).toBeDefined()
     expect(fill).not.toBe('#FFFFFF')
     expect(fill).not.toBe('#000000')
   })
@@ -66,6 +69,25 @@ describe('#116 auto-contrast node text on custom fills', () => {
 // every opaque fill. A brightness cut-off picked white on mid-tone fills such
 // as #3b82f6 (3.68:1) and #10b981 (2.54:1).
 describe('auto-contrast ink contract', () => {
+  test('a render-local ink resolver keeps authored-fill policy and page colors independent', () => {
+    const ink = createFillInkResolver({ bg: '#ffffff', fg: '#27272a' })
+    // A Style's explicit ink stays authoritative on its own surface. The same
+    // ink on an independently authored fill must adapt to remain legible.
+    expect(ink('#ffffff', '#ffffff')).toBe('#ffffff')
+    expect(wcagContrastRatio(ink('#ffffff', '#ffffff', true), '#ffffff')!).toBeGreaterThanOrEqual(4.5)
+    expect(ink('#ffffff', '#ffffff')).toBe('#ffffff')
+    expect(wcagContrastRatio(ink('#ffffff', '#000000', true), '#000000')!).toBeGreaterThanOrEqual(4.5)
+    expect(createFillInkResolver({ bg: 'var(--page)', fg: 'var(--ink)' })('var(--_text)', 'var(--surface)')).toBe('var(--_text)')
+  })
+  test('automatic ink reads admitted CSS color forms through the shared color parser', () => {
+    for (const [fill, hex] of [['midnightblue', '#191970'], ['hsl(240 100% 10%)', '#000033'], ['rgb(0% 0% 20%)', '#000033'], ['rgba(0,0,51,1)', '#000033']] as const) {
+      expect(contrastTextColor(fill)).toBe('#FFFFFF')
+      expect(wcagContrastRatio(contrastTextColor(fill)!, hex)!).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastTextColor('ivory')).toBe('#000000')
+    for (const unresolved of ['transparent', 'var(--surface)', 'currentColor', 'not-a-color']) expect(contrastTextColor(unresolved)).toBeUndefined()
+  })
+
   const hexArb = fc.integer({ min: 0, max: 0xffffff }).map(value => `#${value.toString(16).padStart(6, '0')}`)
 
   test('picks the higher-contrast ink, at least 4.5:1, for any opaque fill', () => {
@@ -73,14 +95,34 @@ describe('auto-contrast ink contract', () => {
       const ink = contrastTextColor(fill)!
       const other = ink === '#000000' ? '#FFFFFF' : '#000000'
       expect(wcagContrastRatio(ink, fill)!).toBeGreaterThanOrEqual(Math.max(4.5, wcagContrastRatio(other, fill)!))
-    }), { numRuns: 2000 })
+    }), fcParameters({ numRuns: 2000 }))
   })
 
-  test('node text on a custom fill clears WCAG AA end to end', () => {
+  // Every family whose cards take an authored `style` fill: all text the
+  // card owns (title, members, attributes) clears AA on that fill.
+  test.each([
+    ['flowchart', (fill: string) => `flowchart TD\n  A[Card]\n  style A fill:${fill}`],
+    ['state', (fill: string) => `stateDiagram-v2\n  A: Card\n  style A fill:${fill}`],
+    ['class', (fill: string) => `classDiagram\n  class A {\n    +String value\n    +go() void\n  }\n  style A fill:${fill}`],
+    ['er', (fill: string) => `erDiagram\n  A {\n    string value PK\n  }\n  style A fill:${fill}`],
+    ['block', (fill: string) => `block-beta\n  A["Card"]\n  style A fill:${fill}`],
+    ['requirement', (fill: string) => `requirementDiagram\n  requirement A {\n    id: 1\n    text: card\n  }\n  style A fill:${fill}`],
+  ] as const)('%s card text on a custom fill clears WCAG AA end to end', (_family, source) => {
     fc.assert(fc.property(hexArb, fill => {
-      const svg = renderMermaidSVG(`flowchart TD\n  A\n  style A fill:${fill}`)
-      expect(wcagContrastRatio(firstTextFill(svg)!, fill)!).toBeGreaterThanOrEqual(4.5)
-    }), { numRuns: 60 })
+      const svg = renderMermaidSVG(source(fill))
+      const owner = svg.match(/<g\b[^>]*data-id="A"[^>]*>([\s\S]*?)<\/g>/)?.[1] ?? ''
+      // Card text is drawn on the authored fill; an ER key label is drawn on
+      // its own badge, the filled shape just before it.
+      let previousPaint: string | undefined
+      const pairs: Array<{ ink: string; ground: string }> = []
+      for (const [tag] of owner.matchAll(/<(?:rect|path|polygon|text)\b[^>]*>/g)) {
+        const paint = tag.match(/\sfill="([^"]*)"/)?.[1]
+        if (tag.startsWith('<text')) pairs.push({ ink: paint!, ground: /data-id="[^"]*:key-text"/.test(tag) ? previousPaint! : fill })
+        else if (paint && paint !== 'none') previousPaint = paint
+      }
+      expect(pairs.length).toBeGreaterThan(0)
+      for (const { ink, ground } of pairs) expect({ ink, ground, aa: wcagContrastRatio(ink, ground)! >= 4.5 }).toEqual({ ink, ground, aa: true })
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

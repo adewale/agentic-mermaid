@@ -1,3 +1,4 @@
+import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseErConfig } from '../er/config-diagnostics.ts'
 import { projectErPositioned } from '../positioned-views/er.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -20,7 +21,7 @@ export const ER_SVG_HOOKS = {
   // options win over frontmatter).
   layout: ctx => {
     const diagram = withFrontmatterTitle(applyErFrontmatterDirection(
-      withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility),
+      withAccessibilityFields(withParserSource(ctx.source, () => ctx.source.familyLines, () => parseErDiagram(ctx.source.familyLines)), ctx.source.accessibility),
       ctx.source.frontmatter,
     ), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)

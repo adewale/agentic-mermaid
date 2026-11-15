@@ -11,7 +11,7 @@ Pipeline:
 - `src/agent/timeline-body.ts` — structured `TimelineBody` (parse / serialize /
   mutate; structured-or-opaque fallback)
 - `src/timeline/layout.ts` — one placement walk for both orientations
-- `src/timeline/renderer.ts` — SceneGraph lowering + crisp SVG
+- `src/timeline/renderer.ts` — SceneGraph lowering (the scene writer draws its marks)
 - `src/ascii/timeline.ts` — chronological outline for terminals
 
 The renderer parser and agent body share `src/timeline/parse-core.ts` for

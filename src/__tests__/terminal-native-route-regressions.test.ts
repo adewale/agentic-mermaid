@@ -1,12 +1,191 @@
 import { expect, test } from 'bun:test'
-import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { AsciiWidthError, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { renderMermaidWithActions } from '../agent/index.ts'
+import { terminalDocumentOf, terminalOwnedStrokeMask, type TerminalDocument, type TerminalMarker, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { certifyTerminalLayout } from '../ascii/terminal-certification.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
 import { shapeRegistry } from '../ascii/shapes/index.ts'
 import { parseMermaid } from '../parser.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { readFileSync } from 'node:fs'
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
+import { withPerformanceObserver } from '../performance-observations.ts'
+import { TERMINAL_ROUTE_SEARCH_LIMIT } from '../ascii/terminal-limits.ts'
+
+const denseClassSource = `classDiagram
+direction TB
+class \`ns:Domain\`["Card 1-0 WWW 👩‍💻"] {
+  +String value0
+}
+class \`class-namespace:Domain\`["Card 1-1 WWWWWWWW"] {
+  +String value1
+  +step1()
+}
+class \`__interface_0\`["Card 1-2 WWWWWW"] {
+  +String value2
+}
+class \`C3\`["Card 1-3 WWWWWWWWW 👩‍💻"] {
+  +String value3
+  +step3()
+}
+class \`C4\`["Card 1-4 WWWWWWW"] {
+  +String value4
+}
+class \`C5\`["Card 1-5 WWWW"] {
+  +String value5
+}
+class \`C6\`["Card 1-6 WWWWWWWW 👩‍💻"] {
+  +String value6
+  +step6()
+}
+class \`C7\`["Card 1-7 WW"] {
+  +String value7
+  +step7()
+}
+class \`C8\`["Card 1-8 W"] {
+  +String value8
+  +step8()
+}
+class \`C9\`["Card 1-9 WWWWWWWWW 👩‍💻"] {
+  +String value9
+}
+\`ns:Domain\` ..> \`class-namespace:Domain\`
+\`ns:Domain\` --> \`__interface_0\` : edge 1 xxxxx
+\`ns:Domain\` ..> \`C3\`
+\`ns:Domain\` *-- \`C4\`
+\`ns:Domain\` ..> \`C5\` : edge 4 x
+\`ns:Domain\` ..|> \`C6\` : edge 5 xxxxxxxxxxxxxxxxx
+\`ns:Domain\` ..> \`C7\` : edge 6 xxxxx
+\`ns:Domain\` --> \`C8\`
+\`ns:Domain\` <|-- \`C9\`
+\`class-namespace:Domain\` -- \`C9\`
+\`__interface_0\` ..> \`C9\` : edge 10 xxxxxxxxxxxxxx
+\`C3\` -- \`C9\`
+\`C4\` <|-- \`C9\`
+\`C5\` <|-- \`C9\` : edge 13 xxxxxxxxx
+\`C6\` -- \`C9\`
+\`C7\` *-- \`C9\`
+\`C8\` ..> \`C9\`
+\`ns:Domain\` ..|> \`class-namespace:Domain\` : edge 17 xxxxxxxxxxxxxxx
+\`C9\` ..> \`C9\` : edge 18 xxxxxxxxxxxx
+note for \`ns:Domain\` "owned note 1<br/>second line"
+note "free note 1"`
+
+// The Class1 hub/parallel/self-route counterexample retains authored
+// endpoint roles and labels survive even when the compact shafts collide.
+test.each([false, true].flatMap(useAscii => (['none', 'ansi16', 'html'] as const).map(colorMode => [useAscii, colorMode] as const)))('Class dense relationships retain certified owned ink (ASCII=%s, %s)', (useAscii, colorMode) => {
+  const source = denseClassSource
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode, layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000, maxOutputCodeUnits: 2_000_000 } })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(20)
+  for (const edge of edges) {
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(edge.ports).toHaveLength(2)
+    visibleEndpointMarkers(doc, edge)
+  }
+  const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
+  expect(owners).toHaveLength(20)
+  expect(owners.every(owner => owner.route === 'connected')).toBe(true)
+  const witnesses = [...(doc.layoutEvidence().pathWitnesses ?? [])]
+  expect(witnesses).toHaveLength(edges.length)
+  expect(witnesses.every(witness => witness !== null && edges.some(edge => edge.id === witness.owner.id))).toBe(true)
+  expect(regions.find(region => region.id === 'relationship:0')).toMatchObject({ from: 'ns:Domain', to: 'class-namespace:Domain' })
+  expect(regions.find(region => region.id === 'relationship:17')).toMatchObject({ from: 'ns:Domain', to: 'class-namespace:Domain', projectedText: 'edge 17 xxxxxxxxxxxxxxx' })
+  expect(regions.find(region => region.id === 'relationship:18')).toMatchObject({ from: 'C9', to: 'C9', projectedText: 'edge 18 xxxxxxxxxxxx' })
+  expect(regions.find(region => region.id === 'ns:Domain')?.projectedText).toContain('Card 1-0 WWW 👩‍💻')
+  expect(regions.find(region => region.id === 'class-namespace:Domain')?.parentId).toBeUndefined()
+  expect(regions.find(region => region.id === '__interface_0')?.kind).toBe('node')
+  expect(regions.find(region => region.annotationTarget?.id === 'ns:Domain')?.projectedText).toBe('owned note 1\nsecond line')
+  expect(regions.find(region => region.id === 'note:1')?.projectedText).toBe('free note 1')
+  expect(visibleEndpointMarkers(doc, edges.find(edge => edge.id === 'relationship:3')!).map(marker => marker.shape)).toEqual(['filled-diamond'])
+  expect(visibleEndpointMarkers(doc, edges.find(edge => edge.id === 'relationship:17')!).map(marker => marker.shape)).toEqual(['open-arrow'])
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
+
+test.each([false, true])('Class safe compact association preserves its reviewed canvas (ASCII=%s)', useAscii => {
+  const fixture = parseAsciiGoldenFixture(readFileSync(new URL(`./testdata/${useAscii ? 'ascii' : 'unicode'}/cls_association.txt`, import.meta.url), 'utf8'))
+  const result = renderMermaidASCIIWithReceipt(fixture.mermaid, { useAscii, colorMode: 'none', paddingX: fixture.paddingX, paddingY: fixture.paddingY, layoutSafety: 'strict' })
+  const canvas = (text: string) => text.split('\n').map(line => line.trimEnd()).join('\n').replace(/^\n+/, '').trimEnd()
+  expect(canvas(result.text)).toBe(canvas(fixture.expected))
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, edge = doc.regions().find(region => region.kind === 'edge')!
+  expect(hasOwnedRoute(doc, edge)).toBe(true)
+  expect(edge).toMatchObject({ from: 'Student', to: 'Course', projectedText: 'enrolls' })
+})
+
+test.each([false, true])('Class dense relationships keep hyperlink footers and inert actions (ASCII=%s)', useAscii => {
+  const href = 'https://example.com/docs?x=1&y=2'
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}" "API reference"`
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  expect(result.text).toContain(`link ns:Domain: ${href}`)
+  const doc = terminalDocumentOf(result)!
+  expect(doc.regions().filter(region => region.kind === 'edge')).toHaveLength(20)
+  expect([...doc.entries()].filter(([, , cell]) => cell.glyph === '&').every(([, , cell]) => cell.owners.some(owner => owner.kind === 'node' && owner.id === 'ns:Domain'))).toBe(true)
+  const artifact = renderMermaidWithActions(source, { format: 'ascii', options: { useAscii, colorMode: 'none', layoutSafety: 'strict' } })
+  expect(artifact.actionSurface.actions[0]).toMatchObject({ target: 'ns:Domain', href, tooltip: 'API reference', security: 'safe', executable: false })
+  const unsafe = renderMermaidWithActions('classDiagram\nclass A\nclick A href "javascript:alert(1)"', { format: 'ascii', options: { useAscii, colorMode: 'none' } })
+  expect(unsafe.output).not.toContain('javascript:')
+  expect(unsafe.actionSurface.actions[0]).toMatchObject({ target: 'A', href: 'javascript:alert(1)', security: 'unsafe', executable: false })
+})
+
+test('Class dense relationships include complete hyperlink footers in the target width', () => {
+  const href = `https://example.com/${'long'.repeat(200)}`
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}"`
+  let caught: unknown
+  try { renderMermaidASCIIWithReceipt(source, { colorMode: 'none', targetWidth: 400 }) } catch (error) { caught = error }
+  expect(caught).toBeInstanceOf(AsciiWidthError)
+  expect(caught).toMatchObject({ code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE', requestedWidth: 400, family: 'class' })
+})
+
+test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(useAscii => [direction, useAscii] as const)))('Class unboxed interfaces use their actual lollipop surface (%s, ASCII=%s)', (direction, useAscii) => {
+  const name = 'Interface 👩‍💻'
+  const result = renderMermaidASCIIWithReceipt(`classDiagram
+direction ${direction}
+namespace Outer {
+  class A["Carrier 👩‍💻"]
+}
+class interface0["Authored interface0"]
+A --() \`${name}\`
+A --() \`${name}\``, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(2)
+  expect(new Set(edges.map(edge => edge.to)).size).toBe(2)
+  expect(regions.find(region => region.id === 'interface0')?.projectedText).toBe('Authored interface0')
+  expect(regions.find(region => region.id === 'A')?.parentId).toBe('Outer')
+  for (const edge of edges) {
+    expect(edge.from).toBe('A')
+    expect(edge.to).not.toBe('interface0')
+    const node = regions.find(region => region.kind === 'node' && region.id === edge.to)!, port = edge.ports!.find(port => port.end === 'end')!, cell = doc.cell(port.x, port.y)!
+    expect(node.projectedText).toBe(name)
+    expect(node.canvasColStart).toBe(port.x)
+    expect(node.canvasColEnd).toBe(port.x + cell.width)
+    expect(node.canvasRow).toBe(port.y)
+    expect(node.rowSpan ?? 1).toBe(1)
+    expect(cell.marker?.shape).toBe('lollipop')
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: node.id, kind: 'node' }))
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: edge.id, kind: 'edge' }))
+    expect(hasOwnedRoute(doc, edge)).toBe(true)
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['lollipop'])
+  }
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
+
+test.each([false, true])('dense parallel relationships retain connected owned ink and physical markers (ASCII=%s)', useAscii => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+  const { doc } = render(source, useAscii)
+  const edge = doc.regions().find(region => region.id === 'edge#19:n3->n5')!
+  expect(edge).toMatchObject({ from: 'n3', to: 'n5' })
+  expect(hasOwnedRoute(doc, edge)).toBe(true)
+  expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  expect(doc.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_GEOMETRY_COLLISION')).toEqual([])
+  expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['arrow'])
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
 
 function visibleEndpointMarkers(doc: TerminalDocument, edge: TerminalRegion) {
   return edge.ports!.flatMap(port => {
@@ -123,25 +302,90 @@ test('non-geometric terminal families explicitly retain their distinct projectio
   expect(gantt.terminalStyle.diagnostics.filter(diagnostic => diagnostic.feature.endsWith('.dependencies'))).toHaveLength(2)
 })
 
+test.each([false, true])('bounded Flowchart routing connects previously declined parallel relationships (ASCII=%s)', useAscii => {
+  for (const source of [
+    'graph RL\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN5 --> N1\nN1 --> N4\nN5 --> N0\nN1 --> N4\nN0 --> N5',
+    'graph TD\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN6[N6]\nN3 --> N6\nN3 --> N1\nN1 --> N6\nN1 --> N2\nN1 --> N6',
+  ]) {
+    const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+    const doc = terminalDocumentOf(result)!
+    const edges = doc.regions().filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(parseMermaid(source).edges.length)
+    for (const edge of edges) {
+      expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+      expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+      visibleEndpointMarkers(doc, edge)
+    }
+    expect(() => doc.assertMarkers()).not.toThrow()
+    expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
+  }
+})
+
 function render(source: string, useAscii = false) {
   const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
   return { output: result.text, doc: terminalDocumentOf(result)! }
 }
 
 function hasOwnedRoute(doc: TerminalDocument, edge: TerminalRegion): boolean {
-  const [start, end] = edge.ports!
-  const points = new Set([...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
-  points.add(`${start!.x},${start!.y}`); points.add(`${end!.x},${end!.y}`)
-  const queue = [`${start!.x},${start!.y}`], seen = new Set(queue)
+  const [start, end] = edge.ports!.map(port => {
+    const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+    // Unmarked border ink belongs to the node. Its relationship starts at
+    // the outward-adjacent cell; marked endpoints retain the actual glyph.
+    const offset = port.markers?.length ? port.markerOffset ?? 0 : 1
+    return { x: port.x + dx * offset, y: port.y + dy * offset }
+  })
+  const glyphMasks: Readonly<Record<string, number>> = { '─': 10, '│': 5, '┌': 6, '┐': 12, '└': 3, '┘': 9, '├': 7, '┤': 13, '┬': 14, '┴': 11, '┼': 15, '╌': 10, '┊': 5, '-': 10, '|': 5, '.': 10, ':': 5, '+': 15 }
+  const points = new Map<string, number>([...doc.entries()].flatMap(([x, y, cell]) => {
+    if (!cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)) return []
+    const mask = cell.kind === 'stroke' ? glyphMasks[cell.glyph] : cell.kind === 'marker' ? cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10 : 0
+    return mask ? [[`${x},${y}`, mask] as const] : []
+  }))
+  const first = `${start!.x},${start!.y}`, queue = points.has(first) ? [first] : [], seen = new Set(queue)
   for (let index = 0; index < queue.length; index++) {
-    const [x, y] = queue[index]!.split(',').map(Number)
-    for (const [nx, ny] of [[x! - 1, y!], [x! + 1, y!], [x!, y! - 1], [x!, y! + 1]]) {
-      const next = `${nx},${ny}`
-      if (points.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+    const [x, y] = queue[index]!.split(',').map(Number), mask = points.get(queue[index]!)!
+    for (const [dx, dy, exit, entry] of [[-1, 0, 8, 2], [1, 0, 2, 8], [0, -1, 1, 4], [0, 1, 4, 1]]) {
+      const next = `${x! + dx!},${y! + dy!}`
+      if ((mask & exit!) && ((points.get(next) ?? 0) & entry!) && !seen.has(next)) { seen.add(next); queue.push(next) }
     }
   }
   return seen.has(`${end!.x},${end!.y}`)
 }
+
+test.each(['TD', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(useAscii => [direction, useAscii] as const)))('Swimlane self-loops retain distinct certified routes and captions (%s, ASCII=%s)', (direction, useAscii) => {
+  for (const labels of [['retry'], ['retry', 'revise'], ['retry', 'revise', 'recheck']]) {
+    for (const handoffs of [0, 1, 2]) for (const loopsFirst of handoffs ? [false, true] : [true]) {
+      const loops = labels.map(label => `A -->|${label}| A`).join('\n')
+      const transfers = handoffs ? `A -->|approve| B${handoffs === 2 ? '\nB -->|return| A' : ''}` : ''
+      const source = `---
+title: Review cycle
+---
+swimlane-beta ${direction}
+subgraph Team
+subgraph Work
+A[Review]
+end
+end
+${handoffs ? 'subgraph Next\nB[Accept]\nend\n' : ''}${loopsFirst ? `${loops}\n${transfers}` : `${transfers}\n${loops}`}`
+      const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      expect(result.receipt.layoutCertification, `${direction}/${labels.length}/${handoffs}`).toMatchObject({ status: 'passed', issues: [] })
+      expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }).text).toBe(result.text)
+      expect(result.text).toContain('Review cycle')
+      const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+      expect(regions.find(region => region.id === 'A')).toMatchObject({ parentId: 'Work', projectedText: 'Review' })
+      expect(regions.find(region => region.id === 'Work')).toMatchObject({ parentId: 'Team' })
+      expect(edges).toHaveLength(labels.length + handoffs)
+      for (const label of [...labels, ...(handoffs ? ['approve'] : []), ...(handoffs === 2 ? ['return'] : [])]) {
+        const edge = edges.find(region => region.projectedText === label)!
+        expect(edge, label).toBeDefined()
+        expect(edge.ports).toHaveLength(2)
+        expect(hasOwnedRoute(doc, edge), label).toBe(true)
+        expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['open-arrow'])
+        expect(result.text.split(label)).toHaveLength(2)
+      }
+    }
+  }
+})
 
 test.each(['TB', 'BT', 'LR', 'RL'])('Class routes avoid complete namespace headers in %s', direction => {
   const { output, doc } = render(`classDiagram
@@ -187,6 +431,7 @@ test.each(['LR', 'RL'])('shared %s trunk junction belongs to each route traversi
   const y = branch.ports!.find(port => port.end === 'end')!.y
   expect(doc.cell(x, y)?.glyph).toBe(direction === 'LR' ? '├' : '┤')
   expect(doc.cell(x, y)?.owners.map(owner => owner.id)).toContain(through.id)
+  expect(doc.cell(x, y)?.owners.map(owner => owner.id)).toContain(branch.id)
   expect(hasOwnedRoute(doc, through)).toBe(true)
 })
 
@@ -228,4 +473,324 @@ A --> B : edge`)
     expect([...doc.entries()].some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) <= 1 && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
   }
   expect(hasOwnedRoute(doc, edge)).toBe(true)
+})
+
+test.each(['cyclic-labelled-15-chains', 'cyclic-labelled-19'].flatMap(fixture => [false, true].map(useAscii => [fixture, useAscii] as const)))('dense labelled Flow retains complete terminal routes: %s (ASCII=%s)', (fixture, useAscii) => {
+  const source = readFileSync(new URL(`../../eval/layout-compare/fixtures/${fixture}.mmd`, import.meta.url), 'utf8')
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend: 'agentic', fallback: 'none' } })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000 } })
+  const parsed = parseMermaid(source), doc = terminalDocumentOf(result)!, regions = doc.regions()
+  const edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(parsed.edges.length)
+  for (const [index, authored] of parsed.edges.entries()) {
+    const edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(edge, `occurrence ${index}`).toBeDefined()
+    expect(edge).toMatchObject({ from: authored.source, to: authored.target })
+    expect(edge.ports).toHaveLength(2)
+    if (authored.label) expect(edge.projectedText).toContain(authored.label)
+  }
+  const affected = fixture === 'cyclic-labelled-15-chains' ? [31] : [19, 25, 22, 42]
+  for (const index of affected) {
+    const authored = parsed.edges[index]!, edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  }
+})
+
+
+test.each(['TD', 'BT', 'LR', 'RL'])('nested face escape lanes retain parallel and reciprocal routes (%s)', direction => {
+  const source = `flowchart ${direction}
+subgraph Outer[Outer]
+subgraph Inner[Inner]
+A[Source]
+end
+end
+X[Target]
+A --> X
+A --> X
+A --> X
+X --> A`
+  const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, edges = doc.regions().filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(4)
+  for (const edge of edges) { expect(hasOwnedRoute(doc, edge), edge.id).toBe(true); visibleEndpointMarkers(doc, edge) }
+})
+
+// Card-routed families threw an untyped "No feasible terminal route" once
+// greedy routes filled a fixed corridor, walled in a face whose ports had not
+// routed yet, or detoured around a full-width lane header. Every authored
+// relationship keeps its own connected ink between ports just outside the
+// faces of its own endpoint cards. (ER uses one-to-one cardinality so every
+// marker glyph is directional for the connectivity walk.) Class diagrams
+// used to fall back to a construction that sent every relation out of one
+// face into private tracks beyond the diagram, ignoring which faces the
+// cards' placement gives each end (`faces`), or failed strict certification;
+// the greedy router then tangled a star's fan (`untangled`).
+const cardRoutes: Array<{ name: string; source: string; relations: ReadonlyArray<readonly [string, string]>; straight?: boolean; lanes?: boolean; faces?: 'TB' | 'LR'; namespaces?: boolean; untangled?: boolean }> = (() => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i)
+  const pairs = (n: number) => range(n).flatMap(i => range(n).filter(j => j > i).map(j => [i, j] as const))
+  const entities = (n: number) => range(n).flatMap(i => [`E${i} {`, 'int id PK', `string name${i}`, '}'])
+  const lanes = (direction: string, count: number, tasks: number, offset = 0) => {
+    const handoffs = range(tasks).flatMap(t => range(count - 1).map(l => [`n${l}_${t}`, `n${l + 1}_${(t + offset) % tasks}`] as const))
+    return { lanes: true, source: [`swimlane-beta ${direction}`, ...range(count).flatMap(l => [`subgraph lane${l}[Team ${l}]`, ...range(tasks).map(t => `n${l}_${t}[Task ${l}.${t}]`), 'end']), ...handoffs.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: handoffs }
+  }
+  const tree = range(39).map(i => [`E${Math.floor(i / 2)}`, `E${i + 1}`] as const)
+  const forward = range(10).flatMap(i => range(10).filter(j => j > i && j < i + 5).map(j => [`b${i}`, `b${j}`] as const))
+  const grouped = range(12).flatMap(i => [[`E0_${i}`, `E1_${i}`], [`E0_${i}`, `E1_${(i + 1) % 12}`]] as const)
+  const classes = (n: number, prefix = 'C') => range(n).flatMap(i => [`class ${prefix}${i} {`, '+int id', `+name${i}() void`, '}'])
+  const classPairs = pairs(6).map(([a, b]) => [`C${a}`, `C${b}`] as const)
+  const crossed = range(6).flatMap(i => [[`N0C${i}`, `N1C${i}`], [`N0C${i}`, `N1C${(i + 1) % 6}`]] as const)
+  const inherited = range(79).map(i => [`C${Math.floor(i / 2)}`, `C${i + 1}`] as const)
+  const star = (n: number, hub: string, child: (i: number) => string, arrow: string, header: string[] = []) => ({ untangled: true, source: ['classDiagram', ...header, ...range(n).map(i => arrow === '-->' ? `${child(i)} --> ${hub}` : `${hub} ${arrow} ${child(i)}`)].join('\n'), relations: range(n).map(i => arrow === '-->' ? [child(i), hub] as const : [hub, child(i)] as const) })
+  return [
+    { name: 'Swimlane LR 2 lanes x 2 tasks', straight: true, ...lanes('LR', 2, 2) },
+    { name: 'release Swimlane 4 lanes x 10 tasks', straight: true, ...lanes('LR', 4, 10) },
+    { name: 'Swimlane RL 3 lanes x 8 tasks', straight: true, ...lanes('RL', 3, 8) },
+    { name: 'Swimlane LR 3 lanes x 4 offset hand-offs', ...lanes('LR', 3, 4, 1) },
+    { name: 'release ER 40-entity tree', source: ['erDiagram', ...entities(40), ...tree.map(([a, b]) => `${a} ||--|| ${b} : has`)].join('\n'), relations: tree },
+    { name: 'ER table of 10 entities related pairwise', source: ['erDiagram', ...entities(10), ...pairs(10).map(([a, b]) => `E${a} ||--|| E${b} : r${a}_${b}`)].join('\n'), relations: pairs(10).map(([a, b]) => [`E${a}`, `E${b}`] as const) },
+    { name: 'ER groups stacked TB', source: ['erDiagram', 'direction TB', ...range(2).flatMap(g => [`subgraph G${g}[Group ${g}]`, ...range(12).map(i => `E${g}_${i}`), 'end']), ...grouped.map(([a, b], i) => `${a} ||--|| ${b} : r${i}`)].join('\n'), relations: grouped },
+    { name: 'Requirement table of 8 related pairwise', source: ['requirementDiagram', ...range(8).flatMap(i => [`requirement r${i} {`, `id: R${i}`, `text: "Requirement ${i}"`, '}']), ...pairs(8).map(([a, b]) => `r${a} - traces -> r${b}`)].join('\n'), relations: pairs(8).map(([a, b]) => [`r${a}`, `r${b}`] as const) },
+    { name: 'Block grid with four forward links each', source: ['block', 'columns 4', ...range(10).map(i => `b${i}["Block ${i}"]`), ...forward.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: forward },
+    { name: 'C4 context of 8 systems related pairwise', source: ['C4Context', ...range(8).map(i => `System(s${i}, "System ${i}")`), ...pairs(8).map(([a, b]) => `Rel(s${a}, s${b}, "uses")`)].join('\n'), relations: pairs(8).map(([a, b]) => [`s${a}`, `s${b}`] as const) },
+    { name: 'Class table of 6 related pairwise', faces: 'TB', source: ['classDiagram', ...classes(6), ...classPairs.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: classPairs },
+    { name: 'Class LR table of 6 related pairwise with cardinalities and labels', faces: 'LR', source: ['classDiagram', 'direction LR', ...classes(6), ...classPairs.map(([a, b]) => `${a} "1" --> "*" ${b} : ${a}_${b}`)].join('\n'), relations: classPairs },
+    { name: 'Class namespaces crossed by offset links', faces: 'TB', namespaces: true, source: ['classDiagram', ...range(2).flatMap(g => [`namespace N${g} {`, ...range(6).map(i => `class N${g}C${i}`), '}']), ...crossed.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: crossed },
+    { name: 'Class LR namespaces linked within and across', faces: 'LR', namespaces: true, source: ['classDiagram', 'direction LR', 'namespace Store {', 'class Catalog', 'class Cart', '}', 'namespace Billing {', 'class Invoice', '}', 'Cart --> Catalog : browses', 'Invoice ..> Cart : bills'].join('\n'), relations: [['Cart', 'Catalog'], ['Invoice', 'Cart']] },
+    { name: 'Class inheritance star of 12', faces: 'TB', ...star(12, 'Base', i => `Child${i}`, '<|--') },
+    { name: 'Class inheritance star of 30', faces: 'TB', ...star(30, 'Base', i => `C${i}`, '<|--') },
+    { name: 'Class LR star of 20 long names', faces: 'LR', ...star(20, 'BaseRepository', i => `ConcreteChildRepository${i}`, '<|--', ['direction LR']) },
+    { name: 'Class BT fan of 8 into one card', faces: 'TB', ...star(8, 'Hub', i => `Client${i}`, '-->', ['direction BT']) },
+    { name: 'release Class 80-class inheritance tree', faces: 'TB', source: ['classDiagram', ...range(80).flatMap(i => [`class C${i} {`, `+int field${i}`, `+method${i}()`, '}']), ...inherited.map(([a, b]) => `${a} <|-- ${b}`)].join('\n'), relations: inherited },
+  ]
+})()
+
+test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s routes every relationship between its own cards (ASCII=%s)', (_name, useAscii, { source, relations, straight, lanes, faces, namespaces, untangled }) => {
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual(relations.map(pair => [...pair]).sort())
+  // A fan's routes nest: no cell carries the ink of two relationships.
+  if (untangled) expect([...doc.entries()].filter(([, , cell]) => new Set(cell.owners.filter(owner => owner.kind === 'edge').map(owner => owner.id)).size > 1).map(([x, y]) => [x, y])).toEqual([])
+  for (const edge of edges) {
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    const ports = edge.ports!
+    expect(ports.map(port => port.end)).toEqual(['start', 'end'])
+    for (const port of ports) {
+      const card = regions.find(region => region.kind === 'node' && region.id === (port.end === 'start' ? edge.from : edge.to))!
+      const top = card.canvasRow, bottom = card.canvasRow + (card.rowSpan ?? 1), left = card.canvasColStart, right = card.canvasColEnd
+      const across = port.side === 'T' || port.side === 'B' ? port.x >= left && port.x < right : port.y >= top && port.y < bottom
+      const outside = port.side === 'T' ? port.y === top - 1 : port.side === 'B' ? port.y === bottom : port.side === 'L' ? port.x === left - 1 : port.x === right
+      expect({ edge: edge.id, end: port.end, across, outside }).toEqual({ edge: edge.id, end: port.end, across: true, outside: true })
+    }
+    // Each end leaves the face toward the other card, along the flow axis
+    // first: below/above in TB, right/left in LR.
+    if (faces) {
+      const [from, to] = [edge.from, edge.to].map(id => regions.find(region => region.kind === 'node' && region.id === id)!)
+      const below = to!.canvasRow >= from!.canvasRow + from!.rowSpan!, above = from!.canvasRow >= to!.canvasRow + to!.rowSpan!
+      const right = to!.canvasColStart >= from!.canvasColEnd, left = from!.canvasColStart >= to!.canvasColEnd
+      const vertical = below ? ['B', 'T'] : above ? ['T', 'B'] : undefined, horizontal = right ? ['R', 'L'] : left ? ['L', 'R'] : undefined
+      const expected = faces === 'TB' ? vertical ?? horizontal : horizontal ?? vertical
+      expect({ edge: edge.id, sides: ports.map(port => port.side as string) }).toEqual({ edge: edge.id, sides: expected! })
+    }
+    // A namespace's header row is crossed, never travelled: there the route
+    // owns one cell, and none of the header text.
+    if (namespaces) for (const frame of regions.filter(region => region.kind === 'cluster')) {
+      const inHeader = edge.ownedCellSpans.filter(span => span.row === frame.canvasRow && span.end > frame.canvasColStart && span.start < frame.canvasColEnd)
+      expect({ edge: edge.id, frame: frame.id, runs: inHeader.filter(span => span.end - span.start > 1) }).toEqual({ edge: edge.id, frame: frame.id, runs: [] })
+    }
+    // A lane's header band (top border, one-line title, blank row) is crossed,
+    // never travelled: inside it the route owns one cell per row.
+    if (lanes) for (const lane of regions.filter(region => region.kind === 'subgraph')) {
+      const inBand = edge.ownedCellSpans.filter(span => span.row >= lane.canvasRow && span.row < lane.canvasRow + 3 && span.end > lane.canvasColStart && span.start < lane.canvasColEnd)
+      expect({ edge: edge.id, lane: lane.id, runs: inBand.filter(span => span.end - span.start > 1) }).toEqual({ edge: edge.id, lane: lane.id, runs: [] })
+    }
+    // Aligned hand-offs in adjacent lanes cross the lane borders directly:
+    // all of the route's own ink lies on its ports' shared column or row.
+    if (straight) {
+      const vertical = ports[0]!.side === 'T' || ports[0]!.side === 'B', axis = vertical ? ports[0]!.x : ports[0]!.y
+      const ink = edge.ownedCellSpans.flatMap(span => Array.from({ length: span.end - span.start }, (_, i) => vertical ? span.start + i : span.row))
+      expect({ edge: edge.id, aligned: (vertical ? ports[1]!.x : ports[1]!.y) === axis, off: ink.filter(cell => cell !== axis).length }).toEqual({ edge: edge.id, aligned: true, off: 0 })
+    }
+  }
+})
+
+// A table relating each of 20 classes to the same 20 classes once refused
+// with TERMINAL_WORK_LIMIT: routing each relation needs a gap row per route.
+// So did the same tables of ER entities, of requirements and of blocks in an
+// authored grid, which share the card router.
+// Each complete-bipartite block of alike relations now draws as one bus
+// through one port per card. Every relation keeps its own identity,
+// endpoints and markers, and its own directions join its two ports through
+// cells it owns; shared cells belong only to that bus's relations. A block
+// this dense draws as a bus at once: no relation-by-relation route search
+// runs first (it once spent the whole search ceiling before failing). Text
+// the block's relations share (`texts`: a label, cardinalities) is written
+// once per shared place, owned by exactly the relations it describes: all of
+// them, or those leaving (entering) one card. Relations outside the block
+// that touch its cards (`others`: another kind, or the same kind to a card
+// outside it) route on their own, with their own ports and ink.
+const range = (count: number) => Array.from({ length: count }, (_, i) => i)
+const range20 = range(20)
+const bipartiteTable = (line: (i: number, j: number) => string, header: readonly string[] = ['classDiagram'], others: readonly string[] = [], [m, n]: readonly [number, number] = [20, 20]) => [...header, ...range(m).flatMap(i => range(n).map(j => line(i, j))), ...others].join('\n')
+const classOthers = ['A0 <|-- X', 'Y --> B0', 'A1 --> Z', 'W ..> A2']
+const requirementCards = (m: number, n: number) => [...range(m).flatMap(i => [`requirement a${i} {`, `id: A${i}`, '}']), ...range(n).flatMap(j => [`element b${j} {`, 'type: part', '}'])]
+// Larger blocks once exhausted strict certification's operation budget: each
+// relation was checked along the whole shared trunk. Their shared runs are now
+// checked once per owner set and run, each relation through its own cells.
+const busTables: Array<{ name: string; source: string; size?: readonly [number, number]; pair?: (i: number, j: number) => readonly [string, string]; faces?: readonly [string, string]; ends: readonly [readonly TerminalMarker['shape'][], readonly TerminalMarker['shape'][]]; texts?: ReadonlyArray<readonly [string, number, 'all' | 'from' | 'to']>; others?: ReadonlyArray<readonly [string, string]> }> = [
+  { name: 'Class 20 x 20 table of -->', source: bipartiteTable((i, j) => `A${i} --> B${j}`), ends: [[], ['triangle']] },
+  { name: 'Class 20 x 20 table of <|--', source: bipartiteTable((i, j) => `A${i} <|-- B${j}`), ends: [['open-arrow'], []] },
+  { name: 'Class 20 x 20 table of --> sharing a label and cardinalities', source: bipartiteTable((i, j) => `A${i} "one" --> "many" B${j} : uses`), ends: [[], ['triangle']], texts: [['uses', 1, 'all'], ['one', 20, 'from'], ['many', 20, 'to']] },
+  { name: 'Class 20 x 20 table of --> beside relations touching its cards', source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram'], classOthers), ends: [[], ['triangle']], others: [['A0', 'X'], ['Y', 'B0'], ['A1', 'Z'], ['W', 'A2']] },
+  { name: 'ER 20 x 20 table of ||--o{ sharing a label', source: bipartiteTable((i, j) => `A${i} ||--o{ B${j} : has`, ['erDiagram']), faces: ['R', 'L'], ends: [['cardinality-one'], ['cardinality-many', 'circle']], texts: [['has', 1, 'all']] },
+  { name: 'Block 20 x 20 grid of labelled links', source: bipartiteTable((i, j) => `a${i} -- "uses" --> b${j}`, ['block', 'columns 20', ...range20.map(i => `a${i}["A ${i}"]`), ...range20.map(i => `b${i}["B ${i}"]`)]), pair: (i, j) => [`a${i}`, `b${j}`], ends: [[], ['arrow']], texts: [['uses', 1, 'all']] },
+  { name: 'Requirement 20 x 20 table of satisfies', source: bipartiteTable((i, j) => `b${j} - satisfies -> a${i}`, ['requirementDiagram', ...range20.flatMap(i => [`requirement a${i} {`, `id: A${i}`, '}', `element b${i} {`, 'type: part', '}'])]), pair: (i, j) => [`b${j}`, `a${i}`], ends: [[], ['open-arrow']], texts: [['<<satisfies>>', 1, 'all']] },
+  ...([[16, 30], [20, 40]] as const).map(size => ({ name: `Requirement ${size[0]} x ${size[1]} table of satisfies, left to right`, size, source: bipartiteTable((i, j) => `b${j} - satisfies -> a${i}`, ['requirementDiagram', 'direction LR', ...requirementCards(size[0], size[1])], [], size), pair: (i: number, j: number) => [`b${j}`, `a${i}`] as const, faces: ['R', 'L'] as const, ends: [[], ['open-arrow']] as const, texts: [['<<satisfies>>', 1, 'all'] as const] })),
+  { name: 'Class 30 x 30 table of --> sharing a label, left to right', size: [30, 30], source: bipartiteTable((i, j) => `A${i} --> B${j} : uses`, ['classDiagram', 'direction LR'], [], [30, 30]), faces: ['R', 'L'], ends: [[], ['triangle']], texts: [['uses', 1, 'all']] },
+  { name: 'Class 40 x 40 table of -->', size: [40, 40], source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram'], [], [40, 40]), ends: [[], ['triangle']] },
+  { name: 'Class 40 x 40 table of -->, left to right', size: [40, 40], source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram', 'direction LR'], [], [40, 40]), faces: ['R', 'L'], ends: [[], ['triangle']] },
+]
+/** Each edge's own directions in every cell it owns. */
+function ownedEdgeDirections(doc: TerminalDocument): Map<string, Map<string, number>> {
+  const edges = new Map<string, Map<string, number>>()
+  for (const [x, y, cell] of doc.entries())
+    cell.owners.forEach((owner, index) => {
+      if (owner.kind !== 'edge') return
+      const mask = cell.kind === 'stroke' ? terminalOwnedStrokeMask(cell, index) : cell.kind === 'marker' ? (cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10) : 0
+      if (!mask) return
+      if (!edges.has(owner.id)) edges.set(owner.id, new Map())
+      edges.get(owner.id)!.set(`${x},${y}`, mask)
+    })
+  return edges
+}
+/** Breadth-first search over the cells an edge owns, through its own directions only. */
+function ownDirectionsConnect(edge: TerminalRegion, owned: Map<string, Map<string, number>>): boolean {
+  const masks = owned.get(edge.id) ?? new Map<string, number>()
+  const [start, end] = edge.ports!.map(port => `${port.x},${port.y}`)
+  const queue = masks.has(start!) ? [start!] : [], seen = new Set(queue)
+  for (let index = 0; index < queue.length; index++) {
+    const [x, y] = queue[index]!.split(',').map(Number), mask = masks.get(queue[index]!)!
+    for (const [dx, dy, exit, entry] of [[-1, 0, 8, 2], [1, 0, 2, 8], [0, -1, 1, 4], [0, 1, 4, 1]] as const) {
+      const next = `${x! + dx},${y! + dy}`
+      if (mask & exit && (masks.get(next) ?? 0) & entry && !seen.has(next)) { seen.add(next); queue.push(next) }
+    }
+  }
+  return seen.has(end!)
+}
+// A bus lets an 800-relation table render; its receipt hashes the projected
+// connectors of all 800, which the request-data node bound used to refuse.
+test('the receipt of an 800-relation requirement bus resolves with every connector', () => {
+  const table = busTables.find(item => item.name === 'Requirement 20 x 40 table of satisfies, left to right')!
+  const result = renderMermaidASCIIWithReceipt(table.source, { colorMode: 'none' })
+  expect(result.terminalStyle.connectorProjection).toMatchObject({ evidence: 'scene', count: 800 })
+  expect(result.terminalStyle.digest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed' })
+}, 30_000)
+test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s draws each relation through a certified bus (ASCII=%s)', (_name, useAscii, { source, size: [m, n] = [20, 20], pair = (i, j) => [`A${i}`, `B${j}`], faces = ['B', 'T'], ends, texts = [], others = [] }) => {
+  let searched = 0
+  const result = withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === 'terminal-route-search') searched += event.units }, () => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }))
+  // Only relations outside the block search for their routes.
+  if (others.length) expect(searched).toBeLessThan(TERMINAL_ROUTE_SEARCH_LIMIT)
+  else expect(searched).toBe(0)
+  const doc = terminalDocumentOf(result)!
+  expect(certifyTerminalLayout(doc, result.text, 'none')).toMatchObject({ status: 'passed', issues: [] })
+  expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' }).text).toBe(result.text)
+  const edges = doc.regions().filter(region => region.kind === 'edge'), members = edges.filter(edge => edge.bundle)
+  expect(new Set(edges.map(edge => edge.id)).size).toBe(m * n + others.length)
+  expect(members.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(range(m).flatMap(i => range(n).map(j => pair(i, j).join('>'))).sort())
+  expect(edges.filter(edge => !edge.bundle).map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(others.map(pair => pair.join('>')).sort())
+  const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
+  expect(owners.filter(owner => owner.bundle).every(owner => owner.route === 'connected' && owner.bundle === members[0]!.bundle)).toBe(true)
+  expect([...(doc.layoutEvidence().pathWitnesses ?? [])].filter(witness => witness !== null)).toHaveLength(owners.filter(owner => owner.route === 'connected').length)
+  const portsAt = new Map<string, Set<string>>(),
+    owned = ownedEdgeDirections(doc)
+  for (const edge of edges) expect(ownDirectionsConnect(edge, owned), edge.id).toBe(true)
+  for (const edge of members) {
+    expect(edge.ports!.map(port => [port.end, port.nodeId, port.side])).toEqual([['start', edge.from, faces[0]], ['end', edge.to, faces[1]]])
+    for (const port of edge.ports!) portsAt.set(port.nodeId, (portsAt.get(port.nodeId) ?? new Set()).add(`${port.x},${port.y}`))
+    expect(edge.ports!.map(port => port.markers!.map(marker => marker.shape))).toEqual(ends.map(shapes => [...shapes]))
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(ends.flat())
+    for (const [text, , share] of texts) if (share === 'all') expect(edge.projectedText, edge.id).toBe(text)
+  }
+  // One shared port per card: the bus, not a fan of ports per face.
+  expect([...portsAt.values()].map(ports => ports.size)).toEqual(Array.from({ length: m + n }, () => 1))
+  const rows = result.text.split('\n')
+  for (const [text, count, share] of texts) {
+    const word = (end: string) => (/\w/.test(end) ? '\\b' : ''), pattern = new RegExp(word(text[0]!) + text + word(text.at(-1)!), 'g')
+    const places = rows.flatMap((row, y) => [...row.matchAll(pattern)].map(match => [match.index!, y] as const))
+    expect({ text, places: places.length }).toEqual({ text, places: count })
+    for (const [x, y] of places) {
+      // A label belongs to each relation; a cardinality to each relation's own cardinality label.
+      const described = new Set(doc.cell(x, y)!.owners.flatMap(owner => (share === 'all' ? (owner.kind === 'edge' ? [owner.id] : []) : owner.kind === 'label' && owner.parent?.kind === 'edge' ? [owner.parent.id] : []))), holders = members.filter(edge => described.has(edge.id))
+      expect({ text, described: described.size, members: holders.length }).toEqual({ text, described: share === 'all' ? m * n : share === 'from' ? n : m, members: described.size })
+      if (share !== 'all') expect(new Set(holders.map(edge => (share === 'from' ? edge.from : edge.to))).size).toBe(1)
+    }
+  }
+})
+
+// Shared runs are checked once per owner set and run, yet each relation is
+// still proven through its own cells: one corrupted shared cell is refused.
+// The run cell is the fewest-owner cell inside a straight shared run, so every
+// relation through it can be named within the issue limit.
+function sharedRunCell(doc: TerminalDocument) {
+  let found: { x: number; y: number; ids: string[] } | undefined
+  for (const [x, y, cell] of doc.entries()) {
+    const axis = cell.glyph === '─' ? [1, 0] : cell.glyph === '│' ? [0, 1] : undefined
+    if (!axis || cell.owners.length <= 16 || (found && cell.owners.length >= found.ids.length)) continue
+    if ([-1, 1].every(side => doc.cell(x + side * axis[0]!, y + side * axis[1]!)?.owners === cell.owners)) found = { x, y, ids: cell.owners.map(owner => owner.id) }
+  }
+  return found!
+}
+const endpointCell = (doc: TerminalDocument, from: string, to: string, end: 'start' | 'end') => {
+  const port = doc.regions().find(region => region.kind === 'edge' && region.from === from && region.to === to)!.ports!.find(port => port.end === end)!
+  const offset = port.markerOffset ?? 0, dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+  return doc.cell(port.x + dx * offset, port.y + dy * offset)!
+}
+test.each<[string, (doc: TerminalDocument) => (issues: ReturnType<typeof certifyTerminalLayout>['issues']) => void]>([
+  ['ink is erased inside a shared run', doc => {
+    const { x, y, ids } = sharedRunCell(doc)
+    doc.cell(x, y)!.glyph = ' '
+    return issues => expect(issues.filter(issue => issue.code === 'TERMINAL_ROUTE_DISCONNECTED').map(issue => issue.elementId).sort()).toEqual(ids.sort())
+  }],
+  ['a relation is dropped from a shared run cell', doc => {
+    const { x, y, ids } = sharedRunCell(doc), cell = doc.cell(x, y)!
+    // A coherent corruption: the remaining owners keep the cell's directions.
+    const contributors = Object.getOwnPropertySymbols(cell).find(symbol => (cell as unknown as Record<symbol, unknown>)[symbol] === cell.owners)!
+    cell.owners = doc.owners(cell.owners.filter(owner => owner.id !== ids[0]))
+    ;(cell as unknown as Record<symbol, unknown>)[contributors] = cell.owners
+    return issues => expect(issues.map(issue => [issue.code, issue.elementId])).toEqual([['TERMINAL_ROUTE_DISCONNECTED', ids[0]]])
+  }],
+  ['a foreign route runs along a shared run', doc => {
+    const { x, y } = sharedRunCell(doc)
+    doc.stroke(x, y, doc.cell(x, y)!.glyph === '─' ? 10 : 5, { owner: { id: 'foreign', kind: 'edge' } })
+    doc.diagnostics.splice(0) // the certifier's own overlap check, not the painter's warning
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_ROUTE_OVERLAP', cell: { column: x, row: y } }))
+  }],
+  ['a relation is dropped from a shared marker', doc => {
+    const cell = endpointCell(doc, 'A3', 'B5', 'end'), victim = cell.owners.find(owner => owner.kind === 'edge')!
+    cell.owners = doc.owners(cell.owners.filter(owner => owner !== victim))
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_MARKER_CONTRACT_FAILED', message: expect.stringContaining(`${victim.id}/end`) }))
+  }],
+  ['a marker is drawn at the unmarked end', doc => {
+    const marker = endpointCell(doc, 'A3', 'B5', 'end')
+    Object.assign(endpointCell(doc, 'A3', 'B5', 'start'), { kind: 'marker', marker: marker.marker, glyph: marker.glyph })
+    return issues => expect(issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_MARKER_CONTRACT_FAILED', message: expect.stringContaining('Unexpected terminal marker') }))
+  }],
+])('a bus is refused when %s', (_name, corrupt) => {
+  const result = renderMermaidASCIIWithReceipt(bipartiteTable((i, j) => `A${i} --> B${j}`), { colorMode: 'none' }), doc = terminalDocumentOf(result)!
+  const check = corrupt(doc), certification = certifyTerminalLayout(doc, result.text, 'none')
+  expect(certification.status).toBe('failed')
+  expect(certification.budget).toMatchObject({ exhausted: false, issuesTruncated: false })
+  check(certification.issues)
+})
+
+// A shared trunk cannot say which of several labels belongs to which pair:
+// a table whose relations carry distinct labels still refuses.
+test.each([
+  ['Class', bipartiteTable((i, j) => `A${i} --> B${j} : r${i}_${j}`)],
+  ['ER', bipartiteTable((i, j) => `A${i} ||--o{ B${j} : r${i}_${j}`, ['erDiagram'])],
+])('%s 20 x 20 table of distinctly labelled relations still refuses with the typed work limit', (_family, source) => {
+  expect(() => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })).toThrow(expect.objectContaining({ code: 'TERMINAL_WORK_LIMIT' }))
 })

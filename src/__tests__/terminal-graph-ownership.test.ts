@@ -4,18 +4,50 @@ import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
 function connectedRelationship(document: TerminalDocument, edge: TerminalRegion): void {
-  const covered = new Set([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
+  // Inline labels replace wire cells, including spaces and wide-cell continuations.
+  const authoredText = new Set(edge.authoredTextCells!.flatMap(cell =>
+    Array.from({ length: document.cell(cell.column, cell.row)!.width }, (_, offset) => `${cell.column + offset},${cell.row}`)))
+  const strokePorts: Record<string, number> = {
+    '─': 10, '━': 10, '═': 10, '┄': 10, '┈': 10, '╌': 10, '-': 10, '=': 10, '.': 10,
+    '│': 5, '┃': 5, '║': 5, '┆': 5, '┊': 5, '╎': 5, '|': 5, ':': 5,
+    '┌': 6, '┐': 12, '└': 3, '┘': 9, '┬': 14, '┴': 11, '├': 7, '┤': 13, '┼': 15, '+': 15,
+    '╭': 6, '╮': 12, '╰': 3, '╯': 9, '╔': 6, '╗': 12, '╚': 3, '╝': 9,
+    '╴': 8, '╵': 1, '╶': 2, '╷': 4,
+  }
+  const portsAt = (x: number, y: number) => {
+    const cell = document.cell(x, y)
+    if (cell?.kind === 'stroke') return strokePorts[cell.glyph] ?? 0
+    if (cell?.kind === 'marker' && cell.glyph.trim()) return 15
+    return cell?.kind === 'text' && authoredText.has(`${x},${y}`) ? 15 : 0
+  }
+  const covered = new Set([...document.entries()].filter(([x, y, cell]) => portsAt(x, y) && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
   const start = edge.ports!.find(port => port.end === 'start')!, end = edge.ports!.find(port => port.end === 'end')!
-  covered.add(`${start.x},${start.y}`); covered.add(`${end.x},${end.y}`)
-  const pending = [`${start.x},${start.y}`], seen = new Set(pending)
+  const attachments = [start, end].map(port => {
+    const nearby = [[port.x, port.y], [port.x - 1, port.y], [port.x + 1, port.y], [port.x, port.y - 1], [port.x, port.y + 1]]
+      .filter(([x, y]) => covered.has(`${x},${y}`) && /stroke|marker/.test(document.cell(x!, y!)?.kind ?? ''))
+      .map(([x, y]) => `${x},${y}`)
+    expect(nearby.length, `actual route adjacent to ${port.nodeId}`).toBeGreaterThan(0)
+    return nearby
+  })
+  const pending = attachments[0]!, seen = new Set(pending)
   for (let index = 0; index < pending.length; index++) {
     const [x, y] = pending[index]!.split(',').map(Number)
-    for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
-      if (covered.has(next) && !seen.has(next)) { seen.add(next); pending.push(next) }
+    for (const [dx, dy, outward, inward] of [[-1, 0, 8, 2], [1, 0, 2, 8], [0, -1, 1, 4], [0, 1, 4, 1]] as const) {
+      const nx = x! + dx, ny = y! + dy, next = `${nx},${ny}`
+      if (covered.has(next) && !seen.has(next) && (portsAt(x!, y!) & outward) && (portsAt(nx, ny) & inward)) { seen.add(next); pending.push(next) }
     }
   }
-  expect(seen.has(`${end.x},${end.y}`)).toBe(true)
-  for (const cell of edge.authoredTextCells!) expect(seen.has(`${cell.column},${cell.row}`)).toBe(true)
+  expect(attachments[1]!.some(point => seen.has(point))).toBe(true)
+  // Labels can sit beside a route without a drawn junction. Only authored
+  // text may extend the directionally connected endpoint route.
+  const labeled = [...seen], attachedText = new Set(labeled)
+  for (let index = 0; index < labeled.length; index++) {
+    const [x, y] = labeled[index]!.split(',').map(Number)
+    for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+      if (authoredText.has(next) && covered.has(next) && !attachedText.has(next)) { attachedText.add(next); labeled.push(next) }
+    }
+  }
+  for (const cell of edge.authoredTextCells!) expect(attachedText.has(`${cell.column},${cell.row}`)).toBe(true)
 }
 
 test('BT keeps complete ragged multiline card labels and their opaque surfaces', () => {
@@ -144,7 +176,7 @@ A[Start] -->|first| B[Finish]
 A -->|second| C[Finish]
 classDef hot color:#ff0000,stroke:#00ff00
 class A hot
-style A color:#0000ff
+style A color:#0000ff,fill:#f00
 linkStyle 0 stroke:#ff00ff,color:#00ffff
 linkStyle 1 stroke:#ffff00`, { colorMode: 'truecolor' })
   const doc = terminalDocumentOf(result)!
@@ -154,18 +186,25 @@ linkStyle 1 stroke:#ffff00`, { colorMode: 'truecolor' })
   expect(cells.some(cell => cell.owners.some(owner => owner.id === 'edge#0:A->B') && cell.kind === 'text' && cell.color === '#00ffff')).toBe(true)
   expect(cells.some(cell => cell.owners.some(owner => owner.id === 'edge#1:A->C') && cell.kind === 'stroke' && cell.color === '#ffff00')).toBe(true)
   expect(result.text).toContain('\x1b[38;2;0;0;255m')
+  const projection = expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'node:A:style:fill' })
+  expect(doc.diagnostics).toContainEqual(projection)
+  expect(result.terminalStyle.diagnostics).toContainEqual(projection)
+  const certification = result.receipt.layoutCertification
+  if (certification?.unit !== 'cell') throw new Error('Expected terminal cell certification')
+  expect(certification.projections).toContainEqual(expect.objectContaining({ feature: 'node:A:style:fill' }))
   expect(doc.regions().filter(region => region.kind === 'edge').every(region => region.bundle === undefined)).toBe(true)
 })
 
 test.each(['TB', 'BT'] as const)('state note attachments retain physical ports after %s layout', direction => {
   const result = renderMermaidASCIIWithReceipt(`stateDiagram-v2\ndirection ${direction}\nA --> B\nnote left of A : Left note\nnote right of B : Right note`, { colorMode: 'none' })
   const doc = terminalDocumentOf(result)!
-  const notes = doc.regions().filter(region => region.kind === 'node' && region.parentId)
+  const notes = doc.regions().filter(region => region.kind === 'node' && region.annotationTarget)
   expect(notes.map(note => note.projectedText).sort()).toEqual(['Left note', 'Right note'])
   for (const note of notes) {
     const link = doc.regions().find(region => region.kind === 'edge' && region.to === note.id)!
-    expect(link.from).toBe(note.parentId)
-    expect(link.ports?.map(port => [port.nodeId, port.end])).toEqual([[note.parentId!, 'start'], [note.id, 'end']])
+    expect(note.parentId).toBeUndefined()
+    expect(link.from).toBe(note.annotationTarget!.id)
+    expect(link.ports?.map(port => [port.nodeId, port.end])).toEqual([[note.annotationTarget!.id, 'start'], [note.id, 'end']])
     for (const port of link.ports!) {
       expect(doc.cell(port.x, port.y)?.owners.some(owner => owner.id === port.nodeId)).toBe(true)
     }

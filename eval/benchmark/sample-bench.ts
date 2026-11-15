@@ -1,3 +1,4 @@
+import 'trident/ci-policy-enforce.ts'
 /**
  * Performance benchmark for Agentic Mermaid.
  *

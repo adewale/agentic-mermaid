@@ -191,7 +191,7 @@ radar-beta
     // of the 40px axis typography; its public extent rounds 12.35px to 12px.
     expect(Number(tick.h)).toBe(12)
     expect(Number(tick.labelBounds?.h)).toBeCloseTo(12.35)
-    expect(renderMermaidSVG(source)).toMatch(/<text class="radar-tick-label"[^>]*font-size="9\.5"[^>]*>1<\/text>/)
+    expect(renderMermaidSVG(source)).toMatch(/<text [^>]*class="radar-tick-label"[^>]*font-size="9\.5"[^>]*>1<\/text>/)
   })
 
   test('layout is deterministic', () => {

@@ -19,7 +19,7 @@ const temp = useTempDirs()
 const REPO = join(import.meta.dir, '..', '..')
 const WORKFLOW = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
   concurrency: Record<string, unknown>
-  jobs: { deploy: { permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
+  jobs: { qualification: { uses: string; with: Record<string, string> }; deploy: { needs: string; if: string; permissions: Record<string, string>; env: Record<string, string>; steps: Step[] } }
 }
 const JOB = WORKFLOW.jobs.deploy
 const STEPS = JOB.steps
@@ -60,7 +60,7 @@ function guardAllows(condition: string | undefined, context: { event: string; ou
   const expression = (condition ?? 'success()').trim().replace(/^\$\{\{([\s\S]*)\}\}$/, '$1')
   if (!/\b(?:always|success|failure|cancelled)\(\)/.test(expression) && status !== 'success') return false
   const js = expression
-    .replace(/steps\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
+    .replace(/(?:steps|needs)\.([\w-]+)\.outputs\.([\w-]+)/g, (_, id: string, key: string) => `(outputs[${JSON.stringify(id)}]?.[${JSON.stringify(key)}] ?? '')`)
     .replace(/github\.event_name/g, 'event')
     .replace(/\balways\(\)/g, 'true')
     .replace(/\bsuccess\(\)/g, String(status === 'success'))
@@ -119,7 +119,7 @@ function runStep(name: string, options: {
   const summaryFile = join(root, 'github-summary')
   writeFileSync(outputFile, '')
   writeFileSync(summaryFile, '')
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: target['working-directory'] ? join(root, target['working-directory']) : root,
     encoding: 'utf8',
     env: {
@@ -164,11 +164,39 @@ const deployments = (...versions: Array<[string, number]>) => JSON.stringify([
   { created_on: '2026-09-01T00:00:00Z', versions: versions.map(([version_id, percentage]) => ({ version_id, percentage })) },
 ])
 
+describe('candidate upload transaction', () => {
+  const versionId = '556b9e5c-895c-4b19-958b-964a90322a1d'
+  const event = JSON.stringify({ type: 'version-upload', version: 1, worker_name: 'agentic-mermaid-website', worker_tag: 'opaque-cloudflare-worker-id', version_id: versionId })
+
+  test.each([
+    { name: 'one uploaded candidate', output: event, succeeds: true },
+    { name: 'ambiguous upload events', output: `${event}\n${event}`, succeeds: false },
+  ])('resolves $name without serving it', ({ output, succeeds }) => {
+    const result = runStep('Upload the candidate without serving it', {
+      files: { 'upload.ndjson': output },
+      wrangler: `case "$1 $2" in
+        "versions upload") cat "$MOCK_ROOT/upload.ndjson" > "$WRANGLER_OUTPUT_FILE_PATH" ;;
+        "versions list") printf '%s\\n' '${JSON.stringify([{ id: versionId, annotations: { 'workers/tag': SHA } }])}' ;;
+        *) exit 64 ;;
+      esac`,
+      setup(root) {
+        const parser = 'scripts/ci/resolve-wrangler-version-upload.ts'
+        mkdirSync(dirname(join(root, parser)), { recursive: true })
+        copyFileSync(join(REPO, parser), join(root, parser))
+      },
+    })
+    expect(result.status === 0).toBe(succeeds)
+    expect(result.outputs).toEqual(succeeds ? { candidate_id: versionId } : {})
+    expect(result.calls[0]).toBe(`wrangler versions upload --strict --tag ${SHA} --message GitHub Actions run 4242 for ${SHA}`)
+    expect(result.calls.some(call => /wrangler (?:versions deploy|rollback)/.test(call))).toBe(false)
+  })
+})
+
 describe('deploy workflow shape', () => {
   test('a started transaction is never cancelled, and its token reads the repository and writes only issues', () => {
     expect(WORKFLOW.concurrency['cancel-in-progress']).toBe(false)
     expect(WORKFLOW.concurrency).not.toHaveProperty('queue')
-    // issues: write exists only for the release to-do; contents stays read-only.
+    // issues: write remains for closing existing to-dos; contents stays read-only.
     expect(JOB.permissions).toEqual({ actions: 'read', contents: 'read', issues: 'write' })
   })
 
@@ -194,9 +222,7 @@ describe('deploy workflow ordering and guards', () => {
     const order = [
       'Check Cloudflare deployment secrets',
       'Require the exact current main commit',
-      'Require successful canonical CI for a manual deployment',
       'Require the site\'s exact package version on npm',
-      'Open a release to-do for the unpublished version',
       'Install dependencies',
       'Verify every published browser artifact is byte-identical',
       'Build the site bundle',
@@ -221,22 +247,26 @@ describe('deploy workflow ordering and guards', () => {
     expect(STEPS[stepIndex('Arm rollback before changing production state')]!.id).toBe('rollback-guard')
   })
 
-  test('missing secrets stop every later step; an unpublished version stops every later step but the release to-do', () => {
+  test('missing secrets or an unpublished version stop every later step without GitHub writes', () => {
     const afterSecrets = STEPS.slice(stepIndex('Check Cloudflare deployment secrets') + 1)
     for (const event of ['workflow_dispatch', 'workflow_run']) {
       const runs = afterSecrets.filter(candidate => guardAllows(candidate.if, { event, outputs: { 'cloudflare-secrets': {} } }))
       expect({ event, runs: runs.map(candidate => candidate.name ?? candidate.uses) }).toEqual({ event, runs: [] })
     }
     const afterNpm = STEPS.slice(stepIndex('Require the site\'s exact package version on npm') + 1)
-    const unpublished = { 'cloudflare-secrets': { available: 'true' }, 'npm-version': { available: 'false' } }
-    expect(afterNpm.filter(candidate => guardAllows(candidate.if, { event: 'workflow_run', outputs: unpublished })).map(candidate => candidate.name)).toEqual(['Open a release to-do for the unpublished version'])
-  })
-
-  test('manual dispatch, and only manual dispatch, must prove canonical CI', () => {
-    const proof = step('Require successful canonical CI for a manual deployment')
-    const ready = { 'cloudflare-secrets': { available: 'true' } }
-    expect(guardAllows(proof.if, { event: 'workflow_dispatch', outputs: ready })).toBe(true)
-    expect(guardAllows(proof.if, { event: 'workflow_run', outputs: ready })).toBe(false)
+    const skipped = runStep("Require the site's exact package version on npm", {
+      files: { 'package.json': JSON.stringify({ version: '9.9.9' }) },
+      stubs: { npm: 'exit 1', gh: 'echo "unexpected GitHub call" >&2; exit 1' },
+    })
+    expect({ status: skipped.status, outputs: skipped.outputs }).toEqual({ status: 0, outputs: { available: 'false' } })
+    expect(skipped.stdout).toContain('::warning::Skipping Cloudflare deploy')
+    expect(skipped.summary).toContain('### Cloudflare deploy skipped')
+    expect(skipped.calls.filter(call => call.startsWith('gh '))).toEqual([])
+    const unpublished = { 'cloudflare-secrets': { available: 'true' }, 'npm-version': skipped.outputs }
+    for (const event of ['workflow_dispatch', 'workflow_run']) {
+      const enabled = afterNpm.filter(candidate => guardAllows(candidate.if, { event, outputs: unpublished }))
+      expect({ event, enabled: enabled.map(candidate => candidate.name ?? candidate.uses) }).toEqual({ event, enabled: [] })
+    }
   })
 
   test('a failed gate stops every later production change', () => {
@@ -249,28 +279,40 @@ describe('deploy workflow ordering and guards', () => {
 
   test('rollback runs exactly when an armed deploy is not fully verified, even after a failed step', () => {
     const rollback = step('Roll back any unverified deployment')
-    const outputs = (armed: boolean, mcp: boolean, site: boolean): Outputs => ({
+    // Every step after promotion that reports `verified` must gate rollback,
+    // including one added later.
+    const verifications = STEPS.slice(stepIndex('Promote the verified candidate to all traffic') + 1)
+      .filter(candidate => candidate.id && candidate.run?.includes('verified=true'))
+      .map(candidate => candidate.id!)
+    expect(verifications.length).toBeGreaterThanOrEqual(2)
+    const outputs = (armed: boolean, verified: readonly string[]): Outputs => ({
       'rollback-guard': armed ? { armed: 'true' } : {},
-      'production-verify': mcp ? { verified: 'true' } : {},
-      'production-site-verify': site ? { verified: 'true' } : {},
+      ...Object.fromEntries(verifications.map(id => [id, verified.includes(id) ? { verified: 'true' } : {}])),
     })
-    // An unverified run has a failed verification step, so the job is failing.
-    const table = [
-      [false, false, false], [true, false, false], [true, true, false], [true, false, true], [true, true, true],
-    ].map(([armed, mcp, site]) => ({
-      armed,
-      mcp,
-      site,
-      rollsBack: guardAllows(rollback.if, { event: 'workflow_run', outputs: outputs(armed!, mcp!, site!), jobStatus: mcp && site ? 'success' : 'failure' }),
-    }))
-    expect(table).toEqual([
-      { armed: false, mcp: false, site: false, rollsBack: false },
-      { armed: true, mcp: false, site: false, rollsBack: true },
-      { armed: true, mcp: true, site: false, rollsBack: true },
-      { armed: true, mcp: false, site: true, rollsBack: true },
-      { armed: true, mcp: true, site: true, rollsBack: false },
-    ])
+    const rollsBack = (armed: boolean, verified: readonly string[]) => guardAllows(rollback.if, {
+      event: 'workflow_run',
+      outputs: outputs(armed, verified),
+      // An unverified run has a failed verification step, so the job is failing.
+      jobStatus: verified.length === verifications.length ? 'success' : 'failure',
+    })
+    expect(rollsBack(false, [])).toBe(false)
+    expect(rollsBack(true, [])).toBe(true)
+    expect(rollsBack(true, verifications)).toBe(false)
+    for (const missing of verifications) {
+      expect({ missing, rollsBack: rollsBack(true, verifications.filter(id => id !== missing)) }).toEqual({ missing, rollsBack: true })
+    }
   })
+})
+
+test('deployment is gated by shared qualification before checkout, credentials or rollback', () => {
+  expect(JOB.needs).toBe('qualification')
+  expect(WORKFLOW.jobs.qualification.uses).toBe('./.github/workflows/qualify-ci.yml')
+  expect(WORKFLOW.jobs.qualification.with.required).toBe("${{ github.event_name == 'workflow_dispatch' }}")
+  expect(WORKFLOW.jobs.qualification.with.commit).toBe(JOB.env.EXPECTED_SHA)
+  for (const qualified of ['', 'false', 'true']) {
+    expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified } } })).toBe(qualified === 'true')
+  }
+  expect(guardAllows(JOB.if, { event: 'workflow_run', outputs: { qualification: { qualified: 'true' } }, jobStatus: 'failure' })).toBe(false)
 })
 
 describe('deploy workflow gates (executed with stubs)', () => {
@@ -282,26 +324,6 @@ describe('deploy workflow gates (executed with stubs)', () => {
     expect(missing.outputs).toEqual({})
     const present = runStep('Check Cloudflare deployment secrets', { env: { CLOUDFLARE_API_TOKEN: 'token', CLOUDFLARE_ACCOUNT_ID: 'account' } })
     expect({ status: present.status, outputs: present.outputs }).toEqual({ status: 0, outputs: { available: 'true' } })
-  })
-
-  test('a manual deploy requires a successful push CI run for the exact commit on main', () => {
-    const run = (overrides: Record<string, string>) => ({ head_sha: SHA, head_branch: 'main', event: 'push', conclusion: 'success', ...overrides })
-    const attempt = (runs: unknown[]) => runStep('Require successful canonical CI for a manual deployment', {
-      stubs: { gh: `cat "$MOCK_ROOT/runs.json"` },
-      files: { 'runs.json': JSON.stringify({ workflow_runs: runs }) },
-    })
-    const accepted = attempt([run({ head_sha: 'f'.repeat(40) }), run({})])
-    expect(accepted.status).toBe(0)
-    const query = accepted.calls.find(call => call.startsWith('gh api'))!
-    for (const filter of [`-f head_sha=${SHA}`, '-f branch=main', '-f event=push', '-f status=success']) expect(query).toContain(filter)
-    expect(query).toContain('repos/adewale/agentic-mermaid/actions/workflows/ci.yml/runs')
-
-    const mismatches: Array<Record<string, string>> = [{ head_sha: 'f'.repeat(40) }, { head_branch: 'release' }, { event: 'workflow_dispatch' }, { conclusion: 'failure' }]
-    for (const mismatch of mismatches) {
-      const refused = attempt([run(mismatch)])
-      expect({ mismatch, status: refused.status }).toEqual({ mismatch, status: 1 })
-      expect(refused.stdout).toContain('::error title=Canonical CI proof missing::')
-    }
   })
 
   test('the installed wrangler must be the version package.json locks', () => {
@@ -427,7 +449,6 @@ esac`,
 })
 
 describe('release to-do wiring', () => {
-  const OPEN = 'Open a release to-do for the unpublished version'
   const CLOSE = 'Close release to-dos for the version now live'
   const SCRIPT = join(REPO, 'scripts', 'ci', 'release-todo.ts')
   // A gh double for the REST calls release-todo.ts makes; FAIL_GH=1 turns
@@ -436,9 +457,7 @@ describe('release to-do wiring', () => {
 if [ "\${FAIL_GH:-}" = 1 ]; then echo 'gh: Server Error (HTTP 502)' >&2; exit 1; fi
 case "$*" in
   *"--method GET"*"/issues?"*) cat "$MOCK_ROOT/issues.json" ;;
-  *"--method GET"*"/labels/release-todo"*) echo '{"name":"release-todo"}' ;;
   *"--method POST"*"/issues/"*"/comments"*) cat > "$MOCK_ROOT/comment.json"; echo '{"id":1}' ;;
-  *"--method POST"*"/issues"*) cat > "$MOCK_ROOT/created.json"; echo '{"number":7,"html_url":"https://github.com/adewale/agentic-mermaid/issues/7"}' ;;
   *"--method PATCH"*"/issues/"*) cat > "$MOCK_ROOT/patched.json"; echo '{}' ;;
   *) echo "unexpected gh call: $*" >&2; exit 64 ;;
 esac`
@@ -457,24 +476,11 @@ esac`
     })
   const writes = (calls: string[]) => calls.filter(call => /^gh api --method (?:POST|PATCH)/.test(call)).map(call => call.replace(/ -H Accept: \S+/, ''))
 
-  test('the to-do steps delegate to the tested script with the job token and can never fail the job', () => {
-    for (const [name, command] of [
-      [OPEN, 'open'],
-      [CLOSE, 'close'],
-    ] as const) {
-      const target = step(name)
-      expect({ name, run: target.run?.trim() }).toEqual({ name, run: `bun run scripts/ci/release-todo.ts ${command}` })
-      expect({ name, env: target.env }).toEqual({ name, env: { GH_TOKEN: '${{ github.token }}' } })
-      expect({ name, continueOnError: target['continue-on-error'] }).toEqual({ name, continueOnError: true })
-    }
-    expect(existsSync(SCRIPT)).toBe(true)
-  })
-
-  test('the open step runs right after the npm gate, and only when the version is missing from npm', () => {
-    expect(stepIndex(OPEN)).toBe(stepIndex("Require the site's exact package version on npm") + 1)
-    const open = step(OPEN)
-    const runs = (npm: Record<string, string>) => guardAllows(open.if, { event: 'workflow_run', outputs: { 'cloudflare-secrets': { available: 'true' }, 'npm-version': npm } })
-    expect({ missing: runs({ available: 'false' }), published: runs({ available: 'true' }), gateNotRun: runs({}) }).toEqual({ missing: true, published: false, gateNotRun: false })
+  test('existing to-do cleanup delegates to the tested script without failing the job', () => {
+    const target = step(CLOSE)
+    expect(target.run?.trim()).toBe('bun run scripts/ci/release-todo.ts close')
+    expect(target.env).toEqual({ GH_TOKEN: '${{ github.token }}' })
+    expect(target['continue-on-error']).toBe(true)
   })
 
   test('the close step runs only after promoted production passes both verifications', () => {
@@ -495,20 +501,6 @@ esac`
     expect(guardAllows(close.if, { event: 'workflow_run', outputs: outputs(true, true), jobStatus: 'failure' })).toBe(false)
   })
 
-  test('executed: a skip opens one issue for the version, and an existing one means no write', () => {
-    const first = todo(OPEN)
-    expect(first.status).toBe(0)
-    expect(writes(first.calls)).toEqual(['gh api --method POST repos/adewale/agentic-mermaid/issues --input -'])
-    const created = JSON.parse(readFileSync(join(lastStepRoot, 'created.json'), 'utf8')) as { title: string; body: string; labels: string[] }
-    expect(created.title).toBe('Publish v9.9.9: production still serves v9.9.8')
-    expect(created.labels).toEqual(['release-todo'])
-    expect(created.body).toContain(`/releases/new?tag=v9.9.9&target=${SHA}&title=`)
-
-    const existing = { number: 7, title: created.title, body: created.body, state: 'open' }
-    const again = todo(OPEN, { issues: [existing] })
-    expect({ status: again.status, writes: writes(again.calls) }).toEqual({ status: 0, writes: [] })
-  })
-
   test('executed: a verified deploy closes the open to-do for its version', () => {
     const issue = { number: 7, title: 'Publish v9.9.9: production still serves v9.9.8', body: '<!-- release-todo version="9.9.9" -->', state: 'open' }
     const closed = todo(CLOSE, { issues: [issue] })
@@ -517,11 +509,9 @@ esac`
     expect(JSON.parse(readFileSync(join(lastStepRoot, 'patched.json'), 'utf8'))).toEqual({ state: 'closed', state_reason: 'completed' })
   })
 
-  test('executed: GitHub API errors leave both steps green with a warning', () => {
-    for (const name of [OPEN, CLOSE]) {
-      const failed = todo(name, { failGh: true })
-      expect({ name, status: failed.status }).toEqual({ name, status: 0 })
-      expect(failed.stdout).toContain('::warning title=Release to-do')
-    }
+  test('executed: GitHub API errors leave cleanup green with a warning', () => {
+    const failed = todo(CLOSE, { failGh: true })
+    expect(failed.status).toBe(0)
+    expect(failed.stdout).toContain('::warning title=Release to-do')
   })
 })

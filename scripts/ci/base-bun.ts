@@ -33,13 +33,18 @@ if (import.meta.main) {
   const plan = baseBunPlan(existsSync(hook) ? pinnedBun(readFileSync(hook, 'utf8')) : undefined, Bun.version)
   if (plan.install) {
     process.stderr.write(`Base pins Bun ${plan.install}; this run uses ${Bun.version}. Installing ${plan.install} for the base build.\n`)
-    // The installer's output goes to stderr: stdout carries only the directory.
-    const install = Bun.spawnSync(['bash', '-c', `curl -fsSL https://bun.sh/install | bash -s "bun-v${plan.install}" 1>&2`], {
-      env: { ...process.env, BUN_INSTALL: installRoot },
-      stdout: 'inherit',
+    // Match the browser container's npm installation: it has no unzip for
+    // Bun's shell installer. Keep stdout reserved for the resulting directory.
+    const install = Bun.spawnSync(['npm', 'install', '--prefix', installRoot, '--no-save', '--package-lock=false', `bun@${plan.install}`], {
+      stdout: 2,
       stderr: 'inherit',
+      timeout: 120_000, killSignal: 'SIGKILL',
     })
-    if (install.exitCode !== 0) throw new Error(`Installing Bun ${plan.install} for the base build failed`)
-    process.stdout.write(`${join(installRoot, 'bin')}\n`)
+    if (!install.success) throw new Error(`Installing Bun ${plan.install} for the base build failed`)
+    const bin = join(installRoot, 'node_modules', '.bin')
+    const version = Bun.spawnSync([join(bin, 'bun'), '--version'], { stdout: 'pipe', stderr: 'pipe', timeout: 10_000 })
+    if (!version.success || version.stdout.toString().trim() !== plan.install)
+      throw new Error(`Installed base Bun does not match ${plan.install}`)
+    process.stdout.write(`${bin}\n`)
   }
 }

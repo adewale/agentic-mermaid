@@ -2,6 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { prepareCellText } from '../ascii/prepared-text.ts'
 import { wrapText } from '../ascii/wrap.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 describe('prepared cell text', () => {
   it('preserves interior spaces while recording the separator replaced by wrapping', () => {
@@ -20,8 +23,13 @@ describe('prepared cell text', () => {
     expect(block.lineWidths).toEqual([3, 3, 0, 4])
   })
 
-  it.each(['漢字ひらがな', 'éééé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳'])('never splits a grapheme: %s', source => {
+  it.each([
+    ['漢字ひらがな', ['漢', '字', 'ひ', 'ら', 'が', 'な']],
+    ['éééé', ['éé', 'éé']],
+    ['👩🏽‍💻👨‍👩‍👧‍👦🇨🇳', ['👩🏽‍💻', '👨‍👩‍👧‍👦', '🇨🇳']],
+  ] as const)('never splits a grapheme: %s', (source, expected) => {
     const block = prepareCellText(source, { maxWidth: 2, hyphenate: false })
+    expect(block.lines).toEqual(expected)
     expect(block.lines.join('')).toBe(source)
     expect(block.lineWidths.every(width => width <= 2)).toBe(true)
     expect(block.width).toBe(Math.max(...block.lines.map(visualWidth)))
@@ -57,15 +65,16 @@ describe('prepared cell text', () => {
     expect(Object.isFrozen(block.lines)).toBe(true)
   })
 
-  it('keeps locale-independent grapheme cells through the public terminal renderer', () => {
+  it('keeps locale-independent grapheme cells through the public terminal renderer', async () => {
     const entry = new URL('../index.ts', import.meta.url).href
     const source = 'flowchart LR\nA["界 é 👩🏽‍💻 🇨🇳"] --> B["Ω Ш"]'
     const code = `import { renderMermaidASCII } from ${JSON.stringify(entry)}; process.stdout.write(renderMermaidASCII(${JSON.stringify(source)}, { colorMode: 'none' }))`
-    const outputs = ['C', 'en_US.UTF-8', 'ja_JP.UTF-8'].map(locale => {
-      const result = Bun.spawnSync([process.execPath, '-e', code], { env: { ...process.env, LANG: locale, LC_ALL: locale }, stdout: 'pipe', stderr: 'pipe' })
-      expect(result.exitCode).toBe(0)
-      return new TextDecoder().decode(result.stdout)
-    })
+    const outputs: string[] = []
+    for (const locale of ['C', 'en_US.UTF-8', 'ja_JP.UTF-8']) {
+      const result = await runChild(process.execPath, ['-e', code], { env: { ...process.env, LANG: locale, LC_ALL: locale } })
+      expect(result.status).toBe(0)
+      outputs.push(result.stdout)
+    }
     expect(outputs[0]).toContain('界 é 👩🏽‍💻 🇨🇳')
     expect(outputs[1]).toBe(outputs[0])
     expect(outputs[2]).toBe(outputs[0])
@@ -74,5 +83,26 @@ describe('prepared cell text', () => {
   it('keeps all-space content and exact authored trailing spaces', () => {
     expect(prepareCellText('      ', { maxWidth: 2 }).lines).toEqual(['  ', '  ', '  '])
     expect(prepareCellText('A  ', { maxWidth: 4 }).lines).toEqual(['A  '])
+  })
+})
+
+
+describe('terminal discretionary Unicode breaks', () => {
+  it.each([
+    ['ab\u00adcd', 3, ['ab-', 'cd'], 'hyphen', '\u00ad'],
+    ['ab\u200bcd', 2, ['ab', 'cd'], 'wrap', '\u200b'],
+  ] as const)('retains the authored break in %s', (source, maxWidth, lines, kind, replacedText) => {
+    const block = prepareCellText(source, { maxWidth })
+    expect(block.lines).toEqual([...lines])
+    expect(block.breaks).toEqual([{ kind, sourceOffset: 3, replacedText }])
+    expect(block.lineWidths.every(width => width <= maxWidth)).toBe(true)
+    expect(block.prepared.source).toBe(source)
+  })
+
+  it('omits unused and leading hints while keeping blank authored lines', () => {
+    const source = '\u00adab\u200bcd\n\n\u200b'
+    expect(visualWidth('ab\u00adcd')).toBe(4)
+    expect(prepareCellText(source).lines).toEqual(['abcd', '', ''])
+    expect(prepareCellText(source, { maxWidth: 8 }).prepared.source).toBe(source)
   })
 })

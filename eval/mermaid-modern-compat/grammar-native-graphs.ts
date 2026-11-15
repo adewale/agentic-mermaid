@@ -1,6 +1,7 @@
 import type { ClassDiagram, ClassMember, ClassNamespace, RelationshipType } from '../../src/class/types.ts'
 import type { MindmapDiagram, MindmapNode } from '../../src/mindmap/types.ts'
 import { normalizeBrTags } from '../../src/multiline-utils.ts'
+import { projectEntityMarkers } from '../../src/shared/mermaid-entity-display.ts'
 import type { MermaidGraph, MermaidSubgraph } from '../../src/types.ts'
 import type { GrammarReferenceReply, NativeSemanticProjection } from './grammar-types.ts'
 import type { Json } from './reference.ts'
@@ -107,6 +108,17 @@ function nativeState(graph: MermaidGraph): NativeSemanticProjection {
   })
 }
 
+/** State text as it displays: upstream keeps entity codes as markers
+ * (`ﬂ°°35¶ß`), which State's native reading has already decoded. */
+const stateLabel = (value: unknown): string => {
+  const raw = label(value)
+  try {
+    return projectEntityMarkers(raw)
+  } catch {
+    return raw
+  }
+}
+
 function referenceState(reply: GrammarReferenceReply): NativeSemanticProjection | undefined {
   const data = row(reply.snapshot?.data.getData)
   if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) return undefined
@@ -141,7 +153,7 @@ function referenceState(reply: GrammarReferenceReply): NativeSemanticProjection 
         .map(node => ({
           id: identities.get(text(node.id))!,
           parent: parentOf(node),
-          label: ['state-start', 'state-end'].includes(stateKind(node)) ? '' : label(node.label),
+          label: ['state-start', 'state-end'].includes(stateKind(node)) ? '' : stateLabel(node.label),
           kind: stateKind(node),
           classes: classes(
             text(node.cssClasses)
@@ -154,7 +166,7 @@ function referenceState(reply: GrammarReferenceReply): NativeSemanticProjection 
       groups.map(group => ({
         id: text(group.id),
         parent: parentOf(group),
-        label: label(group.label),
+        label: stateLabel(group.label),
         members: nodes
           .filter(node => parentOf(node) === group.id && !groupIds.has(text(node.id)) && node.shape !== 'note')
           .map(node => identities.get(text(node.id))!)
@@ -165,7 +177,7 @@ function referenceState(reply: GrammarReferenceReply): NativeSemanticProjection 
     transitions: list(data.edges)
       .map(row)
       .filter(edge => identities.has(text(edge.start)) && identities.has(text(edge.end)))
-      .map(edge => ({ from: identities.get(text(edge.start))!, to: identities.get(text(edge.end))!, label: label(edge.label) })),
+      .map(edge => ({ from: identities.get(text(edge.start))!, to: identities.get(text(edge.end))!, label: stateLabel(edge.label) })),
   })
 }
 

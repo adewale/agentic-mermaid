@@ -147,12 +147,13 @@ describe('analyzeMermaidSource', () => {
     }
   })
 
-  test('does not extract phantom actions from multiline markdown-string prose', () => {
-    const analyzed = analyzeMermaidSource(`flowchart LR
-  A["\`Docs say:
-  click B href https://evil.example/not-action
-  do not run\`"] --> B[Safe target]
-`)
+  test.each([
+    ['markdown string', 'A["`Docs say:\n  click B href https://evil.example/not-action\n  do not run`"] --> B[Safe target]'],
+    ['shape text', 'A[Docs say:\n  click B href https://evil.example/not-action] --> B'],
+    ['quoted string', 'A["Docs say:\n  click B href https://evil.example/not-action"] --> B'],
+    ['link text', 'A -->|Docs say:\n  click B href https://evil.example/not-action| B'],
+  ])('does not extract phantom actions from %s spanning lines', (_, body) => {
+    const analyzed = analyzeMermaidSource(`flowchart LR\n  ${body}\n`)
     expect(analyzed.ok).toBe(true)
     if (analyzed.ok) expect(analyzed.value.actions).toEqual([])
   })

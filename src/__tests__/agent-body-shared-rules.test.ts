@@ -22,7 +22,7 @@ const SOURCES = {
   timeline: 'timeline\n  title History\n  section One\n    2020 : Start\n',
   gantt: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n    Core : core, 2024-01-01, 3d\n',
   gitgraph: 'gitGraph\n  accTitle: History\n  commit id: "a"\n',
-  mindmap: 'mindmap\n  accTitle: Ideas\n  root((Root))\n    Child\n',
+  mindmap: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  root((Root))\n    Child\n',
   architecture: 'architecture-beta\n  accTitle: Stack\n  service api(server)[API]\n',
 }
 
@@ -55,8 +55,8 @@ const OPTIONAL_TEXT_CASES: Case[] = [
   ['xychart', { kind: 'set_y_axis', axis: { name: 'Units', range: { min: 0, max: 20 } } }, { ok: true, source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb]\n  y-axis Units 0 --> 20\n  bar [3, 5]\n' }],
   ['xychart', { kind: 'set_x_axis', axis: { categories: [] } }, { ok: false, error: { code: 'INVALID_OP', message: 'XY chart x-axis categories must be a non-empty array' } }],
   ['journey', { kind: 'set_title', title: null }, { ok: true, source: 'journey\n  section Morning\n    Wake: 3: Me\n' }],
-  ['journey', { kind: 'set_title', title: 'Day: two' }, { ok: true, source: 'journey\n  title Day: two\n  section Morning\n    Wake: 3: Me\n' }],
-  ['journey', { kind: 'set_title', title: 'a;b' }, { ok: false, error: { code: 'INVALID_OP', message: 'Journey title must be non-empty, and must not contain statement-delimiter semicolons' } }],
+  ['journey', { kind: 'set_title', title: 'Day: two' }, { ok: true, source: 'journey\n  title Day#58; two\n  section Morning\n    Wake: 3: Me\n' }],
+  ['journey', { kind: 'set_title', title: 'a;b' }, { ok: true, source: 'journey\n  title a#59;b\n  section Morning\n    Wake: 3: Me\n' }],
   ['timeline', { kind: 'set_title', title: null }, { ok: true, source: 'timeline\n  section One\n  2020 : Start\n' }],
   ['timeline', { kind: 'set_title', title: 'History 2' }, { ok: true, source: 'timeline\n  title History 2\n  section One\n  2020 : Start\n' }],
   ['timeline', { kind: 'set_title', title: 'a\nb' }, { ok: false, error: { code: 'INVALID_OP', message: 'Timeline title must be single-line; pinned Mermaid renders <br> literally in titles' } }],
@@ -66,10 +66,10 @@ const OPTIONAL_TEXT_CASES: Case[] = [
   ['gitgraph', { kind: 'set_accessibility_description', description: 'One line' }, { ok: true, source: 'gitGraph\n  accTitle: History\n  accDescr: One line\n  commit id:"a"\n' }],
   ['gitgraph', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'gitGraph\n  accTitle: History\n  commit id:"a"\n' }],
   ['mindmap', { kind: 'set_accessibility_title', title: null }, { ok: true, source: 'mindmap\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_title', title: 'Map' }, { ok: true, source: 'mindmap\n  accTitle: Map\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_title', title: '' }, { ok: false, error: { code: 'INVALID_OP', message: 'Mindmap accessibility title must be a non-empty single-line string' } }],
-  ['mindmap', { kind: 'set_accessibility_description', description: 'About ideas' }, { ok: true, source: 'mindmap\n  accTitle: Ideas\n  accDescr: About ideas\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'mindmap\n  accTitle: Ideas\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_title', title: 'Map' }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Map"\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_title', title: '' }, { ok: false, error: { code: 'INVALID_OP', message: 'Mindmap accessibility title must be non-empty text' } }],
+  ['mindmap', { kind: 'set_accessibility_description', description: 'About ideas' }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  %% agentic-mermaid accDescr: "About ideas"\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  root((Root))\n    Child\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: null }, { ok: true, source: 'architecture-beta\n  service api(server)[API]\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: 'Stack 2' }, { ok: true, source: 'architecture-beta\n  accTitle: Stack 2\n  service api(server)[API]\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: 'a\nb' }, { ok: true, source: 'architecture-beta\n  accTitle: a b\n  service api(server)[API]\n' }],
@@ -112,14 +112,15 @@ describe('insert-position rule: an omitted index appends, otherwise an integer i
 
 test('sankey reports LABEL_OVERFLOW once per distinct node label, in link order, at the caller cap', () => {
   const long = 'N'.repeat(45)
-  const parsed = parseRegisteredMermaid(`sankey-beta\n${long},B,1\n${long},C,1\nB,C,2\n`)
+  const parsed = parseRegisteredMermaid(`sankey-beta\n${long},BB,1\n${long},CC,1\nBB,CC,2\n`)
   if (!parsed.ok) throw new Error('parse failed')
   const overflow = (labelCharCap?: number) => verifyMermaid(parsed.value, labelCharCap === undefined ? {} : { labelCharCap })
     .warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')
   expect(overflow()).toEqual([{ code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 40 }])
-  expect(overflow(0)).toEqual([
-    { code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 0 },
-    { code: 'LABEL_OVERFLOW', target: 'B', charCount: 1, limit: 0 },
-    { code: 'LABEL_OVERFLOW', target: 'C', charCount: 1, limit: 0 },
+  // The smallest cap verify admits (a positive safe integer).
+  expect(overflow(1)).toEqual([
+    { code: 'LABEL_OVERFLOW', target: long, charCount: 45, limit: 1 },
+    { code: 'LABEL_OVERFLOW', target: 'BB', charCount: 2, limit: 1 },
+    { code: 'LABEL_OVERFLOW', target: 'CC', charCount: 2, limit: 1 },
   ])
 })

@@ -1,0 +1,617 @@
+{
+  "schemaVersion": 1,
+  "heldOut": true,
+  "authoring": "Requests and reference edits were written by hand against the raw held-out sources. A reference is a list of exact find/replace patches; its expected change is whatever upstream Mermaid 12.2.0 reports between the original and the patched source. No Agentic Mermaid API was used to write or check them.",
+  "tasks": [
+    {
+      "id": "otel-service-legend.add-swift",
+      "diagram": "otel-service-legend",
+      "category": "add_node_in_group",
+      "request": "Add Swift to the Service Legend, after TypeScript, as another rounded entry. Give it a new class named `swift` with `fill:#F05138,color:white`, like the other languages.",
+      "strictNew": ["parent", "class", "shape"],
+      "references": [[
+        { "find": "  typescriptsvc(TypeScript):::typescript\n", "replace": "  typescriptsvc(TypeScript):::typescript\n  swiftsvc(Swift):::swift\n" },
+        { "find": "classDef typescript fill:#e98516,color:black;\n", "replace": "classDef typescript fill:#e98516,color:black;\nclassDef swift fill:#F05138,color:white;\n" }
+      ]]
+    },
+    {
+      "id": "otel-service-legend.recolor-ruby",
+      "diagram": "otel-service-legend",
+      "category": "restyle",
+      "request": "Change the Ruby legend colour to #CC342D, keeping the white text.",
+      "references": [[
+        { "find": "classDef ruby fill:#701516,color:white;", "replace": "classDef ruby fill:#CC342D,color:white;" }
+      ]]
+    },
+    {
+      "id": "k8s-contribution-methods.add-method",
+      "diagram": "k8s-contribution-methods",
+      "category": "add_node",
+      "request": "Add a fourth method, a box labelled 'Diagrams-as-code tool' that the Contributor points to, styled with the same box class as the others.",
+      "strictNew": ["class"],
+      "references": [[
+        { "find": "to .md file]\n\n    A --> B", "replace": "to .md file]\nE[Diagrams-as-code tool]\n\n    A --> B" },
+        { "find": "    A --> D\n", "replace": "    A --> D\n    A --> E\n" },
+        { "find": "    class A,B,C,D box", "replace": "    class A,B,C,D,E box" }
+      ]]
+    },
+    {
+      "id": "dotnet-auth-environments.insert-decision",
+      "diagram": "dotnet-auth-environments",
+      "category": "insert_decision",
+      "request": "Under Azure, add a decision 'Managed identity available?' before Managed identity: 'Yes' goes to the existing Managed identity option, 'No' goes to a new '**Service principal**' option. Style the decision like the other question (questionBox) and the new option like the other auth methods (authMethod).",
+      "strictNew": ["class", "shape"],
+      "references": [[
+        { "find": "    AzureApp --> ManagedId[\"**Managed identity**\"]\n", "replace": "    AzureApp --> MIAvail{Managed identity available?}\n    MIAvail -->|Yes| ManagedId[\"**Managed identity**\"]\n    MIAvail -->|No| AzureSP[\"**Service principal**\"]\n" },
+        { "find": "    class Q1 questionBox\n", "replace": "    class Q1,MIAvail questionBox\n" },
+        { "find": "    class AppSP,UserPrincipal,ManagedId,ServicePrincipal,ArcManagedId authMethod\n", "replace": "    class AppSP,UserPrincipal,ManagedId,ServicePrincipal,ArcManagedId,AzureSP authMethod\n" }
+      ]]
+    },
+    {
+      "id": "dotnet-auth-environments.rename-onprem",
+      "diagram": "dotnet-auth-environments",
+      "category": "rename_node",
+      "request": "Rename 'On-premises server' to 'On-premises or other cloud'.",
+      "references": [[
+        { "find": "OnPremApp[On-premises server]", "replace": "OnPremApp[On-premises or other cloud]" }
+      ]]
+    },
+    {
+      "id": "dotnet-local-service-principal.add-entra-step",
+      "diagram": "dotnet-local-service-principal",
+      "category": "add_step_between",
+      "request": "Add a 'Microsoft Entra ID' step between the app service principal and Azure services, styled with the services class.",
+      "strictNew": ["class"],
+      "references": [[
+        { "find": "    AS[\"Azure services\"]\n", "replace": "    AS[\"Azure services\"]\n    ENTRA[\"Microsoft Entra ID\"]\n" },
+        { "find": "    SP --> AS\n", "replace": "    SP --> ENTRA\n    ENTRA --> AS\n" },
+        { "find": "    class AS services", "replace": "    class AS,ENTRA services" }
+      ]]
+    },
+    {
+      "id": "sk-process-dapr.remove-b",
+      "diagram": "sk-process-dapr",
+      "category": "delete_and_reconnect",
+      "request": "Remove step B. Kickoff should still feed C through A only — no other changes.",
+      "references": [[
+        { "find": "    Kickoff --> B\n", "replace": "" },
+        { "find": "    B --> C\n", "replace": "" }
+      ]]
+    },
+    {
+      "id": "hugegraph-architecture.add-hbase",
+      "diagram": "hugegraph-architecture",
+      "category": "add_node_in_group",
+      "request": "Add an HBase backend inside the Distributed Mode group, drawn as a database cylinder labelled 'HBase<br/>Legacy', and connect the Graph Engine to it.",
+      "strictNew": ["parent", "shape"],
+      "references": [[
+        { "find": "            PD_HSTORE[PD + HStore<br/>Raft Cluster]\n", "replace": "            PD_HSTORE[PD + HStore<br/>Raft Cluster]\n            HBASE[(HBase<br/>Legacy)]\n" },
+        { "find": "    CORE --> PD_HSTORE\n", "replace": "    CORE --> PD_HSTORE\n    CORE --> HBASE\n" }
+      ]]
+    },
+    {
+      "id": "hugegraph-architecture.style-storage",
+      "diagram": "hugegraph-architecture",
+      "category": "restyle",
+      "request": "Give the Storage Layer group a light green fill (#e8f5e9).",
+      "references": [[
+        { "find": "    style Standalone fill:#f0f0f0", "replace": "    style Standalone fill:#f0f0f0\n    style Storage fill:#e8f5e9" }
+      ]]
+    },
+    {
+      "id": "seatunnel-engine-choice.rename-spark",
+      "diagram": "seatunnel-engine-choice",
+      "category": "change_label",
+      "request": "Change the Spark option's text to 'Use Spark Engine (2.x/3.x)'.",
+      "references": [[
+        { "find": "spark[\"Use Spark Engine\"]", "replace": "spark[\"Use Spark Engine (2.x/3.x)\"]" }
+      ]]
+    },
+    {
+      "id": "seatunnel-engine-choice.drop-reuse-question",
+      "diagram": "seatunnel-engine-choice",
+      "category": "delete_and_reconnect",
+      "request": "Remove the 'Do you want to reuse it?' question. From the infrastructure question, 'Yes, Flink' should go to the Flink engine and 'Yes, Spark' to the Spark engine; 'No' still goes to the SeaTunnel Engine.",
+      "references": [[
+        { "find": "    reuse{\"Do you want to reuse it?\"}\n", "replace": "" },
+        { "find": "    infra -- \"Yes\" --> reuse\n", "replace": "    infra -- \"Yes, Flink\" --> flink\n    infra -- \"Yes, Spark\" --> spark\n" },
+        { "find": "    reuse -- \"Yes, Flink\" --> flink\n    reuse -- \"Yes, Spark\" --> spark\n    reuse -- \"No\" --> zeta\n", "replace": "" },
+        { "find": "    class start,infra,reuse layerBlue;", "replace": "    class start,infra layerBlue;" }
+      ]]
+    },
+    {
+      "id": "superset-mcp-deployment.add-celery",
+      "diagram": "superset-mcp-deployment",
+      "category": "add_node_in_group",
+      "request": "Add Celery workers ('Celery Workers<br/>Async queries') to the Superset Web Deployment group. The Superset App sends work to them and they use Redis.",
+      "strictNew": ["parent"],
+      "references": [[
+        { "find": "        WebHPA[HPA<br/>Auto-scaling]\n", "replace": "        WebHPA[HPA<br/>Auto-scaling]\n        Celery[Celery Workers<br/>Async queries]\n" },
+        { "find": "    WebApp --> Redis\n", "replace": "    WebApp --> Redis\n    WebApp --> Celery\n    Celery --> Redis\n" }
+      ]]
+    },
+    {
+      "id": "superset-mcp-deployment.recolor-mcp-hpa",
+      "diagram": "superset-mcp-deployment",
+      "category": "restyle",
+      "request": "Colour the MCP Service's HPA the same orange as the MCP service itself (#C76E00).",
+      "references": [[
+        { "find": "    style MCPHPA fill:#66bb6a", "replace": "    style MCPHPA fill:#C76E00" }
+      ]]
+    },
+    {
+      "id": "cloudberry-segments.add-segment",
+      "diagram": "cloudberry-segments",
+      "category": "add_node_in_group",
+      "request": "Add a third segment, 'Segment 2<br/>Catalog + data shard', to the segments group, styled like the other segments.",
+      "strictNew": ["parent", "class"],
+      "references": [[
+        { "find": "    S1[\"Segment 1<br/>Catalog + data shard\"]:::s\n", "replace": "    S1[\"Segment 1<br/>Catalog + data shard\"]:::s\n    S2[\"Segment 2<br/>Catalog + data shard\"]:::s\n" }
+      ]]
+    },
+    {
+      "id": "dapr-mcp-access-control.insert-audit",
+      "diagram": "dapr-mcp-access-control",
+      "category": "add_step_between",
+      "request": "Add an 'Audit logger' step inside the Dapr sidecar: when OPA allows a call it goes to the audit logger, which then forwards it to the MCP server.",
+      "strictNew": ["parent"],
+      "references": [[
+        { "find": "    OPA{OPA middleware<br/>tool-level gate}:::decision\n", "replace": "    OPA{OPA middleware<br/>tool-level gate}:::decision\n    AUDIT(Audit logger)\n" },
+        { "find": "  OPA -- allow --> SERVER\n", "replace": "  OPA -- allow --> AUDIT\n  AUDIT --> SERVER\n" }
+      ]]
+    },
+    {
+      "id": "ray-data-repartition-diff.mark-write-changed",
+      "diagram": "ray-data-repartition-diff",
+      "category": "restyle",
+      "request": "In the After diagram, mark Write as changed using the existing `changed` class.",
+      "references": [[
+        { "find": "    class A3 added", "replace": "    class A3 added\n    class A2 changed" }
+      ]]
+    },
+    {
+      "id": "agent-os-layers.add-dependency",
+      "diagram": "agent-os-layers",
+      "category": "add_edge",
+      "request": "Add a declared dependency: control-plane depends on runtime.",
+      "references": [[
+        { "find": "    runtime --> iatp\n", "replace": "    runtime --> iatp\n    cp --> runtime\n" }
+      ]]
+    },
+    {
+      "id": "agent-os-layers.move-nexus",
+      "diagram": "agent-os-layers",
+      "category": "move_to_group",
+      "request": "Move nexus from Layer 3 to Layer 2.",
+      "references": [[
+        { "find": "        obs[observability]\n        nexus[nexus]\n", "replace": "        obs[observability]\n" },
+        { "find": "        runtime[runtime]\n", "replace": "        runtime[runtime]\n        nexus[nexus]\n" }
+      ]]
+    },
+    {
+      "id": "directx-mlir-flow.drop-partition-ir",
+      "diagram": "directx-mlir-flow",
+      "category": "delete_and_reconnect",
+      "request": "Remove the CGC Partition IR; the DXCGC Runtime should feed the D3D12 Runtime directly.",
+      "references": [[
+        { "find": "    partition_ir[\"CGC Partition IR\"]:::mlir\n", "replace": "" },
+        { "find": "    output_ir --> interpreter --> partition_ir --> runtime", "replace": "    output_ir --> interpreter --> runtime" }
+      ]]
+    },
+    {
+      "id": "edgequake-data-flow.add-embedding",
+      "diagram": "edgequake-data-flow",
+      "category": "add_step_between",
+      "request": "Add an 'Embedding model' step between the worker and the chunks/vectors/graph stores.",
+      "references": [[
+        { "find": "    worker --> stores[\"Chunks, vectors, graph\"]\n", "replace": "    worker --> embed[\"Embedding model\"]\n    embed --> stores[\"Chunks, vectors, graph\"]\n" }
+      ]]
+    },
+    {
+      "id": "edgequake-data-flow.style-stores",
+      "diagram": "edgequake-data-flow",
+      "category": "restyle",
+      "request": "Style the 'Chunks, vectors, graph' node with the eqStore class as well.",
+      "references": [[
+        { "find": "class queue eqStore", "replace": "class queue,stores eqStore" }
+      ]]
+    },
+    {
+      "id": "iceberg-wap-branches.edit-comment",
+      "diagram": "iceberg-wap-branches",
+      "category": "change_label",
+      "request": "Change the comment text to '2. Validation performed and passed'.",
+      "references": [[
+        { "find": "label: '2. Validation Performed & Passed'", "replace": "label: '2. Validation performed and passed'" }
+      ]]
+    },
+    {
+      "id": "otel-pr-review-labels.add-status-comment",
+      "diagram": "otel-pr-review-labels",
+      "category": "add_message",
+      "request": "At the end, after label-manager adds/removes labels, have it post a status comment: a message from label-manager to GitHub saying 'Post status comment'.",
+      "references": [[
+        { "find": "    L->>GH: Add/remove labels\n", "replace": "    L->>GH: Add/remove labels\n    L->>GH: Post status comment\n" }
+      ]]
+    },
+    {
+      "id": "otel-pr-review-labels.rename-label-manager",
+      "diagram": "otel-pr-review-labels",
+      "category": "rename_participant",
+      "request": "Rename the label-manager participant to pr-labeler.",
+      "references": [[
+        { "find": "    participant L as label-manager\n", "replace": "    participant L as pr-labeler\n" }
+      ]]
+    },
+    {
+      "id": "cilium-bgp-reconcile.add-result-reply",
+      "diagram": "cilium-bgp-reconcile",
+      "category": "add_message",
+      "request": "In the 'reconciliation is necessary' branch, after the manager reconciles the BGP servers, add a dashed reply from BGPRouterManager back to the Controller: 'Reconcile result'.",
+      "strictNew": ["messageKind"],
+      "references": [[
+        { "find": "\t\tM ->> M: Reconcile configured BGP servers\n", "replace": "\t\tM ->> M: Reconcile configured BGP servers\n\t\tM -->> C: Reconcile result\n" }
+      ]]
+    },
+    {
+      "id": "dotnet-credential-chain.call-azure",
+      "diagram": "dotnet-credential-chain",
+      "category": "add_participant_and_message",
+      "request": "At the very end, show the app using the token: add a participant 'Azure service' (after TokenCredential instance) and a message from the .NET app to it: 'Call API with AccessToken'.",
+      "references": [[
+        { "find": "  participant C as TokenCredential instance;\n", "replace": "  participant C as TokenCredential instance;\n  participant D as Azure service;\n" },
+        { "find": "  deactivate B;\n", "replace": "  deactivate B;\n  A->>D: Call API with AccessToken;\n" }
+      ]]
+    },
+    {
+      "id": "sk-mcp-oauth.remove-delegate-note",
+      "diagram": "sk-mcp-oauth",
+      "category": "delete_element",
+      "request": "Remove the 'Analyze and delegate tasks' note; it doesn't belong in this flow.",
+      "references": [[
+        { "find": "    Note over Client: Analyze and delegate tasks\n", "replace": "" }
+      ]]
+    },
+    {
+      "id": "sk-mcp-oauth.add-cache-note",
+      "diagram": "sk-mcp-oauth",
+      "category": "add_note",
+      "request": "Right after the client receives the access token, add a note over Client: 'Cache token until expiry'.",
+      "references": [[
+        { "find": "    AuthServer-->>Client: Access token\n", "replace": "    AuthServer-->>Client: Access token\n    Note over Client: Cache token until expiry\n" }
+      ]]
+    },
+    {
+      "id": "knox-sso-logout.invalidate-on-return",
+      "diagram": "knox-sso-logout",
+      "category": "add_message",
+      "request": "In the 'User chooses Return to App' branch, Knox should invalidate the cookies before redirecting: add a Knox self-message 'Invalidate Cookies' just before 'Redirect to originalUrl'.",
+      "references": [[
+        { "find": "            Knox-->>User: Redirect to originalUrl\n", "replace": "            Knox->>Knox: Invalidate Cookies\n            Knox-->>User: Redirect to originalUrl\n" }
+      ]]
+    },
+    {
+      "id": "knox-sso-logout.rename-application",
+      "diagram": "knox-sso-logout",
+      "category": "rename_participant",
+      "request": "Rename the Application participant to 'Protected application'.",
+      "references": [[
+        { "find": "    participant App as Application\n", "replace": "    participant App as Protected application\n" }
+      ]]
+    },
+    {
+      "id": "superset-token-refresh.shorten-access-token",
+      "diagram": "superset-token-refresh",
+      "category": "change_message_text",
+      "request": "The access token now lasts 10 minutes, not 15. Update every place that says 15 min.",
+      "references": [[
+        { "find": "access_token (15 min)<br/>refresh_token (30 days)", "replace": "access_token (10 min)<br/>refresh_token (30 days)" },
+        { "find": "New access_token (15 min)", "replace": "New access_token (10 min)" }
+      ]]
+    },
+    {
+      "id": "dapr-workflow-fast-path.ack-commit-3",
+      "diagram": "dapr-workflow-fast-path",
+      "category": "add_message",
+      "request": "After the workflow actor commits history and clears the inbox (commit 3), add a dashed reply from the state store to the workflow actor saying 'ok'.",
+      "strictNew": ["messageKind"],
+      "references": [[
+        { "find": "    W->>S: commit history, clear inbox (commit 3)\n", "replace": "    W->>S: commit history, clear inbox (commit 3)\n    S-->>W: ok\n" }
+      ]]
+    },
+    {
+      "id": "dapr-workflow-fast-path.rename-state-store",
+      "diagram": "dapr-workflow-fast-path",
+      "category": "rename_participant",
+      "request": "Rename the 'State store' participant to 'Actor state store'.",
+      "references": [[
+        { "find": "    participant S as State store\n", "replace": "    participant S as Actor state store\n" }
+      ]]
+    },
+    {
+      "id": "temporal-nexus-dispatch.rename-matching",
+      "diagram": "temporal-nexus-dispatch",
+      "category": "rename_participant",
+      "request": "Show the Matching participant as 'Matching Service'. Keep the participants in the same left-to-right order.",
+      "note": "Matching is an undeclared bare participant; a display rename needs an alias declaration, and declaring it first alone would move it to the left.",
+      "references": [[
+        { "find": "sequenceDiagram\n", "replace": "sequenceDiagram\n    participant Client\n    participant Frontend\n    participant Matching as Matching Service\n" }
+      ]]
+    },
+    {
+      "id": "temporal-nexus-dispatch.record-latency",
+      "diagram": "temporal-nexus-dispatch",
+      "category": "add_message",
+      "request": "In the 'Respond to client' branch, right after the 'Unblock dispatch request' note, add a Matching self-message 'Record dispatch latency'.",
+      "references": [[
+        { "find": "        Note over Matching: Unblock dispatch request\n", "replace": "        Note over Matching: Unblock dispatch request\n        Matching ->> Matching: Record dispatch latency\n" }
+      ]]
+    },
+    {
+      "id": "surefire-fork-lifecycle.fail-fast-check",
+      "diagram": "surefire-fork-lifecycle",
+      "category": "add_message",
+      "request": "Inside the 'For each test event' loop, after the Mojo updates the console and writes XML reports, add a Mojo self-message 'Check fail-fast threshold'.",
+      "references": [[
+        { "find": "        Mojo->>Mojo: Update console + write XML reports\n", "replace": "        Mojo->>Mojo: Update console + write XML reports\n        Mojo->>Mojo: Check fail-fast threshold\n" }
+      ]]
+    },
+    {
+      "id": "surefire-fork-lifecycle.rename-forkclient",
+      "diagram": "surefire-fork-lifecycle",
+      "category": "rename_participant",
+      "request": "Show ForkClient as 'ForkClient<br/>(Maven JVM)', matching how the other participants mark their JVM.",
+      "references": [[
+        { "find": "    participant FC as ForkClient\n", "replace": "    participant FC as ForkClient<br/>(Maven JVM)\n" }
+      ]]
+    },
+    {
+      "id": "pulsar-txn-send.touch-last-activity",
+      "diagram": "pulsar-txn-send",
+      "category": "add_message",
+      "request": "In the OPEN branch, after the metadata store acks the op record and before the send-ack, the broker should update the transaction's activity time: add a message from the broker to the metadata store 'touch /txn/<txnId>.lastActivity'.",
+      "references": [[
+        { "find": "        M-->>B: ack\n", "replace": "        M-->>B: ack\n        B->>M: touch /txn/<txnId>.lastActivity\n" }
+      ]]
+    },
+    {
+      "id": "pulsar-txn-send.rename-conflict-reply",
+      "diagram": "pulsar-txn-send",
+      "category": "change_message_text",
+      "request": "Rename the TxnConflict reply to TxnNotOpen.",
+      "references": [[
+        { "find": "        B-->>C: TxnConflict\n", "replace": "        B-->>C: TxnNotOpen\n" }
+      ]]
+    },
+    {
+      "id": "temporal-scheduler-components.add-scheduler-field",
+      "diagram": "temporal-scheduler-components",
+      "category": "add_attribute",
+      "request": "Add a 'Last Completion Result' field to Scheduler, after Shared State.",
+      "references": [[
+        { "find": "        Shared State\n", "replace": "        Shared State\n        Last Completion Result\n" }
+      ]]
+    },
+    {
+      "id": "temporal-scheduler-components.add-visibility",
+      "diagram": "temporal-scheduler-components",
+      "category": "add_class_and_relation",
+      "request": "Add a Visibility component with a VisibilityTask() method, and show that the Scheduler uses it with the same kind of arrow as Generator and Invoker.",
+      "strictNew": ["relationKind"],
+      "references": [[
+        { "find": "        BackfillerTask()\n    }\n", "replace": "        BackfillerTask()\n    }\n    class Visibility {\n        VisibilityTask()\n    }\n" },
+        { "find": "    Scheduler --> Invoker\n", "replace": "    Scheduler --> Invoker\n    Scheduler --> Visibility\n" }
+      ]]
+    },
+    {
+      "id": "ray-file-indexers.add-sampling-indexer",
+      "diagram": "ray-file-indexers",
+      "category": "add_class_and_relation",
+      "request": "Add a SamplingFileIndexer subclass of FileIndexer, described as 'samples files to estimate sizes' the same way the other classes carry a one-line description.",
+      "strictNew": ["relationKind"],
+      "references": [[
+        { "find": "    class FilePartitioner {\n", "replace": "    class SamplingFileIndexer {\n        samples files to estimate sizes\n    }\n    class FilePartitioner {\n" },
+        { "find": "    FileIndexer <|-- NonSamplingFileIndexer\n", "replace": "    FileIndexer <|-- NonSamplingFileIndexer\n    FileIndexer <|-- SamplingFileIndexer\n" }
+      ]]
+    },
+    {
+      "id": "ray-file-indexers.relabel-sizes",
+      "diagram": "ray-file-indexers",
+      "category": "change_label",
+      "request": "Change the label on the RoundRobinPartitioner → InMemorySizeEstimator arrow to 'estimates row sizes with'.",
+      "references": [[
+        { "find": "RoundRobinPartitioner --> InMemorySizeEstimator : sizes rows with", "replace": "RoundRobinPartitioner --> InMemorySizeEstimator : estimates row sizes with" }
+      ]]
+    },
+    {
+      "id": "vscode-jupyter-controllers.add-relations",
+      "diagram": "vscode-jupyter-controllers",
+      "category": "add_relation",
+      "request": "Show that ControllerRegistration manages VSCodeNotebookController instances and that VSCodeNotebookController uses KernelConnector — arrows labelled 'manages' and 'uses'.",
+      "references": [[
+        { "find": "        +connectToKernel()\n    }\n", "replace": "        +connectToKernel()\n    }\n\n    ControllerRegistration --> VSCodeNotebookController : manages\n    VSCodeNotebookController --> KernelConnector : uses\n" }
+      ]]
+    },
+    {
+      "id": "scarb-sources.add-cached-source",
+      "diagram": "scarb-sources",
+      "category": "add_class_and_relation",
+      "request": "Add a CachedSource that also implements the Source trait, drawn like the other implementations.",
+      "strictNew": ["relationKind"],
+      "references": [[
+        { "find": "    class RegistrySource\n", "replace": "    class RegistrySource\n    class CachedSource\n" },
+        { "find": "    StandardLibSource ..|> Source\n", "replace": "    StandardLibSource ..|> Source\n    CachedSource ..|> Source\n" }
+      ]]
+    },
+    {
+      "id": "sk-vector-store-abstractions.add-qdrant",
+      "diagram": "sk-vector-store-abstractions",
+      "category": "add_class_in_group",
+      "request": "Add a QdrantMemory namespace containing a QdrantVectorRecordStore class that implements IVectorRecordStore, using the same inheritance arrow as the Azure and Redis record stores.",
+      "strictNew": ["namespace", "relationKind"],
+      "references": [[
+        { "find": "        class RedisVectorRecordStore{\n        }\n    }\n", "replace": "        class RedisVectorRecordStore{\n        }\n    }\n\n    namespace QdrantMemory{\n        class QdrantVectorRecordStore{\n        }\n    }\n" },
+        { "find": "    IVectorRecordStore <|-- RedisVectorRecordStore", "replace": "    IVectorRecordStore <|-- RedisVectorRecordStore\n    IVectorRecordStore <|-- QdrantVectorRecordStore" }
+      ]]
+    },
+    {
+      "id": "sk-vector-store-abstractions.edit-note",
+      "diagram": "sk-vector-store-abstractions",
+      "category": "change_label",
+      "request": "Change the note on IVectorRecordStore to 'Can manage records for any schema'.",
+      "references": [[
+        { "find": "note for IVectorRecordStore \"Can manage records for any scenario\"", "replace": "note for IVectorRecordStore \"Can manage records for any schema\"" }
+      ]]
+    },
+    {
+      "id": "otel-stability-levels.add-rc",
+      "diagram": "otel-stability-levels",
+      "category": "add_step_between",
+      "request": "Add a 'Release candidate' stage between Beta and Stable inside the stability levels.",
+      "strictNew": ["parent"],
+      "references": [[
+        { "find": "    Beta --> Stable\n", "replace": "    Beta --> RC\n    RC --> Stable\n" },
+        { "find": "    InDevelopment: In Development\n", "replace": "    InDevelopment: In Development\n    RC: Release candidate\n" }
+      ]]
+    },
+    {
+      "id": "otel-stability-levels.describe-beta",
+      "diagram": "otel-stability-levels",
+      "category": "change_label",
+      "request": "Show Beta as 'Beta (feature complete)'.",
+      "references": [[
+        { "find": "    InDevelopment: In Development\n", "replace": "    InDevelopment: In Development\n    Beta: Beta (feature complete)\n" }
+      ]]
+    },
+    {
+      "id": "spark-app-lifecycle.add-failed",
+      "diagram": "spark-app-lifecycle",
+      "category": "add_state",
+      "request": "Add a Failed state: RunningHealthy moves to it on 'driver failure', and from Failed the app goes to ResourceReleased (no label).",
+      "references": [[
+        { "find": "    RunningHealthy --> Suspended : spec.suspend=true or Kueue eviction\n", "replace": "    RunningHealthy --> Suspended : spec.suspend=true or Kueue eviction\n    RunningHealthy --> Failed : driver failure\n    Failed --> ResourceReleased\n" }
+      ]]
+    },
+    {
+      "id": "fluid-remote-message-processor.fix-procescore",
+      "diagram": "fluid-remote-message-processor",
+      "category": "rename_node",
+      "request": "Fix the typo in the last state: it should be ContainerRuntime.processCore, not ContainerRuntime.procesCore.",
+      "references": [[
+        { "find": "remoteMessageProcessor --> ContainerRuntime.procesCore", "replace": "remoteMessageProcessor --> ContainerRuntime.processCore" }
+      ]]
+    },
+    {
+      "id": "fluid-remote-message-processor.label-not-chunk",
+      "diagram": "fluid-remote-message-processor",
+      "category": "change_label",
+      "request": "Label the transition from if_chunk to if_compressed 'not a chunk'.",
+      "references": [[
+        { "find": "        if_chunk --> if_compressed\n", "replace": "        if_chunk --> if_compressed: not a chunk\n" }
+      ]]
+    },
+    {
+      "id": "directline-connection-status.drop-failed-to-connect",
+      "diagram": "directline-connection-status",
+      "category": "delete_and_reconnect",
+      "request": "Remove the FailedToConnect state. When retries are exhausted the connection goes straight to Ended, keeping the existing transition labels; drop the reconnect path.",
+      "references": [[
+        { "find": "   Online --> FailedToConnect: Disconnected while retries exhausted\n", "replace": "   Online --> Ended: Disconnected while retries exhausted\n" },
+        { "find": "   Connecting --> FailedToConnect: Retry failed and retries exhausted\n   FailedToConnect --> Ended: Call end()\n", "replace": "   Connecting --> Ended: Retry failed and retries exhausted\n" },
+        { "find": "   FailedToConnect --> Connecting: Call reconnect()", "replace": "" }
+      ]]
+    },
+    {
+      "id": "directline-connection-status.add-paused",
+      "diagram": "directline-connection-status",
+      "category": "add_state",
+      "request": "Add a Paused state: Online goes to Paused on 'Call pause()', and Paused returns to Online on 'Call resume()'.",
+      "references": [[
+        { "find": "   Online --> Ended: Call end()\n", "replace": "   Online --> Ended: Call end()\n   Online --> Paused: Call pause()\n   Paused --> Online: Call resume()\n" }
+      ]]
+    },
+    {
+      "id": "retrospectives-frontend-erd.board-action-items",
+      "diagram": "retrospectives-frontend-erd",
+      "category": "add_relation",
+      "request": "Each feedbackBoard has zero or more actionItems: add that relationship (exactly one board to zero-or-more action items, solid line) labelled 'has'.",
+      "note": "The relationship may be written from either side; the two references are the same relationship read in each direction.",
+      "references": [
+        [{ "find": "          feedbackBoardContainer ||..o{ actionItem : references\n", "replace": "          feedbackBoardContainer ||..o{ actionItem : references\n          feedbackBoard ||--o{ actionItem : has\n" }],
+        [{ "find": "          feedbackBoardContainer ||..o{ actionItem : references\n", "replace": "          feedbackBoardContainer ||..o{ actionItem : references\n          actionItem }o--|| feedbackBoard : has\n" }]
+      ]
+    },
+    {
+      "id": "directx-state-object-db.add-hash",
+      "diagram": "directx-state-object-db",
+      "category": "add_attribute",
+      "request": "Add a 'uint64 hash' attribute to the PSDB Entry.",
+      "references": [[
+        { "find": "        byte* isa\n", "replace": "        byte* isa\n        uint64 hash\n" }
+      ]]
+    },
+    {
+      "id": "directx-state-object-db.rename-compiler",
+      "diagram": "directx-state-object-db",
+      "category": "rename_node",
+      "request": "Rename 'IHV Compiler Plugin' to 'IHV Compiler'.",
+      "references": [[
+        { "find": "compiler[\"IHV Compiler Plugin\"]", "replace": "compiler[\"IHV Compiler\"]" }
+      ]]
+    },
+    {
+      "id": "bcpt-test-suites.fix-codeunit",
+      "diagram": "bcpt-test-suites",
+      "category": "rename_node",
+      "request": "Fix the typo 'Test codenit' — it should be 'Test codeunit'.",
+      "references": [[
+        { "find": "    \"Test suite\" ||--o{ \"Test codenit\" : includes\n    \"Test codenit\" ||--o{", "replace": "    \"Test suite\" ||--o{ \"Test codeunit\" : includes\n    \"Test codeunit\" ||--o{" }
+      ]]
+    },
+    {
+      "id": "bcpt-test-suites.run-duration",
+      "diagram": "bcpt-test-suites",
+      "category": "add_attribute",
+      "request": "Give 'Test suite run' an attribute: int duration_in_milliseconds.",
+      "references": [[
+        { "find": "    \"Test scenario result\" {\n", "replace": "    \"Test suite run\" {\n        int duration_in_milliseconds\n    }\n    \"Test scenario result\" {\n" }
+      ]]
+    },
+    {
+      "id": "airflow-dagrun-metrics.add-queued-duration",
+      "diagram": "airflow-dagrun-metrics",
+      "category": "add_task",
+      "request": "In the Metrics section, right after task_id.duration, add a metric 'task_id.queued_duration' that starts after Task N is scheduled and lasts 1h.",
+      "references": [[
+        { "find": "    task_id.duration                : after taskN_start, 1h\n", "replace": "    task_id.duration                : after taskN_start, 1h\n    task_id.queued_duration         : after taskN_sched, 1h\n" }
+      ]]
+    },
+    {
+      "id": "dapr-signature-certs.add-sig-4",
+      "diagram": "dapr-signature-certs",
+      "category": "add_task",
+      "request": "Add a fifth signature, 'Sig 4 - Cert B', from 8 to 10, at the end of Boot 2.",
+      "references": [[
+        { "find": "    Sig 3 - Cert B : 6, 8\n", "replace": "    Sig 3 - Cert B : 6, 8\n    Sig 4 - Cert B : 8, 10\n" }
+      ]]
+    },
+    {
+      "id": "ergo-canary-traffic.shift-weights",
+      "diagram": "ergo-canary-traffic",
+      "category": "change_value",
+      "request": "Shift the split to 75/25: Stable gets weight 75 and Canary weight 25, with the labels updated to match.",
+      "references": [[
+        { "find": "    \"Stable (weight 90)\" : 90\n    \"Canary (weight 10)\" : 10\n", "replace": "    \"Stable (weight 75)\" : 75\n    \"Canary (weight 25)\" : 25\n" }
+      ]]
+    },
+    {
+      "id": "sk-azureopenai-versions.add-aoai-ga",
+      "diagram": "sk-azureopenai-versions",
+      "category": "add_commit",
+      "request": "After 'AOAI 2.1-beta.1', add a commit 'AOAI 2.1 GA' on the AzureOpenAI branch, before Semantic Kernel merges AzureOpenAI for 1.23.",
+      "references": [[
+        { "find": "        commit id:\"AOAI 2.1-beta.1\"\n", "replace": "        commit id:\"AOAI 2.1-beta.1\"\n        commit id:\"AOAI 2.1 GA\"\n" }
+      ]]
+    }
+  ]
+}

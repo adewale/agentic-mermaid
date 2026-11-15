@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidSVG } from '../index.ts'
 import {
@@ -75,7 +76,7 @@ describe('diagramColorsToAsciiTheme returns complete theme', () => {
         // fg should match input fg
         expect(theme.fg).toBe(colors.fg)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -98,7 +99,7 @@ describe('getSeriesColor returns valid hex', () => {
           expect(color).toMatch(hexPattern)
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -150,7 +151,7 @@ describe('resolveArchitectureVisualConfig produces finite metrics', () => {
           expect(value).toBeLessThanOrEqual(1000)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -177,7 +178,7 @@ describe('svgOpenTag produces valid opening tag', () => {
         // Must not be self-closing (no />)
         expect(tag.endsWith('/>')).toBe(false)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -206,7 +207,7 @@ describe('buildStyleBlock contains all derived vars', () => {
         expect(style).toContain('<style>')
         expect(style).toContain('</style>')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -216,28 +217,9 @@ describe('buildStyleBlock contains all derived vars', () => {
 // ============================================================================
 
 describe('buildShadowDefs conditional behavior', () => {
-  it('returns empty string when shadow is false or undefined', () => {
-    fc.assert(
-      fc.property(diagramColorsArb, (colors) => {
-        const noShadow = { ...colors, shadow: false }
-        const undefinedShadow = { ...colors, shadow: undefined }
-
-        expect(buildShadowDefs(noShadow)).toBe('')
-        expect(buildShadowDefs(undefinedShadow)).toBe('')
-      }),
-      { numRuns: NUM_RUNS },
-    )
-  })
-
-  it('contains <filter when shadow is true', () => {
-    fc.assert(
-      fc.property(diagramColorsArb, (colors) => {
-        const withShadow = { ...colors, shadow: true }
-        const result = buildShadowDefs(withShadow)
-
-        expect(result).toContain('<filter')
-      }),
-      { numRuns: NUM_RUNS },
-    )
+  it.each([false, undefined, true])('emits a shadow filter exactly when shadow is %s', shadow => {
+    const result = buildShadowDefs({ bg: '#ffffff', fg: '#111111', shadow })
+    if (shadow) expect(result).toContain('<filter')
+    else expect(result).toBe('')
   })
 })

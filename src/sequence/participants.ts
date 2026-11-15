@@ -29,11 +29,12 @@ export type ParticipantEvent =
    * names the actor (`as …` or a metadata alias): only a naming declaration
    * changes an actor that already exists. `create` marks `create
    * participant …`, which never changes a known actor. */
-  | { kind: 'declare'; id: string; keyword: 'participant' | 'actor'; type: SequenceActorType; label?: string; create?: true }
+  | { kind: 'declare'; id: string; keyword: 'participant' | 'actor'; type: SequenceActorType; label?: string; wrap?: boolean; create?: true }
   /** Safe actor-menu links, merged into the actor's links. */
   | { kind: 'links'; id: string; links: Record<string, string> }
 
 export interface SequenceParticipantRecord {
+  wrap?: boolean
   id: string
   label: string
   type: SequenceActorType
@@ -127,6 +128,7 @@ export class SequenceParticipantFold {
     const record: SequenceParticipantRecord = {
       id,
       label: declaration?.label ?? id,
+      ...(declaration?.wrap === undefined ? {} : { wrap: declaration.wrap }),
       type: declaration?.type ?? 'participant',
       ...(declaration ? { keyword: declaration.keyword } : {}),
       ...(old?.links && !this.options.upstreamLinks ? { links: old.links } : {}),

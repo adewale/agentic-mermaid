@@ -6,6 +6,9 @@ import { assessLayout, onShapeOutline } from '../layout-rubric.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { equalizePeerNodeDimensions } from '../layout/passes/peers.ts'
+import { alignPortLaneCandidate } from '../layout/passes/port-lanes.ts'
 
 const C_FIVE_WAY_FAN_IN = `flowchart TD
   Web[Web App] --> Gateway
@@ -191,6 +194,44 @@ function equalSize(nodes: PositionedNode[]): void {
 }
 
 describe('layout symmetry floor', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('%s hub centering keeps a fixed straight feeder rather than creating a diagonal', direction => {
+    const project = ({x,y}:Point):Point => direction==='TD'?{x,y}:direction==='BT'?{x,y:300-y}:direction==='LR'?{x:y,y:x}:{x:300-y,y:x}
+    const box = (id:string,x:number,y:number,width:number,height:number,shape:PositionedNode['shape']='rectangle'):PositionedNode => {
+      const a=project({x,y}),b=project({x:x+width,y:y+height})
+      return {id,label:id,shape,x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}
+    }
+    const originalNodes=[box('A',0,0,40,30),box('B',100,0,40,30),box('C',204,0,40,30),box('H',110,120,20,20,'circle'),box('D',100,200,40,30)]
+    const edge=(source:string,target:string,points:number[][]):PositionedEdge=>({source,target,style:'solid',hasArrowStart:false,hasArrowEnd:true,points:points.map(([x,y])=>project({x:x!,y:y!}))})
+    const originalEdges=[edge('A','H',[[20,30],[20,80],[113,80],[113,120]]),edge('B','H',[[120,30],[120,120]]),edge('C','H',[[224,30],[224,80],[127,80],[127,120]]),edge('H','D',[[120,140],[120,200]])]
+    for(const mode of ['valid','served-ulp','off-center','allocated','diagonal'] as const){
+      const nodes=structuredClone(originalNodes),edges=structuredClone(originalEdges)
+      if(mode==='diagonal')edges[1]!.points[1]=project({x:119,y:120})
+      if(mode==='served-ulp')edges[1]!.points[0]=project({x:120.00000000000001,y:30})
+      if(mode==='off-center'){
+        nodes.find(n=>n.id==='H')!.shape='rectangle'
+        edges[1]!.points=[project({x:119.5,y:30}),project({x:119.5,y:120})]
+      }
+      if(mode==='allocated'){
+        nodes[1]=box('B',102,0,40,30)
+        nodes.find(n=>n.id==='H')!.shape='rectangle'
+        // The fixed S/N/E/W face is valid at x120 but its midpoint is x122.
+        // This existing side allocation cannot be replaced by default ports.
+        edges[1]!.routeCertificate={edgeIndex:1,routeClass:'primary-forward',bendCount:0,invariant:'straight',sourcePortAssignment:{side:direction==='TD'?'S':direction==='BT'?'N':direction==='LR'?'E':'W',slotIndex:0,slotCount:1,role:'flow-source'}}
+        // A separate fixed backward lane prevents a different source slide
+        // from obscuring the hub-allocation obligation under test.
+        nodes.push(box('E',102,-70,40,30));edges.push(edge('B','E',[[122,0],[122,-40]]))
+        expect(onShapeOutline(nodes[1]!,edges[1]!.points[0]!)).toBe(true)
+      }
+      const beforeNodes=structuredClone(nodes),beforeEdges=structuredClone(edges)
+      alignPortLaneCandidate(nodes,edges,[],direction,resolveRenderStyle())
+      // Already-diagonal input retains the established repair path.
+      if(mode==='diagonal')expect(nodes.find(n=>n.id==='H')).not.toEqual(beforeNodes.find(n=>n.id==='H'))
+      else{
+        expect(nodes,mode).toEqual(beforeNodes);expect(edges,mode).toEqual(beforeEdges)
+        if(mode!=='served-ulp')for(const e of edges)for(let i=1;i<e.points.length;i++)expect(e.points[i-1]!.x===e.points[i]!.x||e.points[i-1]!.y===e.points[i]!.y).toBe(true)
+      }
+    }
+  })
   for (const count of PEER_COUNTS) {
     test(`${count}-way rectangle fan-out centers the hub over its peer barycenter`, () => {
       const g = layout(peerFanOut(count))
@@ -276,17 +317,99 @@ describe('layout symmetry floor', () => {
     close(cx(f) - cx(node(g, 'G')), cx(node(g, 'H')) - cx(f))
   })
 
-  test('equivalent parallel labels route on symmetric outer lanes, not neighboring center lines', () => {
+  test.each([1, 4])('peer widening preserves the painted label and marker corridor at line width %s', lineWidth => {
+    const source = `flowchart RL
+S0["a longer label goes here"] --> H["hub"]
+U0_0["ok"] --> S0
+U0_1["same word ok"] --> U0_0
+U0_2["a longer label goes here"] -->|a longer label goes here| U0_1
+S1["x"] --> H
+S2["errors"] --> H
+U2_0["a longer label goes here"] -->|ok| S2
+U2_1["x"] -->|same word ok| U2_0
+H --> T["t"]`
+    const options = { styleFace: { edge: { lineWidth } } }
+    const style = resolveRenderStyle(options)
+    expect(style.lineWidth).toBe(lineWidth)
+    const positioned = layoutGraphSync(parseMermaid(source), options)
+    const route = edge(positioned, 'U2_0', 'S2')
+    const text = route.labelBlock!
+    const padding = 8 + Math.max(4, lineWidth * 2)
+    const label = {
+      x0: route.labelPosition!.x - text.width / 2 - padding,
+      x1: route.labelPosition!.x + text.width / 2 + padding,
+      y0: route.labelPosition!.y - text.height / 2 - padding,
+      y1: route.labelPosition!.y + text.height / 2 + padding,
+    }
+    const overlap = (a: typeof label, b: typeof label): boolean =>
+      Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0)
+    for (const endpoint of [node(positioned, route.source), node(positioned, route.target)]) {
+      expect(overlap(label, { x0: endpoint.x, x1: endpoint.x + endpoint.width, y0: endpoint.y, y1: endpoint.y + endpoint.height })).toBe(false)
+    }
+    const from = node(positioned, route.source)
+    for (const marker of graphEdgeMarkerPaintRegions(route, style)) {
+      expect(marker.bounds).toBeDefined()
+      expect(overlap(label, marker.bounds!)).toBe(false)
+      expect(overlap(marker.bounds!, { x0: from.x, x1: from.x + from.width, y0: from.y, y1: from.y + from.height })).toBe(false)
+    }
+  })
+
+  test.each([
+    { sourceX: 105, labelX: undefined, accept: false },
+    { sourceX: 110, labelX: 85, accept: false },
+    { sourceX: 150, labelX: 128, accept: true },
+    { sourceX: 150, labelX: undefined, packOnly: true, accept: false },
+  ])('peer resize and packing preserve existing paint or restore the entire proposal: %j', ({ sourceX, labelX, packOnly, accept }) => {
+    const graph = parseMermaid(`flowchart RL\nWide --> Hub\nNarrow --> Hub\nUpstream --> Narrow${packOnly ? '\nPadding\nLeft --> Right' : ''}`)
+    const nodes: PositionedNode[] = [
+      { id: 'Wide', label: 'Wide', shape: 'rectangle', x: 0, y: 0, width: 100, height: 36 },
+      { id: 'Narrow', label: 'Narrow', shape: 'rectangle', x: 0, y: 70, width: 60, height: 36 },
+      { id: 'Hub', label: 'Hub', shape: 'rectangle', x: -100, y: 35, width: 60, height: 36 },
+      { id: 'Upstream', label: 'Upstream', shape: 'rectangle', x: sourceX, y: 70, width: 60, height: 36 },
+    ]
+    const edges: PositionedEdge[] = [
+      { ...graph.edges[0]!, points: [{ x: 0, y: 18 }, { x: -40, y: 18 }] },
+      { ...graph.edges[1]!, points: [{ x: 0, y: 88 }, { x: -40, y: 88 }] },
+      { ...graph.edges[2]!, points: [{ x: sourceX, y: 88 }, { x: 60, y: 88 }], ...(labelX === undefined ? {} : { label: 'ok', labelPosition: { x: labelX, y: 88 } }) },
+    ]
+    if (packOnly) {
+      // The resize alone clears this unrelated label. The subsequent pack
+      // pushes Narrow down over it, so the whole proposal must roll back.
+      nodes.push(
+        { id: 'Padding', label: 'Padding', shape: 'rectangle', x: 0, y: 55, width: 60, height: 36 },
+        { id: 'Left', label: 'Left', shape: 'rectangle', x: 110, y: 122, width: 60, height: 36 },
+        { id: 'Right', label: 'Right', shape: 'rectangle', x: -100, y: 122, width: 60, height: 36 },
+      )
+      edges.push({ ...graph.edges[3]!, points: [{ x: 110, y: 140 }, { x: -40, y: 140 }], label: 'ok', labelPosition: { x: 85, y: 140 } })
+    }
+    const before = structuredClone(nodes)
+    const edgeBefore = structuredClone(edges)
+    equalizePeerNodeDimensions(nodes, edges, [], graph, resolveRenderStyle({}))
+    if (accept) {
+      expect(nodes.find(n => n.id === 'Narrow')!.width).toBe(100)
+      expect(nodes.find(n => n.id === 'Narrow')!.y).toBe(60)
+    } else expect(nodes).toEqual(before)
+    expect(edges).toEqual(edgeBefore)
+  })
+
+  test('dense parallel labels preserve authored routes without buying outer symmetry with crossings', () => {
     const g = layout(N_DENSE_LABELS)
     const z = node(g, 'Z')
     const a = node(g, 'A')
     const left = edge(g, 'Z', 'A', 'long 1')
     const right = edge(g, 'Z', 'A', 'long 2')
-    const minX = Math.min(z.x, a.x)
-    const maxX = Math.max(z.x + z.width, a.x + a.width)
-    expect(left.labelPosition!.x).toBeLessThan(minX)
-    expect(right.labelPosition!.x).toBeGreaterThan(maxX)
-    close(left.labelPosition!.y, right.labelPosition!.y)
+    expect(g.edges).toHaveLength(16)
+    expect([left.label, right.label]).toEqual(['long 1', 'long 2'])
+    expect(left.points).not.toEqual(right.points)
+    expect(onShapeOutline(z, left.points[0]!)).toBe(true)
+    expect(onShapeOutline(a, left.points.at(-1)!)).toBe(true)
+    expect(onShapeOutline(z, right.points[0]!)).toBe(true)
+    expect(onShapeOutline(a, right.points.at(-1)!)).toBe(true)
+    // The symmetric outer proposal raises this fixture's crossings from2 to3.
+    // Keeping distinct inner lanes lets the final router reduce that count to1.
+    const { metrics } = assessLayout(parseMermaid(N_DENSE_LABELS), g)
+    expect(metrics.edgeCrossings).toBeLessThanOrEqual(1)
+    expect(metrics.labelOffRoute).toBe(0)
     expect(new Set([left, right].map(e => pkey(e.points[0]!))).size).toBe(2)
   })
 })

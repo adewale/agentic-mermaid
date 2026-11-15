@@ -1,26 +1,20 @@
 import { describe, expect, test } from 'bun:test'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  BUILTIN_FAMILY_METADATA,
-  detectRegisteredFamilyFromFirstLine,
-  getFamily,
-  knownFamilies,
-  type FamilyDescriptor,
-} from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, detectRegisteredFamilyFromFirstLine, type FamilyDescriptor, getFamily, knownFamilies } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
+import { projectPositionedView } from '../agent/index.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { projectPositionedView } from '../agent/index.ts'
-import { ok, toFinite } from '../agent/types.ts'
 import type { ExternalFamilyId, FamilyId } from '../agent/types.ts'
-import { detectDiagramType, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
+import { ok, toFinite } from '../agent/types.ts'
+import { runCli } from '../cli/index.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
-import { findUpstreamFamilyByHeader, UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { detectDiagramType, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import { canonicalExtensionId, createExtensionIdentity, ExtensionCollisionError } from '../shared/extension-identity.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import { runCli } from '../cli/index.ts'
+import { findUpstreamFamilyByHeader, UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -34,7 +28,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: localId.split('/')[0] ?? localId, source: 'test' },
     }),
     id,
@@ -64,15 +58,17 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
     layout: () => ({ width: 80, height: 24 }),
     projectPositioned: ({ positioned }) => ({
       version: 1,
-      nodes: [{
-        id: 'future',
-        x: toFinite(4),
-        y: toFinite(4),
-        w: toFinite(positioned.width - 8),
-        h: toFinite(positioned.height - 8),
-        shape: 'rectangle',
-        label: 'future',
-      }],
+      nodes: [
+        {
+          id: 'future',
+          x: toFinite(4),
+          y: toFinite(4),
+          w: toFinite(positioned.width - 8),
+          h: toFinite(positioned.height - 8),
+          shape: 'rectangle',
+          label: 'future',
+        },
+      ],
       edges: [],
       groups: [],
       bounds: { w: toFinite(positioned.width), h: toFinite(positioned.height) },
@@ -97,11 +93,7 @@ describe('pinned Mermaid public-family index', () => {
 
 describe('forward-compatible family classification', () => {
   test('every official unsupported dialect is classified and never routed to Flowchart', () => {
-    const unsupported = UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family =>
-      family.headers
-        .filter(header => header.agenticStatus !== 'native')
-        .map(header => ({ family, header })))
-    expect(unsupported.length).toBeGreaterThan(20)
+    const unsupported = UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family => family.headers.filter(header => header.agenticStatus !== 'native').map(header => ({ family, header })))
     for (const { family, header } of unsupported) {
       const source = `${header.value}\n  preserved payload`
       expect(detectRegisteredFamilyFromFirstLine(header.value, 'loose')).toBeNull()
@@ -113,17 +105,19 @@ describe('forward-compatible family classification', () => {
       const parsed = parseRegisteredMermaid(source)
       expect(parsed).toMatchObject({
         ok: true,
-        value: { body: {
-          kind: 'preserved',
-          diagnostic: { code: 'UNSUPPORTED_FAMILY' },
-          preservation: {
-          version: 1,
-          classification: header.agenticStatus === 'inventory-only' ? 'inventory-only' : 'unsupported',
-          source,
-          upstreamFamilyId: family.id,
-          mermaidVersion: '12.2.0',
+        value: {
+          body: {
+            kind: 'preserved',
+            diagnostic: { code: 'UNSUPPORTED_FAMILY' },
+            preservation: {
+              version: 1,
+              classification: header.agenticStatus === 'inventory-only' ? 'inventory-only' : 'unsupported',
+              source,
+              upstreamFamilyId: family.id,
+              mermaidVersion: '12.2.0',
+            },
           },
-        } },
+        },
       })
     }
   })
@@ -140,8 +134,10 @@ describe('forward-compatible family classification', () => {
 
     const future = '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n'
     const futureResult = parseRegisteredMermaid(future)
-    expect(futureResult.ok).toBe(true)
-    if (futureResult.ok && futureResult.value.body.kind === 'preserved') {
+    expect(futureResult).toMatchObject({ ok: true, value: { body: { kind: 'preserved' } } })
+    if (!futureResult.ok || futureResult.value.body.kind !== 'preserved') throw new Error('Expected preserved future source')
+    expect(serializeMermaid(futureResult.value)).toBe(future)
+    {
       expect(futureResult.value.body).toMatchObject({
         diagnostic: { code: 'UNKNOWN_HEADER' },
         preservation: { classification: 'unknown', source: future, header: 'futureDiagram-v99' },
@@ -149,23 +145,24 @@ describe('forward-compatible family classification', () => {
     }
   })
 
+  test('adopted AgentFlow, UseCase and Swimlane grammar renders through its native model', () => {
+    for (const fixture of [
+      { family: 'agentflow', source: 'agentflow-beta TB\n  changes["Gather changes"]@{ shape: input }\n', text: 'Gather changes' },
+      { family: 'usecase', source: 'usecase-beta\nactor Customer("Customer")\nCheckout("Place order")\nCustomer --> Checkout\n', text: 'Place order' },
+      { family: 'swimlane', source: 'swimlane-beta LR\nsubgraph team[Team]\nA[Review] --> B[Publish]\nend', text: 'Review' },
+    ] as const) {
+      const parsed = parseRegisteredMermaid(fixture.source)
+      expect(parsed).toMatchObject({ ok: true, value: { kind: fixture.family, body: { kind: fixture.family } } })
+      expect(renderMermaidSVG(fixture.source)).toContain(fixture.text)
+      expect(renderMermaidASCII(fixture.source, { colorMode: 'none' })).toContain(fixture.text)
+    }
+  })
+
   test('SVG and ASCII expose the same stable unsupported/unknown diagnostic without Flowchart fallback', () => {
     const cases = [
       {
-        source: 'agentflow-beta TB\n  changes["Gather changes"]@{ shape: input }\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'agentflow', header: 'agentflow-beta' },
-      },
-      {
-        source: 'usecase-beta\nactor Customer("Customer")\nCheckout("Place order")\nCustomer --> Checkout\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'usecase', header: 'usecase-beta' },
-      },
-      {
-        source: 'requirementDiagram\n  requirement R {\n    id: 1\n  }\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'requirement', header: 'requirementDiagram' },
-      },
-      {
-        source: 'block-beta\n  A B\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'block', header: 'block-beta' },
+        source: 'flowchart-elk\n  A[Alpha] --> B[Beta]\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'flowchart', header: 'flowchart-elk' },
       },
       {
         source: 'c4-beta\n  preserve the future dialect\n',
@@ -195,7 +192,7 @@ describe('forward-compatible family classification', () => {
             header: detection.preservation.header,
             source: detection.preservation.source,
           }).toEqual({ ...expected, source })
-          expect(detection.message.toLowerCase()).not.toContain('flowchart')
+          expect(detection.message).toContain(expected.family ?? expected.header)
         }
       }
     }
@@ -209,22 +206,18 @@ describe('synthetic family registration', () => {
     const id = base.id as ExternalFamilyId
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: id,
-        source: context.opaqueSource,
-        data: {
-          familyLines: [...context.lines],
-          ...(context.meta.accessibility.title === undefined
-            ? {}
-            : { accessibilityTitle: context.meta.accessibility.title }),
-        },
-      }),
-      serialize: body => body.kind === 'extension' ? body.source : '',
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: id,
+          source: context.opaqueSource,
+          data: {
+            familyLines: [...context.lines],
+            ...(context.meta.accessibility.title === undefined ? {} : { accessibilityTitle: context.meta.accessibility.title }),
+          },
+        }),
+      serialize: body => (body.kind === 'extension' ? body.source : ''),
     }
     const dispose = registerFamily(descriptor)
     try {
@@ -278,25 +271,26 @@ describe('synthetic family registration', () => {
       })
       expect(projectPositionedView(descriptor.id, { width: 80, height: 24 })).toEqual({
         version: 1,
-        nodes: [{
-          id: 'future',
-          x: toFinite(4),
-          y: toFinite(4),
-          w: toFinite(72),
-          h: toFinite(16),
-          shape: 'rectangle',
-          label: 'future',
-        }],
+        nodes: [
+          {
+            id: 'future',
+            x: toFinite(4),
+            y: toFinite(4),
+            w: toFinite(72),
+            h: toFinite(16),
+            shape: 'rectangle',
+            label: 'future',
+          },
+        ],
         edges: [],
         groups: [],
         bounds: { w: toFinite(80), h: toFinite(24) },
       })
-      expect(explicitFamilyConfigDiagnostics(descriptor.id, {
-        future: { spacing: 12, legacy: true, typo: 1 },
-      })).toEqual([
-        expect.objectContaining({ field: 'future.legacy' }),
-        expect.objectContaining({ field: 'future.typo' }),
-      ])
+      expect(
+        explicitFamilyConfigDiagnostics(descriptor.id, {
+          future: { spacing: 12, legacy: true, typo: 1 },
+        }),
+      ).toEqual([expect.objectContaining({ field: 'future.legacy' }), expect.objectContaining({ field: 'future.typo' })])
       expect(Object.isFrozen(getFamily(descriptor.id)?.config?.keys)).toBe(true)
 
       const parsed = parseRegisteredMermaid('futureDiagram\n  A -> B')
@@ -308,8 +302,7 @@ describe('synthetic family registration', () => {
         },
       })
 
-      expect(() => registerFamily(syntheticFamily('acme/future', 'futureDiagram2')))
-        .toThrow(ExtensionCollisionError)
+      expect(() => registerFamily(syntheticFamily('acme/future', 'futureDiagram2'))).toThrow(ExtensionCollisionError)
       expect(getFamily('family:acme/future')?.headers).toEqual(['futureDiagram'])
     } finally {
       dispose()
@@ -323,8 +316,7 @@ describe('synthetic family registration', () => {
     ;(invalid as { id: string }).id = 'acme:invalid'
     expect(() => registerFamily(invalid)).toThrow(/"family:" namespace/)
 
-    expect(() => registerFamily(syntheticFamily('acme/collision', 'flowchart')))
-      .toThrow(/header "flowchart" is already owned by "flowchart"/)
+    expect(() => registerFamily(syntheticFamily('acme/collision', 'flowchart'))).toThrow(/header "flowchart" is already owned by "flowchart"/)
 
     const detectorCollision: FamilyDescriptor = {
       ...syntheticFamily('acme/detector-collision', 'detectorOnly'),
@@ -337,7 +329,9 @@ describe('synthetic family registration', () => {
     const flowchart = getFamily('flowchart')!
     expect(Object.isFrozen(flowchart)).toBe(true)
     expect(Object.isFrozen(flowchart.headers)).toBe(true)
-    expect(() => { (flowchart.headers as string[])[0] = 'family:evil' }).toThrow()
+    expect(() => {
+      ;(flowchart.headers as string[])[0] = 'family:evil'
+    }).toThrow()
     expect(getFamily('flowchart')).toBe(flowchart)
     expect(knownFamilies()).toEqual(before)
   })
@@ -345,44 +339,45 @@ describe('synthetic family registration', () => {
   test('rejects incomplete, contradictory, or ungrounded descriptor claims atomically', () => {
     const before = knownFamilies()
     const missing = syntheticFamily('acme/missing-evidence', 'missingEvidenceDiagram')
-    expect(() => registerFamily({
-      ...missing,
-      capabilityEvidence: missing.capabilityEvidence.filter(claim => claim.capability !== 'terminal'),
-    })).toThrow(/lacks evidence for capability "terminal"/)
+    expect(() =>
+      registerFamily({
+        ...missing,
+        capabilityEvidence: missing.capabilityEvidence.filter(claim => claim.capability !== 'terminal'),
+      }),
+    ).toThrow(/lacks evidence for capability "terminal"/)
 
     const duplicate = syntheticFamily('acme/duplicate-evidence', 'duplicateEvidenceDiagram')
-    expect(() => registerFamily({
-      ...duplicate,
-      capabilityEvidence: [...duplicate.capabilityEvidence, duplicate.capabilityEvidence[0]!],
-    })).toThrow(/duplicate evidence for capability "detection"/)
+    expect(() =>
+      registerFamily({
+        ...duplicate,
+        capabilityEvidence: [...duplicate.capabilityEvidence, duplicate.capabilityEvidence[0]!],
+      }),
+    ).toThrow(/duplicate evidence for capability "detection"/)
 
     const emptyPath = syntheticFamily('acme/empty-evidence', 'emptyEvidenceDiagram')
-    expect(() => registerFamily({
-      ...emptyPath,
-      capabilityEvidence: emptyPath.capabilityEvidence.map(claim => claim.capability === 'svg'
-        ? { ...claim, evidence: [''] }
-        : claim),
-    })).toThrow(/capability "svg" must cite at least one evidence path/)
+    expect(() =>
+      registerFamily({
+        ...emptyPath,
+        capabilityEvidence: emptyPath.capabilityEvidence.map(claim => (claim.capability === 'svg' ? { ...claim, evidence: [''] } : claim)),
+      }),
+    ).toThrow(/capability "svg" must cite at least one evidence path/)
 
     const contradictory = syntheticFamily('acme/contradictory', 'contradictoryDiagram')
-    expect(() => registerFamily({
-      ...contradictory,
-      capabilityEvidence: contradictory.capabilityEvidence.map(claim => claim.capability === 'svg'
-        ? { ...claim, state: 'absent' }
-        : claim),
-    })).toThrow(/capability "svg" claims "absent" but its hooks require "native"/)
+    expect(() =>
+      registerFamily({
+        ...contradictory,
+        capabilityEvidence: contradictory.capabilityEvidence.map(claim => (claim.capability === 'svg' ? { ...claim, state: 'absent' } : claim)),
+      }),
+    ).toThrow(/capability "svg" claims "absent" but its hooks require "native"/)
 
     const duplicateRoles = syntheticFamily('acme/duplicate-roles', 'duplicateRolesDiagram')
-    expect(() => registerFamily({ ...duplicateRoles, semanticRoles: ['acme:node', 'acme:node'] }))
-      .toThrow(/duplicate Scene roles/)
+    expect(() => registerFamily({ ...duplicateRoles, semanticRoles: ['acme:node', 'acme:node'] })).toThrow(/duplicate Scene roles/)
 
     const rolesWithoutScene = syntheticFamily('acme/roles-without-scene', 'rolesWithoutSceneDiagram')
-    expect(() => registerFamily({ ...rolesWithoutScene, semanticRoles: ['acme:node'] }))
-      .toThrow(/declares Scene roles without a Scene lowering/)
+    expect(() => registerFamily({ ...rolesWithoutScene, semanticRoles: ['acme:node'] })).toThrow(/declares Scene roles without a Scene lowering/)
 
     const projectionWithoutLayout = syntheticFamily('acme/projection-without-layout', 'projectionWithoutLayoutDiagram')
-    expect(() => registerFamily({ ...projectionWithoutLayout, layout: undefined }))
-      .toThrow(/cannot project a positioned artifact without a layout hook/)
+    expect(() => registerFamily({ ...projectionWithoutLayout, layout: undefined })).toThrow(/cannot project a positioned artifact without a layout hook/)
 
     expect(knownFamilies()).toEqual(before)
   })

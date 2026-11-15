@@ -1,3 +1,7 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations } from '../eventmodeling/parser.ts'
+import { stableFamilyFacts } from './stable-family-source-hooks.ts'
+
 // ============================================================================
 // Mermaid semantic facts/checks.
 //
@@ -7,11 +11,18 @@
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
+import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
+import { readClassMemberClassifiers } from '../class/parser.ts'
+import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageContexts } from './sequence-body.ts'
-import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import { sequenceBranchItems, sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
+import { readSequenceStatements } from '../sequence/parser.ts'
+import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
+import { journeyActorKey } from '../journey/parse-core.ts'
+import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceCreateStatement, SequenceDestroyStatement, SequenceMessage, SequenceNoteStatement, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -52,7 +63,15 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
   if (d.meta.accessibility.descr) add(out, `accessibility descr ${clean(d.meta.accessibility.descr)}`)
 
   switch (d.body.kind) {
+    case 'agentflow':
+    case 'swimlane':
     case 'flowchart': {
+      if (d.body.kind === 'agentflow') {
+        for (const [id, value] of d.body.metadata) add(out, `metadata ${clean(id)} ${clean(JSON.stringify(value))}`)
+        for (const [id, role] of d.body.roles) add(out, `role ${clean(id)} ${role}`)
+        for (const id of d.body.connectors) add(out, `connector ${clean(id)}`)
+        for (const id of d.body.globals) add(out, `global ${clean(id)}`)
+      }
       const g = d.body.graph
       add(out, `direction ${g.direction}`)
       for (const n of g.nodes.values()) {
@@ -70,13 +89,61 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       }
       visitGroups(g.subgraphs)
       g.edges.forEach((e, i) => {
-        const base = `edge ${clean(e.source)} -> ${clean(e.target)}`
+        const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+        const base = `edge ${clean(e.source)} ${arrow} ${clean(e.target)}`
         add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-        add(out, `edge#${i} ${clean(e.source)} -> ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
+        add(out, `edge#${i} ${clean(e.source)} ${arrow} ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
         if (e.style !== 'solid') add(out, `${base} style ${e.style}`)
       })
       break
     }
+    case 'usecase':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      add(out, `direction ${d.body.direction}`)
+      for (const node of d.body.nodes) add(out, `${node.kind} ${clean(node.id)} ${clean(JSON.stringify(node))}`)
+      for (const boundary of d.body.boundaries) add(out, `boundary ${clean(boundary.id)} ${clean(JSON.stringify(boundary))}`)
+      for (const relation of d.body.relationships) add(out, `relation ${clean(JSON.stringify(relation))}`)
+      for (const node of d.body.jsonNodes) add(out, `json ${clean(JSON.stringify(node))}`)
+      for (const note of d.body.notes) add(out, `note ${clean(JSON.stringify(note))}`)
+      for (const style of d.body.classDefs) add(out, `class ${clean(JSON.stringify(style))}`)
+      break
+    case 'wardley':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      for (const node of d.body.nodes) add(out, `component ${clean(node.id)} visibility ${node.y} evolution ${node.x} ${clean(JSON.stringify(node))}`)
+      d.body.links.forEach((link,index) => add(out, `dependency#${index} ${clean(JSON.stringify(link))}`))
+      d.body.trends.forEach(trend => add(out, `evolution ${clean(JSON.stringify(trend))}`))
+      d.body.pipelines.forEach(pipeline => add(out, `pipeline ${clean(JSON.stringify(pipeline))}`))
+      for (const [kind, records] of [['note',d.body.notes],['annotation',d.body.annotations],['accelerator',d.body.accelerators],['deaccelerator',d.body.deaccelerators]] as const) records.forEach((value,index) => add(out, `${kind}#${index} ${clean(JSON.stringify(value))}`))
+      add(out, `axes ${clean(JSON.stringify(d.body.axes))}`)
+      if (d.body.size) add(out, `size ${clean(JSON.stringify(d.body.size))}`)
+      if (d.body.annotationsBox) add(out, `annotationsBox ${clean(JSON.stringify(d.body.annotationsBox))}`)
+      break
+    case 'venn':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      for (const subset of d.body.subsets) add(out, `region ${clean(JSON.stringify(subset.sets))} size ${subset.size}${subset.label === undefined ? '' : ` : ${clean(subset.label)}`}`)
+      for (const node of d.body.textNodes) add(out, `text ${clean(node.id)} in ${clean(JSON.stringify(node.sets))} : ${clean(node.label ?? node.id)}`)
+      for (const style of d.body.styles) add(out, `style ${clean(JSON.stringify(style))}`)
+      break
+    case 'cynefin':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      d.body.domains.forEach(domain => domain.items.forEach((item,index) => add(out, `domain ${domain.name} item#${index} : ${clean(item.label)}`)))
+      d.body.transitions.forEach((transition,index) => add(out, `transition#${index} ${transition.from} -> ${transition.to}${transition.label === undefined ? '' : ` : ${clean(transition.label)}`}`))
+      break
+    case 'railroad':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      add(out, `notation ${d.body.notation}`)
+      d.body.rules.forEach((rule, index) => add(out, `rule#${index} ${clean(rule.name)} ${clean(JSON.stringify(rule.definition))}`))
+      break
+    case 'treeview':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      d.body.nodes.forEach((node, index) => {
+        add(out, `node#${index} ${clean(node.id)} ${node.nodeType} : ${clean(node.label)}`)
+        if (node.parentId) add(out, `node ${clean(node.id)} parent ${clean(node.parentId)}`)
+        if (node.description !== undefined) add(out, `node ${clean(node.id)} description ${clean(node.description)}`)
+        if (node.icon !== undefined) add(out, `node ${clean(node.id)} icon ${clean(node.icon)}`)
+        if (node.className !== undefined) add(out, `node ${clean(node.id)} class ${clean(node.className)}`)
+      })
+      break
     case 'state':
       factsState(out, d.body)
       break
@@ -126,7 +193,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     case 'c4': {
       const body = d.body
       // Alias whitespace is identity, even when display whitespace is folded.
-      const identity = (value: string): string => /^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value)
+      const identity = (value: string): string => (/^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value))
       add(out, `variant ${body.variant}`)
       if (body.title !== undefined) add(out, `title ${clean(body.title)}`)
       for (const boundary of body.boundaries) {
@@ -162,6 +229,60 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'zenuml': {
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      const model = projectZenUMLSequence(d.body, {
+        message: ({ message, kind, callAncestors, scopes }) => {
+          add(out, `message#${clean(message.id!)} kind ${kind}`)
+          if (callAncestors.length) add(out, `message#${clean(message.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `message#${clean(message.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        note: ({ note, callAncestors, scopes }) => {
+          add(out, `note#${clean(note.id!)} ${note.position} ${note.actorIds.map(id => JSON.stringify(id)).join(',')} after-index ${note.afterIndex} : ${clean(displayText(resolveLabelContent(note.text, note.textContent)))}`)
+          if (callAncestors.length) add(out, `note#${clean(note.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `note#${clean(note.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        fragment: ({ fragment, branches, callAncestors, scopes }) => {
+          add(out, `fragment#${clean(fragment.id)} kind ${fragment.type}`)
+          if (callAncestors.length) add(out, `fragment#${clean(fragment.id)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          const parent = scopes.at(-1)
+          if (parent) add(out, `fragment#${clean(fragment.id)} parent ${clean(parent.fragmentId)} branch#${parent.branchIndex}`)
+          branches.forEach((branch, index) => {
+            const condition = index === 0 ? fragment.condition : branch.condition
+            add(out, `fragment#${clean(fragment.id)} branch#${index} ${branch.kind}${condition === undefined ? '' : ` : ${clean(condition)}`}`)
+          })
+        },
+      })
+      for (const actor of model.actors) if (!actor.external) {
+        add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+        add(out, `participant ${clean(actor.id)} type ${actor.type}`)
+      }
+      for (const actor of model.actors) if (actor.external) add(out, `external-endpoint ${clean(actor.id)}`)
+      for (const message of model.messages) {
+        add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
+        add(out, `message#${clean(message.id!)} ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}${message.lineStyle === 'dashed' ? ' reply' : ''}`)
+        if (message.parentId) add(out, `message#${clean(message.id!)} parent ${clean(message.parentId)}`)
+      }
+      for (const block of model.blocks) add(out, `fragment ${clean(block.id!)} ${block.type} : ${clean(block.label)}`)
+      break
+    }
+    case 'eventmodeling':
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.entities.forEach(entity => add(out, `entity ${JSON.stringify(entity)}`))
+      d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
+      eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
+      Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
+      d.body.notes.forEach(note => add(out, `note ${JSON.stringify(note)}`))
+      d.body.specifications.forEach(spec => add(out, `specification ${JSON.stringify(spec)}`))
+      break
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      out.push(...stableFamilyFacts(d.body))
+      break
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)
@@ -240,28 +361,113 @@ function factsState(out: string[], body: StateBody): void {
   for (const [index, note] of (body.notes ?? []).entries()) {
     add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
   }
+  for (const note of body.floatingNotes ?? []) {
+    add(out, `floating note ${clean(note.id)}${note.scope ? ` in ${clean(note.scope.parent)}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
+  // Text reads as drawn: the body keeps authored quotes and markup.
+  const shown = (value: string, content?: LabelContent): string => clean(sequenceDisplayText(value, content))
   body.participants.forEach((p, i) => {
-    add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
-    add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
+    const label = p.label ? shown(p.label, p.labelContent) : clean(p.id)
+    add(out, `${p.kind} ${clean(p.id)} : ${label}`)
+    add(out, `participant#${i} ${clean(p.id)} : ${label}`)
+    if (p.wrap !== undefined) add(out, `participant#${i} wrap ${p.wrap}`)
   })
   sequenceMessageContexts(body).forEach((context, i) => {
     const m = context.message
-    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+    const text = shown(m.text, m.textContent)
+    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    // message# counts every message in drawing order; the ops address a
+    // top-level message by its top-level index and a fragment message by its
+    // index in its branch. State the fields to pass.
+    add(out, `message#${i} op ${context.scope === 'top-level' ? '' : `fragmentIndex ${context.fragmentIndex} branchIndex ${context.branchIndex} `}index ${context.index}`)
+    addSequenceArrow(out, `message#${i}`, m)
+    if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
+  })
+  body.statements.forEach((statement, segment) => {
+    if (statement.kind !== 'opaque-block') return
+    readSequenceStatements(statement.lines).statements.forEach((entry, index) => {
+      const syntax = entry.syntax
+      if (syntax?.kind === 'message') {
+        const m = syntax.message
+        const text = clean(sequencePayloadDisplayText(m.label))
+        add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+        // Preserved statements are observable without becoming typed edit
+        // indexes. Keep the existing message# indexes stable for callers.
+        add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+        addSequenceArrow(out, `preserved-message#${segment}.${index}`, { style: sequenceMessageStyle(m.arrow), arrow: m.arrow as SequenceMessageArrow })
+      } else if (syntax?.kind === 'note') {
+        const { position, actorIds, text } = syntax.note
+        const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${clean(sequencePayloadDisplayText(text))}`
+        add(out, `note ${note}`)
+        add(out, `preserved-note#${segment}.${index} ${note}`)
+      } else if (syntax?.kind === 'title') add(out, `title ${clean(sequencePayloadDisplayText(syntax.text))}`)
+    })
   })
   const fragments = body.statements.filter(statement => statement.kind === 'fragment')
   fragments.forEach((statement, index) => {
     if (statement.kind !== 'fragment') return
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
+    if (statement.fragment.wrap !== undefined) add(out, `fragment#${index} wrap ${statement.fragment.wrap}`)
     statement.fragment.branches.forEach((branch, branchIndex) => {
-      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
-      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+      const label = branch.label !== undefined ? shown(branch.label, branch.labelContent)
+        : branchIndex === 0 && statement.fragment.label !== undefined ? shown(statement.fragment.label, statement.fragment.labelContent) : ''
+      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${label}` : ''}`)
+      if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
+  // Lifecycle directives and notes, placed by the message# that follows them.
+  let messageIndex = 0
+  let noteIndex = 0
+  let fragmentIndex = 0
+  const total = sequenceMessageContexts(body).length
+  // A directive in a fragment branch also names the branch it is written in.
+  const lifecycle = (statement: SequenceCreateStatement | SequenceDestroyStatement, where = ''): void => {
+    const id = statement.kind === 'create' ? statement.id : statement.actorId
+    const at = `${where}${messageIndex < total ? ` before message#${messageIndex}` : ''}`
+    add(out, statement.kind === 'create'
+      ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
+      : `destroy ${clean(id)}${at}`)
+  }
+  // Notes are numbered in drawing order, as messages are, and state the
+  // fields the note ops take.
+  let topNote = 0
+  const noteFacts = (statement: SequenceNoteStatement, address: string): void => {
+    const { position, actorIds } = statement
+    const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
+    add(out, `note ${note}`)
+    add(out, `note#${noteIndex} ${note}`)
+    add(out, `note#${noteIndex} op ${address}`)
+    if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
+    if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
+    noteIndex++
+  }
+  for (const statement of body.statements) {
+    if (statement.kind === 'message') messageIndex++
+    else if (statement.kind === 'fragment') {
+      statement.fragment.branches.forEach((branch, branchIndex) => {
+        let branchNote = 0
+        for (const item of sequenceBranchItems(branch)) {
+          if (!('kind' in item)) messageIndex++
+          else if (item.kind === 'note') noteFacts(item, `fragmentIndex ${fragmentIndex} branchIndex ${branchIndex} index ${branchNote++}`)
+          else lifecycle(item, ` fragment#${fragmentIndex} branch#${branchIndex}`)
+        }
+      })
+      fragmentIndex++
+    } else if (statement.kind === 'note') noteFacts(statement, `index ${topNote++}`)
+    else if (statement.kind === 'create' || statement.kind === 'destroy') lifecycle(statement)
+  }
+}
+
+/** A message's style when not the default `sync`, and its operator when the
+ * style alone does not name it (a half-arrow). */
+function addSequenceArrow(out: string[], subject: string, m: Pick<SequenceMessage, 'style' | 'arrow'>): void {
+  if (m.style !== 'sync') add(out, `${subject} style ${m.style}`)
+  const arrow = sequenceMessageArrow(m)
+  if (arrow !== sequenceMessageArrow({ style: m.style })) add(out, `${subject} arrow ${arrow}`)
 }
 
 function factsTimeline(out: string[], body: TimelineBody): void {
@@ -285,13 +491,28 @@ function factsClass(out: string[], body: ClassBody): void {
   // queryable — "what namespaces exist" and "which namespace holds class X".
   for (const ns of body.namespaces ?? []) {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
+    // A dotted path names its ancestors too (`namespace A.B` nests B in A),
+    // whether they were declared as their own blocks or not.
+    const segments = ns.name.split('.')
+    for (let depth = 1; depth < segments.length; depth++) add(out, `namespace ${clean(segments.slice(0, depth).join('.'))}`)
   }
   for (const c of body.classes) {
+    if (c.isInterface) {
+      add(out, `interface ${clean(c.id)} : ${clean(c.label ?? c.id)}`)
+      continue
+    }
     add(out, `class ${clean(c.id)}`)
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
     if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
-    for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
+    for (const member of c.members) {
+      // A `$`/`*` classifier is styling, not member text: it reads back as
+      // its own fact, as the renderers draw it as underline/italic.
+      const { text, isStatic, isAbstract } = readClassMemberClassifiers(member)
+      add(out, `member ${clean(c.id)} ${clean(text)}`)
+      if (isAbstract) add(out, `member ${clean(c.id)} ${clean(text)} abstract`)
+      if (isStatic) add(out, `member ${clean(c.id)} ${clean(text)} static`)
+    }
   }
   body.relations.forEach((r, i) => {
     const cards = `${r.fromCardinality ? ` ${clean(r.fromCardinality)}` : ''}${r.toCardinality ? ` ${clean(r.toCardinality)}` : ''}`
@@ -325,14 +546,15 @@ function factsEr(out: string[], body: ErBody): void {
 }
 
 function factsJourney(out: string[], body: JourneyBody): void {
-  if (body.title) add(out, `title ${clean(body.title)}`)
+  const text = (value: string, content?: LabelContent): string => clean(displayText(resolveLabelContent(value, content)))
+  if (body.title) add(out, `title ${text(body.title, body.titleContent)}`)
   body.sections.forEach((s, si) => {
-    if (s.label) add(out, `section ${clean(s.label)}`)
+    if (s.label) add(out, `section ${text(s.label, s.labelContent)}`)
     s.tasks.forEach((t, ti) => {
-      const actors = t.actors.length ? ` actors ${t.actors.map(clean).join(', ')}` : ''
-      add(out, `journey task ${clean(t.text)} score ${String(t.score)}${actors}`)
-      add(out, `journey task#${si}.${ti} ${clean(t.text)} score ${String(t.score)}${actors}`)
-      if (s.label) add(out, `journey task ${clean(t.text)} section ${clean(s.label)}`)
+      const actors = t.actors.length ? ` actors ${t.actors.map((actor, index) => text(actor, t.actorContents?.[index])).join(', ')}` : ''
+      add(out, `journey task ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      add(out, `journey task#${si}.${ti} ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      if (s.label) add(out, `journey task ${text(t.text, t.textContent)} section ${text(s.label, s.labelContent)}`)
     })
   })
 
@@ -342,8 +564,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
   const tasks = body.sections.flatMap(s => s.tasks)
   add(out, `journey sections ${body.sections.length}`)
   add(out, `journey tasks ${tasks.length}`)
-  const participation = new Map<string, number>()
-  for (const t of tasks) for (const a of t.actors) participation.set(a, (participation.get(a) ?? 0) + 1)
+  const participation = new Map<string, { actor: string; count: number }>()
+  for (const t of tasks) for (const [index, actor] of t.actors.entries()) {
+    const key = journeyActorKey(actor, t.actorContents?.[index])
+    participation.set(key, { actor: text(actor, t.actorContents?.[index]), count: (participation.get(key)?.count ?? 0) + 1 })
+  }
   add(out, `journey actors ${participation.size}`)
   if (tasks.length > 0) {
     const scores = tasks.map(t => t.score)
@@ -353,11 +578,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
     add(out, `journey score range ${min}..${max}`)
     add(out, `journey average score ${num(average)}`)
     for (const t of tasks) {
-      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${String(t.score)}`)
-      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${String(t.score)}`)
+      if (t.score === min) add(out, `journey lowest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
+      if (t.score === max) add(out, `journey highest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
     }
   }
-  for (const [actor, count] of participation) add(out, `journey actor ${clean(actor)} tasks ${count}`)
+  for (const { actor, count } of participation.values()) add(out, `journey actor ${actor} tasks ${count}`)
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {
@@ -372,6 +597,7 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   for (const s of body.services) {
     add(out, `service ${clean(s.id)} : ${clean(s.label || s.id)}`)
     if (s.icon) add(out, `service ${clean(s.id)} icon ${clean(s.icon)}`)
+    if (s.iconText !== undefined) add(out, `service ${clean(s.id)} icon text ${clean(s.iconText)}`)
     if (s.parentId) add(out, `service ${clean(s.id)} parent ${clean(s.parentId)}`)
   }
   for (const j of body.junctions) {
@@ -381,9 +607,10 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   body.edges.forEach((e, i) => {
     const source = `${clean(e.source.id)}${e.source.boundary === 'group' ? '{group}' : ''}:${e.source.side}`
     const target = `${clean(e.target.id)}${e.target.boundary === 'group' ? '{group}' : ''}:${e.target.side}`
-    const base = `edge ${source} -> ${target}`
+    const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+    const base = `edge ${source} ${arrow} ${target}`
     add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-    add(out, `edge#${i} ${source} -> ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
+    add(out, `edge#${i} ${source} ${arrow} ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
   })
 }
 
@@ -396,6 +623,9 @@ function factsXyChart(out: string[], body: XyChartBody): void {
     const name = s.name ? clean(dequote(s.name)) : `series#${i}`
     add(out, `series ${name} ${s.kind} [${s.values.map(num).join(',')}]`)
     add(out, `series#${i} ${s.kind} ${name} [${s.values.map(num).join(',')}]`)
+    s.pointLabels?.forEach((label, pointIndex) => {
+      if (label !== undefined) add(out, `series#${i} point#${pointIndex} : ${clean(label)}`)
+    })
   })
 }
 
@@ -458,6 +688,7 @@ function factsGitGraph(out: string[], body: GitGraphBody): void {
   for (const commit of body.commits) {
     add(out, `commit ${clean(commit.id)} branch ${clean(commit.branch)}`)
     add(out, `commit ${clean(commit.id)} type ${commit.type}`)
+    if (commit.sourceId) add(out, `commit ${clean(commit.id)} source-id ${clean(commit.sourceId)}`)
     if (commit.message) add(out, `commit ${clean(commit.id)} message ${clean(commit.message)}`)
     commit.tags.forEach(tag => add(out, `commit ${clean(commit.id)} tag ${clean(tag)}`))
     commit.parents.forEach(parent => add(out, edgeFact(parent, commit.id, commit.source === 'commit' ? undefined : commit.source)))

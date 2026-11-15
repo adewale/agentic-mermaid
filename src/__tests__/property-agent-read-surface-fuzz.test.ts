@@ -11,6 +11,7 @@
 // Seed pinned globally (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import {
   describeMermaidSource, describeMermaidFactsSource, analyzeMermaidSource, checkMermaidSource,
@@ -35,17 +36,17 @@ const headers = [...new Set(BUILTIN_FAMILY_METADATA.flatMap(family => [...family
 // Header + random body: exercises the "valid-family-then-garbage" path, where readers do real
 // projection work rather than bailing at the family-detection gate.
 const sourceArb = fc.oneof(
-  fc.string({ maxLength: 200 }),
+  fc.string({ unit: 'binary', maxLength: 200 }),
   specialStringArb,
-  fc.tuple(fc.constantFrom(...headers), fc.string({ maxLength: 160 })).map(([h, b]) => `${h}\n${b}`),
+  fc.tuple(fc.constantFrom(...headers), fc.string({ unit: 'binary', maxLength: 160 })).map(([h, b]) => `${h}\n${b}`),
   fc.tuple(fc.constantFrom(...headers), specialStringArb).map(([h, b]) => `${h}\n${b}`),
 )
 
 const specArb = fc.oneof(
-  fc.array(fc.string({ maxLength: 20 }), { maxLength: 6 }),
+  fc.array(fc.string({ unit: 'binary', maxLength: 20 }), { maxLength: 6 }),
   fc.record({
-    include: fc.array(fc.string({ maxLength: 16 }), { maxLength: 4 }),
-    exclude: fc.array(fc.string({ maxLength: 16 }), { maxLength: 4 }),
+    include: fc.array(fc.string({ unit: 'binary', maxLength: 16 }), { maxLength: 4 }),
+    exclude: fc.array(fc.string({ unit: 'binary', maxLength: 16 }), { maxLength: 4 }),
     exact: fc.boolean(),
   }, { requiredKeys: [] }),
   fc.object({ maxDepth: 2 }),
@@ -68,7 +69,7 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
   it('describeMermaidSource', () => {
     fc.assert(fc.property(sourceArb, src => {
       assertTotalAndDeterministic(() => describeMermaidSource(src), v => expect(typeof v).toBe('string'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('describeMermaidFactsSource', () => {
@@ -77,13 +78,13 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
         expect(typeof v.ok).toBe('boolean')
         if (v.ok) expect(Array.isArray(v.value)).toBe(true)
       })
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('analyzeMermaidSource', () => {
     fc.assert(fc.property(sourceArb, src => {
       assertTotalAndDeterministic(() => analyzeMermaidSource(src), v => expect(typeof v.ok).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('checkMermaidSource tolerates an arbitrary spec', () => {
@@ -92,13 +93,32 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
         expect(typeof v.ok).toBe('boolean')
         if (v.ok) expect(typeof v.value.ok).toBe('boolean')
       })
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('asciiToMermaid', () => {
-    fc.assert(fc.property(fc.oneof(fc.string({ maxLength: 200 }), specialStringArb), ascii => {
+    fc.assert(fc.property(fc.oneof(fc.string({ unit: 'binary', maxLength: 200 }), specialStringArb), ascii => {
       assertTotalAndDeterministic(() => asciiToMermaid(ascii), v => expect(typeof v.ok).toBe('boolean'))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
+  })
+})
+
+describe('read-surface fuzz: source readers report what a valid source states', () => {
+  it('facts name every generated node with its label and every edge; describe names every label', () => {
+    const labelArb = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 10 }).filter(label => /^[\p{L}\p{N}][\p{L}\p{N} ]*$/u.test(label) && label.trim() === label)
+    const nodesArb = fc.array(fc.tuple(fc.stringMatching(/^[A-Za-z0-9_]{0,4}$/), labelArb), { minLength: 1, maxLength: 5 })
+      .map(rows => rows.map(([suffix, label], i) => ({ id: `n${i}${suffix}`, label })))
+    fc.assert(fc.property(nodesArb, nodes => {
+      const edges = nodes.slice(1).map((node, i) => [nodes[i]!.id, node.id] as const)
+      const source = ['flowchart LR', ...nodes.map(node => `  ${node.id}["${node.label}"]`), ...edges.map(([from, to]) => `  ${from} --> ${to}`)].join('\n')
+      const facts = describeMermaidFactsSource(source)
+      expect(facts.ok).toBe(true)
+      if (!facts.ok) return
+      for (const node of nodes) expect(facts.value).toContain(`node ${node.id} : ${node.label}`)
+      for (const [from, to] of edges) expect(facts.value).toContain(`edge ${from} -> ${to}`)
+      const description = describeMermaidSource(source)
+      for (const node of nodes) expect(description).toContain(node.label)
+    }), fcParameters({ numRuns: 150 }))
   })
 })
 
@@ -132,6 +152,6 @@ describe('read-surface fuzz: typed readers deterministic over the family corpus'
       expect(describeMermaidFacts(valid)).toEqual(describeMermaidFacts(valid))
       expect(JSON.stringify(analyzeMermaid(valid))).toBe(JSON.stringify(analyzeMermaid(valid)))
       expect(JSON.stringify(checkMermaid(valid, spec as never))).toBe(JSON.stringify(checkMermaid(valid, spec as never)))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })

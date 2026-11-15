@@ -261,17 +261,15 @@ their standard meaning.
 The deterministic preflight is:
 
 ```bash
-bun run eval:skill:sabotage
 bun run eval:family-portfolio
 skill-benchmark audit-manifest .skill-eval-runner-tune.json --format markdown
 ```
 
-The sabotage lane feeds known-good controls and targeted bad outputs through
-every deterministic text assertion type. It must prove the control passes and
-each mutation fails; otherwise the evaluator is not sensitive to the fault it
-claims to detect. The balanced portfolio is a separate 4 × 15 registry-derived
-input set for family-macro reporting; retain the 271-example documentation
-corpus for syntax breadth and report both views.
+The removed `eval:skill:sabotage` command is not an available preflight. The
+balanced portfolio is a separate 4 × 15 registry-derived input set for
+family-macro reporting; retain the 271-example documentation corpus for syntax
+breadth and report both views. Absence of the old sabotage lane is not evidence
+that every deterministic assertion has been independently fault-tested.
 
 The four declared skill ablations are blind, removal-based arms. Materialize
 them before any ablation run and retain the provenance receipt:

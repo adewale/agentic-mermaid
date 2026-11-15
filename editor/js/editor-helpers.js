@@ -1,4 +1,9 @@
-function updateLineNumbers() {
+import { cursorPos, editor, lineNumbers } from './elements.js';
+import { editorErrorLine, setEditorErrorLine } from './helpers.js';
+import { markActiveExample } from './examples.js';
+import { scheduleRender } from './rendering.js';
+import { scheduleDraftSave } from './sharing.js';
+export function updateLineNumbers() {
   var lines = editor.value.split('\n').length;
   var html = '';
   for (var i = 1; i <= lines; i++) {
@@ -8,7 +13,8 @@ function updateLineNumbers() {
   lineNumbers.innerHTML = html;
 }
 
-function updateCursorPos() {
+
+export function updateCursorPos() {
   var val = editor.value;
   var pos = editor.selectionStart;
   var lines = val.substring(0, pos).split('\n');
@@ -17,9 +23,13 @@ function updateCursorPos() {
   cursorPos.textContent = 'Ln ' + line + ', Col ' + col;
 }
 
+export function initialize() {
+
+
 editor.addEventListener('scroll', function() {
   lineNumbers.scrollTop = editor.scrollTop;
 });
+
 
 editor.addEventListener('input', function() {
   if (typeof markActiveExample === 'function') markActiveExample('');
@@ -29,6 +39,7 @@ editor.addEventListener('input', function() {
   scheduleRender();
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 });
+
 
 editor.addEventListener('keydown', function(e) {
   if (e.key === 'Tab') {
@@ -50,5 +61,8 @@ editor.addEventListener('keydown', function(e) {
   }
 });
 
+
 editor.addEventListener('keyup', updateCursorPos);
+
 editor.addEventListener('click', updateCursorPos);
+}

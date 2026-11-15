@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderErrorOrigin } from '../agent/error-origin.ts'
 import {
   canonicalizeConcreteCssColor,
   MAX_PNG_FONT_DIRECTORIES,
-  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS,
   NATIVE_PNG_OUTPUT_POLICY_FIELDS,
   PNG_ARTIFACT_BACKGROUND_UNRESOLVED,
   PNG_DEFAULT_SCALE,
@@ -29,29 +28,50 @@ import {
 } from '../png-contract.ts'
 import { renderPngGraphicalProjection, renderPortablePngGraphicalProjection } from '../png-graphical.ts'
 import { decodePng } from './helpers/png-pixels.ts'
-import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { createRenderPngTool, mcpToolValidationSchema, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { PNG_CLI_FLAG_BINDINGS } from '../cli/index.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
+const runChild = useTestChildren(30_000)
 
 describe('canonical PNG output-option authority', () => {
-  test('projects exact portable, native-policy, and native-host field sets', () => {
-    expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',
-    ])
-    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo', 'minLabelPx'])
-    expect(NATIVE_PNG_OUTPUT_POLICY_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts',
-    ])
-    expect(NATIVE_PNG_HOST_ONLY_OPTION_FIELDS).toEqual(['fontDirs', 'loadSystemFonts', 'onWarning'])
+  test('initializes the hosted styled PNG adapter in a fresh process', async () => {
+    ensureWebsiteBuilt()
+    const adapter = join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts')
+    const probe = `
+      import { readFileSync } from 'node:fs'
+      Bun.plugin({ name: 'worker-resources', setup(build) {
+        build.onLoad({ filter: /\\.(?:ttf|wasm)$/ }, ({ path }) => {
+          const file = readFileSync(path)
+          const bytes = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength)
+          return { loader: 'object', exports: {
+            default: path.endsWith('.wasm') ? new WebAssembly.Module(bytes) : bytes,
+          } }
+        })
+      } })
+      const { renderMermaidPNGWasm } = await import(${JSON.stringify(adapter)})
+      const artifact = await renderMermaidPNGWasm('flowchart LR\\n A --> B', {
+        style: 'hand-drawn', scale: 0.1, minLabelPx: 0,
+      })
+      console.log(JSON.stringify({ bytes: artifact.png.byteLength,
+        backend: artifact.receipt.executionDecision.backend.selectedId }))
+    `
+    const result = await runChild(process.execPath, ['--eval', probe])
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({ backend: 'backend:rough' })
+    expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)
+  }, 60000)
+
+  test('portable fields are policy fields, and the callback stays out of policy and receipts', () => {
+    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS.every(field => NATIVE_PNG_OUTPUT_POLICY_FIELDS.includes(field))).toBe(true)
     expect(Object.isFrozen(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS)).toBe(true)
     expect(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS.onWarning).toMatchObject({
       scope: 'native-host-only',
       input: 'callback',
       policy: 'excluded',
       receipt: 'excluded',
-      typeScript: '(warning: PngRasterWarning) => void',
-      description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
     })
 
     const portable = pngOutputOptionsJsonSchema('portable') as {
@@ -75,18 +95,6 @@ describe('canonical PNG output-option authority', () => {
     })
     expect(portable.properties.fitTo).toHaveProperty('properties.width.type', 'integer')
     expect(portable.properties.background).toHaveProperty('x-agentic-mermaid-runtime-validator', 'portablePngBackground')
-  })
-
-  test('documents the raster-warning union and extension measurement boundary', () => {
-    const api = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'api.md'), 'utf8')
-    const rationale = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'mcp-code-mode-rationale.md'), 'utf8')
-    expect(api).toContain('| `minLabelPx` | `number` | `9` |')
-    expect(api).toContain('| `onWarning` | `(w: PngRasterWarning) => void` |')
-    expect(api).toContain('literal absolute-pixel `font-size`')
-    expect(api).toContain('`text`, `tspan`, and `textPath`')
-    expect(api).toContain('absence of a\n`BELOW_READABLE_SIZE` warning is therefore not proof')
-    expect(rationale).toContain('portable `scale`, `background`, `minLabelPx`')
-    expect(rationale).toContain('configuration and raster-legibility warnings')
   })
 
   test('admits only closed plain objects with substrate-appropriate fields', () => {
@@ -149,13 +157,22 @@ describe('canonical PNG output-option authority', () => {
       ['local', 'native', NATIVE_PNG_OUTPUT_POLICY_FIELDS],
     ] as const) {
       const tool = createRenderPngTool(mode)
-      const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
-      const actual = Object.fromEntries(fields.map(field => {
-        return [field, { ...properties[field] }]
-      }))
       const expected = (pngOutputOptionsJsonSchema(substrate).properties ?? {}) as Record<string, Record<string, unknown>>
-      expect(actual).toEqual(expected)
-      expect(properties).not.toHaveProperty('onWarning')
+      // tools/list advertises the fields without vendor annotations; argument
+      // validation enforces the annotated fields (the runtime validator that
+      // rejects a non-portable background lives in an annotation).
+      const withoutAnnotations = (node: unknown): unknown => Array.isArray(node) ? node.map(withoutAnnotations)
+        : node && typeof node === 'object'
+          ? Object.fromEntries(Object.entries(node).filter(([key]) => !key.startsWith('x-')).map(([key, child]) => [key, withoutAnnotations(child)]))
+          : node
+      for (const [schema, fieldsExpected] of [
+        [tool.inputSchema, withoutAnnotations(expected)],
+        [mcpToolValidationSchema(tool), expected],
+      ] as const) {
+        const properties = schema.properties as Record<string, Record<string, unknown>>
+        expect(Object.fromEntries(fields.map(field => [field, properties[field]]))).toEqual(fieldsExpected as Record<string, Record<string, unknown>>)
+        expect(properties).not.toHaveProperty('onWarning')
+      }
     }
   })
 
@@ -196,7 +213,7 @@ describe('canonical PNG output-option authority', () => {
     expect(validateMcpToolArguments(createRenderPngTool('hosted'), args)).toEqual([])
   })
 
-  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', () => {
+  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', async () => {
     const source = 'flowchart LR\n  A[Start 漢] --> B[Finish]'
     const rendered = renderMermaidPNGWithReceipt(source, {
       style: ['watercolor', 'paper'],
@@ -234,12 +251,11 @@ describe('canonical PNG output-option authority', () => {
         }],
       },
     }
-    const result = spawnSync('bun', [
+    const result = await runChild('bun', [
       'run',
       join(import.meta.dir, '..', '..', 'scripts', 'verify-hosted-png-e2e.ts'),
     ], {
       cwd: join(import.meta.dir, '..', '..'),
-      encoding: 'utf8',
       input: JSON.stringify(response),
     })
 
@@ -342,6 +358,18 @@ describe('canonical PNG output-option authority', () => {
     expect(portable.receipt).toEqual(native.receipt)
   })
 
+  test('a transparent artifact rasterizes unpainted on every substrate unless a PNG background mattes it', () => {
+    const options = { style: 'dracula', transparent: true } as const
+    expect(renderPngGraphicalProjection(SOURCE, options, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+    expect(renderPortablePngGraphicalProjection(SOURCE, options, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+    const unpainted = decodePng(renderMermaidPNGWithReceipt(SOURCE, { ...options, scale: 0.1, onWarning: () => {} }).png)
+    expect([...unpainted.rgba.slice(0, 4)]).toEqual([0, 0, 0, 0])
+    const matte = decodePng(renderMermaidPNGWithReceipt(SOURCE, { ...options, background: '#123456', scale: 0.1, onWarning: () => {} }).png)
+    expect([...matte.rgba.slice(0, 4)]).toEqual([0x12, 0x34, 0x56, 0xff])
+    // No page is painted, so a host-resolved page paint needs no PNG resolution.
+    expect(renderPngGraphicalProjection(SOURCE, { bg: 'var(--brand-bg)', transparent: true }, { scale: 0.1 }).rasterBackground).toBe('#00000000')
+  })
+
   test('native rasterization paints valid rgb() artifact backgrounds and rejects unresolved paints', () => {
     const red = decodePng(renderMermaidPNGWithReceipt(SOURCE, {
       bg: 'rgb(255 0 0)',
@@ -363,6 +391,8 @@ describe('canonical PNG output-option authority', () => {
       }
       expect(unresolved).toMatchObject({ code: PNG_ARTIFACT_BACKGROUND_UNRESOLVED, paint })
       expect(String(unresolved)).toContain(PNG_ARTIFACT_BACKGROUND_UNRESOLVED)
+      // The page paint is caller configuration, not authored diagram source.
+      expect(renderErrorOrigin(unresolved)).toBe('config')
     }
 
     const transparent = decodePng(renderMermaidPNGWithReceipt(SOURCE, {

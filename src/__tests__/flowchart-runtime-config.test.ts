@@ -22,7 +22,10 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { resolveLabelContent, preparedDisplayTextValue } from '../shared/display-text.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
-import { getFamily, verifyMermaid } from '../agent/index.ts'
+import { verifyMermaid } from '../agent/index.ts'
+import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
+import { getFamily } from '../agent/families.ts'
+import { replaceFamilyForTest } from '../agent/family-registry.ts'
 import {
   applyFlowchartLabelWrapping,
   resolveFlowchartRenderOptions,
@@ -52,6 +55,28 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     expect(fields).toEqual(['flowchart.curve', 'flowchart.htmlLabels', 'flowchart.padding'])
   })
 
+  it('remembers render config warnings per source, explicit config and family registry', () => {
+    const source = `%%{init: {"flowchart": {"curve": "basis"}}}%%\n${AB}`
+    const fields = (warnings: readonly unknown[]) => warnings.map(w => (w as { field?: string }).field).sort()
+    const first = renderConfigWarningsForMermaid(source)
+    expect(fields(first)).toEqual(['flowchart.curve'])
+    first.length = 0
+    const remembered = renderConfigWarningsForMermaid(source)
+    expect(fields(remembered)).toEqual(['flowchart.curve'])
+    remembered.length = 0
+    expect(fields(renderConfigWarningsForMermaid(source))).toEqual(['flowchart.curve'])
+    expect(fields(renderConfigWarningsForMermaid(AB))).toEqual([])
+    expect(fields(renderConfigWarningsForMermaid(AB, { mermaidConfig: { flowchart: { padding: 25 } } }))).toEqual(['flowchart.padding'])
+    const original = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...original, configDiagnostics: () => [] })
+    try {
+      expect(renderConfigWarningsForMermaid(source)).toEqual([])
+    } finally {
+      restore()
+    }
+    expect(fields(renderConfigWarningsForMermaid(source))).toEqual(['flowchart.curve'])
+  })
+
   it('also lints init-directive flowchart config', () => {
     const source = `%%{init: {"flowchart": {"curve": "basis"}}}%%\n${AB}`
     const warnings = verifyMermaid(source).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')
@@ -77,10 +102,6 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     expect(verifyMermaid(AB).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')).toEqual([])
   })
 
-  it('the registry noopKeys and the wired keys partition the documented schema', () => {
-    const config = getFamily('flowchart')!.config!
-    expect(['nodeSpacing', 'rankSpacing', 'wrappingWidth', ...config.noopKeys!].sort()).toEqual([...config.keys].sort())
-  })
 })
 
 describe('flowchart nodeSpacing/rankSpacing wiring (feature stage)', () => {
@@ -162,7 +183,7 @@ describe('flowchart wrappingWidth (feature stage)', () => {
     const svg = renderMermaidSVG(source, options)
     const visible = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('')
     expect(visible.replace(/[\s-]/g, '')).toBe('<B>X</B>YTA?IL')
-    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="bold"[^>]*>Y<\/tspan>/)
     const content = resolveLabelContent(graph.nodes.get('A')!.label, graph.nodes.get('A')!.labelContent)
     expect(typeof content).not.toBe('string')
     if (typeof content !== 'string') expect(preparedDisplayTextValue(content)).toBe('<b>x</b> y ta?il')

@@ -28,6 +28,18 @@ Historical measured totals, as re-recorded for the 0.2.0 release (#199). They ar
 
 Review policy requires an optimization to ratchet its own route downward without rewriting measurement logic or unrelated route budgets in the same PR. Lighthouse timings remain diagnostic review evidence.
 
+### Ceiling rule
+
+Size checks come in three kinds, and only one of them decides growth.
+
+- **Structural contracts are hard gates.** Request counts, required and forbidden resources, on-demand-only chunks (ELK, YAML, the HTML5 entity table, the indexed crossing counter) and the standalone editor's catalog-free worker describe what loads when. They fail regardless of size.
+- **The per-PR delta decides growth.** `scripts/ci/payload-delta.ts` compares every website route, the lazy initial entry, every lazy family, the lazy shared core and the standalone `editor.html` with the base branch built on the same runner. A payload fails when its gzip size grows by more than 2% and 1 KiB. The shared core (the chunks every family downloads beyond the initial entry) fails above 1 KiB alone, because each family pays that growth in full. Intended growth is approved with the `payload-growth-approved` label after the latest push, so the decision is recorded on the PR rather than in a number.
+- **Absolute ceilings bound accumulated drift.** Every byte ceiling in `scripts/site/website-payload-budgets.ts`, `scripts/build/browser-lazy-budgets.json` and the standalone editor test is the measured size plus 5%, rounded up to the next 1,000 bytes; the homepage Brotli ceiling stays at its 70% stop gate. Reset them by this rule at a release, or lower one after an optimization. A feature PR that crosses one resets that ceiling by the same rule and carries the growth label; it does not add a few hundred bytes of headroom.
+
+Raw size matters where a file is parsed without transfer (the standalone `editor.html`, opened from disk); compressed size is the transfer unit for served routes and lazy chunks. A ceiling set just above the current size is a change detector, not a limit: it charges every feature a budget commit and invites moving code to save bytes that no user would notice.
+
+The ceilings were last reset for 0.5.7 on Linux with Bun 1.4.4.
+
 ## Measurement protocol
 
 For every payload PR:
@@ -91,11 +103,23 @@ Homepage and blank-editor graphs and byte ceilings remain unchanged.
 
 ### 3. Editor module graph
 
-The editor currently ships one approximately 3.20 MB decoded module. Produce a bundle composition report before choosing split points. Prefer dynamic imports at real interaction boundaries—PNG/export tooling, optional preview helpers, or other cold features—rather than family splits that make ordinary diagrams waterfall through many chunks.
+The original single-module baseline below is historical. The hosted editor now
+has an engine-free bootstrap and a persistent worker. The [23 October delivery
+implementation and measurements](./editor-delivery-cost-2026-10-23.md) split that
+worker into verified family implementations, optional output/style modules and
+a demanded ELK provider. The first measured simple flowchart needs 44.9% fewer
+gzip-equivalent asset bytes; a session consuming all families and features needs
+2.4% more. Smaller-chunk request overhead remains a follow-up to measure on the
+deployed HTTP/2 or HTTP/3 path.
 
 Requirements:
 
-- preserve offline all-family SVG editing after the initial editor load;
+- Hosted editing reuses loaded modules offline. First use of another family,
+  output, style or layout provider can require a connection; a failed module
+  load reports a recoverable error and the next edit creates a fresh worker.
+  The standalone editor retains its bundled all-family implementation. The old
+  unconditional hosted all-family-offline-after-load requirement is superseded
+  by the explicitly requested on-demand delivery behavior.
 - modulepreload only the critical entry graph;
 - use content-hashed immutable chunks;
 - test slow/cancelled chunk failures and retain strict CSP;

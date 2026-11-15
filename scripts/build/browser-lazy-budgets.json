@@ -1,24 +1,209 @@
 {
   "schemaVersion": 1,
-  "elkFamilies": ["flowchart", "state", "class", "er", "architecture"],
-  "initial": {"requests": 6, "raw": 138000, "gzip": 45000, "brotli": 40000},
+  "initial": {
+    "requests": 6,
+    "raw": 18000,
+    "gzip": 7000,
+    "brotli": 6000
+  },
   "families": {
-    "flowchart": {"requests": 29, "raw": 2304000, "gzip": 704000, "brotli": 565500},
-    "state": {"requests": 29, "raw": 2302000, "gzip": 703000, "brotli": 564000},
-    "sequence": {"requests": 26, "raw": 637000, "gzip": 202000, "brotli": 178000},
-    "timeline": {"requests": 24, "raw": 591000, "gzip": 186500, "brotli": 164000},
-    "class": {"requests": 28, "raw": 2316000, "gzip": 708000, "brotli": 569000},
-    "er": {"requests": 31, "raw": 2311000, "gzip": 707500, "brotli": 570500},
-    "journey": {"requests": 26, "raw": 609000, "gzip": 193000, "brotli": 170000},
-    "architecture": {"requests": 26, "raw": 2318000, "gzip": 707500, "brotli": 568500},
-    "xychart": {"requests": 26, "raw": 624000, "gzip": 198000, "brotli": 174000},
-    "pie": {"requests": 29, "raw": 634000, "gzip": 208500, "brotli": 185500},
-    "quadrant": {"requests": 26, "raw": 594000, "gzip": 189000, "brotli": 166500},
-    "gantt": {"requests": 25, "raw": 637000, "gzip": 198000, "brotli": 175500},
-    "mindmap": {"requests": 27, "raw": 594000, "gzip": 190000, "brotli": 168000},
-    "gitgraph": {"requests": 27, "raw": 603000, "gzip": 193000, "brotli": 170000},
-    "radar": {"requests": 27, "raw": 602000, "gzip": 193000, "brotli": 170000},
-    "sankey": {"requests": 26, "raw": 597000, "gzip": 191000, "brotli": 168500},
-    "c4": {"requests": 28, "raw": 752000, "gzip": 242000, "brotli": 212000}
+    "flowchart": {
+      "requests": 43,
+      "raw": 2532000,
+      "gzip": 783000,
+      "brotli": 624000
+    },
+    "state": {
+      "requests": 41,
+      "raw": 2531000,
+      "gzip": 782000,
+      "brotli": 623000
+    },
+    "sequence": {
+      "requests": 34,
+      "raw": 725000,
+      "gzip": 233000,
+      "brotli": 199000
+    },
+    "timeline": {
+      "requests": 32,
+      "raw": 661000,
+      "gzip": 212000,
+      "brotli": 180000
+    },
+    "class": {
+      "requests": 39,
+      "raw": 2313000,
+      "gzip": 707000,
+      "brotli": 557000
+    },
+    "er": {
+      "requests": 40,
+      "raw": 2397000,
+      "gzip": 736000,
+      "brotli": 583000
+    },
+    "journey": {
+      "requests": 33,
+      "raw": 683000,
+      "gzip": 220000,
+      "brotli": 187000
+    },
+    "architecture": {
+      "requests": 39,
+      "raw": 2508000,
+      "gzip": 773000,
+      "brotli": 614000
+    },
+    "xychart": {
+      "requests": 33,
+      "raw": 706000,
+      "gzip": 228000,
+      "brotli": 194000
+    },
+    "pie": {
+      "requests": 35,
+      "raw": 674000,
+      "gzip": 219000,
+      "brotli": 187000
+    },
+    "quadrant": {
+      "requests": 34,
+      "raw": 671000,
+      "gzip": 217000,
+      "brotli": 184000
+    },
+    "gantt": {
+      "requests": 32,
+      "raw": 689000,
+      "gzip": 222000,
+      "brotli": 189000
+    },
+    "mindmap": {
+      "requests": 32,
+      "raw": 678000,
+      "gzip": 222000,
+      "brotli": 189000
+    },
+    "gitgraph": {
+      "requests": 33,
+      "raw": 682000,
+      "gzip": 221000,
+      "brotli": 188000
+    },
+    "radar": {
+      "requests": 35,
+      "raw": 681000,
+      "gzip": 221000,
+      "brotli": 188000
+    },
+    "sankey": {
+      "requests": 33,
+      "raw": 674000,
+      "gzip": 219000,
+      "brotli": 186000
+    },
+    "c4": {
+      "requests": 36,
+      "raw": 878000,
+      "gzip": 286000,
+      "brotli": 245000
+    },
+    "packet": {
+      "requests": 32,
+      "raw": 648000,
+      "gzip": 209000,
+      "brotli": 177000
+    },
+    "kanban": {
+      "requests": 34,
+      "raw": 657000,
+      "gzip": 213000,
+      "brotli": 181000
+    },
+    "requirement": {
+      "requests": 33,
+      "raw": 2189000,
+      "gzip": 666000,
+      "brotli": 522000
+    },
+    "treemap": {
+      "requests": 33,
+      "raw": 667000,
+      "gzip": 217000,
+      "brotli": 185000
+    },
+    "ishikawa": {
+      "requests": 31,
+      "raw": 649000,
+      "gzip": 209000,
+      "brotli": 178000
+    },
+    "block": {
+      "requests": 34,
+      "raw": 816000,
+      "gzip": 266000,
+      "brotli": 227000
+    },
+    "eventmodeling": {
+      "requests": 30,
+      "raw": 657000,
+      "gzip": 212000,
+      "brotli": 180000
+    },
+    "zenuml": {
+      "requests": 34,
+      "raw": 740000,
+      "gzip": 238000,
+      "brotli": 204000
+    },
+    "railroad": {
+      "requests": 31,
+      "raw": 666000,
+      "gzip": 215000,
+      "brotli": 183000
+    },
+    "cynefin": {
+      "requests": 31,
+      "raw": 653000,
+      "gzip": 211000,
+      "brotli": 179000
+    },
+    "agentflow": {
+      "requests": 42,
+      "raw": 2542000,
+      "gzip": 787000,
+      "brotli": 628000
+    },
+    "usecase": {
+      "requests": 37,
+      "raw": 2495000,
+      "gzip": 770000,
+      "brotli": 612000
+    },
+    "wardley": {
+      "requests": 31,
+      "raw": 683000,
+      "gzip": 220000,
+      "brotli": 188000
+    },
+    "venn": {
+      "requests": 31,
+      "raw": 662000,
+      "gzip": 214000,
+      "brotli": 182000
+    },
+    "swimlane": {
+      "requests": 44,
+      "raw": 2575000,
+      "gzip": 799000,
+      "brotli": 638000
+    },
+    "treeview": {
+      "requests": 31,
+      "raw": 658000,
+      "gzip": 213000,
+      "brotli": 181000
+    }
   }
 }

@@ -1,15 +1,15 @@
 // Fuzz the REAL consumer path: `npm pack` -> install the tarball into a clean
 // project -> drive the installed package and its bins under plain Node with
 // fast-check-generated input. This is the last artifact layer the suite did not
-// cover. dist-artifact-fuzz.e2e.test.ts checks the built bundle by file path;
-// this checks what actually ships and installs — files[] completeness, the
+// cover. dist-artifact.e2e.test.ts owns distinct bundler/dependency-loading risks;
+// this owns differential fuzz of what actually ships and installs — files[] completeness, the
 // exports map resolving bare specifiers, bin linking, native-dep install, and
 // the CLI/MCP bins as spawned Node processes.
 //
 // Three arms, one install:
 //   T1  installed library  — `import('agentic-mermaid')` / `.../agent` resolve
 //       and render identically to the source build (crash parity + flowchart
-//       byte-equality + PNG crash-freedom).
+//       byte-equality + raw PNG parity across runtimes and packaged resources).
 //   T2  `am` bin           — `am batch --jsonl` over generated ops (one bad line
 //       never aborts the stream; ASCII output matches source), plus one-shot
 //       `am render` across formats and a not-found file.
@@ -26,13 +26,16 @@ import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
-import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
+import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
+import { runGettingStartedCommands } from './helpers/getting-started.ts'
+import { FAMILY_CONFORMANCE_PROFILES } from '../src/__tests__/helpers/family-conformance-profiles.ts'
+import { maintainedMarkdownFiles } from '../scripts/docs/maintained-docs.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
 const INSTALL_TIMEOUT_MS = 240_000
 const RUN_TIMEOUT_MS = 180_000
-const PNG_SMOKE_N = 6
+const PNG_PARITY_N = 8
 const PACKAGE_FAMILY_FIXTURES = [
   { family: 'mindmap', source: 'mindmap\n  Root\n    Research\n      Evidence' },
   { family: 'gitgraph', source: 'gitGraph\n  commit id:"base" msg:"Foundation"\n  branch feature\n  commit id:"work"' },
@@ -52,7 +55,7 @@ if (!NODE || !NPM) throw new Error('tarball consumer gate requires plain Node an
 // ---------------------------------------------------------------------------
 // Reference (source build, Bun). Node drivers below mirror this tag logic.
 // ---------------------------------------------------------------------------
-const sha = (s: string) => createHash('sha256').update(s).digest('hex')
+const sha = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex')
 const tag = (fn: () => string): string => { try { return sha(String(fn())) } catch { return 'THREW' } }
 const refLayout = (src: string) => tag(() => JSON.stringify(verifyMermaid(src).layout ?? null))
 const refSvg = (src: string) => tag(() => renderMermaidSVG(src))
@@ -83,10 +86,9 @@ const familyHeaderArb = fc.constantFrom(...BUILTIN_FAMILY_METADATA.map(family =>
 const mixedArb = fc.oneof(
   flowchartArb,
   fc.tuple(familyHeaderArb, fc.array(fc.string({ maxLength: 30 }), { maxLength: 6 })).map(([h, b]) => [h, ...b].join('\n')),
-  // Batch/MCP transport is line-delimited JSON/JSONL, so a body must not carry a
-  // newline or it splits into two lines; keep the mixed arm single-line.
-  fc.string({ maxLength: 80 }).map(s => s.replace(/[\n\r]/g, ' ')),
-  specialCharStringArb.map(s => s.replace(/[\n\r]/g, ' ')),
+  // JSON.stringify escapes embedded line breaks in every consumer transport.
+  fc.string({ maxLength: 120 }),
+  specialCharStringArb,
 )
 const codeArb = fc.oneof(
   fc.string({ maxLength: 80 }).map(s => s.replace(/[\n\r]/g, ' ')),
@@ -102,6 +104,7 @@ const codeArb = fc.oneof(
 
 // Consumer install state (populated by beforeAll).
 let work = ''
+let tarball = ''
 let packageDir = ''
 let amBin = ''
 let mcpBin = ''
@@ -110,24 +113,27 @@ let binShimMcp = ''
 let haveConsumer = false
 
 beforeAll(() => {
-  const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
-  if (build.status !== 0) throw new Error(`bun run build failed (${build.status}):\n${build.stderr ?? ''}`)
-
-  work = mkdtempSync(join(tmpdir(), 'am-consumer-'))
-  const version = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version as string
-  const privateEvalDir = join(REPO, 'skill-evals', 'private')
-  mkdirSync(privateEvalDir, { recursive: true })
-  const privateProbeDir = mkdtempSync(join(privateEvalDir, 'pack-exclusion-'))
-  const privateSentinel = join(privateProbeDir, 'sentinel.txt')
-  writeFileSync(privateSentinel, 'must never ship\n')
-  let pack: ReturnType<typeof spawnSync>
-  try {
-    pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
-  } finally {
-    rmSync(privateProbeDir, { recursive: true, force: true })
+  work = mkdtempSync(join(tmpdir(), 'am consumer '))
+  if (process.env.AM_TEST_TARBALL) {
+    tarball = resolve(process.env.AM_TEST_TARBALL)
+  } else {
+    const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+    if (build.status !== 0) throw new Error(`bun run build failed (${build.status}):\n${build.stderr ?? ''}`)
+    const version = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version as string
+    const privateEvalDir = join(REPO, 'skill-evals', 'private')
+    mkdirSync(privateEvalDir, { recursive: true })
+    const privateProbeDir = mkdtempSync(join(privateEvalDir, 'pack-exclusion-'))
+    const privateSentinel = join(privateProbeDir, 'sentinel.txt')
+    writeFileSync(privateSentinel, 'must never ship\n')
+    let pack: ReturnType<typeof spawnSync>
+    try {
+      pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+    } finally {
+      rmSync(privateProbeDir, { recursive: true, force: true })
+    }
+    if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
+    tarball = join(work, `agentic-mermaid-${version}.tgz`)
   }
-  if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
-  const tarball = join(work, `agentic-mermaid-${version}.tgz`)
   if (!existsSync(tarball)) throw new Error(`expected tarball missing: ${tarball}`)
 
   writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'am-consumer', private: true, version: '1.0.0' }))
@@ -146,13 +152,18 @@ beforeAll(() => {
   haveConsumer = true
 }, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
+test('Getting Started shell commands and pinned MCP config work against the packed package', () => {
+  expect(haveConsumer).toBe(true)
+  runGettingStartedCommands(REPO, tarball)
+}, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
+
 // ---------------------------------------------------------------------------
 // T1 — installed library, imported by bare specifier and run under Node.
 // ---------------------------------------------------------------------------
 const LIB_DRIVER = `
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-const inputs = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
+const { inputs, pngInputs } = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
 const base = await import('agentic-mermaid')
 const agent = await import('agentic-mermaid/agent')
 const core = await import('agentic-mermaid/agent/core')
@@ -164,8 +175,7 @@ const resolved = {
 const { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG } = agent
 const sha = (s) => createHash('sha256').update(s).digest('hex')
 const tag = (fn) => { try { return sha(String(fn())) } catch { return 'THREW' } }
-const PNG_N = Number(process.env.AM_FUZZ_PNG_N || 0)
-const results = inputs.map((src, i) => {
+const results = inputs.map((src) => {
   const parsed = agent.parseRegisteredMermaid(src)
   const r = {
     kind: parsed.ok ? parsed.value.body.kind : 'THREW',
@@ -173,46 +183,189 @@ const results = inputs.map((src, i) => {
     svg: tag(() => renderMermaidSVG(src)),
     ascii: tag(() => renderMermaidASCII(src)),
   }
-  if (i < PNG_N) { try { r.pngLen = renderMermaidPNG(src).length } catch { r.pngLen = -1 } }
   return r
 })
-process.stdout.write(JSON.stringify({ resolved, results }))
+const pngResults = pngInputs.map(({ source, options }) => {
+  const png = renderMermaidPNG(source, options)
+  const bytes = Buffer.from(png.buffer, png.byteOffset, png.byteLength)
+  return {
+    sha256: sha(png), length: png.length, signature: [...png.subarray(0, 8)],
+    ihdr: bytes.toString('ascii', 12, 16), width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20),
+  }
+})
+process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
-  test('published documentation entry points have no broken relative links', () => {
+  test('copied AgentFlow models keep executable YAML across public entries', () => {
     expect(haveConsumer).toBe(true)
-    for (const relativeHubPath of ['README.md', 'docs/README.md']) {
-      const hubPath = join(packageDir, relativeHubPath)
-      const hub = readFileSync(hubPath, 'utf8')
-      const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]
-        .map(match => match[1]!.trim())
-        .filter(href => href !== '' && !href.startsWith('#') && !/^[a-z][a-z\d+.-]*:/i.test(href))
-        .map(href => href.split('#', 1)[0]!)
+    const consumer = join(work, 'agentflow-copy.mjs')
+    const source = `agentflow-beta LR
+  A[Collect]@{ shape: tool }
+  B[Publish]
+  A --> B
+  A@{
+    context:
+      -
+        name: First
+        values: [1, 2]
+      - [nested, list]
+  }`
+    writeFileSync(consumer, `
+import assert from 'node:assert/strict'
+import * as root from 'agentic-mermaid'
+import * as agent from 'agentic-mermaid/agent'
+import * as core from 'agentic-mermaid/agent/core'
+const source = ${JSON.stringify(source)}
+const expected = [{ name: 'First', values: [1, 2] }, ['nested', 'list']]
+const svg = root.renderMermaidSVG(source)
+assert.match(svg, /Collect/)
+assert.match(svg, /Publish/)
+for (const entry of [agent, core]) {
+  const parsed = entry.parseRegisteredMermaid(source)
+  assert.equal(parsed.ok, true)
+  for (const diagram of [parsed.value, { ...parsed.value }, structuredClone(parsed.value)]) {
+    assert.equal(root.renderMermaidSVG(diagram), svg)
+    const reloaded = entry.parseRegisteredMermaid(diagram.canonicalSource)
+    assert.equal(reloaded.ok, true)
+    assert.deepEqual(reloaded.value.body.metadata.get('A').context, expected)
+  }
+}
+`)
+    const result = spawnSync(NODE!, [consumer], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+  }, RUN_TIMEOUT_MS)
 
-      expect(relativeLinks.length).toBeGreaterThan(0)
-      for (const href of relativeLinks) {
-        expect({ hub: relativeHubPath, href, exists: existsSync(resolve(dirname(hubPath), href)) }).toEqual({ hub: relativeHubPath, href, exists: true })
-      }
+  test('canonical API examples typecheck and run against the installed package', () => {
+    expect(haveConsumer).toBe(true)
+    const markdown = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
+    const examples = [...markdown.matchAll(/^```ts\s*\n([\s\S]*?)^```/gm)]
+    const files = examples.map((match, index) => {
+      const file = join(work, `api-example-${index}.mts`)
+      writeFileSync(file, match[1]!)
+      return file
+    })
+    const checked = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--strict', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--typeRoots', join(REPO, 'node_modules/@types'), ...files], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: checked.status, stdout: checked.stdout, stderr: checked.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    for (const file of files) {
+      const result = spawnSync(NODE!, [file.replace(/\.mts$/, '.mjs')], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+      expect({ file, status: result.status, stderr: result.stderr }).toEqual({ file, status: 0, stderr: '' })
     }
+  }, RUN_TIMEOUT_MS)
+
+  test('resolved scenes ship typed, synchronous and browser-free through the main entry', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'resolved-scene.mts')
+    writeFileSync(consumer, `
+import { renderResolvedScene, RESOLVED_SCENE_VERSION, type ResolvedScene, type ResolvedPrimitive } from 'agentic-mermaid';
+const scene: ResolvedScene = renderResolvedScene('flowchart LR\\n A --> B');
+const version: 2 = RESOLVED_SCENE_VERSION;
+const primitives: ResolvedPrimitive[] = scene.parts.flatMap(part => part.primitives);
+`)
+    const types = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--noEmit', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', consumer], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: types.status, stdout: types.stdout, stderr: types.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    const runtime = spawnSync(NODE!, ['--input-type=module', '--eval', `
+import { renderResolvedScene, renderMermaidSVG } from 'agentic-mermaid';
+const source='flowchart LR\\n A -->|uses ELK| B', options={style:'hand-drawn'};
+const scene=renderResolvedScene(source, options);
+console.log(JSON.stringify({version:scene.version, document:typeof document,
+  families:['stateDiagram', 'stateDiagram-v2', 'flowchart LR'].map(header => renderResolvedScene(header+'\\nA --> B',options).family),
+  parts:scene.parts.length>0, equal:scene.svg===renderMermaidSVG(source,options),
+  stable:JSON.stringify(scene)===JSON.stringify(renderResolvedScene(source,options)),
+  jsonSafe:JSON.stringify(scene)===JSON.stringify(JSON.parse(JSON.stringify(scene)))}));
+`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(runtime.stdout)).toEqual({ version: 2, document: 'undefined', families: ['state', 'state', 'flowchart'], parts: true, equal: true, stable: true, jsonSafe: true })
+  }, RUN_TIMEOUT_MS)
+
+  test('public package entries keep internal Style aliases out of runtime and typed consumers', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'public-api.mts')
+    writeFileSync(consumer, `
+import { renderMermaidSVG as baseRender } from 'agentic-mermaid';
+import { renderMermaidSVG as agentRender } from 'agentic-mermaid/agent';
+import { renderMermaidSVG as coreRender } from 'agentic-mermaid/agent/core';
+const rendered: string[] = [baseRender('flowchart LR\\nA-->B'), agentRender('flowchart LR\\nA-->B'), coreRender('flowchart LR\\nA-->B')];
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as baseAlias } from 'agentic-mermaid';
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as agentAlias } from 'agentic-mermaid/agent';
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as coreAlias } from 'agentic-mermaid/agent/core';
+`)
+    const types = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--noEmit', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', consumer], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: types.status, stdout: types.stdout, stderr: types.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    const runtime = spawnSync(NODE!, ['--input-type=module', '--eval', `
+const entries = await Promise.all(['agentic-mermaid', 'agentic-mermaid/agent', 'agentic-mermaid/agent/core'].map(name => import(name)));
+console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYLE_ALIAS'))));
+`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(runtime.stdout)).toEqual([false, false, false])
+  }, RUN_TIMEOUT_MS)
+  test('ships public API documentation without benchmark reports or benchmark tooling', () => {
+    expect(haveConsumer).toBe(true)
+    expect(existsSync(join(packageDir, 'docs/api.md'))).toBe(true)
+    for (const path of ['docs/community-benchmark-ranking.md', 'eval/benchmark', 'eval/trident', 'bench-report']) {
+      expect({ path, shipped: existsSync(join(packageDir, path)) }).toEqual({ path, shipped: false })
+    }
+  })
+
+  test('all maintained documentation shipped in the package resolves local link and image resources', async () => {
+    expect(haveConsumer).toBe(true)
+    const maintained = new Set(maintainedMarkdownFiles(REPO))
+    const documents = [...new Bun.Glob('**/*.md').scanSync({ cwd: packageDir, onlyFiles: true })]
+      .filter(file => maintained.has(file)).sort()
+    expect(documents.length).toBeGreaterThan(0)
+    const missing: Array<{ document: string; href: string }> = []
+    await Promise.all(documents.map(async document => {
+      const links: string[] = []
+      // Parse what readers see: code examples stay inert, reference links and
+      // raw HTML images are resolved by the existing Markdown/HTML parsers.
+      await new HTMLRewriter().on('[href], [src]', {
+        element(element) {
+          for (const name of ['href', 'src']) {
+            const href = element.getAttribute(name)
+            if (href !== null) links.push(href)
+          }
+        },
+      }).transform(new Response(Bun.markdown.html(readFileSync(join(packageDir, document), 'utf8')))).text()
+      for (const href of links) {
+        if (!href || href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(href)) continue
+        const path = decodeURIComponent(href.split(/[?#]/, 1)[0]!)
+        if (!existsSync(resolve(packageDir, dirname(document), path))) missing.push({ document, href })
+      }
+    }))
+    expect(missing).toEqual([])
   })
 
   test('resolves all three entry points and renders every registered family identically to source', () => {
     expect(haveConsumer).toBe(true)
-    const flow = fc.sample(flowchartArb, 50)
-    const mixed = fc.sample(mixedArb, 50)
+    const flow = fc.sample(flowchartArb, 120)
+    const mixed = fc.sample(mixedArb, 120)
     const canonicalInputs = BUILTIN_FAMILY_METADATA.map(family => family.example)
     const inputs = [...flow, ...canonicalInputs, ...PACKAGE_FAMILY_FIXTURES.map(fixture => fixture.source), ...mixed]
     const fixtureStart = flow.length + canonicalInputs.length
-    writeFileSync(join(work, 'inputs.json'), JSON.stringify(inputs))
+    const pngInputs: Array<{ source: string; options: NonNullable<Parameters<typeof renderMermaidPNG>[1]> }> = [
+      ...flow.slice(0, PNG_PARITY_N).map(source => ({ source, options: {} })),
+      { source: 'sequenceDiagram\n  participant A as Café\n  participant B as Zoë\n  A->>B: Contour ∮ integral', options: { scale: 1 } },
+      { source: 'flowchart LR\n  A[Draft] --> B[Review]', options: { style: 'hand-drawn', seed: 7, scale: 1 } },
+    ]
+    writeFileSync(join(work, 'inputs.json'), JSON.stringify({ inputs, pngInputs }))
     const r = spawnSync(NODE!, ['--input-type=module', '-e', LIB_DRIVER], {
       cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
-      env: { ...process.env, AM_FUZZ_INPUT: join(work, 'inputs.json'), AM_FUZZ_PNG_N: String(PNG_SMOKE_N) },
+      env: { ...process.env, AM_FUZZ_INPUT: join(work, 'inputs.json') },
     })
-    expect(r.status).toBe(0) // exports resolution / native dep load must not crash
-    const { resolved, results } = JSON.parse(r.stdout) as {
+    expect(r.status, `installed library Node driver stderr:\n${r.stderr}`).toBe(0) // exports resolution / native dep load must not crash
+    const { resolved, results, pngResults } = JSON.parse(r.stdout) as {
       resolved: Record<string, string>
-      results: Array<{ kind: string; layout: string; svg: string; ascii: string; pngLen?: number }>
+      results: Array<{ kind: string; layout: string; svg: string; ascii: string }>
+      pngResults: Array<{ sha256: string; length: number; signature: number[]; ihdr: string; width: number; height: number }>
     }
     // Bare-specifier resolution through the exports map.
     expect(resolved).toEqual({
@@ -223,9 +376,14 @@ describe('installed tarball — library', () => {
 
     const crashParity: unknown[] = []
     const equivalence: unknown[] = []
+    expect(results).toHaveLength(inputs.length)
     for (let i = 0; i < inputs.length; i++) {
       const ref = { layout: refLayout(inputs[i]!), svg: refSvg(inputs[i]!), ascii: refTerminalDefault(inputs[i]!) }
       for (const ch of ['layout', 'svg', 'ascii'] as const) {
+        if (i < flow.length) {
+          expect(ref[ch], `valid source ${ch}: ${inputs[i]}`).not.toBe('THREW')
+          expect(results[i]![ch], `installed ${ch}: ${inputs[i]}`).not.toBe('THREW')
+        }
         const refThrew = ref[ch] === 'THREW'
         const gotThrew = results[i]![ch] === 'THREW'
         if (refThrew !== gotThrew) crashParity.push({ src: inputs[i], ch, ref: refThrew, got: gotThrew })
@@ -237,6 +395,8 @@ describe('installed tarball — library', () => {
     BUILTIN_FAMILY_METADATA.forEach((family, index) => {
       const result = results[flow.length + index]!
       expect(result.kind, family.id).toBe(family.id)
+      expect(result.layout, family.id).not.toBe('THREW')
+      expect(refLayout(family.example), family.id).not.toBe('THREW')
       expect(result.svg, family.id).not.toBe('THREW')
       expect(result.ascii, family.id).not.toBe('THREW')
     })
@@ -245,7 +405,18 @@ describe('installed tarball — library', () => {
       expect(results[fixtureStart + index]!.svg).not.toBe('THREW')
       expect(results[fixtureStart + index]!.ascii).not.toBe('THREW')
     })
-    for (let i = 0; i < PNG_SMOKE_N; i++) expect(results[i]!.pngLen).toBeGreaterThan(0)
+    // This differential protects installed exports, native dependencies and font
+    // resources across Node/Bun. Raster quality has independent source keepers.
+    expect(pngResults).toHaveLength(pngInputs.length)
+    pngInputs.forEach(({ source, options }, index) => {
+      const installed = pngResults[index]!
+      expect(installed.signature, source).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      expect(installed.ihdr, source).toBe('IHDR')
+      expect(installed.width, source).toBeGreaterThan(0)
+      expect(installed.height, source).toBeGreaterThan(0)
+      const reference = renderMermaidPNG(source, options)
+      expect({ sha256: installed.sha256, length: installed.length }, source).toEqual({ sha256: sha(reference), length: reference.length })
+    })
 
     // Bins are linked into node_modules/.bin.
     expect(existsSync(binShimAm)).toBe(true)
@@ -278,7 +449,18 @@ describe('installed tarball — am bin', () => {
     const mixedSrcs = fc.sample(mixedArb, 20)
     const mixedOps = fc.sample(fc.constantFrom('render', 'verify', 'parse', 'serialize'), 20)
     mixedSrcs.forEach((src, k) => lines.push(JSON.stringify({ op: mixedOps[k], source: src })))
-    for (const bad of ['not json at all', '{"op":123}', '{"nope":1}', '[]', 'null']) lines.push(bad)
+    const invalidAt = new Map<number, string>()
+    for (const [bad, code] of [
+      ['not json at all', 'INVALID_JSON'], ['{"op":123}', 'INVALID_PAYLOAD'],
+      ['{"nope":1}', 'INVALID_PAYLOAD'], ['[]', 'INVALID_PAYLOAD'], ['null', 'INVALID_PAYLOAD'],
+    ] as const) {
+      invalidAt.set(lines.length, code)
+      lines.push(bad)
+      // Recovery must reach a later valid request, not just terminate cleanly
+      // after an invalid final line.
+      asciiAt.set(lines.length, flow[0]!)
+      lines.push(JSON.stringify({ op: 'render', source: flow[0], options: { format: 'ascii' } }))
+    }
 
     const r = spawnSync(NODE!, [amBin, 'batch', '--jsonl'], { cwd: work, input: lines.join('\n') + '\n', encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 })
     expect(r.status).toBe(0) // clean exit; a segfault/panic would be 132/139
@@ -290,6 +472,7 @@ describe('installed tarball — am bin', () => {
       const res = JSON.parse(line) as { ok: boolean; op?: string; data?: { ascii?: string }; error?: { code?: string } }
       expect(typeof res.ok).toBe('boolean')
       if (!res.ok) expect(typeof res.error?.code).toBe('string')
+      if (invalidAt.has(i)) expect(res).toMatchObject({ ok: false, error: { code: invalidAt.get(i) } })
       if (asciiAt.has(i)) {
         // A valid flowchart ASCII render must SUCCEED and carry `ascii` — assert
         // unconditionally so a regression that drops the field (still ok:true)
@@ -353,6 +536,43 @@ describe('installed tarball — am bin', () => {
 // T3 — the `agentic-mermaid-mcp` bin under Node (stdio JSON-RPC).
 // ---------------------------------------------------------------------------
 describe('installed tarball — mcp bin', () => {
+  test.each([
+    ['Node', NODE!, [], {}],
+    ['Node CLI heap flags', NODE!, ['--max-old-space-size=1024'], {}],
+    ['Node environment heap flags', NODE!, [], { NODE_OPTIONS: '--max-old-space-size=1024' }],
+    ['Bun', process.execPath, [], {}],
+    ['Bun without Node on PATH', process.execPath, [], { PATH: '' }],
+  ] as const)('ships the direct source-tool worker and returns structured results under %s', (_runtime, binary, flags, environment) => {
+    expect(haveConsumer).toBe(true)
+    const requests = [
+      ...['render_svg', 'render_ascii', 'verify'].map((name, index) => ({
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name, arguments: { source: 'sequenceDiagram\nA->>B: Packaged renderer' },
+        },
+      })),
+      { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'render_svg', arguments: { source: '---\ntitle: Broken\n---\nsequenceDiagram\n  invalid ???' } } },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'render_ascii', arguments: { source: 'sequenceDiagram\nA->>B: Recovered' } } },
+    ]
+    const inheritedEnvironment = 'PATH' in environment
+      ? Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'))
+      : process.env
+    const result = spawnSync(binary, [...flags, mcpBin], {
+      cwd: work, env: { ...inheritedEnvironment, ...environment }, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
+      encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+    })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(responses).toHaveLength(5)
+    const byId = new Map(responses.map(response => [response.id, response.result]))
+    for (const response of responses) expect(response.result.structuredContent).toEqual(JSON.parse(response.result.content[0].text))
+    for (const id of [1, 2, 3, 5]) expect(byId.get(id)).toMatchObject({ isError: false, structuredContent: { ok: true } })
+    expect(byId.get(1).structuredContent.svg).toContain('<svg')
+    expect(byId.get(2).structuredContent.text).toContain('Packaged renderer')
+    expect(byId.get(3).structuredContent).toMatchObject({ family: 'sequence' })
+    expect(byId.get(4)).toMatchObject({ isError: true, structuredContent: { ok: false, error: { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 5, column: 3 } } })
+    expect(byId.get(5).structuredContent.text).toContain('Recovered')
+  }, RUN_TIMEOUT_MS)
+
   test('default package binary routes the registry mcp argument', () => {
     expect(haveConsumer).toBe(true)
     const r = spawnSync(NODE!, [amBin, 'mcp', '--help'], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
@@ -360,30 +580,76 @@ describe('installed tarball — mcp bin', () => {
     expect(r.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   }, RUN_TIMEOUT_MS)
 
-  test('Mindmap and GitGraph stay structured and source-equal through the installed MCP', () => {
+  test('every registered family retains meaningful typed edits through the installed MCP', () => {
     expect(haveConsumer).toBe(true)
-    const requests = PACKAGE_FAMILY_FIXTURES.map((fixture, index) => ({
-      jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
-        name: 'execute', arguments: {
-          code: `const source = ${JSON.stringify(fixture.source)}; const parsed = mermaid.parseRegisteredMermaid(source); return { ok: parsed.ok, kind: parsed.ok ? parsed.value.body.kind : null, svg: mermaid.renderMermaidSVG(source), ascii: mermaid.renderMermaidASCII(source) }`,
+    const requests = BUILTIN_FAMILY_METADATA.map((family, index) => {
+      const witness = FAMILY_CONFORMANCE_PROFILES[family.id].citizenship
+      return {
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name: 'execute', arguments: {
+            code: `
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(witness.source)});
+if (!parsed.ok) return { phase: 'parse', error: parsed.error };
+const narrowed = mermaid.${family.narrower}(parsed.value);
+if (!narrowed) return { phase: 'narrow' };
+const edited = mermaid.mutate(narrowed, ${JSON.stringify(witness.edit.op)});
+if (!edited.ok) return { phase: 'edit', error: edited.error };
+const source = mermaid.serializeMermaid(edited.value);
+const reread = mermaid.parseRegisteredMermaid(source);
+if (!reread.ok) return { phase: 'read-back', error: reread.error };
+const options = ${JSON.stringify(witness.options ?? {})};
+return {
+  source, family: reread.value.body.kind,
+  narrowed: mermaid.${family.narrower}(reread.value) !== null,
+  missingFacts: mermaid.checkMermaid(reread.value, { include: ${JSON.stringify([...witness.facts, ...witness.edit.afterFacts])} }).missing,
+  verified: mermaid.verifyMermaid(reread.value, { renderOptions: options }).ok,
+  stable: mermaid.serializeMermaid(reread.value) === source,
+  svg: mermaid.renderMermaidSVG(reread.value, options),
+  ascii: mermaid.renderMermaidASCII(reread.value, { ...options, useAscii: true, colorMode: 'none' }),
+};`,
+          },
         },
-      },
-    }))
+      }
+    })
     const r = spawnSync(NODE!, [mcpBin], {
       cwd: work, input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
       encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
     })
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const responses = r.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as any)
-    expect(responses).toHaveLength(PACKAGE_FAMILY_FIXTURES.length)
-    PACKAGE_FAMILY_FIXTURES.forEach((fixture, index) => {
-      const envelope = JSON.parse(responses[index]!.result.content[0].text)
-      expect(envelope.value).toEqual({
-        ok: true,
-        kind: fixture.family,
-        svg: renderMermaidSVG(fixture.source),
-        ascii: renderMermaidASCII(fixture.source),
+    expect(responses).toHaveLength(requests.length)
+    const byId = new Map(responses.map(response => [response.id, response]))
+    const outputs = BUILTIN_FAMILY_METADATA.map((family, index) => {
+      const envelope = JSON.parse(byId.get(index + 1)!.result.content[0].text)
+      expect(envelope.ok, family.id).toBe(true)
+      const value = envelope.value
+      expect(value, family.id).toEqual({
+        family: family.id, narrowed: true, missingFacts: [], verified: true, stable: true,
+        source: expect.any(String), svg: expect.any(String), ascii: expect.any(String),
       })
+      return value as { family: string; source: string; svg: string; ascii: string }
+    })
+    const inputFile = join(work, 'mcp-render-inputs.json')
+    writeFileSync(inputFile, JSON.stringify(outputs.map(value => ({ source: value.source, options: FAMILY_CONFORMANCE_PROFILES[value.family as keyof typeof FAMILY_CONFORMANCE_PROFILES].citizenship.options ?? {} }))))
+    // Isolate the MCP adapter from engine rounding: both sides use the same
+    // installed package under Node. Independent facts above own edit meaning.
+    const reference = spawnSync(NODE!, ['--input-type=module', '-e', `
+import { readFileSync } from 'node:fs';
+import { renderMermaidSVG, renderMermaidASCII } from 'agentic-mermaid/agent';
+const inputs = JSON.parse(readFileSync(process.env.AM_MCP_INPUTS, 'utf8'));
+process.stdout.write(JSON.stringify(inputs.map(({ source, options }) => ({
+  svg: renderMermaidSVG(source, options),
+  ascii: renderMermaidASCII(source, { ...options, useAscii: true, colorMode: 'none' }),
+}))));`], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
+      env: { ...process.env, AM_MCP_INPUTS: inputFile },
+    })
+    expect({ status: reference.status, stderr: reference.stderr }).toEqual({ status: 0, stderr: '' })
+    const rendered = JSON.parse(reference.stdout) as Array<{ svg: string; ascii: string }>
+    expect(rendered).toHaveLength(outputs.length)
+    outputs.forEach((value, index) => {
+      expect(value.svg, value.family).toBe(rendered[index]!.svg)
+      expect(value.ascii, value.family).toBe(rendered[index]!.ascii)
     })
   }, RUN_TIMEOUT_MS)
 
@@ -397,7 +663,8 @@ describe('installed tarball — mcp bin', () => {
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const output = r.stdout.split('\n').filter(Boolean)
     expect(output).toHaveLength(ids.length)
-    for (const id of ids) expect(output.some(line => line.includes(`"id":${id}`))).toBe(true)
+    const tokens = output.map(line => line.match(/"id"\s*:\s*(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)(?=\s*[,}])/)?.[1])
+    expect(tokens.sort()).toEqual([...ids].sort())
   }, RUN_TIMEOUT_MS)
 
   test('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {
@@ -434,9 +701,11 @@ describe('installed tarball — mcp bin', () => {
       expect('result' in resp !== 'error' in resp).toBe(true) // exactly one
       if (resp.error) { expect(typeof resp.error.code).toBe('number'); expect(typeof resp.error.message).toBe('string') }
     }
-    // Every id-bearing request got exactly one matching response.
-    const byId = new Map(responses.filter(r => typeof r.id === 'number').map(r => [r.id as number, r]))
-    const missing = reqs.filter(rq => rq.expectResponse && !byId.has(rq.id as number)).map(rq => rq.id)
-    expect(missing).toEqual([])
+    // Compare the multiset before any indexing can hide duplicate responses.
+    // The two malformed input lines must still yield null-id parse errors.
+    const expectedIds = [...reqs.filter(rq => rq.expectResponse).map(rq => rq.id), null, null]
+    expect(responses.map(response => response.id).sort()).toEqual(expectedIds.sort())
+    expect(responses.filter(response => response.id === null).map(response => response.error?.code))
+      .toEqual([-32700, -32700])
   }, RUN_TIMEOUT_MS)
 })

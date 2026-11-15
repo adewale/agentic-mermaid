@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -27,14 +27,19 @@ const EXPECTED_BLOCK: Block = {
 }
 
 describe('Sequence critical/option keyword boundary', () => {
+  beforeAll(() => { mermaid.initialize({ startOnLoad: false }) })
+
   test.each([
     ['a stray end', 'A->>B: before\nend'],
     ['an unclosed block', 'alt choice\nA->>B: inside'],
     ['a continuation for the wrong owner', 'alt choice\nA->>B: inside\nand another\nB->>A: after\nend'],
     ['a branch outside any block', 'A->>B: before\nelse alternative'],
+    ['a stray end after a blank line and a comment', 'A->>B: before\n\n%% note\nend'],
   ])('rejects %s instead of drawing a different control flow', (_name, body) => {
     const source = `sequenceDiagram\n${body}\n`
-    expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_BLOCK_BOUNDARY')
+    // The renderer names the line verify reports.
+    const line = verifyMermaid(source).warnings.find(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sequence_block_boundary')
+    expect(() => renderMermaidSVG(source)).toThrow(`SEQUENCE_BLOCK_BOUNDARY: line ${line && 'line' in line ? line.line : '?'}:`)
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
@@ -108,7 +113,6 @@ describe('Sequence critical/option keyword boundary', () => {
   })
 
   test('the pinned Mermaid DB identifies critical options, not opt openers', async () => {
-    mermaid.initialize({ startOnLoad: false })
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(CRITICAL)
     const db = upstream.db as unknown as {
       LINETYPE: { CRITICAL_START: number; SOLID: number; CRITICAL_OPTION: number; CRITICAL_END: number }
@@ -170,15 +174,16 @@ describe('Sequence critical/option keyword boundary', () => {
     }
   })
 
-  test('par_over retains its legacy native suffix without inserting whitespace', async () => {
+  test('par_over retains its own kind and label without a spurious suffix', async () => {
     for (const [opener, expected] of [
-      ['par_over|label', '_over|label'],
-      ['par_over:label', '_over:label'],
-      ['par_over    label', '_over    label'],
-      ['par_over', '_over'],
+      ['par_over|label', '|label'],
+      ['par_over:label', ':label'],
+      ['par_over    label', 'label'],
+      ['par_over', ''],
     ] as const) {
       const source = `sequenceDiagram\n${opener}\nA->>B: work\nend\n`
       expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.label).toBe(expected)
+      expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.type).toBe('par_over')
       const agent = parseRegisteredMermaid(source)
       expect(agent.ok).toBe(true)
       if (agent.ok) expect(serializeMermaid(agent.value)).toContain(opener)
@@ -196,12 +201,12 @@ describe('Sequence critical/option keyword boundary', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const body = asSequence(parsed.value)?.body
-    expect(body?.statements.map(statement => statement.kind)).toEqual(['opaque-block', 'message'])
-    const opaque = body?.statements[0]
-    expect(opaque?.kind).toBe('opaque-block')
-    if (opaque?.kind !== 'opaque-block') return
+    expect(body?.statements.map(statement => statement.kind)).toEqual(['fragment', 'message'])
+    const fragment = body?.statements[0]
+    expect(fragment?.kind).toBe('fragment')
+    if (fragment?.kind !== 'fragment') return
     const authoredBlockLines = CRITICAL.trimEnd().split('\n').slice(1, -1)
-    expect(opaque.lines).toEqual(authoredBlockLines)
+    expect(fragment.fragment.rawLines).toEqual(authoredBlockLines)
     const serialized = serializeMermaid(parsed.value)
     expect(serialized).toContain(authoredBlockLines.join('\n'))
     expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks[0]?.type).toBe('critical')

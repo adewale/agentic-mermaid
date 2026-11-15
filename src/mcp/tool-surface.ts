@@ -13,20 +13,27 @@ import {
 import { admitMcpMessage, type AdmittedMcpMessage } from './admission.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
+  renderOptionsSchemaDefinitions,
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
+  renderSchemaProblems,
+  misplacedRenderOptionHint,
   type SharedRenderOptionField,
 } from '../render-contract.ts'
-import { normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
-import { resolveStyleStack } from '../scene/style-registry.ts'
-import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
-import { safeCssFontFamily } from '../shared/css-font.ts'
+import { MAX_HOSTED_PNG_PIXELS, MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
 import {
   limitJsonConfigDiagnostics,
   validateJsonConfigAdmission,
 } from '../shared/json-config-admission.ts'
 import type { RenderOptions } from '../types.ts'
+import type { ExecuteErrorCode } from './execute-limits.ts'
+import type { ExecuteResult } from './sandbox.ts'
+import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
+import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
+import { inspectPngDimensions } from '../output-color-profile.ts'
+import { mcpRenderReceiptProperty } from './receipt-summary.ts'
 
 export interface McpToolDefinition {
   name: string
@@ -50,18 +57,109 @@ export interface McpToolDefinition {
   }
 }
 
-export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url'] as const)
+export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url', 'image'] as const)
 export type McpPngOutputMode = typeof MCP_PNG_OUTPUT_MODES[number]
+/** The hosted endpoint returns bytes in its response only; it keeps no artifacts. */
+export const HOSTED_MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'image'] as const)
 
 export function isMcpPngOutputMode(value: unknown): value is McpPngOutputMode {
   return typeof value === 'string' && MCP_PNG_OUTPUT_MODES.includes(value as McpPngOutputMode)
 }
 
+/**
+ * The annotated schema behind each compact advertised `inputSchema`, keyed by
+ * the advertised object. tools/list loads every advertised schema into each
+ * agent's context, while server-side validation needs the runtime annotations
+ * (`x-agentic-mermaid-runtime-validator` and the expectations that word its
+ * diagnostics) and the explicit role-style records its messages name.
+ */
+const CANONICAL_INPUT_SCHEMAS = new WeakMap<object, Record<string, unknown>>()
+
 /** Adapt independently authored tool definitions to the closed argument
  * contract used by every first-party surface. This keeps progressive tools
  * from silently reopening the interface when they are composed into a server. */
 export function withClosedMcpInputSchema(tool: McpToolDefinition): McpToolDefinition {
-  return { ...tool, inputSchema: { ...tool.inputSchema, additionalProperties: false } }
+  const inputSchema = { ...tool.inputSchema, additionalProperties: false }
+  const canonical = CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema)
+  if (canonical) CANONICAL_INPUT_SCHEMAS.set(inputSchema, { ...canonical, additionalProperties: false })
+  return { ...tool, inputSchema }
+}
+
+/** Record that `advertised` is a projection of `canonical`, so validation of a
+ * tool advertising it enforces the canonical schema. */
+export function registerAdvertisedMcpInputSchema(advertised: Record<string, unknown>, canonical: Record<string, unknown>): void {
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+}
+
+/** The schema `validateMcpToolArguments` enforces for a tool: the canonical
+ * annotated schema when the advertised one is a compact projection of it. */
+export function mcpToolValidationSchema(tool: McpToolDefinition): Record<string, unknown> {
+  return CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema) ?? tool.inputSchema
+}
+
+// Keywords whose value maps names to schemas, and keywords whose value is data
+// rather than a schema. Annotations are stripped at schema positions only, so a
+// property or definition that happens to be named `x-…` keeps its name.
+const SCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
+const SCHEMA_DATA_KEYWORDS = new Set(['enum', 'const', 'default', 'examples', 'required'])
+
+function withoutVendorAnnotations(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(withoutVendorAnnotations)
+  if (!isPlainRecord(schema)) return schema
+  const projected: Record<string, unknown> = {}
+  for (const [keyword, value] of Object.entries(schema)) {
+    if (keyword.startsWith('x-')) continue
+    projected[keyword] = SCHEMA_DATA_KEYWORDS.has(keyword) ? value
+      : SCHEMA_MAP_KEYWORDS.has(keyword) && isPlainRecord(value)
+        ? Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withoutVendorAnnotations(child)]))
+        : withoutVendorAnnotations(value)
+  }
+  return projected
+}
+
+const ROLE_STYLE_PREFIX = 'roleStyle-'
+const SHARED_ROLE_STYLE = 'roleStyle-any'
+const CLOSED_RECORD_KEYWORDS = new Set(['type', 'additionalProperties', 'maxProperties', 'properties'])
+
+/** The property names of a role-style record that only restricts the shared
+ * record to a subset of its properties, each with the shared property schema;
+ * undefined when the record constrains anything else, so it stays explicit. */
+function sharedRoleStyleRestriction(record: unknown, shared: Record<string, unknown>): string[] | undefined {
+  const closed = (candidate: unknown): candidate is { properties: Record<string, unknown>; maxProperties?: unknown } =>
+    isPlainRecord(candidate) && candidate.type === 'object' && candidate.additionalProperties === false
+    && isPlainRecord(candidate.properties) && Object.keys(candidate).every(keyword => CLOSED_RECORD_KEYWORDS.has(keyword))
+  if (!closed(record) || !closed(shared)) return undefined
+  const names = Object.keys(record.properties)
+  const bound = (maxProperties: unknown) => maxProperties === undefined || (typeof maxProperties === 'number' && maxProperties >= names.length)
+  if (names.length === 0 || !bound(record.maxProperties) || !bound(shared.maxProperties)) return undefined
+  return names.every(name => Object.hasOwn(shared.properties, name)
+    && JSON.stringify(record.properties[name]) === JSON.stringify(shared.properties[name])) ? names : undefined
+}
+
+/**
+ * The compact form of a canonical tool schema that tools/list and the server
+ * cards advertise; the canonical schema stays the one argument validation
+ * enforces. The projection accepts exactly the same argument values under any
+ * JSON Schema validator: vendor annotations are not assertions, and a
+ * role-style record that restricts the shared record to some of its properties
+ * becomes a reference to the shared record plus the allowed property names,
+ * instead of a second copy of each property schema. `allOf` around the `$ref`
+ * keeps the sibling keyword meaningful to draft-07 validators, which ignore
+ * keywords beside a bare `$ref`.
+ */
+function advertiseMcpInputSchema(canonical: Record<string, unknown>): Record<string, unknown> {
+  const advertised = withoutVendorAnnotations(canonical) as Record<string, unknown>
+  const definitions = advertised.$defs
+  const shared = isPlainRecord(definitions) ? definitions[SHARED_ROLE_STYLE] : undefined
+  if (isPlainRecord(definitions) && isPlainRecord(shared)) {
+    advertised.$defs = Object.fromEntries(Object.entries(definitions).map(([name, record]) => {
+      const names = name.startsWith(ROLE_STYLE_PREFIX) && name !== SHARED_ROLE_STYLE
+        ? sharedRoleStyleRestriction(record, shared) : undefined
+      return [name, names ? { allOf: [{ $ref: `#/$defs/${SHARED_ROLE_STYLE}` }], propertyNames: { enum: names } } : record]
+    }))
+  }
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+  return advertised
 }
 
 export interface McpServerSurface<Context> {
@@ -108,7 +206,7 @@ export interface McpDispatchOptions {
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
 // name (HOSTED_MCP_SERVER_NAME in hosted-server.ts): registries and clients
 // cache tool lists by server identity, and the two surfaces expose different
-// tools (4 local vs 9 hosted), so they must not share one.
+// tool sets (see LOCAL_TOOLS and HOSTED_TOOLS), so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
@@ -120,6 +218,14 @@ export const MCP_SERVER_VERSION = PACKAGE_VERSION
 // resources/subscribe unimplemented rather than silently ignoring it.
 function publishesResources<Context>(surface: McpServerSurface<Context>): surface is McpServerSurface<Context> & { resources: readonly McpResourceDefinition[] } {
   return (surface.resources?.length ?? 0) > 0
+}
+
+function hasCursor(params: unknown): boolean {
+  return isPlainRecord(params) && Object.hasOwn(params, 'cursor')
+}
+
+function unknownCursor(id: number | string | null, item: string): JsonRpcResponse {
+  return rpcError(id, -32602, `Invalid params: unknown cursor; this server lists every ${item} in one page and issues no cursors`)
 }
 
 function serverCapabilities<Context>(surface: McpServerSurface<Context>) {
@@ -152,233 +258,79 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
 
 export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
 
+/** The execute tool payload both servers return. Success passes the runner's
+ * { ok, value, logs } through; failure is { ok:false, error:{ code, message,
+ * location? }, logs } with the runner's message verbatim, a stable code (see
+ * ExecuteErrorCode) so an agent can branch on error.code on either channel,
+ * and, when known, the failing { line, column } in the agent's own code. */
+export function executeToolPayload(result: ExecuteResult):
+  | ExecuteResult
+  | { ok: false; error: { code: ExecuteErrorCode; message: string; location?: CodeModeLocation }; logs: string[] } {
+  if (result.ok) return result
+  return {
+    ok: false,
+    error: {
+      code: result.code ?? 'EXECUTE_FAILED',
+      message: result.error ?? 'sandbox returned no error message',
+      ...(result.location ? { location: { line: result.location.line, column: result.location.column } } : {}),
+    },
+    logs: result.logs ?? [],
+  }
+}
+
 /** One validation contract shared by hosted and local Code Mode. */
 export function isValidExecuteTimeout(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
-export function mcpRenderOptionSchemaProperties(
-  optionsDescription: string,
-): Record<string, unknown> {
-  return {
-    options: { ...sharedRenderOptionsJsonSchema(), description: optionsDescription },
-  }
+// Every render tool offers the same `options` object; its description is the
+// only built-in Style menu a client sees without calling execute, so it comes
+// from the style registry, once, for every render tool on every surface.
+const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look')
+  .map(descriptor => descriptor.inputName)
+const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'palette')
+  .map(descriptor => descriptor.inputName)
+export const MCP_RENDER_OPTIONS_DESCRIPTION = `Shared advanced RenderOptions object. style accepts a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline StyleSpec record, or left-to-right stack.`
+
+/**
+ * The advertised input schema of a render tool: `source`, the tool's own output
+ * fields, and the shared `options` object. The render options schema names its
+ * StyleSpec and JSON-value records by `#/$defs/<name>`; those definitions sit
+ * at this schema's root, once, so every reference resolves from the tool
+ * schema itself (no embedded `$id` resource) and no record is inlined twice.
+ * The result is the compact projection (advertiseMcpInputSchema); argument
+ * validation enforces the annotated schema it projects, and the options
+ * description links the published annotated render options schema.
+ */
+export function mcpRenderToolInputSchema(outputProperties: Record<string, unknown> = {}): Record<string, unknown> {
+  const { $schema: _dialect, $id: published, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
+  return advertiseMcpInputSchema({
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      source: { type: 'string', description: 'Mermaid source.' },
+      ...outputProperties,
+      options: { ...options, description: `${MCP_RENDER_OPTIONS_DESCRIPTION} Annotated schema (field families, terminal notes): ${String(published)}` },
+    },
+    required: ['source'],
+    $defs: renderOptionsSchemaDefinitions(),
+  })
 }
 
 export function projectMcpRenderOptions(
   args: Readonly<Record<string, unknown>>,
 ): RenderOptions {
-  const nested = args.options === undefined ? {} : args.options
-  const nestedProblems = validateSerializableRenderOptions(nested)
-  if (nestedProblems.length > 0) throw new Error(`invalid render options: ${nestedProblems.join('; ')}`)
+  const requested = args.options
+  const nested = requested === undefined ? {} : requested
+  if (!isPlainRecord(nested)) throw new Error('invalid render options: render options must be a plain JSON object')
+  // Capture enumerable top-level values before validation. Validating the live
+  // record first could read a different getter value when projecting it.
   const projected: Record<string, unknown> = { ...(nested as RenderOptions) }
   const problems = validateSerializableRenderOptions(projected)
   if (problems.length > 0) throw new Error(`invalid render options: ${problems.join('; ')}`)
   return projected as RenderOptions
-}
-
-type JsonSchema = Record<string, unknown>
-type SchemaPath = readonly (string | number)[]
-interface SchemaProblem { path: SchemaPath; message: string }
-
-const FORBIDDEN_JSON_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-
-function schemaRecord(value: unknown): JsonSchema | undefined {
-  return isPlainRecord(value) ? value : undefined
-}
-
-function dereferenceSchema(schema: JsonSchema, root: JsonSchema): JsonSchema | undefined {
-  const reference = schema.$ref
-  if (typeof reference !== 'string' || !reference.startsWith('#/')) return undefined
-  let cursor: unknown = root
-  for (const encoded of reference.slice(2).split('/')) {
-    if (!isPlainRecord(cursor)) return undefined
-    cursor = cursor[encoded.replaceAll('~1', '/').replaceAll('~0', '~')]
-  }
-  return schemaRecord(cursor)
-}
-
-function validateSchemaValue(
-  value: unknown,
-  schema: JsonSchema,
-  inheritedRoot: JsonSchema,
-  path: SchemaPath,
-  ancestors: Set<object>,
-): SchemaProblem[] {
-  // Shared RenderOptions is embedded as a property schema and carries its own
-  // local $defs. Treat that fragment as its reference root so recursive
-  // Mermaid config values remain checkable after projection into a tool.
-  const root = schemaRecord(schema.$defs) ? schema : inheritedRoot
-  if (schema.$ref !== undefined) {
-    const resolved = dereferenceSchema(schema, root)
-    return resolved
-      ? validateSchemaValue(value, resolved, root, path, ancestors)
-      : [{ path, message: `uses unresolved schema reference ${String(schema.$ref)}` }]
-  }
-
-  const anyOf = Array.isArray(schema.anyOf)
-    ? schema.anyOf.map(schemaRecord).filter((entry): entry is JsonSchema => entry !== undefined)
-    : []
-  if (anyOf.length > 0) {
-    const alternatives = anyOf.map(candidate =>
-      validateSchemaValue(value, candidate, root, path, new Set(ancestors)))
-    if (!alternatives.some(problems => problems.length === 0)) {
-      const expectation = schema['x-agentic-mermaid-validation-expectation']
-      if (typeof expectation === 'string') return [{ path, message: `must be ${expectation}` }]
-      return alternatives.sort((left, right) => left.length - right.length)[0]
-        ?? [{ path, message: 'must match an allowed shape' }]
-    }
-  }
-
-  const oneOf = Array.isArray(schema.oneOf)
-    ? schema.oneOf.map(schemaRecord).filter((entry): entry is JsonSchema => entry !== undefined)
-    : []
-  if (oneOf.length > 0) {
-    const matching = oneOf.filter(candidate =>
-      validateSchemaValue(value, candidate, root, path, new Set(ancestors)).length === 0)
-    if (matching.length !== 1) {
-      return [{ path, message: `must match exactly one allowed shape (matched ${matching.length})` }]
-    }
-  }
-
-  if (Object.prototype.hasOwnProperty.call(schema, 'const') && !Object.is(value, schema.const)) {
-    return [{ path, message: `must equal ${String(schema.const)}` }]
-  }
-  if (Array.isArray(schema.enum) && !schema.enum.some(candidate => Object.is(candidate, value))) {
-    return [{ path, message: `must be one of ${schema.enum.map(String).join(' | ')}` }]
-  }
-
-  const type = schema.type
-  const typeIsValid = type === undefined
-    || (type === 'null' && value === null)
-    || (type === 'string' && typeof value === 'string')
-    || (type === 'number' && typeof value === 'number' && Number.isFinite(value))
-    || (type === 'integer' && typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value))
-    || (type === 'boolean' && typeof value === 'boolean')
-    || (type === 'array' && Array.isArray(value))
-    || (type === 'object' && isPlainRecord(value))
-  if (!typeIsValid) {
-    const expected = type === 'number' ? 'a finite number'
-      : type === 'integer' ? 'a finite integer'
-        : type === 'object' ? 'a plain JSON object'
-          : type === 'array' ? 'an array'
-            : type === 'null' ? 'null'
-              : `a ${String(type)}`
-    return [{ path, message: `must be ${expected}` }]
-  }
-
-  if (typeof value === 'number') {
-    if (typeof schema.minimum === 'number' && value < schema.minimum) return [{ path, message: `must be at least ${schema.minimum}` }]
-    if (typeof schema.exclusiveMinimum === 'number' && value <= schema.exclusiveMinimum) return [{ path, message: `must be greater than ${schema.exclusiveMinimum}` }]
-    if (typeof schema.maximum === 'number' && value > schema.maximum) return [{ path, message: `must be at most ${schema.maximum}` }]
-  }
-
-
-  if (typeof value === 'string') {
-    if (typeof schema.minLength === 'number' && value.length < schema.minLength) {
-      return [{ path, message: `must contain at least ${schema.minLength} character${schema.minLength === 1 ? '' : 's'}` }]
-    }
-    if (typeof schema.pattern === 'string') {
-      try {
-        if (!new RegExp(schema.pattern, 'u').test(value)) {
-          if (schema['x-agentic-mermaid-runtime-validator'] === 'portablePngBackground') {
-            return [{ path, message: 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color' }]
-          }
-          return [{ path, message: `must match ${schema.pattern}` }]
-        }
-      } catch {
-        return [{ path, message: 'uses an invalid schema pattern' }]
-      }
-    }
-    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) {
-      return [{ path, message: `must contain at most ${schema.maxLength} characters` }]
-    }
-  }
-
-  if (Array.isArray(value) && type === 'array') {
-    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
-      return [{ path, message: `must contain at least ${schema.minItems} item${schema.minItems === 1 ? '' : 's'}` }]
-    }
-    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
-      return [{ path, message: `must contain at most ${schema.maxItems} items` }]
-    }
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic' }]
-    const itemSchema = schemaRecord(schema.items)
-    if (itemSchema) {
-      ancestors.add(value)
-      try {
-        const problems = value.flatMap((item, index) =>
-          validateSchemaValue(item, itemSchema, root, [...path, index], ancestors))
-        if (problems.length > 0) return problems
-      } finally {
-        ancestors.delete(value)
-      }
-    }
-  }
-
-  if (isPlainRecord(value) && (type === 'object'
-    || schema.properties !== undefined
-    || schema.required !== undefined
-    || schema.additionalProperties !== undefined)) {
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic' }]
-    ancestors.add(value)
-    try {
-      const properties = schemaRecord(schema.properties) ?? {}
-      const required = Array.isArray(schema.required)
-        ? schema.required.filter((entry): entry is string => typeof entry === 'string')
-        : []
-      const problems: SchemaProblem[] = []
-      for (const key of required) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) {
-          problems.push({ path: [...path, key], message: 'is required' })
-        }
-      }
-      for (const [key, child] of Object.entries(value)) {
-        if (FORBIDDEN_JSON_KEYS.has(key)) {
-          problems.push({ path: [...path, key], message: 'uses a forbidden prototype key' })
-          continue
-        }
-        const propertySchema = schemaRecord(properties[key])
-        if (propertySchema) {
-          problems.push(...validateSchemaValue(child, propertySchema, root, [...path, key], ancestors))
-          continue
-        }
-        if (schema.additionalProperties === false) {
-          problems.push({ path: [...path, key], message: 'is not allowed' })
-          continue
-        }
-        const additionalSchema = schemaRecord(schema.additionalProperties)
-        if (additionalSchema) {
-          problems.push(...validateSchemaValue(child, additionalSchema, root, [...path, key], ancestors))
-        }
-      }
-      if (problems.length > 0) return problems
-    } finally {
-      ancestors.delete(value)
-    }
-  }
-
-  const runtimeValidator = schema['x-agentic-mermaid-runtime-validator']
-  if (runtimeValidator === 'safeCssColor' && safeCssColor(value) === undefined) {
-    return [{ path, message: 'must be a safe, non-fetching CSS color' }]
-  }
-  if (runtimeValidator === 'portablePngBackground' && normalizePortablePngBackground(value) === undefined) {
-    return [{ path, message: 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color' }]
-  }
-  if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
-    return [{ path, message: 'must be a safe, non-fetching CSS paint' }]
-  }
-  if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
-    return [{ path, message: 'must be a safe, non-fetching CSS font family or stack' }]
-  }
-  if (runtimeValidator === 'styleInput') {
-    try {
-      resolveStyleStack(value as Parameters<typeof resolveStyleStack>[0])
-    } catch (error) {
-      return [{ path, message: `is invalid: ${error instanceof Error ? error.message : String(error)}` }]
-    }
-  }
-  return []
 }
 
 function formatSchemaPath(path: SchemaPath): string {
@@ -387,7 +339,9 @@ function formatSchemaPath(path: SchemaPath): string {
     typeof part === 'number' ? `${formatted}[${part}]` : `${formatted}.${part}`, 'arguments')
 }
 
-/** Runtime-check one tool's arguments against the exact schema advertised by tools/list. */
+/** Runtime-check one tool's arguments against the canonical schema behind the
+ * one tools/list advertises: the same JSON Schema assertions, plus the runtime
+ * validators its annotations name. */
 export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown): string[] {
   if (!isPlainRecord(value)) return ['arguments must be a plain JSON object']
   const admissionProblems = validateJsonConfigAdmission(value)
@@ -395,8 +349,26 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
     return limitJsonConfigDiagnostics(admissionProblems.map(problem =>
       `${formatSchemaPath(problem.path)} ${problem.message}`), 'arguments')
   }
-  const problems = validateSchemaValue(value, tool.inputSchema, tool.inputSchema, [], new Set())
-    .map(problem => `${formatSchemaPath(problem.path)} ${problem.message}`)
+  const canonical = mcpToolValidationSchema(tool)
+  const problems = validateJsonSchema(value, canonical, canonical, [], {
+    patternMismatch: schema => schema['x-agentic-mermaid-runtime-validator'] === 'portablePngBackground'
+      ? 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color' : undefined,
+    validateRuntime: (value, schema, path) => {
+      const validator = schema['x-agentic-mermaid-runtime-validator']
+      if (validator === 'portablePngBackground') {
+        return normalizePortablePngBackground(value) === undefined
+          ? [{ path, message: 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color', generic: false }] : []
+      }
+      // Cross-field geometry belongs to the normalized RenderOptions boundary;
+      // the wire schema continues to validate its individual fields.
+      return validator === 'architectureVisual' ? [] : renderSchemaProblems(value, schema, path)
+    },
+  })
+    .map(problem => {
+      const hint = problem.message === 'is not allowed' && problem.path.length === 2 && problem.path[0] === 'options'
+        ? misplacedRenderOptionHint(String(problem.path[1])) : undefined
+      return `${formatSchemaPath(problem.path)} ${problem.message}${hint ? `; ${hint}` : ''}`
+    })
   return limitJsonConfigDiagnostics(problems, 'arguments')
 }
 
@@ -480,21 +452,31 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       })
       break
     }
-    case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
+    // JSON-RPC 2.0: a message with an id is a request, whatever its method is
+    // called, and a request gets a response. MCP defines initialized only as
+    // a notification, so the request form names no method this server has.
+    case 'notifications/initialized': response = era === 'modern'
+      ? unknownMethod(id, req.method)
+      : notification ? null : rpcError(id, -32601, 'Method not found: notifications/initialized is a notification; send it without an id'); break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
     case 'server/discover': response = era === 'modern'
       ? reply(id, discoverResult(surface, servedVersions))
       : unknownMethod(id, req.method); break
-    case 'tools/list': response = reply(id, { tools: surface.tools }); break
-    case 'resources/list': response = publishesResources(surface)
-      ? reply(id, { resources: surface.resources })
-      : unknownMethod(id, req.method); break
+    // Each whole list fits one page, so this server never issues a nextCursor
+    // and no cursor a client sends can name a page (MCP pagination: an invalid
+    // cursor SHOULD be -32602 rather than silently restarting the listing).
+    case 'tools/list': response = hasCursor(req.params)
+      ? unknownCursor(id, 'tool')
+      : reply(id, { tools: surface.tools }); break
+    case 'resources/list': response = !publishesResources(surface)
+      ? unknownMethod(id, req.method)
+      : hasCursor(req.params) ? unknownCursor(id, 'resource') : reply(id, { resources: surface.resources }); break
     // No resource templates exist (per-family op discovery stays on the
     // describe_sdk tool), but a client that saw the resources capability may
     // legitimately probe: answer with the empty roster, not Method-not-found.
-    case 'resources/templates/list': response = publishesResources(surface)
-      ? reply(id, { resourceTemplates: [] })
-      : unknownMethod(id, req.method); break
+    case 'resources/templates/list': response = !publishesResources(surface)
+      ? unknownMethod(id, req.method)
+      : hasCursor(req.params) ? unknownCursor(id, 'resource template') : reply(id, { resourceTemplates: [] }); break
     case 'resources/read': {
       if (!publishesResources(surface)) {
         response = unknownMethod(id, req.method)
@@ -624,23 +606,20 @@ function unknownMethod(id: number | string | null, method: string): JsonRpcRespo
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
   const hostedNote = options.hosted
-    ? `Hosted note: prefer direct render/verify tools and declarative mutate/build;
-reserve execute for custom logic. Hosted SVG, ASCII, and layout calls force
-security:'strict' and embedFontImport:false.
+    ? `SVG/ASCII/layout enforce
+security:'strict', embedFontImport:false.
 
 `
     : ''
   const timeoutDescription = options.hosted
     ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
     : 'Optional hard timeout (default 5000ms).'
-  const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
+  const runtime = options.hosted ? 'isolated' : 'node:vm'
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Run JavaScript in ${runtime}; return a value.
-One call composes edits. Submit JavaScript; declaration types are guidance.
-No promises, async/await, dynamic import, or type annotations.
-${hostedNote}SDK declaration:
+    description: `Sync ${runtime} JS; return a value. No imports/TS.
+${hostedNote}
 ${options.sdkDeclaration}`,
     inputSchema: {
       type: 'object',
@@ -655,37 +634,65 @@ ${options.sdkDeclaration}`,
   }
 }
 
+/** The compact-result paths, named in both servers' instructions. */
+export const MCP_COMPACT_RESULTS_NOTE = 'For smaller results, pass receipt:"summary" to render tools and output:"image" to render_png; describe_sdk capability=render-options (field=<name>) gives each render option\'s families and terminal notes, capability=code-mode the execute declaration. Deprecation: 0.6.0 makes receipt:"summary" and output:"image" the defaults; pass receipt:"full" or output:"base64" to keep today\'s results.'
+
+/** Render tools do not verify. Running verify's checks on every render would
+ * add roughly 55-100% CPU to each uncached render (measured locally on 10-60
+ * node flowcharts, xychart, sequence and class diagrams), so the warnings
+ * stay partial and the tools say where the full findings come from. */
+export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only (capabilities.json codes); it is not a verification.
+Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY, LAYOUT_UNCERTIFIED) come from
+verify: call it before trusting the drawing. receipt.layoutCertification.geometry marks a drawing that failed layout certification.`
+
+/**
+ * render_png output=image: the PNG travels as an MCP image content block, which
+ * clients hand to a model as an image instead of ~1.3 tokens per base64 byte of
+ * JSON text. content[0] stays the JSON payload every render tool returns, with
+ * the byte count and pixel dimensions in place of png_base64.
+ */
+export function mcpPngImageResult(id: number | string | null, png: Uint8Array, data: string, fields: Record<string, unknown>): JsonRpcResponse {
+  const { width, height } = inspectPngDimensions(png)
+  const payload = { ok: true as const, mimeType: 'image/png', bytes: png.byteLength, width, height, ...fields }
+  return reply(id, {
+    content: [{ type: 'text', text: JSON.stringify(payload) }, { type: 'image', data, mimeType: 'image/png' }],
+    isError: false,
+  })
+}
+
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'
   const pngSchema = pngOutputOptionsJsonSchema(hosted ? 'portable' : 'native')
   const pngProperties = pngSchema.properties as Record<string, JsonSchema>
+  const pixelCap = Math.ceil((hosted ? MAX_HOSTED_PNG_PIXELS : MAX_PNG_PIXELS) / 1_000_000)
+  const budget = `A raster wider or taller than ${MAX_PNG_RASTER_DIMENSION}px or over ${pixelCap}MP fails with
+PNG_RASTER_BUDGET_EXCEEDED; pass fitTo { width } or { height }, or a smaller scale, to fit it.
+${RENDER_WARNINGS_NOTE} Raster font-coverage and legibility warnings are added.`
   return {
     name: 'render_png',
     title: 'Render Mermaid as PNG',
     description: hosted
-      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
+      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }; output "image"
+returns { ok, bytes, width, height } plus an MCP image content block instead.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
-byte-determinism contract. For file/URL artifacts use the local stdio server.`
-      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
+byte-determinism contract. For file/URL artifacts use the local stdio server.
+${budget}`
+      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes;
+output "image" returns { ok, bytes, width, height } plus an MCP image content block instead.
 Set output to "file" or "url" to write a managed artifact instead; artifact responses include
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        ...pngProperties,
-        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object.'),
-        ...(hosted ? {} : {
-          output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
-        }),
-      },
-      required: ['source'],
-    },
+${budget}
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use render_svg, render_ascii (useAscii true for ASCII, false for Unicode), or verify. Code Mode execute also exposes the corresponding mermaid.* SDK functions.`,
+    inputSchema: mcpRenderToolInputSchema({
+      ...pngProperties,
+      output: hosted
+        ? { type: 'string', enum: [...HOSTED_MCP_PNG_OUTPUT_MODES], description: 'base64 (default) JSON field, or image: an MCP image content block beside the JSON.' }
+        : { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64); image returns an MCP image content block beside the JSON.' },
+      receipt: mcpRenderReceiptProperty(),
+    }),
     annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }
 }

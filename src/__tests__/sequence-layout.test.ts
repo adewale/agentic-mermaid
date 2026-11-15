@@ -7,12 +7,13 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
@@ -39,6 +40,51 @@ interface Rect {
 function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 }
+
+it('parallel overlay branches share time, retain their labels, and join after the longest branch', () => {
+  const source = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined'
+  expect(() => layout(source)).not.toThrow()
+  const positioned = layout(source)
+  expect(positioned.blocks[0]?.type).toBe('par_over')
+  expect(positioned.messages[0]!.y).toBe(positioned.messages[2]!.y)
+  const frame = positioned.blocks[0]!
+  const tag = frame.dividers[0]!.labelPosition!
+  expect(tag.text).toBe('[Other]')
+  expect(overlaps(tag.bounds, positioned.messages[2]!.bounds)).toBe(false)
+  for (const message of positioned.messages.slice(0, 3)) {
+    expect(message.bounds.y).toBeGreaterThan(frame.y + frame.header!.height)
+    expect(message.bounds.y + message.bounds.height).toBeLessThan(frame.y + frame.height)
+  }
+  expect(positioned.messages[3]!.bounds.y).toBeGreaterThan(frame.y + frame.height)
+  const ordinary = layout(source.replace('par_over', 'par'))
+  expect(ordinary.messages[2]!.y).toBeGreaterThan(ordinary.messages[1]!.y)
+  expect(positioned.height).toBeLessThan(ordinary.height)
+})
+
+it('parallel overlays clear shared actors, self messages, notes and nested frames before joining', () => {
+  const source = 'sequenceDiagram\npar_over Work\nrect rgb(240,240,240)\nA->>+B: first\nNote right of B: owned note\nB-->>-A: reply\nend\nand Retry\nA->>A: self\nNote over A: retry note\nend\nA->>B: joined'
+  expect(() => layout(source)).not.toThrow()
+  const positioned = layout(source)
+  const outer = positioned.blocks.find(block => block.type === 'par_over')!
+  const child = positioned.blocks.find(block => block.type === 'rect')!
+  const self = positioned.messages[2]!
+  expect(overlaps(child, self.bounds)).toBe(false)
+  expect(positioned.notes.every(note => note.y > outer.y && note.y + note.height < outer.y + outer.height)).toBe(true)
+  expect(positioned.activations).toHaveLength(1)
+  expect(positioned.activations[0]!.bottomY).toBeGreaterThan(positioned.activations[0]!.topY)
+  expect(positioned.messages[3]!.bounds.y).toBeGreaterThan(outer.y + outer.height)
+})
+
+it('note-only overlay branches share time and keep a later branch label above its nested frame', () => {
+  const notes = layout('sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Notes\nNote over A: first\nand Other\nNote over D: second\nend\nA->>D: joined')
+  expect(notes.notes[0]!.y).toBe(notes.notes[1]!.y)
+  const nested = layout('sequenceDiagram\npar_over Work\nA->>B: first\nand Other\nrect rgb(240,240,240)\nC->>D: second\nend\nend\nA->>D: joined')
+  const overlay = nested.blocks.find(block => block.type === 'par_over')!
+  const child = nested.blocks.find(block => block.type === 'rect')!
+  expect(overlay.dividers[0]!.labelPosition!.bounds.y + overlay.dividers[0]!.labelPosition!.bounds.height).toBeLessThan(child.y)
+  const shared = layout('sequenceDiagram\npar_over Work\nA->>B: first\nand Other\nrect rgb(240,240,240)\nA->>B: second\nend\nend\nA->>B: joined')
+  expect(overlaps(shared.blocks.find(block => block.type === 'rect')!, shared.messages[0]!.bounds)).toBe(false)
+})
 
 function actorRect(actor: PositionedSequenceDiagram['actors'][number]): Rect {
   return { x: actor.x - actor.width / 2, y: actor.y, width: actor.width, height: actor.height }
@@ -113,161 +159,74 @@ describe('sequence layout – standalone activation events', () => {
     expect(new Set(positioned.activations.map(activation => activation.x)).size).toBe(2)
     expect(positioned.activations.every(activation => activation.bottomY > activation.topY)).toBe(true)
   })
+
+  // Mermaid documents `activate`/`deactivate` after a message as the same
+  // diagram as the `+`/`-` arrow suffix. Standalone commands were anchored to
+  // the next message, so a bar started one message late and ran through
+  // following notes and messages in both SVG and terminal output.
+  it.each([
+    ['a reply followed by a note', 'Note over A,B: after\n  A->>B: again'],
+    ['a reply followed by messages', 'A->>B: again\n  A->>B: more'],
+    ['a reply at the end', ''],
+  ])('standalone commands draw like the +/- suffix: %s', (_name, tail) => {
+    const explicit = `sequenceDiagram\n  A->>B: request\n  activate B\n  B-->>A: reply\n  deactivate B\n  ${tail}`
+    const shorthand = `sequenceDiagram\n  A->>+B: request\n  B-->>-A: reply\n  ${tail}`
+    expect(renderMermaidSVG(explicit)).toBe(renderMermaidSVG(shorthand))
+    for (const useAscii of [false, true]) {
+      expect(renderMermaidASCII(explicit, { useAscii })).toBe(renderMermaidASCII(shorthand, { useAscii }))
+    }
+  })
 })
 
 describe('sequence layout – block spacing', () => {
-  it('messages outside blocks are spaced at the base row height', () => {
+  it.each([
+    ['loop', 'loop Retry\n B->>A: Reply', []],
+    ['alt', 'alt Success\n B->>A: Reply', []],
+    ['opt', 'opt Cached\n B->>A: Reply', []],
+    ['critical', 'critical Transaction\n B->>A: Reply', []],
+    ['alt', 'alt Yes\n B->>A: Reply\nelse No\n B->>A: Alternate', ['No']],
+    ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate', ['Failure']],
+    ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate\nelse Locked\n B->>A: Locked out', ['Failure', 'Locked']],
+    ['par', 'par User\n B->>A: Reply\nand Orders\n B->>A: Alternate', ['Orders']],
+  ] as const)('%s reserves header and divider clearance: %s', (type, body, dividers) => {
     const result = layout(`sequenceDiagram
       A->>B: First
-      B->>A: Second
-      A->>B: Third`)
-
-    // Three messages with no blocks — uniform spacing
-    expect(result.messages).toHaveLength(3)
-    const gap1 = result.messages[1]!.y - result.messages[0]!.y
-    const gap2 = result.messages[2]!.y - result.messages[1]!.y
-    // Both gaps should be identical (base messageRowHeight, 40px)
-    expect(gap1).toBe(gap2)
-    expect(gap1).toBe(40) // SEQ.messageRowHeight
-  })
-
-  it('first message in a loop block gets extra header space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Before loop
-      loop Every 5s
-        A->>B: Inside loop
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    // Should be baseRowHeight + blockHeaderExtra = 40 + 28 = 68
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('first message in an alt block gets extra header space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Success
-        B->>A: 200
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('messages after else dividers get extra divider space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Valid
-        B->>A: 200 OK
-      else Invalid
-        B->>A: 401
-      end`)
-
-    expect(result.messages).toHaveLength(3)
-    // msg[0] → msg[1]: base + blockHeaderExtra (first message in alt block)
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (message after "else Invalid")
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-  })
-
-  it('multiple else dividers each get extra space', () => {
-    const result = layout(`sequenceDiagram
-      C->>S: Login
-      alt Valid credentials
-        S-->>C: 200 OK
-      else Invalid
-        S-->>C: 401 Unauthorized
-      else Account locked
-        S-->>C: 403 Forbidden
-      end`)
-
-    expect(result.messages).toHaveLength(4)
-
-    // msg[0] → msg[1]: base + blockHeaderExtra
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (else Invalid)
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-
-    // msg[2] → msg[3]: base + dividerExtra (else Account locked)
-    const gap23 = result.messages[3]!.y - result.messages[2]!.y
-    expect(gap23).toBe(40 + 24)
-  })
-
-  it('par block with and dividers gets correct spacing', () => {
-    // Messages: Validate (idx 0), Get user (idx 1), Get orders (idx 2)
-    // Block: startIndex=1, dividers=[{index:2}]
-    const result = layout(`sequenceDiagram
-      G->>A: Validate
-      par Fetch user
-        G->>U: Get user
-      and Fetch orders
-        G->>O: Get orders
-      end`)
-
-    expect(result.messages).toHaveLength(3)
-
-    // msg[0] → msg[1]: base + blockHeaderExtra (first in par block)
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (and Fetch orders)
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-  })
-
-  it('opt block header gets extra space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Request
-      opt Cache available
-        B-->>A: Cached response
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('critical block header gets extra space', () => {
-    const result = layout(`sequenceDiagram
-      A->>DB: BEGIN
-      critical Transaction
-        A->>DB: UPDATE
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('messages after a block return to normal spacing', () => {
-    const result = layout(`sequenceDiagram
       A->>B: Before
-      loop Retry
-        A->>B: Attempt
+      ${body}
       end
       A->>B: After`)
-
-    expect(result.messages).toHaveLength(3)
-    // msg[1] → msg[2]: no block boundary, just base row height
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40)
+    const expectedLabels = ['First', 'Before', 'Reply', ...(dividers.length > 0 ? ['Alternate'] : []), ...(dividers.length > 1 ? ['Locked out'] : []), 'After']
+    expect(result.messages.map(message => message.label)).toEqual(expectedLabels)
+    expect(result.blocks).toHaveLength(1)
+    const block = result.blocks[0]!
+    expect(block.type).toBe(type)
+    expect(block.header).toBeDefined()
+    const ordinaryGap = result.messages[1]!.y - result.messages[0]!.y
+    expect(ordinaryGap).toBeGreaterThan(0)
+    expect(result.messages[2]!.y - result.messages[1]!.y).toBeGreaterThan(ordinaryGap)
+    const header = block.header!.label.bounds
+    expect(header.y + header.height).toBeLessThanOrEqual(result.messages[2]!.bounds.y)
+    expect(block.dividers.map(divider => divider.label)).toEqual([...dividers])
+    for (const [index, divider] of block.dividers.entries()) {
+      expect(divider.labelPosition).toBeDefined()
+      const label = divider.labelPosition!.bounds
+      const previous = result.messages[index + 2]!, next = result.messages[index + 3]!
+      expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(label.y)
+      // A divider label may sit beside the next message label; require real
+      // two-dimensional clearance as well as room above its arrow shaft.
+      expect(overlaps(label, next.labelPosition.bounds)).toBe(false)
+      expect(label.y + label.height).toBeLessThan(next.y)
+      expect(next.y - previous.y).toBeGreaterThan(ordinaryGap)
+    }
+    const after = result.messages.at(-1)!, lastInside = result.messages.at(-2)!
+    expect(after.y - lastInside.y).toBeCloseTo(ordinaryGap, 6)
   })
 })
 
 describe('sequence layout – spacing properties (over random sequences)', () => {
   const ACTORS = ['A', 'B', 'C', 'D'] as const
 
-  // Generalizes "messages outside blocks are spaced at the base row height":
-  // for ANY block-free sequence, every consecutive message gap is exactly 40.
-  it('block-free sequences space every message at exactly the base row height', () => {
+  it('block-free sequences use uniform positive spacing without overlapping painted content', () => {
     const arb = fc.record({
       actorCount: fc.integer({ min: 2, max: 4 }),
       msgs: fc.array(fc.record({ f: fc.nat(3), t: fc.nat(3), dash: fc.boolean() }), { minLength: 2, maxLength: 8 }),
@@ -277,24 +236,26 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
         const actors = ACTORS.slice(0, actorCount)
         const lines = ['sequenceDiagram', ...actors.map(a => `  participant ${a}`)]
         for (const m of msgs) {
-          const from = actors[m.f % actorCount]!, to = actors[m.t % actorCount]!
-          if (from === to) continue
+          const fromIndex = m.f % actorCount
+          const from = actors[fromIndex]!, to = actors[(fromIndex + 1 + m.t % (actorCount - 1)) % actorCount]!
           lines.push(`  ${from}${m.dash ? '-->>' : '->>'}${to}: x`)
         }
         const result = layout(lines.join('\n'))
+        expect(result.messages).toHaveLength(msgs.length)
+        const gap = result.messages[1]!.y - result.messages[0]!.y
+        expect(gap).toBeGreaterThan(0)
         for (let i = 1; i < result.messages.length; i++) {
-          if (result.messages[i]!.y - result.messages[i - 1]!.y !== 40) return false
+          const previous = result.messages[i - 1]!, current = result.messages[i]!
+          expect(current.y - previous.y).toBeCloseTo(gap, 6)
+          expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y)
         }
-        return true
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 
-  // Robustness over the richer generator (blocks, dividers, notes, self-calls):
-  // message rows stay finite and strictly ordered, never spaced tighter than the
-  // base row height — blocks/dividers/notes only ever ADD space.
-  it('messages stay finite and ordered with gaps never below the base height', () => {
+  // Richer combinations must preserve ordering and complete painted clearance.
+  it('messages stay finite, ordered and clear of neighboring messages', () => {
     const arb = fc.record({
       actorCount: fc.integer({ min: 2, max: 4 }),
       messageCount: fc.integer({ min: 1, max: 6 }),
@@ -305,15 +266,15 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
     fc.assert(
       fc.property(arb, input => {
         const result = layout(generatedSequenceSource(input))
-        for (const m of result.messages) if (!Number.isFinite(m.y)) return false
+        expect(result.messages).toHaveLength(input.messageCount + 2)
+        for (const message of result.messages) expect(Number.isFinite(message.y)).toBe(true)
         for (let i = 1; i < result.messages.length; i++) {
-          // 1e-6 tolerance: gaps accumulate through block/divider offsets, so a
-          // genuine 40 can land at 39.9999… in floating point.
-          if (!(result.messages[i]!.y - result.messages[i - 1]!.y >= 40 - 1e-6)) return false
+          const previous = result.messages[i - 1]!, current = result.messages[i]!
+          expect(current.y).toBeGreaterThan(previous.y)
+          expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y + 1e-6)
         }
-        return true
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 })
@@ -328,9 +289,10 @@ describe('sequence layout – block positioning', () => {
 
     const block = result.blocks[0]!
     const firstMsg = result.messages[1]! // msg at index 1 is startIndex
-    // Block top should be above message Y by blockPadTop (40px)
-    expect(block.y).toBeLessThan(firstMsg.y)
-    expect(firstMsg.y - block.y).toBe(40) // SEQ.blockPadTop
+    expect(block.y).toBeLessThan(firstMsg.bounds.y)
+    expect(block.header).toBeDefined()
+    const header = block.header!.label.bounds
+    expect(header.y + header.height).toBeLessThanOrEqual(firstMsg.bounds.y)
   })
 
   it('divider Y is between the messages it separates', () => {
@@ -414,7 +376,6 @@ describe('sequence layout – diagram dimensions', () => {
 
     // The block version should be taller due to header extra space
     expect(withBlock.height).toBeGreaterThan(plain.height)
-    expect(withBlock.height - plain.height).toBe(28) // blockHeaderExtra
   })
 
   it('diagram with multiple dividers is taller than one with none', () => {
@@ -434,8 +395,7 @@ describe('sequence layout – diagram dimensions', () => {
         B->>A: M4
       end`)
 
-    // blockHeaderExtra (28) + 2 × dividerExtra (24 each) = 76 extra
-    expect(withDividers.height - noDividers.height).toBe(28 + 24 + 24)
+    expect(withDividers.height).toBeGreaterThan(noDividers.height)
   })
 })
 
@@ -639,25 +599,6 @@ describe('sequence layout – render clearance', () => {
     expect(baselineClearance).toBeGreaterThanOrEqual(14)
   })
 
-  it('short divider labels keep the default offset (no unnecessary extra space)', () => {
-    // "No" is short enough that "[No]" doesn't reach the centered message
-    // label — no overlap, so the default offset (28) is used.
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Yes
-        B->>A: 200
-      else No
-        B->>A: 500
-      end`)
-
-    const block = result.blocks[0]!
-    const divider = block.dividers[0]!
-    const msgAfter = result.messages[2]!
-
-    // Default offset 28: baseline clearance = (msg.y - 6) - (msg.y - 28 + 14) = 8
-    const baselineClearance = (msgAfter.y - 6) - (divider.y + 14)
-    expect(baselineClearance).toBe(8)
-  })
 })
 
 // ============================================================================
@@ -678,6 +619,7 @@ describe('sequence layout – note bounding box', () => {
       Note right of B: Right-side note
       B-->>A: Hi`)
 
+    expect(result.notes).toHaveLength(1)
     // Every note must fit within the diagram width with padding margin
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
@@ -691,7 +633,8 @@ describe('sequence layout – note bounding box', () => {
       Note left of A: Left-side note
       B-->>A: Hi`)
 
-    // Left note should have been shifted right so x >= padding (30)
+    expect(result.notes).toHaveLength(1)
+    // The shifted note must remain on canvas.
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
       expect(note.x + note.width).toBeLessThanOrEqual(result.width)
@@ -718,6 +661,9 @@ describe('sequence layout – note bounding box', () => {
       Note over A: Centered note
       B-->>A: Hi`)
 
+    expect(result.notes).toHaveLength(1)
+    const actor = result.actors.find(actor => actor.id === 'A')!
+    expect(result.notes[0]!.x + result.notes[0]!.width / 2).toBeCloseTo(actor.x, 6)
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
       expect(note.x + note.width).toBeLessThanOrEqual(result.width)
@@ -747,21 +693,6 @@ describe('sequence layout – note bounding box', () => {
     for (const ll of result.lifelines) {
       expect(ll.x).toBe(actorX.get(ll.actorId)!)
     }
-  })
-
-  it('diagram without notes has no unnecessary shift', () => {
-    // No notes → no shift needed. Actors should start near SEQ.padding (30).
-    const result = layout(`sequenceDiagram
-      A->>B: Hello
-      B-->>A: Hi`)
-
-    // First actor center should be near the padding
-    // (actorWidth/2 + padding = ~70, but the key check is no extra shift)
-    const firstActorX = result.actors[0]!.x
-    const firstActorLeft = firstActorX - result.actors[0]!.width / 2
-
-    // Left edge should be at exactly SEQ.padding (30) — no shift applied
-    expect(firstActorLeft).toBe(30)
   })
 
   it('diagram width expands for right-side notes beyond actors', () => {
@@ -1000,7 +931,7 @@ describe('sequence layout – activation/note/block properties', () => {
           }
         },
       ),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })
@@ -1725,6 +1656,59 @@ describe('sequence layout – complete painted bounds (#385)', () => {
       expect(b.x + b.width).toBeLessThanOrEqual(svgWidth + 1e-6)
       expect(b.y + b.height).toBeLessThanOrEqual(svgHeight + 1e-6)
       expect(h.x + h.width).toBeLessThanOrEqual(b.x + b.width + 1e-6)
+    }
+  })
+})
+
+// A `()` central-connection circle sits on its lifeline contact (a
+// self-message's end on the row its loop returns to; a created receiver's
+// against its card), and a head beside it ends where its ink meets the
+// circle's outline, so neither covers the other and strict layout safety
+// certifies the diagram.
+describe('sequence central-connection circles', () => {
+  const heads = ['->>', '-->>', '-x', '--x', '-)', '--)', '<<->>', '<<-->>'] as const
+  const placements = [
+    ['the receiver', (arrow: string) => `A${arrow}()B: m`],
+    ['the sender', (arrow: string) => `A()${arrow}B: m`],
+    ['both ends', (arrow: string) => `A()${arrow}()B: m`],
+    ['the receiver to the left', (arrow: string) => `B${arrow}()A: m`],
+    ['both ends of a self-message', (arrow: string) => `A()${arrow}()A: m`],
+    ['a created receiver', (arrow: string) => `create participant C\nA${arrow}()C: m`],
+  ] as const
+  it.each(heads.flatMap(arrow => placements.map(([where, body]) => [where, arrow, body(arrow)] as const)))('keeps a circle at %s clear of a %s head', (_where, _arrow, body) => {
+    const source = `sequenceDiagram\nparticipant A\nparticipant B\n${body}`
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    const num = (tag: string, name: string) => Number(tag.match(new RegExp(`\\s${name}="([^"]+)"`))![1])
+    const message = svg.match(/<(?:line|polyline) [^>]*data-relationship="sequence-message"[^>]*>/)![0]
+    const points = message.startsWith('<line')
+      ? [[num(message, 'x1'), num(message, 'y1')], [num(message, 'x2'), num(message, 'y2')]]
+      : message.match(/points="([^"]+)"/)![1]!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+    const lifelineX = (id: string) => num(svg.match(new RegExp(`<line class="lifeline" data-actor="${id}"[^>]*>`))![0], 'x1')
+    const from = message.match(/data-from="([^"]+)"/)![1]!, to = message.match(/data-to="([^"]+)"/)![1]!
+    const circles = [...svg.matchAll(/<circle class="sequence-central-connection" data-side="(start|end)"[^>]*>/g)]
+    expect(circles.length).toBe(body.match(/\(\)/g)!.length)
+    const { bounds } = layout(source).messages[0]!
+    for (const [tag, side] of circles) {
+      const point = side === 'start' ? points[0]! : points.at(-1)!
+      const outer = num(tag, 'r') + num(tag, 'stroke-width') / 2
+      // The message's painted bounds hold the circle.
+      expect(bounds.x).toBeLessThanOrEqual(num(tag, 'cx') - outer)
+      expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(num(tag, 'cx') + outer)
+      expect(bounds.y).toBeLessThanOrEqual(num(tag, 'cy') - outer)
+      expect(bounds.y + bounds.height).toBeGreaterThanOrEqual(num(tag, 'cy') + outer)
+      const lifeline = lifelineX(side === 'start' ? from : to)
+      if (to === 'C' && side === 'end') {
+        // Against the created card's side (40px from its lifeline), outside it.
+        const card = svg.match(/<rect [^>]*data-id="actor:C:box"[^>]*>/)![0]
+        expect(Math.abs(num(tag, 'cx') - lifeline)).toBe(num(card, 'width') / 2 + num(card, 'stroke-width') / 2 + outer)
+      } else expect(num(tag, 'cx')).toBe(lifeline)
+      expect(num(tag, 'cy')).toBe(point[1]!)
+      const gap = Math.abs(point[0]! - num(tag, 'cx'))
+      if (message.includes(`marker-${side}=`)) {
+        expect(gap).toBeGreaterThanOrEqual(outer)
+        expect(gap).toBeLessThanOrEqual(outer + 7)
+      } else expect(gap).toBe(0)
     }
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { colorPixelBox, redPixel } from './helpers/raster.ts'
 
 function styled(sourceLine: string): string {
@@ -57,8 +57,8 @@ describe('raster-safe Flowchart endpoint markers', () => {
     const edge = svg.match(/<polyline class="edge"[^>]*>/)?.[0]
     expect(edge).toContain('marker-start="url(#crosshead-start-23ff0000-fixed)"')
     expect(edge).toContain('marker-end="url(#crosshead-23ff0000-fixed)"')
-    expect(svg).toMatch(/id="crosshead-start-23ff0000-fixed"[^>]*refX="1.25"[^>]*orient="auto"[^>]*markerUnits="userSpaceOnUse"/)
-    expect(svg).toMatch(/id="crosshead-23ff0000-fixed"[^>]*refX="6.75"[^>]*orient="auto"[^>]*markerUnits="userSpaceOnUse"/)
+    expect(svg).toMatch(/id="crosshead-start-23ff0000-fixed"[^>]*refX="0.625"[^>]*orient="auto"[^>]*markerUnits="userSpaceOnUse"/)
+    expect(svg).toMatch(/id="crosshead-23ff0000-fixed"[^>]*refX="7.375"[^>]*orient="auto"[^>]*markerUnits="userSpaceOnUse"/)
 
     const { startX, endX, y } = edgeEndpoints(svg)
     const start = colorPixelBox(svg, redPixel, { left: Math.floor(startX - 1), right: Math.ceil(startX + 15), top: Math.floor(y - 14), bottom: Math.ceil(y + 14) })
@@ -68,4 +68,43 @@ describe('raster-safe Flowchart endpoint markers', () => {
     expect(Math.abs(start.width - end.width)).toBeLessThanOrEqual(1)
     expect(Math.abs(start.height - end.height)).toBeLessThanOrEqual(1)
   })
+
+  for (const backend of ['agentic', 'elk'] as const) for (const direction of ['LR', 'RL', 'TB', 'BT'] as const) {
+    test(`${backend} ${direction} keeps every actual cross cap on the route side of both endpoint faces`, () => {
+      for (const fixed of [false, true]) {
+        const source = `flowchart ${direction}\nA x--x B${fixed ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:4px' : ''}`
+        const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend, fallback: 'none' }, style: { roles: { edge: { lineWidth: 2 } } } })
+        expect(result.receipt.layoutCertification?.status).not.toBe('failed')
+        const edge = result.svg.match(/<polyline class="edge"[^>]*>/)?.[0]
+        expect(edge).toBeDefined()
+        const attr = (tag: string, name: string): string => {
+          const value = tag.match(new RegExp(`(?:^|\\s)${name}="([^"]+)"`))?.[1]
+          if (value === undefined) throw new Error(`missing ${name}`)
+          return value
+        }
+        const points = attr(edge!, 'points').split(/\s+/).map(pair => pair.split(',').map(Number))
+        expect(points.length).toBe(2)
+        const [start, end] = points
+        expect(start![0] === end![0] || start![1] === end![1]).toBe(true)
+        for (const endpoint of ['start', 'end'] as const) {
+          const id = attr(edge!, `marker-${endpoint}`).slice(5, -1)
+          const marker = result.svg.match(new RegExp(`<marker id="${id}"[^>]*>[\\s\\S]*?</marker>`))?.[0]
+          expect(marker).toBeDefined()
+          const ref = Number(attr(marker!, 'refX'))
+          const units = marker!.includes('markerUnits="userSpaceOnUse"') ? 1 : Number(attr(edge!, 'stroke-width'))
+          const lines = [...marker!.matchAll(/<line\s[^>]*\/>/g)].map(match => match[0])
+          expect(lines.length).toBe(2)
+          for (const line of lines) {
+            expect(attr(line, 'stroke-linecap')).toBe('round')
+            const radius = Number(attr(line, 'stroke-width')) / 2
+            const min = Math.min(Number(attr(line, 'x1')), Number(attr(line, 'x2'))) - radius
+            const max = Math.max(Number(attr(line, 'x1')), Number(attr(line, 'x2'))) + radius
+            // Auto orientation maps local +x along the actual cardinal shaft.
+            // Thus these full cap extents must stay outward of the node face.
+            expect((endpoint === 'start' ? min - ref : ref - max) * units).toBeGreaterThanOrEqual(0)
+          }
+        }
+      }
+    })
+  }
 })

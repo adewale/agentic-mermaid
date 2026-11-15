@@ -6,6 +6,7 @@ import {
   getFamily,
   getFamilyConformanceReport,
   registerFamily,
+  parseRegisteredMermaid,
   verifyMermaid,
   type ExternalFamilyId,
   type FamilyDescriptor,
@@ -13,7 +14,6 @@ import {
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
 import { declareFamilyScenePrimitiveEvidence } from '../agent/families.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -33,6 +33,8 @@ import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
 const EVIDENCE = 'src/__tests__/family-registration-conformance.test.ts'
 
 const FAMILY_SCOPED_OPTION_VALUES = {
+  layoutHints: { ranks: {} },
+  graphLayout: { backend: 'elk' },
   padding: 12,
   nodeSpacing: 77,
   layerSpacing: 91,
@@ -41,6 +43,9 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   interactive: true,
   shadow: true,
   class: { hierarchicalNamespaces: false },
+  kanban: { maxWidth: 600 },
+  pie: { maxWidth: 360 },
+  radar: { maxWidth: 360 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },
@@ -57,7 +62,7 @@ function directDescriptor(localId: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: '^0.5.0' },
       provenance: { owner: 'family-conformance-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -107,7 +112,7 @@ function throwingSceneDescriptor(localId: string): FamilyDescriptor {
     ...base,
     identity: createExtensionIdentity({
       ...base.identity,
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
     }),
     semanticRoles: ['prelude'],
     semanticChannels: [],
@@ -140,6 +145,43 @@ function expectRejected(descriptor: FamilyDescriptor, message: RegExp): void {
 }
 
 describe('external family executable registration conformance', () => {
+  test('admits the preserved canonical source policy and rejects unknown policy names', () => {
+    const base = directDescriptor('canonical-source-policy')
+    const unregister = registerFamily({ ...base, canonicalSource: 'preserved' })
+    try {
+      const parsed = parseRegisteredMermaid(base.example)
+      if (!parsed.ok) throw Error('Expected registered preserved source')
+      expect(parsed.value.canonicalSource).toBe(base.example)
+    } finally { unregister() }
+    expect(() => registerFamily({ ...base, canonicalSource: 'trimmed' as never })).toThrow(/canonicalSource must name the preserved source policy/)
+  })
+  test('known source-loss evidence survives failures injected into each family execution phase', () => {
+    let phase: 'verify' | 'layout' | 'projection' | 'svg' | undefined
+    const base = directDescriptor('source-evidence-faults')
+    const fail = (current: typeof phase) => {
+      if (phase === current) throw new TypeError(`injected ${current} failure`)
+    }
+    const unregister = registerFamily({
+      ...base,
+      verify: (...args) => { fail('verify'); return base.verify!(...args) },
+      layout: (...args) => { fail('layout'); return base.layout!(...args) },
+      projectPositioned: (...args) => { fail('projection'); return base.projectPositioned!(...args) },
+      renderSvg: (...args) => { fail('svg'); return base.renderSvg!(...args) },
+    })
+    try {
+      const parsed = parseRegisteredMermaid(base.example)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const input = { ...parsed.value, meta: { ...parsed.value.meta, droppedComments: [{ text: 'known lost comment', line: 2 }] } }
+      for (const current of ['verify', 'layout', 'projection', 'svg'] as const) {
+        phase = current
+        const result = verifyMermaid(input, { suppress: ['COMMENT_DROPPED'] })
+        expect(result.checks?.sourceLoss).toBe('detected')
+        expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+        expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR' && warning.reason.includes(`injected ${current} failure`))).toBe(true)
+      }
+    } finally { unregister() }
+  })
+
   test('captures an opt-in config diagnostic hook once and preserves root ordering and frozen results', () => {
     const base = directDescriptor('config-diagnostics')
     const warnings = Object.freeze([
@@ -167,7 +209,6 @@ describe('external family executable registration conformance', () => {
       expect(Object.isFrozen(getFamily(base.id)?.config?.keys)).toBe(true)
       const root = { custom: { limit: -1, z: true } }
       const source = `---\nconfig:\n  custom:\n    limit: -1\n    z: true\n---\n%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual(expected)
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual(expected)
       const callsBeforeVerify = calls
       expect(verifyMermaid(source).warnings).toEqual(expected)
@@ -190,7 +231,6 @@ describe('external family executable registration conformance', () => {
     try {
       const root = { custom: { legacy: true, unknown: true } }
       const source = `%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual([])
       expect(verifyMermaid(source).warnings).toEqual([])
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual([
         { code: 'INEFFECTIVE_CONFIG', field: 'custom.legacy', message: `${base.id} config field "legacy" is accepted for compatibility but has no effect on this renderer.` },
@@ -347,7 +387,7 @@ describe('external family executable registration conformance', () => {
       enumerable: true,
       get() {
         reads.coreRange++
-        return reads.coreRange === 1 ? '^0.4.0' : undefined
+        return reads.coreRange === 1 ? '^0.5.0' : undefined
       },
     })
     const descriptor = {
@@ -489,6 +529,11 @@ describe('external family executable registration conformance', () => {
       expect(() => admitExternalTerminalOutput(output, colorMode)).toThrow(/leaves ANSI color state active/i)
     }
     expect(() => admitExternalTerminalOutput('\u009d52;c;SGFja2Vk\u009c', 'html')).toThrow(/disallowed control/i)
+    // Bidi overrides reorder cells; noncharacters and lone surrogates are not
+    // text. sanitizeTerminalText never emits them, so admission refuses them.
+    for (const output of ['a\u202eb', 'a\u2066b\u2069', 'a\ufffeb', 'a\u{10ffff}b', 'a\ud800b']) {
+      expect(() => admitExternalTerminalOutput(output, 'none')).toThrow(/disallowed control/i)
+    }
     expect(() => admitExternalTerminalOutput(' \n ', 'none')).toThrow(/no visible content/i)
     expect(() => admitExternalTerminalOutput('\u001b[0m  \u001b[0m', 'ansi16')).toThrow(/no visible content/i)
     expect(() => admitExternalTerminalOutput('<span style="color:#123456"> </span>', 'html')).toThrow(/no visible content/i)

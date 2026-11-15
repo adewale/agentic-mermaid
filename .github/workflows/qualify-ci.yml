@@ -1,0 +1,61 @@
+name: Qualify canonical CI
+
+on:
+  workflow_call:
+    inputs:
+      commit:
+        type: string
+        required: true
+      required:
+        type: boolean
+        default: true
+    outputs:
+      qualified:
+        value: ${{ jobs.qualify.outputs.qualified }}
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      qualified: ${{ steps.proof.outputs.qualified }}
+    steps:
+      - name: Require full canonical CI qualification
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.commit }}
+          REQUIRE_QUALIFICATION: ${{ inputs.required }}
+        run: |
+          runs="$(timeout 20s gh api -X GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$EXPECTED_SHA" -f branch=main -f status=success -f per_page=100)"
+          eligible_runs="$(jq -r --arg sha "$EXPECTED_SHA" '
+            .workflow_runs[] | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")
+            | .id | select(type == "number" and floor == .)
+          ' <<< "$runs")"
+          # The test aggregate requires every runtime lane; CI complete also
+          # checks the selected mode and label-approval maintenance.
+          for run_id in $eligible_runs; do
+            jobs="$(timeout 20s gh api --paginate -X GET \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" -f filter=latest -f per_page=100)"
+            qualified="$(jq -s '[.[].jobs[]] as $jobs |
+              all("test", "CI complete"; . as $name |
+                any($jobs[]; .name == $name and .conclusion == "success"))' <<< "$jobs")"
+            if [[ "$qualified" == true ]]; then
+              echo "qualified=true" >> "$GITHUB_OUTPUT"
+              echo "Full canonical CI passed for $EXPECTED_SHA in run $run_id"
+              exit 0
+            fi
+          done
+          echo "qualified=false" >> "$GITHUB_OUTPUT"
+          if [[ "$REQUIRE_QUALIFICATION" == true ]]; then
+            echo "::error::Dispatch full ci.yml on main for $EXPECTED_SHA before publishing or manually deploying."
+            exit 1
+          fi
+          echo "::notice::No full canonical CI qualification exists for $EXPECTED_SHA; deployment skipped."
+          echo "### Deployment skipped: no full canonical CI for $EXPECTED_SHA" >> "$GITHUB_STEP_SUMMARY"

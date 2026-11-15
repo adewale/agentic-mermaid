@@ -7,8 +7,7 @@
 // path reaches it. These tests fail if validateOp is removed from that core.
 
 import { describe, expect, test } from 'bun:test'
-import { applyOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid, validateOp } from '../agent/core.ts'
-import { createMermaid } from '../agent/create.ts'
+import { applyOps, describeOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid } from '../agent/core.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
@@ -53,6 +52,38 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     expect(errMsg(r.error)).toContain('Did you mean "add_service"')
   })
 
+  test('an op kind written under another key names the discriminator "kind" and the corrected op', () => {
+    const cases: Array<{ family: string; op: Record<string, unknown>; key: string; corrected: Record<string, unknown> }> = [
+      { family: 'flowchart', op: { op: 'add_node', id: 'C', label: 'C' }, key: 'op', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      { family: 'class', op: { id: 'A', type: 'add_class' }, key: 'type', corrected: { kind: 'add_class', id: 'A' } },
+      { family: 'flowchart', op: { Kind: 'add_node', id: 'C', label: 'C' }, key: 'Kind', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      // A near op kind under a slipped key is corrected too.
+      { family: 'flowchart', op: { action: 'add_nod', id: 'C', label: 'C' }, key: 'action', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+    ]
+    for (const { family, op, key, corrected } of cases) {
+      const r = applyOps({ family, ops: [op] })
+      expect(r.ok).toBe(false)
+      if (r.ok) continue
+      const error = r.error as { reason?: string; field?: string; didYouMean?: string }
+      expect(error.reason).toBe('unknown_kind')
+      expect(error.field).toBe(key)
+      expect(errMsg(r.error)).toContain(`discriminator key is "kind", not "${key}"`)
+      // As for unknown_field: `field` is the wrong key, `didYouMean` the right one.
+      expect(error.didYouMean).toBe('kind')
+      // The message carries the corrected op, and it is the op that applies.
+      const suggested = JSON.parse(errMsg(r.error).match(/Did you mean (\{.*\})\?$/)![1]!)
+      expect(suggested).toEqual(corrected)
+      expect(applyOps({ family, ops: [suggested] }).ok).toBe(true)
+    }
+    // Text that is no op kind earns no discriminator hint.
+    const plain = applyOps({ family: 'class', ops: [{ name: 'Duck' }] })
+    expect(plain.ok).toBe(false)
+    if (!plain.ok) {
+      expect(errMsg(plain.error)).not.toContain('discriminator')
+      expect((plain.error as { didYouMean?: string }).didYouMean).toBeUndefined()
+    }
+  })
+
   test('wrong primitive type is rejected with the expected type', () => {
     const r = applyOps({
       family: 'class',
@@ -92,6 +123,23 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     if (!series.ok) expect((series.error as { reason?: string }).reason).toBe('wrong_type')
   })
 
+  test('a nested record field written one level too high is named with its path and the right one', () => {
+    // XyChartAxisSpec is { name?, categories?, range?: { min, max } }; min/max
+    // beside name used to be dropped, deleting the existing range.
+    const source = 'xychart-beta\n  x-axis [a, b]\n  y-axis "Old" 0 --> 120\n  bar [5, 20]\n'
+    const r = applyOps({ source, ops: [{ kind: 'set_y_axis', axis: { name: 'Units', min: 0, max: 200 } }] })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error).toMatchObject({ reason: 'unknown_field', field: 'axis.min', didYouMean: 'axis.range.min' })
+    // The nested shape is discoverable before the wrong guess.
+    const axis = describeOps('xychart').set_y_axis!.find(field => field.name === 'axis')
+    expect(axis?.fields?.map(field => field.name)).toEqual(['name', 'categories', 'range'])
+    expect(axis?.fields?.find(field => field.name === 'range')?.fields).toEqual([
+      { name: 'min', required: true, type: 'number' },
+      { name: 'max', required: true, type: 'number' },
+    ])
+  })
+
   test('a semantic (not shape) error still flows through from the mutator', () => {
     // Shape is valid; the class does not exist → the mutator, not the validator,
     // rejects it. Proves the two layers compose (shape first, semantics second).
@@ -103,7 +151,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
 
   test('typed, checked, and declarative edits accept the same lollipop relation', () => {
     const source = 'classDiagram\n  class Port\n  class Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', label: 'provides' } as const
+    const op = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'from', relationLabel: 'provides' } as const
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
@@ -112,7 +160,9 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     const checked = mutateChecked(parsed.value, op)
     const declarative = applyOps({ source, ops: [op] })
     expect({ direct: direct.ok, checked: checked.ok, declarative: declarative.ok }).toEqual({
-      direct: true, checked: true, declarative: true,
+      direct: true,
+      checked: true,
+      declarative: true,
     })
     if (!direct.ok || !checked.ok || !declarative.ok) return
 
@@ -121,9 +171,19 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       const reparsed = parseMermaid(result)
       expect(reparsed.ok).toBe(true)
       if (!reparsed.ok || reparsed.value.body.kind !== 'class') throw new Error('Expected a structured class diagram')
-      expect(reparsed.value.body.relations).toEqual([
-        { from: 'Port', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' },
-      ])
+      expect(reparsed.value.body.relations).toEqual([{ from: 'interface0', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
+    }
+  })
+
+  test('class endpoint relation APIs reject an implicit interface conversion with the same actionable error', () => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected class')
+    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop' } as const
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op), applyOps({ source, ops: [op] })]
+    for (const result of results) {
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('use add_interface') })
     }
   })
 
@@ -133,7 +193,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     { metadata: { markerAt: 'to', lineStyle: 'dashed' }, arrow: '..()' },
   ] as const)('direct, checked and declarative Class edits author $arrow with the same metadata', ({ metadata, arrow }) => {
     const source = 'classDiagram\nclass Port\nclass Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const
+    const op = metadata.markerAt === 'to' ? ({ kind: 'add_interface', class: 'Port', label: 'Service', lineStyle: 'dashed' } as const) : ({ kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const)
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error('expected Class diagram')
     const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op)]
@@ -152,16 +212,31 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
   const src = 'classDiagram\n  class Animal'
   const badOp = { kind: 'add_class', name: 'Duck' }
 
-  test('Code Mode mutateChecked and declarative applyOps(edit) reject identically', () => {
+  test('checked mutations and declarative applyOps(edit) reject identically', () => {
     const parsed = parseMermaid(src)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    const codeMode = mutateChecked(parsed.value as MutableValidDiagram, badOp)
+    const checked = mutateChecked(parsed.value as MutableValidDiagram, badOp)
     const declarative = applyOps({ source: src, ops: [badOp] })
-    expect(codeMode.ok).toBe(false)
+    expect(checked.ok).toBe(false)
     expect(declarative.ok).toBe(false)
-    if (codeMode.ok || declarative.ok) return
-    expect(errMsg(codeMode.error)).toBe(errMsg(declarative.error))
+    if (checked.ok || declarative.ok) return
+    expect(checked.error).toMatchObject({ reason: 'unknown_field' })
+    expect(declarative.error).toMatchObject({ reason: 'unknown_field' })
+    expect(errMsg(checked.error)).toBe(errMsg(declarative.error))
+  })
+
+  test('CLI edit batches admit region topology changes and retain content in the selected scope', () => {
+    const result = mutateSource('stateDiagram-v2\nstate on { idle --> busy }', [
+      { kind: 'add_region', parent: 'on', index: 0 },
+      { kind: 'add_state', id: 'milk', parent: 'on', region: 0 },
+      { kind: 'add_region', parent: 'on' },
+      { kind: 'remove_region', parent: 'on', index: 2 },
+    ])
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.source).toBe('stateDiagram-v2\n  state on {\n    milk\n    --\n    idle --> busy\n  }\n')
+    expect(result.verify.ok).toBe(true)
   })
 
   test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
@@ -172,19 +247,6 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     if (r.ok) return
     expect(r.error.message).toContain('Unknown field "name"')
     expect(JSON.stringify(r)).not.toContain('class undefined')
-  })
-
-  test('validateOp is the single source of the rejection (removing it lets the bad op through)', () => {
-    // Guards the choke point: mutateChecked must go through validateOp. If a
-    // future edit routes an untyped op straight to mutate(), this bad op would
-    // reach the mutator and this assertion (reason==='unknown_field') breaks.
-    const d = createMermaid('class') as MutableValidDiagram
-    const r = mutateChecked(d, badOp)
-    expect(r.ok).toBe(false)
-    if (r.ok) return
-    expect((r.error as { reason?: string }).reason).toBe('unknown_field')
-    // And validateOp alone, called directly, agrees — same message.
-    expect(validateOp('class', badOp)?.message).toBe(errMsg(r.error))
   })
 })
 
@@ -241,6 +303,14 @@ describe('schema covers every mutable family (§11)', () => {
   // A representative op per family that must pass shape validation and build.
   const REPRESENTATIVE: Record<string, Record<string, unknown> | Record<string, unknown>[]> = {
     flowchart: { kind: 'add_node', id: 'a', label: 'A' },
+    swimlane: { kind: 'add_node', id: 'a', label: 'A' },
+    agentflow: { kind: 'add_node', id: 'a', label: 'A' },
+    usecase: { kind: 'add_actor', id: 'customer', label: 'Customer' },
+    wardley: { kind: 'add_component', id: 'API', x: 30, y: 60 },
+    venn: { kind: 'set_subset', sets: ['A'], size: 10 },
+    cynefin: { kind: 'add_item', domain: 'clear', label: 'Operate' },
+    railroad: { kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 'start' } },
+    treeview: { kind: 'add_node', label: 'src', nodeType: 'directory' },
     state: { kind: 'add_state', id: 's' },
     sequence: { kind: 'add_participant', id: 'A' },
     timeline: { kind: 'add_section', label: 'S' },
@@ -260,6 +330,14 @@ describe('schema covers every mutable family (§11)', () => {
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
     c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
+    eventmodeling: { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [] } },
+    zenuml: { kind: 'upsert_participant', participant: { id: 'API', label: 'API', annotations: [] } },
+    packet: { kind: 'add_field', label: 'Byte', bits: 8 },
+    kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
+    requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },
+    treemap: { kind: 'add_node', label: 'Investment', value: 10 },
+    ishikawa: { kind: 'set_effect', label: 'Release delay' },
+    block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

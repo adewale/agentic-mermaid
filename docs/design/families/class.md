@@ -96,8 +96,13 @@ IDs and cardinalities. Their shaft style is stored independently of endpoint
 marker kinds, so `o..*` and `()..()` retain their dashed shafts through
 structured edits, SVG/Scene and terminal output. Mixed lollipop markers such as
 `()-->` and `<--()` retain both authored endpoint identities. One-ended
-lollipops also keep authored identities instead of Mermaid's synthetic
-`interface0`; this choice is recorded in `docs/project/divergences.md`.
+lollipops create independent interface occurrences with collision-safe public
+identities. Repeated labels do not share an occurrence, and an ordinary class
+with the same spelling remains separate. Generic interface spelling is retained
+through canonical writing. Use `add_interface` with `class`, `label` and optional
+`side`, `relationLabel` and `lineStyle` to create one explicitly. `add_relation`
+rejects operations that would silently turn an ordinary endpoint into an
+interface; parsed interface occurrences remain editable and removable.
 
 Class relation facts include effective marker ownership, both endpoint kinds
 when present, and `line solid` / `line dashed`. Public `add_relation` operations
@@ -107,12 +112,12 @@ accessibility directives and decoded line breaks; the source reader still
 handles comments as source metadata. Initial member arrays are copied so later caller changes do not
 alter the returned diagram. See `docs/api.md` for the complete-fact migration.
 
-The official relationship section's aggregate capability is still only
-`diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
-Unicode endpoint IDs remain opaque to the agent and fail loudly in native
-rendering. A separate executed receipt keeps that gap visible. The broader
-lossless statement authority and remaining identity/source-normalization
-work remain tracked by #260.
+Unescaped word-like Class names may contain hyphens, dots and Unicode letters
+or digits. Declarations, relationships, members and typed edits retain the same
+identity; canonical writing quotes a name when the statement requires it.
+Escaped names containing `~` still require generic-identity work and remain
+source-preserved rather than exposing a partial editable model. This does not
+claim support for every token combination Mermaid's Class lexer can assemble.
 
 ## Safe link hover text (issue #248)
 
@@ -260,7 +265,10 @@ provide typed authoring/editing without forcing an opaque fallback.
 backtick identities, so decoration cannot mint a phantom class. The shared
 `src/shared/style-props.ts` grammar models `classDef`, `class`/`cssClass`,
 shorthand, and inline paint on both parser surfaces; classDef paint resolves
-before Scene/SVG/terminal rendering and inline properties win.
+before Scene/SVG/terminal rendering and inline properties win. Repeated `:::`
+and `cssClass` assignments retain their names in source order: each definition
+contributes paint, and later assignments override overlapping properties. The
+typed `set_css_class` edit replaces the assigned names.
 
 Single-line namespace forms (`namespace X { class A; class B }`) expand through
 one parser-owned statement grammar. `hierarchicalNamespaces: false` is wired:

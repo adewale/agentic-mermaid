@@ -4,6 +4,7 @@ import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from 
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
 import { layoutSankeyDiagram } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
+import { sankeyFamilyLines } from '../sankey/source.ts'
 import { lowerSankeyScene } from '../sankey/renderer.ts'
 
 /** The sankey SVG hooks: one definition for the complete renderer
@@ -14,7 +15,7 @@ export const SANKEY_SVG_HOOKS = {
     familyConfig: { visual: resolveSankeyVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutSankeyDiagram(
-    parseSankeyDiagram(ctx.source.body.split(/\r?\n/), {
+    parseSankeyDiagram(sankeyFamilyLines(ctx.source), {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
     }),
     ctx.renderOptions,

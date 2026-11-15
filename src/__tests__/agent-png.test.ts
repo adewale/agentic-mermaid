@@ -1,7 +1,9 @@
 // Loop 8 P: PNG export — basic validity tests.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidPNG } from '../agent/png.ts'
+import { spawnSync } from 'node:child_process'
+import { createMermaidPNGRenderer, renderMermaidPNG } from '../agent/png.ts'
+import { DefaultBackend, registerBackend } from '../scene/backend.ts'
 import { decodePng } from './helpers/png-pixels.ts'
 import { colorPixelBoxInRaster, redPixel } from './helpers/raster.ts'
 
@@ -18,6 +20,63 @@ function readPngDimensions(png: Uint8Array): { width: number; height: number } {
 }
 
 describe('renderMermaidPNG', () => {
+  test('loads the native rasterizer only when the public agent surface renders PNG', () => {
+    const child = spawnSync(process.execPath, ['--eval', `
+      import { createRequire } from 'node:module'
+      const require = createRequire(import.meta.url)
+      const loaded = () => Object.keys(require.cache).some(path => path.includes('@resvg/resvg-js'))
+      const agent = await import(${JSON.stringify(new URL('../agent/index.ts', import.meta.url).href)})
+      const imported = loaded()
+      const source = 'flowchart LR\\n A --> B'
+      const parsed = agent.parseRegisteredMermaid(source).ok
+      const verified = agent.verifyMermaid(source).ok
+      const svg = agent.renderMermaidSVG(source).includes('<svg')
+      const beforePng = loaded()
+      const first = agent.renderMermaidPNG(source)
+      const second = agent.renderMermaidPNG(source)
+      process.stdout.write(JSON.stringify({ imported, parsed, verified, svg, beforePng, afterPng: loaded(),
+        synchronous: first instanceof Uint8Array, repeated: Buffer.from(first).equals(Buffer.from(second)),
+        magic: Array.from(first.subarray(0, 8)) }))
+    `], { encoding: 'utf8' })
+    expect(child.status, child.stderr).toBe(0)
+    expect(JSON.parse(child.stdout)).toEqual({
+      imported: false, parsed: true, verified: true, svg: true, beforePng: false,
+      afterPng: true, synchronous: true, repeated: true, magic: PNG_MAGIC,
+    })
+  })
+
+  test('checks font-projected raster input before native PNG rendering', () => {
+    const id = 'backend:test/native-png-font-joining'
+    const triggerSeed = 991_339
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        const svg = DefaultBackend.render(document, context)
+        return context.seed === triggerSeed
+          ? svg.replace('</svg>', '<style>.probe{font-family:var(--font, java)script:alert(1)}</style></svg>')
+          : svg
+      },
+    }, {
+      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
+      provenance: { owner: 'native-png-contract-test', source: 'test' },
+    })
+    try {
+      const renderer = createMermaidPNGRenderer({ backendPolicy: { selectBackend: () => id } })
+      expect(checkMagic(renderer.renderMermaidPNG('flowchart LR\n A --> B', {
+        style: 'hand-drawn', scale: 0.1, onWarning: () => {},
+      }))).toBe(true)
+      for (const security of ['default', 'strict'] as const) {
+        expect(() => renderer.renderMermaidPNG('flowchart LR\n A --> B', {
+          style: 'hand-drawn', seed: triggerSeed, security, scale: 0.1, onWarning: () => {},
+        })).toThrow('OutputSecurityPolicy rejected active content')
+      }
+    } finally {
+      unregister()
+    }
+  })
+
   test('Class and Sequence source markers occupy the node-facing side of the shaft, not the node interior', () => {
     for (const [source, left, top, bottom] of [
       ['classDiagram\ndirection LR\nA *-- B', 160, 55, 74],

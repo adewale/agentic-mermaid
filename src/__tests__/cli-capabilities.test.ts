@@ -5,8 +5,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA, getFamily, getFamilyConformanceReport, knownBuiltinFamilies, knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
+import { buildCapabilities, MUTATION_OPS_BY_FAMILY, runCli } from '../cli/index.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { CLI_RENDER_FORMATS } from '../render-contract.ts'
 
 describe('am capabilities', () => {
   it('emits a bounded JSON object with the built-in discovery fields', () => {
@@ -16,9 +17,10 @@ describe('am capabilities', () => {
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    // The discovery payload grows a few KB per registered family (example,
-    // config keys, ops); the ceiling guards against re-inlining bulk evidence.
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(80 * 1024)
+    // Thirty-three native families publish their actual operation schemas,
+    // nested record fields and examples. Keep discovery below 136 KiB;
+    // imported corpora stay out.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(136 * 1024)
   })
 
   it('includes every registered family in the families list', () => {
@@ -152,7 +154,18 @@ describe('am capabilities', () => {
       }
       expect(editPolicies.has(family.editPolicy)).toBe(true)
     }
-    expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
+    const warningSchema = schema.properties.warningCodes.items
+    const origins = new Set(warningSchema.properties.origins.items.enum)
+    for (const warning of cap.warningCodes) {
+      for (const k of warningSchema.required ?? []) {
+        expect(Object.prototype.hasOwnProperty.call(warning, k), `${warning.code}.${k}`).toBe(true)
+      }
+      expect(warning.origins.length, warning.code).toBeGreaterThan(0)
+      expect(
+        warning.origins.every(origin => origins.has(origin)),
+        warning.code,
+      ).toBe(true)
+    }
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
   })
@@ -192,5 +205,47 @@ describe('family examples', () => {
       expect(verifyMermaid(reparsed.value).warnings).toEqual([])
       expect(renderMermaidSVG(canonical).length).toBeGreaterThan(100)
     }
+  })
+})
+
+describe('am capabilities views', () => {
+  const run = (...flags: string[]) => captureCli(() => runCli(['capabilities', ...flags]))
+  const full = JSON.parse(run().out) as ReturnType<typeof buildCapabilities>
+
+  it('--summary indexes every family of the full output with its own routing fields', () => {
+    const result = run('--summary')
+    expect(result.code).toBe(0)
+    const index = JSON.parse(result.out)
+    expect(index.view).toBe('summary')
+    expect(index.sdkVersion).toBe(full.sdkVersion)
+    expect(index.families.map((family: { id: string }) => family.id)).toEqual(full.families.map(family => family.id))
+    for (const [position, entry] of (index.families as Array<Record<string, unknown>>).entries()) {
+      const source = full.families[position]!
+      expect(entry).toEqual(JSON.parse(JSON.stringify({ id: source.id, editPolicy: source.editPolicy, narrower: source.narrower, headers: source.headers, mutationOps: source.mutationOps })))
+    }
+    expect(index.warningCodes).toEqual(full.warningCodes.map(warning => warning.code))
+    expect(index.outputFormats).toEqual(full.outputFormats)
+    expect(result.out.length * 8).toBeLessThan(JSON.stringify(full).length)
+  })
+
+  it('--family keeps the full entries of the named families, in the order given', () => {
+    const result = run('--family', 'railroad,flowchart')
+    expect(result.code).toBe(0)
+    const narrowed = JSON.parse(result.out) as typeof full
+    expect(narrowed.families).toEqual([full.families.find(f => f.id === 'railroad')!, full.families.find(f => f.id === 'flowchart')!])
+    const { families: _narrowed, ...rest } = narrowed
+    const { families: _all, ...fullRest } = full
+    expect(rest).toEqual(fullRest)
+    expect(JSON.parse(run('--summary', '--family', 'sequence').out).families.map((f: { id: string }) => f.id)).toEqual(['sequence'])
+  })
+
+  it('refuses an unknown family id, naming the valid ids, and conflicting views', () => {
+    const unknown = run('--family', 'flowchart,flowchrt')
+    expect(unknown.code).toBe(2)
+    expect(unknown.out).toBe('')
+    expect(unknown.err).toContain('"flowchrt"')
+    for (const family of full.families) expect(unknown.err).toContain(family.id)
+    expect(run('--summary', '--full').code).toBe(2)
+    expect(run('--full').out).toBe(run().out)
   })
 })

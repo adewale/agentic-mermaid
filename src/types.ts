@@ -22,17 +22,22 @@ export interface MermaidGraph {
   nodeStyles: Map<string, Record<string, string>>
   /** Maps edge indices (or 'default') to inline styles from `linkStyle` directives */
   linkStyles: Map<number | 'default', Record<string, string>>
+  /** Legacy linkStyle interpolation, separate from CSS and edge-ID metadata. */
+  linkCurves?: Map<number | 'default', string>
   /** State diagrams only: `note left|right of X` annotations, in source order.
    *  Placed by a post-layout pass (layout-engine placeStateNotes); flowcharts
    *  never populate this. */
   stateNotes?: StateNoteSpec[]
+  /** Floating annotations remain distinct from states and attached notes;
+   * their physical node participates in ordinary scoped layout. */
+  floatingStateNotes?: Array<import('./state/types.ts').FloatingStateNote & { nodeId: string }>
 }
 
 /** A state-diagram note (`note left of X : text` / block form). ONE grammar
  *  models these for the render parser and the agent body alike —
  *  src/state/parse-core.ts (plan §State 1, repo #118). */
 export interface StateNoteSpec {
-  /** Stable id (`note#<i>` in source order). */
+  /** Stable id (`note#<i>` in source order, unless an authored state has that name). */
   id: string
   /** The state (or composite) the note is anchored to. */
   target: string
@@ -53,6 +58,10 @@ export interface MermaidNode {
   /** Runtime pixel wrapping; the authored label and its display runs stay intact. */
   labelBlock?: PixelTextBlock
   shape: NodeShape
+  /** Authored rectangle border sides: l, r, t, b; absent means all sides. */
+  borders?: string
+  /** Authored note identity when this physical node is a floating annotation. */
+  floatingNoteId?: string
   /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
    *  short name (e.g. 'sl-rect' for `manual-input`). Set only for
    *  metadata-declared nodes; `shape` stays the rendering geometry
@@ -79,6 +88,7 @@ export type NodeShape =
   | 'diamond'
   | 'stadium'
   | 'circle'
+  | 'ellipse'        // (-text-) — elliptical outline
   // Batch 1 additions
   | 'subroutine'     // [[text]]  — double-bordered rectangle
   | 'doublecircle'   // (((text))) — concentric circles
@@ -100,6 +110,7 @@ export type NodeShape =
   | 'state-join'     // <<join>> — filled bar (same geometry as fork)
   | 'state-choice'   // <<choice>> — small unlabeled diamond
   | 'state-history'  // [H] / <<history>> — circle containing H (H* when deep)
+  | 'state-note'     // named floating annotation, distinct from a state
 
 export interface MermaidEdge {
   source: string
@@ -140,6 +151,9 @@ export interface MermaidSubgraph {
   id: string
   label: string
   labelContent?: LabelContent
+  /** State diagrams only: a composite state, whose classes' classDef paint
+   *  is drawn on its body, as Mermaid draws it. */
+  stateComposite?: true
   nodeIds: string[]
   children: MermaidSubgraph[]
   /** Optional direction override for this subgraph's internal layout */
@@ -152,6 +166,8 @@ export interface MermaidSubgraph {
    *  when something comes first (an architecture group's icon). Defaults to
    *  the style's group label padding. */
   titleOffset?: number
+  /** @internal Family projection request; measured text can require more. */
+  headerMinHeight?: number
 }
 
 // ============================================================================
@@ -167,6 +183,9 @@ export interface PositionedDiagram {
 export interface ResolvedFamilyRenderContext {
   readonly renderOptions: Readonly<RenderOptions>
   readonly styleFace?: Readonly<InternalStyleFace>
+  /** Actual frozen graphical backend, or the nominal Style backend modeled
+   * by an unpainted layout projection. Graphical host policy wins. */
+  readonly paintBackendId?: string
   readonly familyConfig?: Readonly<Record<string, unknown>>
   readonly familyAppearance?: Readonly<Record<string, unknown>>
 }
@@ -178,6 +197,8 @@ export interface RenderContext<TPositioned extends PositionedDiagram = Positione
 }
 
 export interface PositionedGraph extends PositionedDiagram {
+  /** Deterministic evidence for the graph geometry producer. */
+  layoutDecision?: import('./layout/backend.ts').GraphLayoutDecision
   width: number
   height: number
   nodes: PositionedNode[]
@@ -192,6 +213,12 @@ export interface PositionedGraph extends PositionedDiagram {
   title?: PositionedDiagramTitle
   /** Final hard-geometry certification, after bounded layout alternatives. */
   certification?: import('./layout/certification.ts').LayoutCertificationReceipt
+  /** Instead of `certification`: report layout safety drew this graph from its
+   * best drawable candidate although none certified. */
+  uncertifiedLayout?: import('./layout/uncertified-layout.ts').UncertifiedLayoutReceipt
+  /** Present when the graph exceeded a layout cost threshold: the estimate,
+   * the ELK options relaxed and the bounded candidate search. */
+  layoutCost?: import('./layout/layout-cost.ts').LayoutCostReceipt
 }
 
 /** A placed state-diagram note box. */
@@ -210,10 +237,13 @@ export interface PositionedStateNote {
 
 export interface PositionedNode {
   labelBlock?: PixelTextBlock
+  iconFallbackBlock?: PixelTextBlock
   id: string
   label: string
   labelContent?: LabelContent
   shape: NodeShape
+  borders?: string
+  floatingNoteId?: string
   /** Mermaid v11 semantic shape id when the node was declared via
    *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */
   semanticShape?: string
@@ -325,7 +355,7 @@ export interface RoutePortAssignment {
 }
 
 export interface RouteBlocker {
-  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port'
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port' | 'group-header'
   id: string
 }
 
@@ -408,7 +438,7 @@ export type FamilyEdgeRouteCertificate =
     obstacleFree: boolean
   }
   | {
-    family: 'sequence'
+    family: 'sequence' | 'zenuml'
     edgeIndex: number
     routeClass: 'family-layout'
     invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'
@@ -448,6 +478,8 @@ export interface PositionedGroup {
   /** Authored direct leaf ownership, retained independently of geometry. */
   nodeIds?: string[]
   headerHeight?: number
+  /** @internal Retained family placement request; absent on ordinary graphs. */
+  headerMinHeight?: number
   labelBlock?: PixelTextBlock
   id: string
   label: string
@@ -460,6 +492,9 @@ export interface PositionedGroup {
   /** State diagrams only: this group is a concurrency region (drawn as dashed
    *  separators between siblings instead of its own box). */
   concurrencyRegion?: true
+  /** A State composite's classDef paint (fill, stroke, stroke-width, color),
+   *  drawn on its body and outline, and color on its title. */
+  inlineStyle?: Record<string, string>
 }
 
 // ============================================================================
@@ -481,7 +516,34 @@ export interface ConfigDiagnostic {
   message: string
 }
 
+export interface GraphLayoutHints {
+  /** Ordered ELK partitions; unlisted nodes use partition zero. These are relative ranks, not pixel coordinates. */
+  ranks?: Record<string, number>
+  /** Preferred consecutive model order within one container; geometry remains certified. */
+  adjacent?: readonly (readonly string[])[]
+  /** Authored edge IDs or from->to / from->to#k occurrence IDs to prioritize for short routes. */
+  shortEdges?: readonly string[]
+}
+
+export interface GraphLayoutOptions {
+  backend: 'elk' | 'agentic'
+  /** Agentic may explicitly fall back to ELK; omitted means none. */
+  fallback?: 'none' | 'elk'
+  /** Bounded certified alternatives; omitted preserves existing geometry. */
+  quality?: 'balanced'
+  /** Flowchart-only target for selecting wrapping, never output stretching. */
+  viewport?: { width: number; height: number }
+}
+
 export interface RenderOptions {
+  /** Opt-in pinned Inter ASCII advance/pair metrics; other faces/scripts use the estimator. Does not load fonts. */
+  fontMetrics?: 'estimate' | 'bundled-inter'
+  /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
+  layoutHints?: GraphLayoutHints
+  /** Graph geometry producer; omitted preserves the existing ELK pipeline. */
+  graphLayout?: GraphLayoutOptions
+  /** Require complete native layout evidence, or report explicit limitations. */
+  layoutSafety?: 'report' | 'strict'
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
   bg?: string
   /** Foreground / primary text color → CSS variable --fg. Default: '#27272A' */
@@ -540,6 +602,21 @@ export interface RenderOptions {
   class?: {
     /** Nest namespace compounds (default true); false lays them out compactly as siblings. */
     hierarchicalNamespaces?: boolean
+  }
+  /** Opt-in graphical Kanban layout controls; source order and card membership remain unchanged. */
+  kanban?: {
+    /** Wrap whole columns into rows within this best-effort pixel width, retaining readable column widths. */
+    maxWidth?: number
+  }
+  /** Opt-in graphical fitting; selected typography and slice meaning are retained. */
+  pie?: {
+    /** Best-effort pixel width; explicit legend placement retains precedence. */
+    maxWidth?: number
+  }
+  /** Opt-in graphical fitting; authored frames and radar scale meaning are retained. */
+  radar?: {
+    /** Best-effort pixel width with a bounded plot/legend arrangement search. */
+    maxWidth?: number
   }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {

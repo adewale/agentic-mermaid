@@ -1,7 +1,7 @@
-import { decodeXML } from 'entities'
 import type { SvgSemanticIdentity } from './identity.ts'
-import { escapeAttr } from '../multiline-utils.ts'
 import { sceneRoleTraits } from './roles.ts'
+import type { ConnectorDirection } from './ir.ts'
+import { relationPhrase } from '../shared/relation-direction.ts'
 
 export interface SvgRelationSemantics {
   from: string
@@ -18,10 +18,13 @@ export interface SvgSemanticAccessibility {
 }
 
 
-/** Build relation accessibility from typed Scene fields only. */
+/** Build relation accessibility from typed Scene fields only. A family that
+ * declares its relation direction is read in arrowhead order; marker-derived
+ * direction is not, since cardinality and UML markers are not arrowheads. */
 export function relationAccessibility(
   identity: SvgSemanticIdentity,
   label?: string,
+  direction?: ConnectorDirection,
 ): SvgSemanticAccessibility | undefined {
   if (!sceneRoleTraits(identity.role).relation) return undefined
   if (identity.from === undefined || identity.to === undefined) return undefined
@@ -31,32 +34,9 @@ export function relationAccessibility(
     ...(label ? { label } : {}),
   }
   return {
-    label: `${relation.from} to ${relation.to}${relation.label ? `: ${relation.label}` : ''}`,
+    label: `${relationPhrase(relation.from, relation.to, direction)}${relation.label ? `: ${relation.label}` : ''}`,
     role: 'graphics-symbol',
     roleDescription: 'relation',
     relation,
   }
-}
-
-export function relationAccessibilityForSvg(
-  svg: string,
-  identity: SvgSemanticIdentity,
-): SvgSemanticAccessibility | undefined {
-  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0] ?? ''
-  const sourceLabel = opening.match(/\sdata-label="([^"]*)"/)?.[1]
-  return relationAccessibility(identity, sourceLabel ? decodeXML(sourceLabel) : undefined)
-}
-
-export function ensureSvgAccessibility(svg: string, accessibility: SvgSemanticAccessibility | undefined): string {
-  if (!accessibility) return svg
-  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0]
-  if (!opening) return svg
-  const attrs: string[] = []
-  if (!/\srole=/.test(opening)) attrs.push(`role="${accessibility.role}"`)
-  if (!/\saria-roledescription=/.test(opening)) attrs.push(`aria-roledescription="${accessibility.roleDescription}"`)
-  if (!/\saria-label=/.test(opening)) attrs.push(`aria-label="${escapeAttr(accessibility.label)}"`)
-  if (attrs.length === 0) return svg
-  const close = opening.endsWith('/>') ? '/>' : '>'
-  const body = opening.slice(0, -close.length).trimEnd()
-  return svg.replace(opening, `${body} ${attrs.join(' ')}${close === '/>' ? ' /' : ''}>`)
 }

@@ -5,17 +5,17 @@ import { layoutC4Diagram } from '../c4/layout.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { lowerC4Scene } from '../c4/renderer.ts'
 import type { C4Body } from '../c4/types.ts'
-import { frontmatterTitle, normalizeMermaidSource } from '../mermaid-source.ts'
+import { frontmatterTitle } from '../mermaid-source.ts'
 
 /** Parse authored identities once at the request boundary, before any output
  * display admission. Pixel and cell adapters consume this same semantic plan. */
 export const C4_SVG_HOOKS = {
   configDiagnostics: diagnoseC4Config,
   normalizeRequest: ctx => {
-    const authored = normalizeMermaidSource(ctx.source.originalText)
-    const wrapper = authored.wrapperSource ?? ''
-    const body = parseC4Diagram(authored.originalText.slice(wrapper.length))
-    const lineOffset = wrapper.split('\n').length - 1
+    const wrapperLength = ctx.source.authoredWrapperLength ?? ctx.source.wrapperSource?.length ?? 0
+    const wrapper = ctx.source.originalText.slice(0, wrapperLength)
+    const body = parseC4Diagram(ctx.source.originalText.slice(wrapperLength))
+    const lineOffset = wrapper.split(/\r\n?|\n/).length - 1
     for (const statement of body.statements) {
       statement.span.start += wrapper.length
       statement.span.end += wrapper.length
