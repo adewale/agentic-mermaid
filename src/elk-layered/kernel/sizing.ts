@@ -80,4 +80,8 @@ export function sizeAndPlacePorts(nodes: LayoutNode[], graphOptions: Options): v
 }
 function portX(port: LayoutPort, width: number): number { return port.borderOffset === null ? port.side === 'WEST' ? -port.width : width : port.side === 'WEST' ? -port.width - port.borderOffset : width + port.borderOffset }
 
-function portY(port: LayoutPort, height: number): number { return (port.borderOffset === null ? port.side === 'NORTH' ? -port.height : 0 : port.side === 'NORTH' ? -port.height - port.borderOffset : port.borderOffset) + (port.side === 'SOUTH' ? height : 0) }
+function portY(port: LayoutPort, height: number): number {
+  let y = port.borderOffset === null ? port.side === 'NORTH' ? -port.height : 0 : port.side === 'NORTH' ? -port.height - port.borderOffset : port.borderOffset
+  if (port.side === 'SOUTH') y += height
+  return y
+}

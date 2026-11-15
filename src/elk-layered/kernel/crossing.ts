@@ -12,6 +12,8 @@ import type { Random } from '../java/util/Random.ts'
 import type { LayoutNode, LayoutPort, LayoutEdge, LayoutGraph } from './graph.ts'
 import { booleanOption, enumOption, integerOption, numberOption } from './options.ts'
 import type { Options } from './options.ts'
+import { sortPortLists } from './phases.ts'
+import { sort } from './sort.ts'
 
 type Node = LayoutNode
 type Port = LayoutPort
@@ -283,7 +285,7 @@ function sortByInputModel(order: Order, context: ModelOrderContext): void {
     insertionSort(layer, (a, b) => comparator.compare(a, b)); comparator.clearTransitiveOrdering()
     for (const node of layer) if (node.portConstraints !== 'FIXED_ORDER' && node.portConstraints !== 'FIXED_POS') {
       const ports = new ModelOrderPortComparator(context, order[previousIndex]!.slice(), longEdgeTargetNodePreprocessing(node), context.portModelOrder)
-      node.ports.sort((a, b) => ports.compare(a, b))
+      sort(node.ports, (a, b) => ports.compare(a, b))
     }
     comparator = new ModelOrderNodeComparator(context, order[previousIndex]!.slice(), context.longEdgeStrategy, false)
     insertionSort(layer, (a, b) => comparator.compare(a, b)); comparator.clearTransitiveOrdering()
@@ -342,6 +344,40 @@ class CrossingsCounter {
     return this.countCrossingsOnPorts(ports)
   }
   countInLayerCrossingsOnSide(nodes: Node[], side: Side): number { return this.countInLayerCrossingsOnPorts(this.initPortPositionsForInLayerCrossings(nodes, side)) }
+  countNorthSouthPortCrossingsInLayer(nodes: Node[]): number {
+    const ports: Port[] = [], stack: Node[] = []
+    let previousUnit: Node | undefined, index = 0
+    const append = (port: Port): void => { this.positions.set(port, index++); ports.push(port) }
+    const emptyStack = (): void => { while (stack.length > 0) append(portsOnSide(stack.pop()!, 'EAST')[0]!) }
+    for (const node of nodes) {
+      if (previousUnit !== undefined && previousUnit !== node && node.inLayerLayoutUnit !== undefined && node.inLayerLayoutUnit !== previousUnit) emptyStack()
+      if (node.inLayerLayoutUnit !== undefined) previousUnit = node.inLayerLayoutUnit
+      if (node.type === 'NORMAL') {
+        for (const port of portsOnSide(node, 'NORTH')) if (port.portDummy !== undefined) append(port)
+        emptyStack()
+        for (const port of portsOnSide(node, 'SOUTH')) if (port.portDummy !== undefined) append(port)
+      } else if (node.type === 'NORTH_SOUTH_PORT') {
+        const west = portsOnSide(node, 'WEST')
+        if (west.length > 0) append(west[0]!)
+        if (portsOnSide(node, 'EAST').length > 0) stack.push(node)
+      } else if (node.type === 'LONG_EDGE') {
+        for (const port of portsOnSide(node, 'WEST')) append(port)
+        for (const _port of portsOnSide(node, 'EAST')) stack.push(node)
+      }
+    }
+    emptyStack(); this.indexTree = new BinaryIndexedTree(ports.length)
+    let crossings = 0
+    for (const port of ports) {
+      this.indexTree.removeAll(this.positionOf(port))
+      const targets: Array<[Port, number]> = []
+      if (port.node.type === 'NORMAL') for (const other of port.portDummy!.ports) targets.push([other, other.incoming.length + other.outgoing.length])
+      else if (port.node.type === 'LONG_EDGE') { const other = port.node.ports.find(other => other !== port); if (other !== undefined) targets.push([other, other.incoming.length + other.outgoing.length]) }
+      else if (port.node.type === 'NORTH_SOUTH_PORT') targets.push([port.originPort!, port.incoming.length + port.outgoing.length])
+      for (const [other, degree] of targets) { const end = this.positionOf(other); if (end > this.positionOf(port)) { crossings += this.indexTree.rank(end) * degree; this.ends.push(end) } }
+      while (this.ends.length > 0) this.indexTree.add(this.ends.pop()!)
+    }
+    return crossings
+  }
   switchPorts(top: Port, bottom: Port): void { const pos = this.positionOf(top); this.positions.set(top, this.positionOf(bottom)); this.positions.set(bottom, pos) }
   switchNodes(upper: Node, lower: Node, side: Side): void {
     for (const port of topDownPorts(upper, side)) this.positions.set(port, this.positionOf(port) + this.nodeCardinalities.get(lower)!)
@@ -508,9 +544,11 @@ class AllCrossingsCounter {
   private crossingCounter: CrossingsCounter
   private hyperedgeCounter: HyperedgeCrossingsCounter
   private hyperedgesEast: boolean[]
+  private northSouth: boolean[]
   constructor(order: Order) {
     const positions = new Map<Port, number>()
     this.hyperedgesEast = new Array(order.length).fill(false)
+    this.northSouth = order.map(layer => layer.some(node => node.type === 'NORTH_SOUTH_PORT'))
     for (let l = 0; l < order.length; l++) for (const node of order[l]!) for (const port of node.ports) {
       positions.set(port, 0)
       if (port.incoming.length + port.outgoing.length > 1) {
@@ -525,13 +563,17 @@ class AllCrossingsCounter {
     if (order.length === 0) return 0
     let crossings = this.crossingCounter.countInLayerCrossingsOnSide(order[0]!, 'WEST')
     crossings += this.crossingCounter.countInLayerCrossingsOnSide(order[order.length - 1]!, 'EAST')
-    for (let l = 0; l + 1 < order.length; l++) {
-      const left = order[l]!, right = order[l + 1]!
-      if (this.hyperedgesEast[l]) {
-        crossings += this.hyperedgeCounter.countCrossings(left, right)
-        crossings += this.crossingCounter.countInLayerCrossingsOnSide(left, 'EAST')
-        crossings += this.crossingCounter.countInLayerCrossingsOnSide(right, 'WEST')
-      } else crossings += this.crossingCounter.countCrossingsBetweenLayers(left, right)
+    for (let l = 0; l < order.length; l++) {
+      const left = order[l]!
+      if (l + 1 < order.length) {
+        const right = order[l + 1]!
+        if (this.hyperedgesEast[l]) {
+          crossings += this.hyperedgeCounter.countCrossings(left, right)
+          crossings += this.crossingCounter.countInLayerCrossingsOnSide(left, 'EAST')
+          crossings += this.crossingCounter.countInLayerCrossingsOnSide(right, 'WEST')
+        } else crossings += this.crossingCounter.countCrossingsBetweenLayers(left, right)
+      }
+      if (this.northSouth[l]) crossings += this.crossingCounter.countNorthSouthPortCrossingsInLayer(left)
     }
     return crossings
   }
@@ -725,7 +767,20 @@ class BarycenterPortDistributor {
       this.inLayerPorts = []; this.minBarycenter = 0; this.maxBarycenter = 0
       portLoop: for (const port of portsOnSide(node, currentSide)) {
         let sum = 0
-        if (currentSide === 'NORTH' || currentSide === 'SOUTH') continue
+        const northSouth = currentSide === 'NORTH' || currentSide === 'SOUTH'
+        if (northSouth) {
+          const dummy = port.portDummy
+          if (dummy === undefined) continue
+          let input = false, output = false
+          for (const other of dummy.ports) if (other.originPort === port) {
+            if (other.outgoing.length > 0) output = true
+            else if (other.incoming.length > 0) input = true
+          }
+          const large = 2 * layerSize + 1
+          if (input && !output) sum = currentSide === 'NORTH' ? -this.nodePositions.get(dummy)! : large - this.nodePositions.get(dummy)!
+          else if (output && !input) sum = this.nodePositions.get(dummy)! + 1.0
+          else if (input && output) sum = currentSide === 'NORTH' ? 0.0 : large / 2
+        } else {
         for (const edge of port.outgoing) {
           if (edge.target.node.rank === node.rank) { this.inLayerPorts.push(port); continue portLoop }
           sum += this.portRanks.get(edge.target)!
@@ -734,12 +789,13 @@ class BarycenterPortDistributor {
           if (edge.source.node.rank === node.rank) { this.inLayerPorts.push(port); continue portLoop }
           sum -= this.portRanks.get(edge.source)!
         }
+        }
         const degree = port.incoming.length + port.outgoing.length
         if (degree > 0) {
           const barycenter = sum / degree
           this.portBarycenter.set(port, barycenter)
           this.minBarycenter = Math.min(this.minBarycenter, barycenter); this.maxBarycenter = Math.max(this.maxBarycenter, barycenter)
-        }
+        } else if (northSouth) this.portBarycenter.set(port, sum)
       }
       for (const port of this.inLayerPorts) {
         let sum = 0, connections = 0
@@ -917,7 +973,12 @@ class GreedyPortDistributor {
         continueSwitching = false
         for (let i = 0; i + 1 < ports.length; i++) {
           const upper = ports[i]!, lower = ports[i + 1]!
-          const [original, switched] = this.counter.countCrossingsBetweenPortsInBothOrders(upper, lower)
+          let [original, switched] = this.counter.countCrossingsBetweenPortsInBothOrders(upper, lower)
+          if (node.nestedGraph !== undefined && upper.portDummy !== undefined && lower.portDummy !== undefined) {
+            const inner = node.nestedGraph.layers!, index = forward ? 0 : inner.length - 1
+            const pair = new BetweenLayerEdgeTwoNodeCrossingsCounter(inner, index).countBothSideCrossings(upper.portDummy, lower.portDummy)
+            original += pair[0]; switched += pair[1]
+          }
           if (original > switched) {
             this.counter.switchPorts(upper, lower)
             const a = node.ports.indexOf(upper), b = node.ports.indexOf(lower)
@@ -932,12 +993,42 @@ class GreedyPortDistributor {
   }
 }
 
+/** NorthSouthEdgeNeighbouringNodeCrossingsCounter. */
+class NorthSouthNeighbourCounter {
+  private positions = new Map<Port, number>()
+  constructor(layer: Node[]) {
+    for (const node of layer) for (const side of ['SOUTH', 'NORTH'] as const) {
+      let index = 0
+      for (const port of topDownPorts(node, side)) this.positions.set(port, index++)
+    }
+  }
+  count(upper: Node, lower: Node): [number, number] {
+    let upperLower = 0, lowerUpper = 0
+    const isNorth = (node: Node): boolean => node.ports[0]!.originPort!.side === 'NORTH'
+    if (upper.type === 'NORTH_SOUTH_PORT' && lower.type === 'NORTH_SOUTH_PORT' && upper.northSouthOrigin === lower.northSouthOrigin) {
+      const further = isNorth(upper) ? upper : lower, closer = isNorth(upper) ? lower : upper
+      let a: Port | undefined, b: Port | undefined
+      if (this.positions.get(further.ports[0]!.originPort!)! > this.positions.get(closer.ports[0]!.originPort!)!) { a = portsOnSide(closer, 'EAST')[0]; b = portsOnSide(further, 'WEST')[0] }
+      else { a = portsOnSide(closer, 'WEST')[0]; b = portsOnSide(further, 'EAST')[0] }
+      upperLower = a === undefined ? 0 : a.incoming.length + a.outgoing.length
+      lowerUpper = b === undefined ? 0 : b.incoming.length + b.outgoing.length
+    }
+    if (upper.type === 'NORTH_SOUTH_PORT' && lower.type === 'LONG_EDGE') { if (isNorth(upper)) upperLower = 1; else lowerUpper = 1 }
+    else if (lower.type === 'NORTH_SOUTH_PORT' && upper.type === 'LONG_EDGE') { if (isNorth(lower)) lowerUpper = 1; else upperLower = 1 }
+    const edges = (node: Node, side: Side): number => portsOnSide(node, side).filter(port => port.portDummy !== undefined).length
+    if (upper.type === 'NORMAL' && lower.type === 'LONG_EDGE') { upperLower = edges(upper, 'SOUTH'); lowerUpper = edges(upper, 'NORTH') }
+    if (lower.type === 'NORMAL' && upper.type === 'LONG_EDGE') { upperLower = edges(lower, 'NORTH'); lowerUpper = edges(lower, 'SOUTH') }
+    return [upperLower, lowerUpper]
+  }
+}
+
 class GreedySwitchHeuristic {
   private left: CrossingsCounter
   private right: CrossingsCounter
   private matrix = new Map<Node, Map<Node, number>>()
   private between!: BetweenLayerEdgeTwoNodeCrossingsCounter
   private parentCounter?: CrossingsCounter
+  private northSouth!: NorthSouthNeighbourCounter
   constructor(order: Order, private hierarchy?: { parent: Node; parentOrder: Order; parentPositions: Map<Port, number>; bottomUp: boolean }) {
     const positions = new Map<Port, number>()
     for (const layer of order) for (const node of layer) for (const port of node.ports) positions.set(port, 0)
@@ -945,6 +1036,7 @@ class GreedySwitchHeuristic {
   }
   private setUp(order: Order, free: number): void {
     this.matrix = new Map()
+    this.northSouth = new NorthSouthNeighbourCounter(order[free]!)
     this.between = new BetweenLayerEdgeTwoNodeCrossingsCounter(order, free)
     this.left.initPortPositionsForInLayerCrossings(order[free]!, 'WEST')
     this.right.initPortPositionsForInLayerCrossings(order[free]!, 'EAST')
@@ -960,11 +1052,13 @@ class GreedySwitchHeuristic {
   private haveLayoutUnitConstraints(upper: Node, lower: Node): boolean {
     const different = upper.inLayerLayoutUnit !== lower.inLayerLayoutUnit
     const multi = (upper.inLayerLayoutUnit !== undefined && upper.inLayerLayoutUnit !== upper) || (lower.inLayerLayoutUnit !== undefined && lower.inLayerLayoutUnit !== lower)
-    return upper.type !== 'LONG_EDGE' && lower.type !== 'LONG_EDGE' && multi && different
+    const hasEdges = (node: Node, side: Side): boolean => portsOnSide(node, side).some(port => port.portDummy !== undefined || port.incoming.length + port.outgoing.length > 0)
+    const layoutUnit = ((multi || hasEdges(upper, 'SOUTH') || hasEdges(lower, 'NORTH')) && different) || hasEdges(upper, 'NORTH') || hasEdges(lower, 'SOUTH')
+    return upper.type !== 'LONG_EDGE' && lower.type !== 'LONG_EDGE' && layoutUnit
   }
   private switchIfImproves(layer: Node[], upperIndex: number): boolean {
     const upper = layer[upperIndex]!, lower = layer[upperIndex + 1]!
-    if ((upper.inLayerSuccessors ?? []).includes(lower) || this.haveLayoutUnitConstraints(upper, lower)) return false
+    if ((upper.inLayerSuccessors ?? []).includes(lower) || this.haveLayoutUnitConstraints(upper, lower) || upper.type === 'NORMAL' && lower.type === 'NORTH_SOUTH_PORT' || lower.type === 'NORMAL' && upper.type === 'NORTH_SOUTH_PORT') return false
     const left = this.left.countInLayerCrossingsBetweenNodesInBothOrders(upper, lower, 'WEST')
     const right = this.right.countInLayerCrossingsBetweenNodesInBothOrders(upper, lower, 'EAST')
     let upperLower = this.matrix.get(upper)?.get(lower), lowerUpper = this.matrix.get(lower)?.get(upper)
@@ -974,8 +1068,9 @@ class GreedySwitchHeuristic {
       a.set(lower, upperLower); b.set(upper, lowerUpper)
       this.matrix.set(upper, a); this.matrix.set(lower, b)
     }
+    const northSouth = this.northSouth.count(upper, lower)
     const parent = this.parentCounter?.countCrossingsBetweenPortsInBothOrders(upper.originPort!, lower.originPort!) ?? [0, 0]
-    if (upperLower + left[0] + right[0] + parent[0]! > lowerUpper! + left[1] + right[1] + parent[1]!) {
+    if (upperLower + left[0] + right[0] + northSouth[0] + parent[0]! > lowerUpper! + left[1] + right[1] + northSouth[1] + parent[1]!) {
       this.left.switchNodes(upper, lower, 'WEST'); this.right.switchNodes(upper, lower, 'EAST')
       this.parentCounter?.switchPorts(upper.originPort!, lower.originPort!)
       layer[upperIndex] = lower; layer[upperIndex + 1] = upper
@@ -1232,7 +1327,7 @@ export function minimizeHierarchicalCrossings(root: LayoutGraph): void {
     if (graph.layers === undefined || graph.phaseOptions === undefined || graph.random === undefined) throw new Error('Hierarchical crossing requires prepared child layers, phase options, and random streams.')
     if (enumOption(graph.phaseOptions, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP') !== 'LAYER_SWEEP' || booleanOption(graph.phaseOptions, 'layered.crossingMinimization.semiInteractive', false)) throw new Error('ELK TypeScript port: this crossing-minimization strategy is not implemented yet')
     for (const layer of graph.layers) for (const node of layer) {
-      if (!['NORMAL', 'LONG_EDGE', 'LABEL', 'EXTERNAL_PORT'].includes(node.type) || node.ports.some(port => port.side === 'NORTH' || port.side === 'SOUTH')) throw new Error('ELK TypeScript port: north/south crossing references are not implemented yet')
+      if (!['NORMAL', 'LONG_EDGE', 'LABEL', 'EXTERNAL_PORT', 'NORTH_SOUTH_PORT'].includes(node.type)) throw new Error('ELK TypeScript port: north/south crossing references are not implemented yet')
       if (node.nestedGraph !== undefined) pending.push(node.nestedGraph)
     }
   }
@@ -1265,16 +1360,28 @@ class SweepCopy {
     }
   }
   transfer(order: Order): void {
+    const update = new Set<Node>()
     for (let l = 0; l < order.length; l++) {
-      const layer = order[l]!
+      const layer = order[l]!, positions = new Map<Node, number>(), northSouth: Node[] = []
       for (let i = 0; i < layer.length; i++) {
         const node = this.nodes[l]![i]!
+        positions.set(node, i)
+        if (node.type === 'NORTH_SOUTH_PORT') northSouth.push(node)
         layer[i] = node
         node.ports.length = 0
         for (const port of this.ports.get(node)!) node.ports.push(port)
         if (!isOrderFixed(node)) node.portConstraints = 'FIXED_ORDER'
       }
+      for (const dummy of northSouth) {
+        const origin = dummy.inLayerLayoutUnit!, port = origin.ports.find(port => port === dummy.ports[0]!.originPort)
+        if (port !== undefined) {
+          if (port.side === 'NORTH' && positions.get(dummy)! > positions.get(origin)!) { port.side = 'SOUTH'; if (port.explicitAnchor) port.anchorY = port.height - port.anchorY }
+          else if (port.side === 'SOUTH' && positions.get(origin)! > positions.get(dummy)!) { port.side = 'NORTH'; if (port.explicitAnchor) port.anchorY = -(port.height - port.anchorY) }
+        }
+        update.add(origin); update.add(dummy)
+      }
     }
+    for (const node of update) sortPortLists([node], new Map())
   }
 }
 
@@ -1304,16 +1411,15 @@ function countModelOrderPortChanges(order: Order, context: ModelOrderContext): n
  * from ELK v0.11.0 at the source pin above. Nested graphs and north/south dummy
  * references are supplied by separate source processors.
  */
-export function minimizeCrossings(layers: Order, options: Options, random: Random, originalGraphNodeCount?: number, maxModelOrderNodes?: number): void {
+export function minimizeCrossings(layers: Order, options: Options, random: Random, originalGraphNodeCount?: number, maxModelOrderNodes?: number, modelOrderPrepared = false): void {
   if (layers.length === 0 || layers.every(layer => layer.length === 0)) return
   if (enumOption(options, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP') !== 'LAYER_SWEEP'
     || booleanOption(options, 'layered.crossingMinimization.semiInteractive', false)) throw new Error('ELK TypeScript port: this crossing-minimization strategy is not implemented yet')
   for (const layer of layers) for (const node of layer) {
-    if ((node.type !== 'NORMAL' && node.type !== 'LONG_EDGE' && node.type !== 'LABEL') || node.nestedGraph !== undefined
-      || node.ports.some(port => port.side === 'NORTH' || port.side === 'SOUTH')) throw new Error('ELK TypeScript port: hierarchical and north/south crossing references are not implemented yet')
+    if (!['NORMAL', 'LONG_EDGE', 'LABEL', 'EXTERNAL_PORT', 'NORTH_SOUTH_PORT'].includes(node.type) || node.nestedGraph !== undefined) throw new Error('ELK TypeScript port: hierarchical and north/south crossing references are not implemented yet')
   }
   const context = new ModelOrderContext(options, layers, maxModelOrderNodes ?? layers.reduce((sum, layer) => sum + layer.filter(node => node.modelOrder !== undefined).length, 0))
-  if (context.strategy !== 'NONE') sortByInputModel(layers, context)
+  if (!modelOrderPrepared && context.strategy !== 'NONE') sortByInputModel(layers, context)
   const hierarchical = enumOption(options, 'hierarchyHandling', ['INHERIT', 'SEPARATE_CHILDREN', 'INCLUDE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
   if (layers.length === 1 && layers[0]!.length === 1 && !hierarchical) return
   const current = layers.map(layer => layer.slice())

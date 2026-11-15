@@ -43,7 +43,7 @@ export function routeOrthogonal(layers: LayoutNode[][], options: Options, random
     const right = layers[index] ?? null
     if (left !== null) { placeHorizontally(left, widths[index - 1]!, x); x += widths[index - 1]! }
     const slots = routeGap(left, right, left === null ? x : x + edgeNodeSpacing, edgeSpacing, random)
-    const leftExternal = left === null || left.every(node => node.type === 'EXTERNAL_PORT'), rightExternal = right === null || right.every(node => node.type === 'EXTERNAL_PORT')
+    const leftExternal = left === null || left.every(node => node.type === 'EXTERNAL_PORT' && (node.externalPortSide === 'WEST' || node.externalPortSide === 'EAST')), rightExternal = right === null || right.every(node => node.type === 'EXTERNAL_PORT' && (node.externalPortSide === 'WEST' || node.externalPortSide === 'EAST'))
     if (slots > 0) {
       let width = (slots - 1) * edgeSpacing
       if (left !== null) width += edgeNodeSpacing

@@ -13,20 +13,22 @@ import { insertLabelDummies, switchLabelDummies, selectLabelSides, removeLabelDu
 import { breakGreedyCycles, breakModelOrderCycles, breakGreedyModelOrderCycles } from './cycle-breaking.ts'
 import { Random } from '../java/util/Random.ts'
 import { assignNetworkSimplexLayers } from './network-simplex.ts'
+import { insertInvertedPortDummies } from './inverted-ports.ts'
 import { assignPortSides, sortPortLists } from './phases.ts'
 import { splitLongEdges, joinLongEdges } from './long-edges.ts'
 import { minimizeCrossings, prepareCrossingModelOrder, minimizeHierarchicalCrossings, minimizeHierarchicalGreedySwitch } from './crossing.ts'
+import { preprocessNorthSouthPorts, postprocessNorthSouthPorts, type NorthSouthPortState } from './north-south-ports.ts'
 import { preprocessCompound, postprocessCompound } from './compound.ts'
 import { constrainHierarchyPorts, sizeHierarchyPortDummies, positionHierarchyPorts, routeHierarchyPorts, type HierarchyPortState } from './hierarchy-ports.ts'
 import { reverseConstrainedEdges, hideSeparateLayers, restoreSeparateLayers, enforceInLayerConstraints } from './constraints.ts'
 import { calculateNodeMargins } from './margins.ts'
 import { placeNodes } from './node-placement.ts'
 import { sizeAndPlacePorts } from './sizing.ts'
-import { resizeNode } from './node-geometry.ts'
-import { getExternalPortPosition } from './external-ports.ts'
+import { resizeNode, resizeImportedNode } from './node-geometry.ts'
+import { getExternalPortPosition, importIndependentPorts } from './external-ports.ts'
 import { transformGraph } from './transform.ts'
 import { routeOrthogonal, measureLayers } from './routing.ts'
-import { importGraph, reverseEdge, type LayoutGraph, type LayoutLabel, type LayoutNode, type LayoutEdge } from './graph.ts'
+import { importGraph, initializePort, reverseEdge, type LayoutGraph, type LayoutLabel, type LayoutNode, type LayoutEdge } from './graph.ts'
 import { writeMember, elementKey } from './json.ts'
 import { booleanOption, enumOption, numberOption, integerOption, setOption, stringOption, vectorOption, type Options } from './options.ts'
 import type { ElkNode } from './types.ts'
@@ -42,12 +44,13 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
   return data
 }
 function layoutGraph(graph: LayoutGraph): void {
+  importIndependentPorts(graph)
   layoutIndependentDescendants(graph)
   if (graph.nodes.some(node => node.nestedGraph !== undefined)) { layoutCompound(graph); return }
   const algorithm = stringOption(graph.options, 'algorithm', 'layered')
   if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
   if (numberOption(graph.options, 'spacing.edgeEdge', 10) < 2) graph.options.set('spacing.edgeEdge', '2')
-  if (graph.nodes.length > 0) {
+  if ((graph.layerlessNodes ?? graph.nodes).length > 0) {
     const compound = enumOption(graph.options, 'hierarchyHandling', ['INHERIT', 'INCLUDE_CHILDREN', 'SEPARATE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
     const random = new Random(integerOption(graph.options, 'randomSeed', 1))
     if (compound) {
@@ -67,12 +70,16 @@ function layoutGraph(graph: LayoutGraph): void {
       resizeGraph(graph, size.width, size.height)
     }
   }
+  transferIndependentGraph(graph)
 }
 
 function layoutIndependentDescendants(graph: LayoutGraph): void {
   for (const node of graph.nodes) if (node.contentGraph !== undefined && !node.noLayout) {
     if (node.nestedGraph !== undefined) layoutIndependentDescendants(node.nestedGraph)
-    else { layoutGraph(node.contentGraph); node.width = node.contentGraph.width; node.height = node.contentGraph.height }
+    else {
+      layoutGraph(node.contentGraph); node.width = node.contentGraph.width; node.height = node.contentGraph.height
+      for (const port of node.sourcePorts) { const inside = port.insideConnections; initializePort(port, graph.direction); port.insideConnections = inside }
+    }
   }
 }
 /** ElkLayered's actual two-stack collection and hierarchy-aware dispatch barriers. */
@@ -96,7 +103,6 @@ function layoutCompound(root: LayoutGraph): void {
   for (const graph of graphs) {
     const layout = prepareLayout(graph.layerlessNodes!, graph, streams.get(graph)!, true)
     prepared.set(graph, layout)
-    prepareCrossingModelOrder(graph)
   }
   minimizeHierarchicalCrossings(root)
   for (const graph of graphs) {
@@ -129,6 +135,7 @@ function resizeGraph(graph: LayoutGraph, contentWidth: number, contentHeight: nu
     graph.height = height - padding.top - padding.bottom + padding.top + padding.bottom
   }
   graph.offsetX = offsetX + padding.left; graph.offsetY = offsetY + padding.top
+  graph.geometry = { width: width - padding.left - padding.right, height: height - padding.top - padding.bottom, offsetX, offsetY, padding, options: graph.options }
 }
 function emitGraph(graph: LayoutGraph, emitRoot = true): void {
   if (emitRoot) emitShape(graph.data, graph)
@@ -190,12 +197,13 @@ function splitComponents(graph: LayoutGraph): LayoutNode[][] {
       for (const edge of port.outgoing) visit(edge.target.node, nodes)
     }
   }
-  for (const node of graph.nodes) if (!visited.has(node) && !node.noLayout) { const nodes: LayoutNode[] = []; visit(node, nodes); result.push(nodes) }
+  for (const node of graph.layerlessNodes ?? graph.nodes) if (!visited.has(node) && !node.noLayout) { const nodes: LayoutNode[] = []; visit(node, nodes); result.push(nodes) }
   return result
 }
 interface PreparedLayout {
   compound: boolean
   hierarchyPorts?: HierarchyPortState
+  northSouthPorts: NorthSouthPortState
   nodes: LayoutNode[]
   graph: LayoutGraph
   random: Random
@@ -208,7 +216,7 @@ interface PreparedLayout {
 }
 function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): Component {
   const prepared = prepareLayout(nodes, graph, random, compound)
-  minimizeCrossings(prepared.layers, prepared.state.options, random, graph.nodes.filter(node => !node.noLayout).length, graph.maxModelOrderNodes)
+  minimizeCrossings(prepared.layers, prepared.state.options, random, (graph.layerlessNodes ?? graph.nodes).filter(node => !node.noLayout).length, graph.maxModelOrderNodes, true)
   return finishLayout(prepared)
 }
 function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean): PreparedLayout {
@@ -234,13 +242,16 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const hiddenLayers = hideSeparateLayers(layererNodes)
   const layers = assignNetworkSimplexLayers(layererNodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
   restoreSeparateLayers(layers, hiddenLayers)
-  const hierarchyPorts = compound ? constrainHierarchyPorts(graph, layers) : undefined
+  const hierarchyPorts = constrainHierarchyPorts(graph, layers)
   splitLongEdges(layers)
-  const phaseNodes = layers.flat()
-  if (!feedback) assignPortSides(phaseNodes)
-  sortPortLists(phaseNodes, state.options)
+  if (!feedback) assignPortSides(layers.flat())
+  insertInvertedPortDummies(layers, graph)
+  sortPortLists(layers.flat(), state.options)
   graph.layers = layers; graph.phaseOptions = state.options; graph.random = random
-  return { compound, hierarchyPorts, nodes, graph, random, direction, state, loops, centerLabels, layers, phaseNodes }
+  prepareCrossingModelOrder(graph)
+  const northSouthPorts = preprocessNorthSouthPorts(layers, state.options)
+  const phaseNodes = layers.flat()
+  return { compound, hierarchyPorts, northSouthPorts, nodes, graph, random, direction, state, loops, centerLabels, layers, phaseNodes }
 }
 function finishLayout(prepared: PreparedLayout): Component {
   const { nodes, random, direction, state, loops, centerLabels, layers, phaseNodes } = prepared
@@ -262,6 +273,7 @@ function finishLayout(prepared: PreparedLayout): Component {
   routeHierarchyPorts(layers, state.options, state, prepared.hierarchyPorts)
   joinLongEdges(layers, state.options)
   postprocessSelfLoops(layers, loops)
+  postprocessNorthSouthPorts(layers, state.options, prepared.northSouthPorts)
   compactGraph(layers, state.options, state)
   if (centerLabels !== undefined) removeLabelDummies(layers, nodes, state.options, centerLabels)
   if (endLabels !== undefined) sortEndLabels(layers, endLabels)
@@ -323,4 +335,21 @@ function transferGraphToParent(graph: LayoutGraph, nodes: LayoutNode[], state: P
   }
   if (graph.hasExternalPorts) parent.portConstraints = 'FIXED_POS'
   resizeNode(parent, state.width + state.padding.left + state.padding.right, state.height + state.padding.top + state.padding.bottom, !graph.hasExternalPorts, true)
+}
+
+/** ElkGraphLayoutTransferrer top-level external ports and applyParentNodeLayout. */
+function transferIndependentGraph(graph: LayoutGraph): void {
+  const owner = graph.ownerNode
+  if (owner === undefined || graph.parentNode !== undefined) return
+  if (graph.hasExternalPorts) {
+    const geometry = graph.geometry!
+    for (const dummy of graph.layerlessNodes ?? []) if (dummy.originPort !== undefined) {
+      const port = dummy.originPort, position = getExternalPortPosition(geometry, dummy, port.width, port.height)
+      port.x = position.x; port.y = position.y
+    }
+    owner.portConstraints = 'FIXED_POS'; owner.options.set('portConstraints', 'FIXED_POS')
+  }
+  const portLabels = setOption(owner.options, 'nodeSize.constraints', SIZE_CONSTRAINTS, []).has('PORT_LABELS')
+  if (graph.hasExternalPorts || !booleanOption(owner.options, 'nodeSize.fixedGraphSize', false)) resizeImportedNode(owner, graph.width, graph.height, !graph.hasExternalPorts, owner.layoutGraph?.direction ?? graph.direction)
+  owner.options.set('nodeSize.constraints', portLabels ? '[PORT_LABELS]' : '[]')
 }
