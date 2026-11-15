@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: EPL-2.0 */
-import type { MapView, SimpleEntry } from './HashMap.ts'
+import type { MapView } from './HashMap.ts'
+
+export interface Entry<K, V> {
+  getKey(): K
+  getValue(): V
+  setValue(value: V): V
+}
 
 export interface JavaMap<K, V> {
   get(key: K): V | null
@@ -9,5 +15,5 @@ export interface JavaMap<K, V> {
   size(): number
   isEmpty(): boolean
   clear(): void
-  entrySet(): MapView<SimpleEntry<K, V>>
+  entrySet(): MapView<Entry<K, V>>
 }

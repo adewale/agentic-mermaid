@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: EPL-2.0 */
+/*
+ * Copyright 2007 Google Inc. (GWT list and sublist iterator semantics).
+ * Original GWT portions: Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0.
+ * TypeScript translation: EPL-2.0.
+ * SPDX-License-Identifier: EPL-2.0 AND Apache-2.0
+ */
 import { JavaObject, javaEquals, javaHashCode } from '../lang/Object.ts'
 import { iterableIterator, type Iterator, type ListIterator } from './Iterator.ts'
 import type { Collection } from './Collection.ts'
@@ -31,10 +36,10 @@ export abstract class AbstractList<T> extends JavaObject implements Collection<T
   addAll(index: number, collection: Collection<T>): boolean
   addAll(first: number | Collection<T>, second?: Collection<T>): boolean {
     const index = typeof first === 'number' ? first : this.size()
-    this.checkIndex(index, true)
-    const values = Array.from(typeof first === 'number' ? second! : first)
-    for (let offset = 0; offset < values.length; offset++) this.add(index + offset, values[offset]!)
-    return values.length !== 0
+    let nextIndex = index
+    let changed = false
+    for (const value of typeof first === 'number' ? second! : first) { this.add(nextIndex++, value); changed = true }
+    return changed
   }
 
   containsAll(values: Iterable<T>): boolean { for (const value of values) if (!this.contains(value)) return false; return true }
@@ -66,25 +71,21 @@ export abstract class AbstractList<T> extends JavaObject implements Collection<T
     this.checkIndex(index, true)
     let cursor = index
     let last = -1
-    let expectedModCount = this.modCount
-    const check = (): void => { if (this.modCount !== expectedModCount) throw new Error('Concurrent modification') }
     return {
       hasNext: () => cursor < this.size(),
-      next: () => { check(); if (cursor >= this.size()) throw new Error('No such element'); last = cursor++; return this.get(last) },
+      next: () => { if (cursor >= this.size()) throw new Error('No such element'); last = cursor++; return this.get(last) },
       hasPrevious: () => cursor > 0,
-      previous: () => { check(); if (cursor === 0) throw new Error('No such element'); last = --cursor; return this.get(last) },
+      previous: () => { if (cursor === 0) throw new Error('No such element'); last = --cursor; return this.get(last) },
       nextIndex: () => cursor,
       previousIndex: () => cursor - 1,
       remove: () => {
-        check()
         if (last < 0) throw new Error('No current element')
         this.removeAt(last)
-        if (last < cursor) cursor--
+        cursor = last
         last = -1
-        expectedModCount = this.modCount
       },
-      set: value => { check(); if (last < 0) throw new Error('No current element'); this.set(last, value) },
-      add: value => { check(); this.add(cursor++, value); last = -1; expectedModCount = this.modCount },
+      set: value => { if (last < 0) throw new Error('No current element'); this.set(last, value) },
+      add: value => { this.add(cursor, value); cursor++; last = -1 },
     }
   }
   [Symbol.iterator](): IterableIterator<T> { return iterableIterator(this.iterator()) }
@@ -110,30 +111,24 @@ export abstract class AbstractList<T> extends JavaObject implements Collection<T
 class SubList<T> extends AbstractList<T> {
   constructor(private readonly parent: AbstractList<T>, private readonly offset: number, private length: number) {
     super()
-    this.modCount = parent.modCount
   }
-  private check(): void { if (this.parent.modCount !== this.modCount) throw new Error('Concurrent modification') }
-  size(): number { this.check(); return this.length }
-  get(index: number): T { this.check(); this.checkIndex(index); return this.parent.get(this.offset + index) }
-  set(index: number, value: T): T { this.check(); this.checkIndex(index); return this.parent.set(this.offset + index, value) }
+  size(): number { return this.length }
+  get(index: number): T { this.checkIndex(index); return this.parent.get(this.offset + index) }
+  set(index: number, value: T): T { this.checkIndex(index); return this.parent.set(this.offset + index, value) }
   add(value: T): boolean
   add(index: number, value: T): void
   add(first: T | number, second?: T): boolean | void {
-    this.check()
     const indexed = arguments.length === 2
     const index = indexed ? first as number : this.length
     this.checkIndex(index, true)
     this.parent.add(this.offset + index, indexed ? second! : first as T)
     this.length++
-    this.modCount = this.parent.modCount
     if (!indexed) return true
   }
   removeAt(index: number): T {
-    this.check()
     this.checkIndex(index)
     const removed = this.parent.removeAt(this.offset + index)
     this.length--
-    this.modCount = this.parent.modCount
     return removed
   }
 }

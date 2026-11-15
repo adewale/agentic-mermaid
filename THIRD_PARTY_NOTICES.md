@@ -11,7 +11,7 @@ They retain their upstream class and method names and EPL-2.0 notices.
 - License: **EPL-2.0**, reproduced in `LICENSES/ELK-EPL-2.0.md`.
 
 Java compatibility operations under `src/elk-layered/java/` reproduce the
-numeric and collection operations needed by that translation. Hash-map and
+numeric and collection operations needed by that translation. List, hash-map and
 enum-set iteration and decimal parsing adapt GWT 2.11.0, the compiler runtime
 used by elkjs 0.11.1. Original GWT portions retain Apache-2.0 notices alongside
 the translation's EPL-2.0 notice; Apache-2.0 is reproduced in

@@ -20,7 +20,15 @@ export abstract class AbstractSet<T> extends JavaObject implements Iterable<T> {
     while (iterator.hasNext()) if (!values.contains(iterator.next())) { iterator.remove(); changed = true }
     return changed
   }
-  toArray(): T[] { return Array.from(this) }
+  toArray(): T[]
+  toArray(array: T[]): T[]
+  toArray(array?: T[]): T[] {
+    const result = array && array.length >= this.size() ? array : new Array<T>(this.size())
+    let index = 0
+    for (const value of this) result[index++] = value
+    if (result.length > index) result[index] = null as T
+    return result
+  }
   override hashCode(): number { let hash = 0; for (const value of this) hash = (hash + javaHashCode(value)) | 0; return hash }
   override equals(other: unknown): boolean { return other instanceof AbstractSet && other.size() === this.size() && this.containsAll(other) }
   override toString(): string { return `[${Array.from(this).join(', ')}]` }

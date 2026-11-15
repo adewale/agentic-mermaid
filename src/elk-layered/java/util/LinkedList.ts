@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: EPL-2.0 */
+/*
+ * Copyright 2007 Google Inc. (GWT linked-list iterator semantics).
+ * Original GWT portions: Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0.
+ * TypeScript translation: EPL-2.0.
+ * SPDX-License-Identifier: EPL-2.0 AND Apache-2.0
+ */
 import { Cloneable } from '../lang/Cloneable.ts'
 import { AbstractList } from './AbstractList.ts'
 import type { ListIterator, Iterator } from './Iterator.ts'
@@ -74,26 +79,22 @@ export class LinkedList<T> extends AbstractList<T> implements Cloneable {
     let next = this.node(index, true)
     let cursor = index
     let last: Node<T> | null = null
-    let expected = this.modCount
-    const check = (): void => { if (this.modCount !== expected) throw new Error('Concurrent modification') }
     return {
       hasNext: () => next !== this.tail,
-      next: () => { check(); if (next === this.tail) throw new Error('No such element'); last = next; next = next.next; cursor++; return last.value },
+      next: () => { if (next === this.tail) throw new Error('No such element'); last = next; next = next.next; cursor++; return last.value },
       hasPrevious: () => next.prev !== this.tail,
-      previous: () => { check(); if (next.prev === this.tail) throw new Error('No such element'); next = next.prev; last = next; cursor--; return last.value },
+      previous: () => { if (next.prev === this.tail) throw new Error('No such element'); next = next.prev; last = next; cursor--; return last.value },
       nextIndex: () => cursor,
       previousIndex: () => cursor - 1,
       remove: () => {
-        check()
         if (last === null) throw new Error('No current element')
         if (next === last) next = next.next
         else cursor--
         this.unlink(last)
-        expected = this.modCount
         last = null
       },
-      set: value => { check(); if (last === null) throw new Error('No current element'); last.value = value },
-      add: value => { check(); this.insertBefore(value, next); cursor++; last = null; expected = this.modCount },
+      set: value => { if (last === null) throw new Error('No current element'); last.value = value },
+      add: value => { this.insertBefore(value, next); cursor++; last = null },
     }
   }
   descendingIterator(): Iterator<T> {
