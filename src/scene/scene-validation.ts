@@ -11,7 +11,7 @@ import type { SceneDoc, SceneNode, SceneOwner } from './ir.ts'
 import {
   add, record, structurallyEqual, SCENE_VALIDATION_LIMITS,
   SceneValidationError, sceneValidationMode, validateSceneDocument,
-  type ExternalSceneDocumentChecks, type SceneValidationDiagnostic,
+  sceneAdmissionError, type ExternalSceneDocumentChecks, type SceneValidationDiagnostic,
   type SceneValidationOptions, type SceneValidationResult, type ValidationState,
 } from './scene-validation-core.ts'
 export {
@@ -25,6 +25,7 @@ export {
 export type {
   SceneValidationDiagnosticCode,
   SceneValidationDiagnostic,
+  SceneAggregateLimit,
   SceneValidationResult,
   SceneValidationOptions,
   NativeSceneValidator,
@@ -244,8 +245,9 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
  * always applies.
  */
 export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean): asserts value is SceneDoc {
-  const result = validateSceneDocument(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external', EXTERNAL_DOCUMENT_CHECKS)
-  if (!result.valid) throw new SceneValidationError(result.diagnostics)
+  const external = sceneValidationMode(value, { mode }) === 'external'
+  const result = validateSceneDocument(value, { mode }, crossChecks || external, EXTERNAL_DOCUMENT_CHECKS)
+  if (!result.valid) throw sceneAdmissionError(result.diagnostics, !external)
 }
 
 export function assertValidSceneDoc(

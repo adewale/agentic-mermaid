@@ -37,6 +37,7 @@ import { assertRenderableMarker, serializeMarkerResources } from './marker-resou
 import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { DiagramWorkLimitError, type DrawnSceneResource } from '../shared/diagram-limits.ts'
 import { xmlCarriableText } from '../shared/text-controls.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
@@ -73,7 +74,12 @@ export interface SceneValidationDiagnostic {
   readonly code: SceneValidationDiagnosticCode
   readonly path: string
   readonly message: string
+  /** Set when an aggregate size budget, not a malformed value, failed. */
+  readonly limit?: SceneAggregateLimit
 }
+
+/** The aggregate Scene budgets: a drawing too large for them is well formed. */
+export type SceneAggregateLimit = 'points' | 'nodes' | 'textBytes' | 'serializationBytes'
 
 export interface SceneValidationResult {
   readonly valid: boolean
@@ -92,6 +98,25 @@ export class SceneValidationError extends Error {
     super(`Scene validation failed: ${diagnostics.map(item => `${item.path}: ${item.message}`).join('; ')}`)
     this.name = 'SceneValidationError'
   }
+}
+
+const DRAWN_SCENE_LIMITS: Readonly<Record<SceneAggregateLimit, { resource: DrawnSceneResource; maximum: number }>> = Object.freeze({
+  points: { resource: 'scenePoints', maximum: SCENE_VALIDATION_LIMITS.maxPoints },
+  nodes: { resource: 'sceneNodes', maximum: SCENE_VALIDATION_LIMITS.maxNodes },
+  textBytes: { resource: 'sceneTextBytes', maximum: SCENE_VALIDATION_LIMITS.maxTextBytes },
+  serializationBytes: { resource: 'sceneSerializationBytes', maximum: SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes },
+})
+
+/** The error for a Scene that failed admission. A built-in family's own
+ * drawing that only outgrows aggregate budgets is a diagram too large for this
+ * host (DIAGRAM_WORK_LIMIT), not an invalid Scene; anything else, and every
+ * external Scene, stays a validation failure. */
+export function sceneAdmissionError(diagnostics: readonly SceneValidationDiagnostic[], ownDrawing: boolean): Error {
+  const limit = ownDrawing && diagnostics.length > 0 && diagnostics.every(diagnostic => diagnostic.limit !== undefined)
+    ? DRAWN_SCENE_LIMITS[diagnostics[0]!.limit!] : undefined
+  return limit
+    ? new DiagramWorkLimitError(limit.resource, limit.maximum + 1, false, limit.maximum)
+    : new SceneValidationError(diagnostics)
 }
 
 const MAX_SCENE_EXTENT = SCENE_VALIDATION_LIMITS.maxExtent
@@ -152,8 +177,9 @@ export function add(
   code: SceneValidationDiagnosticCode,
   path: string,
   message: string,
+  limit?: SceneAggregateLimit,
 ): void {
-  diagnostics.push({ code, path, message })
+  diagnostics.push(limit === undefined ? { code, path, message } : { code, path, message, limit })
 }
 
 function rejectUnknownKeys(
@@ -420,7 +446,7 @@ function consumeStringBudget(
   if (bytes > remaining) {
     budget[field] = maximum + 1
     budget[exceededField] = true
-    add(diagnostics, 'SCENE_BOUNDS', path, `${label} exceed the aggregate ${maximum}-byte limit`)
+    add(diagnostics, 'SCENE_BOUNDS', path, `${label} exceed the aggregate ${maximum}-byte limit`, field)
   } else {
     budget[field] += bytes
   }
@@ -434,7 +460,7 @@ function consumePointBudget(
   if (!budget || budget.pointsExceeded) return
   if (++budget.points > MAX_SCENE_POINTS) {
     budget.pointsExceeded = true
-    add(diagnostics, 'SCENE_BOUNDS', path, `Scene points exceed the aggregate ${MAX_SCENE_POINTS}-point limit`)
+    add(diagnostics, 'SCENE_BOUNDS', path, `Scene points exceed the aggregate ${MAX_SCENE_POINTS}-point limit`, 'points')
   }
 }
 
@@ -790,7 +816,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   if (++state.nodeCount > MAX_SCENE_NODES) {
-    if (state.nodeCount === MAX_SCENE_NODES + 1) add(state.diagnostics, 'SCENE_BOUNDS', path, 'contains too many Scene nodes')
+    if (state.nodeCount === MAX_SCENE_NODES + 1) add(state.diagnostics, 'SCENE_BOUNDS', path, 'contains too many Scene nodes', 'nodes')
     return
   }
   if (!record(value) || typeof value.kind !== 'string') {
@@ -1479,19 +1505,19 @@ export function createNativeSceneValidator(
   const diagnostics: MutableDiagnostic[] = []
   validateSceneHeader(header, false, diagnostics)
   if (sceneValidationMode(header) === 'external') add(diagnostics, 'SCENE_DOCUMENT', 'scene.family', 'native admission requires a built-in family')
-  if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+  if (diagnostics.length > 0) throw sceneAdmissionError(diagnostics, true)
   const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, enclosures: new Map<string, SceneOwner>() }
   const state = { ...createValidationState(diagnostics, false, options.crossChecks ?? false, true), native }
   let result: SceneValidationResult | undefined
   const open = (): void => {
     if (result) throw new Error('Native Scene validation has already finished')
-    if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+    if (diagnostics.length > 0) throw sceneAdmissionError(diagnostics, true)
   }
   const depth = (value: number): void => {
     open()
     if (!Number.isInteger(value) || value < 0 || value > MAX_SCENE_DEPTH) {
       add(diagnostics, 'SCENE_BOUNDS', 'scene.depth', `must be an integer nesting depth between 0 and ${MAX_SCENE_DEPTH}`)
-      throw new SceneValidationError(diagnostics)
+      throw sceneAdmissionError(diagnostics, true)
     }
   }
   return {
@@ -1500,14 +1526,14 @@ export function createNativeSceneValidator(
       depth(nesting)
       if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
         add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'native groups must be shallow headers with separately submitted children')
-        throw new SceneValidationError(diagnostics)
+        throw sceneAdmissionError(diagnostics, true)
       }
       const path = `scene.parts[${state.nodeCount}]`
       validateNode(node, path, state, nesting)
       // Typed leaves must be structurally admissible before any writer runs.
-      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      if (diagnostics.length > 0) throw sceneAdmissionError(diagnostics, true)
       const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state)
-      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      if (diagnostics.length > 0) throw sceneAdmissionError(diagnostics, true)
       return serialized!
     },
     depth,
@@ -1521,13 +1547,13 @@ export function createNativeSceneValidator(
       } else if (native.enclosures.size >= MAX_SCENE_NODES) {
         add(diagnostics, 'SCENE_BOUNDS', 'scene.enclosure', 'contains too many semantic enclosure relations')
       } else native.enclosures.set(artworkId, { id: owner.id, role: owner.role })
-      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      if (diagnostics.length > 0) throw sceneAdmissionError(diagnostics, true)
     },
     serialization(svg) {
       open()
       if (boundedUtf8ByteLength(svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
         add(diagnostics, 'SCENE_DOCUMENT', 'scene.serialization', 'has an oversized SVG serialization')
-        throw new SceneValidationError(diagnostics)
+        throw sceneAdmissionError(diagnostics, true)
       }
     },
     finish() {

@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
 import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
-import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
+import { createNativeSceneValidator, sceneAdmissionError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 
@@ -171,7 +171,7 @@ export function drawNative(
   const parts = emission.parts(document.parts, SCENE_VALIDATION_LIMITS.maxNodes)
   for (const part of parts) if (!ownedFragments.has(part)) emission.uncertain()
   const result = validator.finish()
-  if (!result.valid) throw new SceneValidationError(result.diagnostics)
+  if (!result.valid) throw sceneAdmissionError(result.diagnostics, true)
   let nodeCount = 0, characters = -1, preparedText = true
   for (const part of parts) {
     nodeCount += part.nodeCount

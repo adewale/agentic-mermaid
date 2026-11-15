@@ -43,6 +43,9 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   // re-proved fixed clearances per conflict and sweep (~40 s).
   { name: 'C4 relationships between all pairs of 29 systems (406)', source: c4Systems(29) },
   { name: 'edges past the host limit', source: ['flowchart TD', ...Array.from({ length: 5001 }, () => 'A --> B')].join('\n'), limit: 'DIAGRAM_WORK_LIMIT' },
+  // Inside the edge budget, but its drawing needs more than the Scene's
+  // 50,000 points: a size refusal, not a Scene validation failure.
+  { name: 'all-to-all fan 60 x 60 (`&` chains)', source: fan(60), limit: 'DIAGRAM_WORK_LIMIT' },
   // Overlapping routes share cells, and every shared cell's owner set grows
   // with each route through it; dense fans refuse once composing them passes
   // its ceiling. The complete DAG stays below it and renders.
