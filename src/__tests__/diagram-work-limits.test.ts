@@ -15,6 +15,7 @@ import { assertLayoutGraphWork, assertMermaidGraphWork, DIAGRAM_WORK_LIMITS, Dia
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
+import { ClassLayoutWorkLimitError } from '../class/errors.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { parseArchitectureDiagram, architectureToMermaidGraph } from '../architecture/parser.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
@@ -170,6 +171,26 @@ describe('graph work admission', () => {
       expect(() => architectureToMermaidGraph(architecture)).toThrow(/DIAGRAM_WORK_LIMIT.*nodes/)
       expect(measurement).not.toHaveBeenCalled()
     } finally { measurement.mockRestore() }
+  })
+
+  test('a Class table too dense for final route admission is refused before ELK places it', () => {
+    // ELK spent 15-80 s placing these before the admission ledger refused
+    // them. Straight routes join at most 2(3V - 6) class pairs; 400 more pairs
+    // must be drawn bent.
+    const table = (sources: number, targets: number, header = 'classDiagram'): string =>
+      [header, ...Array.from({ length: sources }, (_, a) => Array.from({ length: targets }, (_, b) => `  A${a} --> B${b}`)).flat()].join('\n')
+    const complete = (size: number): string =>
+      ['classDiagram', ...Array.from({ length: size }, (_, i) => Array.from({ length: size - 1 - i }, (_, k) => `  K${i} <|-- K${i + k + 1}`)).flat()].join('\n')
+    const elk = spyOn(elkAdapter, 'elkLayoutSync').mockImplementation(() => { throw new Error('ELK started') })
+    try {
+      for (const [source, options] of [[table(30, 30), {}], [table(40, 40, 'classDiagram\ndirection LR'), {}], [complete(40), {}],
+        [table(30, 30), { graphLayout: { backend: 'agentic', fallback: 'elk' } }]] as const) expect(() => renderMermaidSVG(source, options)).toThrow(ClassLayoutWorkLimitError)
+      expect(elk).not.toHaveBeenCalled()
+      // Rounded routes skip that admission; 19 x 19 (145 bent pairs) renders.
+      for (const [source, options] of [[table(30, 30), { style: { roles: { edge: { bendRadius: 6 } } } }], [table(19, 19), {}]] as const) {
+        expect(() => renderMermaidSVG(source, options)).toThrow('ELK started')
+      }
+    } finally { elk.mockRestore() }
   })
 
   test('graph and ELK admission count exactly 64 containers without counting the leaf as nesting', () => {

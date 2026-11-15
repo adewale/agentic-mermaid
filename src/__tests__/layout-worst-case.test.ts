@@ -36,6 +36,8 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   { name: 'chain 150 with long links', source: chainWithLongLinks(150) },
   { name: 'state transition table 30 x 30', source: edgewise('stateDiagram-v2', 30, (a, b) => `${a} --> ${b}`) },
   { name: 'class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), limit: 'CLASS_LAYOUT_WORK_LIMIT' },
+  // Refused from its relationship counts before ELK spends ~15 s placing it.
+  { name: 'class relationships 30 x 30', source: edgewise('classDiagram', 30, (a, b) => `${a} --> ${b}`), limit: 'CLASS_LAYOUT_WORK_LIMIT' },
   { name: 'ER relationships 20 x 20', source: edgewise('erDiagram', 20, (a, b) => `${a.toUpperCase()} ||--o{ ${b.toUpperCase()} : r`), limit: 'ER_LABEL_WORK_LIMIT' },
   // Every relationship label collides with many others; seat search once
   // re-proved fixed clearances per conflict and sweep (~40 s).
