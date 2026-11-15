@@ -7,12 +7,12 @@
  *******************************************************************************/
 import type { CycleEdge, CycleNode, CyclePort } from './cycle-breaking.ts'
 import { arrayMember, elementId, elementKey, isJsonObject, jsonValue, numberMember, objectMember, primitiveString, readMember, type JsonObject } from './json.ts'
-import { booleanOption, enumOption, importOptions, importOptionObject, integerOption, numberOption, paddingOption, optionalNumberOption, optionalIntegerOption, optionalVectorOption, type Direction, type Insets, type Options } from './options.ts'
+import { booleanOption, enumOption, importOptions, importOptionObject, integerOption, numberOption, paddingOption, optionalNumberOption, optionalIntegerOption, optionalVectorOption, vectorOption, type Direction, type Insets, type Options } from './options.ts'
 import type { ElkExtendedEdge, ElkLabel, ElkNode, ElkPort } from './types.ts'
 
-export interface LayoutLabel { data: ElkLabel; x: number; y: number; width: number; height: number; options: Options }
-export interface LayoutPort extends CyclePort { modelOrder?: number; longEdgeTargetNode?: LayoutNode; key: string | number | null; id: string | null; options: Options; labels: LayoutLabel[]; borderOffset: number | null; ratio: number; explicitAnchor: boolean; data: ElkPort | null; node: LayoutNode; incoming: LayoutEdge[]; outgoing: LayoutEdge[]; x: number; y: number; width: number; height: number; side: 'UNDEFINED' | 'NORTH' | 'EAST' | 'SOUTH' | 'WEST'; collect: 'INPUT' | 'OUTPUT' | null; anchorX: number; anchorY: number }
-export interface LayoutEdge extends CycleEdge { modelOrder?: number; data: ElkExtendedEdge; source: LayoutPort; target: LayoutPort; priorityDirection: number; priorityShortness: number; reversed: boolean; options: Options; labels: LayoutLabel[]; bends: { x: number; y: number }[]; junctions?: { x: number; y: number }[] }
+export interface LayoutLabel { data: ElkLabel; text: string | null; active: boolean; inputX: number; inputY: number; inputWidth: number; inputHeight: number; x: number; y: number; width: number; height: number; options: Options }
+export interface LayoutPort extends CyclePort { portDummy?: LayoutNode; originPort?: LayoutPort; index?: number; modelOrder?: number; longEdgeTargetNode?: LayoutNode; key: string | number | null; id: string | null; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; borderOffset: number | null; ratio: number; explicitAnchor: boolean; data: ElkPort | null; node: LayoutNode; incoming: LayoutEdge[]; outgoing: LayoutEdge[]; x: number; y: number; width: number; height: number; side: 'UNDEFINED' | 'NORTH' | 'EAST' | 'SOUTH' | 'WEST'; collect: 'INPUT' | 'OUTPUT' | null; anchorX: number; anchorY: number }
+export interface LayoutEdge extends CycleEdge { modelOrder?: number; data: ElkExtendedEdge; source: LayoutPort; target: LayoutPort; priorityDirection: number; priorityShortness: number; reversed: boolean; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; bends: { x: number; y: number }[]; junctions?: { x: number; y: number }[] }
 export type LayoutNodeType = 'NORMAL' | 'LONG_EDGE' | 'EXTERNAL_PORT' | 'NORTH_SOUTH_PORT' | 'LABEL' | 'BREAKING_POINT' | 'PLACEHOLDER' | 'NONSHIFTING_PLACEHOLDER'
 export type PortConstraints = 'UNDEFINED' | 'FREE' | 'FIXED_SIDE' | 'FIXED_ORDER' | 'FIXED_RATIO' | 'FIXED_POS'
 export interface LayoutNode extends CycleNode {
@@ -21,8 +21,13 @@ export interface LayoutNode extends CycleNode {
   crossingMinimizationGroupId: number
   crossingMinimizationGroupIdentity: number | object
   margin: Insets
+  padding: Insets
+  minimumSize: { x: number; y: number }
+  position?: { x: number; y: number }
+  inLayerConstraint?: 'NONE' | 'TOP' | 'BOTTOM'
   individualSpacings: Options
   portConstraints: PortConstraints
+  originalPortConstraints?: PortConstraints
   inLayerSuccessors?: LayoutNode[]
   inLayerLayoutUnit?: LayoutNode
   barycenterAssociates?: LayoutNode[]
@@ -43,6 +48,7 @@ export interface LayoutNode extends CycleNode {
   ports: LayoutPort[]
   sourcePorts: LayoutPort[]
   labels: LayoutLabel[]
+  sourceLabels: LayoutLabel[]
   children: LayoutNode[]
   rank: number
   noLayout: boolean
@@ -97,11 +103,12 @@ function importNode(data: JsonObject, sourceIndex: number, direction: Direction)
   const options = importOptions(data), individualSpacings = readIndividualSpacings(data)
   const x = numberMember(data, 'x'), y = numberMember(data, 'y'), width = numberMember(data, 'width'), height = numberMember(data, 'height')
   const crossingMinimizationGroupId = integerOption(options, 'layered.considerModelOrder.groupModelOrder.crossingMinimizationId', 0)
-  const node: LayoutNode = { crossingMinimizationGroupId, crossingMinimizationGroupIdentity: crossingMinimizationGroupId >= -128 && crossingMinimizationGroupId <= 127 ? crossingMinimizationGroupId : {}, margin: { top: 0, right: 0, bottom: 0, left: 0 }, individualSpacings, type: 'NORMAL', portConstraints: enumOption(options, 'portConstraints', ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const, 'FREE'), data: data as unknown as ElkNode, id, key, sourceIndex, options, x, y, width, height, ports: [], sourcePorts: [], labels: [], children: [], rank: 0, priority: integerOption(options, 'priority', 0), noLayout: booleanOption(options, 'noLayout', false) }
+  const node: LayoutNode = { padding: { top: 0, right: 0, bottom: 0, left: 0 }, minimumSize: vectorOption(options, 'nodeSize.minimum'), position: optionalVectorOption(options, 'position'), crossingMinimizationGroupId, crossingMinimizationGroupIdentity: crossingMinimizationGroupId >= -128 && crossingMinimizationGroupId <= 127 ? crossingMinimizationGroupId : {}, margin: { top: 0, right: 0, bottom: 0, left: 0 }, individualSpacings, type: 'NORMAL', portConstraints: enumOption(options, 'portConstraints', ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const, 'FREE'), data: data as unknown as ElkNode, id, key, sourceIndex, options, x, y, width, height, ports: [], sourcePorts: [], labels: [], sourceLabels: [], children: [], rank: 0, priority: integerOption(options, 'priority', 0), noLayout: booleanOption(options, 'noLayout', false) }
   const portData = arrayMember(data, 'ports')
   if (portData !== null) for (let index = 0; index < portData.length; index++) { const port = jsonValue(portData[index]); if (isJsonObject(port)) node.ports.push(importPort(port, node, direction)) }
   node.sourcePorts = node.ports.slice()
-  node.labels = importLabels(data)
+  node.sourceLabels = importLabels(data)
+  node.labels = node.sourceLabels.filter(label => label.active)
   const childData = arrayMember(data, 'children')
   if (childData !== null) for (let index = 0; index < childData.length; index++) { const child = jsonValue(childData[index]); if (isJsonObject(child)) node.children.push(importNode(child, index, direction)) }
   return node
@@ -114,11 +121,11 @@ function importLabels(data: object): LayoutLabel[] {
     if (!isJsonObject(label)) continue
     // Labels do not require identifiers. Text is read even though it stays in
     // its authored JSON member; the graph importer preserves primitive coercion.
-    primitiveString(readMember(label, 'text'))
+    const text = primitiveString(readMember(label, 'text'))
+    if ('id' in label) primitiveString(readMember(label, 'id'))
     const options = importOptions(label)
     const x = numberMember(label, 'x'), y = numberMember(label, 'y'), width = numberMember(label, 'width'), height = numberMember(label, 'height')
-    if (width !== 0 || height !== 0 || x !== 0 || y !== 0 || arrayMember(label, 'labels')?.length) throw new Error('ELK TypeScript port: nontrivial label placement is not implemented yet')
-    result.push({ data: label as ElkLabel, options, x, y, width, height })
+    result.push({ data: label as ElkLabel, text, active: text !== null && text.length > 0 && !booleanOption(options, 'noLayout', false), inputX: x, inputY: y, inputWidth: width, inputHeight: height, options, x, y, width, height })
   }
   return result
 }
@@ -150,11 +157,11 @@ function importEdges(graph: LayoutGraph): void {
     if (sourceNodes.length === 0 || targetNodes.length === 0) throw new Error("An edge must have at least one source and one target (edge id: '" + id + "').")
     const options = importOptions(data)
     if (arrayMember(data, 'sections')?.length) throw new Error('ELK TypeScript port: authored edge sections are not implemented yet')
-    const labels = importLabels(data)
+    const sourceLabels = importLabels(data), labels = sourceLabels.filter(label => label.active)
     if (sourceNodes.length !== 1 || targetNodes.length !== 1) throw new Error('ELK TypeScript port: hyperedge transformation is not implemented yet')
     const sourceShape = sourceNodes[0]!, targetShape = targetNodes[0]!
     const source = 'node' in sourceShape ? sourceShape : createPort(graph, sourceShape, 'OUTPUT'), target = 'node' in targetShape ? targetShape : createPort(graph, targetShape, 'INPUT')
-    const edge: LayoutEdge = { data: data as unknown as ElkExtendedEdge, source, target, options, labels, reversed: false, priorityDirection: integerOption(options, 'layered.priority.direction', 0), priorityShortness: integerOption(options, 'layered.priority.shortness', 0), bends: [] }
+    const edge: LayoutEdge = { data: data as unknown as ElkExtendedEdge, source, target, options, labels, sourceLabels, reversed: false, priorityDirection: integerOption(options, 'layered.priority.direction', 0), priorityShortness: integerOption(options, 'layered.priority.shortness', 0), bends: [] }
     source.outgoing.push(edge); target.incoming.push(edge); graph.edges.push(edge)
   }
 }
@@ -167,7 +174,7 @@ export function createPort(graph: LayoutGraph, node: LayoutNode, type: 'INPUT' |
 }
 export function providePort(node: LayoutNode, type: 'INPUT' | 'OUTPUT', side: LayoutPort['side'], collect: boolean): LayoutPort {
   if (collect) { const existing = node.ports.find(port => port.collect === type); if (existing !== undefined) return existing }
-  const port: LayoutPort = { key: null, id: null, options: new Map(), labels: [], borderOffset: null, ratio: 0, explicitAnchor: false, data: null, node, incoming: [], outgoing: [], x: 0, y: 0, width: 0, height: 0, side, collect: collect ? type : null, anchorX: 0, anchorY: 0 }
+  const port: LayoutPort = { key: null, id: null, options: new Map(), labels: [], sourceLabels: [], borderOffset: null, ratio: 0, explicitAnchor: false, data: null, node, incoming: [], outgoing: [], x: 0, y: 0, width: 0, height: 0, side, collect: collect ? type : null, anchorX: 0, anchorY: 0 }
   if (collect) {
     if (side === 'EAST') { port.x = node.width; port.y = node.height / 2 }
     else if (side === 'WEST') port.y = node.height / 2
@@ -195,8 +202,8 @@ export function reverseEdge(edge: LayoutEdge, adaptPorts: boolean): void {
 
 function importPort(data: JsonObject, node: LayoutNode, direction: Direction): LayoutPort {
   const key = elementKey(data), id = primitiveString(readMember(data, 'id')), options = importOptions(data)
-  const x = numberMember(data, 'x'), y = numberMember(data, 'y'), width = numberMember(data, 'width'), height = numberMember(data, 'height'), labels = importLabels(data)
-  const port: LayoutPort = { data: data as unknown as ElkPort, key, id, options, labels, node, incoming: [], outgoing: [], x, y, width, height, side: enumOption(options, 'port.side', ['UNDEFINED', 'NORTH', 'EAST', 'SOUTH', 'WEST'] as const, 'UNDEFINED'), collect: null, anchorX: 0, anchorY: 0, borderOffset: optionalNumberOption(options, 'port.borderOffset') ?? null, ratio: 0, explicitAnchor: false }
+  const x = numberMember(data, 'x'), y = numberMember(data, 'y'), width = numberMember(data, 'width'), height = numberMember(data, 'height'), sourceLabels = importLabels(data), labels = sourceLabels.filter(label => label.active)
+  const port: LayoutPort = { data: data as unknown as ElkPort, key, id, index: optionalIntegerOption(options, 'port.index'), options, labels, sourceLabels, node, incoming: [], outgoing: [], x, y, width, height, side: enumOption(options, 'port.side', ['UNDEFINED', 'NORTH', 'EAST', 'SOUTH', 'WEST'] as const, 'UNDEFINED'), collect: null, anchorX: 0, anchorY: 0, borderOffset: optionalNumberOption(options, 'port.borderOffset') ?? null, ratio: 0, explicitAnchor: false }
   const fixed = isSideFixed(node.portConstraints)
   if (port.side === 'UNDEFINED' && fixed) {
     port.side = calculatePortSide(port, direction)

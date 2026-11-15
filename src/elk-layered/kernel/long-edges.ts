@@ -16,7 +16,7 @@ export function splitLongEdges(layers: LayoutNode[][]): void {
     for (const node of layer) for (const port of node.ports) for (const edge of port.outgoing) {
       if (edge.target.node.rank === index || edge.target.node.rank === index + 1) continue
       if (edge.target.node.rank < index) throw new Error('ELK TypeScript port: backward edge remains after cycle breaking')
-      const dummy: LayoutNode = { type: 'LONG_EDGE', crossingMinimizationGroupId: 0, crossingMinimizationGroupIdentity: 0, portConstraints: 'FIXED_POS', margin: { top: 0, right: 0, bottom: 0, left: 0 }, individualSpacings: new Map(), data: null, id: '', key: null, sourceIndex: -1, options: new Map(), x: 0, y: 0, width: 0, height: 0, priority: 0, ports: [], sourcePorts: [], labels: [], children: [], rank: index + 1, noLayout: false }
+      const dummy: LayoutNode = { padding: { top: 0, right: 0, bottom: 0, left: 0 }, minimumSize: { x: 0, y: 0 }, type: 'LONG_EDGE', crossingMinimizationGroupId: 0, crossingMinimizationGroupIdentity: 0, portConstraints: 'FIXED_POS', margin: { top: 0, right: 0, bottom: 0, left: 0 }, individualSpacings: new Map(), data: null, id: '', key: null, sourceIndex: -1, options: new Map(), x: 0, y: 0, width: 0, height: 0, priority: 0, ports: [], sourcePorts: [], labels: [], sourceLabels: [], children: [], rank: index + 1, noLayout: false }
       next.push(dummy)
       splitEdge(edge, dummy)
     }
@@ -30,7 +30,7 @@ function splitEdge(edge: LayoutEdge, dummy: LayoutNode): void {
   const position = Math.floor(thickness / 2), input = providePort(dummy, 'INPUT', 'WEST', false), output = providePort(dummy, 'OUTPUT', 'EAST', false)
   input.y = position; output.y = position
   oldTarget.incoming.splice(oldTarget.incoming.indexOf(edge), 1); edge.target = input; input.incoming.push(edge)
-  const next: LayoutEdge = { data: edge.data, source: output, target: oldTarget, priorityDirection: edge.priorityDirection, priorityShortness: edge.priorityShortness, options: new Map(edge.options), reversed: edge.reversed, labels: [], bends: [] }
+  const next: LayoutEdge = { data: edge.data, source: output, target: oldTarget, priorityDirection: edge.priorityDirection, priorityShortness: edge.priorityShortness, options: new Map(edge.options), reversed: edge.reversed, labels: [], sourceLabels: edge.sourceLabels, bends: [] }
   if (edge.modelOrder !== undefined) next.modelOrder = edge.modelOrder
   output.outgoing.push(next); oldTarget.incoming.push(next)
   const sourceNode = edge.source.node, targetNode = next.target.node

@@ -6,7 +6,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
 import { isSideFixed, type LayoutNode, type LayoutPort } from './graph.ts'
-import { enumOption, integerOption, type Options } from './options.ts'
+import { sort } from './sort.ts'
+import { enumOption, optionalIntegerOption, type Options } from './options.ts'
 
 /** PortSideProcessor. */
 export function assignPortSides(nodes: LayoutNode[]): void {
@@ -26,12 +27,12 @@ export function sortPortLists(nodes: LayoutNode[], options: Options): void {
   const strategy = enumOption(options, 'layered.portSortingStrategy', ['INPUT_ORDER', 'PORT_DEGREE'] as const, 'INPUT_ORDER')
   for (const node of nodes) {
     const orderFixed = node.portConstraints === 'FIXED_ORDER' || node.portConstraints === 'FIXED_RATIO' || node.portConstraints === 'FIXED_POS'
-    node.ports.sort((a, b) => {
+    sort(node.ports, (a, b) => {
       const side = order[a.side] - order[b.side]
       if (side !== 0 || !orderFixed) return side
       if (node.portConstraints === 'FIXED_ORDER') {
-        const first = integerOption(a.options, 'port.index', Number.NaN), second = integerOption(b.options, 'port.index', Number.NaN)
-        if (!Number.isNaN(first) && !Number.isNaN(second) && first - second !== 0) return first - second
+        const first = a.index ?? optionalIntegerOption(a.options, 'port.index'), second = b.index ?? optionalIntegerOption(b.options, 'port.index')
+        if (first !== undefined && second !== undefined && first - second !== 0) return first - second
       }
       return a.side === 'NORTH' ? compareNumbers(a.x, b.x) : a.side === 'EAST' ? compareNumbers(a.y, b.y) : a.side === 'SOUTH' ? compareNumbers(b.x, a.x) : compareNumbers(b.y, a.y)
     })
@@ -45,7 +46,7 @@ export function sortPortLists(nodes: LayoutNode[], options: Options): void {
       if (high <= low + 2) continue
       for (let i = 0; i < Math.trunc((high - low) / 2); i++) { const port = node.ports[low + i]!; node.ports[low + i] = node.ports[high - i - 1]!; node.ports[high - i - 1] = port }
     }
-    if (strategy === 'PORT_DEGREE') node.ports.sort((a, b) => order[a.side] !== order[b.side] ? 0 : a.side === 'EAST' ? degree(b, false) - degree(a, false) : a.side === 'WEST' ? degree(a, true) - degree(b, true) : 0)
+    if (strategy === 'PORT_DEGREE') sort(node.ports, (a, b) => order[a.side] !== order[b.side] ? 0 : a.side === 'EAST' ? degree(b, false) - degree(a, false) : a.side === 'WEST' ? degree(a, true) - degree(b, true) : 0)
   }
 }
 function degree(port: LayoutPort, incoming: boolean): number { let result = 0; for (const edge of incoming ? port.incoming : port.outgoing) if (!edge.reversed) result++; return result }

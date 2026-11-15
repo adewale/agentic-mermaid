@@ -5,6 +5,7 @@
  * TypeScript adaptation: EPL-2.0.
  * SPDX-License-Identifier: EPL-2.0 AND Apache-2.0
  *******************************************************************************/
+import { resolveOptionId } from './option-ids.ts'
 import { objectMember, primitiveString, readMember } from './json.ts'
 
 export interface Insets { top: number; right: number; bottom: number; left: number }
@@ -18,8 +19,9 @@ export function importOptions(object: object): Options {
 export function importOptionObject(raw: object): Options {
   const result: Options = new Map()
   for (const key in raw) if ((raw as unknown as { hasOwnProperty(key: string): boolean }).hasOwnProperty(key)) {
-    const canonical = key.startsWith('org.eclipse.elk.') ? key.substring(16) : key.startsWith('elk.') ? key.substring(4) : key
-    const value = primitiveString(readMember(raw, key)), previous = result.get(canonical)
+    const value = primitiveString(readMember(raw, key)), id = resolveOptionId(key)
+    if (id === null) continue
+    const canonical = id.startsWith('org.eclipse.elk.') ? id.substring(16) : id, previous = result.get(canonical)
     if (result.has(canonical)) result.set(canonical, Array.isArray(previous) ? [...previous, value] : [previous as string | null, value])
     else result.set(canonical, value)
   }

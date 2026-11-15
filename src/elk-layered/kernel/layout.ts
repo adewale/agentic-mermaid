@@ -6,14 +6,17 @@
  * SPDX-License-Identifier: EPL-2.0
  *******************************************************************************/
 import { packComponents, type Component } from './components.ts'
+import { compactGraph } from './compaction.ts'
 import { breakGreedyCycles, breakModelOrderCycles, breakGreedyModelOrderCycles } from './cycle-breaking.ts'
 import { Random } from '../java/util/Random.ts'
 import { assignNetworkSimplexLayers } from './network-simplex.ts'
 import { assignPortSides, sortPortLists } from './phases.ts'
 import { splitLongEdges, joinLongEdges } from './long-edges.ts'
 import { minimizeCrossings } from './crossing.ts'
+import { calculateNodeMargins } from './margins.ts'
 import { placeNodes } from './node-placement.ts'
 import { sizeAndPlacePorts } from './sizing.ts'
+import { transformGraph } from './transform.ts'
 import { routeOrthogonal } from './routing.ts'
 import { importGraph, reverseEdge, type LayoutGraph, type LayoutLabel, type LayoutNode } from './graph.ts'
 import { writeMember, elementKey } from './json.ts'
@@ -30,12 +33,11 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
   if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
   if (numberOption(graph.options, 'spacing.edgeEdge', 10) < 2) graph.options.set('spacing.edgeEdge', '2')
   if (graph.nodes.length > 0) {
-    if (enumOption(graph.options, 'layered.compaction.postCompaction.strategy', ['NONE', 'LEFT', 'RIGHT', 'LEFT_RIGHT_CONSTRAINT_LOCKING', 'LEFT_RIGHT_CONNECTION_LOCKING', 'EDGE_LENGTH'] as const, 'NONE') !== 'NONE') throw new Error('ELK TypeScript port: horizontal post-compaction is not implemented yet')
     if (!booleanOption(graph.options, 'separateConnectedComponents', true)) throw new Error('ELK TypeScript port: unsplit component phases are not implemented yet')
     if (booleanOption(graph.options, 'layered.compaction.connectedComponents', false)) throw new Error('ELK TypeScript port: connected-component compaction is not implemented yet')
     const components: Component[] = []
     const random = new Random(integerOption(graph.options, 'randomSeed', 1))
-    for (const nodes of splitComponents(graph)) components.push(nodes.some(node => node.ports.length > 0) ? layoutConnectedComponent(nodes, graph, random) : layoutComponent(nodes[0]!, graph))
+    for (const nodes of splitComponents(graph)) components.push(layoutComponent(nodes, graph, random))
     const ordering = enumOption(graph.options, 'layered.considerModelOrder.components', ['NONE', 'INSIDE_PORT_SIDE_GROUPS', 'GROUP_MODEL_ORDER', 'MODEL_ORDER'] as const, 'NONE')
     if (ordering !== 'NONE') throw new Error('ELK TypeScript port: model-order component placer is not implemented yet')
     const size = packComponents(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
@@ -45,33 +47,6 @@ export function elkLayoutSync<T extends ElkNode>(data: T): T {
   return data
 }
 
-function layoutComponent(node: LayoutNode, graph: LayoutGraph): Component {
-  // On the zero-edge singleton component each phase reduces to its source
-  // invariant: rank0, unchanged order, no routing segments. Keep the native
-  // phase operations shared with the following connected implementation.
-  breakGreedyCycles({ nodes: [node], random: { nextInt: () => { throw new Error('An edgeless component cannot request a random choice') } }, cyclic: false, reverseEdge: () => { throw new Error('An edgeless component cannot reverse an edge') } })
-  node.rank = 0
-  sizeNode(node)
-  const vertical = graph.direction === 'DOWN' || graph.direction === 'UP'
-  const sizeX = vertical ? node.height : node.width, sizeY = vertical ? node.width : node.height
-  const layerWidth = Math.max(0, sizeX)
-  let x = (layerWidth - sizeX) / 2, y = 0
-  // Label-free BK placement, LayerSizeAndGraphHeightCalculator and orthogonal
-  // routing of a single layer retain the source layer-width and height rules.
-  const graphHeight = y + sizeY - y
-  const graphWidth = layerWidth
-  if (graph.direction === 'LEFT') x = graphWidth - x - sizeX
-  if (graph.direction === 'UP') x = graphWidth - x - sizeX
-  if (vertical) { node.x = y; node.y = x } else { node.x = x; node.y = y }
-  return { nodes: [node], width: vertical ? graphHeight : graphWidth, height: vertical ? graphWidth : graphHeight, offsetX: 0, offsetY: 0 }
-}
-function sizeNode(node: LayoutNode): void {
-  const constraints = setOption(node.options, 'nodeSize.constraints', SIZE_CONSTRAINTS, [])
-  if (!constraints.has('MINIMUM_SIZE')) return
-  const minimum = minimumSize(node.options)
-  node.width = Math.max(0, minimum.x)
-  node.height = Math.max(0, minimum.y)
-}
 function minimumSize(options: Options): { x: number; y: number } {
   const minimum = vectorOption(options, 'nodeSize.minimum')
   const flags = setOption(options, 'nodeSize.options', SIZE_OPTIONS, ['DEFAULT_MINIMUM_SIZE'])
@@ -107,10 +82,15 @@ function emitGraph(graph: LayoutGraph): void {
     if (edge.junctions?.length) writeMember(edge.data, 'junctionPoints', edge.junctions.map(point => ({ x: point.x + graph.offsetX, y: point.y + graph.offsetY })))
     writeMember(edge.data, 'container', graph.id)
   }
-  for (const label of graph.labels) emitLabel(label)
-  for (const node of graph.nodes) { for (const label of node.labels) emitLabel(label); for (const port of node.sourcePorts) for (const label of port.labels) emitLabel(label) }
+  for (const label of graph.labels) emitLabel(label, false)
+  for (const node of graph.nodes) {
+    const nodePlacement = setOption(node.options, 'nodeLabels.placement', ['H_LEFT', 'H_CENTER', 'H_RIGHT', 'V_TOP', 'V_CENTER', 'V_BOTTOM', 'INSIDE', 'OUTSIDE', 'H_PRIORITY'], []).size > 0
+    for (const label of node.sourceLabels) emitLabel(label, label.active && (nodePlacement || setOption(label.options, 'nodeLabels.placement', ['H_LEFT', 'H_CENTER', 'H_RIGHT', 'V_TOP', 'V_CENTER', 'V_BOTTOM', 'INSIDE', 'OUTSIDE', 'H_PRIORITY'], []).size > 0))
+    for (const port of node.sourcePorts) for (const label of port.sourceLabels) emitLabel(label, false)
+  }
+  for (const edge of graph.edges) for (const label of edge.sourceLabels) emitLabel(label, label.active)
 }
-function emitLabel(label: LayoutLabel): void { emitShape(label.data, label) }
+function emitLabel(label: LayoutLabel, apply: boolean): void { emitShape(label.data, apply ? label : { x: label.inputX, y: label.inputY, width: label.inputWidth, height: label.inputHeight }) }
 function emitShape(data: object, shape: { x: number; y: number; width: number; height: number }): void { writeMember(data, 'x', shape.x); writeMember(data, 'y', shape.y); writeMember(data, 'width', shape.width); writeMember(data, 'height', shape.height) }
 
 function splitComponents(graph: LayoutGraph): LayoutNode[][] {
@@ -126,36 +106,62 @@ function splitComponents(graph: LayoutGraph): LayoutNode[][] {
   for (const node of graph.nodes) if (!visited.has(node) && !node.noLayout) { const nodes: LayoutNode[] = []; visit(node, nodes); result.push(nodes) }
   return result
 }
-function layoutConnectedComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random): Component {
+function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random): Component {
   const direction = graph.direction
-  if (direction !== 'RIGHT') throw new Error('ELK TypeScript port: connected direction transforms are not implemented yet')
+  const state = { width: 0, height: 0, offsetX: 0, offsetY: 0, padding: { ...graph.padding }, options: new Map(graph.options) }
+  state.options.delete('nodeSize.minimum')
+  state.options.set('direction', direction)
+  for (const node of nodes) node.originalPortConstraints = node.portConstraints
+  // The upstream strategy factory maps the preprocessor to TO_INPUT_DIRECTION.
+  transformGraph(nodes, state, direction, 'TO_INPUT_DIRECTION')
   for (const node of nodes) {
     if (node.ports.some(port => port.incoming.some(edge => edge.source.node === node))) throw new Error('ELK TypeScript port: self-loop processors are not implemented yet')
     if (stringOption(node.options, 'layered.layering.layerConstraint', 'NONE') !== 'NONE') throw new Error('ELK TypeScript port: layer constraint processors are not implemented yet')
   }
-  const feedback = booleanOption(graph.options, 'layered.feedbackEdges', false)
+  const feedback = booleanOption(state.options, 'layered.feedbackEdges', false)
   if (feedback) assignPortSides(nodes)
-  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: import('./cycle-breaking.ts').CycleEdge) => reverseEdge(edge as import('./graph.ts').LayoutEdge, true), maxModelOrderNodes: graph.maxModelOrderNodes, modelOrderGroupCount: graph.modelOrderGroupCount, enforceGroupModelOrder: enumOption(graph.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
-  const cycle = enumOption(graph.options, 'layered.cycleBreaking.strategy', ['GREEDY', 'DEPTH_FIRST', 'INTERACTIVE', 'MODEL_ORDER', 'GREEDY_MODEL_ORDER', 'SCC_CONNECTIVITY', 'SCC_NODE_TYPE', 'DFS_NODE_ORDER', 'BFS_NODE_ORDER'] as const, 'GREEDY')
+  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: import('./cycle-breaking.ts').CycleEdge) => reverseEdge(edge as import('./graph.ts').LayoutEdge, true), maxModelOrderNodes: graph.maxModelOrderNodes, modelOrderGroupCount: graph.modelOrderGroupCount, enforceGroupModelOrder: enumOption(state.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
+  const cycle = enumOption(state.options, 'layered.cycleBreaking.strategy', ['GREEDY', 'DEPTH_FIRST', 'INTERACTIVE', 'MODEL_ORDER', 'GREEDY_MODEL_ORDER', 'SCC_CONNECTIVITY', 'SCC_NODE_TYPE', 'DFS_NODE_ORDER', 'BFS_NODE_ORDER'] as const, 'GREEDY')
   if (cycle === 'GREEDY') breakGreedyCycles(cycleGraph)
   else if (cycle === 'MODEL_ORDER') breakModelOrderCycles(cycleGraph)
   else if (cycle === 'GREEDY_MODEL_ORDER') breakGreedyModelOrderCycles(cycleGraph)
   else throw new Error('ELK TypeScript port: cycle strategy ' + cycle + ' is not implemented yet')
-  const layers = assignNetworkSimplexLayers(nodes, integerOption(graph.options, 'layered.thoroughness', 7)) as LayoutNode[][]
+  const layers = assignNetworkSimplexLayers(nodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
   for (const node of nodes) for (const port of node.ports) for (const edge of port.outgoing) {
     if (edge.labels.length > 0) throw new Error('ELK TypeScript port: edge label processors are not implemented yet')
   }
   splitLongEdges(layers)
   const phaseNodes = layers.flat()
   if (!feedback) assignPortSides(phaseNodes)
-  sortPortLists(phaseNodes, graph.options)
-  minimizeCrossings(layers, graph.options, random, graph.nodes.filter(node => !node.noLayout).length, graph.maxModelOrderNodes)
-  sizeAndPlacePorts(phaseNodes, graph.options)
-  placeNodes(layers, graph.options)
-  const size = routeOrthogonal(layers, graph.options, random)
-  joinLongEdges(layers, graph.options)
+  sortPortLists(phaseNodes, state.options)
+  minimizeCrossings(layers, state.options, random, graph.nodes.filter(node => !node.noLayout).length, graph.maxModelOrderNodes)
+  sizeAndPlacePorts(phaseNodes, state.options)
+  calculateNodeMargins(phaseNodes)
+  placeNodes(layers, state.options)
+  const size = routeOrthogonal(layers, state.options, random)
+  state.width = size.width; state.height = size.height; state.offsetY = size.offsetY
+  joinLongEdges(layers, state.options)
+  compactGraph(layers, state.options, state)
   for (const layer of layers) for (const node of layer) for (const port of node.ports) for (const edge of [...port.outgoing]) if (edge.reversed) reverseEdge(edge, false)
+  if (enumOption(state.options, 'hierarchyHandling', ['INHERIT', 'INCLUDE_CHILDREN', 'SEPARATE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN') resizeHierarchicalGraph(state)
+  transformGraph(layers.flat(), state, direction, 'TO_INTERNAL_LTR')
   const points: { x: number; y: number }[] = []
   for (const node of nodes) for (const port of node.ports) for (const edge of port.outgoing) { points.push(...edge.bends); if (edge.junctions !== undefined) points.push(...edge.junctions); points.push(...edge.labels) }
-  return { nodes, points, width: size.width, height: size.height, offsetX: 0, offsetY: size.offsetY }
+  return { nodes, points, width: state.width, height: state.height, offsetX: state.offsetX, offsetY: state.offsetY }
+}
+
+/** HierarchicalNodeResizingProcessor's flat graph size/offset transfer. */
+function resizeHierarchicalGraph(state: { width: number; height: number; offsetX: number; offsetY: number; padding: import('./options.ts').Insets; options: Options }): void {
+  const padding = state.padding
+  const oldWidth = state.width + padding.left + padding.right, oldHeight = state.height + padding.top + padding.bottom
+  let width = oldWidth, height = oldHeight
+  if (setOption(state.options, 'nodeSize.constraints', SIZE_CONSTRAINTS, []).has('MINIMUM_SIZE')) {
+    const minimum = minimumSize(state.options)
+    width = Math.max(width, minimum.x); height = Math.max(height, minimum.y)
+  }
+  const align = setOption(state.options, 'contentAlignment', ['V_TOP', 'V_CENTER', 'V_BOTTOM', 'H_LEFT', 'H_CENTER', 'H_RIGHT'], ['V_TOP', 'H_LEFT'])
+  if (width > oldWidth) { if (align.has('H_CENTER')) state.offsetX += (width - oldWidth) / 2; else if (align.has('H_RIGHT')) state.offsetX += width - oldWidth }
+  if (height > oldHeight) { if (align.has('V_CENTER')) state.offsetY += (height - oldHeight) / 2; else if (align.has('V_BOTTOM')) state.offsetY += height - oldHeight }
+  state.width = width - padding.left - padding.right
+  state.height = height - padding.top - padding.bottom
 }
