@@ -1,0 +1,18 @@
+classDiagram
+    direction BT
+    class Source {
+       <<Trait>>
+       + query(&ManifestDependency) Vec~Summary~
+       + download(PackageId) Package
+    }
+    class PathSource
+    class GitSource
+    class RegistrySource
+    class StandardLibSource {
+        /embedded/
+    }
+
+    PathSource ..|> Source
+    GitSource ..|> Source
+    RegistrySource ..|> Source
+    StandardLibSource ..|> Source

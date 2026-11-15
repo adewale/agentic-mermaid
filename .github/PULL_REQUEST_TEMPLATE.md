@@ -38,8 +38,9 @@ The checklist below covers changes that need a human decision.
       repair and a passing owning-boundary test after it. The optional
       `scripts/ci/red-green.ts --base <sha>` diagnostic can help. Refactors
       preserve behavior and need no failing-base assertion or opt-out label.
-- [ ] **Payload growth:** no website route or lazy family grows by more than
-      2% and 1 KiB gzip against the base branch **— OR —** the growth is
+- [ ] **Payload growth:** no website route, lazy family or the standalone
+      editor grows by more than 2% and 1 KiB gzip, and the lazy shared core by
+      more than 1 KiB, against the base branch **— OR —** the growth is
       intended and the PR is labelled `payload-growth-approved` (applied after
       the latest push; CI removes it when new commits arrive).
 - [ ] If I added a diagram family, it is wired into the central registries

@@ -386,10 +386,16 @@ describe('typed State residual elevation (B07)', () => {
 
   test.each([
     ['state A\nstate "Running" as A\nA --> B', 'Running'],
-    ['state "A" as A\nstate "Running" as A\nA --> B', 'A'],
+    // Mermaid reads `state "…" as A` as a description of A, as `A : …`.
+    ['state "A" as A\nstate "Running" as A\nA --> B', 'A\nRunning'],
+    ['state "First" as A\nstate "Second" as A\nA --> B', 'First\nSecond'],
+    ['A : First\nstate "Second" as A\nA --> B', 'First\nSecond'],
+    ['A --> B\nstate "One" as A\nA : Two\nstate "Three" as A', 'One\nTwo\nThree'],
     ['A --> B\nstate "Running" as A', 'Running'],
     ['state A\nA : First\nA : Second\nA --> B', 'First\nSecond'],
     ['A : First\nA : Second\nstate A {\nB --> C\n}', 'First\nSecond'],
+    ['state "First" as A\nstate "Second" as A {\nB --> C\n}', 'First\nSecond'],
+    ['state "First" as A {\nB --> C\n}\nstate "Second" as A', 'First\nSecond'],
   ])('retains State labels after declarations and repeated descriptions: %s', async (body, label) => {
     const source = `stateDiagram-v2\n${body}`
     const diagram = state(source)
@@ -398,6 +404,16 @@ describe('typed State residual elevation (B07)', () => {
     const upstream = startUpstreamMermaid()
     try {
       expect(await upstream.accepts(serialized)).toBe(true)
+      // Mermaid's title and descriptions are the label's lines; it rejects a
+      // composite with more than one, which ours joins and reports.
+      const lines = (mermaid: UpstreamDiagram) => {
+        const node = mermaid.db.getData().nodes.find((item: { id: string }) => item.id === 'A')
+        return [node.label, ...(node.description ?? [])].join('\n').replace(/<br\s*\/?\s*>/gi, '\n')
+      }
+      const [read, written] = await upstream.projectEach([source, serialized], lines)
+      expect(written).toEqual({ ok: true, value: label })
+      if (body.includes('{') && label.includes('\n')) expect(read).toEqual({ ok: false, error: expect.stringContaining('Group nodes can only have label') })
+      else expect(read).toEqual({ ok: true, value: label })
     } finally {
       upstream.close()
     }
@@ -406,6 +422,7 @@ describe('typed State residual elevation (B07)', () => {
       const graph = parseRenderGraph(input)
       expect(graph.nodes.get('A')?.label ?? graph.subgraphs.find(group => group.id === 'A')?.label).toBe(label)
       for (const part of label.split('\n')) expect(renderMermaidSVG(input)).toContain(part)
+      for (const part of label.split('\n')) expect(renderMermaidASCII(input)).toContain(part)
       const verified = verifyMermaid(input)
       expect(verified.ok).toBe(true)
       expect(verified.layout.nodes.find(node => node.id === 'A')?.label ?? verified.layout.groups.find(group => group.id === 'A')?.label).toBe(label)
@@ -1422,5 +1439,82 @@ describe('State statements across and within lines', () => {
     expect(readingOf(parseRenderGraph(written))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
     expect(await upstream.accepts(written), written).toBe(true)
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_semicolon_separator', line: 1 }))
+  })
+
+  // Mermaid's State lexer reads a name as any run of characters but a colon,
+  // a blank, a hyphen or `{` (stateDiagram.jison).
+  test.each([
+    {
+      body: '[*] --> ContainerRuntime.process\nContainerRuntime.process --> remote.v2 : go\nremote.v2 --> [*]',
+      read: ['ContainerRuntime.process->remote.v2:go', 'ContainerRuntime.process:rounded:ContainerRuntime.process', '_end:state-end:', '_start->ContainerRuntime.process', '_start:state-start:', 'remote.v2->_end', 'remote.v2:rounded:remote.v2'],
+    },
+    {
+      body: 'state a.b {\n  [*] --> c.d\n  c.d --> e/f\n}\nstate "Long" as h.i\nh.i : more\nstate k.l <<choice>>\na.b --> k.l\nk.l --> h.i\nnote right of c.d : hi',
+      read: ['a.b->k.l', 'a.b:a.b{a.b_start c.d e/f}', 'a.b_start->c.d', 'a.b_start:state-start:', 'c.d->e/f', 'c.d:rounded:c.d', 'e/f:rounded:e/f', 'h.i:rounded:Long\nmore', 'k.l->h.i', 'k.l:state-choice:', 'note right of c.d:hi'],
+    },
+    {
+      body: "a/b --> x(y)\nx(y) --> c&d : and\nc&d --> e'f\ne'f --> 50%done\n50%done --> issue#12\nissue#12 --> état.1",
+      read: ['50%done->issue#12', '50%done:rounded:50%done', 'a/b->x(y)', 'a/b:rounded:a/b', "c&d->e'f", 'c&d:rounded:c&d', "e'f->50%done", "e'f:rounded:e'f", 'issue#12->état.1', 'issue#12:rounded:issue#12', 'x(y)->c&d:and', 'x(y):rounded:x(y)', 'état.1:rounded:état.1'],
+    },
+  ])('a name with punctuation Mermaid reads keeps its authored identity through both parsers, the writer and Mermaid: %#', async ({ body, read }) => {
+    const source = `stateDiagram-v2\n${body}`
+    expect(readingOf(parseRenderGraph(source))).toEqual([...read])
+    const diagram = state(source)
+    const written = serializeMermaid(diagram)
+    expect(state(written).body).toEqual(diagram.body)
+    expect(readingOf(parseRenderGraph(written))).toEqual([...read])
+    expect(unsupportedSyntax(source)).toEqual([])
+    // A state with no label of its own is drawn with its name.
+    const names = read.flatMap(item => /^(.+):rounded:\1$/.exec(item)?.[1] ?? [])
+    const ascii = renderMermaidASCII(source)
+    for (const name of names) expect(ascii).toContain(name)
+    // Mermaid reads the written source as it reads the authored one: the
+    // same states, owned by the same composites, and the same transitions.
+    const meaning = (mermaid: UpstreamDiagram) => {
+      const data = mermaid.db.getData()
+      return {
+        nodes: data.nodes.map((node: { id: string; parentId?: string }) => `${node.id}<${node.parentId ?? ''}`).sort(),
+        edges: data.edges.map((edge: { start: string; end: string; label: string }) => `${edge.start}->${edge.end}:${edge.label}`),
+      }
+    }
+    const [authored, rewritten] = await upstream.projectAll([source, written], meaning)
+    expect(rewritten).toEqual(authored)
+    expect(authored!.nodes.map((node: string) => node.split('<')[0])).toEqual(expect.arrayContaining(names))
+  })
+
+  test('identities ours generates stay apart from an authored name shaped like one', () => {
+    // A state named `note#0` beside the first attached note, and one named
+    // `a.b_start` beside the start pseudostate of composite `a.b`.
+    const source = 'stateDiagram-v2\nnote#0 --> x\nnote right of x : hi\nstate a.b {\n  [*] --> a.b_start\n}'
+    const graph = parseRenderGraph(source)
+    const states = [...graph.nodes.values()]
+    expect(states.filter(node => node.shape === 'rounded').map(node => node.id).sort()).toEqual(['a.b_start', 'note#0', 'x'])
+    const start = states.find(node => node.shape === 'state-start')!
+    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['note#0', 'x'], [start.id, 'a.b_start']])
+    const note = graph.stateNotes![0]!
+    expect([note.target, note.text]).toEqual(['x', 'hi'])
+    expect(graph.nodes.has(note.id)).toBe(false)
+    const svgIds = [...renderMermaidSVG(source).matchAll(/data-id="([^"]*)"/g)].map(match => match[1])
+    expect(new Set(svgIds).size).toBe(svgIds.length)
+    const ascii = renderMermaidASCII(source)
+    for (const text of ['note#0', 'a.b_start', 'hi']) expect(ascii).toContain(text)
+  })
+
+  test('a name Mermaid reads as a keyword and the rest is reported, and a typed edit does not introduce one', async () => {
+    // Mermaid's lexer reads `default`, `click` and `href` wherever no word
+    // character follows, so `default.x` is `default` and `.x`.
+    const source = 'stateDiagram-v2\ndefault.x --> b'
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(readingOf(parseRenderGraph(source))).toEqual(['b:rounded:b', 'default.x->b', 'default.x:rounded:default.x'])
+    expect(unsupportedSyntax(source)).toEqual(['state_endpoint_name@2'])
+    const added = mutate(state('stateDiagram-v2\nA'), { kind: 'add_state', id: 'click.x' })
+    expect(added.ok ? 'ok' : added.error.code).toBe('INVALID_OP')
+    expect(mutate(state('stateDiagram-v2\nA'), { kind: 'add_state', id: 'clicks.x' }).ok).toBe(true)
+  })
+
+  test.each(['A->B', 'p,q --> r', 'r>s --> t', 'd[x] --> e'])('a name holding a character ours reads as syntax is not drawn as one state: %s', body => {
+    // Mermaid reads these as names; ours cannot tell them from a mistyped
+    // arrow, a list or a history endpoint.
+    expect(() => parseRenderGraph(`stateDiagram-v2\n${body}`)).toThrow('Unsupported state syntax')
   })
 })

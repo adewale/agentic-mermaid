@@ -158,13 +158,24 @@ export interface SequenceMessage {
   deactivate?: boolean
 }
 
-export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
+/** `critical` branches continue with `option`; a `rect`'s label is its fill
+ * color as written (none for a bare `rect`). */
+export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
 export interface SequenceFragmentBranch {
   wrap?: boolean
   /** `else` / `and` caption. The first branch normally omits it. */
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
+  /** The branch's `create`/`destroy` lines and notes, in source order, each
+   * before branch message `before` (`messages.length`: after the last).
+   * Directives bind as top-level ones do: to the next message involving
+   * their participant, in this branch or after it. */
+  statements?: SequenceBranchStatement[]
+}
+export interface SequenceBranchStatement {
+  before: number
+  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement
 }
 export interface SequenceFragment {
   wrap?: boolean
@@ -176,15 +187,54 @@ export interface SequenceFragment {
   rawLines?: string[]
 }
 
-// Ordered statement list. Refs index into the top-level arrays. The four
-// common control fragments are typed so their messages participate in
-// describe/facts/verify and can be authored through mutation ops. Constructs
-// outside that closed model (notes, critical/break/rect/box, activations…)
-// remain lossless opaque segments.
+/** `create participant|actor X [as Label]`: X's header and lifeline start at
+ * the next message X receives. The statement keeps its own spelling; the
+ * participant it creates is listed in `participants`. */
+export interface SequenceCreateStatement {
+  kind: 'create'
+  id: string
+  declaration: 'participant' | 'actor'
+  /** Visual type from `@{ "type": … }` metadata, when it is not the keyword's. */
+  type?: SequenceParticipantKind
+  label: string
+  labelContent?: LabelContent
+  wrap?: boolean
+}
+
+/** `destroy X`: X's lifeline ends at the next message X sends or receives. */
+export interface SequenceDestroyStatement {
+  kind: 'destroy'
+  actorId: string
+}
+
+export type SequenceNotePosition = 'left' | 'right' | 'over'
+
+/** `Note left of A: text`, `Note right of A: text` or `Note over A[,B]: text`,
+ * drawn at its place in the statement order. */
+export interface SequenceNoteStatement {
+  kind: 'note'
+  position: SequenceNotePosition
+  /** One participant; a note `over` may span two. */
+  actorIds: string[]
+  text: string
+  textContent?: LabelContent
+  /** Authored wrap control; absent inherits the diagram configuration. */
+  wrap?: boolean
+}
+
+// Ordered statement list. Refs index into the top-level arrays. Control
+// fragments of messages are typed (with their `create`/`destroy` lines) so
+// their messages participate in
+// describe/facts/verify and can be authored through mutation ops, as are
+// notes. Constructs outside that closed model (nested fragments, box,
+// activations…) remain lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
+  | SequenceCreateStatement
+  | SequenceDestroyStatement
+  | SequenceNoteStatement
   | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }
 
@@ -1390,6 +1440,20 @@ export type SequenceMutationOp =
   | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
   | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
+  // Notes are addressed by their index among top-level notes. A note goes
+  // directly after top-level message `afterMessage` (after notes already
+  // there) or directly before top-level message `beforeMessage` (above the
+  // create/destroy lines bound to it); with neither it is appended.
+  | { kind: 'add_note'; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_note'; index: number }
+  | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'move_note'; index: number; afterMessage?: number; beforeMessage?: number }
+  // The same, for notes in a fragment branch: `index` counts the branch's
+  // notes, and the anchors are branch message indexes.
+  | { kind: 'add_fragment_note'; fragmentIndex: number; branchIndex?: number; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_note_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'move_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number; afterMessage?: number; beforeMessage?: number }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -1712,6 +1776,8 @@ export type Tier3WarningCode =
   | 'SCALE_RANGE_EXCLUDES_ZERO'
   | 'BAR_RANGE_EXCLUDES_ZERO'
   | 'VALUES_OUTSIDE_RANGE'
+  | 'EDGE_RANK_SLACK'
+  | 'EDGE_UNDER_GROUP_TITLE'
   | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
@@ -1826,6 +1892,22 @@ export type LayoutWarning =
    * Advisory: the authored range is kept; never flips verify.ok.
    */
   | { code: 'VALUES_OUTSIDE_RANGE'; series: string; values: number[]; range: { min: number; max: number }; message: string }
+  /**
+   * A forward edge crosses node layers that no path between its endpoints
+   * needs: `spannedLayers` lie strictly between its endpoints' layers, while
+   * the longest forward path (authored link lengths included) needs only
+   * `requiredLayers`. Reported from a slack of two layers. Advisory; never
+   * flips verify.ok.
+   */
+  | { code: 'EDGE_RANK_SLACK'; edge: EdgeId; spannedLayers: number; requiredLayers: number; message: string }
+  /**
+   * A visible horizontal route segment runs inside a titled group between the
+   * bottom of its title band and the top of its first member or child group;
+   * `clearancePx` is its distance below the band. Routes entering the band
+   * itself are refused by layout certification instead. Advisory; never
+   * flips verify.ok.
+   */
+  | { code: 'EDGE_UNDER_GROUP_TITLE'; edge: EdgeId; group: GroupId; clearancePx: number; message: string }
   | {
       code: BrandConstraintWarningCode
       constraint: BrandConstraintKind
@@ -1879,6 +1961,8 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   SCALE_RANGE_EXCLUDES_ZERO: 'warning',
   BAR_RANGE_EXCLUDES_ZERO: 'warning',
   VALUES_OUTSIDE_RANGE: 'warning',
+  EDGE_RANK_SLACK: 'warning',
+  EDGE_UNDER_GROUP_TITLE: 'warning',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
 }
 
@@ -1920,6 +2004,8 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   SCALE_RANGE_EXCLUDES_ZERO: 'lint',
   BAR_RANGE_EXCLUDES_ZERO: 'lint',
   VALUES_OUTSIDE_RANGE: 'lint',
+  EDGE_RANK_SLACK: 'lint',
+  EDGE_UNDER_GROUP_TITLE: 'lint',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,
 }
 

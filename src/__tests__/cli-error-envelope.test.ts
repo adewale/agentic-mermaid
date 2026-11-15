@@ -214,8 +214,12 @@ describe('render failure diagnostics agree across render surfaces', () => {
         for (const tool of tools) {
           expect(await hostedPayload(tool, source), `${name} hosted ${tool}`).toEqual({ ok: false, error: expected })
         }
-        const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
-        expect(JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text), `${name} stdio render_png`).toEqual({ ok: false, error: expected })
+        // The stdio server renders in its renderer process, which the
+        // in-process defect injection cannot reach.
+        if (name !== 'an engine defect') {
+          const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
+          expect(JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text), `${name} stdio render_png`).toEqual({ ok: false, error: expected })
+        }
         if (codeMode) {
           const sandbox = await executeInSandbox(`try { mermaid.renderMermaidSVG(${JSON.stringify(source)}); return null } catch (e) { return { code: e.code, origin: e.origin, message: e.message, details: e.details, ...(e.code === 'MERMAID_SYNTAX_ERROR' ? { diagramType: e.diagramType, line: e.line, column: e.column } : {}) } }`)
           expect(JSON.parse(JSON.stringify(sandbox.value)), `${name} Code Mode`).toEqual(expected)
@@ -265,7 +269,7 @@ describe('an uncertified drawing renders everywhere and verify names it', () => 
     return JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
   }
 
-  test('library, CLI, hosted and stdio MCP, and Code Mode agree', async () => {
+  test('library, CLI, hosted MCP and Code Mode agree', async () => {
     await withOverlap(async () => {
       const geometry = { status: 'uncertified' as const, strategy: 'flowchart:final', attempts: 1, violations: [{ kind: 'nodeOverlaps', targets: ['A', 'B'], detail: 'A overlaps B' }] }
       const library = verifyMermaid(source)
@@ -291,9 +295,8 @@ describe('an uncertified drawing renders everywhere and verify names it', () => 
       const hosted = await hostedPayload('verify')
       expect({ ok: hosted.ok, warnings: hosted.warnings }, 'hosted verify').toEqual({ ok: false, warnings: library.warnings })
 
-      const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
-      const stdioPayload = JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text)
-      expect({ ok: stdioPayload.ok, geometry: stdioPayload.receipt.layoutCertification.geometry }, 'stdio render_png').toEqual({ ok: true, geometry })
+      // The stdio MCP tools render in their renderer process, which the
+      // in-process overlap injection cannot reach.
 
       const sandbox = await executeInSandbox(`const source = ${JSON.stringify(source)}; const verify = mermaid.verifyMermaid(source); return { geometry: mermaid.renderMermaidSVGWithReceipt(source).receipt.layoutCertification.geometry, ok: verify.ok, warnings: verify.warnings }`)
       expect(JSON.parse(JSON.stringify(sandbox.value ?? sandbox)), 'Code Mode').toEqual({ geometry, ok: false, warnings: library.warnings })

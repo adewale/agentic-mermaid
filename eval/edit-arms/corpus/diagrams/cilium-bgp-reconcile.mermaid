@@ -1,0 +1,15 @@
+sequenceDiagram
+	participant K as Kubernetes
+	participant C as Controller
+	participant I as SharedInformers
+	participant M as BGPRouterManager
+
+	K ->> C: CiliumBGPClusterConfig event
+	C ->> I: Query shared informers for current cached state
+	C ->> C: Evaluate if any reconciliation is necessary
+	alt reconciliation is necessary
+		C ->> M: Call down to BGPRouterManager
+		M ->> M: Reconcile configured BGP servers
+	else reconciliation is not necessary
+		C ->> C: Sleep until next event
+	end

@@ -8,5 +8,6 @@
 - [Agent instructions](Instructions_for_agents.md): parse, narrow, mutate, verify and serialize.
 - [Getting started](docs/getting-started.md): install and use the library, CLI or MCP server.
 
-For the installed version, run `am capabilities --json` or `am llms-txt`.
+For the installed version, run `am capabilities --summary`, then
+`am capabilities --family <id>` for one family's full entry, or `am llms-txt`.
 Use `am --agent-instructions` for the workflow shipped with that installation.

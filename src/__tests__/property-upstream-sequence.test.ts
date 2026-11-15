@@ -146,8 +146,8 @@ function printSequence(statements: Statement[]): string {
 /** The typed model's rule: a loop / opt / alt / par block holding only
  * messages is a typed fragment; every other block is preserved source. */
 function isTypedFragment(statement: Extract<Statement, { kind: 'block' }>): boolean {
-  return ['loop', 'opt', 'alt', 'par'].includes(statement.keyword)
-    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message'))
+  return ['loop', 'opt', 'alt', 'par', 'critical', 'break', 'rect'].includes(statement.keyword)
+    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note'))
 }
 
 /** Every generated message in source order, or only those our model types. */
@@ -367,9 +367,9 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
 
   test('a participant only a note names is typed and ordered as upstream creates it', async () => {
     const cases = [
-      { source: 'sequenceDiagram\n  note left of A: hello', participants: ['A participant : A'] },
+      { source: 'sequenceDiagram\n  Note left of A: hello', participants: ['A participant : A'] },
       {
-        source: 'sequenceDiagram\n  B->>C: hi\n  note over D,A: x\n  participant A as Alice',
+        source: 'sequenceDiagram\n  B->>C: hi\n  Note over D,A: x\n  participant A as Alice',
         participants: ['B participant : B', 'C participant : C', 'D participant : D', 'A participant : Alice'],
       },
     ]
@@ -385,9 +385,9 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     const parsed = parseRegisteredMermaid(cases[0]!.source)
     if (!parsed.ok) throw new Error('note-only source rejected')
     expect(describeMermaidFacts(parsed.value)).toContain('participant A : A')
-    // The note stays preserved source, so typed ops treat A as a known participant.
+    // Typed ops treat a participant only a note names as a known participant.
     const added = mutate(parsed.value, { kind: 'add_message', from: 'A', to: 'B', text: 'ping' })
-    expect(added.ok && serializeMermaid(added.value)).toBe('sequenceDiagram\n  note left of A: hello\n  A->>B: ping\n')
+    expect(added.ok && serializeMermaid(added.value)).toBe('sequenceDiagram\n  Note left of A: hello\n  A->>B: ping\n')
     expect(added.ok && ours(parseOurs(serializeMermaid(added.value))).participants).toEqual(['A participant : A', 'B participant : B'])
     const duplicate = mutate(parsed.value, { kind: 'add_participant', id: 'A' })
     expect(!duplicate.ok && (duplicate.error as { code: string }).code).toBe('DUPLICATE_PARTICIPANT')
@@ -420,7 +420,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     const cases = [
       // Upstream ignores a bare re-declaration, whatever keyword or metadata
       // type it carries; ours keeps the inert line verbatim.
-      { source: 'sequenceDiagram\n  note left of Carol: hi\n  actor Carol', participants: ['Carol participant : Carol'], verbatim: true },
+      { source: 'sequenceDiagram\n  Note left of Carol: hi\n  actor Carol', participants: ['Carol participant : Carol'], verbatim: true },
       { source: 'sequenceDiagram\n  A->>B: hi\n  actor B', participants: ['A participant : A', 'B participant : B'], verbatim: true },
       { source: 'sequenceDiagram\n  actor B\n  A->>B: hi\n  participant B', participants: ['B actor : B', 'A participant : A'], verbatim: true },
       { source: 'sequenceDiagram\n  participant B as Bob\n  participant B', participants: ['B participant : Bob'], verbatim: true },

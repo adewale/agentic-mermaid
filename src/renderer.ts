@@ -1,6 +1,7 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from './scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { graphGroupHeader } from './graph-group-header.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
@@ -181,8 +182,8 @@ function renderGroup<T>(marks: DrawingFactory<T>, group: PositionedGroup, font: 
     })
   }
 
-  const headerBlock = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
-  const headerHeight = group.headerHeight ?? style.groupHeaderFontSize + 16 + headerBlock.height - headerBlock.lineHeight
+  const { block: headerBlock, band, title } = graphGroupHeader(group, style)
+  const headerHeight = band.height
   const children: Array<{ node: T; indent: number }> = []
 
   // Opening <g> with semantic attributes for subgraph identification
@@ -229,8 +230,8 @@ function renderGroup<T>(marks: DrawingFactory<T>, group: PositionedGroup, font: 
       id: `group-label:${group.id}`,
       role: 'group-header',
       text: headerText, block: headerBlock,
-      x: group.x + style.groupLabelPaddingX,
-      y: group.y + headerHeight / 2,
+      x: title.x,
+      y: band.y + headerHeight / 2,
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },

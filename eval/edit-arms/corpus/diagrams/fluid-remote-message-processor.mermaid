@@ -1,0 +1,29 @@
+stateDiagram-v2
+    [*] --> ContainerRuntime.process
+	ContainerRuntime.process --> remoteMessageProcessor
+    state remoteMessageProcessor {
+        state "process chunk" as processChunk
+        state "return nothing" as returnNothing
+        state "decompress and store" as decompress
+        state if_chunk <<choice>>
+        state if_compressed <<choice>>
+        state if_unrolling <<choice>>
+        state if_grouped <<choice>>
+        [*] --> if_chunk
+        if_chunk --> if_compressed
+        if_chunk --> processChunk: is chunk
+        processChunk --> returnNothing
+        processChunk --> if_compressed: is final chunk
+        if_compressed --> if_unrolling
+        if_compressed --> decompress: is compressed
+        decompress --> if_unrolling
+        if_unrolling --> if_grouped
+        if_unrolling --> unroll: if currently unrolling
+        unroll --> if_grouped
+        if_grouped --> return
+        if_grouped --> ungroup: is grouped batch
+        ungroup --> return
+        return --> [*]
+        returnNothing --> [*]
+    }
+    remoteMessageProcessor --> ContainerRuntime.procesCore

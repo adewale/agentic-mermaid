@@ -1,5 +1,6 @@
 import { PURE_COMPUTE_ANNOTATIONS, RENDER_WARNINGS_NOTE, mcpRenderToolInputSchema } from './tool-surface.ts'
 import { terminalOutputOptionSchema } from '../terminal-contract.ts'
+import { mcpRenderReceiptProperty } from './receipt-summary.ts'
 
 // Each render tool defines its options with one shared schema, whose style
 // description names the registered Looks and Palettes, so render_svg,
@@ -12,7 +13,7 @@ export const TEXT_RENDER_TOOLS = [
 Layout is deterministic: identical input produces identical geometry. The direct tool
 boundary forces security:'strict' and embedFontImport:false.
 ${RENDER_WARNINGS_NOTE}`,
-    inputSchema: mcpRenderToolInputSchema(),
+    inputSchema: mcpRenderToolInputSchema({ receipt: mcpRenderReceiptProperty() }),
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   {
@@ -26,6 +27,7 @@ evidence in receipt.diagnostics, not warnings.`,
     inputSchema: mcpRenderToolInputSchema({
       useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
       targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
+      receipt: mcpRenderReceiptProperty(),
     }),
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },

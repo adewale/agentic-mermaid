@@ -1,11 +1,11 @@
-import { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
+import { TERMINAL_CERTIFICATION_LIMITS, TERMINAL_SHARED_CELL_OWNERS } from './terminal-limits.ts'
 import { terminalPathAdmission } from './terminal-route.ts'
 
 export { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
 
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput, terminalOutputPlainText } from '../terminal-security.ts'
-import { type TerminalDocument, type TerminalOwner, type TerminalPort, terminalCellConnections, terminalGlyphForPaint, terminalOwnedStrokeMask, terminalStrokeProvenanceMatches } from './terminal-document.ts'
+import { type TerminalCell, type TerminalDocument, type TerminalOwner, type TerminalPort, terminalCellConnections, terminalGlyphForPaint, terminalOwnedStrokeMask, terminalStrokeProvenanceMatches, terminalUniformStrokeMask } from './terminal-document.ts'
 import type { ColorMode } from './types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 
@@ -74,20 +74,48 @@ const keyOf = (owner: Pick<TerminalOwner, 'id' | 'kind'>) => {
 }
 const siteOf = (x: number, y: number) => `${x},${y}`
 
-function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: number, y: number, visit: () => void): number {
+/** Cells shared by more owners than this (a bus, or a text its members
+ * share) index their owners once per interned owner set for every route or
+ * text owner checked through them, instead of scanning them per owner. */
+const SHARED_CELL_INDEX = TERMINAL_SHARED_CELL_OWNERS
+
+/** A shared owner set's positions by key, indexed once per certification:
+ * every cell of a run shares one interned set. */
+function sharedOwnerIndex(cell: TerminalCell, shared: Map<object, Map<string, number>>, visit: () => void): Map<string, number> {
+  let index = shared.get(cell.owners)
+  if (!index) {
+    visit() // index map before allocation
+    index = new Map()
+    for (let at = 0; at < cell.owners.length; at++) {
+      visit() // one scanned owner and its map slot
+      index.set(keyOf(cell.owners[at]!), at)
+    }
+    shared.set(cell.owners, index)
+  }
+  return index
+}
+
+function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: number, y: number, visit: () => void, shared: Map<object, Map<string, number>>): number {
   visit() // one translated point predicate; two neighbor bits are one mask predicate
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || y < 0) return 0
   const cell = document.cell(x, y)
   if (!cell || !cell.glyph.trim() || cell.width !== 1) return 0
   let owned = false,
     ownMask = 0
-  for (let index = 0; index < cell.owners.length; index++) {
-    visit()
-    if (keyOf(cell.owners[index]!) === keyOf(owner)) {
+  if (cell.owners.length > SHARED_CELL_INDEX) {
+    const at = sharedOwnerIndex(cell, shared, visit).get(keyOf(owner))
+    if (at !== undefined) {
       owned = true
-      ownMask = terminalOwnedStrokeMask(cell, index)
+      ownMask = terminalOwnedStrokeMask(cell, at)
     }
-  }
+  } else
+    for (let index = 0; index < cell.owners.length; index++) {
+      visit()
+      if (keyOf(cell.owners[index]!) === keyOf(owner)) {
+        owned = true
+        ownMask = terminalOwnedStrokeMask(cell, index)
+      }
+    }
   if (!owned) return 0
   return cell.kind === 'stroke' ? ownMask : cell.kind === 'marker' ? (cell.marker?.direction === 'L' || cell.marker?.direction === 'R' ? 10 : cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 0) : 0
 }
@@ -116,6 +144,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
     issues.push(Object.freeze({ code, status: issueStatus, message, ...(elementId === undefined ? {} : { elementId }), ...(x === undefined || y === undefined ? {} : { cell: Object.freeze({ column: x, row: y }) }) }))
   }
   const budgetExceeded = Symbol('terminal certification budget')
+  const sharedCells = new Map<object, Map<string, number>>()
   const visit = () => {
     if (operations >= limits.maxOperations) {
       exhausted = true
@@ -289,13 +318,16 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
             else if (!cell || cell.kind !== 'text' || cell.glyph !== cluster.glyph || cell.width !== cluster.width || cell.head !== x) add('TERMINAL_TEXT_CHANGED', 'failed', 'Retained measured text does not survive in the final cells.', allocation.owners[0]?.id, x, y)
             else {
               const checkOwners = (expected: readonly TerminalOwner[]) => {
+                const index = cell.owners.length > SHARED_CELL_INDEX ? sharedOwnerIndex(cell, sharedCells, visit) : undefined
                 for (const owner of expected) {
                   visit()
                   if (
-                    !cell.owners.some(actual => {
-                      visit()
-                      return keyOf(actual) === keyOf(owner)
-                    })
+                    index
+                      ? !index.has(keyOf(owner))
+                      : !cell.owners.some(actual => {
+                          visit()
+                          return keyOf(actual) === keyOf(owner)
+                        })
                   )
                     add('TERMINAL_TEXT_OWNER_CHANGED', 'failed', 'Measured text lost its native owner.', owner.id, x, y)
                 }
@@ -313,6 +345,33 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           if (widths && allocation.y + row >= widths.length) add('TERMINAL_EMPTY_TEXT_ROW_OMITTED', 'unverified', 'An authored empty text row is not distinguishable in the emitted extent.', allocation.owners[0]?.id)
         }
       }
+      // A large shared cell's per-owner checks depend only on its interned
+      // owner set and, for a stroke, the one direction set every owner keeps
+      // there. Each such set is checked once; every cell then checks its own
+      // ink and the frames its owners' containers allocate.
+      const sharedSets = new Map<object, { clean: boolean; edgeGroups: number; frames: ReadonlySet<{ x: number; y: number; width: number; height: number }> }>()
+      const sharedSet = (set: readonly TerminalOwner[]) => {
+        let summary = sharedSets.get(set)
+        if (!summary) {
+          visit() // summary and map slot before allocation
+          const groups = new Set<string>(),
+            containers = new Set<{ x: number; y: number; width: number; height: number }>()
+          let clean = true
+          for (const owner of set) {
+            visit()
+            if (owner.kind === 'edge') groups.add(owner.bundle ? 'bundle\0' + owner.bundle : 'edge\0' + keyOf(owner))
+            // A connected owner without a path witness collects its cells one by one.
+            if (connected.get(keyOf(owner))?.cells || !owners.has(keyOf(owner))) clean = false
+            if (owner.parent && (['group', 'cluster', 'subgraph'].includes(owner.parent.kind) || owner.kind === 'compartment')) {
+              const frame = frames.get(keyOf(owner.parent))
+              if (frame) containers.add(frame)
+            }
+          }
+          summary = { clean, edgeGroups: groups.size, frames: containers }
+          sharedSets.set(set, summary)
+        }
+        return summary
+      }
       for (const [x, y, cell] of document.entries()) {
         visit()
         coverage.cells++
@@ -324,15 +383,51 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           add('TERMINAL_CELL_OWNER_UNAVAILABLE', 'unverified', 'A visible cell has no native semantic ownership.', undefined, x, y)
         }
         const directionalStroke = cell.kind === 'stroke' && (cell.stroke?.mask ?? terminalCellConnections(cell)) !== 0
+        // A large shared cell whose owners all keep one direction set passes
+        // the per-owner checks below exactly when its set passes them (two
+        // such edges never cross perpendicularly, so two edge groups overlap)
+        // and its own ink and container frames do. Any failure repeats those
+        // checks, with their issues.
+        let checked = false
+        const uniform = cell.owners.length > SHARED_CELL_INDEX ? (cell.kind === 'stroke' ? terminalUniformStrokeMask(cell) : 0) : undefined
+        if (uniform !== undefined) {
+          const shared = sharedSet(cell.owners)
+          visit()
+          checked = shared.clean && (cell.kind !== 'stroke' || (Number.isInteger(uniform) && uniform >= 0 && uniform <= 15 && !(directionalStroke && (!uniform || shared.edgeGroups > 1)) && terminalStrokeProvenanceMatches(cell, uniform)))
+          for (const frame of shared.frames) {
+            if (!checked) break
+            visit()
+            if (x < frame.x || x >= frame.x + frame.width || y < frame.y || y >= frame.y + frame.height) checked = false
+          }
+        }
+        // Edges of one declared bundle may share directions; edges of two
+        // different bundles (or unbundled edges) only cross perpendicularly.
+        // When every edge of a large shared cell passes that as a whole, no
+        // pair needs the pairwise scan below; any failure takes that scan.
+        let separated = false
+        if (!checked && directionalStroke && cell.owners.length > SHARED_CELL_INDEX) {
+          const groups = new Map<string, number>()
+          for (let ownerIndex = 0; ownerIndex < cell.owners.length; ownerIndex++) {
+            const owner = cell.owners[ownerIndex]!
+            if (owner.kind !== 'edge') continue
+            const group = owner.bundle ? 'bundle\0' + owner.bundle : 'edge\0' + keyOf(owner),
+              mask = terminalOwnedStrokeMask(cell, ownerIndex),
+              previous = groups.get(group)
+            if (previous === undefined) groups.set(group, mask)
+            else if (previous !== mask) groups.set(group, -1)
+          }
+          const masks = [...groups.values()]
+          separated = masks.length <= 1 || (masks.length === 2 && ((masks[0] === 10 && masks[1] === 5) || (masks[0] === 5 && masks[1] === 10)))
+        }
         let strokeUnion = 0
-        for (let ownerIndex = 0; ownerIndex < cell.owners.length; ownerIndex++) {
+        for (let ownerIndex = 0; !checked && ownerIndex < cell.owners.length; ownerIndex++) {
           const owner = cell.owners[ownerIndex]!
           visit()
           const ownMask = cell.kind === 'stroke' ? terminalOwnedStrokeMask(cell, ownerIndex) : 0
           if (cell.kind === 'stroke') {
             strokeUnion |= ownMask
             if (!Number.isInteger(ownMask) || ownMask < 0 || ownMask > 15 || (directionalStroke && owner.kind === 'edge' && !ownMask)) add('TERMINAL_STROKE_PROVENANCE_CHANGED', 'failed', 'A visible route stroke lacks its original owner directions.', owner.id, x, y)
-            if (directionalStroke && owner.kind === 'edge')
+            if (directionalStroke && owner.kind === 'edge' && !separated)
               for (let previous = 0; previous < ownerIndex; previous++) {
                 visit()
                 const other = cell.owners[previous]!
@@ -352,7 +447,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
             if (frame && (x < frame.x || x >= frame.x + frame.width || y < frame.y || y >= frame.y + frame.height)) add('TERMINAL_PARENT_FRAME_BREACH', 'failed', 'Owned content escapes its independently allocated native container frame.', owner.id, x, y)
           }
         }
-        if (cell.kind === 'stroke' && cell.owners.length && !terminalStrokeProvenanceMatches(cell, strokeUnion)) add('TERMINAL_STROKE_PROVENANCE_CHANGED', 'failed', 'Final stroke ink disagrees with its original owner contributions.', cell.owners[0]?.id, x, y)
+        if (!checked && cell.kind === 'stroke' && cell.owners.length && !terminalStrokeProvenanceMatches(cell, strokeUnion)) add('TERMINAL_STROKE_PROVENANCE_CHANGED', 'failed', 'Final stroke ink disagrees with its original owner contributions.', cell.owners[0]?.id, x, y)
         if (cell.glyph === WIDE_CHAR_CONTINUATION) {
           const head = document.cell(cell.head, y)
           if (!head || head.glyph === WIDE_CHAR_CONTINUATION || cell.head >= x || cell.head + cell.width <= x || head.width !== cell.width) add('TERMINAL_GRAPHEME_CONTINUATION', 'failed', 'A wide grapheme continuation has no complete head.', cell.owners[0]?.id, x, y)
@@ -417,6 +512,47 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           }
         }
       }
+      // A shared run: consecutive large shared cells along one axis with one
+      // interned owner set, each a stroke whose owners all keep both axis
+      // directions. Each cell's count of following run cells, per direction,
+      // is walked once.
+      const runs = [new Map<string, number>(), new Map<string, number>(), new Map<string, number>(), new Map<string, number>()]
+      const runCell = (cell: TerminalCell | undefined, axis: number) => {
+        if (!cell || cell.owners.length <= SHARED_CELL_INDEX || cell.width !== 1 || !cell.glyph.trim()) return false
+        const uniform = terminalUniformStrokeMask(cell)
+        return uniform !== undefined && Number.isInteger(uniform) && (uniform & axis) === axis
+      }
+      const sharedRunAhead = (x: number, y: number, dx: number, dy: number): number => {
+        const axis = dx ? 10 : 5,
+          memo = runs[dx > 0 ? 0 : dx < 0 ? 1 : dy > 0 ? 2 : 3]!,
+          start = document.cell(x, y)
+        if (!start || start.owners.length <= SHARED_CELL_INDEX) return 0
+        const known = memo.get(siteOf(x, y))
+        if (known !== undefined) return known
+        visit()
+        if (!runCell(start, axis)) {
+          visit() // map slot before allocation
+          memo.set(siteOf(x, y), 0)
+          return 0
+        }
+        const chain: string[] = []
+        let remainder = 0
+        for (let cx = x, cy = y; ; cx += dx, cy += dy) {
+          const site = siteOf(cx, cy),
+            reached = memo.get(site)
+          if (reached !== undefined) {
+            remainder = reached + 1
+            break
+          }
+          visit()
+          visit() // site and its map slot before allocation
+          chain.push(site)
+          const following = cx + dx >= 0 && cy + dy >= 0 ? document.cell(cx + dx, cy + dy) : undefined
+          if (following?.owners !== start.owners || !runCell(following, axis)) break
+        }
+        for (let index = 0; index < chain.length; index++) memo.set(chain[index]!, chain.length - 1 - index + remainder)
+        return memo.get(siteOf(x, y))!
+      }
       for (const { owner, ports, cells, witness } of connected.values()) {
         visit()
         if (ports.length === 2 && ports.every(port => port.markerProjection && port.markerProjection === ports[0]!.markerProjection)) continue
@@ -427,7 +563,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           const physical = port.boundary ?? { id: port.nodeId, kind: 'node' as const },
             physicalKey = keyOf(physical)
           const frame = frames.get(physicalKey),
-            mask = witness ? liveOwnedMask(document, owner, port.x, port.y, visit) : (cells!.get(siteOf(port.x, port.y)) ?? 0)
+            mask = witness ? liveOwnedMask(document, owner, port.x, port.y, visit, sharedCells) : (cells!.get(siteOf(port.x, port.y)) ?? 0)
           const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0,
             dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
           const inward = port.side === 'T' ? 4 : port.side === 'R' ? 8 : port.side === 'B' ? 1 : port.side === 'L' ? 2 : 0
@@ -456,8 +592,29 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
             let required = 0
             if (previous) required |= previous.x > point.x ? 2 : previous.x < point.x ? 8 : previous.y > point.y ? 4 : 1
             if (next) required |= next.x > point.x ? 2 : next.x < point.x ? 8 : next.y > point.y ? 4 : 1
-            const mask = liveOwnedMask(document, owner, point.x + witness.dx, point.y + witness.dy, visit)
+            const mask = liveOwnedMask(document, owner, point.x + witness.dx, point.y + witness.dy, visit, sharedCells)
             if (!mask || (mask & required) !== required) valid = false
+            if (!next) continue
+            // Along a shared run every cell has this cell's owner set and keeps
+            // both axis directions for each owner, so the straight points of
+            // the path inside it pass exactly when this owner owns this cell.
+            const dx = next.x - point.x,
+              dy = next.y - point.y,
+              ahead = sharedRunAhead(point.x + witness.dx, point.y + witness.dy, dx, dy)
+            // Allocated paths are contiguous, so a point `k` steps on and `k`
+            // cells straight ahead ends a straight stretch: search its length,
+            // first trying a stretch through the whole run.
+            let low = 1,
+              high = Math.min(ahead + 1, points.length - 1 - index),
+              steps = high
+            while (low < high) {
+              visit()
+              const candidate = points[index + steps]!
+              if (candidate.x === point.x + dx * steps && candidate.y === point.y + dy * steps) low = steps
+              else high = steps - 1
+              steps = (low + high + 1) >> 1
+            }
+            index += low - 1
           }
           if (valid) continue
           // The path is a sufficient witness, not an exact-plan requirement.
@@ -466,7 +623,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           visit()
           bfsCells = new Map() // fallback map capacity before allocation
           for (const [x, y] of document.entries()) {
-            const mask = liveOwnedMask(document, owner, x, y, visit)
+            const mask = liveOwnedMask(document, owner, x, y, visit, sharedCells)
             if (mask) {
               visit()
               visit()

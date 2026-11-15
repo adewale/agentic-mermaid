@@ -282,6 +282,48 @@ adapter example.
 Loaded modules are cached by the browser, so repeated renders do not re-fetch a
 family or ELK.
 
+#### Untrusted input in a Worker
+
+Rendering is synchronous once its modules load, and a small densely connected
+diagram can lay out for over a minute. For user- or agent-authored source, render
+in a module Worker and terminate it at a deadline; this site's editor does the
+same with a 30-second limit. Keep one warm Worker and replace it only after a
+deadline fires or it fails.
+
+```js
+// render-worker.js
+import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
+
+self.onmessage = async ({ data }) => {
+  try {
+    self.postMessage({ ok: true, svg: await renderMermaidSVGAsync(data.source, { security: 'strict' }) })
+  } catch (error) {
+    self.postMessage({ ok: false, code: error.code ?? 'RENDER_FAILED', message: String(error.message ?? error) })
+  }
+}
+```
+
+```js
+let worker
+function renderWithDeadline(source, timeoutMs = 30_000) {
+  worker ??= new Worker(new URL('./render-worker.js', import.meta.url), { type: 'module' })
+  const current = worker
+  return new Promise((resolve, reject) => {
+    const retire = () => { current.terminate(); if (worker === current) worker = undefined }
+    const timer = setTimeout(() => { retire(); reject(Object.assign(new Error('render timed out'), { code: 'RENDER_TIMEOUT' })) }, timeoutMs)
+    current.onmessage = ({ data }) => {
+      clearTimeout(timer)
+      data.ok ? resolve(data.svg) : reject(Object.assign(new Error(data.message), { code: data.code }))
+    }
+    current.onerror = error => { clearTimeout(timer); retire(); reject(error) }
+    current.postMessage({ source })
+  })
+}
+```
+
+Send one render at a time to a Worker (or give each request an ID); then
+parse and insert the returned SVG as shown above.
+
 ### Classic one-file compatibility bundle
 
 Use the prebuilt IIFE when a single classic script and synchronous global are

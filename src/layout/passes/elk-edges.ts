@@ -93,30 +93,37 @@ export function extractEdgesRecursively(
       labelPosition = calculatePathMidpoint(orthogonalPoints)
     }
 
-    edges.push({
-      source: originalEdge.source,
-      target: originalEdge.target,
-      // Authored v11.6 edge ID: carried through layout so the SVG can emit
-      // it as the edge's data-id (stable identity contract).
-      ...(originalEdge.id !== undefined ? { id: originalEdge.id } : {}),
-      label: originalEdge.label,
-      ...(originalEdge.labelContent ? { labelContent: originalEdge.labelContent } : {}),
-      style: originalEdge.style,
-      hasArrowStart: originalEdge.hasArrowStart,
-      hasArrowEnd: originalEdge.hasArrowEnd,
-      startMarker: originalEdge.startMarker,
-      endMarker: originalEdge.endMarker,
-      ...(originalEdge.curve ? { curve: originalEdge.curve } : {}),
-      ...(originalEdge.animate ? { animate: true as const } : {}),
-      ...(originalEdge.animation ? { animation: originalEdge.animation } : {}),
-      points: orthogonalPoints,
-      labelPosition,
-      inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
-      ...(originalEdge.id && graph.classAssignments.has(originalEdge.id)
-        ? { classNames: graph.classAssignments.get(originalEdge.id)!.split(/\s+/).filter(Boolean) }
-        : {}),
-      edgeIndex,
-    })
+    edges.push(positionedEdgeFromAuthored(graph, edgeIndex, orthogonalPoints, labelPosition))
+  }
+}
+
+/** The authored identity, shaft, markers and presentation of `graph.edges[edgeIndex]`
+ * on a produced route. Every producer of graph edges shares this projection. */
+export function positionedEdgeFromAuthored(graph: MermaidGraph, edgeIndex: number, points: Point[], labelPosition: Point | undefined): PositionedEdge {
+  const originalEdge = graph.edges[edgeIndex]!
+  return {
+    source: originalEdge.source,
+    target: originalEdge.target,
+    // Authored v11.6 edge ID: carried through layout so the SVG can emit
+    // it as the edge's data-id (stable identity contract).
+    ...(originalEdge.id !== undefined ? { id: originalEdge.id } : {}),
+    label: originalEdge.label,
+    ...(originalEdge.labelContent ? { labelContent: originalEdge.labelContent } : {}),
+    style: originalEdge.style,
+    hasArrowStart: originalEdge.hasArrowStart,
+    hasArrowEnd: originalEdge.hasArrowEnd,
+    startMarker: originalEdge.startMarker,
+    endMarker: originalEdge.endMarker,
+    ...(originalEdge.curve ? { curve: originalEdge.curve } : {}),
+    ...(originalEdge.animate ? { animate: true as const } : {}),
+    ...(originalEdge.animation ? { animation: originalEdge.animation } : {}),
+    points,
+    labelPosition,
+    inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
+    ...(originalEdge.id && graph.classAssignments.has(originalEdge.id)
+      ? { classNames: graph.classAssignments.get(originalEdge.id)!.split(/\s+/).filter(Boolean) }
+      : {}),
+    edgeIndex,
   }
 }
 

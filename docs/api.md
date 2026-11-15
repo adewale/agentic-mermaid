@@ -522,6 +522,61 @@ It does not establish visual perfection, complete semantic correctness or
 portable, lossless canonical export. Check task-specific facts and review the
 artifact when appearance matters. See [verification scope](./agent-mutation-policy.md).
 
+### Untrusted input and deadlines
+
+Render, verify and layout calls are synchronous. The [graph work
+budgets](../SECURITY.md#graph-work-budgets) bound a diagram's size, not its
+running time: a few hundred bytes of densely connected Mermaid can lay out for
+over a minute. When the source is untrusted, render in a worker you can
+terminate and treat the deadline as an abort, never as a reason to accept a
+partial result. Layout stays deterministic; a deadline only decides whether
+you wait for it.
+
+```js
+// render-worker.mjs
+import { parentPort, workerData } from 'node:worker_threads'
+import { renderMermaidSVG } from 'agentic-mermaid'
+
+try {
+  parentPort.postMessage({ ok: true, svg: renderMermaidSVG(workerData.source, { security: 'strict' }) })
+} catch (error) {
+  parentPort.postMessage({ ok: false, code: error.code ?? 'RENDER_FAILED', message: String(error.message ?? error) })
+}
+```
+
+```js
+// render-with-deadline.mjs
+import { Worker } from 'node:worker_threads'
+
+export function renderWithDeadline(source, timeoutMs = 10_000) {
+  const worker = new Worker(new URL('./render-worker.mjs', import.meta.url), {
+    workerData: { source },
+    resourceLimits: { maxOldGenerationSizeMb: 512 },
+  })
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      void worker.terminate() // stops synchronous layout mid-run
+      reject(Object.assign(new Error(`render exceeded ${timeoutMs} ms`), { code: 'RENDER_TIMEOUT' }))
+    }, timeoutMs)
+    worker.once('message', result => {
+      clearTimeout(timer)
+      void worker.terminate()
+      if (result.ok) resolve(result.svg)
+      else reject(Object.assign(new Error(result.message), { code: result.code }))
+    })
+    worker.once('error', error => { clearTimeout(timer); reject(error) })
+  })
+}
+```
+
+The same code runs under Bun. A worker per call pays the library's start-up
+each time; a long-lived service keeps one warm worker and replaces it only when
+a deadline fires, as the local MCP server does. Use a child process instead
+when native PNG memory must be bounded too. In browsers, use a
+[terminable Worker](./browser.md#untrusted-input-in-a-worker). The CLI
+(`--timeout`) and both MCP servers already apply deadlines; SECURITY.md
+[lists them](../SECURITY.md#time-bounds).
+
 ## Advanced use
 
 Use the [advanced reference](./api-advanced.md) for receipts, host-selected

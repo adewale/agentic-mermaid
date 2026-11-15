@@ -27,6 +27,10 @@ import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-la
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { denseLabelSeats } from '../layout/label-seat-search.ts'
+import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { parseC4Diagram } from '../c4/parser.ts'
+import { layoutC4Diagram } from '../c4/layout.ts'
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -368,6 +372,30 @@ describe('route proposal crossing consistency', () => {
     applyRouteContracts({ nodes, edges, groups: [] }, parseMermaid('flowchart LR\nA-->B\nC-->D'), new Set(), resolveRenderStyle())
     expect(countEdgeCrossings(edges)).toBe(0)
     expect(edges.map(e => [e.source, e.target])).toEqual([['A', 'B'], ['C', 'D']])
+  })
+})
+
+describe('dense label seat search', () => {
+  // The remembering search must seat every label exactly where the reference
+  // search does. Piling labels makes most seats collide, so each sweep slides,
+  // pairs and fails searches and a stale fact would move some label.
+  const systems = (n: number) => ['C4Context', ...Array.from({ length: n }, (_, i) => `  System(s${i}, "System ${i}")`),
+    ...Array.from({ length: n }, (_, i) => Array.from({ length: n - 1 - i }, (_, k) => `  Rel(s${i}, s${i + k + 1}, "Uses")`)).flat()].join('\n')
+  const nested = ['C4Container', '  Person(user, "User")', '  System_Boundary(shop, "Shop") {', '    Container(web, "Web", "TS")', '    Container_Boundary(core, "Core") {',
+    '      Container(api, "API", "Go")', '      ContainerDb(db, "Orders", "SQL")', '    }', '  }',
+    '  Rel(user, web, "Browses")', '  Rel(web, api, "Calls")', '  Rel(api, web, "Notifies")', '  Rel(api, db, "Reads")', '  Rel(api, db, "Writes")', '  Rel(user, api, "Scripts")', '  BiRel(web, db, "Caches")'].join('\n')
+  it.each([['complete 9', 'their midpoints', systems(9)], ['complete 9', 'one point', systems(9)], ['nested boundaries', 'one point', nested]] as const)('%s with labels piled at %s', (_, pile, source) => {
+    const laid = layoutC4Diagram(parseC4Diagram(source)), style = resolveRenderStyle()
+    const first = calculatePathMidpoint(laid.edges[0]!.points)
+    for (const edge of laid.edges) edge.labelPosition = pile === 'their midpoints' ? calculatePathMidpoint(edge.points) : { ...first }
+    const seat = (seats?: typeof denseLabelSeats) => {
+      const positioned = structuredClone({ nodes: laid.nodes, edges: laid.edges, groups: laid.groups })
+      separateEdgeLabelPills(positioned, parseMermaid('flowchart LR\nA --> B'), style, seats && { seats })
+      return positioned.edges.map(edge => edge.labelPosition)
+    }
+    const reference = seat()
+    expect(reference).not.toEqual(laid.edges.map(edge => edge.labelPosition))
+    expect(seat(denseLabelSeats)).toEqual(reference)
   })
 })
 

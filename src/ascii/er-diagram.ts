@@ -12,19 +12,28 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { terminalIds } from './identity.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, boxFaceSizes, type BusChoice, paintClassLikeCard, paintBoxBus, paintBoxBusText, paintBoxRoute, paintBoxText, renderWithBuses, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
 
 interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[][] }
 const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.join(',') : '   '} ${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
 
-/** Family-owned crow's-foot projection, measured along the port's normal. */
-function cardinalityMarkers(card: Cardinality, port: BoxPort, ascii: boolean): TerminalMarker[] {
+/** Family-owned crow's-foot projection, measured along the port's normal. A
+ * bus member's circle runs along that normal too, as its connected route does. */
+function cardinalityMarkers(card: Cardinality, port: BoxPort, ascii: boolean, connected: boolean): TerminalMarker[] {
   if (card === 'parent') return [{ shape: 'hollow-diamond', direction: port.side, ascii }]
   const marker: TerminalMarker = { shape: card === 'one' || card === 'zero-one' ? 'cardinality-one' : 'cardinality-many', direction: port.side, ascii }
-  return card === 'zero-one' || card === 'zero-many' ? [marker, { shape: 'circle', ascii }] : [marker]
+  return card === 'zero-one' || card === 'zero-many' ? [marker, { shape: 'circle', ascii, ...(connected ? { direction: port.side } : {}) }] : [marker]
 }
 
 export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): TerminalArtifact {
+  // A complete-bipartite block of alike relationships (one label, both
+  // cardinalities and line style) draws as a bus when routing relation by
+  // relation cannot finish. Buses place each block's sides in facing ranks,
+  // which grouped entities do not allow.
+  return renderWithBuses(choose => renderErCells(text, config, colorMode, theme, targetWidth, choose), 12)
+}
+
+function renderErCells(text: string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, targetWidth: number | undefined, choose: BusChoice): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const diagram = parseErDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
@@ -46,7 +55,11 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   relations.forEach((relation, index) => {
     if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
   })
-  const faceSizes = boxFaceSizes(relations, direction)
+  const buses = diagram.groups.length ? [] : choose(() => bipartiteBuses(relations, (relation, index) => {
+    const rel = diagram.relationships[index]!
+    return JSON.stringify([relation.lines ?? [], rel.cardinality1, rel.cardinality2, rel.identifying])
+  }))
+  const faceSizes = boxFaceSizes(relations, direction, undefined, buses)
   const sections = new Map(diagram.entities.map(entity => {
     const header = wrapText(displayText(resolveLabelContent(entity.label, entity.labelContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined)
     const attributes = entity.attributes.flatMap(attr => wrapText(attributeText(attr), targetWidth ? Math.max(1, targetWidth - 8) : undefined))
@@ -67,20 +80,54 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     for (let index = 0; index < queue.length; index++) for (const next of adjacency.get(queue[index]!) ?? []) if (!seen.has(next)) { seen.add(next); queue.push(next) }
     const members = new Set(queue); components.push(diagram.entities.filter(item => members.has(item.id)).map(item => item.id))
   }
+  // With buses, each component's entities take ranks along the flow: an
+  // entity without a parent relationship first, each other after its parents.
+  const rank = new Map<string, number>()
+  if (buses.length) {
+    const queue = diagram.entities.filter(entity => !relations.some(rel => rel.to === entity.id && rel.from !== entity.id)).map(entity => entity.id)
+    queue.forEach(id => rank.set(id, 0))
+    for (let index = 0; index < queue.length; index++)
+      for (const rel of relations) {
+        const next = rank.get(queue[index]!)! + 1
+        if (rel.from !== queue[index] || rel.to === rel.from || next >= diagram.entities.length || (rank.get(rel.to) ?? -1) >= next) continue
+        rank.set(rel.to, next)
+        queue.push(rel.to)
+      }
+    for (const entity of diagram.entities) if (!rank.has(entity.id)) rank.set(entity.id, 0)
+  }
   const placed = new Map<string, PlacedEntity>(), byId = new Map(diagram.entities.map(entity => [entity.id, entity]))
   const labelWidth = Math.max(0, ...relations.flatMap(rel => rel.lines ?? []).map(visualWidth)), labelHeight = Math.max(0, ...relations.map(rel => rel.lines?.length ?? 0))
-  const horizontalGap = Math.max(8, labelWidth + 4), verticalGap = Math.max(8, labelHeight + 6)
+  // Routing may widen every gap and the outer margin by `channel` cells when a corridor fills.
+  let channel = 0
   interface GroupFrame extends TerminalBox { children: Array<PlacedEntity | GroupFrame>; labelLines: string[]; parentId?: string; members: string[] }
   let groupFrames: GroupFrame[] = []
   const allocateEntities = () => {
   placed.clear()
-  let componentCross = 4
+  const horizontalGap = Math.max(8, labelWidth + 4) + channel, verticalGap = Math.max(8, labelHeight + 6) + channel
+  const margin = 4 + channel
+  let componentCross = margin
   for (const component of components) {
+    if (buses.length) {
+      let axis = margin, componentEnd = componentCross
+      for (let level = 0; component.some(id => rank.get(id)! >= level); level++) {
+        let cross = componentCross, extent = 0
+        for (const id of component.filter(item => rank.get(item) === level)) {
+          const entity = byId.get(id)!, size = sizes.get(id)!
+          placed.set(id, { id, entity, sections: sections.get(id)!, ...size, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
+          cross += (horizontal ? size.height + verticalGap : size.width + horizontalGap)
+          extent = Math.max(extent, horizontal ? size.width : size.height)
+          componentEnd = Math.max(componentEnd, cross)
+        }
+        axis += extent + (horizontal ? horizontalGap : verticalGap)
+      }
+      componentCross = componentEnd
+      continue
+    }
     const perRow = Math.max(2, Math.ceil(Math.sqrt(component.length)))
-    let axis = 4, cross = componentCross, rowCount = 0, rowExtent = 0, componentEnd = componentCross
+    let axis = margin, cross = componentCross, rowCount = 0, rowExtent = 0, componentEnd = componentCross
     for (const id of component) {
       const entity = byId.get(id)!, size = sizes.get(id)!
-      if (rowCount >= perRow) { cross += rowExtent + (horizontal ? verticalGap : horizontalGap); axis = 4; rowCount = 0; rowExtent = 0 }
+      if (rowCount >= perRow) { cross += rowExtent + (horizontal ? verticalGap : horizontalGap); axis = margin; rowCount = 0; rowExtent = 0 }
       placed.set(id, { id, entity, sections: sections.get(id)!, ...size, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
       axis += (horizontal ? size.width : size.height) + (horizontal ? horizontalGap : verticalGap)
       rowExtent = Math.max(rowExtent, horizontal ? size.height : size.width)
@@ -97,7 +144,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     }
     const build = (id: string): GroupFrame => {
       const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(resolveLabelContent(group.label, group.labelContent))
-      const frameClearance = 4, headerHeight = labelLines.length + 1
+      const frameClearance = 4 + channel, headerHeight = labelLines.length + 1
       const children: Array<PlacedEntity | GroupFrame> = [
         ...diagram.entities.filter(entity => entity.groupId === id).map(entity => placed.get(entity.id)!),
         ...diagram.groups.filter(item => item.parentId === id).map(item => build(item.id)),
@@ -108,7 +155,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
       for (const child of ordered) {
         const x = alongX ? axis : frameClearance, y = alongX ? headerHeight + frameClearance : axis
         move(child, x - child.x, y - child.y)
-        axis += (alongX ? child.width : child.height) + 8
+        axis += (alongX ? child.width : child.height) + 8 + channel
       }
       const size = faceSizes.get(id)
       const frame: GroupFrame = {
@@ -124,16 +171,20 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
       ...diagram.entities.filter(entity => !entity.groupId).map(entity => placed.get(entity.id)!),
     ]
     const ordered = direction === 'RL' || direction === 'BT' ? [...roots].reverse() : roots
-    let axis = 4
+    let axis = margin
     for (const item of ordered) {
-      const x = horizontal ? axis : 4, y = horizontal ? 4 : axis
-      move(item, x - item.x, y - item.y); axis += (horizontal ? item.width : item.height) + 8
+      const x = horizontal ? axis : margin, y = horizontal ? margin : axis
+      move(item, x - item.x, y - item.y); axis += (horizontal ? item.width : item.height) + 8 + channel
     }
+    // Routes cross a group's header band like its other borders, around its label.
+    for (const frame of groupFrames) frame.headerLabel = { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.labelLines.map(visualWidth)) + 2, height: frame.labelLines.length }
   }
   }
+  const routes = allocateChannelledBoxRoutes(next => {
+  channel = next
   allocateEntities()
   for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
-    const demand = boxFaceSizes(relations, direction, [...placed.values(), ...groupFrames])
+    const demand = boxFaceSizes(relations, direction, [...placed.values(), ...groupFrames], buses)
     let changed = false
     for (const [id, size] of demand) {
       const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
@@ -144,23 +195,35 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     if (!changed) break
     allocateEntities()
   }
-  const routes = allocateBoxRoutes([...placed.values(), ...groupFrames], relations, direction), doc = new TerminalDocument()
+  return { boxes: [...placed.values(), ...groupFrames] }
+  }, relations, direction, { buses }), doc = new TerminalDocument()
   for (const group of [...groupFrames].reverse()) {
     const owner = doc.element({ id: group.id, kind: 'cluster', parent: group.parentId === undefined ? undefined : { id: group.parentId, kind: 'cluster' }, members: group.members })
     paintTerminalFrame(doc, group, owner, config.useAscii)
     doc.scope(owner, () => group.labelLines.forEach((line, row) => doc.text(group.x + 2, group.y + row, line)))
   }
-  for (const route of routes) {
-    const rel = relationshipById.get(route.relation.id)!
-    const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 })
-    paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
+  // A bus's members are painted together, at its first member, each keeping
+  // its own connected route through the shared ink.
+  const busOf = new Map(buses.flatMap(bus => bus.members.map(index => [index, bus] as const)))
+  const owners = routes.map((route, index) => {
+    const rel = relationshipById.get(route.relation.id)!, bus = busOf.get(index)
+    return doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2, ...(bus ? { route: 'connected' as const, bundle: bus.id } : {}) })
+  })
+  for (const [index, route] of routes.entries()) {
+    const rel = relationshipById.get(route.relation.id)!, owner = owners[index]!, bus = busOf.get(index)
+    if (!bus) paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
+    else if (bus.members[0] === index) {
+      const members = bus.members.map(member => routes[member]!)
+      paintBoxBus(doc, members, bus.members.map(member => owners[member]!), config.useAscii, !rel.identifying)
+      paintBoxBusText(doc, members, member => owners[bus.members[member]!]!)
+    }
     for (const [end, port, card] of [['start', route.source, rel.cardinality1], ['end', route.target, rel.cardinality2]] as const) {
       const dx = port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0, dy = port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0
-      const markers = cardinalityMarkers(card, port, config.useAscii)
+      const markers = cardinalityMarkers(card, port, config.useAscii, !!bus)
       doc.expectMarkers(owner, end, markers)
       markers.forEach((marker, index) => doc.marker(port.x + dx * index, port.y + dy * index, marker, { owner, role: 'arrow' }))
     }
-    paintBoxText(doc, route.label, owner)
+    if (!bus) paintBoxText(doc, route.label, owner)
   }
   for (const box of placed.values()) {
     const owner = doc.element({ id: box.id, kind: 'node', parent: box.entity.groupId === undefined ? undefined : { id: box.entity.groupId, kind: 'cluster' } })

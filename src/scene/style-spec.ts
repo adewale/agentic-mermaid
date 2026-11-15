@@ -698,8 +698,10 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
   const compactConstraintUnion = BRAND_CONSTRAINT_KINDS.map(kind => constraintTypeScript(kind, true)).join('|')
   const constraintUnion = BRAND_CONSTRAINT_KINDS.map(kind => `  | ${constraintTypeScript(kind, false)}`).join('\n')
   if (options.compact) {
+    // Identifier keys need no quotes; the compact form drops them.
+    const key = (name: string) => /^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name)
     const compactRole = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)
-      .map(name => `${JSON.stringify(name)}?:${rolePropertyTypeScript(name)}`).join(';')
+      .map(name => `${key(name)}?:${rolePropertyTypeScript(name)}`).join(';')
     const propertyGroups = new Map<string, string[]>()
     for (const descriptor of EXACT_SCENE_ROLE_DESCRIPTORS) {
       const signature = [...descriptor.style.applicableProperties].sort().join('|')
@@ -711,7 +713,7 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
       return `R extends ${match}?${properties}:`
     }).join('')
     const compactStyle = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
-      .map(([name, descriptor]) => `${JSON.stringify(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
+      .map(([name, descriptor]) => `${key(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
     const compactColors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `${token}?:string`).join(';')
     return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${sceneRoleUnion}\ntype ExactSceneStyleRole=${exactSceneRoleUnion}\ntype BindableSceneStyleRole=${bindableSceneRoleUnion}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyleFor<R extends ExactSceneStyleRole>=${roleStyleCases}never\ntype RoleStyles={[R in ExactSceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:BindableSceneStyleRole}\ntype BrandConstraint=${compactConstraintUnion}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
   }

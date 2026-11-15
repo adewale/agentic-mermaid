@@ -140,7 +140,7 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     }
   })
 
-  test('opaque note between packed messages survives agent serialization', () => {
+  test('a note between packed messages survives agent serialization', () => {
     const source = 'sequenceDiagram; A->>B: first; Note right of B: keep this; B-->>A: second;'
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
@@ -148,7 +148,7 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     const sequence = asSequence(parsed.value)
     expect(sequence).not.toBeNull()
     if (!sequence) return
-    expect(sequence.body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block', 'message'])
+    expect(sequence.body.statements.map(statement => statement.kind)).toEqual(['message', 'note', 'message'])
     const serialized = serializeMermaid(sequence)
     expect(serialized).toContain('Note right of B: keep this')
     const native = parseSequenceDiagram(serialized.trimEnd().split('\n').map(line => line.trim()))

@@ -73,7 +73,7 @@ import { parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
 import { parseSequenceBody, renderSequence } from './sequence-body.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { parseStateBody, renderState, verifyOpaqueState, verifyState } from './state-body.ts'
-import { matchFloatingNote } from '../state/parse-core.ts'
+import { matchFloatingNote, STATE_DESCRIPTION_RE } from '../state/parse-core.ts'
 import { parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, PieBody, QuadrantBody, RadarBody, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
@@ -178,8 +178,8 @@ function extractStateLabels(source: string): ExtractedLabel[] {
     } else if (raw.includes('-->') && raw.includes(':')) {
       const colon = raw.indexOf(':')
       out.push({ text: raw.slice(colon + 1).trim(), target })
-    } else if ((m = raw.match(/^[\w\p{L}\p{M}\p{N}-]+\s*:\s*(.+)$/u))) {
-      out.push({ text: m[1]!.trim(), target })
+    } else if ((m = raw.match(STATE_DESCRIPTION_RE))) {
+      out.push({ text: m[2]!.trim(), target })
     } else if ((m = raw.match(/^note\s+(?:left of|right of)\s+\S+\s*:\s*(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target })
     }

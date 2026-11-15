@@ -5,7 +5,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA, getFamily, getFamilyConformanceReport, knownBuiltinFamilies, knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { buildCapabilities, MUTATION_OPS_BY_FAMILY, runCli } from '../cli/index.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 import { CLI_RENDER_FORMATS } from '../render-contract.ts'
 
 describe('am capabilities', () => {
@@ -204,5 +205,47 @@ describe('family examples', () => {
       expect(verifyMermaid(reparsed.value).warnings).toEqual([])
       expect(renderMermaidSVG(canonical).length).toBeGreaterThan(100)
     }
+  })
+})
+
+describe('am capabilities views', () => {
+  const run = (...flags: string[]) => captureCli(() => runCli(['capabilities', ...flags]))
+  const full = JSON.parse(run().out) as ReturnType<typeof buildCapabilities>
+
+  it('--summary indexes every family of the full output with its own routing fields', () => {
+    const result = run('--summary')
+    expect(result.code).toBe(0)
+    const index = JSON.parse(result.out)
+    expect(index.view).toBe('summary')
+    expect(index.sdkVersion).toBe(full.sdkVersion)
+    expect(index.families.map((family: { id: string }) => family.id)).toEqual(full.families.map(family => family.id))
+    for (const [position, entry] of (index.families as Array<Record<string, unknown>>).entries()) {
+      const source = full.families[position]!
+      expect(entry).toEqual(JSON.parse(JSON.stringify({ id: source.id, editPolicy: source.editPolicy, narrower: source.narrower, headers: source.headers, mutationOps: source.mutationOps })))
+    }
+    expect(index.warningCodes).toEqual(full.warningCodes.map(warning => warning.code))
+    expect(index.outputFormats).toEqual(full.outputFormats)
+    expect(result.out.length * 8).toBeLessThan(JSON.stringify(full).length)
+  })
+
+  it('--family keeps the full entries of the named families, in the order given', () => {
+    const result = run('--family', 'railroad,flowchart')
+    expect(result.code).toBe(0)
+    const narrowed = JSON.parse(result.out) as typeof full
+    expect(narrowed.families).toEqual([full.families.find(f => f.id === 'railroad')!, full.families.find(f => f.id === 'flowchart')!])
+    const { families: _narrowed, ...rest } = narrowed
+    const { families: _all, ...fullRest } = full
+    expect(rest).toEqual(fullRest)
+    expect(JSON.parse(run('--summary', '--family', 'sequence').out).families.map((f: { id: string }) => f.id)).toEqual(['sequence'])
+  })
+
+  it('refuses an unknown family id, naming the valid ids, and conflicting views', () => {
+    const unknown = run('--family', 'flowchart,flowchrt')
+    expect(unknown.code).toBe(2)
+    expect(unknown.out).toBe('')
+    expect(unknown.err).toContain('"flowchrt"')
+    for (const family of full.families) expect(unknown.err).toContain(family.id)
+    expect(run('--summary', '--full').code).toBe(2)
+    expect(run('--full').out).toBe(run().out)
   })
 })

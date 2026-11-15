@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
@@ -694,6 +695,17 @@ describe('runPipeline invariant enforcement', () => {
     } })
     expect(reads).toEqual(['symErr', 'bends'])
     expect(requested).toEqual([['symErr', 'bends'], ['symErr', 'bends']])
+  })
+
+  test('a provider suspended during measurement escapes for the async entry to replay', () => {
+    // The lazy browser build's indexed crossing counter first suspends inside
+    // a pass budget measurement; a contract failure would end the render.
+    const suspended = new DeferredDependencyError('Indexed crossings', async () => {})
+    const pass = mkPass({ id: 'suspended-measurement', mayChangeMetrics: { crossings: 'improve-only' } })
+    let failure: unknown
+    try { runPipeline({ frozen: false, nodes: [], log: [] }, [pass], { measureMetrics: () => { throw suspended } }) } catch (error) { failure = error }
+    expect(failure).toBe(suspended)
+    expect(() => runPipeline({ frozen: false, nodes: [], log: [] }, [pass], { measureMetrics: () => { throw new Error('broken') } })).toThrow(LayoutPassContractError)
   })
 
   test('requested arrays belong to one run even if custom measurement mutates them', () => {

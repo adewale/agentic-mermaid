@@ -1,0 +1,15 @@
+flowchart TB
+  CL["Client — SQL"]:::ext
+  M["Master / Coordinator<br/>Catalog (metadata) · no user data"]:::q
+  subgraph SEGS["Segments — shared-nothing; the user data lives here"]
+    direction LR
+    S0["Segment 0<br/>Catalog + data shard"]:::s
+    S1["Segment 1<br/>Catalog + data shard"]:::s
+  end
+  CL ==>|"connect"| M
+  M ---|"Interconnect"| SEGS
+  ROWS["table rows · DISTRIBUTED BY (key)"]:::ext -.->|"cdbhash(key) → one segment"| SEGS
+  classDef ext fill:#ffffff,stroke:#1f2328,color:#1f2328
+  classDef q fill:#ddf4ff,stroke:#0969da,color:#0a3069
+  classDef s fill:#dafbe1,stroke:#1a7f37,color:#04260f
+  style SEGS fill:#f3fbf5,stroke:#1a7f37

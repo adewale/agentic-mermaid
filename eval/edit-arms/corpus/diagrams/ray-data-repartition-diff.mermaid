@@ -1,0 +1,19 @@
+flowchart TD
+    subgraph Before
+        subgraph BS[Subsystem: execution]
+            subgraph BC[Component: streaming executor]
+                B1[MapBatches] --> B2[Write]
+            end
+        end
+    end
+    subgraph After
+        subgraph AS[Subsystem: execution]
+            subgraph AC[Component: streaming executor]
+                A1[MapBatches] --> A3[StreamingRepartition] --> A2[Write]
+            end
+        end
+    end
+    classDef removed fill:#ffcdd2,stroke:#c62828,color:#000
+    classDef added fill:#c8e6c9,stroke:#2e7d32,color:#000
+    classDef changed fill:#fff9c4,stroke:#f9a825,color:#000
+    class A3 added

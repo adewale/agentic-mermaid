@@ -28,9 +28,18 @@ source/code field, allows batches of up to
 20 items, and currently permits at most one `execute` per batch
 (`website/src/mcp-handler.ts`). `execute` invokes a Dynamic Worker with a
 caller-controlled `timeoutMs` capped at 30s, no subrequests, no bindings, and
-no outbound network. Direct tools run in the website Worker; `render_svg`,
-`render_png`, `mutate`, and `build` are still meaningful CPU/memory work and
-must not be treated as free.
+no outbound network. The direct tools that lay out a diagram (`render_svg`,
+`render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`) lay
+out inline in the main Worker unless the diagram's pre-layout cost estimate
+reaches a layout-cost threshold (`hostedToolNeedsIsolate` in
+`src/mcp/hosted-tool-runtime.ts`, the same estimate that relaxes ELK's
+options). A heavy call lays out in one per-deploy Dynamic Worker with a 10s
+`cpuMs` limit; every other call costs what it did before the isolate: no
+extra Dynamic Worker request. The calls of one HTTP request run one at a time
+against a shared 30s allowance, charged by elapsed wall time
+(`HOSTED_TOOL_CPU_MS` and `HOSTED_REQUEST_CPU_MS`). An isolate overrun is a
+`RENDER_TIMEOUT` tool result and is never cached; an inline call is bounded
+by the Worker's 30s per-request CPU limit. Neither is free.
 
 Dynamic Workers are billed on three relevant dimensions: requests, CPU time
 (including startup time), and unique Dynamic Workers created per day. The
@@ -59,6 +68,24 @@ Local `node:vm` sandbox benchmarks (semantic twin of the hosted isolate,
 | parse + verify + serialize, 300-node flowchart | 21.0 KiB | ~3.1s |
 | 1,200-message sequence diagram | 54.6 KiB | ~0.07s |
 | 200 sequential `mutate` calls on a 300-node base | — | >120s |
+
+Direct-tool cost does **not** follow payload size. Layout cost depends on the
+graph's shape, and small, valid, densely connected inputs inside the 5,000
+node/edge work budgets are the expensive ones (in-process on one x86-64 core,
+2026-11-13):
+
+| Workload | Input size | Time |
+|---|---:|---:|
+| `a0 & … & a29 --> b0 & … & b29` (900 edges) | 352 B | ~7s |
+| the same, 50 × 50 (2,500 edges) | 592 B | ~74s |
+| complete DAG on 30 nodes (435 edges) | 4.9 KiB | ~72s |
+| 150-node chain plus 150 long links | 3.7 KiB | ~24s |
+| `stateDiagram` 30 × 30 transitions | 10.0 KiB | ~43s |
+
+A 592-byte request therefore costs as much as the largest legitimate 64 KiB
+one. Size caps, rate limits and the cache (which varied input bypasses) cannot
+bound it; only a per-call CPU limit can, which is why the direct tools now lay
+out in a CPU-limited isolate rather than in the parent Worker.
 
 These measurements justify a 30s maximum for legitimate large `execute`
 work. They do not establish production Dynamic Worker startup cost, edge CPU
@@ -112,7 +139,12 @@ telemetry, or cross-region consistency dependency.
 and [Workers rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/)
 (fetched 2026-07-10).
 
-### 2. Payload-proportional default CPU limits; explicit long-run admission
+### 2. Payload-proportional default CPU limits for `execute`; explicit long-run admission
+
+This control applies to `execute` only. Code Mode's cost plausibly grows with
+the code it is given; direct-tool layout cost does not (see measured ground
+truth), so the direct tools keep the flat per-call limit and per-request
+allowance described in the baseline rather than a payload-derived one.
 
 **Design.** Use the UTF-8 byte length of the `code` argument, not request-body
 size, to derive the default:
@@ -176,8 +208,9 @@ game-day evidence, not facts the Worker can infer.
 
 `MAX_EXECUTE_ITEMS_PER_BATCH` stays 1. Add `MAX_RENDER_PNG_ITEMS_PER_BATCH =
 1`, and dispatch the remaining admitted work through a small explicit
-concurrency limit (initially 2). This replaces the current unbounded batch
-`Promise.all` while preserving response order.
+concurrency limit (initially 2). The batch `Promise.all` remains, but the
+layout calls it dispatches already run one at a time against the request's
+CPU allowance, so a batch of direct tools costs at most 30s of CPU.
 
 **Failure response and telemetry.** Return 429 with `Retry-After` and the
 local fallback hint; record `outcome: "rate_limited"`, bucket name, and item

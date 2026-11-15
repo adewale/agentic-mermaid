@@ -1233,6 +1233,15 @@ export function renderContractDigest(value: unknown): string {
   return canonicalTextDigest(canonicalJson(admitRenderContractDigestInput(value)))
 }
 
+/** Digest of evidence this process built from frozen plain values, such as a
+ * receipt section projected from an already validated scene. The request-data
+ * admission above guards caller-supplied graphs (accessors, cycles, hostile
+ * size); applying its node bound here refused receipts for diagrams that the
+ * renderer accepts and draws. Internal only. */
+export function producedRenderContractDigest(value: unknown): string {
+  return canonicalTextDigest(canonicalJson(value))
+}
+
 /** Capture and admit now, but serialize and hash only if evidence is consumed.
  * The closure never reads caller-owned data or mutable registries. Releasing
  * the captured graph after hashing also avoids retaining duplicate snapshots

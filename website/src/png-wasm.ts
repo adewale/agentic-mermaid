@@ -42,6 +42,7 @@ import {
 import { finalizePngRasterSvg, renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
 import { hostedFontResource } from '../../src/font-manifest.ts'
 import { verifyResourceBytes } from '../../src/resource-manifest.ts'
+import type { HostedPngProjector } from '../../src/mcp/hosted-server.ts'
 
 let ready: Promise<void> | undefined
 
@@ -67,7 +68,9 @@ async function initializeRasterResources(): Promise<void> {
   })
 }
 
-export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}): Promise<PngRasterResult> {
+/** `project` is the layout step; the Worker runs it in a CPU-bounded isolate
+ * and rasterizes here, where the wasm module and fonts live. */
+export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}, project?: HostedPngProjector): Promise<PngRasterResult> {
   // Integrity checks and initWasm each run once per isolate.
   ready ??= initializeRasterResources()
   await ready.catch((error: unknown) => {
@@ -75,7 +78,7 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
   })
   const outputOptions = projectPortablePngOutputOptions(opts as Readonly<Record<string, unknown>>)
   const renderOptions = omitPngOutputOptions(opts as Readonly<Record<string, unknown>>) as RenderOptions
-  const graphical = renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
+  const graphical = project ? await project(source, renderOptions, outputOptions) : renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
   assertHostedPngRasterBudget(graphical.rasterDimensions)
   const outputPolicy = graphical.outputPolicy
   const svg = finalizePngRasterSvg(

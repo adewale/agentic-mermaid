@@ -7,6 +7,7 @@ import { handleRequest } from '../mcp/server.ts'
 import { runSourceToolIsolated, SourceToolExecutor, type RenderProcess } from '../mcp/source-worker-client.ts'
 import { sourceToolMessage, SourceToolMessageLimitError, type SourceToolRequest } from '../mcp/source-tool-message.ts'
 import { SourceRenderProcess } from '../mcp/source-render-process.ts'
+import { SOURCE_TOOL_RESULT_BYTES } from '../mcp/source-worker-limits.ts'
 
 const temp = useTempDirs('am-source-tools-')
 
@@ -104,7 +105,7 @@ parentPort.postMessage({type:'ready'});`)
   }, 10_000)
 
   test('supervisor rejects an oversized worker reply before forwarding it', async () => {
-    const worker = workerFixture(`parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:'x'.repeat(16*1024*1024+1)}));parentPort.postMessage({type:'ready'});`)
+    const worker = workerFixture(`parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:'x'.repeat(${SOURCE_TOOL_RESULT_BYTES}+1)}));parentPort.postMessage({type:'ready'});`)
     const renderer = new SourceRenderProcess({ worker })
     const closed = rendererExit(renderer)
     let forwarded = false
@@ -192,6 +193,7 @@ parentPort.postMessage({type:'ready'});`)
   test('renders SVG and terminal text with structured receipts', async () => {
     const source = '---\ntitle: Greeting\n---\nsequenceDiagram\nA->>B: Hello'
     const svg = await call('render_svg', { source })
+    const { svg: fullSvg, receipt: fullReceipt } = structuredClone(svg.structuredContent)
     expect(svg.isError).toBe(false)
     expect(svg.structuredContent).toMatchObject({ ok: true, svg: expect.stringContaining('<svg'), receipt: { output: 'svg' } })
     const ascii = await call('render_ascii', { source, useAscii: true })
@@ -199,6 +201,10 @@ parentPort.postMessage({type:'ready'});`)
     expect(ascii.isError).toBe(false)
     expect(ascii.structuredContent).toMatchObject({ ok: true, text: expect.stringContaining('Hello'), receipt: { output: 'ascii' } })
     expect(text).not.toMatch(/[┌─│]/)
+    // The isolated renderer applies the requested receipt view.
+    const summary = await call('render_svg', { source, receipt: 'summary' })
+    expect(summary.structuredContent.receipt).toEqual(expect.objectContaining({ view: 'summary', requestDigest: fullReceipt.requestDigest }))
+    expect(summary.structuredContent.svg).toBe(fullSvg)
   }, 30_000)
 
   test('verifies valid source and rejects ambiguous malformed edges', async () => {
@@ -255,6 +261,30 @@ parentPort.postMessage({type:'ready'});`)
     expect(await expired).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
     expect(await active).toMatchObject({ ok: true, svg: expect.stringContaining('<svg') })
   }, 30_000)
+
+  // A 4,000-node chain takes seconds to lay out in process. Every tool that
+  // lays out runs in the supervised renderer, so a short host deadline stops it
+  // promptly with the typed timeout and the next call is served normally.
+  const chain = Array.from({ length: 3_999 }, (_, index) => `n${index} --> n${index + 1}`)
+  test.each([
+    ['render_png', { source: `flowchart TD\n${chain.join('\n')}` }],
+    ['describe', { source: `flowchart TD\n${chain.join('\n')}` }],
+    ['mutate', { source: `flowchart TD\n${chain.join('\n')}`, ops: [{ kind: 'add_node', id: 'extra', label: 'Extra' }] }],
+    ['build', { family: 'flowchart', ops: Array.from({ length: 3_999 }, (_, index) => ({ kind: 'add_edge', from: `n${index}`, to: `n${index + 1}` })) }],
+  ])('%s is stopped at the renderer deadline', async (name, args) => {
+    const request = (id: number, params: Record<string, unknown>, renderTimeoutMs?: number) =>
+      handleRequest({ jsonrpc: '2.0', id, method: 'tools/call', params }, { renderTimeoutMs })
+    const payload = (response: Awaited<ReturnType<typeof request>>) => {
+      const result = response?.result as { isError: boolean; content: { text: string }[] }
+      return { isError: result.isError, ...JSON.parse(result.content[0]!.text) }
+    }
+    // Warm the renderer so the short deadline measures layout, not startup.
+    expect(payload(await request(1, { name: 'verify', arguments: { source: 'flowchart TD\nA-->B' } }))).toMatchObject({ ok: true })
+    const started = Date.now()
+    expect(payload(await request(2, { name, arguments: args }, 500))).toMatchObject({ isError: true, ok: false, error: { code: 'RENDER_TIMEOUT' } })
+    expect(Date.now() - started).toBeLessThan(3_000)
+    expect(payload(await request(3, { name: 'describe', arguments: { source: 'flowchart TD\nA-->B' } }))).toMatchObject({ ok: true })
+  }, 60_000)
 
   test('times out, cancels active work and then accepts a fresh request', async () => {
     expect(await runSourceToolIsolated('render_svg', { source: 'flowchart TD\nA-->B' }, { timeoutMs: 0 })).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })

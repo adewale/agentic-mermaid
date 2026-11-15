@@ -1,0 +1,18 @@
+graph LR
+    input_ir["CGC Input IR"]:::mlir
+    lowering_irs["CGC Lowering IRs"]:::mlir
+    output_ir["CGC Output IR"]:::mlir
+    compiler["DXCGC"]:::component
+
+    partition_ir["CGC Partition IR"]:::mlir
+    interpreter["DXCGC Runtime"]:::component
+    runtime["D3D12 Runtime"]:::component
+    driver["IHV Driver"]:::component
+
+    input_ir --> compiler --> output_ir
+    compiler <--> lowering_irs <--> runtime <--> driver
+
+    output_ir --> interpreter --> partition_ir --> runtime
+
+    classDef mlir fill:#ffff55, color:black;
+    classDef component fill:#ffffff, color:black;

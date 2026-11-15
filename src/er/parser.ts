@@ -37,10 +37,11 @@ const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|
 // A crow's-foot token needs no space to part it from a name (`id1||--||id2`);
 // a word or numeric alias does.
 const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{|\bu(?=[.\-|]))`
+// A label is the rest of its line, or one quoted string that runs across lines.
 const ER_RELATIONSHIP_RE = new RegExp(
   `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
   `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
-  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*([^\\r\\n]*))?$`,
+  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*([^\\r\\n]*|"[^"]*"))?$`,
   'i',
 )
 
@@ -147,7 +148,8 @@ export function recordErClassNames(byEntity: Map<string, string[]>, id: string, 
 //   ..  non-identifying (dashed line)
 // ============================================================================
 
-const ER_GROUP_HEADER_RE = new RegExp(String.raw`^subgraph\s+(${ER_QUOTED_NAME_SOURCE}|\S+?)(?:\s*\[([^\]]+)\])?$`, 'i')
+// A title is one line, or one quoted name that runs across lines.
+const ER_GROUP_HEADER_RE = new RegExp(String.raw`^subgraph\s+(${ER_QUOTED_NAME_SOURCE}|\S+?)(?:\s*\[([^\]\r\n]+|\s*"[^"]*[\r\n][^"]*"\s*)\])?$`, 'i')
 
 /** A subgraph header: its id as written, and its bracketed title as written. */
 export function parseErGroupHeader(line: string, report?: ErQuotedTextReport): { id: string; title?: string } | null {
@@ -616,13 +618,97 @@ interface ErFoundStatement {
   end: number
 }
 
+/** Where the quoted string `text` leaves open starts, or -1. Outside a block
+ * any `"` opens one, as in Mermaid's ER lexer; a backslash keeps the next
+ * character inside it, as readErQuotedName reads one. */
+function erOpenQuoteAt(text: string): number {
+  let open = -1
+  for (let index = 0; index < text.length; index++) {
+    if (open < 0) { if (text[index] === '"') open = index }
+    else if (text[index] === '\\') index++
+    else if (text[index] === '"') open = -1
+  }
+  return open
+}
+
+// The statements whose quoted names or label may run across lines.
+const ER_SPANNING_KINDS: ReadonlySet<string> = new Set(['entity', 'block-open', 'relation', 'group-open'])
+
+/**
+ * The statements outside a block from `at` on `line` when a quoted string
+ * there runs on to a later line, as Mermaid's ER lexer reads one (its WORD
+ * token, `"[^"]*"`): the statements, each with where it starts and ends, and
+ * the line and column the last one ends at, where reading resumes. A blank
+ * or `%%` line inside the string is no text, as Mermaid removes a `%%` line
+ * before lexing. Undefined unless a later line closes the string and an
+ * entity, relationship or subgraph statement takes all of it, the whole run
+ * reading: otherwise each line is read on its own, as before.
+ */
+function readErSpanningStatements(lines: readonly string[], line: number, at: number, stop: number, inGroup: boolean, report?: (what: string, portable: string, line: number) => void): {
+  statements: Array<{ syntax: ErStatementLine; line: number; start: number; endLine: number; end: number }>
+  endLine: number
+  end: number
+  continued: Array<[line: number, column: number]>
+} | undefined {
+  const open = erOpenQuoteAt(lines[line]!.slice(at, stop))
+  if (open < 0) return undefined
+  // Each part of the joined text: its line, and the column it starts at.
+  const parts: Array<{ line: number; from: number; text: string }> = [{ line, from: at, text: lines[line]!.slice(at, stop) }]
+  const continued: Array<[number, number]> = []
+  // The line the statements end on, once no string is left open.
+  let closed: number | undefined
+  for (let next = line + 1; next < lines.length && closed === undefined; next++) {
+    const raw = lines[next]!
+    if (raw.trim().startsWith('%%')) { parts.push({ line: next, from: 0, text: '' }); continue }
+    let index = 0
+    while (index < raw.length && raw[index] !== '"') index += raw[index] === '\\' ? 2 : 1
+    if (index >= raw.length) { parts.push({ line: next, from: 0, text: raw }); continued.push([next, raw.length]); continue }
+    continued.push([next, index + 1])
+    // The rest of the line may open another string (`E["a` then `b"] : "c`).
+    const after = raw.slice(index + 1)
+    const comment = trailingCommentStart(after)
+    const rest = comment < 0 ? after : after.slice(0, comment)
+    const reopened = erOpenQuoteAt(rest) >= 0
+    parts.push({ line: next, from: 0, text: raw.slice(0, index + 1) + (reopened ? rest : rest.trimEnd()) })
+    if (!reopened) closed = next
+  }
+  if (closed === undefined) return undefined
+  const starts: number[] = []
+  let length = 0
+  for (const part of parts) { starts.push(length); length += part.text.length + 1 }
+  const text = parts.map(part => part.text).join('\n')
+  const place = (offset: number): { line: number; column: number } => {
+    let index = starts.length - 1
+    while (index > 0 && starts[index]! > offset) index--
+    return { line: parts[index]!.line, column: parts[index]!.from + offset - starts[index]! }
+  }
+  const heard: Array<[string, string]> = []
+  let read: ReturnType<typeof readErOuterStatements>
+  try {
+    read = readErOuterStatements(text, inGroup, (what, portable) => heard.push([what, portable]))
+  } catch {
+    return undefined
+  }
+  if (read.some(statement => statement.syntax.kind === 'unknown')) return undefined
+  const spanning = read.find(statement => statement.start <= open && open < statement.end)
+  if (!spanning || !ER_SPANNING_KINDS.has(spanning.syntax.kind)) return undefined
+  if (report) for (const [what, portable] of heard) report(what, portable, line)
+  const statements = read.map(statement => {
+    const start = place(statement.start), end = place(statement.end)
+    return { syntax: statement.syntax as ErStatementLine, line: start.line, start: start.column, endLine: end.line, end: end.column }
+  })
+  const last = statements.at(-1)!
+  return { statements, endLine: last.endLine, end: last.end, continued }
+}
+
 /**
  * The statements of an ER body in source order. Mermaid's ER lexer treats a
  * line break as one more separator between statements, and as plain space
  * inside an attribute block, so one line may hold several statements
- * (`A B`, `Z { string id } Y`) and an attribute may run across lines. A block
- * line Mermaid's attribute grammar cannot read is read on its own as one
- * generous attribute (readGenerousErAttribute), or else is unknown.
+ * (`A B`, `Z { string id } Y`) and an attribute may run across lines, as may
+ * a quoted name or label (readErSpanningStatements). A block line Mermaid's
+ * attribute grammar cannot read is read on its own as one generous attribute
+ * (readGenerousErAttribute), or else is unknown.
  */
 function findErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void, continued?: Map<number, number>): ErFoundStatement[] {
   const found: ErFoundStatement[] = []
@@ -644,6 +730,9 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
       line: first.line, start: first.start, endLine: last.endLine ?? last.line, end: last.end,
     })
   }
+  // Where reading resumes on the line a quoted name or label that ran across
+  // lines ended on (readErSpanningStatements).
+  let resume: number | undefined
   for (let line = 0; line < lines.length; line++) {
     const raw = lines[line]!
     const text = raw.trim()
@@ -653,7 +742,10 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
     const pending: ErBlockToken[] = []
     let from = 0
     const comment = block?.comment
-    if (comment && text && !text.startsWith('%%')) {
+    if (resume !== undefined) {
+      from = resume
+      resume = undefined
+    } else if (comment && text && !text.startsWith('%%')) {
       const close = raw.indexOf('"')
       comment.parts.push((close < 0 ? raw : raw.slice(0, close)).trim())
       continued?.set(line, close < 0 ? raw.length : close + 1)
@@ -699,6 +791,19 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
         block = undefined
         at = skipSpace(runEnd + 1)
       } else {
+        const spanning = readErSpanningStatements(lines, line, at, stop, groupDepth > 0, report)
+        if (spanning) {
+          for (const statement of spanning.statements) {
+            found.push(statement)
+            if (statement.syntax.kind === 'group-open') groupDepth++
+            else if (statement.syntax.kind === 'end') groupDepth--
+            else if (statement.syntax.kind === 'block-open') block = {}
+          }
+          for (const [next, column] of spanning.continued) continued?.set(next, column)
+          resume = spanning.end
+          line = spanning.endLine - 1
+          break
+        }
         let statements: ReturnType<typeof readErOuterStatements>
         try { statements = readErOuterStatements(raw.slice(at, stop), groupDepth > 0,
           report ? (what, portable) => report(what, portable, line) : undefined) }
@@ -740,8 +845,9 @@ export function erStyleStatementLines(lines: readonly string[]): ReadonlySet<num
 export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): {
   statements: ErSourceStatement[]
   placement: ErPlacement
-  /** Each line a comment opened on an earlier line runs onto, and the column
-   * its text ends at there: after its closing quote, or the line's end. */
+  /** Each line a comment, quoted name or label opened on an earlier line
+   * runs onto, and the column its text ends at there: after its closing
+   * quote, or the line's end. */
   continuedComments: ReadonlyMap<number, number>
 } {
   const continuedComments = new Map<number, number>()

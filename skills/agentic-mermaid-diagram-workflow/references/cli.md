@@ -14,7 +14,8 @@ am mutate <file|-> --op JSON  one MutationOp → verify → new source
 am mutate <file|-> --ops JSON|file  many MutationOps → verify → new source
 am format <file|->            idempotent reformat
 am describe <file|->          prose summary, --format json AX tree, or --format facts semantic facts
-am capabilities --json        families, editPolicy, mutationOps, warning codes, formats
+am capabilities --summary     families, editPolicy, mutationOps, warning codes, formats
+am capabilities --family <id> one family's full entry: opFields, conformance, example
 am styles [--json]            registered styles, looks, and palette-only themes
 am batch --jsonl              JSONL stdin → JSONL envelopes (render/verify/parse/serialize/mutate)
 am render-markdown <file.md> [--ascii]  render fenced Mermaid blocks
@@ -25,7 +26,7 @@ am <cmd> --help               per-command help
 ```
 
 `am verify` always emits JSON. `am mutate` dispatches across the live mutable
-family roster reported by `am capabilities --json`; opaque fallback bodies
+family roster reported by `am capabilities --summary`; opaque fallback bodies
 return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before emitting source; verify
 failure exits 3 and omits `source`. A verify whose errors are all `INTERNAL_ERROR`
 (an Agentic Mermaid defect, not the diagram) exits 4 instead; report it with the source.
@@ -45,7 +46,12 @@ am mutate flow.mmd --op '{"kind":"rename_node","from":"X","to":"Y"}'
 am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
-Exit codes: 0 ok, 2 arg/parse/mutation error or a render the input refuses, 3 verify failed, 4 internal (an `INTERNAL_ERROR` render, or a verify whose errors are all `INTERNAL_ERROR`).
+Exit codes: 0 ok, 2 arg/parse/mutation error or a render the input refuses, 3 verify failed, 4 internal (an `INTERNAL_ERROR` render, or a verify whose errors are all `INTERNAL_ERROR`), 124 the command exceeded `--timeout` and was stopped (`RENDER_TIMEOUT`).
+
+Commands that lay out a diagram (`render`, `verify`, `mutate`, `describe`,
+`preview`, `render-markdown`) stop after 120 s by default; pass `--timeout
+<seconds>` to change it or `--timeout 0` for no limit. `--watch` and `batch` take
+no deadline.
 
 PNG emits `BELOW_READABLE_SIZE` when the smallest measurable configured text
 lands below `--min-label-px` after final raster sizing. The provisional default

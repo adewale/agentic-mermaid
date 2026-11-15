@@ -6,7 +6,7 @@ import { prepareCellText, type CellTextBlock } from './prepared-text.ts'
 import { getCorners } from './shapes/corners.ts'
 import { paintTerminalRoute } from './terminal-route.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
 import { placeC4Boxes, type C4Box } from '../c4/placement.ts'
 import { c4ElementText, c4BoundaryText, c4RelationshipText, c4SourceLine } from '../c4/projection.ts'
 import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4ConfigInput } from '../c4/config.ts'
@@ -52,7 +52,11 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
   const columns = options.compact && targetWidth && (direction === 'LR' || direction === 'RL')
     ? Math.max(1, Math.floor((targetWidth - margin * 2 + gapX) / (Math.max(1, ...[...sizes.values()].filter(box => !box.container).map(box => box.width)) + gapX))) : options.shapesPerRow
   const placementOptions = { gapX, gapY, padding, marginX: margin, marginY: margin + (titleBlock?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? (options.input.c4ShapeInRow === undefined ? Math.min(options.shapesPerRow, columns) : options.shapesPerRow), boundariesPerRow: body.layout.boundariesPerRow ?? options.boundariesPerRow, direction }
-  let placement = placeC4Boxes(body, sizes, placementOptions)
+  let placement!: ReturnType<typeof placeC4Boxes>
+  // Routing may widen every gap, boundary padding and margin by `channel` cells when a corridor fills.
+  const layout = (channel: number) => {
+  const spaced = { ...placementOptions, gapX: gapX + channel, gapY: gapY + channel, padding: padding + channel, marginX: placementOptions.marginX + channel, marginY: placementOptions.marginY + channel }
+  placement = placeC4Boxes(body, sizes, spaced)
   // Recount the actual faces after constrained placement. Distinct parallel
   // contacts are allocated before painting, including self and boundary edges.
   for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
@@ -63,9 +67,11 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
       if (width > size.width || height > size.height) { size.width = width; size.height = height; changed = true }
     }
     if (!changed) break
-    placement = placeC4Boxes(body, sizes, placementOptions)
+    placement = placeC4Boxes(body, sizes, spaced)
   }
-  const routes = allocateBoxRoutes([...placement.boxes.values()], relations, direction)
+  return { boxes: [...placement.boxes.values()] }
+  }
+  const routes = allocateChannelledBoxRoutes(layout, relations, direction)
   const owner = (item: typeof body.elements[number] | typeof body.boundaries[number]): TerminalOwner => ({ id: identities.nodes.get(item.id)!, kind: 'external' in item ? 'node' : 'cluster', sourceLine: c4SourceLine(body, item.statementId), ...(item.parentId ? { parent: { id: item.parentId, kind: 'cluster' as const } } : {}), ...(!('external' in item) ? { members: [...body.elements, ...body.boundaries].filter(child => child.parentId === item.id).map(child => child.id) } : {}) })
   const color = (value: string | undefined) => { const parsed = value ? tryParseCssColor(value) : undefined; return parsed ? toHex(parsed[0], parsed[1], parsed[2]) : undefined }
   // Styling visits only the cells an item or route can own, never the whole

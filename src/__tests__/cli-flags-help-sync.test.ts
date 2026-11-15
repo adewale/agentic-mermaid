@@ -6,6 +6,7 @@
 // file) and keep the help text in step with it.
 
 import { describe, test, expect } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_HELP, COMMAND_POSITIONALS, FLAG_SPECS, flagEnabled, flagValue, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
@@ -129,6 +130,46 @@ describe('command-specific flag validity', () => {
       const result = capture(argv)
       expect(result.code).toBe(2)
       expect(result.output).toMatch(/not valid|require.*value/)
+    }
+  })
+})
+
+describe('--timeout deadline', () => {
+  const am = (args: string[], input?: string) => {
+    const started = Date.now()
+    const result = spawnSync(process.execPath, [join(import.meta.dir, '..', '..', 'bin', 'am.ts'), ...args], { input, encoding: 'utf8', timeout: 30_000 })
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr, elapsed: Date.now() - started }
+  }
+
+  test('a layout that outlives the deadline is stopped with exit 124 and RENDER_TIMEOUT', () => {
+    // A 4,000-node chain takes several seconds to lay out.
+    const file = temp.file('long-chain.mmd', `flowchart TD\n${Array.from({ length: 3_999 }, (_, index) => `n${index} --> n${index + 1}`).join('\n')}\n`)
+    const result = am(['render', file, '--timeout', '1', '--json'])
+    expect({ status: result.status, stdout: JSON.parse(result.stdout) }).toEqual({
+      status: 124,
+      stdout: { ok: false, error: { code: 'RENDER_TIMEOUT', message: expect.stringContaining('1s deadline') } },
+    })
+    expect(result.stderr).toContain('RENDER_TIMEOUT')
+    expect(result.elapsed).toBeLessThan(5_000)
+  }, 30_000)
+
+  test('the supervised command reads piped stdin and keeps its own exit status', () => {
+    const ok = am(['verify', '--summary', '--timeout', '30'], 'flowchart TD\nA --> B\n')
+    expect({ status: ok.status, stdout: JSON.parse(ok.stdout) }).toMatchObject({ status: 0, stdout: { ok: true, family: 'flowchart' } })
+    expect(am(['describe', '-'], 'flowchart TD\nB --> [oops\n').status).toBe(2)
+  }, 30_000)
+
+  test('rejects malformed values, commands without layout, and --watch', () => {
+    for (const argv of [
+      ['render', '--timeout', 'soon', 'ignored.mmd'],
+      ['render', '--timeout', '-1', 'ignored.mmd'],
+      ['render', '--timeout', '9999999999', 'ignored.mmd'],
+      ['render', '--watch', '--timeout', '5', 'ignored.mmd'],
+      ['parse', '--timeout', '5', 'ignored.mmd'],
+    ]) {
+      const result = capture(argv)
+      expect({ argv, code: result.code }).toEqual({ argv, code: 2 })
+      expect(result.output).toMatch(/--timeout/)
     }
   })
 })

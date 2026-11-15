@@ -55,6 +55,36 @@ renderMermaidASCII(source, {
 | `maxWidth` | `number` | — | Deprecated best-effort label wrapping; the canvas may exceed it. |
 | `targetWidth` | `number` | — | Hard maximum in terminal display cells; impossible geometry throws `AsciiWidthError` with code `ASCII_TARGET_WIDTH_IMPOSSIBLE`. |
 
+Terminal drawing has its own work ceilings on top of the
+[graph work budgets](../SECURITY.md#graph-work-budgets). Routes that share
+cells keep every owner of each shared cell, so densely overlapping wiring (an
+all-to-all fan of 26 × 26 nodes or more, or a complete DAG of 40 nodes)
+exhausts them within about five seconds. Card-routed families (class, ER,
+requirement, block, C4 and swimlane) widen their corridors and retry when
+greedy routing fills one, within one shared cell-search ceiling
+(`route-search`, 4 million cells); an all-pairs table of 20 entities with
+attributes renders, a 20 × 20 bipartite table whose relations carry distinct
+labels refuses. When a class, ER, requirement or block diagram exhausts that
+ceiling, each complete-bipartite block of alike relations (`A0..A19 --> B0..B19`:
+one kind, and one label and cardinality text or none) draws as one bus instead
+(an ER diagram without groups then ranks its entities along its direction; a
+block diagram needs the two sides in facing rows of its authored grid): one port
+per card, collector and distributor runs meeting at one junction, and every
+relation keeping its own identity, endpoints, markers and connected owned ink.
+Other relations touching the block's cards route on their own and cross the
+bus only perpendicularly.
+The block's shared label is written once beside the junction, and its shared
+cardinalities once beside each card's port.
+A block of at least 9 cards on each side (12 for ER and block diagrams) cannot
+route relation by relation within the ceiling, so it draws as a bus at once,
+without that search first. C4 and swimlane diagrams draw no buses: their
+placement wraps or spreads a block's sides so that its relations leave through
+different card faces, which one bus cannot join.
+A render that would exceed one throws
+`TerminalWorkLimitError` with code `TERMINAL_WORK_LIMIT`, naming the exhausted
+`resource`, instead of drawing a partial diagram; CLI and MCP report it as
+`RENDER_FAILED` with origin `source`. Render such diagrams as SVG or split them.
+
 HTML is an escaped terminal projection, selected programmatically with
 `renderMermaidASCII(source, { colorMode: 'html' })`. It is not a standalone
 `am render --format` value; CLI discovery advertises only directly supported

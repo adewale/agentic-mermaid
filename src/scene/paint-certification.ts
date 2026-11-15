@@ -41,6 +41,9 @@ export interface PaintLayoutCertification {
    * certification: the candidate drawn and the checks it fails. `status`
    * remains the paint proof's own verdict. */
   readonly geometry?: import('../layout/uncertified-layout.ts').UncertifiedLayoutReceipt
+  /** Present when the graph exceeded a layout cost threshold: its estimate,
+   * the ELK options relaxed and the bounded candidate search. */
+  readonly layoutCost?: import('../layout/layout-cost.ts').LayoutCostReceipt
 }
 
 const renderedCertificates = new WeakMap<RenderedLayout, PaintLayoutCertification>()

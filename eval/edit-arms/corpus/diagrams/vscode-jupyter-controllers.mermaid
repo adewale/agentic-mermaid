@@ -1,0 +1,19 @@
+classDiagram
+    class VSCodeNotebookController {
+        +controller: NotebookController
+        +connection: KernelConnectionMetadata
+        +startKernel()
+        +dispose()
+    }
+
+    class ControllerRegistration {
+        +registered: IVSCodeNotebookController[]
+        +all: KernelConnectionMetadata[]
+        +get()
+        +getSelected()
+        +addOrUpdate()
+    }
+
+    class KernelConnector {
+        +connectToKernel()
+    }

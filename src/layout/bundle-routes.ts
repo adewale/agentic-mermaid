@@ -65,3 +65,9 @@ export function bundleRouteBeforeRewrite(edge: PositionedEdge): BundleRouteGeome
 export function retainBundleRouteAfterRewrite(edge: PositionedEdge, before: BundleRouteGeometry | undefined): void {
   if (before && constructed.get(edge) === before && edge.source === before.source && edge.target === before.target && edge.edgeIndex === before.edgeIndex) retain(edge)
 }
+
+/** Junction expansion renumbers a layout-graph edge to its authored index
+ * without moving its ink; ownership follows the same constructed route. */
+export function reindexConstructedBundleRoute(edge: PositionedEdge, before: BundleRouteGeometry | undefined): void {
+  if (before && edge.source === before.source && edge.target === before.target) constructed.set(edge, { ...before, edgeIndex: edge.edgeIndex })
+}

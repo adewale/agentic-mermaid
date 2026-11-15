@@ -323,10 +323,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   // Visibility is independent of the message counter. Hiding or enabling it
   // does not erase step references; only an explicit start resets the value.
   const autonumber = { visible: opts.showSequenceNumbers === true, next: 1, step: 1 }
-  // Actors awaiting their binding message (`create X` / `destroy X` directives
-  // take effect at the NEXT message that involves the actor)
-  const pendingCreates: string[] = []
-  const pendingDestroys: string[] = []
+  // Actors awaiting their binding message: a `create X` / `destroy X`
+  // directive takes effect at the next message that involves the actor, or,
+  // when no later message does, at the message right after the directive
+  // (`next`), where Mermaid binds every directive of a stack.
+  const pendingCreates: PendingLifecycle[] = []
+  const pendingDestroys: PendingLifecycle[] = []
 
   const pushMessage = (message: ParsedSequenceMessageLine): void => {
     const { from, to } = message
@@ -385,6 +387,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (line && !isSequenceCommentLine(line)) throw new MermaidSyntaxError(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${lineOf(entry.line + 1) ?? 'unknown'}: ${line}`, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
       continue
     }
+    // A `create` of a participant that already exists keeps that participant
+    // (verify reports it): there is no creation for a message to bind.
+    if (statement.kind === 'create' && !participants.has(statement.declaration.id)) pendingCreates.push({ id: statement.declaration.id, next: diagram.messages.length })
     for (const event of participantEventsOf(statement)) {
       participants.apply(event)
       if (parserObservationActive('sequence')) observeParserMutation('sequence', 'participant.apply', event)
@@ -394,10 +399,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // --- Participant / Actor declaration, including Mermaid 11 metadata;
       //     `create participant|actor X` binds at the next message X receives. ---
       case 'declaration':
-    case 'create': {
-      if (statement.kind === 'create') pendingCreates.push(statement.declaration.id)
+    case 'create':
       break
-    }
 
       // --- Safe actor menus (`link` and JSON `links`) and undrawn actor data
       //     (`properties`, `details`): the fold records what they create. ---
@@ -459,7 +462,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
       // --- destroy lifecycle directive ---
       case 'destroy':
-      pendingDestroys.push(statement.actorId)
+      pendingDestroys.push({ id: statement.actorId, next: diagram.messages.length })
         if (parserObservationActive('sequence')) observeParserMutation('sequence', 'pending-destroy', statement.actorId)
       break
 
@@ -582,6 +585,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       break
     }
   }
+  // A directive no later message involves binds where its stack ends, at the
+  // message right after it; one with no message after it stays inert.
+  for (const { id, next } of pendingCreates) if (next < diagram.messages.length) createdAt.set(id, next)
+  for (const { id, next } of pendingDestroys) if (next < diagram.messages.length) destroyedAt.set(id, next)
 
   diagram.actors = participants.list().map(({ id, label, type, links, box, wrap }) => ({
     id, ...readSequenceLabel(label), type,
@@ -611,7 +618,7 @@ export function authoredSequenceColumn(source: NormalizedMermaidSource): (index:
  * the typed body both read. Context (which block is open) is the caller's. */
 export type SequenceStatementSyntax =
   | { kind: 'declaration'; declaration: ParsedActorDeclaration }
-  | { kind: 'create'; declaration: Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> }
+  | { kind: 'create'; declaration: ParsedSequenceCreate }
   | { kind: 'destroy'; actorId: string }
   | { kind: 'links'; actorId: string; links: Record<string, string> }
   /** `properties A: {…}` / `details A: <element id>`: actor data the
@@ -676,8 +683,12 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       if (parent?.kind !== 'block' || !continuationBelongsToBlock(syntax.continuation.type, parent.opener.type)) {
         issue(entry, 'sequence_block_boundary', `Sequence ${syntax.continuation.type} does not belong to the enclosing block`)
       }
-    } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
-      issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    } else if ((syntax.kind === 'declaration' || syntax.kind === 'create') && (syntax.declaration.unmodeledMetadata?.length || syntax.declaration.unknownType !== undefined)) {
+      const { unmodeledMetadata, unknownType } = syntax.declaration
+      issue(entry, 'sequence_participant_metadata', [
+        ...(unknownType === undefined ? [] : [`Participant type "${unknownType}" is not a Mermaid sequence type: ours draws a plain participant; pinned Mermaid draws neither its header nor its lifeline`]),
+        ...(unmodeledMetadata?.length ? [`Participant metadata fields ${unmodeledMetadata.join(', ')} are not modeled`] : []),
+      ].join('; ') + '; the declaration is preserved as source')
     } else if (syntax.kind === 'message' && syntax.message.localArrow) {
       const { localArrow, arrow } = syntax.message
       issue(entry, 'sequence_local_arrow', `The arrow ${localArrow} is a local spelling pinned Mermaid does not read, so it rejects this line. Ours draws it as Mermaid's ${arrow} and writes ${arrow}`)
@@ -687,6 +698,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     if (syntax.kind === 'declaration' || syntax.kind === 'create') {
       const problem = sequenceParticipantIdProblem(syntax.declaration.id)
       if (problem) issue(entry, 'sequence_participant_id_extension', problem)
+      const { typeSpelling, type } = syntax.declaration
+      if (typeSpelling !== undefined) issue(entry, 'sequence_participant_type_case', `Participant type "${typeSpelling}" is read as "${type}". Pinned Mermaid matches types exactly and draws neither its header nor its lifeline; ours draws a ${type} and writes "${type}"`)
     }
     if (syntax.kind === 'message') {
       for (const [context, id] of [['sender', syntax.message.from], ['receiver', syntax.message.to]] as const) {
@@ -758,8 +771,8 @@ export function participantEventsOf(statement: SequenceStatementSyntax | null): 
     }
     case 'create': {
       // Creating a known participant is an upstream error, never a rename.
-      const { id, label, type, wrap } = statement.declaration
-      return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, ...(wrap === undefined ? {} : { wrap }), create: true }]
+      const { id, label, type, keyword, wrap } = statement.declaration
+      return [{ kind: 'declare', id, keyword, type, label, ...(wrap === undefined ? {} : { wrap }), create: true }]
     }
     case 'links':
       return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links },
@@ -786,7 +799,11 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean
+  /** A metadata type Mermaid has no glyph for, read as a plain participant. */
+  unknownType?: string
+  /** A known type spelled in another case, which Mermaid matches exactly. */
+  typeSpelling?: string }
 
 function clearSequenceParticipantId(id: string): boolean {
   // Mermaid protects entity tokens before lexing. Their terminator is not
@@ -835,15 +852,15 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const asText = control ? control.text || null : undefined
     if (asText === null) return null
     const { entries } = block
+    // Upstream keeps any non-null `type` (`doc?.type ?? type`) and draws only
+    // the exact lower-case names, so a number or `Database` draws nothing.
     const requestedType = entries.get('type')
-    const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
-    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw syntaxError({
-      what: `Unknown sequence actor type '${requested}'`,
-      expectedForm: 'a supported actor type',
-      example: 'participant DB@{ type: database }',
-      known: [...ACTOR_TYPES],
-    })
-    const type = requested as SequenceActorType
+    const requested = typeof requestedType === 'string' ? requestedType.toLowerCase()
+      : requestedType === undefined || requestedType === null ? baseType : undefined
+    // A type Mermaid has no glyph for still declares a participant: ours
+    // draws a plain one, keeps the line as source and warns.
+    const known = requested !== undefined && ACTOR_TYPES.has(requested as SequenceActorType)
+    const type = known ? requested as SequenceActorType : 'participant'
     // Upstream's `addActor`: a truthy metadata alias names the actor unless
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
     const metadataAlias = metadataText(entries.get('alias'))
@@ -853,6 +870,8 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
       id, label: alias ?? id, type, keyword: baseType, aliased: alias !== undefined,
       ...(control?.wrap === undefined ? {} : { wrap: control.wrap }),
       ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
+      ...(known ? {} : { unknownType: typeof requestedType === 'string' ? requestedType : JSON.stringify(requestedType) }),
+      ...(known && typeof requestedType === 'string' && requestedType !== requested ? { typeSpelling: requestedType } : {}),
     }
   }
   if (line.includes('@{')) return null
@@ -874,15 +893,27 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   }
 }
 
+/** A `create participant|actor X …` line: the participant it creates. */
+export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata' | 'unknownType' | 'typeSpelling'>
+
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
- *  agent parsers. */
-export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> | null {
+ *  agent parsers. Type metadata (`create participant D@{ "type": "database" }`)
+ *  reads as the declaration's does, which Mermaid accepts the same way. */
+export function parseSequenceCreateLine(line: string): ParsedSequenceCreate | null {
+  const metadata = line.match(/^create\s+(?=(?:participant|actor)\s+[^\s@]+\s*@\{)/i)
+  if (metadata) {
+    const declared = parseActorDeclaration(line.slice(metadata[0].length))
+    if (!declared) return null
+    const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType, typeSpelling } = declared
+    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}), ...(unknownType === undefined ? {} : { unknownType }), ...(typeSpelling === undefined ? {} : { typeSpelling }) }
+  }
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
   assertSequenceParticipantId(id)
   const control = match[3] === undefined ? undefined : splitSequenceTextControl(match[3])
-  return { id, label: control?.text ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor', ...(control?.wrap === undefined ? {} : { wrap: control.wrap }) }
+  const keyword = match[1]!.toLowerCase() as 'participant' | 'actor'
+  return { id, label: control?.text ?? id, type: keyword, keyword, ...(control?.wrap === undefined ? {} : { wrap: control.wrap }) }
 }
 
 export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
@@ -925,14 +956,16 @@ function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; star
 }
 
 /** Bind any pending create/destroy directive whose actor participates in the
- *  message being parsed; unmatched directives stay pending (and stay inert if
- *  no later message ever involves the actor). */
+ *  message being parsed; unmatched directives stay pending (and bind at the
+ *  message after them if no later message ever involves the actor). */
+interface PendingLifecycle { id: string; next: number }
+
 function bindLifecycle(
-  pending: string[],
+  pending: PendingLifecycle[],
   matches: (id: string) => boolean,
   bind: (id: string) => void): void {
   for (let i = pending.length - 1; i >= 0; i--) {
-    const id = pending[i]!
+    const { id } = pending[i]!
     if (!matches(id)) continue
     bind(id)
     pending.splice(i, 1)
