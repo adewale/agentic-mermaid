@@ -117,6 +117,19 @@ const FRAGMENT_SEQUENCE = `sequenceDiagram
   end
 `
 
+// Fragments with untouched messages spelled with spaces, an empty branch and
+// an empty loop.
+const BRANCHED_SEQUENCE = `sequenceDiagram
+  participant A
+  participant B
+  alt ok
+      A ->> B : yes
+  else no
+  end
+  loop forever
+  end
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -221,6 +234,9 @@ const CASES: Case[] = [
   { name: 'sequence add_message', source: SEQUENCE, op: { kind: 'add_message', from: 'C', to: 'K', text: 'done' }, reference: [['\tNote over K,C: done\n', '\tNote over K,C: done\n\tC->>K: done\n']] },
   { name: 'sequence add_fragment_message inside a verbatim alt branch', source: SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, branchIndex: 0, from: 'C', to: 'K', text: 'extra' }, reference: [['\t\tK -->> C: ok\n', '\t\tK -->> C: ok\n\t\tC->>K: extra\n']] },
   { name: 'sequence add_fragment_message appended to a single-branch fragment takes its body indentation', source: FRAGMENT_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, from: 'B', to: 'A', text: 'pong' }, reference: [['      A->>B: ping\n', '      A->>B: ping\n      B->>A: pong\n']] },
+  { name: 'sequence add_fragment_message keeps untouched messages spelled with spaces', source: BRANCHED_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, branchIndex: 0, from: 'A', to: 'B', text: 'more' }, reference: [['      A ->> B : yes\n', '      A ->> B : yes\n      A->>B: more\n']] },
+  { name: 'sequence add_fragment_message into an empty branch takes the body indentation', source: BRANCHED_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, branchIndex: 1, from: 'B', to: 'A', text: 'nope' }, reference: [['  else no\n', '  else no\n      B->>A: nope\n']] },
+  { name: 'sequence add_fragment_message into an empty loop takes the body indentation', source: BRANCHED_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 1, from: 'A', to: 'B', text: 'tick' }, reference: [['  loop forever\n', '  loop forever\n      A->>B: tick\n']] },
   { name: 'sequence add_fragment_branch takes its sibling branch line indentation', source: SEQUENCE, op: { kind: 'add_fragment_branch', fragmentIndex: 0, label: 'retry' }, reference: [['\t\tC ->> C: sleep\n', '\t\tC ->> C: sleep\n\telse retry\n']] },
   { name: 'sequence set_message_text', source: SEQUENCE, op: { kind: 'set_message_text', index: 0, text: 'changed event' }, touched: ['\tK ->> C: event'], reference: [['C: event', 'C: changed event']] },
   { name: 'sequence set_participant_label', source: SEQUENCE, op: { kind: 'set_participant_label', id: 'C', label: 'Ctrl' }, touched: ['\tparticipant C as Controller'], reference: [['as Controller', 'as Ctrl']] },

@@ -48,7 +48,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   named by `Class : member` lines, an entity block opened twice) is edited on
   every line it is read from instead of falling back. A message or branch added
   inside a sequence fragment takes the indentation of the fragment's authored
-  body or branch lines.
+  body or branch lines, also as the first line of an empty branch or loop, and
+  the fragment's untouched messages keep their authored spelling.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

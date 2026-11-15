@@ -15,8 +15,9 @@
 // portable spelling beside its neighbour, indented like its authored
 // siblings. Every other line is copied byte for byte.
 //
-// The projection only proposes. A few placement variants are tried in order,
-// and a candidate is returned only when the shared parser reads it back as the
+// The projection only proposes. A few placement variants are tried, those
+// that rewrite the fewest authored lines first (ties in a fixed order), and
+// a candidate is returned only when the shared parser reads it back as the
 // same diagram as the canonical result: the same facts and the same canonical
 // statements (whose incidental order may follow the authored order). When no
 // candidate does, a second pass traces statements written over several
@@ -758,6 +759,34 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // opener's depth.
   const standsAlone = (text: string) => reader.alone(text) || reader.opens(text.trim())
   const sibling = (at: number, index: number) => depthOf(c1[at]!) === depthOf(c1[index]!) && (standsAlone(c1[index]!) || !standsAlone(c1[at]!))
+  // A block line at a body's own depth (an opener or a branch line like
+  // `else`, written by a family that does not indent block bodies): it
+  // does not read alone or opens a block, and a closer follows at its depth.
+  const blockLine = (at: number) => {
+    if (closesBlock(c1[at]!) || (reader.alone(c1[at]!) && !reader.opens(c1[at]!.trim()))) return false
+    for (let next = at + 1; next < c1.length; next++) {
+      if (!c1[next]!.trim() || depthOf(c1[next]!) > depthOf(c1[at]!)) continue
+      if (depthOf(c1[next]!) < depthOf(c1[at]!)) return false
+      if (closesBlock(c1[next]!)) return true
+    }
+    return false
+  }
+  const previousStatement = (index: number) => {
+    let at = index - 1
+    while (at > 0 && !c1[at]!.trim()) at--
+    return at
+  }
+  // How far authored bodies sit inside such block lines: the first authored
+  // statement written right after one, else one indentation step.
+  const stepIntoBody = (): string => {
+    for (let at = 1; at < c1.length; at++) {
+      const before = previousStatement(at)
+      if (!c1[at]!.trim() || before <= 0 || !blockLine(before) || !standsAlone(c1[at]!)) continue
+      const outer = authoredIndent(before), inner = authoredIndent(at)
+      if (outer !== undefined && inner !== undefined && inner.length > outer.length && inner.startsWith(outer)) return inner.slice(outer.length)
+    }
+    return unit
+  }
   const peerIndent = (index: number, target: number): string | undefined => {
     for (let distance = 1; index - distance >= 0 || index + distance < c1.length; distance++) {
       for (const at of [index - distance, index + distance]) {
@@ -774,6 +803,18 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     if (known !== undefined) return known
     const target = depthOf(c1[index]!)
     const resolve = (): string => {
+      // The first statement of a body whose block line is at its own depth
+      // (an `else` branch or `loop`) takes the indentation of the body
+      // statement after it, else steps into that block line.
+      const before = previousStatement(index)
+      if (before > 0 && depthOf(c1[before]!) === target && standsAlone(c1[index]!) && blockLine(before)) {
+        let next = index + 1
+        while (next < c1.length && !c1[next]!.trim()) next++
+        const following = next < c1.length && depthOf(c1[next]!) === target && !blockLine(next) && !closesBlock(c1[next]!) ? authoredIndent(next) : undefined
+        if (following !== undefined) return following
+        const indent = authoredIndent(before)
+        if (indent !== undefined) return indent + stepIntoBody()
+      }
       let opener: string | undefined
       for (let at = index - 1; at >= 0; at--) {
         if (!c1[at]!.trim()) continue
@@ -916,10 +957,20 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
   let unplanned: string | undefined, closest: { size: number; reason: string } | undefined
   const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[]): { source: string; diagram: ParsedDiagram } | undefined => {
     unplanned = undefined
+    // The candidate that rewrites the fewest authored lines is read first, so
+    // a variant that respells untouched lines (a verbatim fragment the exact
+    // diff sees as changed) never wins over one that keeps them; ties keep
+    // the variant order.
+    const candidates: Array<{ source: string; cost: number }> = []
     for (const variant of variants) {
       const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant, reader)
       if (typeof plan === 'string') { unplanned ??= plan; continue }
       const source = nextWrapper + renderPlan(authoredLines, plan, eol)
+      const written = [...plan.before.values(), ...plan.after.values()].reduce((sum, list) => sum + list.length, 0)
+      candidates.push({ source, cost: plan.removed.size + plan.text.size + written })
+    }
+    candidates.sort((a, b) => a.cost - b.cost)
+    for (const { source } of candidates) {
       if (tried.has(source)) continue
       tried.add(source)
       const parsed = parseRegisteredMermaid(source)
