@@ -10,7 +10,7 @@ import { arrayMember, elementId, elementKey, isJsonObject, jsonValue, numberMemb
 import { booleanOption, enumOption, importOptions, importOptionObject, integerOption, numberOption, paddingOption, optionalNumberOption, optionalIntegerOption, optionalVectorOption, vectorOption, type Direction, type Insets, type Options } from './options.ts'
 import type { ElkExtendedEdge, ElkLabel, ElkNode, ElkPort } from './types.ts'
 
-export interface LayoutLabel { data: ElkLabel; text: string | null; active: boolean; inputX: number; inputY: number; inputWidth: number; inputHeight: number; x: number; y: number; width: number; height: number; options: Options }
+export interface LayoutLabel { labelSide?: 'UNKNOWN' | 'ABOVE' | 'BELOW' | 'INLINE'; data: ElkLabel; text: string | null; active: boolean; inputX: number; inputY: number; inputWidth: number; inputHeight: number; x: number; y: number; width: number; height: number; options: Options }
 export interface LayoutPort extends CyclePort { portDummy?: LayoutNode; originPort?: LayoutPort; index?: number; modelOrder?: number; longEdgeTargetNode?: LayoutNode; key: string | number | null; id: string | null; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; borderOffset: number | null; ratio: number; explicitAnchor: boolean; data: ElkPort | null; node: LayoutNode; incoming: LayoutEdge[]; outgoing: LayoutEdge[]; x: number; y: number; width: number; height: number; side: 'UNDEFINED' | 'NORTH' | 'EAST' | 'SOUTH' | 'WEST'; collect: 'INPUT' | 'OUTPUT' | null; anchorX: number; anchorY: number }
 export interface LayoutEdge extends CycleEdge { noLayout?: false; sourceShapeKey?: string | number | null; targetShapeKey?: string | number | null; modelOrder?: number; data: ElkExtendedEdge; source: LayoutPort; target: LayoutPort; priorityDirection: number; priorityShortness: number; reversed: boolean; options: Options; labels: LayoutLabel[]; sourceLabels: LayoutLabel[]; bends: { x: number; y: number }[]; junctions?: { x: number; y: number }[] }
 export interface SkippedLayoutEdge { noLayout: true; data: ElkExtendedEdge; options: Options; sourceLabels: LayoutLabel[] }
@@ -35,6 +35,7 @@ export interface LayoutNode extends CycleNode {
   longEdgeTarget?: LayoutPort
   longEdgeSource?: LayoutPort
   longEdgeHasLabelDummies?: boolean
+  longEdgeBeforeLabelDummy?: boolean
   targetNodeModelOrder?: Map<LayoutNode, number>
   data: ElkNode | null
   id: string
