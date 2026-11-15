@@ -48,7 +48,7 @@ export default defineConfig({
   // Keep the solver provider external so installed Node entries load the CJS
   // kernel on first ELK use. Other bundlers resolve the ESM provider.
   onSuccess: async () => {
-    copyFileSync('src/elk-solver.node.js', 'dist/elk-solver.node.js')
+    copyFileSync('src/elk-solver.node.cjs', 'dist/elk-solver.node.cjs')
     copyFileSync('src/optional-kernels.node.js', 'dist/optional-kernels.node.js')
     for (const [entry, output] of [['src/elk-solver.ts', 'elk-solver'], ['src/inter-metrics-kernel.ts', 'inter-metrics-kernel'], ['src/layout/optimization-runtime.ts', 'layout-optimization']]) {
       await build({ entryPoints: [entry!], outfile: `dist/${output}.cjs`, bundle: true, platform: 'node', format: 'cjs', target: 'es2022', minify: true })

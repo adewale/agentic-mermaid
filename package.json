@@ -51,7 +51,7 @@
   "jsdelivr": "./dist/browser.global.js",
   "imports": {
     "#elk-solver": {
-      "node": "./dist/elk-solver.node.js",
+      "node": "./dist/elk-solver.node.cjs",
       "default": "./dist/elk-solver.js"
     },
     "#builtin-font-metrics": {

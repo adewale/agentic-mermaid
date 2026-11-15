@@ -60,7 +60,7 @@
     "dist/cli-[hash].js",
     "dist/elk-solver.js",
     "dist/elk-solver.cjs",
-    "dist/elk-solver.node.js",
+    "dist/elk-solver.node.cjs",
     "dist/index-[hash].d.ts",
     "dist/index.d.ts",
     "dist/index.js",
