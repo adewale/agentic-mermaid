@@ -6,6 +6,8 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writ
 import { join } from 'node:path'
 import { serialize } from 'node:v8'
 import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
+import { assertLayoutGraphWork } from '../../src/shared/diagram-limits.ts'
 import type { ElkNode } from 'elkjs'
 
 process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
@@ -21,7 +23,41 @@ const resumeRender = retained.reduce((next, name) => {
   return match ? Math.max(next, Number(match[1]) + 1) : next
 }, 0)
 const oracleModule = await import('../../src/elk-instance.ts')
-const oracle = oracleModule.elkLayoutSync
+// The oracle is always the published dev dependency, even after production
+// switches to the port. Use its synchronous dispatcher without changing JSON
+// values or crossing realms; production never loads this eval-only worker.
+interface OracleResponse { data?: ElkNode; error?: unknown }
+interface OracleWorker {
+  onmessage: (event: { data: OracleResponse }) => void
+  dispatcher: { saveDispatch(event: { data: { id: number; cmd: string; graph?: ElkNode; algorithms?: string[] } }): void }
+}
+const require = createRequire(import.meta.url)
+const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
+let OracleWorkerConstructor: new () => OracleWorker
+try {
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {} })
+  OracleWorkerConstructor = (require('elkjs/lib/elk-worker.js') as { Worker: new () => OracleWorker }).Worker
+} finally {
+  if (documentDescriptor === undefined) Reflect.deleteProperty(globalThis, 'document')
+  else Object.defineProperty(globalThis, 'document', documentDescriptor)
+}
+const oracleWorker = new OracleWorkerConstructor()
+function dispatch(data: Parameters<OracleWorker['dispatcher']['saveDispatch']>[0]['data']): OracleResponse {
+  let response: OracleResponse | undefined
+  oracleWorker.onmessage = event => { response = event.data }
+  oracleWorker.dispatcher.saveDispatch({ data })
+  if (response === undefined) throw new Error('elkjs oracle did not respond synchronously')
+  if ('error' in response) throw response.error
+  return response
+}
+dispatch({ id: -1, cmd: 'register', algorithms: ['layered', 'stress', 'mrtree', 'radial', 'force', 'disco', 'sporeOverlap', 'sporeCompaction', 'rectpacking'] })
+function oracle(graph: ElkNode): ElkNode {
+  // Preserve the production boundary's shared work admission and unchanged caps.
+  assertLayoutGraphWork(graph)
+  const response = dispatch({ id: 0, cmd: 'layout', graph })
+  if (response.data === undefined) throw new Error('elkjs oracle did not return a graph')
+  return response.data
+}
 const strategies = [
   { name: 'default', options: {} },
   { name: 'separate-hierarchy', options: { separateHierarchy: true } },
@@ -83,6 +119,7 @@ if (packageInfo.version !== '0.11.1') throw new Error(`Expected elkjs 0.11.1, re
 const metadata = {
   source: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: join(import.meta.dir, '../..'), encoding: 'utf8' }).trim(),
   elkjs: packageInfo.version,
+  oracle: 'elkjs/lib/elk-worker.js synchronous dispatcher',
   elkjsTagRevision: '572e73323791d05f09b0815ff639af2b67f202ab',
   javaTag: 'v0.11.0',
   javaRevision: '54123e884b1ae743b453260f713b20c9bf5787f2',
@@ -93,8 +130,8 @@ const metadata = {
   samples: samples.length,
   plannedRenders: samples.length * strategies.length * 4,
 }
-if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders)) {
-  throw new Error('Resume requires the original source, runtime and complete population')
+if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders || resumed.oracle !== metadata.oracle)) {
+  throw new Error('Resume requires the original source, runtime, oracle and complete population')
 }
 writeFileSync(join(output, 'capture.json'), JSON.stringify({ ...metadata, complete: false }, null, 2))
 console.log(JSON.stringify({ output, ...metadata }))
