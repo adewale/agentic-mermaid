@@ -241,6 +241,26 @@ const REDECLARED_ER = `erDiagram
     }
 `
 
+// Subgraph members declared by edges: `a2` is first mentioned outside the
+// subgraph, and `a1-->a2` inside it makes both members.
+const EDGE_MEMBERS = `flowchart TB
+    %% members declared by edges
+    c1-->a2
+    subgraph one
+    a1-->a2
+    end
+    subgraph two
+      b1-->b2
+    end
+`
+
+// One line carrying two edges and a class.
+const AMPERSAND_CLASSES = `flowchart TD
+  %% keep
+  A:::hot & B --> C
+  classDef hot fill:#f96
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -335,6 +355,9 @@ const CASES: Case[] = [
   { name: 'er remove_entity removes both of its blocks', source: REDECLARED_ER, op: { kind: 'remove_entity', id: 'CUSTOMER' }, touched: ['    CUSTOMER {', '        string name', '    }', '  CUSTOMER ||--o{ ORDER : places', '        string email'], reference: [['    CUSTOMER {\n        string name\n    }\n  CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string email\n    }\n', '    ORDER\n']] },
   { name: 'sequence set_fragment_message_text keeps the message\'s authored spacing', source: BRANCHED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'yes please' }, touched: ['      A ->> B : yes'], reference: [['B : yes', 'B : yes please']] },
   { name: 'sequence move_message across a difference larger than the diff table', source: MANY_MESSAGES, op: { kind: 'move_message', from: 0, to: 2100 }, touched: ['  A ->> B: first'], reference: [['  A ->> B: first\n', ''], ['  B->>A: m2099\n', '  B->>A: m2099\n  A ->> B: first\n']] },
+  { name: 'flowchart remove_node keeps the subgraph member its edge declared', source: EDGE_MEMBERS, op: { kind: 'remove_node', id: 'a1' }, touched: ['    a1-->a2'], reference: [['    a1-->a2\n', '    a2\n']] },
+  { name: 'flowchart add_node after edges inside a subgraph stays outside it', source: EDGE_MEMBERS, op: { kind: 'add_node', id: 'N', label: 'New' }, reference: [['      b1-->b2\n    end\n', '      b1-->b2\n    end\n    N[New]\n']] },
+  { name: 'flowchart remove_edge from a line with two edges and a class', source: AMPERSAND_CLASSES, op: { kind: 'remove_edge', id: 'A->C' }, touched: ['  A:::hot & B --> C'], reference: [['  A:::hot & B --> C\n', '  B --> C\n  A[A]\n  class A hot\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 

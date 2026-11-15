@@ -57,7 +57,7 @@ describe('source-preserving edits across agent channels', () => {
   test.each([
     ['flowchart TD\n  %% keep\n    A["Old"] --> B\n', { kind: 'set_label', target: 'A', label: 'New' }, 'flowchart TD\n  %% keep\n    A["New"] --> B\n', 'local'],
     ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, 'flowchart TD\n  %% keep\n  A["Short"] --> B\n', 'local'],
-    ['flowchart TD\n  %% keep\n  A:::hot & B --> C\n  classDef hot fill:#f96\n', { kind: 'remove_edge', id: 'A->C' }, undefined, 'canonical'],
+    ['stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n', { kind: 'remove_transition', index: 0 }, undefined, 'canonical'],
   ] as const)('structured source-preserving edits agree across library, CLI and MCP: %j', async (source, op, expected, method) => {
     const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
     if (!result.ok) throw new Error(result.error.message)

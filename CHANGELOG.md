@@ -52,7 +52,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   the fragment's untouched messages keep their authored spelling. An edited
   fragment message keeps its authored spacing (`A ->> B: ping now`). A large
   reordering (a rename in a 1,200-class diagram) is compared instead of
-  falling back.
+  falling back. Subgraph members declared by edges and one line carrying
+  several statements and `:::` classes edit locally.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

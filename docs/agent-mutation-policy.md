@@ -186,15 +186,22 @@ statement kept in its authored spacing (a fragment message written
 text changes. A canonical difference too long for the line table is compared
 by the shortest edit script, within the same budget.
 
-Typical fallbacks: one authored line carrying several statements whose removal
-needs the rest respelled in a different order (`A:::hot & B --> C`), an edit
-whose canonical result moves statements into or out of blocks the source does
-not spell (subgraph members declared by edges, nested namespaces the writer
-flattens), an edit that empties a family below its grammar floor, a canonical
-difference beyond the diff budget, and edits to wrappers the canonical writer
-does not own. The receipt names the reason (the statement that could not be
-traced or placed, or how the closest local candidate reads differently from
-the edit); the source is then the ordinary canonical result.
+When no candidate reads back, a last pass reads the authored block structure:
+a block member is traced to the line inside its authored block that declares
+it (a subgraph member first mentioned by an edge outside the subgraph and
+declared by another edge inside it), and a new statement placed beside a line
+inside a block its canonical statement is not in goes after that block's
+closer. The statements a rewritten line keeps, and those written beside it,
+are written in canonical order (`A:::hot & B --> C` less `A --> C` becomes
+`B --> C`, `A[A]`, `class A hot`).
+
+Typical fallbacks: an edit whose canonical result moves statements into blocks
+the source does not spell (nested namespaces the writer flattens), an edit
+that empties a family below its grammar floor, a canonical difference beyond
+the diff budget, and edits to wrappers the canonical writer does not own. The
+receipt names the reason (the statement that could not be traced or placed, or
+how the closest local candidate reads differently from the edit); the source
+is then the ordinary canonical result.
 
 The same explicit mode, for structured and opaque bodies, is available
 through the workflow surfaces:
