@@ -25,10 +25,11 @@ message index, else appended), `remove_note`, `set_note_text` and `move_note`
 
 IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, and `par` are
 typed fragments. Their messages appear in describe/facts/verify and fragment
-ops can author or edit them. Top-level `create participant|actor` and
-`destroy` lines are typed statements too (facts: `create …`, `destroy …`);
-an edit that would separate one from the message Mermaid requires right
-after it is refused. Top-level `Note left of|right of|over …` lines are typed
+ops can author or edit them. `create participant|actor` and `destroy` lines
+are typed statements too, at top level and inside those fragments (facts:
+`create …`, `destroy …`, with `fragment#f branch#b` inside a fragment); an
+edit that would separate one from the message Mermaid requires right after it
+is refused. Top-level `Note left of|right of|over …` lines are typed
 notes. Other constructs (notes inside fragments, critical/break/rect/box/
 activate/autonumber/title) ride along VERBATIM as opaque-block segments while
 participant and top-level message ops remain live. Only an un-segmentable

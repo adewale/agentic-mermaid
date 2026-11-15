@@ -22,7 +22,7 @@ import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/tex
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceCreateStatement, SequenceDestroyStatement, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -418,11 +418,28 @@ function factsSequence(out: string[], body: SequenceBody): void {
   // Lifecycle directives and notes, placed by the message# that follows them.
   let messageIndex = 0
   let noteIndex = 0
+  let fragmentIndex = 0
   const total = sequenceMessageContexts(body).length
+  // A directive in a fragment branch also names the branch it is written in.
+  const lifecycle = (statement: SequenceCreateStatement | SequenceDestroyStatement, where = ''): void => {
+    const id = statement.kind === 'create' ? statement.id : statement.actorId
+    const at = `${where}${messageIndex < total ? ` before message#${messageIndex}` : ''}`
+    add(out, statement.kind === 'create'
+      ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
+      : `destroy ${clean(id)}${at}`)
+  }
   for (const statement of body.statements) {
     if (statement.kind === 'message') messageIndex++
-    else if (statement.kind === 'fragment') messageIndex += statement.fragment.branches.reduce((n, branch) => n + branch.messages.length, 0)
-    else if (statement.kind === 'note') {
+    else if (statement.kind === 'fragment') {
+      statement.fragment.branches.forEach((branch, branchIndex) => {
+        const directives = (before: number) => {
+          for (const entry of branch.directives ?? []) if (entry.before === before) lifecycle(entry.directive, ` fragment#${fragmentIndex} branch#${branchIndex}`)
+        }
+        branch.messages.forEach((_, before) => { directives(before); messageIndex++ })
+        directives(branch.messages.length)
+      })
+      fragmentIndex++
+    } else if (statement.kind === 'note') {
       const { position, actorIds } = statement
       const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${shown(statement.text, statement.textContent)}`
       add(out, `note ${note}`)
@@ -430,13 +447,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
       if (messageIndex < total) add(out, `note#${noteIndex} before message#${messageIndex}`)
       if (statement.wrap !== undefined) add(out, `note#${noteIndex} wrap ${statement.wrap}`)
       noteIndex++
-    } else if (statement.kind === 'create' || statement.kind === 'destroy') {
-      const id = statement.kind === 'create' ? statement.id : statement.actorId
-      const at = messageIndex < total ? ` before message#${messageIndex}` : ''
-      add(out, statement.kind === 'create'
-        ? `create ${statement.type ?? statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
-        : `destroy ${clean(id)}${at}`)
-    }
+    } else if (statement.kind === 'create' || statement.kind === 'destroy') lifecycle(statement)
   }
 }
 

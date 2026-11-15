@@ -31,7 +31,7 @@ import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import { sequenceDisplayText } from '../sequence/text.ts'
-import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceFragment, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 /** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
 export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
@@ -554,12 +554,8 @@ function describeSequence(d: SequenceValidDiagram): string {
       if (message) interactions.push(`message ${message.from} -> ${message.to}: ${sequenceDisplayText(message.text, message.textContent)}`)
       continue
     }
-    if (statement.kind === 'create') {
-      interactions.push(`create ${statement.type ?? statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`)
-      continue
-    }
-    if (statement.kind === 'destroy') {
-      interactions.push(`destroy ${statement.actorId}`)
+    if (statement.kind === 'create' || statement.kind === 'destroy') {
+      interactions.push(sequenceLifecycleDisplay(statement))
       continue
     }
     if (statement.kind === 'note') {
@@ -569,7 +565,11 @@ function describeSequence(d: SequenceValidDiagram): string {
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = sequenceBranchDisplay(statement.fragment, branchIndex)
-      const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${sequenceDisplayText(m.text, m.textContent)}`).join('; ') || 'no messages'
+      const directives = (before: number) => (branch.directives ?? []).filter(entry => entry.before === before).map(entry => sequenceLifecycleDisplay(entry.directive))
+      const messages = [
+        ...branch.messages.flatMap((m, before) => [...directives(before), `${m.from} -> ${m.to}: ${sequenceDisplayText(m.text, m.textContent)}`]),
+        ...directives(branch.messages.length),
+      ].join('; ') || 'no messages'
       return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
     })
     interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
@@ -577,6 +577,11 @@ function describeSequence(d: SequenceValidDiagram): string {
   }
   if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
+}
+
+function sequenceLifecycleDisplay(statement: SequenceCreateStatement | SequenceDestroyStatement): string {
+  if (statement.kind === 'destroy') return `destroy ${statement.actorId}`
+  return `create ${statement.type ?? statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`
 }
 
 /** A participant's name as drawn; the body keeps authored quotes and markup. */

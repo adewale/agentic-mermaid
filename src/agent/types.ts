@@ -165,6 +165,15 @@ export interface SequenceFragmentBranch {
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
+  /** `create`/`destroy` lines in the branch, in source order, each before
+   * branch message `before` (`messages.length`: after the last). They bind
+   * as top-level directives do: to the next message involving their
+   * participant, in this branch or after it. */
+  directives?: SequenceBranchDirective[]
+}
+export interface SequenceBranchDirective {
+  before: number
+  directive: SequenceCreateStatement | SequenceDestroyStatement
 }
 export interface SequenceFragment {
   wrap?: boolean
@@ -190,6 +199,12 @@ export interface SequenceCreateStatement {
   wrap?: boolean
 }
 
+/** `destroy X`: X's lifeline ends at the next message X sends or receives. */
+export interface SequenceDestroyStatement {
+  kind: 'destroy'
+  actorId: string
+}
+
 export type SequenceNotePosition = 'left' | 'right' | 'over'
 
 /** `Note left of A: text`, `Note right of A: text` or `Note over A[,B]: text`,
@@ -206,7 +221,8 @@ export interface SequenceNoteStatement {
 }
 
 // Ordered statement list. Refs index into the top-level arrays. The four
-// common control fragments are typed so their messages participate in
+// common control fragments are typed (with their `create`/`destroy` lines) so
+// their messages participate in
 // describe/facts/verify and can be authored through mutation ops, as are
 // top-level notes. Constructs outside that closed model (notes inside
 // fragments, critical/break/rect/box, activations…) remain lossless opaque
@@ -216,8 +232,7 @@ export type SequenceStatement =
   | { kind: 'message'; ref: number } // index into messages
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
   | SequenceCreateStatement
-  /** `destroy X`: X's lifeline ends at the next message X sends or receives. */
-  | { kind: 'destroy'; actorId: string }
+  | SequenceDestroyStatement
   | SequenceNoteStatement
   | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }

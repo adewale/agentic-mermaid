@@ -30,7 +30,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageArrow, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceNoteStatement, SequenceNotePosition, MutationError, Result, LayoutWarning,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceFragmentBranch, SequenceNoteStatement, SequenceNotePosition, SequenceCreateStatement, SequenceDestroyStatement, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement, type SequenceStatementSyntax } from '../sequence/parser.ts'
@@ -118,11 +118,10 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 
     if (syntax?.kind === 'create') {
       fold.applyAll(participantEventsOf(syntax))
-      const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType } = syntax.declaration
+      const created = typedCreate(syntax.declaration)
       // Metadata the body does not model stays verbatim, as a declaration's.
-      if (unmodeledMetadata?.length || unknownType !== undefined) { appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue }
-      const text = readSequenceText(label)
-      statements.push({ kind: 'create', id, declaration: keyword, ...(type === keyword ? {} : { type }), label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) })
+      if (created) statements.push(created)
+      else appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
       i++
       continue
     }
@@ -213,6 +212,15 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
+/** A `create` line as a typed statement; one carrying metadata the body does
+ * not model stays verbatim source, as a declaration does. */
+function typedCreate(declaration: Extract<SequenceStatementSyntax, { kind: 'create' }>['declaration']): SequenceCreateStatement | undefined {
+  const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType } = declaration
+  if (unmodeledMetadata?.length || unknownType !== undefined) return undefined
+  const text = readSequenceText(label)
+  return { kind: 'create', id, declaration: keyword, ...(type === keyword ? {} : { type }), label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) }
+}
+
 /** A note line as a typed note, when the typed writer can spell its
  * participants; otherwise it stays verbatim source. */
 function typedNote(note: Extract<SequenceStatementSyntax, { kind: 'note' }>['note']): SequenceNoteStatement | undefined {
@@ -270,6 +278,13 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
       const continuation = inner.continuation
       const text = readSequenceText(continuation.label)
       branches.push({ ...(continuation.wrap === undefined ? {} : { wrap: continuation.wrap }), ...(text.value ? { label: text.value } : {}), ...(text.content ? { labelContent: text.content } : {}), messages: [] })
+      continue
+    }
+    if (inner?.kind === 'create' || inner?.kind === 'destroy') {
+      const directive = inner.kind === 'destroy' ? { kind: 'destroy' as const, actorId: inner.actorId } : typedCreate(inner.declaration)
+      if (!directive) return null
+      const branch = branches.at(-1)!
+      ;(branch.directives ??= []).push({ before: branch.messages.length, directive })
       continue
     }
     if (inner?.kind !== 'message') return null
@@ -450,7 +465,10 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
  * exists. Mermaid binds every directive of a stack to the message right after
  * it, requires that message to be the last directive's, and refuses to create
  * a known participant. Messages count in statement order, fragments included,
- * as in Mermaid.
+ * as in Mermaid. Mermaid's binding is the next entry of its message list, which
+ * also holds notes, activations, `autonumber` and fragment boundaries; its
+ * renderer draws nothing for a directive bound to one of those, where ours
+ * draws it at its message.
  */
 export function sequenceLifecycleIssues(statements: readonly SequenceSourceStatement[]): Array<{ entry: number; syntax: string; message: string }> {
   const issues: Array<{ entry: number; syntax: string; message: string }> = []
@@ -459,8 +477,18 @@ export function sequenceLifecycleIssues(statements: readonly SequenceSourceState
   let destroyed: { id: string; entry: number } | undefined
   const messages: Array<{ from: string; to: string }> = []
   const directives: Array<{ kind: 'create' | 'destroy'; id: string; entry: number; next: number }> = []
+  // Directives not yet followed by an entry of Mermaid's message list, and
+  // those followed by an entry that is not a message.
+  let unbound: number[] = []
+  const interrupted = new Map<number, string>()
   statements.forEach((entry, index) => {
     const syntax = entry.syntax
+    const signal = mermaidSignal(entry, statements)
+    if (signal !== undefined) {
+      if (syntax?.kind !== 'message') for (const directive of unbound) interrupted.set(directive, signal)
+      unbound = []
+    }
+    if (syntax?.kind === 'create' || syntax?.kind === 'destroy') unbound.push(index)
     if (syntax?.kind === 'create') {
       const { id } = syntax.declaration
       if (fold.has(id)) issues.push({
@@ -500,6 +528,15 @@ export function sequenceLifecycleIssues(statements: readonly SequenceSourceState
   // involves, so it draws nothing for this directive.
   const reported = new Set(issues.map(issue => issue.entry))
   for (const { kind, id, entry, next } of directives) {
+    const signal = interrupted.get(entry)
+    if (signal === undefined || reported.has(entry) || next >= messages.length) continue
+    reported.add(entry)
+    issues.push({
+      entry, syntax: 'sequence_lifecycle_gap',
+      message: `"${kind} ${id}" is followed by ${signal} before its message; ours ${kind === 'create' ? 'creates' : 'ends'} "${id}" at that message. Pinned Mermaid binds it to ${signal} and so draws no ${kind === 'create' ? 'creation' : 'destruction'} for "${id}". Move the line directly above the message.`,
+    })
+  }
+  for (const { kind, id, entry, next } of directives) {
     const qualifies = (m: { from: string; to: string }) => kind === 'create' ? m.to === id : m.from === id || m.to === id
     if (reported.has(entry) || next >= messages.length || qualifies(messages[next]!) || !messages.slice(next + 1).some(qualifies)) continue
     issues.push({
@@ -508,6 +545,23 @@ export function sequenceLifecycleIssues(statements: readonly SequenceSourceState
     })
   }
   return issues
+}
+
+/** The entry a statement adds to Mermaid's message list, named for a
+ * warning: a message, a note, an activation, `autonumber`, or a fragment's
+ * opening, branch or closing line (a box adds none). */
+function mermaidSignal(entry: SequenceSourceStatement, statements: readonly SequenceSourceStatement[]): string | undefined {
+  const syntax = entry.syntax
+  switch (syntax?.kind) {
+    case 'message': return 'a message'
+    case 'note': return 'a note'
+    case 'activation': return `"${syntax.activate ? 'activate' : 'deactivate'} ${syntax.actorId}"`
+    case 'autonumber': return '"autonumber"'
+    case 'block': return `the "${syntax.opener.type}" line`
+    case 'continuation': return `the "${syntax.continuation.type}" line`
+    case 'end': return entry.closes !== undefined && statements[entry.closes]?.syntax?.kind === 'box' ? undefined : 'the "end" line'
+    default: return undefined
+  }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -536,10 +590,8 @@ export function renderSequence(body: SequenceBody): string {
         else for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
       } else if (st.kind === 'fragment') {
         lines.push(...renderFragment(st.fragment))
-      } else if (st.kind === 'create') {
-        lines.push(renderCreate(st))
-      } else if (st.kind === 'destroy') {
-        lines.push(`  destroy ${st.actorId}`)
+      } else if (st.kind === 'create' || st.kind === 'destroy') {
+        lines.push(renderDirective(st))
       } else if (st.kind === 'note') {
         lines.push(renderNote(st))
       } else {
@@ -584,9 +636,7 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
     } else if (statement.kind === 'actor-links') {
       invalid = actorIdError(statement.actorId, 'receiver')
     } else if (statement.kind === 'create' || statement.kind === 'destroy') {
-      // Both directives spell the participant as one token.
-      const id = statement.kind === 'create' ? statement.id : statement.actorId
-      invalid = actorIdError(id, 'declaration') ?? (/\s/.test(id) ? { code: 'INVALID_OP', message: `Sequence participant ID "${id}" contains spaces; create and destroy need an ID without spaces` } : undefined)
+      invalid = directiveIdError(statement)
     } else if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
       if (message) invalid = messageIdError(message)
@@ -598,11 +648,29 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
           invalid = messageIdError(message)
           if (invalid) return invalid
         }
+        for (const { directive } of branch.directives ?? []) {
+          invalid = directiveIdError(directive)
+          if (invalid) return invalid
+        }
       }
     }
     if (invalid) return invalid
   }
   return undefined
+}
+
+function directiveIdError(statement: SequenceCreateStatement | SequenceDestroyStatement): MutationError | undefined {
+  // Both directives spell the participant as one token.
+  const id = directiveId(statement)
+  return actorIdError(id, 'declaration') ?? (/\s/.test(id) ? { code: 'INVALID_OP', message: `Sequence participant ID "${id}" contains spaces; create and destroy need an ID without spaces` } : undefined)
+}
+
+const directiveId = (statement: SequenceCreateStatement | SequenceDestroyStatement): string => statement.kind === 'create' ? statement.id : statement.actorId
+
+/** A branch's messages and lifecycle directives in source order. */
+function branchItems(branch: SequenceFragmentBranch): Array<SequenceMessage | SequenceCreateStatement | SequenceDestroyStatement> {
+  const at = (index: number) => (branch.directives ?? []).filter(entry => entry.before === index).map(entry => entry.directive)
+  return [...branch.messages.flatMap((message, index) => [...at(index), message]), ...at(branch.messages.length)]
 }
 
 function renderFragment(fragment: SequenceFragment): string[] {
@@ -617,7 +685,7 @@ function renderFragment(fragment: SequenceFragment): string[] {
       const branchPrefix = `  ${fragment.fragmentKind === 'par' || fragment.fragmentKind === 'par_over' ? 'and' : 'else'} `
       lines.push(branch.label || branch.wrap !== undefined ? branchPrefix + writeSequenceControlledText(branch.label ?? '', branch.labelContent, branch.wrap, branchPrefix) : branchPrefix.trimEnd())
     }
-    for (const message of branch.messages) lines.push(`  ${renderMessage(message).trimStart()}`)
+    for (const item of branchItems(branch)) lines.push('kind' in item ? renderDirective(item) : `  ${renderMessage(item).trimStart()}`)
   })
   lines.push('  end')
   return lines
@@ -641,7 +709,11 @@ function renderNote(note: SequenceNoteStatement): string {
   return prefix + writeSequenceControlledText(note.text, note.textContent, note.wrap, prefix)
 }
 
-function renderCreate(statement: Extract<SequenceStatement, { kind: 'create' }>): string {
+function renderDirective(statement: SequenceCreateStatement | SequenceDestroyStatement): string {
+  return statement.kind === 'create' ? renderCreate(statement) : `  destroy ${statement.actorId}`
+}
+
+function renderCreate(statement: SequenceCreateStatement): string {
   // A type the keyword does not give is written as a declaration writes it.
   const metadata = statement.type !== undefined && statement.type !== statement.declaration ? `@{ "type": "${statement.type}" }` : ''
   const prefix = `  create ${statement.declaration} ${statement.id}${metadata}`
@@ -663,7 +735,7 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
   switch (statement.kind) {
     case 'participant': return participants[statement.ref] ? [participants[statement.ref]!.id] : []
     case 'message': return endpoints(messages[statement.ref])
-    case 'fragment': return statement.fragment.branches.flatMap(branch => branch.messages.flatMap(endpoints))
+    case 'fragment': return statement.fragment.branches.flatMap(branch => branchItems(branch).flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : []))
     case 'actor-links': return [statement.actorId]
     case 'create': return [statement.id]
     // `destroy` refers to a participant without creating it.
@@ -820,12 +892,17 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
       if (naming?.preserved && relabelPreservedDeclaration(statements[naming.index]!, p)) break
-      // A participant its `create` line names is renamed there.
+      // A participant its `create` line names is renamed there, in a
+      // fragment branch too.
       const creating = naming === undefined ? statements[creatingStatement(statements, participants, messages, p.id)] : undefined
-      if (creating?.kind === 'create' && creating.id === p.id) {
-        creating.label = p.label
-        if (p.labelContent) creating.labelContent = p.labelContent
-        else delete creating.labelContent
+      const created = creating?.kind === 'create' ? creating
+        : creating?.kind === 'fragment' ? creating.fragment.branches.flatMap(branch => branch.directives ?? []).map(entry => entry.directive).find(directive => directive.kind === 'create' && directive.id === p.id)
+          : undefined
+      if (created?.kind === 'create' && created.id === p.id) {
+        if (creating?.kind === 'fragment') delete creating.fragment.rawLines
+        created.label = p.label
+        if (p.labelContent) created.labelContent = p.labelContent
+        else delete created.labelContent
         break
       }
       const at = naming === undefined ? creatingStatement(statements, participants, messages, p.id) + 1 : naming.preserved ? naming.index + 1 : undefined
@@ -938,6 +1015,9 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       ensureParticipant(participants, op.to)
       delete target.statement.fragment.rawLines
       branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync', ...(op.wrap === undefined ? {} : { wrap: op.wrap }) })
+      // As at top level, the new message takes the place of the one at
+      // `index`, after the directives above it.
+      for (const entry of branch.value.directives ?? []) if (entry.before > index) entry.before++
       break
     }
     case 'remove_fragment_message': {
@@ -948,6 +1028,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!branch.value.messages[op.index]) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
       delete target.statement.fragment.rawLines
       branch.value.messages.splice(op.index, 1)
+      for (const entry of branch.value.directives ?? []) if (entry.before > op.index) entry.before--
       break
     }
     case 'set_fragment_message_wrap': {
@@ -1028,6 +1109,7 @@ function renderedOrUndefined(body: SequenceBody): string | undefined {
 
 function hasLifecycleDirective(body: SequenceBody): boolean {
   return body.statements.some(statement => statement.kind === 'create' || statement.kind === 'destroy'
+    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.directives?.length))
     || (statement.kind === 'opaque-block' && statement.lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))))
 }
 
@@ -1160,14 +1242,20 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   const names = (line: string) => preservedLineEvents(line).some(event => event.id === id)
   return statements.some(statement =>
     (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line))))
-    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id))))
+    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id)
+      || branch.directives?.some(entry => directiveId(entry.directive) === id))))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
   if (s.kind === 'opaque-block') return { kind: 'opaque-block', lines: [...s.lines] }
   if (s.kind === 'actor-links') return { ...s, links: { ...s.links } }
   if (s.kind === 'note') return { ...s, actorIds: [...s.actorIds] }
-  if (s.kind === 'fragment') return { kind: 'fragment', fragment: { ...s.fragment, branches: s.fragment.branches.map(branch => ({ ...branch, messages: branch.messages.map(message => ({ ...message })) })) } }
+  if (s.kind === 'fragment') {
+    return { kind: 'fragment', fragment: { ...s.fragment, branches: s.fragment.branches.map(branch => ({
+      ...branch, messages: branch.messages.map(message => ({ ...message })),
+      ...(branch.directives ? { directives: branch.directives.map(({ before, directive }) => ({ before, directive: { ...directive } })) } : {}),
+    })) } }
+  }
   return { ...s }
 }
 

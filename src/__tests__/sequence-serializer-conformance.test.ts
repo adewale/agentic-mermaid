@@ -21,7 +21,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
-import type { SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
+import type { SequenceValidDiagram, SequenceMutationOp, SequenceStatement } from '../agent/types.ts'
 
 function sequence(src: string): SequenceValidDiagram {
   const r = parseMermaid(src)
@@ -330,11 +330,18 @@ describe('sequence create/destroy are typed statements', () => {
     ['a created database participant', 'A->>B: hi\n  create participant D@{ "type": "database" }\n  A->>D: store\n  destroy D\n  D-->>A: stored', ['create D', 'destroy D']],
     ['a created icon actor with an alias', 'A->>B: hi\n  create actor Q@{ "type": "queue" } as Jobs\n  B-)Q: enqueue', ['create Q']],
     ['a created actor typed as a participant', 'A->>B: hi\n  create actor P@{ "type": "participant" } as Plain\n  B->>P: make', ['create P']],
+    // Inside a typed fragment, bound to a message of the same branch.
+    ['a destroy inside an alt branch', 'A->>B: hi\n  alt done\n    destroy B\n    A->>B: bye\n  end', ['destroy B']],
+    ['a create inside a loop', 'A->>B: hi\n  loop each\n    create participant C as Carl\n    A->>C: make\n  end', ['create C']],
+    ['a destroy in a second par branch', 'A->>B: hi\n  par one\n    A->>B: x\n  and two\n    destroy B\n    A->>B: bye\n  end', ['destroy B']],
+    ['a create and destroy stacked in an opt', 'A->>B: hi\n  opt maybe\n    create participant C\n    destroy B\n    B->>C: hand over\n  end', ['create C', 'destroy B']],
   ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = sequence(source)
     expect(parsed.body.statements.filter(statement => statement.kind === 'opaque-block')).toEqual([])
-    expect(parsed.body.statements.flatMap(statement => statement.kind === 'create' ? [`create ${statement.id}`] : statement.kind === 'destroy' ? [`destroy ${statement.actorId}`] : []).sort()).toEqual([...directives].sort())
+    const named = (statement: SequenceStatement): string[] => statement.kind === 'create' ? [`create ${statement.id}`] : statement.kind === 'destroy' ? [`destroy ${statement.actorId}`]
+      : statement.kind === 'fragment' ? statement.fragment.branches.flatMap(branch => (branch.directives ?? []).flatMap(entry => named(entry.directive))) : []
+    expect(parsed.body.statements.flatMap(named).sort()).toEqual([...directives].sort())
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
     expect(describeMermaidFacts(parsed).filter(fact => /^(create|destroy) /.test(fact)).map(fact => `${fact.split(' ')[0]} ${fact.split(' ').at(fact.startsWith('create') ? 2 : 1)}`).sort()).toEqual([...directives].sort())
     const written = serializeMermaid(parsed)
@@ -348,21 +355,26 @@ describe('sequence create/destroy are typed statements', () => {
       .toEqual(renderParse(written).actors.map(actor => [actor.id, actor.type, actor.label]))
   })
 
-  // Mermaid's database binds a stacked directive to the message after the
-  // stack even when its participant is in a later message, and its renderer
-  // then draws no creation or destruction for it (the message does not
-  // involve the participant); ours binds it to that later message, and verify
-  // says so on the directive's line.
+  // Mermaid's database binds a directive to the next entry of its message
+  // list: for a stack, the message after it even when the directive's
+  // participant is in a later message; otherwise also a fragment's opening,
+  // branch or closing line, or a note. Its renderer then draws no creation or
+  // destruction for it; ours binds it to the participant's message, and
+  // verify says so on the directive's line.
   test.each([
-    ['a stacked destroy', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye\n  Carl->>Alice: later', 'destroy Carl', ['Carl', 'Alice', 'later'], ['Bob', 'Alice', 'bye'], 4, 'draws no destruction for "Carl"'],
-    ['a stacked create', 'Alice->>Bob: hi\n  create participant X\n  create participant Y\n  Bob->>Y: make\n  Alice->>X: later', 'create X', ['Alice', 'X', 'later'], ['Bob', 'Y', 'make'], 3, 'draws no creation for "X"'],
-  ] as const)('%s whose participant is in a later message binds there and warns', async (_name, body, directive, ours, mermaid, line, drawn) => {
+    ['a stacked destroy', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye\n  Carl->>Alice: later', 'destroy Carl', ['Carl', 'Alice', 'later'], ['Bob', 'Alice', 'bye'], 4, 'draws no destruction for "Carl"', 'sequence_stacked_lifecycle'],
+    ['a stacked create', 'Alice->>Bob: hi\n  create participant X\n  create participant Y\n  Bob->>Y: make\n  Alice->>X: later', 'create X', ['Alice', 'X', 'later'], ['Bob', 'Y', 'make'], 3, 'draws no creation for "X"', 'sequence_stacked_lifecycle'],
+    ['a create closing an alt branch', 'A->>B: hi\n  alt ok\n    A->>B: x\n    create participant C\n  end\n  A->>C: make', 'create C', ['A', 'C', 'make'], [undefined, undefined, ''], 5, 'draws no creation for "C"', 'sequence_lifecycle_gap'],
+    ['a destroy ending the branch before its message', 'A->>B: hi\n  alt ok\n    destroy B\n  else no\n    A->>B: bye\n  end', 'destroy B', ['A', 'B', 'bye'], [undefined, undefined, 'no'], 4, 'draws no destruction for "B"', 'sequence_lifecycle_gap'],
+    ['a destroy above the fragment holding its message', 'A->>B: hi\n  destroy B\n  loop again\n    A->>B: bye\n  end', 'destroy B', ['A', 'B', 'bye'], [undefined, undefined, 'again'], 3, 'draws no destruction for "B"', 'sequence_lifecycle_gap'],
+    ['a create above a note', 'A->>B: hi\n  create participant C\n  Note over A: n\n  A->>C: make', 'create C', ['A', 'C', 'make'], ['A', 'A', 'n'], 3, 'draws no creation for "C"', 'sequence_lifecycle_gap'],
+  ] as const)('%s whose participant is in a later message binds there and warns', async (_name, body, directive, ours, mermaid, line, drawn, syntax) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const bound = await bindings(source)
     expect(bound.ours[directive]).toEqual([...ours])
     expect(bound.mermaid).toMatchObject({ [directive]: mermaid })
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([
-      expect.objectContaining({ syntax: 'sequence_stacked_lifecycle', line, message: expect.stringContaining(drawn) }),
+      expect.objectContaining({ syntax, line, message: expect.stringContaining(drawn) }),
     ])
   })
 
@@ -392,11 +404,50 @@ describe('sequence create/destroy are typed statements', () => {
     expect(serializeMermaid(parsed)).toBe(SOURCE)
   })
 
-  test('a lifecycle directive inside a preserved fragment is named by the opaque warning', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  alt done\n    destroy B\n    A->>B: bye\n  end\n'
+  // A typed fragment keeps its directives where the author wrote them; a
+  // fragment op rewrites the fragment with them in place.
+  const FRAGMENT = 'sequenceDiagram\n  A->>B: hi\n  alt done\n    create participant C\n    A->>C: make\n    destroy B\n    A->>B: bye\n  else retry\n    A->>B: again\n  end\n'
+  test.each([
+    ['edits the destroying message', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 1, text: 'farewell' }, '  destroy B\n  A->>B: farewell\n'],
+    ['relabels a participant created in the branch', { kind: 'set_participant_label', id: 'C', label: 'Carl' }, '  create participant C as Carl\n  A->>C: make\n'],
+    ['adds a message after the destroying one', { kind: 'add_fragment_message', fragmentIndex: 0, index: 2, from: 'A', to: 'C', text: 'later' }, '  A->>B: bye\n  A->>C: later\n'],
+    ['removes the message before a directive', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '  destroy B\n  A->>B: bye\n  else retry\n  end\n'],
+  ] as const)('a typed fragment edit %s and keeps every binding Mermaid reads', async (_name, op, lines) => {
+    const written = serializeMermaid(apply(sequence(FRAGMENT), op as SequenceMutationOp))
+    expect(written).toContain(lines)
+    const { ours, mermaid } = await bindings(written)
+    expect(Object.keys(ours).sort()).toEqual(['create C', 'destroy B'])
+    expect(mermaid).toEqual(ours)
+    expect(sequence(written).body.statements.map(statement => statement.kind)).toEqual(['message', 'fragment'])
+    // SVG and terminal both draw B's end and C's start inside the branch.
+    expect(renderMermaidSVG(written)).toContain('class="destroy-cross" data-actor="B"')
+    const terminal = renderMermaidASCII(written, { useAscii: true })
+    expect([terminal.match(/\| B \|/g)?.length, terminal.match(/\| (?:C|Carl) \|/g)?.length]).toEqual([1, 2])
+  })
+
+  test('facts place each fragment directive in its branch and before its message', () => {
+    expect(describeMermaidFacts(sequence(FRAGMENT)).filter(fact => /^(create|destroy) /.test(fact))).toEqual([
+      'create participant C : C fragment#0 branch#0 before message#1',
+      'destroy B fragment#0 branch#0 before message#2',
+    ])
+  })
+
+  test.each([
+    ['separates a create from its message', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'interject' }, '"create" is not received by "C"'],
+    ['removes a participant the branch creates', { kind: 'remove_participant', id: 'C' }, 'Participant "C" is referenced'],
+  ] as const)('a typed fragment edit that %s is refused', (_name, op, problem) => {
+    const parsed = sequence(FRAGMENT)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(problem) })
+    expect(serializeMermaid(parsed)).toBe(FRAGMENT)
+  })
+
+  test('a lifecycle directive inside an unmodeled fragment is named by the opaque warning', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  critical done\n    destroy B\n    A->>B: bye\n  end\n'
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(alt fragment, destroy)'),
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(critical fragment, destroy)'),
     }))
   })
 })

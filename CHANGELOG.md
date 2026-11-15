@@ -74,6 +74,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   source-preserving modes. `remove_participant` refuses a participant a note
   names until the note is removed. Notes inside fragments stay preserved.
 
+- `create`/`destroy` lines inside `alt`, `opt`, `loop` and `par` fragments are
+  typed. Such a fragment used to become preserved source as a whole (verify
+  named it `(alt fragment, destroy)`); it now stays a typed fragment whose
+  branches list the directives in place (`branch.directives`), writes back
+  byte for byte, appears in facts (`destroy B fragment#0 branch#0 before
+  message#2`) and `describe`, and accepts fragment operations, which keep each
+  binding or are refused. Directives bind as at top level, across fragment
+  boundaries too. Verify warns `sequence_lifecycle_gap` where a fragment
+  boundary, note, activation or `autonumber` stands between a directive and
+  its message: Mermaid binds the directive to that line and draws no creation
+  or destruction. `critical`, `break` and `rect` stay preserved source.
+
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note
   edits can append the next region while preserving scoped notes and comments.
