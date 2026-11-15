@@ -130,6 +130,24 @@ const BRANCHED_SEQUENCE = `sequenceDiagram
   end
 `
 
+// Fragments nested two and three deep, indented with tabs and their messages
+// spelled with spaces.
+const NESTED_SEQUENCE = `sequenceDiagram
+\tparticipant A
+\tparticipant B
+\tA ->> B: one
+\trect rgb(200, 220, 255)
+\t\talt ok
+\t\t\tB ->> A: two
+\t\t\tloop retry
+\t\t\t\tA ->> B: three
+\t\t\tend
+\t\telse no
+\t\t\tA ->> B: four
+\t\tend
+\tend
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -259,6 +277,10 @@ const CASES: Case[] = [
   { name: 'sequence add_participant', source: SEQUENCE, op: { kind: 'add_participant', id: 'D', label: 'Database' }, reference: [['\tparticipant C as Controller\n', '\tparticipant C as Controller\n\tparticipant D as Database\n']] },
   { name: 'sequence add_fragment_message after a destroy in a verbatim alt branch', source: 'sequenceDiagram\n\tA->>B: hi\n\talt done\n\t\tdestroy B\n\t\tA->>B: bye\n\telse retry\n\t\tA->>A: tail\n\tend\n', op: { kind: 'add_fragment_message', fragmentIndex: 0, index: 1, from: 'A', to: 'A', text: 'after' }, reference: [['\t\tA->>B: bye\n', '\t\tA->>B: bye\n\t\tA->>A: after\n']] },
   { name: 'sequence add_fragment_note inside a verbatim alt branch', source: SEQUENCE, op: { kind: 'add_fragment_note', fragmentIndex: 0, position: 'right', actorIds: ['K'], text: 'acked', afterMessage: 1 }, reference: [['\t\tK -->> C: ok\n', '\t\tK -->> C: ok\n\t\tNote right of K: acked\n']] },
+  { name: 'sequence add_fragment_message into the branch of a nested alt', source: NESTED_SEQUENCE, op: { kind: 'add_fragment_message', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, branchIndex: 1, from: 'B', to: 'A', text: 'deep' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\tB->>A: deep\n']] },
+  { name: 'sequence set_fragment_message_text three fragments deep', source: NESTED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\t\t\tA ->> B: three'], reference: [['\t\t\t\tA ->> B: three\n', '\t\t\t\tA->>B: again\n']] },
+  { name: 'sequence add_fragment into a nested branch is indented like its siblings', source: NESTED_SEQUENCE, op: { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 1 }], fragmentKind: 'opt', label: 'maybe' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\topt maybe\n\t\t\tend\n']] },
+  { name: 'sequence remove_fragment two fragments deep', source: NESTED_SEQUENCE, op: { kind: 'remove_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], index: 0 }, touched: ['\t\t\tloop retry', '\t\t\t\tA ->> B: three', '\t\t\tend'], reference: [['\t\t\tloop retry\n\t\t\t\tA ->> B: three\n\t\t\tend\n', '']] },
   { name: 'sequence add_note after a message', source: SEQUENCE, op: { kind: 'add_note', position: 'right', actorIds: ['C'], text: 'queued', afterMessage: 0 }, reference: [['\tK ->> C: event\n', '\tK ->> C: event\n\tNote right of C: queued\n']] },
   { name: 'sequence remove_note', source: SEQUENCE, op: { kind: 'remove_note', index: 0 }, touched: ['\tNote over K,C: done'], reference: [['\tNote over K,C: done\n', '']] },
   { name: 'sequence set_note_text', source: SEQUENCE, op: { kind: 'set_note_text', index: 0, text: 'all done' }, touched: ['\tNote over K,C: done'], reference: [['K,C: done', 'K,C: all done']] },
