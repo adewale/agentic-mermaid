@@ -1378,7 +1378,8 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
   // not an empty diagram — it just isn't structurally modeled.
   const preservedLines = sequencePreservedLines(body)
-  const hasOpaqueContent = preservedLines.some(l => l.trim().length > 0 && !isSequenceCommentLine(l))
+  // Activation lines draw nothing without a participant, but are content.
+  const hasOpaqueContent = preservedLines.some(l => l.trim().length > 0 && !isSequenceCommentLine(l)) || sequenceTimeline(body).some(entry => entry.kind === 'activation')
   const allMessages = sequenceMessages(body)
   if (body.participants.length === 0 && allMessages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts, false)

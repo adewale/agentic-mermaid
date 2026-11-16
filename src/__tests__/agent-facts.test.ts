@@ -283,8 +283,8 @@ describe('facts through Code Mode and CLI surfaces', () => {
   })
 
   test('am describe --json carries verify warnings in every format, as MCP describe does', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  activate A'
-    const file = temp.file('activation.mmd', source)
+    const source = 'sequenceDiagram\n  A->>B: hi\n  autonumber'
+    const file = temp.file('autonumber.mmd', source)
     for (const format of ['text', 'facts', 'json']) {
       const result = capture(() => runCli(['describe', file, '--format', format, '--json']))
       expect({ format, code: result.code, out: JSON.parse(result.out) }).toEqual({ format, code: 0, out: mcpDescribePayload(source, { format }) })

@@ -66,14 +66,26 @@ them. `create participant|actor` and `destroy` lines and `Note left of|right
 of|over …` lines are typed statements too, at top level and inside those
 fragments (facts: `create …`, `destroy …`, with `fragment#f branch#b` inside a
 fragment); an edit that would separate a directive from the message Mermaid
-requires right after it is refused. Activations (`activate`/`deactivate`
-lines and message `+`/`-` marks) are facts:
+requires right after it is refused. `activate X`/`deactivate X` lines are
+typed statements too, at top level and in branches, written as authored
+(facts: `activation-line#N deactivate B`, `activation-line#N op [fragmentPath
+P fragmentIndex F branchIndex B] index K`, `activation-line#N before
+message#M`). Activations (those lines and message `+`/`-` marks) are also
+facts as spans:
 `activation#K B start message#0 end fragment#0 branch#1 before message#3`
 (a mark is `message#N`, a line `before message#N` or `at-end`, an open one
-ends `unclosed`). An edit that would leave a deactivation of a participant
-that is not active, which Mermaid rejects, is refused naming that line:
-remove or move it too, or keep its activation. A fragment may hold further fragments
-(see Nested fragments above). Other constructs (box/activate/autonumber/title,
+ends `unclosed`). Edit them with `add_activation` (`actorId`, `activate`:
+true or false, `afterMessage`/`beforeMessage` as a note's, below the notes
+and activation lines already after its message), `remove_activation`
+(`index`) and `set_message_activation` (`index` of the message, `mark`:
+`"+"`, `"-"` or null; Mermaid has no mark on a `()` message). Each takes the
+top level, or a branch with `fragmentIndex` (`branchIndex`, `fragmentPath`)
+as the fragment message and note ops do. An edit that would leave a
+deactivation of a participant that is not active, which Mermaid rejects, is
+refused naming that line and the op that removes it: remove the deactivation
+first (`remove_activation`, or `set_message_activation` with mark null), then
+the activation. A fragment may hold further fragments
+(see Nested fragments above). Other constructs (box/autonumber/title,
 a comment) ride along VERBATIM as opaque-block segments, at top level and
 inside a fragment branch, in source order, while participant, message and
 fragment ops remain live; a kept branch line never holds a message or note,

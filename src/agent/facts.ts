@@ -430,9 +430,11 @@ function factsSequence(out: string[], body: SequenceBody): void {
     })
   }
   // Lifecycle directives, notes and activate/deactivate lines, placed by the
-  // message# that follows them.
+  // message# that follows them. Activation lines kept in preserved source
+  // have no address.
   let messageIndex = 0
   let noteIndex = 0
+  let lineIndex = 0
   const total = sequenceMessageContexts(body).length
   // A message's `+`/`-` starts or ends an activation at that message.
   const activations: Array<SequenceActivationEvent<string>> = []
@@ -445,6 +447,15 @@ function factsSequence(out: string[], body: SequenceBody): void {
       readSequenceStatements(entry.lines).statements.forEach(({ syntax }, index) => {
         for (const event of sequenceActivationEvents(syntax)) activations.push({ ...event, at: syntax?.kind === 'message' ? `preserved-message#${entry.segment}.${index}` : line })
       })
+    } else if (entry.kind === 'activation') {
+      // Activation lines are numbered in drawing order, as notes are, and
+      // state the fields remove_activation takes.
+      const { statement: { actorId, activate }, place, index } = entry
+      activations.push({ id: actorId, activate, at: `${place ? `${branchName(place)} ` : ''}${messageIndex < total ? `before message#${messageIndex}` : 'at-end'}` })
+      add(out, `activation-line#${lineIndex} ${activate ? 'activate' : 'deactivate'} ${clean(actorId)}`)
+      add(out, `activation-line#${lineIndex} op ${place ? `${branchAddress(place)} ` : ''}index ${index}`)
+      if (messageIndex < total) add(out, `activation-line#${lineIndex} before message#${messageIndex}`)
+      lineIndex++
     } else if (entry.kind === 'lifecycle') {
       // A directive in a fragment branch also names the branch it is written in.
       const { statement, place } = entry

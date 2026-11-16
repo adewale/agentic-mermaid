@@ -585,7 +585,7 @@ function sequenceFragmentDisplay(fragment: SequenceFragment, name: string): stri
     const items = sequenceBranchItems(branch).flatMap(item => !('kind' in item) ? [`${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`]
       : item.kind === 'note' ? [sequenceNoteDisplay(item)]
         : item.kind === 'fragment' ? [`{ ${sequenceFragmentDisplay(item.fragment, `${name}.${branchIndex}.${nested++}`)} }`]
-          : item.kind === 'opaque-block' ? [] : [sequenceLifecycleDisplay(item)]).join('; ') || 'no messages'
+          : item.kind === 'opaque-block' || item.kind === 'activation' ? [] : [sequenceLifecycleDisplay(item)]).join('; ') || 'no messages'
     return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${items}`
   })
   return `fragment ${name} (${fragment.fragmentKind}): ${branches.join(' | ')}`

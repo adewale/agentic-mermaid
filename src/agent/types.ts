@@ -167,8 +167,8 @@ export interface SequenceFragmentBranch {
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
-  /** The branch's `create`/`destroy` lines, notes, nested fragments and
-   * preserved source lines, in source order, each before branch message
+  /** The branch's `create`/`destroy` lines, notes, activation lines, nested
+   * fragments and preserved source lines, in source order, each before branch message
    * `before` (`messages.length`: after the last). Directives bind as
    * top-level ones do: to the next message involving their participant, in
    * this branch or after it. */
@@ -176,9 +176,9 @@ export interface SequenceFragmentBranch {
 }
 export interface SequenceBranchStatement {
   before: number
-  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement | SequenceFragmentStatement | SequencePreservedLines
+  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement | SequenceActivationStatement | SequenceFragmentStatement | SequencePreservedLines
 }
-/** Source lines kept verbatim (comments, activations, a `box` of
+/** Source lines kept verbatim (comments, `autonumber`, a `box` of
  * declarations…), as at top level. In a branch they never hold a message or
  * a note, so the branch's message and note indexes count all of them. */
 export interface SequencePreservedLines {
@@ -243,12 +243,24 @@ export interface SequenceNoteStatement {
   wrap?: boolean
 }
 
+/** `activate X` / `deactivate X`: starts or ends an activation of X where it
+ * stands. Mermaid pairs a deactivation with X's latest open activation and
+ * rejects one while X is not active. */
+export interface SequenceActivationStatement {
+  kind: 'activation'
+  actorId: string
+  activate: boolean
+  /** Authored spelling, written back while it still reads as this line. */
+  rawLine?: string
+}
+
 // Ordered statement list. Refs index into the top-level arrays. Control
 // fragments of messages are typed (with their `create`/`destroy` lines,
-// notes and nested fragments, with other lines kept verbatim in their
-// branch) so their messages participate in describe/facts/verify and can be
-// authored through mutation ops, as are notes. Constructs outside that closed
-// model (box, activations…) remain lossless opaque segments.
+// notes, activation lines and nested fragments, with other lines kept
+// verbatim in their branch) so their messages participate in
+// describe/facts/verify and can be authored through mutation ops, as are
+// notes and activation lines. Constructs outside that closed model (box,
+// autonumber…) remain lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
@@ -256,6 +268,7 @@ export type SequenceStatement =
   | SequenceCreateStatement
   | SequenceDestroyStatement
   | SequenceNoteStatement
+  | SequenceActivationStatement
   | SequenceFragmentStatement
   | SequencePreservedLines
 
@@ -1486,6 +1499,17 @@ export type SequenceMutationOp =
   | { kind: 'remove_fragment_note'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_note_text'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; text: string }
   | { kind: 'move_fragment_note'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; afterMessage?: number; beforeMessage?: number }
+  // Activation lines (`activate X` / `deactivate X`) and message `+`/`-`
+  // marks. With `fragmentIndex` (and `branchIndex`, `fragmentPath`) these
+  // address a branch, as the fragment message and note ops do; without it,
+  // the top level. A line is anchored as a note is, after the notes and
+  // activation lines already below its message; `index` counts the
+  // scope's activation lines (facts `activation-line#N op … index K`).
+  // `+` activates the receiver, `-` deactivates the sender. No edit may
+  // leave a deactivation of a participant that is not active.
+  | { kind: 'add_activation'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex?: number; branchIndex?: number; actorId: ParticipantId; activate: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_activation'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex?: number; branchIndex?: number; index: number }
+  | { kind: 'set_message_activation'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex?: number; branchIndex?: number; index: number; mark: '+' | '-' | null }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

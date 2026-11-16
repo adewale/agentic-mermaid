@@ -192,7 +192,10 @@ export const MUTATION_OPS_BY_FAMILY = {
     "add_fragment_note",
     "remove_fragment_note",
     "set_fragment_note_text",
-    "move_fragment_note"
+    "move_fragment_note",
+    "add_activation",
+    "remove_activation",
+    "set_message_activation"
   ],
   "timeline": [
     "set_title",

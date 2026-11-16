@@ -204,6 +204,25 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   one) and `before message#N` (`at-end` after the last message). A
   deactivation ends its participant's latest open activation, as Mermaid
   pairs them.
+- Sequence `activate`/`deactivate` lines are typed statements, at top level
+  and in fragment branches, and new ops edit them and message marks:
+  `add_activation` (`actorId`, `activate`, anchored to a message as a note
+  is), `remove_activation` (`index`) and `set_message_activation` (`index`,
+  `mark`: `"+"`, `"-"` or null). Each addresses the top level, or a branch
+  with `fragmentIndex` (`branchIndex`, `fragmentPath`). Facts state each
+  line's address (`activation-line#N op … index K`). Every such edit goes
+  through the activation-balance check, so none writes a deactivation
+  Mermaid rejects, and the refusal of an edit that would now names the op
+  that removes that deactivation (`remove_activation`, or
+  `set_message_activation` with mark null). Activation lines are written back
+  as authored, in source order, so serializer, SVG, ASCII and Unicode output
+  of unedited diagrams is unchanged. The `sequence_opaque_segment` warning
+  no longer lists them; a diagram whose only preserved lines were
+  activations no longer warns (168 of the repo's 933 sequence and ZenUML
+  sources, and the official `sequenceDiagram.md` explicit-activation
+  example). Mermaid
+  writes no `+`/`-` on a message with a central connection `()`, so
+  `set_message_activation` refuses one there.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while
@@ -264,7 +283,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   moving a message or a fragment, removing a fragment or a participant could
   do the same. Such an edit is now refused with `INVALID_OP` naming the line
   that would deactivate an inactive participant, and what to do: keep an
-  activation before it, or remove or move that line too. Authored lines are
+  activation before it, or remove that deactivation first. Authored lines are
   never dropped to balance an edit. Source that already deactivates an
   inactive participant still reads and verify still warns
   (`sequence_inactive_deactivation`); an edit is refused only when it adds

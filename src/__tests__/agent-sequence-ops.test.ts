@@ -15,10 +15,11 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
-import type { SequenceBody, SequenceFragment, SequenceFragmentBranch, SequenceMessage, SequenceNoteStatement, SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
+import type { SequenceActivationStatement, SequenceBody, SequenceFragment, SequenceFragmentBranch, SequenceMessage, SequenceNoteStatement, SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { describeOps } from '../agent/op-schema.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
+import { sequenceTimeline } from '../agent/sequence-body.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
@@ -627,7 +628,7 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   })
 
   /** The same, read from the typed body: each fragment's markers around its
-   * branches' messages, notes, nested fragments and the activations and
+   * branches' messages, notes, activation lines, nested fragments and the
    * `autonumber` its preserved lines hold. */
   const MARKERS: Record<SequenceFragment['fragmentKind'], readonly [string, string, string]> = {
     alt: ['ALT_START', 'ALT_ELSE', 'ALT_END'], opt: ['OPT_START', '', 'OPT_END'], loop: ['LOOP_START', '', 'LOOP_END'], par: ['PAR_START', 'PAR_AND', 'PAR_END'],
@@ -636,10 +637,8 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   function typedStream(body: SequenceBody): string[] {
     const message = (m: SequenceMessage) => `${m.from}->${m.to}: ${m.text}`
     const note = (n: SequenceNoteStatement) => `note ${n.position} ${n.actorIds.join(',')}: ${n.text}`
-    const preserved = (line: string): string[] => {
-      const [keyword, id] = line.trim().split(/\s+/)
-      return keyword === 'activate' ? [`ACTIVE_START ${id}`] : keyword === 'deactivate' ? [`ACTIVE_END ${id}`] : keyword === 'autonumber' ? ['AUTONUMBER'] : []
-    }
+    const activation = (a: SequenceActivationStatement) => `${a.activate ? 'ACTIVE_START' : 'ACTIVE_END'} ${a.actorId}`
+    const preserved = (line: string): string[] => line.trim() === 'autonumber' ? ['AUTONUMBER'] : []
     const fragment = (f: SequenceFragment): string[] => {
       const [start, next, end] = MARKERS[f.fragmentKind]
       return [...f.branches.flatMap((branch, i) => [`${i === 0 ? start : next} ${(i === 0 ? f.label : branch.label) ?? ''}`.trim(), ...items(branch)]), end]
@@ -647,11 +646,11 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     const items = (branch: SequenceFragmentBranch): string[] => {
       const at = (k: number) => (branch.statements ?? []).filter(entry => entry.before === k)
         .flatMap(({ statement }) => statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment)
-          : statement.kind === 'opaque-block' ? statement.lines.flatMap(preserved) : [])
+          : statement.kind === 'activation' ? [activation(statement)] : statement.kind === 'opaque-block' ? statement.lines.flatMap(preserved) : [])
       return [...branch.messages.flatMap((m, k) => [...at(k), message(m)]), ...at(branch.messages.length)]
     }
     return body.statements.flatMap(statement => statement.kind === 'message' ? [message(body.messages[statement.ref]!)]
-      : statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
+      : statement.kind === 'note' ? [note(statement)] : statement.kind === 'activation' ? [activation(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
   }
 
   test('a rect around an alt holding a loop and an opt is typed to the bottom and written back unchanged', async () => {
@@ -793,14 +792,15 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     expect(serializeMermaid(parsed)).toBe(PRESERVED)
     const alt = (parsed.body.statements[3] as { fragment: SequenceFragment }).fragment
     expect(alt.branches[0]!.statements).toEqual([
-      { before: 0, statement: { kind: 'opaque-block', lines: ['    %% why this branch', '    activate B'] } },
-      { before: 1, statement: { kind: 'opaque-block', lines: ['    deactivate B'] } },
+      { before: 0, statement: { kind: 'opaque-block', lines: ['    %% why this branch'] } },
+      { before: 0, statement: { kind: 'activation', actorId: 'B', activate: true, rawLine: '    activate B' } },
+      { before: 1, statement: { kind: 'activation', actorId: 'B', activate: false, rawLine: '    deactivate B' } },
     ])
     expect(factAddress(parsed, 'message#2')).toEqual({ fragmentIndex: 0, branchIndex: 1, index: 0 })
     expect(describeMermaid(parsed)).toContain('fragment 0 (alt): branch 0 (ok): B -> A: two | branch 1 (no): A -> C: three; { fragment 0.1.0 (loop): branch 0 (again): C -> A: four }')
     // The preserved constructs are named; the fragments around them are not.
     expect(verifyMermaid(PRESERVED).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({
-      syntax: 'sequence_opaque_segment', message: expect.stringContaining('(activate/deactivate, box, autonumber)'),
+      syntax: 'sequence_opaque_segment', message: expect.stringContaining('(box, autonumber)'),
     })])
     const read = await mermaidStream(PRESERVED)
     if (!read.ok) throw new Error(read.error)
@@ -957,10 +957,17 @@ describe('sequence activations are facts, and an edit that would leave a partici
     ['moving a fragment holding an activation below its deactivation', 'sequenceDiagram\n  opt busy\n    activate B\n    B->>A: two\n  end\n  A->>B: one\n  deactivate B\n', { kind: 'move_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
     ['moving a fragment holding an activation out of its branch, past the deactivation', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    opt busy\n      activate B\n      B->>A: two\n    end\n    deactivate B\n  end\n', { kind: 'move_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], index: 0, toFragmentPath: [] }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  deactivate B\n  end\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
     ['removing an activation from source already deactivating B once too often', 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>+B: two\n  deactivate B\n', { kind: 'remove_message', index: 1 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  deactivate B\n', '"deactivate B"'],
+    ['adding a deactivation of a participant that is not active', 'sequenceDiagram\n  A->>B: one\n', { kind: 'add_activation', actorId: 'B', activate: false, afterMessage: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n', '"deactivate B"'],
+    ['removing the activation line a later line closes', 'sequenceDiagram\n  A->>B: one\n  activate B\n  B->>A: two\n  deactivate B\n', { kind: 'remove_activation', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  B->>A: two\n  deactivate B\n', '"deactivate B"'],
+    ['removing a branch activation line a later line closes', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    activate B\n    B->>A: two\n  end\n  deactivate B\n', { kind: 'remove_activation', fragmentIndex: 0, index: 0 }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  B->>A: two\n  end\n  deactivate B\n', '"deactivate B"'],
+    ['clearing the "+" a later "-" closes', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'set_message_activation', index: 0, mark: null }, 'sequenceDiagram\n  A->>B: one\n  B-->>-A: two\n', '"B-->>-A: two"'],
+    ['marking "-" a branch message whose sender is not active', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    B->>A: two\n  end\n', { kind: 'set_message_activation', fragmentIndex: 0, index: 0, mark: '-' }, 'sequenceDiagram\n  A->>B: one\n  opt busy\n  B->>-A: two\n  end\n', '"B->>-A: two"'],
   ] as const)('%s', async (_name, source, op, wouldWrite, line) => {
     const parsed = sequence(source)
     const result = mutate(parsed, op as SequenceMutationOp)
     expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(`Mermaid rejects: ${line} would deactivate participant "B" while it is not active`) })
+    // The refusal names the op that removes the deactivation.
+    if (!result.ok) expect(result.error.message).toEndWith(line.startsWith('"deactivate') ? 'or remove that line (remove_activation).' : 'or clear that message\'s "-" (set_message_activation with mark null).')
     expect(serializeMermaid(parsed)).toBe(source)
     const rejected = await upstream.parse(wouldWrite)
     expect(rejected.ok ? 'accepted' : rejected.error).toContain(INACTIVE)
@@ -981,6 +988,103 @@ describe('sequence activations are facts, and an edit that would leave a partici
     const [before, after] = [await upstream.parse(source), await upstream.parse(output)]
     expect(after.ok).toBe(before.ok)
     expect(sequenceUnsupportedWarnings(output)).toHaveLength(before.ok ? 0 : 1)
+  })
+})
+
+describe('activation lines and message marks are edited with typed ops, as Mermaid reads them', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  /** Messages and activations in order, as Mermaid's database holds them. */
+  const mermaidActivations = (source: string) => upstream.project(source, diagram => {
+    const type = diagram.db.LINETYPE
+    return (diagram.db.getMessages() as Array<{ from?: string; to?: string; type: number; message: unknown }>).flatMap(m => m.type === type.ACTIVE_START ? [`activate ${m.from}`]
+      : m.type === type.ACTIVE_END ? [`deactivate ${m.from}`] : m.from !== undefined && m.to !== undefined && m.type !== type.NOTE ? [`${m.from}->${m.to}: ${m.message}`] : [])
+  })
+  /** The same, as the typed body says: a mark activates or deactivates
+   * right after its message. */
+  const typedActivations = (body: SequenceBody): string[] => sequenceTimeline(body).flatMap(entry => entry.kind === 'activation' ? [`${entry.statement.activate ? 'activate' : 'deactivate'} ${entry.statement.actorId}`]
+    : entry.kind !== 'message' ? [] : [`${entry.message.from}->${entry.message.to}: ${entry.message.text}`, ...entry.message.activate ? [`activate ${entry.message.to}`] : entry.message.deactivate ? [`deactivate ${entry.message.from}`] : []])
+
+  const LOOP = [{ fragmentIndex: 0, branchIndex: 0 }]
+  test.each([
+    ['adds activation lines after messages', 'sequenceDiagram\n  A->>B: one\n  B->>A: two\n', [{ kind: 'add_activation', actorId: 'B', activate: true, afterMessage: 0 }, { kind: 'add_activation', actorId: 'B', activate: false, afterMessage: 1 }], 'sequenceDiagram\n  A->>B: one\n  activate B\n  B->>A: two\n  deactivate B\n'],
+    ['adds a line below the notes and activation lines already after its message', 'sequenceDiagram\n  A->>B: one\n  Note over B: n\n  activate B\n  B->>A: two\n', [{ kind: 'add_activation', actorId: 'A', activate: true, afterMessage: 0 }], 'sequenceDiagram\n  A->>B: one\n  Note over B: n\n  activate B\n  activate A\n  B->>A: two\n'],
+    ['adds a line before a message, above the create bound to it', 'sequenceDiagram\n  A->>B: one\n  create participant C\n  B->>C: two\n', [{ kind: 'add_activation', actorId: 'B', activate: true, beforeMessage: 1 }], 'sequenceDiagram\n  A->>B: one\n  activate B\n  create participant C\n  B->>C: two\n'],
+    ['adds lines in a nested branch, by fragmentPath', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    loop retry\n      B->>A: two\n      Note over A: busy\n    end\n  end\n', [{ kind: 'add_activation', fragmentPath: LOOP, fragmentIndex: 0, actorId: 'A', activate: true, beforeMessage: 0 }, { kind: 'add_activation', fragmentPath: LOOP, fragmentIndex: 0, actorId: 'A', activate: false }], 'sequenceDiagram\n  A->>B: one\n  alt ok\n  loop retry\n    activate A\n    B->>A: two\n    Note over A: busy\n    deactivate A\n  end\n  end\n'],
+    ['removes a deactivation, then the message whose "+" it closed', 'sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n', [{ kind: 'remove_activation', index: 0 }, { kind: 'remove_message', index: 0 }], 'sequenceDiagram\n  B->>A: two\n'],
+    ['clears a "-", then removes the message whose "+" it closed', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', [{ kind: 'set_message_activation', index: 1, mark: null }, { kind: 'remove_message', index: 0 }], 'sequenceDiagram\n  B-->>A: two\n'],
+    ['removes both lines of a span in a branch, keeping its other lines', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    %% kept\n    activate B\n    B->>A: two\n    deactivate B\n  end\n', [{ kind: 'remove_activation', fragmentIndex: 0, index: 1 }, { kind: 'remove_activation', fragmentIndex: 0, index: 0 }], 'sequenceDiagram\n  A->>B: one\n  alt ok\n  %% kept\n  B->>A: two\n  end\n'],
+    ['marks messages "+" and "-", at top level and in a branch', 'sequenceDiagram\n  A->>B: one\n  opt again\n    A->>B: two\n  end\n  B-->>A: three\n', [{ kind: 'set_message_activation', index: 0, mark: '+' }, { kind: 'set_message_activation', fragmentIndex: 0, index: 0, mark: '+' }, { kind: 'set_message_activation', index: 1, mark: '-' }], 'sequenceDiagram\n  A->>+B: one\n  opt again\n  A->>+B: two\n  end\n  B-->>-A: three\n'],
+  ] as const)('an op that %s is written as Mermaid reads it', async (_name, source, ops, written) => {
+    const edited = (ops as readonly SequenceMutationOp[]).reduce(apply, sequence(source))
+    const output = serializeMermaid(edited)
+    expect(output).toBe(written)
+    const reread = sequence(output)
+    expect(serializeMermaid(reread)).toBe(output)
+    expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidActivations(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value).toEqual(typedActivations(edited.body))
+  })
+
+  // Removing the message first stays refused (see the section above): the
+  // deactivation goes first.
+  test('removing the activating message before its deactivation is refused, naming remove_activation', () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n'), { kind: 'remove_message', index: 0 })
+    expect(result.ok ? 'accepted' : result.error.message).toEndWith('or remove that line (remove_activation).')
+  })
+
+  test('facts state each activation line\'s address, and remove_activation removes exactly that line or is refused', async () => {
+    const source = 'sequenceDiagram\n  A->>+B: one\n  alt ok\n    activate B\n    B->>A: two\n  else no\n    activate A\n    A->>B: three\n  end\n  deactivate B\n  B-->>-A: four\n  activate B\n'
+    const parsed = sequence(source)
+    expect(describeMermaidFacts(parsed).filter(fact => fact.startsWith('activation-line#'))).toEqual([
+      'activation-line#0 activate B', 'activation-line#0 before message#1', 'activation-line#0 op fragmentIndex 0 branchIndex 0 index 0',
+      'activation-line#1 activate A', 'activation-line#1 before message#2', 'activation-line#1 op fragmentIndex 0 branchIndex 1 index 0',
+      'activation-line#2 before message#3', 'activation-line#2 deactivate B', 'activation-line#2 op index 0',
+      'activation-line#3 activate B', 'activation-line#3 op index 1',
+    ])
+    for (const [line, authored] of ['    activate B\n', '    activate A\n', '  deactivate B\n', '  activate B\n'].entries()) {
+      const result = mutate(parsed, { kind: 'remove_activation', ...factAddress(parsed, `activation-line#${line}`) } as SequenceMutationOp)
+      const without = source.replace(`\n${authored}`, '\n')
+      if (result.ok) expect(describeMermaidFacts(result.value)).toEqual(describeMermaidFacts(sequence(without)))
+      // Only removing the branch's `activate B` is refused: `B-->>-A` would
+      // then deactivate B while it is not active, which Mermaid rejects.
+      expect(result.ok).toBe(line !== 0)
+      expect((await upstream.parse(without)).ok).toBe(line !== 0)
+    }
+  })
+
+  test.each([
+    ['a participant that does not exist', { kind: 'add_activation', actorId: 'Z', activate: true }, 'PARTICIPANT_NOT_FOUND'],
+    ['an activate flag that is not a boolean', { kind: 'add_activation', actorId: 'A', activate: 'yes' }, 'INVALID_OP'],
+    ['an anchor past the top-level messages', { kind: 'add_activation', actorId: 'A', activate: true, afterMessage: 2 }, 'MESSAGE_NOT_FOUND'],
+    ['a branchIndex without its fragmentIndex', { kind: 'add_activation', actorId: 'A', activate: true, branchIndex: 0 }, 'INVALID_OP'],
+    ['a missing activation line', { kind: 'remove_activation', index: 1 }, 'INVALID_OP'],
+    ['a missing branch activation line', { kind: 'remove_activation', fragmentIndex: 0, index: 0 }, 'INVALID_OP'],
+    ['a missing message', { kind: 'set_message_activation', fragmentIndex: 0, index: 1, mark: '+' }, 'MESSAGE_NOT_FOUND'],
+    ['a mark that is not + or -', { kind: 'set_message_activation', index: 0, mark: '*' }, 'INVALID_OP'],
+  ] as const)('an activation op naming %s is refused and changes nothing', (_name, op, code) => {
+    const source = 'sequenceDiagram\n  A->>B: one\n  activate B\n  opt maybe\n    B->>A: two\n  end\n'
+    const parsed = sequence(source)
+    const result = mutate(parsed, op as unknown as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error.code).toBe(code)
+    expect(serializeMermaid(parsed)).toBe(source)
+  })
+
+  // Mermaid's grammar has no message with both a central connection and a
+  // mark.
+  test('a "+" on a message with a central connection is refused, as Mermaid rejects it', async () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>()B: one\n'), { kind: 'set_message_activation', index: 0, mark: '+' })
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining('central connection') })
+    expect((await upstream.parse('sequenceDiagram\n  A->>()B: one\n')).ok).toBe(true)
+    expect((await upstream.parse('sequenceDiagram\n  A->>()+B: one\n')).ok).toBe(false)
+  })
+
+  test('remove_participant names the activation line naming the participant', () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>B: one\n  alt ok\n    activate B\n    A->>A: two\n  end\n'), { kind: 'remove_participant', id: 'B' })
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: 'Participant "B" is named by activation-line#0; remove its activation lines (remove_activation) before removing the participant' })
   })
 })
 
