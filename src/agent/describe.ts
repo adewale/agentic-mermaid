@@ -31,7 +31,7 @@ import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceBranchItems, sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import { sequenceDisplayText } from '../sequence/text.ts'
-import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceNoteStatement, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceCreateStatement, SequenceDestroyStatement, SequenceFragment, SequenceFragmentStep, SequenceNoteStatement, SequenceParticipant, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 /** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
 export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
@@ -74,9 +74,10 @@ export interface DescribeTree {
      * forward (`from` points at `to`). */
     direction?: Exclude<ArrowheadDirection, 'forward'>
     /** A fragment message's branch, and `index`, its position in that branch
-     * as the fragment-message ops take it. Top-level messages have none;
-     * their edges are listed in top-level message index order. */
-    sequence?: { fragmentIndex: number; branchIndex: number; index: number; fragmentKind: string; branchLabel?: string }
+     * as the fragment-message ops take it (with `fragmentPath` for a nested
+     * fragment). Top-level messages have none; their edges are listed in
+     * top-level message index order. */
+    sequence?: { fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex: number; index: number; fragmentKind: string; branchLabel?: string }
     zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
     c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
       authoredFrom: string
@@ -217,10 +218,9 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     return tree
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: sequenceParticipantDisplay(p) })
-    const fragments = d.body.statements.flatMap(statement => statement.kind === 'fragment' ? [statement.fragment] : [])
     sequenceMessageContexts(d.body).forEach(context => {
       const m = context.message
-      const branchLabel = context.scope === 'fragment' ? sequenceBranchDisplay(fragments[context.fragmentIndex]!, context.branchIndex) : ''
+      const branchLabel = context.scope === 'fragment' ? sequenceBranchDisplay(context.fragment, context.branchIndex) : ''
       tree.edges.push({
         from: m.from,
         to: m.to,
@@ -228,6 +228,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
         ...(context.scope === 'fragment'
           ? {
               sequence: {
+                ...(context.fragmentPath ? { fragmentPath: context.fragmentPath } : {}),
                 fragmentIndex: context.fragmentIndex,
                 branchIndex: context.branchIndex,
                 index: context.index,
@@ -567,17 +568,26 @@ function describeSequence(d: SequenceValidDiagram): string {
       continue
     }
     if (statement.kind !== 'fragment') continue
-    const branches = statement.fragment.branches.map((branch, branchIndex) => {
-      const label = sequenceBranchDisplay(statement.fragment, branchIndex)
-      const messages = sequenceBranchItems(branch).map(item => !('kind' in item) ? `${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`
-        : item.kind === 'note' ? sequenceNoteDisplay(item) : sequenceLifecycleDisplay(item)).join('; ') || 'no messages'
-      return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
-    })
-    interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
+    interactions.push(sequenceFragmentDisplay(statement.fragment, String(fragmentIndex)))
     fragmentIndex++
   }
   if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
+}
+
+/** A fragment and its branches in source order; a nested fragment is named
+ * by its facts path (`0.1.0`) and its branches are braced. */
+function sequenceFragmentDisplay(fragment: SequenceFragment, name: string): string {
+  const branches = fragment.branches.map((branch, branchIndex) => {
+    const label = sequenceBranchDisplay(fragment, branchIndex)
+    let nested = 0
+    const items = sequenceBranchItems(branch).map(item => !('kind' in item) ? `${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`
+      : item.kind === 'note' ? sequenceNoteDisplay(item)
+        : item.kind === 'fragment' ? `{ ${sequenceFragmentDisplay(item.fragment, `${name}.${branchIndex}.${nested++}`)} }`
+          : sequenceLifecycleDisplay(item)).join('; ') || 'no messages'
+    return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${items}`
+  })
+  return `fragment ${name} (${fragment.fragmentKind}): ${branches.join(' | ')}`
 }
 
 function sequenceNoteDisplay(note: SequenceNoteStatement): string {

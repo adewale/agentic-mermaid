@@ -422,12 +422,11 @@ describe('BUILD-18 sequence segmentation — sad paths', () => {
     expect(serializeMermaid(d).trimEnd()).toBe(src)
   })
 
-  test('nested alt-in-loop is one opaque block; top-level messages stay structured', () => {
+  test('nested alt-in-loop is one typed fragment; top-level messages stay structured', () => {
     const src = ['sequenceDiagram', '  A->>B: start', '  loop retry', '    alt ok', '      B-->>A: yes', '    else no', '      B-->>A: no', '    end', '  end', '  A->>B: done'].join('\n')
     const s = sequence(src)
     expect(s.body.messages.map(m => m.text)).toEqual(['start', 'done'])
-    const opaque = (s.body.statements ?? []).filter(st => st.kind === 'opaque-block')
-    expect(opaque.length).toBe(1)
+    expect(s.body.statements.map(st => st.kind)).toEqual(['message', 'fragment', 'message'])
     expect(serializeMermaid(s).trimEnd()).toBe(src)
   })
 

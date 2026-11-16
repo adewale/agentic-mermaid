@@ -72,8 +72,9 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
     // presentation metadata that this project now promotes to typed structure.
     // A change here means our counting moved relative to an independent
     // implementation — investigate before re-pinning.
-    // Sequence docs case 30 now agrees after restoring its two spaced-marker
-    // messages, reducing the genuine divergence count from six to five.
+    // Sequence docs case 30 (a rect nested in a rect) agreed while its block
+    // was preserved source; it joined the block-delimiter class when nested
+    // fragments became typed, and ours counts its six drawn messages.
     // Cases 26–28 (nested `par`, `critical`) now count the participants their
     // preserved blocks create, exactly as pinned upstream Mermaid lists them;
     // mermaid-ast projects none there, raising the count from five to eight.
@@ -84,7 +85,8 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
       'flowchart:syntax/flowchart.md#97', 'flowchart:syntax/flowchart.md#103',
       'sequence:syntax/sequenceDiagram.md#15', 'sequence:syntax/sequenceDiagram.md#23', 'sequence:syntax/sequenceDiagram.md#24',
       'sequence:syntax/sequenceDiagram.md#25', 'sequence:syntax/sequenceDiagram.md#26', 'sequence:syntax/sequenceDiagram.md#27',
-      'sequence:syntax/sequenceDiagram.md#28', 'sequence:syntax/sequenceDiagram.md#29', 'sequence:syntax/sequenceDiagram.md#33',
+      'sequence:syntax/sequenceDiagram.md#28', 'sequence:syntax/sequenceDiagram.md#29', 'sequence:syntax/sequenceDiagram.md#30',
+      'sequence:syntax/sequenceDiagram.md#33',
       'er:syntax/entityRelationshipDiagram.md#12', 'er:syntax/entityRelationshipDiagram.md#13', 'er:syntax/entityRelationshipDiagram.md#14',
       'er:syntax/entityRelationshipDiagram.md#16', 'er:syntax/entityRelationshipDiagram.md#17',
     ]

@@ -10,10 +10,11 @@
 // whose isolated reading (the family parser and writer on that line alone)
 // contains it; respelled block contents pair by order. The difference is then
 // replayed on the authored lines: a changed token is spliced into the line
-// that spells it, a line whose every statement goes away is deleted (with any
-// declaration folded into them), and a new statement is written in canonical,
-// portable spelling beside its neighbour, indented like its authored
-// siblings. Every other line is copied byte for byte.
+// that spells it (through the line's canonical reading when the line keeps
+// its authored spacing), a line whose every statement goes away is deleted
+// (with any declaration folded into them), and a new statement is written in
+// canonical, portable spelling beside its neighbour, indented like its
+// authored siblings. Every other line is copied byte for byte.
 //
 // The projection only proposes. A few placement variants are tried, those
 // that rewrite the fewest authored lines first (ties in a fixed order), and
@@ -26,8 +27,17 @@
 // each `Class : member` line, a block opened twice) to every line it is read
 // from: a change is spliced into each line that spells it, a removal takes
 // every line that declares nothing else, and a new member of a block written
-// as separate lines is spelled like its authored siblings. The caller
-// otherwise writes the canonical source and says why: the closest
+// as separate lines is spelled like its authored siblings.
+//
+// A third pass reads the authored block structure: a block member is traced
+// to the line inside its authored block that declares it, a new statement
+// goes outside authored blocks its canonical statement is not in, and the
+// statements a rewritten line keeps and those written beside it are written
+// in canonical order. A declaration whose label the writer moves onto a new
+// statement keeps its line, and the new statement names it bare. A brace
+// opener the parser does not accept empty (a namespace) is read as a block,
+// and a block written on one line is rewritten there as the edited block.
+// The caller otherwise writes the canonical source and says why: the closest
 // candidate's misreading, or the statement that could not be placed.
 // ============================================================================
 
@@ -121,6 +131,9 @@ interface Trace {
   readonly implicit?: ReadonlySet<number>
   /** Structural pass: each authored line's isolated reading. */
   readonly readings?: ReadonlyArray<ReadonlyMap<string, number>>
+  /** Residual pass: the authored block structure, each line's innermost
+   * enclosing block opener (or -1) and each opener's closer. */
+  readonly nesting?: { readonly enclosing: readonly number[]; readonly closer: ReadonlyMap<number, number> }
 }
 
 interface LineReader {
@@ -136,6 +149,13 @@ interface LineReader {
   /** Whether a statement reads as the diagram's statements on its own (a
    * message or node does; a branch line like `else` or a member does not). */
   alone(text: string): boolean
+  /** Whether a line read as nothing on its own opens a brace block: it ends
+   * with `{` and reads neither alone nor closed (a namespace, which the
+   * parser does not accept empty). */
+  opensBrace(text: string): boolean
+  /** The canonical statements an authored statement adds inside a block
+   * (between its authored opener and closer), less the empty block's own. */
+  within(opener: string, text: string, closer: string): Map<string, number> | undefined
 }
 
 const closesBlock = (statement: string) => statement.trim() === 'end' || statement.trim() === '}'
@@ -178,6 +198,20 @@ function lineReader(wrapper: string, header: string): LineReader {
     alone(text) {
       return read(`${wrapper}${header}\n${text.trim()}`) !== undefined
     },
+    within(opener, text, closer) {
+      const found = read(`${wrapper}${header}\n${opener}\n${text}\n${closer}`)
+      if (!found) return undefined
+      const result = new Map(found)
+      for (const [line, count] of read(`${wrapper}${header}\n${opener}\n${closer}`) ?? []) {
+        const left = (result.get(line) ?? 0) - count
+        if (left > 0) result.set(line, left)
+        else result.delete(line)
+      }
+      return result
+    },
+    opensBrace(text) {
+      return /\{\s*$/.test(text) && read(`${wrapper}${header}\n${text}`) === undefined && read(`${wrapper}${header}\n${text}\n}`) === undefined
+    },
     opens(text) {
       const alone = read(`${wrapper}${header}\n${text}`)
       if (alone && !block(alone)) return false
@@ -219,7 +253,7 @@ function joinSplitValues(lines: readonly AuthoredLine[], c0: readonly string[], 
  * statement the family's source map locates for the same identity, else a
  * line already in canonical spelling, else the line whose own canonical
  * reading contains it. Nearby lines win ties, so repeated text stays in order. */
-function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram, reader: LineReader, structural = false): Trace {
+function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readonly string[], before: ParsedDiagram, reader: LineReader, structural = false, residual = false): Trace {
   const owner = c0.map(() => -1)
   const folded = new Map<number, number[]>()
   if (!lines.length) return { owner, folded }
@@ -282,7 +316,8 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
     if (free.length === end - start) free.forEach((line, offset) => { owner[start + offset] = line })
     start = end
   }
-  const blocks = structural ? traceBlocks(lines, c0, owner, remaining, reader) : undefined
+  const blocks = structural ? traceBlocks(lines, c0, owner, remaining, reader, residual) : undefined
+  if (blocks && residual) traceMembers(lines, c0, owner, blocks, reader)
   const traced = new Set(owner)
   readings.forEach((reading, line) => {
     if (traced.has(line) || inert(lines[line]!.text)) return
@@ -339,7 +374,7 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
       else if (!owners.has(close) && !list.includes(close)) list.push(close)
     }
   }
-  return { owner, folded, parts, implicit: blocks.implicit, readings }
+  return { owner, folded, parts, implicit: blocks.implicit, readings, nesting: residual ? { enclosing: blocks.enclosing, closer: blocks.authoredCloser } : undefined }
 }
 
 /**
@@ -352,9 +387,10 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
  * no authored line opens (members written as `Class : member` lines) has an
  * implicit closer, so it never takes another block's.
  */
-function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], remaining: ReadonlyArray<ReadonlyMap<string, number>>, reader: LineReader): { closerOf: Map<number, number>; authoredCloser: Map<number, number>; implicit: Set<number>; redeclares: Map<number, number[]> } {
+function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], remaining: ReadonlyArray<ReadonlyMap<string, number>>, reader: LineReader, residual: boolean): { closerOf: Map<number, number>; authoredCloser: Map<number, number>; implicit: Set<number>; redeclares: Map<number, number[]>; enclosing: number[] } {
   const words = (text: string) => new Set(text.match(WORDS) ?? [])
-  const opens = (line: number) => line > 0 && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text) && reader.opens(lines[line]!.text.trim())
+  // The residual pass also reads a brace opener that cannot be read empty.
+  const opens = (line: number) => line > 0 && !inert(lines[line]!.text) && !closesBlock(lines[line]!.text) && (reader.opens(lines[line]!.text.trim()) || (residual && reader.opensBrace(lines[line]!.text.trim())))
   const nextStatement = (index: number) => {
     let next = index + 1
     while (next < c0.length && !c0[next]!.trim()) next++
@@ -415,10 +451,11 @@ function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owne
     indices.forEach((index, at) => { owner[index] = lineOrder[at]! })
   }
   const authoredCloser = new Map<number, number>()
-  const stack: number[] = []
+  const stack: number[] = [], enclosing: number[] = []
   lines.forEach(({ text }, line) => {
     if (closesBlock(text) && line > 0) { const open = stack.pop(); if (open !== undefined) authoredCloser.set(open, line) }
-    else if (opens(line)) stack.push(line)
+    enclosing.push(stack.at(-1) ?? -1)
+    if (!closesBlock(text) && opens(line)) stack.push(line)
   })
   const closerFor = (index: number) => {
     const depth = depthOf(c0[index]!)
@@ -449,7 +486,31 @@ function traceBlocks(lines: readonly AuthoredLine[], c0: readonly string[], owne
     if (claimed.has(index)) owner[index] = claimed.get(index)!
     else if (used.has(owner[index]!)) owner[index] = -1
   })
-  return { closerOf, authoredCloser, implicit, redeclares }
+  return { closerOf, authoredCloser, implicit, redeclares, enclosing }
+}
+
+/**
+ * Residual pass: a statement nested in a block is read from an authored line
+ * inside that block. A subgraph member the family source map locates at its
+ * first mention outside the subgraph (`c1-->a2` before `subgraph one`, whose
+ * body says `a1-->a2`) is owned instead by the first line directly inside the
+ * block whose reading there contains it.
+ */
+function traceMembers(lines: readonly AuthoredLine[], c0: readonly string[], owner: number[], blocks: { authoredCloser: ReadonlyMap<number, number>; enclosing: readonly number[] }, reader: LineReader): void {
+  for (let index = 1; index < c0.length; index++) {
+    const statement = c0[index]!.trim()
+    if (!statement || closesBlock(statement)) continue
+    let open = index - 1
+    while (open > 0 && (!c0[open]!.trim() || depthOf(c0[open]!) >= depthOf(c0[index]!))) open--
+    const from = open > 0 ? owner[open]! : -1, to = blocks.authoredCloser.get(from)
+    if (to === undefined || (owner[index]! > from && owner[index]! < to)) continue
+    for (let line = from + 1; line < to; line++) {
+      if (blocks.enclosing[line] !== from || inert(lines[line]!.text)) continue
+      if (!reader.within(lines[from]!.text.trim(), lines[line]!.text.trim(), lines[to]!.text.trim())?.has(statement)) continue
+      owner[index] = line
+      break
+    }
+  }
 }
 
 /** Whether `text` contains `part` starting and ending at word boundaries. */
@@ -463,14 +524,15 @@ function containsToken(text: string, part: string): boolean {
 type DiffOp = { kind: 'eq'; a: number; b: number } | { kind: 'del'; a: number } | { kind: 'ins'; a: number; b: number }
 
 /** Line diff of comparison keys after trimming the common ends; undefined
- * when too large. */
+ * when too large. A middle too long for the table is compared by the
+ * shortest edit script, whose cost grows with the number of changed lines. */
 function diffLines(a: readonly string[], b: readonly string[]): DiffOp[] | undefined {
   let prefix = 0
   while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++
   let suffix = 0
   while (suffix < a.length - prefix && suffix < b.length - prefix && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++
   const n = a.length - prefix - suffix, m = b.length - prefix - suffix
-  if ((n + 1) * (m + 1) > MAX_DIFF_CELLS) return undefined
+  if ((n + 1) * (m + 1) > MAX_DIFF_CELLS) return shortestEdit(a, b, prefix, suffix)
   const table = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -485,6 +547,47 @@ function diffLines(a: readonly string[], b: readonly string[]): DiffOp[] | undef
     else if (j < m && (i === n || table[i]![j + 1]! >= table[i + 1]![j]!)) { ops.push({ kind: 'ins', a: prefix + i, b: prefix + j }); j++ }
     else { ops.push({ kind: 'del', a: prefix + i }); i++ }
   }
+  for (let k = 0; k < suffix; k++) ops.push({ kind: 'eq', a: a.length - suffix + k, b: b.length - suffix + k })
+  return ops
+}
+
+/** The middle of `a` and `b` (between `prefix` and `suffix` common lines)
+ * compared by the shortest edit script (Myers), giving up once the number of
+ * edits times the lines compared passes the diff budget. */
+function shortestEdit(a: readonly string[], b: readonly string[], prefix: number, suffix: number): DiffOp[] | undefined {
+  const n = a.length - prefix - suffix, m = b.length - prefix - suffix
+  const center = n + m + 1
+  const reach = new Int32Array(2 * center + 1)
+  // The furthest reach on each diagonal before step d, for the walk back.
+  const steps: Int32Array[] = []
+  let edits = -1
+  search: for (let d = 0; (d + 1) * (n + m + 1) <= MAX_DIFF_CELLS; d++) {
+    steps.push(reach.slice(center - d - 1, center + d + 2))
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && reach[center + k - 1]! < reach[center + k + 1]!) ? reach[center + k + 1]! : reach[center + k - 1]! + 1
+      let y = x - k
+      while (x < n && y < m && a[prefix + x] === b[prefix + y]) { x++; y++ }
+      reach[center + k] = x
+      if (x >= n && y >= m) { edits = d; break search }
+    }
+  }
+  if (edits < 0) return undefined
+  const middle: DiffOp[] = []
+  let x = n, y = m
+  for (let d = edits; d > 0; d--) {
+    const before = steps[d]!, at = (k: number) => before[k + d + 1]!
+    const k = x - y
+    const down = k === -d || (k !== d && at(k - 1) < at(k + 1))
+    const fromX = at(down ? k + 1 : k - 1), fromY = fromX - (down ? k + 1 : k - 1)
+    while (x > (down ? fromX : fromX + 1) && y > (down ? fromY + 1 : fromY)) { x--; y--; middle.push({ kind: 'eq', a: prefix + x, b: prefix + y }) }
+    if (down) middle.push({ kind: 'ins', a: prefix + fromX, b: prefix + fromY })
+    else middle.push({ kind: 'del', a: prefix + fromX })
+    x = fromX; y = fromY
+  }
+  while (x > 0 && y > 0) { x--; y--; middle.push({ kind: 'eq', a: prefix + x, b: prefix + y }) }
+  const ops: DiffOp[] = []
+  for (let k = 0; k < prefix; k++) ops.push({ kind: 'eq', a: k, b: k })
+  ops.push(...middle.reverse())
   for (let k = 0; k < suffix; k++) ops.push({ kind: 'eq', a: a.length - suffix + k, b: b.length - suffix + k })
   return ops
 }
@@ -552,6 +655,31 @@ function spliceLine(text: string, before: string, after: string): string | undef
   return undefined
 }
 
+/** How many characters differ between two lines once their common ends are
+ * set aside. */
+function changedLength(a: string, b: string): number {
+  let prefix = 0
+  while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++
+  let suffix = 0
+  while (suffix < a.length - prefix && suffix < b.length - prefix && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++
+  return Math.max(a.length, b.length) - prefix - suffix
+}
+
+/** `edited`, the splice of `before` into `after` on authored `text`, or the
+ * same change made through the canonical reading of `before` when `before`
+ * keeps its authored spacing and that reading changes less of the line. */
+function respaced(text: string, before: string, after: string, edited: string, reader: LineReader): string {
+  const spell = (line: string) => line.replace(/\s+/g, '')
+  const reading = reader.isolated(before.trim())
+  let best = edited
+  for (const read of reading?.keys() ?? []) {
+    if (read === before.trim() || spell(read) !== spell(before)) continue
+    const spliced = spliceLine(text, read, after)
+    if (spliced !== undefined && changedLength(text, spliced) < changedLength(text, best)) best = spliced
+  }
+  return best
+}
+
 /** Plans are tried in order until one reads back as the edited diagram. */
 interface Variant {
   /** Edit changed tokens inside their authored line instead of rewriting it. */
@@ -570,6 +698,10 @@ interface Variant {
   /** Structural pass: rewrite a kept statement in canonical spelling when a
    * line that redeclares it goes with another statement. */
   readonly rewrite?: boolean
+  /** Residual pass: place a new statement outside authored blocks its
+   * canonical statement is not in, and write the statements of a rewritten
+   * line together in canonical order. */
+  readonly residual?: boolean
 }
 const VARIANTS: readonly Variant[] = [
   ...[false, true].flatMap(loose => [true, false].flatMap(splice => [true, false].map(previous => ({ splice, loose, previous, move: false, pair: true })))),
@@ -578,6 +710,8 @@ const VARIANTS: readonly Variant[] = [
 ]
 
 const STRUCTURAL_VARIANTS: readonly Variant[] = [...VARIANTS, ...VARIANTS.map(variant => ({ ...variant, rewrite: true }))]
+
+const RESIDUAL_VARIANTS: readonly Variant[] = STRUCTURAL_VARIANTS.map(variant => ({ ...variant, residual: true }))
 
 interface Plan {
   readonly removed: Set<number>
@@ -592,7 +726,7 @@ function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: bool
   return diffLines(c0.map(key), c1.map(key))
 }
 
-function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings }: Trace, variant: Variant, reader: LineReader): Plan | string {
+function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings, nesting }: Trace, variant: Variant, reader: LineReader): Plan | string {
   if (!ops) return 'the edit changes too many lines to compare'
   const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
   const partsOf = (index: number): readonly number[] => parts?.get(index) ?? (owner[index]! >= 0 ? [owner[index]!] : [])
@@ -608,11 +742,13 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   // indentation (a family that writes block bodies at the opener's depth
   // marks nothing else as their sibling).
   const moved = new Map<string, number[]>(), writtenFrom = new Map<number, number>()
+  // Residual pass: statements written by a one-line block's rewrite.
+  const handled = new Set<number>()
   const push = (where: 'before' | 'after', at: number, index: number, indent?: string) => {
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
     if (from !== undefined) writtenFrom.set(index, from)
-    list.push([index, from !== undefined ? lines[from]!.text : analogous(index) ?? (indent ?? indentFor(index)) + c1[index]!.trimStart()])
+    list.push([index, from !== undefined ? lines[from]!.text : (handled.has(index) ? undefined : analogous(index)) ?? (indent ?? indentFor(index)) + (respelled.get(index) ?? c1[index]!.trimStart())])
     placed[where].set(at, list)
   }
   // A new statement inside a block no authored line opens is written like
@@ -673,6 +809,23 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   }
   const pairedFrom = new Map<number, number>()
   for (const [del, ins] of pairOf) { sourceOf.set(ins, del); pairedFrom.set(ins, del) }
+  // Residual pass: a declaration the edit only extends (a node's label the
+  // writer moves onto a new edge that now mentions it first) stays on its
+  // authored line, and the new statement names it bare.
+  const respelled = new Map<number, string>(), declared = new Set<number>()
+  if (variant.residual) {
+    for (const [del, ins] of [...pairOf]) {
+      const declaration = c0[del]!.trim(), statement = c1[ins]!.trim()
+      const name = /^[^\s[\](){}<>@:|"&;]+/.exec(declaration)?.[0]
+      const found = occurrences(statement, declaration)
+      if (!name || name === declaration || statement === declaration || found.length !== 1) continue
+      respelled.set(ins, statement.slice(0, found[0]![0]) + name + statement.slice(found[0]![1]))
+      declared.add(del)
+      pairOf.delete(del)
+      pairedFrom.delete(ins)
+      sourceOf.delete(ins)
+    }
+  }
   // Token splices keep the authored line; anything else replaces it whole.
   const whole = new Set<number>()
   const spliced = new Map<number, Set<string>>()
@@ -682,6 +835,10 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     if (variant.splice && spliced.get(owner[del]!)?.has(change)) continue
     const splice = (line: number) => spliceLine(plan.text.get(line) ?? lines[line]!.text, c0[del]!, c1[ins]!)
     let line = owner[del]!, edited = variant.splice ? splice(line) : undefined
+    // A statement kept in its authored spacing (a fragment message written
+    // `A ->> B: ping`) is spliced through its canonical reading, so only the
+    // changed tokens change and the authored spacing stays.
+    if (edited !== undefined) edited = respaced(plan.text.get(line) ?? lines[line]!.text, c0[del]!, c1[ins]!, edited, reader)
     // A value written on a later statement than the one the writer folds it
     // into (a label given where a node is redeclared) is edited where it is
     // spelled, when exactly one authored line spells it.
@@ -715,7 +872,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     }
   }
   const gone = new Set<number>([...whole])
-  for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del)) gone.add(del)
+  for (const hunk of hunks) for (const del of hunk.dels) if (!pairOf.has(del) && !declared.has(del)) gone.add(del)
   for (const del of gone) {
     const line = owner[del]!
     if (line < 0) return `the removed statement ${quote(c0[del]!)} was not traced to an authored line`
@@ -847,6 +1004,76 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     list.push(owner[del]!)
     moved.set(c0[del]!.trim(), list)
   }
+  // Residual pass: the authored owners of the canonical blocks around a new
+  // statement (openers deeper-indented bodies sit under, and block lines a
+  // family writes at its body's depth whose closer comes after it).
+  const closerAfter = (at: number) => {
+    for (let next = at + 1; next < c1.length; next++) {
+      if (!c1[next]!.trim() || depthOf(c1[next]!) > depthOf(c1[at]!)) continue
+      if (depthOf(c1[next]!) < depthOf(c1[at]!)) return -1
+      if (closesBlock(c1[next]!)) return next
+    }
+    return -1
+  }
+  const enclosingOwners = (index: number): Set<number> => {
+    const found = new Set<number>()
+    let depth = depthOf(c1[index]!)
+    for (let at = index - 1; at > 0; at--) {
+      if (!c1[at]!.trim() || closesBlock(c1[at]!)) continue
+      const shallower = depthOf(c1[at]!) < depth
+      if (!shallower && !(depthOf(c1[at]!) === depth && blockLine(at) && closerAfter(at) > index)) continue
+      if (shallower) depth = depthOf(c1[at]!)
+      const from = sourceOf.get(at)
+      if (from !== undefined && owner[from]! >= 0) found.add(owner[from]!)
+    }
+    return found
+  }
+  const openerOf = new Map<number, number>()
+  for (const [open, close] of nesting?.closer ?? []) openerOf.set(close, open)
+  // Residual pass: a new statement placed beside an authored line inside a
+  // block its canonical statement is not in (a node added after the last
+  // edge, which is written inside a subgraph) goes after that block's
+  // closer, or before its opener, until it stands in a block it belongs to,
+  // indented like the block it left.
+  const outside = (where: 'before' | 'after', at: number, index: number): ['before' | 'after', number, string?] => {
+    if (!variant.residual || !nesting) return [where, at]
+    const allowed = enclosingOwners(index)
+    let indent: string | undefined
+    for (let step = 0; step < lines.length; step++) {
+      const block = where === 'before' && openerOf.has(at) ? openerOf.get(at)! : where === 'after' && nesting.closer.has(at) ? at : nesting.enclosing[at]!
+      if (block < 0 || allowed.has(block)) break
+      const close = nesting.closer.get(block)
+      if (close === undefined) break
+      if (where === 'after' || at === close) { where = 'after'; at = close }
+      else at = block
+      indent = leading(lines[block]!.text)
+    }
+    return [where, at, indent]
+  }
+  // Residual pass: a block written on one authored line (`class Shape
+  // <<interface>>`) whose body the edit changes is written there as the
+  // edited canonical block, indented by depth: no authored line spells the
+  // body to edit or to stand beside.
+  for (const hunk of variant.residual ? hunks : []) {
+    for (const ins of hunk.ins) {
+      if (handled.has(ins)) continue
+      let open = ins - 1
+      while (open > 0 && (!c1[open]!.trim() || depthOf(c1[open]!) >= depthOf(c1[ins]!))) open--
+      const from = open > 0 ? sourceOf.get(open) : undefined, line = from !== undefined ? owner[from]! : -1
+      if (from === undefined || line < 0 || plan.text.has(line) || reader.opens(lines[line]!.text.trim())) continue
+      let close0 = from + 1
+      while (close0 < c0.length && (!c0[close0]!.trim() || depthOf(c0[close0]!) > depthOf(c0[from]!))) close0++
+      const body = Array.from({ length: close0 - from }, (_, offset) => from + 1 + offset).filter(index => index < c0.length && c0[index]!.trim())
+      const close = closerAfter(open)
+      if (close < 0 || !body.some(index => owner[index] === line) || body.some(index => owner[index]! >= 0 && owner[index] !== line)) continue
+      plan.removed.add(line)
+      for (let at = open; at <= close; at++) {
+        if (!c1[at]!.trim()) continue
+        handled.add(at)
+        push('before', line, at, leading(lines[line]!.text) + unit.repeat(Math.max(0, Math.round((depthOf(c1[at]!) - depthOf(c1[open]!)) / 2))))
+      }
+    }
+  }
   // A removed line that also carried surviving statements is rewritten as
   // those statements in canonical spelling, where it stood and indented as
   // it was.
@@ -855,6 +1082,7 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     // Another authored line still declares it.
     if (!rewritten.has(index) && partsOf(index).some(line => !plan.removed.has(line))) continue
     const kept = keptAs.get(index) ?? pairOf.get(index)
+    if (kept !== undefined && handled.has(kept)) continue
     if (kept === undefined) return `${quote(c0[index]!)} shares a removed authored line and has no counterpart in the edit`
     push('before', owner[index]!, kept, leading(lines[owner[index]!]!.text))
   }
@@ -867,17 +1095,28 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     const afterPrevious = next < 0 || (previous >= 0 && (alone(previous) || !alone(next)) === variant.previous)
     for (const ins of hunk.ins) {
       const del = pairedFrom.get(ins)
-      if (del !== undefined && !whole.has(del)) continue
+      if ((del !== undefined && !whole.has(del)) || handled.has(ins)) continue
       const at = del ?? replaced
       // A statement written in place of a removed one at its depth keeps
       // that line's indentation.
       if (at !== undefined) push('before', owner[at]!, ins, plan.removed.has(owner[at]!) && depthOf(c0[at]!) === depthOf(c1[ins]!) ? leading(lines[owner[at]!]!.text) : undefined)
-      else if (afterPrevious && previous >= 0) push('after', owner[previous]!, ins)
-      else if (next >= 0) push('before', owner[next]!, ins)
+      else if (afterPrevious && previous >= 0) { const [where, line, indent] = outside('after', owner[previous]!, ins); push(where, line, ins, indent) }
+      else if (next >= 0) { const [where, line, indent] = outside('before', owner[next]!, ins); push(where, line, ins, indent) }
       else return `the new statement ${quote(c1[ins]!)} has no authored neighbour to stand beside`
     }
   }
   if (stranded) return stranded
+  // Statements written where a removed line stood and beside it are one run
+  // in canonical order (`A:::hot & B --> C` less `A --> C` writes `B --> C`,
+  // then `A`, then `class A hot`).
+  if (variant.residual) {
+    for (const line of plan.removed) {
+      const after = placed.after.get(line)
+      if (!after?.length) continue
+      placed.before.set(line, [...placed.before.get(line) ?? [], ...after])
+      placed.after.delete(line)
+    }
+  }
   for (const where of ['before', 'after'] as const) for (const list of placed[where].values()) list.sort((a, b) => a[0] - b[0])
   // Mermaid reads some statements only after what they name (a `class`
   // line before its node is dropped), so new statements that share a word
@@ -975,7 +1214,7 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
       tried.add(source)
       const parsed = parseRegisteredMermaid(source)
       if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return { source, diagram: parsed.value }
-      const miss = misreading(parsed, c1)
+      const miss = misreading(parsed, c1, facts)
       if (!closest || miss.size < closest.size) closest = miss
     }
     return undefined
@@ -986,6 +1225,9 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     // traced to every line they are read from.
     const joined = joinSplitValues(lines, c0, reader)
     return attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
+      // Block members are traced to the lines inside their authored block,
+      // and new statements are placed by the authored block structure.
+      ?? attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true, true), RESIDUAL_VARIANTS)
   })()
   if (projected) return ok(projected)
   if (closest) return err(`no local change to the authored source reads back as the edited diagram: ${closest.reason}`)
@@ -996,8 +1238,9 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
 const quote = (statement: string) => JSON.stringify(statement.trim().length > 60 ? `${statement.trim().slice(0, 57)}...` : statement.trim())
 
 /** How a rejected candidate reads differently from the edit: a parse
- * failure, else the canonical statements it gains and lacks. */
-function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[]): { size: number; reason: string } {
+ * failure, else the canonical statements it gains and lacks, saying when it
+ * has the edit's facts (a kept line now declares something where it stands). */
+function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string } {
   if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})` }
   const found = statements(parsed.value)
   if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram` }
@@ -1012,6 +1255,8 @@ function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: strin
   const extra = left(got, want), missing = left(want, got)
   const list = (values: readonly string[]) => `${quote(values[0]!)}${values.length > 1 ? ` and ${values.length - 1} more` : ''}`
   if (!extra.length && !missing.length) return { size: 0, reason: 'the closest local change writes the edited statements, but they read with different order, metadata or facts' }
-  const reason = !missing.length ? `the closest local change also reads ${list(extra)}` : !extra.length ? `the closest local change lacks ${list(missing)}` : `the closest local change reads ${list(extra)} where the edit has ${list(missing)}`
+  const sorted = (values: readonly string[]) => [...values].sort()
+  const closest = sameSourceMeaning(sorted(describeMermaidFacts(parsed.value)), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
+  const reason = !missing.length ? `${closest} also reads ${list(extra)}` : !extra.length ? `${closest} lacks ${list(missing)}` : `${closest} reads ${list(extra)} where the edit has ${list(missing)}`
   return { size: extra.length + missing.length, reason }
 }

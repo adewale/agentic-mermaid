@@ -377,7 +377,7 @@ attachment to a state. Serialization uses the accepted quoted-note syntax.
 
 Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics. The family roster, edit policies, and mutation operations are generated from `FamilyDescriptor`: read `am capabilities --json` rather than a copied list here. Two family-specific notes:
 
-- sequence (BUILD-18 — segment-preserving: participants, top-level messages, notes and `create`/`destroy` directives, and `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` fragments of messages and `create`/`destroy` lines are typed; box/activate/autonumber/title plus nested or unmodeled fragment content ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
+- sequence (BUILD-18 — segment-preserving: participants, top-level messages, notes and `create`/`destroy` directives, and `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` fragments of messages, notes, `create`/`destroy` lines and nested fragments are typed; box/activate/autonumber/title plus unmodeled fragment content ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
 - architecture mutation includes group-boundary semantics.
 
 Opaque/source-level bodies:
