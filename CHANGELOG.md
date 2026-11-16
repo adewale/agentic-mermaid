@@ -187,6 +187,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   step that names no fragment or branch, a move into the fragment itself or a
   fragment nested in it, or one that would nest fragments past the host limit
   of 64 is refused with `INVALID_OP`.
+- Sequence facts state each activation: `activation#K B start S end E` (or
+  `start S unclosed` for one left open), for `activate`/`deactivate` lines and
+  the `+`/`-` marks of messages, at top level and in fragment branches. `S`
+  and `E` are `message#N` for a mark on that message,
+  `preserved-message#S.I` for a mark on a message kept in preserved source,
+  and for a line the branch it is written in (`fragment#F branch#B`, when in
+  one) and `before message#N` (`at-end` after the last message). A
+  deactivation ends its participant's latest open activation, as Mermaid
+  pairs them.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

@@ -16,7 +16,7 @@ import { readClassMemberClassifiers } from '../class/parser.ts'
 import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceFragmentName, sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle, sequenceTimeline, type SequenceBranchPlace, type SequenceFragmentPlace } from './sequence-body.ts'
+import { sequenceActivationEvents, sequenceActivationSpans, sequenceFragmentName, sequenceMessageActivation, sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle, sequenceTimeline, type SequenceActivationEvent, type SequenceBranchPlace, type SequenceFragmentPlace } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
 import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
@@ -429,13 +429,23 @@ function factsSequence(out: string[], body: SequenceBody): void {
       }
     })
   }
-  // Lifecycle directives and notes, placed by the message# that follows them.
+  // Lifecycle directives, notes and activate/deactivate lines, placed by the
+  // message# that follows them.
   let messageIndex = 0
   let noteIndex = 0
   const total = sequenceMessageContexts(body).length
+  // A message's `+`/`-` starts or ends an activation at that message.
+  const activations: Array<SequenceActivationEvent<string>> = []
   for (const entry of timeline) {
-    if (entry.kind === 'message') messageIndex++
-    else if (entry.kind === 'lifecycle') {
+    if (entry.kind === 'message') {
+      for (const event of sequenceMessageActivation(entry.message)) activations.push({ ...event, at: `message#${messageIndex}` })
+      messageIndex++
+    } else if (entry.kind === 'preserved') {
+      const line = `${entry.place ? `${branchName(entry.place)} ` : ''}${messageIndex < total ? `before message#${messageIndex}` : 'at-end'}`
+      readSequenceStatements(entry.lines).statements.forEach(({ syntax }, index) => {
+        for (const event of sequenceActivationEvents(syntax)) activations.push({ ...event, at: syntax?.kind === 'message' ? `preserved-message#${entry.segment}.${index}` : line })
+      })
+    } else if (entry.kind === 'lifecycle') {
       // A directive in a fragment branch also names the branch it is written in.
       const { statement, place } = entry
       const id = statement.kind === 'create' ? statement.id : statement.actorId
@@ -457,6 +467,11 @@ function factsSequence(out: string[], body: SequenceBody): void {
       noteIndex++
     }
   }
+  // Each activation span as Mermaid pairs them: a deactivation ends its
+  // participant's latest open activation.
+  sequenceActivationSpans(activations).spans.forEach(({ id, start, end }, index) => {
+    add(out, `activation#${index} ${clean(id)} start ${start} ${end === undefined ? 'unclosed' : `end ${end}`}`)
+  })
 }
 
 /** `fragment#F branch#B`, a nested fragment named by its path. */

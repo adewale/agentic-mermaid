@@ -371,12 +371,14 @@ export interface SequenceBranchPlace extends SequenceFragmentPlace { branchIndex
 
 /** The typed statements in drawing order, each with the address its ops
  * take: a message's or note's `index` is its top-level index or its index in
- * its branch; a fragment comes before its contents. */
+ * its branch; a fragment comes before its contents. Preserved lines keep
+ * their place: a top-level segment with its statement index. */
 export type SequenceTimelineEntry =
   | { kind: 'message'; message: SequenceMessage; index: number; place?: SequenceBranchPlace }
   | { kind: 'note'; note: SequenceNoteStatement; index: number; place?: SequenceBranchPlace }
   | { kind: 'lifecycle'; statement: SequenceCreateStatement | SequenceDestroyStatement; place?: SequenceBranchPlace }
   | { kind: 'fragment'; place: SequenceFragmentPlace }
+  | { kind: 'preserved'; lines: readonly string[]; place?: SequenceBranchPlace; segment?: number }
 
 export function sequenceTimeline(body: SequenceBody): SequenceTimelineEntry[] {
   const out: SequenceTimelineEntry[] = []
@@ -393,20 +395,22 @@ export function sequenceTimeline(body: SequenceBody): SequenceTimelineEntry[] {
         if (!('kind' in item)) out.push({ kind: 'message', message: item, index: message++, place: at })
         else if (item.kind === 'note') out.push({ kind: 'note', note: item, index: note++, place: at })
         else if (item.kind === 'fragment') visit(item.fragment, path, nested++)
-        else if (item.kind !== 'opaque-block') out.push({ kind: 'lifecycle', statement: item, place: at })
+        else if (item.kind === 'opaque-block') out.push({ kind: 'preserved', lines: item.lines, place: at })
+        else out.push({ kind: 'lifecycle', statement: item, place: at })
       }
     })
   }
   let note = 0
   let fragmentIndex = 0
-  for (const statement of body.statements) {
+  body.statements.forEach((statement, segment) => {
     if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
       if (message) out.push({ kind: 'message', message, index: statement.ref })
     } else if (statement.kind === 'note') out.push({ kind: 'note', note: statement, index: note++ })
     else if (statement.kind === 'create' || statement.kind === 'destroy') out.push({ kind: 'lifecycle', statement })
     else if (statement.kind === 'fragment') visit(statement.fragment, [], fragmentIndex++)
-  }
+    else if (statement.kind === 'opaque-block') out.push({ kind: 'preserved', lines: statement.lines, segment })
+  })
   return out
 }
 

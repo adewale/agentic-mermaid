@@ -875,14 +875,75 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
 })
 
 // ============================================================================
-// Activation balance: an edit may not leave a deactivation Mermaid rejects
+// Activations: facts state each span; an edit may not leave a deactivation
+// Mermaid rejects
 // ============================================================================
 
-describe('an edit that would leave a participant deactivated while inactive is refused', () => {
+describe('sequence activations are facts, and an edit that would leave a participant deactivated while inactive is refused', () => {
   let upstream: ReturnType<typeof startUpstreamMermaid>
   beforeAll(() => { upstream = startUpstreamMermaid() })
   afterAll(async () => { await upstream.close() })
   const INACTIVE = 'Trying to inactivate an inactive participant (B)'
+
+  // Marks and lines, at top level and in branches, nested activations of
+  // one participant, and activations left open.
+  const SPANS = `sequenceDiagram
+  A->>+B: one
+  alt ok
+    activate B
+    B->>A: two
+  else no
+    activate A
+    A->>B: three
+  end
+  deactivate B
+  B-->>-A: four
+  loop again
+    A->>+A: self
+    A->>-A: back
+  end
+  B->>A: five
+  activate B
+`
+
+  test('facts state each activation span by the messages around it, paired as Mermaid pairs them', async () => {
+    const parsed = sequence(SPANS)
+    const spans = describeMermaidFacts(parsed).filter(fact => fact.startsWith('activation#'))
+    expect(spans).toEqual([
+      'activation#0 B start message#0 end message#3',
+      'activation#1 B start fragment#0 branch#0 before message#1 end before message#3',
+      'activation#2 A start fragment#0 branch#1 before message#2 unclosed',
+      'activation#3 A start message#4 end message#5',
+      'activation#4 B start at-end unclosed',
+    ])
+    expect(describeMermaidFacts(sequence(serializeMermaid(parsed))).filter(fact => fact.startsWith('activation#'))).toEqual(spans)
+    // Mermaid's database: each span's participant and how many messages
+    // precede its start and end (a mark follows its message), a deactivation
+    // ending the participant's latest open activation.
+    const read = await upstream.project(SPANS, diagram => {
+      const type = diagram.db.LINETYPE
+      const out: Array<[string, number, number?]> = []
+      const open: Record<string, number[]> = {}
+      let seen = 0
+      for (const m of diagram.db.getMessages() as Array<{ from?: string; to?: string; type: number }>) {
+        if (m.type === type.ACTIVE_START) (open[m.from!] ??= []).push(out.push([m.from!, seen]) - 1)
+        else if (m.type === type.ACTIVE_END) out[open[m.from!]!.pop()!]!.push(seen)
+        else if (m.from !== undefined && m.to !== undefined && m.type !== type.NOTE) seen++
+      }
+      return out
+    })
+    if (!read.ok) throw new Error(read.error)
+    const total = describeMermaidFacts(parsed).filter(fact => /^message#\d+ op /.test(fact)).length
+    const seenAt = (where: string) => where === 'at-end' ? total : where.startsWith('message#') ? Number(where.slice(8)) + 1 : Number(where.slice(where.lastIndexOf('#') + 1))
+    expect(spans.map(fact => {
+      const [, id, start, end] = /^activation#\d+ (\S+) start (.+?) (?:end (.+)|unclosed)$/.exec(fact)!
+      return end === undefined ? [id, seenAt(start!)] : [id, seenAt(start!), seenAt(end)]
+    })).toEqual(read.value)
+    // A mark on a message kept in a preserved block is addressed by its
+    // preserved-message fact.
+    expect(describeMermaidFacts(sequence('sequenceDiagram\n  A->>B: one\n  rect #ff0000\n    A->>+B: kept\n  end\n  deactivate B\n')).filter(fact => fact.startsWith('activation#')))
+      .toEqual(['activation#0 B start preserved-message#1.1 end at-end'])
+  })
 
   // Each source Mermaid accepts; the op would write the source after it,
   // which Mermaid rejects, so the op is refused naming the line.
