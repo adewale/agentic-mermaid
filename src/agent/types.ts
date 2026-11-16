@@ -167,15 +167,27 @@ export interface SequenceFragmentBranch {
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
-  /** The branch's `create`/`destroy` lines and notes, in source order, each
-   * before branch message `before` (`messages.length`: after the last).
-   * Directives bind as top-level ones do: to the next message involving
-   * their participant, in this branch or after it. */
+  /** The branch's `create`/`destroy` lines, notes and nested fragments, in
+   * source order, each before branch message `before` (`messages.length`:
+   * after the last). Directives bind as top-level ones do: to the next
+   * message involving their participant, in this branch or after it. */
   statements?: SequenceBranchStatement[]
 }
 export interface SequenceBranchStatement {
   before: number
-  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement
+  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement | SequenceFragmentStatement
+}
+/** A fragment in the statement order: at top level, or nested in a branch. */
+export interface SequenceFragmentStatement {
+  kind: 'fragment'
+  fragment: SequenceFragment
+}
+/** One step of an op's `fragmentPath`: fragment `fragmentIndex` of the
+ * current scope (top level, then each step's branch), and its branch
+ * `branchIndex`. */
+export interface SequenceFragmentStep {
+  fragmentIndex: number
+  branchIndex: number
 }
 export interface SequenceFragment {
   wrap?: boolean
@@ -183,7 +195,8 @@ export interface SequenceFragment {
   label?: string
   labelContent?: LabelContent
   branches: SequenceFragmentBranch[]
-  /** Authored spelling retained until a typed fragment op changes the fragment. */
+  /** Authored spelling retained until a typed op changes the fragment or a
+   * fragment nested in it. */
   rawLines?: string[]
 }
 
@@ -223,11 +236,11 @@ export interface SequenceNoteStatement {
 }
 
 // Ordered statement list. Refs index into the top-level arrays. Control
-// fragments of messages are typed (with their `create`/`destroy` lines) so
-// their messages participate in
+// fragments of messages are typed (with their `create`/`destroy` lines,
+// notes and nested fragments) so their messages participate in
 // describe/facts/verify and can be authored through mutation ops, as are
-// notes. Constructs outside that closed model (nested fragments, box,
-// activations…) remain lossless opaque segments.
+// notes. Constructs outside that closed model (box, activations…) remain
+// lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
@@ -235,7 +248,7 @@ export type SequenceStatement =
   | SequenceCreateStatement
   | SequenceDestroyStatement
   | SequenceNoteStatement
-  | { kind: 'fragment'; fragment: SequenceFragment }
+  | SequenceFragmentStatement
   | { kind: 'opaque-block'; lines: string[] }
 
 export interface SequenceBody {
@@ -1431,15 +1444,19 @@ export type SequenceMutationOp =
   // edit (journey move_task precedent); from/to are top-level indices.
   | { kind: 'move_message'; from: number; to: number }
   | { kind: 'set_participant_label'; id: ParticipantId; label: string }
-  | { kind: 'add_fragment'; fragmentKind: SequenceFragmentKind; label?: string; index?: number }
-  | { kind: 'remove_fragment'; index: number }
-  | { kind: 'set_fragment_label'; index: number; label: string | null }
-  | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
-  | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
-  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
-  | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
-  | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
-  | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
+  // Fragment ops address a fragment by its index among the fragments of a
+  // scope: the top level, or with `fragmentPath` the branch its steps reach
+  // (each step picks a fragment of the current scope and one of its
+  // branches). Facts state each fragment's, message's and note's address.
+  | { kind: 'add_fragment'; fragmentPath?: SequenceFragmentStep[]; fragmentKind: SequenceFragmentKind; label?: string; index?: number }
+  | { kind: 'remove_fragment'; fragmentPath?: SequenceFragmentStep[]; index: number }
+  | { kind: 'set_fragment_label'; fragmentPath?: SequenceFragmentStep[]; index: number; label: string | null }
+  | { kind: 'add_fragment_branch'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; label?: string }
+  | { kind: 'set_fragment_branch_label'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex: number; label: string | null }
+  | { kind: 'add_fragment_message'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'remove_fragment_message'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_message_text'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'set_fragment_message_wrap'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
   // Notes are addressed by their index among top-level notes. A note goes
   // directly after top-level message `afterMessage` (after notes already
   // there) or directly before top-level message `beforeMessage` (above the
@@ -1450,10 +1467,10 @@ export type SequenceMutationOp =
   | { kind: 'move_note'; index: number; afterMessage?: number; beforeMessage?: number }
   // The same, for notes in a fragment branch: `index` counts the branch's
   // notes, and the anchors are branch message indexes.
-  | { kind: 'add_fragment_note'; fragmentIndex: number; branchIndex?: number; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
-  | { kind: 'remove_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number }
-  | { kind: 'set_fragment_note_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
-  | { kind: 'move_fragment_note'; fragmentIndex: number; branchIndex?: number; index: number; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'add_fragment_note'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; position: SequenceNotePosition; actorIds: ParticipantId[]; text: string; wrap?: boolean; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'remove_fragment_note'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_note_text'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'move_fragment_note'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex?: number; index: number; afterMessage?: number; beforeMessage?: number }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

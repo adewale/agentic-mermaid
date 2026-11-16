@@ -49,7 +49,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   every line it is read from instead of falling back. A message or branch added
   inside a sequence fragment takes the indentation of the fragment's authored
   body or branch lines, also as the first line of an empty branch or loop, and
-  the fragment's untouched messages keep their authored spelling.
+  the fragment's untouched messages keep their authored spelling. An edited
+  fragment message keeps its authored spacing (`A ->> B: ping now`). A large
+  reordering (a rename in a 1,200-class diagram) is compared instead of
+  falling back. Subgraph members declared by edges and one line carrying
+  several statements and `:::` classes edit locally. A new edge that is a
+  node's first mention keeps the node's label on its declaration line. Nested
+  namespaces and a class annotated on one line edit locally. A fallback whose
+  closest candidate has the edit's facts (a state note left before the state's
+  only transition) says so.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the
@@ -106,9 +114,26 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   are in facts and `describe`, and the fragment operations edit them
   (`add_fragment` takes the three kinds, `add_fragment_branch` adds an
   `option` to a `critical`). A `rect`'s label is its fill color: `add_fragment`
-  and the label setters refuse one the renderer cannot read. A `rect` holding
-  another fragment, or whose argument is a `#` comment, stays preserved
-  source, as does any fragment nested in another.
+  and the label setters refuse one the renderer cannot read. A `rect` whose
+  argument is a `#` comment stays preserved source.
+
+- Sequence fragments nested in fragments are typed, to the host nesting limit
+  (64 deep). A `loop` inside an `alt`, an `alt` inside a `rect` (the usual way
+  `rect` is used) or any deeper nesting used to make the outer fragment
+  preserved source as a whole; a branch now holds its nested fragments in
+  source order beside its messages, notes and `create`/`destroy` lines, the
+  diagram writes back byte for byte, and `describe`, facts and verify list the
+  nested content. Every fragment operation takes an optional `fragmentPath`,
+  a list of `{ fragmentIndex, branchIndex }` steps from the top level to the
+  branch holding the fragment; without it an operation means what it meant
+  before. Facts name a nested fragment by its path (`fragment#0.1.0`) and
+  state each fragment's, message's and note's address with the path as JSON
+  (`message#N op fragmentPath [{"fragmentIndex":0,"branchIndex":1}]
+  fragmentIndex 0 branchIndex 0 index 0`); top-level fragments gain a
+  `fragment#F op fragmentIndex F` fact. An edited nested fragment is written
+  one level deeper than the statements beside it, and source-preserving edits
+  splice it into the authored lines. A fragment holding a comment, an
+  activation or a `box` stays preserved source as before.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

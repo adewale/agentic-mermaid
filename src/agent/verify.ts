@@ -64,7 +64,7 @@ import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
-import { sequenceMessages, sequenceNoteContexts, sequencePreservedConstructs, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
+import { sequenceMessages, sequenceNoteContexts, sequencePreservedConstructs, sequenceTimeline, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
@@ -1403,16 +1403,17 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const w = labelOverflowWarning(`note#${index}`, resolveLabelContent(note.text, note.textContent), cap)
     if (w) warnings.push(w)
   })
-  for (const statement of body.statements)
-    if (statement.kind === 'fragment') {
+  for (const entry of sequenceTimeline(body))
+    if (entry.kind === 'fragment') {
+      const { fragment } = entry.place
       // A rect's label is its fill color, not text.
-      if (statement.fragment.label && statement.fragment.fragmentKind !== 'rect') {
-        const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)
+      if (fragment.label && fragment.fragmentKind !== 'rect') {
+        const w = labelOverflowWarning(`fragment:${fragment.fragmentKind}`, resolveLabelContent(fragment.label, fragment.labelContent), cap)
         if (w) warnings.push(w)
       }
-      for (const [index, branch] of statement.fragment.branches.entries())
+      for (const [index, branch] of fragment.branches.entries())
         if (branch.label) {
-          const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, resolveLabelContent(branch.label, branch.labelContent), cap)
+          const w = labelOverflowWarning(`fragment:${fragment.fragmentKind}:branch#${index}`, resolveLabelContent(branch.label, branch.labelContent), cap)
           if (w) warnings.push(w)
         }
     }

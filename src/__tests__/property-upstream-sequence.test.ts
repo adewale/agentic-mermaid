@@ -22,6 +22,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { asSequence, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
+import { sequenceMessages } from '../agent/sequence-body.ts'
 import type { SequenceBody, SequenceMessage, SequenceMutationOp } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -143,11 +144,11 @@ function printSequence(statements: Statement[]): string {
   return lines.join('\n')
 }
 
-/** The typed model's rule: a loop / opt / alt / par block holding only
- * messages is a typed fragment; every other block is preserved source. */
+/** The typed model's rule: a block holding only messages, notes and typed
+ * blocks is a typed fragment; every other block is preserved source. */
 function isTypedFragment(statement: Extract<Statement, { kind: 'block' }>): boolean {
   return ['loop', 'opt', 'alt', 'par', 'critical', 'break', 'rect'].includes(statement.keyword)
-    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note'))
+    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note' || (inner.kind === 'block' && isTypedFragment(inner))))
 }
 
 /** Every generated message in source order, or only those our model types. */
@@ -203,13 +204,7 @@ function messageKey(message: SequenceMessage): string {
 }
 
 function ours(body: SequenceBody): Projection {
-  const messages = body.statements.flatMap(statement =>
-    statement.kind === 'message'
-      ? [body.messages[statement.ref]!]
-      : statement.kind === 'fragment'
-        ? statement.fragment.branches.flatMap(branch => branch.messages)
-        : [],
-  )
+  const messages = sequenceMessages(body)
   return {
     participants: body.participants.map(p => `${p.id} ${p.kind} : ${p.label}`),
     links: body.participants.flatMap(p => linksKey(p.id, p.links)),

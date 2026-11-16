@@ -338,6 +338,9 @@ describe('sequence create/destroy are typed statements', () => {
     ['a destroy in a critical option', 'A->>B: hi\n  critical connect\n    A->>B: try\n  option timeout\n    destroy B\n    B-->>A: gone\n  end', ['destroy B']],
     ['a create inside a break', 'A->>B: hi\n  break when full\n    create participant C\n    A->>C: overflow\n  end', ['create C']],
     ['a destroy inside a rect', 'A->>B: hi\n  rect rgb(200, 220, 255)\n    destroy B\n    A->>B: bye\n  end', ['destroy B']],
+    // Inside a fragment nested in another, at any depth.
+    ['a destroy in an alt nested in a rect', 'A->>B: hi\n  rect rgb(200, 220, 255)\n    alt done\n      destroy B\n      A->>B: bye\n    end\n  end', ['destroy B']],
+    ['a create three fragments deep', 'A->>B: hi\n  loop each\n    alt new\n      opt first\n        create participant C as Carl\n        A->>C: make\n      end\n    end\n  end', ['create C']],
   ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = sequence(source)
@@ -408,15 +411,21 @@ describe('sequence create/destroy are typed statements', () => {
   })
 
   // A typed fragment keeps its directives where the author wrote them; a
-  // fragment op rewrites the fragment with them in place.
+  // fragment op rewrites the fragment with them in place. NESTED holds the
+  // same alt inside a rect, reached by fragmentPath.
   const FRAGMENT = 'sequenceDiagram\n  A->>B: hi\n  alt done\n    create participant C\n    A->>C: make\n    destroy B\n    A->>B: bye\n  else retry\n    A->>B: again\n  end\n'
+  const NESTED = 'sequenceDiagram\n  A->>B: hi\n  rect rgb(200, 220, 255)\n    alt done\n      create participant C\n      A->>C: make\n      destroy B\n      A->>B: bye\n    else retry\n      A->>B: again\n    end\n  end\n'
+  const IN_RECT = [{ fragmentIndex: 0, branchIndex: 0 }]
   test.each([
-    ['edits the destroying message', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 1, text: 'farewell' }, '  destroy B\n  A->>B: farewell\n'],
-    ['relabels a participant created in the branch', { kind: 'set_participant_label', id: 'C', label: 'Carl' }, '  create participant C as Carl\n  A->>C: make\n'],
-    ['adds a message after the destroying one', { kind: 'add_fragment_message', fragmentIndex: 0, index: 2, from: 'A', to: 'C', text: 'later' }, '  A->>B: bye\n  A->>C: later\n'],
-    ['removes the message before a directive', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '  destroy B\n  A->>B: bye\n  else retry\n  end\n'],
-  ] as const)('a typed fragment edit %s and keeps every binding Mermaid reads', async (_name, op, lines) => {
-    const written = serializeMermaid(apply(sequence(FRAGMENT), op as SequenceMutationOp))
+    ['edits the destroying message', FRAGMENT, { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 1, text: 'farewell' }, '  destroy B\n  A->>B: farewell\n'],
+    ['relabels a participant created in the branch', FRAGMENT, { kind: 'set_participant_label', id: 'C', label: 'Carl' }, '  create participant C as Carl\n  A->>C: make\n'],
+    ['adds a message after the destroying one', FRAGMENT, { kind: 'add_fragment_message', fragmentIndex: 0, index: 2, from: 'A', to: 'C', text: 'later' }, '  A->>B: bye\n  A->>C: later\n'],
+    ['removes the message before a directive', FRAGMENT, { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '  destroy B\n  A->>B: bye\n  else retry\n  end\n'],
+    ['edits the destroying message of a nested alt', NESTED, { kind: 'set_fragment_message_text', fragmentPath: IN_RECT, fragmentIndex: 0, index: 1, text: 'farewell' }, '  rect rgb(200, 220, 255)\n  alt done\n    create participant C\n    A->>C: make\n    destroy B\n    A->>B: farewell\n'],
+    ['relabels a participant created in a nested branch', NESTED, { kind: 'set_participant_label', id: 'C', label: 'Carl' }, '    create participant C as Carl\n    A->>C: make\n'],
+    ['removes the message before a nested directive', NESTED, { kind: 'remove_fragment_message', fragmentPath: IN_RECT, fragmentIndex: 0, branchIndex: 1, index: 0 }, '    A->>B: bye\n  else retry\n  end\n  end\n'],
+  ] as const)('a typed fragment edit %s and keeps every binding Mermaid reads', async (_name, source, op, lines) => {
+    const written = serializeMermaid(apply(sequence(source), op as SequenceMutationOp))
     expect(written).toContain(lines)
     const { ours, mermaid } = await bindings(written)
     expect(Object.keys(ours).sort()).toEqual(['create C', 'destroy B'])
@@ -428,29 +437,34 @@ describe('sequence create/destroy are typed statements', () => {
     expect([terminal.match(/\| B \|/g)?.length, terminal.match(/\| (?:C|Carl) \|/g)?.length]).toEqual([1, 2])
   })
 
-  test('facts place each fragment directive in its branch and before its message', () => {
-    expect(describeMermaidFacts(sequence(FRAGMENT)).filter(fact => /^(create|destroy) /.test(fact))).toEqual([
-      'create participant C : C fragment#0 branch#0 before message#1',
-      'destroy B fragment#0 branch#0 before message#2',
+  test.each([
+    [FRAGMENT, 'fragment#0'],
+    [NESTED, 'fragment#0.0.0'],
+  ])('facts place each fragment directive in its branch and before its message', (source, fragment) => {
+    expect(describeMermaidFacts(sequence(source)).filter(fact => /^(create|destroy) /.test(fact))).toEqual([
+      `create participant C : C ${fragment} branch#0 before message#1`,
+      `destroy B ${fragment} branch#0 before message#2`,
     ])
   })
 
   test.each([
-    ['separates a create from its message', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'interject' }, '"create" is not received by "C"'],
-    ['removes a participant the branch creates', { kind: 'remove_participant', id: 'C' }, 'Participant "C" is referenced'],
-  ] as const)('a typed fragment edit that %s is refused', (_name, op, problem) => {
-    const parsed = sequence(FRAGMENT)
+    ['separates a create from its message', FRAGMENT, { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'interject' }, '"create" is not received by "C"'],
+    ['removes a participant the branch creates', FRAGMENT, { kind: 'remove_participant', id: 'C' }, 'Participant "C" is referenced'],
+    ['separates a nested create from its message', NESTED, { kind: 'add_fragment_message', fragmentPath: IN_RECT, fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'interject' }, '"create" is not received by "C"'],
+    ['removes a participant a nested branch creates', NESTED, { kind: 'remove_participant', id: 'C' }, 'Participant "C" is referenced'],
+  ] as const)('a typed fragment edit that %s is refused', (_name, source, op, problem) => {
+    const parsed = sequence(source)
     const result = mutate(parsed, op as SequenceMutationOp)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(problem) })
-    expect(serializeMermaid(parsed)).toBe(FRAGMENT)
+    expect(serializeMermaid(parsed)).toBe(source)
   })
 
-  test('a lifecycle directive inside a nested fragment is named by the opaque warning', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  rect rgb(1, 2, 3)\n    alt done\n      destroy B\n      A->>B: bye\n    end\n  end\n'
+  test('a lifecycle directive inside a nested fragment holding an activation is named by the opaque warning', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  rect rgb(1, 2, 3)\n    alt done\n      activate A\n      destroy B\n      A->>B: bye\n    end\n  end\n'
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(rect fragment, alt fragment, destroy)'),
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(rect fragment, alt fragment, activate/deactivate, destroy)'),
     }))
   })
 })

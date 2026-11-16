@@ -76,7 +76,7 @@ TreeView IDs are positional row addresses. After a structural edit, use the
 returned diagram's IDs: its canonical writer and reader may reassign positions
 while preserving the complete authored hierarchy, labels and metadata.
 
-Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` as typed fragments (with their own read-back and mutation ops, and their `create`/`destroy` lines and notes) and top-level `create`/`destroy` and notes as typed statements while nested fragments and box/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices (facts state each message's op address as `message#N op [fragmentIndex F branchIndex B] index K`); gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
+Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` as typed fragments (with their own read-back and mutation ops, and their `create`/`destroy` lines, notes and nested fragments, which every fragment op reaches through an optional `fragmentPath` of `{ fragmentIndex, branchIndex }` steps) and top-level `create`/`destroy` and notes as typed statements while box/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices (facts state each message's op address as `message#N op [fragmentPath P] [fragmentIndex F branchIndex B] index K`); gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
 
 Opaque/source-level bodies:
 
@@ -180,14 +180,32 @@ a class named by each `Class : member` line, an entity block opened twice) is
 traced to every line it is read from: a change is spliced into each line that
 spells it (for a value the parser takes from one declaration, that line), a
 removal takes every line that declares nothing else, and a new member of a
-block written as separate lines is spelled like its authored siblings.
+block written as separate lines is spelled like its authored siblings. A
+statement kept in its authored spacing (a fragment message written
+`A ->> B: ping`) is edited through its canonical reading, so only the changed
+text changes. A canonical difference too long for the line table is compared
+by the shortest edit script, within the same budget.
 
-Typical fallbacks: one authored line carrying several statements whose
-removal needs the rest respelled in a different order (`A:::hot & B --> C`),
-an edit whose canonical result moves statements into or out of blocks the
-source does not spell (subgraph members declared by edges, nested namespaces
-the writer flattens), an edit that empties a family below its grammar floor,
-and edits to wrappers the canonical writer does not own. The receipt names the reason (the statement that could not be traced or
+When no candidate reads back, a last pass reads the authored block structure:
+a block member is traced to the line inside its authored block that declares
+it (a subgraph member first mentioned by an edge outside the subgraph and
+declared by another edge inside it), and a new statement placed beside a line
+inside a block its canonical statement is not in goes after that block's
+closer. The statements a rewritten line keeps, and those written beside it,
+are written in canonical order (`A:::hot & B --> C` less `A --> C` becomes
+`B --> C`, `A[A]`, `class A hot`). A namespace opener the parser does not
+accept empty is read as a block, and a block written on one line
+(`class Shape <<interface>>`) whose body the edit changes is rewritten there
+as the edited block. A declaration whose label the writer would move onto a
+new statement that now mentions it first keeps its line, and the new statement
+names it bare (`n0[Zero]` stays and the edge is written `n0 --> n1`).
+
+Typical fallbacks: a kept line whose position changes what it declares (a
+state note left before the state's only remaining transition declares the
+state there; the receipt says the closest candidate has the edit's facts), an
+edit that empties a family below its grammar floor, a canonical difference
+beyond the diff budget, and edits to wrappers the canonical writer does not
+own. The receipt names the reason (the statement that could not be traced or
 placed, or how the closest local candidate reads differently from the edit);
 the source is then the ordinary canonical result.
 

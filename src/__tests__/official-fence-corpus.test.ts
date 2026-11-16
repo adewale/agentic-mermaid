@@ -53,8 +53,6 @@ sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order exampl
 sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate controls
 sequence:official-syntax/sequenceDiagram.md#16 [ Unsupported ] # 'box' participant groups
 sequence:official-syntax/sequenceDiagram.md#18 [ Unsupported ] # explicit 'activate' / 'deactivate'
-sequence:official-syntax/sequenceDiagram.md#28 [ Unsupported ] # nested 'par ... and' blocks
-sequence:official-syntax/sequenceDiagram.md#32 [ Unsupported ] # 'rect' highlight blocks with notes
 sequence:official-syntax/sequenceDiagram.md#35 [ Unsupported ] # 'autonumber' and notes
 `
 
