@@ -75,74 +75,35 @@ function requiredModelOrder(element: ModelElement): number {
   return element.modelOrder
 }
 
-// Undefined is uninitialized; null is an initialized empty row.
-type RelationRow = Map<number, number> | null
-type RelationTable = (RelationRow | undefined)[]
-function containsRelation(row: RelationRow | undefined, id: number): boolean { return row !== null && ((row!.get(Math.floor(id / 32)) ?? 0) & (1 << (id % 32))) !== 0 }
-function addRelation(row: Map<number, number>, id: number): void {
-  const word = Math.floor(id / 32), previous = row.get(word) ?? 0, next = (previous | (1 << (id % 32))) >>> 0
-  if (next !== previous) row.set(word, next)
-}
-function unionRelations(table: RelationTable, id: number, source: RelationRow | undefined, endpoint: number): void {
-  let target = table[id]
-  if (target === null) table[id] = target = new Map()
-  if (source !== null) for (const [word, bits] of source!) {
-    const previous = target!.get(word) ?? 0, next = (previous | bits) >>> 0
-    if (next !== previous) target!.set(word, next)
-  }
-  addRelation(target!, endpoint)
-}
-
-/** Private transitive memberships; sparse words do not allocate padding for absent relations. */
+/** Source transitive relation tables use membership and set unions, never iteration to choose a relation. */
 class TransitiveOrdering<T> {
-  private ids = new Map<T, number>()
-  private biggerThan: RelationTable = []
-  private smallerThan: RelationTable = []
-  private id(value: T): number {
-    const previous = this.ids.get(value)
-    if (previous !== undefined) return previous
-    const id = this.ids.size
-    this.ids.set(value, id)
-    return id
-  }
+  biggerThan = new Map<T, Set<T>>()
+  smallerThan = new Map<T, Set<T>>()
   compare(a: T, b: T, smallerTable: boolean): number {
-    const ai = this.id(a), bi = this.id(b)
-    if (this.biggerThan[ai] === undefined) this.biggerThan[ai] = null
-    else if (containsRelation(this.biggerThan[ai], bi)) return 1
-    if (this.biggerThan[bi] === undefined) this.biggerThan[bi] = null
-    else if (containsRelation(this.biggerThan[bi], ai)) return -1
-    if (this.smallerThan[ai] === undefined) this.smallerThan[ai] = null
-    else if (containsRelation(this.smallerThan[ai], bi)) return -1
-    if (this.smallerThan[bi] === undefined) this.smallerThan[bi] = null
-    else if (containsRelation((smallerTable ? this.smallerThan : this.biggerThan)[bi], ai)) return 1
+    if (!this.biggerThan.has(a)) this.biggerThan.set(a, new Set())
+    else if (this.biggerThan.get(a)!.has(b)) return 1
+    if (!this.biggerThan.has(b)) this.biggerThan.set(b, new Set())
+    else if (this.biggerThan.get(b)!.has(a)) return -1
+    if (!this.smallerThan.has(a)) this.smallerThan.set(a, new Set())
+    else if (this.smallerThan.get(a)!.has(b)) return -1
+    if (!this.smallerThan.has(b)) this.smallerThan.set(b, new Set())
+    else if ((smallerTable ? this.smallerThan : this.biggerThan).get(b)!.has(a)) return 1
     return 0
   }
   update(bigger: T, smaller: T): void {
-    const bi = this.ids.get(bigger)!, si = this.ids.get(smaller)!
-    const ancestors = this.smallerThan[bi], descendants = this.biggerThan[si]
-    // The source live loops add exactly ({bigger} U ancestors) x
-    // ({smaller} U descendants), including cycles and self-relations.
-    // Either source row can gain only its explicit endpoint during the update.
-    if (descendants !== null) for (const [word, bits] of descendants!) {
-      let remaining = bits
-      while (remaining !== 0) {
-        const id = word * 32 + 31 - Math.clz32(remaining & -remaining)
-        unionRelations(this.smallerThan, id, ancestors, bi)
-        remaining &= remaining - 1
-      }
+    const bb = this.biggerThan.get(bigger)!, sb = this.biggerThan.get(smaller)!
+    const bs = this.smallerThan.get(bigger)!, ss = this.smallerThan.get(smaller)!
+    bb.add(smaller); ss.add(bigger)
+    for (const verySmall of sb) {
+      bb.add(verySmall); this.smallerThan.get(verySmall)!.add(bigger)
+      for (const value of bs) this.smallerThan.get(verySmall)!.add(value)
     }
-    unionRelations(this.smallerThan, si, ancestors, bi)
-    if (ancestors !== null) for (const [word, bits] of ancestors!) {
-      let remaining = bits
-      while (remaining !== 0) {
-        const id = word * 32 + 31 - Math.clz32(remaining & -remaining)
-        unionRelations(this.biggerThan, id, descendants, si)
-        remaining &= remaining - 1
-      }
+    for (const veryBig of bs) {
+      ss.add(veryBig); this.biggerThan.get(veryBig)!.add(smaller)
+      for (const value of sb) this.biggerThan.get(veryBig)!.add(value)
     }
-    unionRelations(this.biggerThan, bi, descendants, si)
   }
-  clear(): void { this.ids = new Map(); this.biggerThan = []; this.smallerThan = [] }
+  clear(): void { this.biggerThan = new Map(); this.smallerThan = new Map() }
 }
 
 class ModelOrderPortComparator {
