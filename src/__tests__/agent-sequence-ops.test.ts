@@ -875,6 +875,57 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
 })
 
 // ============================================================================
+// Activation balance: an edit may not leave a deactivation Mermaid rejects
+// ============================================================================
+
+describe('an edit that would leave a participant deactivated while inactive is refused', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+  const INACTIVE = 'Trying to inactivate an inactive participant (B)'
+
+  // Each source Mermaid accepts; the op would write the source after it,
+  // which Mermaid rejects, so the op is refused naming the line.
+  test.each([
+    ['removing the message whose "+" a later line closes', 'sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n', { kind: 'remove_message', index: 0 }, 'sequenceDiagram\n  B->>A: two\n  deactivate B\n', '"deactivate B"'],
+    ['removing the message whose "+" a later "-" closes', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'remove_message', index: 0 }, 'sequenceDiagram\n  B-->>-A: two\n', '"B-->>-A: two"'],
+    ['moving the activating message below its deactivation', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'move_message', from: 0, to: 1 }, 'sequenceDiagram\n  B-->>-A: two\n  A->>+B: one\n', '"B-->>-A: two"'],
+    ['removing a participant whose message activates another', 'sequenceDiagram\n  A->>+B: one\n  B->>-C: two\n', { kind: 'remove_participant', id: 'A' }, 'sequenceDiagram\n  B->>-C: two\n', '"B->>-C: two"'],
+    ['removing a branch message whose "+" a line in the branch closes', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    A->>+B: two\n    deactivate B\n  end\n', { kind: 'remove_fragment_message', fragmentIndex: 0, index: 0 }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  deactivate B\n  end\n', '"deactivate B"'],
+    ['removing a fragment holding the activation a later line closes', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    activate B\n    B->>A: two\n  end\n  deactivate B\n', { kind: 'remove_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n', '"deactivate B"'],
+    ['moving a fragment holding an activation below its deactivation', 'sequenceDiagram\n  opt busy\n    activate B\n    B->>A: two\n  end\n  A->>B: one\n  deactivate B\n', { kind: 'move_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
+    ['moving a fragment holding an activation out of its branch, past the deactivation', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    opt busy\n      activate B\n      B->>A: two\n    end\n    deactivate B\n  end\n', { kind: 'move_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], index: 0, toFragmentPath: [] }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  deactivate B\n  end\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
+    ['removing an activation from source already deactivating B once too often', 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>+B: two\n  deactivate B\n', { kind: 'remove_message', index: 1 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  deactivate B\n', '"deactivate B"'],
+  ] as const)('%s', async (_name, source, op, wouldWrite, line) => {
+    const parsed = sequence(source)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(`Mermaid rejects: ${line} would deactivate participant "B" while it is not active`) })
+    expect(serializeMermaid(parsed)).toBe(source)
+    const rejected = await upstream.parse(wouldWrite)
+    expect(rejected.ok ? 'accepted' : rejected.error).toContain(INACTIVE)
+    // The op introduces the imbalance: Mermaid read the source before it,
+    // or rejected it for one deactivation fewer.
+    const authored = await upstream.parse(source)
+    if (!authored.ok) expect(sequenceUnsupportedWarnings(source)).toHaveLength(sequenceUnsupportedWarnings(wouldWrite).length - 1)
+  })
+
+  test.each([
+    ['an edit beside a deactivation the source already makes while inactive', 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>B: two\n', { kind: 'set_message_text', index: 1, text: 'TWO' }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>B: TWO\n'],
+    ['removing a fragment with both ends of an activation', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    activate B\n    B->>A: two\n    deactivate B\n  end\n', { kind: 'remove_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n'],
+  ] as const)('%s is written', async (_name, source, op, written) => {
+    const output = serializeMermaid(apply(sequence(source), op as SequenceMutationOp))
+    expect(output).toBe(written)
+    // Mermaid reads it exactly when it read the authored source; verify
+    // still warns where it does not.
+    const [before, after] = [await upstream.parse(source), await upstream.parse(output)]
+    expect(after.ok).toBe(before.ok)
+    expect(sequenceUnsupportedWarnings(output)).toHaveLength(before.ok ? 0 : 1)
+  })
+})
+
+const sequenceUnsupportedWarnings = (source: string) => verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sequence_inactive_deactivation')
+
+// ============================================================================
 // add_message index
 // ============================================================================
 

@@ -557,25 +557,18 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
   for (const issue of source.issues) warnings.push({
     code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + issue.line + 2, message: issue.message,
   })
-  // Mermaid counts each participant's activations in statement order: `+`
-  // activates a message's receiver, `-` deactivates its sender.
-  const active = new Map<string, number>()
-  const deactivate = (id: string, how: string): void => {
-    const count = active.get(id) ?? 0
-    if (count > 0) { active.set(id, count - 1); return }
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_inactive_deactivation', line,
-      message: `${how} deactivates participant "${id}", which is not active; ours ignores it. Pinned Mermaid rejects this ("Trying to inactivate an inactive participant"); activate "${id}" first or remove the deactivation.`,
-    })
-  }
-  for (const entry of source.statements) {
+  const inactive = new Set(sequenceInactiveDeactivations(source.statements))
+  for (const [index, entry] of source.statements.entries()) {
     line = header + entry.line + 2
     const statement = entry.syntax
     fold.applyAll(participantEventsOf(statement))
-    if (statement?.kind === 'message' && statement.message.activationMark === '+') active.set(statement.message.to, (active.get(statement.message.to) ?? 0) + 1)
-    else if (statement?.kind === 'message' && statement.message.activationMark === '-') deactivate(statement.message.from, 'The "-" on this message')
-    else if (statement?.kind === 'activation' && statement.activate) active.set(statement.actorId, (active.get(statement.actorId) ?? 0) + 1)
-    else if (statement?.kind === 'activation') deactivate(statement.actorId, 'This statement')
+    if (inactive.has(index)) {
+      const id = statement?.kind === 'message' ? statement.message.from : statement?.kind === 'activation' ? statement.actorId : ''
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_inactive_deactivation', line,
+        message: `${statement?.kind === 'message' ? 'The "-" on this message' : 'This statement'} deactivates participant "${id}", which is not active; ours ignores it. Pinned Mermaid rejects this ("Trying to inactivate an inactive participant"); activate "${id}" first or remove the deactivation.`,
+      })
+    }
     if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
     else if (entry.closes !== undefined && source.statements[entry.closes]?.syntax?.kind === 'box') {
       fold.closeBox()
@@ -585,6 +578,49 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
     code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + source.statements[issue.entry]!.line + 2, message: issue.message,
   })
   return warnings
+}
+
+/** One activation event: an `activate`/`deactivate` line, or a message's
+ * `+` (activates its receiver) or `-` (deactivates its sender), at `at`. */
+export interface SequenceActivationEvent<T> { id: string; activate: boolean; at: T }
+
+/** The activation a message's `+` or `-` mark makes. */
+export function sequenceMessageActivation(message: Pick<SequenceMessage, 'from' | 'to' | 'activate' | 'deactivate'>): Array<{ id: string; activate: boolean }> {
+  return message.activate ? [{ id: message.to, activate: true }] : message.deactivate ? [{ id: message.from, activate: false }] : []
+}
+
+/** The activation events of a source statement. */
+export function sequenceActivationEvents(syntax: SequenceStatementSyntax | null | undefined): Array<{ id: string; activate: boolean }> {
+  if (syntax?.kind === 'activation') return [{ id: syntax.actorId, activate: syntax.activate }]
+  if (syntax?.kind !== 'message') return []
+  const { from, to, activationMark } = syntax.message
+  return sequenceMessageActivation({ from, to, activate: activationMark === '+', deactivate: activationMark === '-' })
+}
+
+/**
+ * Activation spans as pinned Mermaid counts them: per participant, in
+ * statement order, fragment boundaries included. A deactivation ends the
+ * participant's latest open activation; one with none open is `inactive`
+ * (Mermaid rejects it: "Trying to inactivate an inactive participant"; ours
+ * ignores it). An activation still open at the end is drawn to the end.
+ */
+export function sequenceActivationSpans<T>(events: Iterable<SequenceActivationEvent<T>>): { spans: Array<{ id: string; start: T; end?: T }>; inactive: Array<SequenceActivationEvent<T>> } {
+  const spans: Array<{ id: string; start: T; end?: T }> = []
+  const inactive: Array<SequenceActivationEvent<T>> = []
+  const open = new Map<string, number[]>()
+  for (const event of events) {
+    const stack = open.get(event.id) ?? []
+    open.set(event.id, stack)
+    if (event.activate) stack.push(spans.push({ id: event.id, start: event.at }) - 1)
+    else if (stack.length) spans[stack.pop()!]!.end = event.at
+    else inactive.push(event)
+  }
+  return { spans, inactive }
+}
+
+/** The source statements that deactivate a participant that is not active. */
+export function sequenceInactiveDeactivations(statements: readonly SequenceSourceStatement[]): number[] {
+  return sequenceActivationSpans(statements.flatMap((entry, at) => sequenceActivationEvents(entry.syntax).map(event => ({ ...event, at })))).inactive.map(event => event.at)
 }
 
 /**
@@ -992,8 +1028,9 @@ function cloneSequenceBody(body: SequenceBody): SequenceBody {
 }
 
 function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
-  // Ops edit the body in place: keep the source the lifecycle check compares.
-  const before = hasLifecycleDirective(body) ? renderedOrUndefined(body) : undefined
+  // Ops edit the body in place: keep the source the lifecycle and activation
+  // checks compare.
+  const before = hasLifecycleDirective(body) || hasActivation(body) ? renderedOrUndefined(body) : undefined
   const { participants, messages, statements } = body
 
   switch (op.kind) {
@@ -1034,7 +1071,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       messages.forEach((m, mi) => { if (m.from === op.id || m.to === op.id) removedMsgIdx.add(mi) })
       const keptMessages = messages.filter((_, mi) => !removedMsgIdx.has(mi))
       const rebuilt: SequenceBody = { kind: 'sequence', participants, messages: keptMessages, statements: coalesceOpaqueSegments(rebuildStatements(statements, idx, removedMsgIdx, op.id)) }
-      const invalid = lifecycleEditError(before, rebuilt)
+      const invalid = orderEditError(before, rebuilt)
       return invalid ? err(invalid) : ok(refolded(rebuilt))
     }
     case 'add_message': {
@@ -1364,7 +1401,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     }
   }
   const next: SequenceBody = { kind: 'sequence', participants, messages, statements: coalesceOpaqueSegments(statements) }
-  const invalid = serializationIdError(next) ?? lifecycleEditError(before, next)
+  const invalid = serializationIdError(next) ?? orderEditError(before, next)
   return invalid ? err(invalid) : ok(refolded(next))
 }
 
@@ -1379,14 +1416,38 @@ function hasLifecycleDirective(body: SequenceBody): boolean {
     || (statement.kind === 'opaque-block' && preserved(statement.lines)))
 }
 
+function hasActivation(body: SequenceBody): boolean {
+  // A false positive only costs the check.
+  const preserved = (lines: readonly string[]) => lines.some(line => /activate|[>x)]\s*[+-]/i.test(line))
+  return body.messages.some(message => message.activate || message.deactivate) || body.statements.some(statement => statement.kind === 'opaque-block' ? preserved(statement.lines)
+    : statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => !('kind' in item) ? item.activate || item.deactivate : item.kind === 'opaque-block' && preserved(item.lines)))
+}
+
 /** An edit may not leave a `create`/`destroy` without the message Mermaid
- * requires right after it. Source that already did keeps its issues. */
-function lifecycleEditError(before: string | undefined, after: SequenceBody): MutationError | undefined {
+ * requires right after it, nor a deactivation of a participant that is not
+ * active. Source that already did keeps its issues. */
+function orderEditError(before: string | undefined, after: SequenceBody): MutationError | undefined {
   if (before === undefined) return undefined
-  const issues = (rendered: string) => sequenceLifecycleIssues(readSequenceStatements(rendered.split('\n').slice(1)).statements).map(issue => issue.message)
-  const known = issues(before)
-  const added = issues(renderSequence(after)).find(message => !known.includes(message))
-  return added === undefined ? undefined : { code: 'INVALID_OP', message: `This edit would leave sequence source Mermaid rejects: ${added}` }
+  const read = (rendered: string) => readSequenceStatements(rendered.split('\n').slice(1)).statements
+  const known = read(before)
+  const edited = read(renderSequence(after))
+  const issues = (statements: readonly SequenceSourceStatement[]) => sequenceLifecycleIssues(statements).map(issue => issue.message)
+  const knownIssues = issues(known)
+  const added = issues(edited).find(message => !knownIssues.includes(message))
+  if (added !== undefined) return { code: 'INVALID_OP', message: `This edit would leave sequence source Mermaid rejects: ${added}` }
+  // Each deactivation already inactive may stay so; any further one is new.
+  const inactive = (statements: readonly SequenceSourceStatement[]) => sequenceInactiveDeactivations(statements).map(at => statements[at]!)
+  const allowed = inactive(known).map(entry => entry.raw.trim())
+  for (const entry of inactive(edited)) {
+    const line = entry.raw.trim()
+    const at = allowed.indexOf(line)
+    if (at >= 0) { allowed.splice(at, 1); continue }
+    const syntax = entry.syntax
+    const id = syntax?.kind === 'message' ? syntax.message.from : syntax?.kind === 'activation' ? syntax.actorId : ''
+    const what = syntax?.kind === 'message' ? 'message' : 'line'
+    return { code: 'INVALID_OP', message: `This edit would leave sequence source Mermaid rejects: "${line}" would deactivate participant "${id}" while it is not active ("Trying to inactivate an inactive participant"). Keep an activation of "${id}" before it, or remove or move that ${what} too.` }
+  }
+  return undefined
 }
 
 /** Keep an edited body the fold of its own statements, which is what its

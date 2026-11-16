@@ -241,6 +241,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- A typed sequence edit could write source Mermaid 12.2.0 rejects for
+  activation balance ("Trying to inactivate an inactive participant"):
+  removing `A->>+B` left the `deactivate B` (or `B-->>-A`) after it, and
+  moving a message or a fragment, removing a fragment or a participant could
+  do the same. Such an edit is now refused with `INVALID_OP` naming the line
+  that would deactivate an inactive participant, and what to do: keep an
+  activation before it, or remove or move that line too. Authored lines are
+  never dropped to balance an edit. Source that already deactivates an
+  inactive participant still reads and verify still warns
+  (`sequence_inactive_deactivation`); an edit is refused only when it adds
+  such a deactivation.
+
 - ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
   `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
   failed as `INTERNAL_ERROR`, a 50 × 50 fan only after ~94 s. Terminal work

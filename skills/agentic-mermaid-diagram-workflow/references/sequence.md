@@ -66,7 +66,10 @@ them. `create participant|actor` and `destroy` lines and `Note left of|right
 of|over …` lines are typed statements too, at top level and inside those
 fragments (facts: `create …`, `destroy …`, with `fragment#f branch#b` inside a
 fragment); an edit that would separate a directive from the message Mermaid
-requires right after it is refused. A fragment may hold further fragments
+requires right after it is refused. An edit that would leave a
+deactivation (a `deactivate` line or a message's `-` mark) of a participant
+that is not active, which Mermaid rejects, is refused naming that line:
+remove or move it too, or keep its activation. A fragment may hold further fragments
 (see Nested fragments above). Other constructs (box/activate/autonumber/title,
 a comment) ride along VERBATIM as opaque-block segments, at top level and
 inside a fragment branch, in source order, while participant, message and
