@@ -14,9 +14,9 @@ export interface ComponentNode {
   priority: number
 }
 
-export interface Component {
+export interface Component<Node extends ComponentNode = ComponentNode> {
   connections?: number
-  nodes: ComponentNode[]
+  nodes: Node[]
   width: number
   height: number
   offsetX: number
@@ -31,8 +31,8 @@ export interface ComponentPackingOptions {
   preserveModelOrder: boolean
 }
 
-export interface ComponentPackingResult {
-  order?: Component[]
+export interface ComponentPackingResult<PackedComponent extends Component = Component> {
+  order?: PackedComponent[]
   width: number
   height: number
 }
@@ -51,7 +51,7 @@ function compareNumbers(a: number, b: number): number {
  * Numeric operations follow the published elkjs 0.11.1 GWT worker.
  * Components already contain their completed layouts; padding belongs to the caller.
  */
-export function packComponents(components: Component[], options: ComponentPackingOptions): ComponentPackingResult {
+export function packComponents<PackedComponent extends Component>(components: PackedComponent[], options: ComponentPackingOptions): ComponentPackingResult<PackedComponent> {
   if (components.length === 1) {
     const source = components[0]!
     source.offsetX += 0

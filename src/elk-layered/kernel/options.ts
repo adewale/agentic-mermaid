@@ -48,11 +48,11 @@ export function optionalNumberOption(options: Options, key: string): number | un
 export function optionalIntegerOption(options: Options, key: string): number | undefined { return resolveOption<number | undefined>(options, key, undefined, parseInteger) }
 export function integerOption(options: Options, key: string, fallback: number): number { return resolveOption(options, key, fallback, parseInteger) }
 export function booleanOption(options: Options, key: string, fallback: boolean): boolean { return resolveOption(options, key, fallback, value => value.toLowerCase() === 'true' ? true : value.toLowerCase() === 'false' ? false : undefined) }
-export function optionalEnumOption<T extends string>(options: Options, key: string, choices: readonly T[]): T | undefined { return resolveOption<T | undefined>(options, key, undefined, value => parseEnum(value, choices)) }
-export function enumOption<T extends string>(options: Options, key: string, choices: readonly T[], fallback: T): T { return resolveOption(options, key, fallback, value => parseEnum(value, choices)) }
-export function setOption(options: Options, key: string, choices: readonly string[], fallback: readonly string[]): Set<string> {
+export function optionalEnumOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices): Choices[number] | undefined { return resolveOption<Choices[number] | undefined>(options, key, undefined, value => parseEnum(value, choices)) }
+export function enumOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices, fallback: NoInfer<Choices[number]>): Choices[number] { return resolveOption(options, key, fallback, value => parseEnum(value, choices)) }
+export function setOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices, fallback: readonly NoInfer<Choices[number]>[]): Set<Choices[number]> {
   return resolveOption(options, key, new Set(fallback), value => {
-    const result = new Set<string>()
+    const result = new Set<Choices[number]>()
     for (const token of value.split(/[\[\]\s,]+/)) {
       if (token.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').length === 0) continue
       const selected = parseEnum(token, choices)

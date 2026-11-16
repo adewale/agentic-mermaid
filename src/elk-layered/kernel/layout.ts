@@ -32,7 +32,7 @@ import { resizeNode, resizeImportedNode } from './node-geometry.ts'
 import { getExternalPortPosition, importIndependentPorts } from './external-ports.ts'
 import { transformGraph } from './transform.ts'
 import { routeOrthogonal, measureLayers } from './routing.ts'
-import { importGraph, initializePort, reverseEdge, type LayoutGraph, type LayoutLabel, type LayoutNode, type LayoutEdge } from './graph.ts'
+import { importGraph, initializePort, reverseEdge, type LayoutGraph, type GraphGeometry, type LayoutLabel, type LayoutNode, type LayoutEdge } from './graph.ts'
 import { writeMember, elementKey } from './json.ts'
 import { booleanOption, enumOption, numberOption, integerOption, setOption, stringOption, vectorOption, type Options } from './options.ts'
 import type { ElkNode } from './types.ts'
@@ -69,13 +69,13 @@ function layoutGraph(graph: LayoutGraph): void {
       const separate = booleanOption(graph.options, 'separateConnectedComponents', true) && (!graph.hasExternalPorts || constraints !== 'FIXED_ORDER' && constraints !== 'FIXED_RATIO' && constraints !== 'FIXED_POS')
       if (!separate) {
         const component = layoutComponent((graph.layerlessNodes ?? graph.nodes).filter(node => !node.noLayout), graph, random, false, false)
-        graph.layerlessNodes = component.nodes as LayoutNode[]
+        graph.layerlessNodes = component.nodes
         resizeGraph(graph, component.width, component.height, component.offsetX, component.offsetY)
         transferIndependentGraph(graph)
         return
       }
       if (booleanOption(graph.options, 'layered.compaction.connectedComponents', false)) throw new Error('ELK TypeScript port: connected-component compaction is not implemented yet')
-      const components: Component[] = []
+      const components: Component<LayoutNode>[] = []
       for (const nodes of splitComponents(graph)) {
         let connections = 0
         for (const node of nodes) if (node.type === 'EXTERNAL_PORT') connections |= node.externalPortSide === 'NORTH' ? 1 : node.externalPortSide === 'EAST' ? 2 : node.externalPortSide === 'SOUTH' ? 4 : node.externalPortSide === 'WEST' ? 8 : 0
@@ -84,7 +84,7 @@ function layoutGraph(graph: LayoutGraph): void {
       const ordering = enumOption(graph.options, 'layered.considerModelOrder.components', ['NONE', 'INSIDE_PORT_SIDE_GROUPS', 'GROUP_MODEL_ORDER', 'MODEL_ORDER'] as const, 'NONE')
       if (ordering !== 'NONE') throw new Error('ELK TypeScript port: model-order component placer is not implemented yet')
       const size = (graph.hasExternalPorts ? packComponentGroups : packComponents)(components, { spacing: numberOption(graph.options, 'spacing.componentComponent', 20), aspectRatio: numberOption(graph.options, 'aspectRatio', 1.600000023841858), preserveModelOrder: false })
-      graph.layerlessNodes = (size.order ?? components).flatMap(component => component.nodes as LayoutNode[])
+      graph.layerlessNodes = (size.order ?? components).flatMap(component => component.nodes)
       resizeGraph(graph, size.width, size.height)
     }
   }
@@ -245,13 +245,13 @@ interface PreparedLayout {
   graph: LayoutGraph
   random: Random
   direction: LayoutGraph['direction']
-  state: { width: number; height: number; offsetX: number; offsetY: number; padding: import('./options.ts').Insets; options: Options }
+  state: GraphGeometry
   loops: ReturnType<typeof preprocessSelfLoops>
   centerLabels: ReturnType<typeof insertLabelDummies> | undefined
   layers: LayoutNode[][]
   phaseNodes: LayoutNode[]
 }
-function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean, clearMinimum = !compound): Component {
+function layoutComponent(nodes: LayoutNode[], graph: LayoutGraph, random: Random, compound: boolean, clearMinimum = !compound): Component<LayoutNode> {
   const prepared = prepareLayout(nodes, graph, random, compound, clearMinimum)
   minimizeCrossings(prepared.layers, prepared.state.options, random, (graph.layerlessNodes ?? graph.nodes).filter(node => !node.noLayout).length, graph.maxModelOrderNodes, true)
   return finishLayout(prepared)
@@ -280,7 +280,7 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const layererNodes = nodes.slice()
   const hiddenLayers = hideSeparateLayers(layererNodes)
   const partitions = partitioning ? addPartitionConstraints(layererNodes) : undefined
-  const layers = assignNetworkSimplexLayers(layererNodes, integerOption(state.options, 'layered.thoroughness', 7)) as LayoutNode[][]
+  const layers = assignNetworkSimplexLayers(layererNodes, integerOption(state.options, 'layered.thoroughness', 7))
   if (booleanOption(state.options, 'layered.highDegreeNodes.treatment', false)) applyHighDegreeLayers(layers, state.options)
   restoreSeparateLayers(layers, hiddenLayers)
   if (partitions !== undefined) removePartitionConstraints(layers, partitions)
@@ -295,7 +295,7 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const phaseNodes = layers.flat()
   return { compound, hierarchyPorts, northSouthPorts, nodes, graph, random, direction, state, loops, centerLabels, layers, phaseNodes }
 }
-function finishLayout(prepared: PreparedLayout): Component {
+function finishLayout(prepared: PreparedLayout): Component<LayoutNode> {
   const { nodes, random, direction, state, loops, centerLabels, layers, phaseNodes } = prepared
   restoreSelfLoopPorts(layers, loops)
   enforceInLayerConstraints(layers)

@@ -14,46 +14,46 @@ export interface SimplexNode {
   rank: number
 }
 
-export interface SimplexPort {
-  node: SimplexNode
-  incoming: SimplexEdge[]
-  outgoing: SimplexEdge[]
+export interface SimplexPort<Node = SimplexNode> {
+  node: Node
+  incoming: SimplexEdge<Node>[]
+  outgoing: SimplexEdge<Node>[]
 }
 
-export interface SimplexEdge {
-  source: SimplexPort
-  target: SimplexPort
+export interface SimplexEdge<Node = SimplexNode> {
+  source: SimplexPort<Node>
+  target: SimplexPort<Node>
   priorityShortness: number
 }
 
-interface NNode {
-  origin: SimplexNode
-  incoming: NEdge[]
-  outgoing: NEdge[]
+interface NNode<Node> {
+  origin: Node
+  incoming: NEdge<Node>[]
+  outgoing: NEdge<Node>[]
   layer: number
   internalId: number
   treeNode: boolean
-  unknownCutvalues: NEdge[]
+  unknownCutvalues: NEdge<Node>[]
 }
 
-interface NEdge {
-  source: NNode
-  target: NNode
+interface NEdge<Node> {
+  source: NNode<Node>
+  target: NNode<Node>
   weight: number
   delta: number
   internalId: number
   treeEdge: boolean
 }
 
-interface NGraph {
-  nodes: NNode[]
+interface NGraph<Node> {
+  nodes: NNode<Node>[]
 }
 
-function connectedEdges(node: NNode): NEdge[] {
+function connectedEdges<Node>(node: NNode<Node>): NEdge<Node>[] {
   return node.incoming.concat(node.outgoing)
 }
 
-function otherNode(edge: NEdge, node: NNode): NNode {
+function otherNode<Node>(edge: NEdge<Node>, node: NNode<Node>): NNode<Node> {
   if (node === edge.source) return edge.target
   if (node === edge.target) return edge.source
   throw new Error('Node is not part of edge.')
@@ -69,18 +69,18 @@ function remove<T>(items: T[], item: T): void {
  * commit 54123e884b1ae743b453260f713b20c9bf5787f2. Iteration and arithmetic
  * follow the published elkjs 0.11.1 GWT worker.
  */
-class NetworkSimplex {
-  private edges: NEdge[] = []
-  private treeEdges = new Set<NEdge>()
-  private sources: NNode[] = []
+class NetworkSimplex<Node> {
+  private edges: NEdge<Node>[] = []
+  private treeEdges = new Set<NEdge<Node>>()
+  private sources: NNode<Node>[] = []
   private edgeVisited: boolean[] = []
   private postOrder = 1
   private poID: number[] = []
   private lowestPoID: number[] = []
   private cutvalue: number[] = []
-  private subtreeNodesStack: Array<[NNode, NEdge]> = []
+  private subtreeNodesStack: Array<[NNode<Node>, NEdge<Node>]> = []
 
-  constructor(private graph: NGraph, private iterationLimit: number, private previousLayeringNodeCounts: number[] | null) {}
+  constructor(private graph: NGraph<Node>, private iterationLimit: number, private previousLayeringNodeCounts: number[] | null) {}
 
   private initialize(): void {
     for (const node of this.graph.nodes) node.treeNode = false
@@ -125,7 +125,7 @@ class NetworkSimplex {
 
   private removeSubtrees(): void {
     this.subtreeNodesStack = []
-    const leafs: NNode[] = []
+    const leafs: NNode<Node>[] = []
     for (const node of this.graph.nodes) {
       if (connectedEdges(node).length === 1) leafs.push(node)
     }
@@ -179,7 +179,7 @@ class NetworkSimplex {
     }
   }
 
-  private layeringTopologicalNumbering(initialRootNodes: NNode[]): void {
+  private layeringTopologicalNumbering(initialRootNodes: NNode<Node>[]): void {
     const incident: number[] = new Array(this.graph.nodes.length).fill(0)
     for (const node of this.graph.nodes) incident[node.internalId]! += node.incoming.length
     const roots = initialRootNodes.slice()
@@ -195,7 +195,7 @@ class NetworkSimplex {
     }
   }
 
-  private minimalSpan(node: NNode): [number, number] {
+  private minimalSpan(node: NNode<Node>): [number, number] {
     let minSpanOut = 2147483647
     let minSpanIn = 2147483647
     for (const edge of connectedEdges(node)) {
@@ -208,7 +208,7 @@ class NetworkSimplex {
     return [minSpanIn, minSpanOut]
   }
 
-  private tightTreeDFS(node: NNode): number {
+  private tightTreeDFS(node: NNode<Node>): number {
     let nodeCount = 1
     node.treeNode = true
     for (const edge of connectedEdges(node)) {
@@ -226,9 +226,9 @@ class NetworkSimplex {
     return nodeCount
   }
 
-  private minimalSlack(): NEdge | null {
+  private minimalSlack(): NEdge<Node> | null {
     let minSlack = 2147483647
-    let minSlackEdge: NEdge | null = null
+    let minSlackEdge: NEdge<Node> | null = null
     for (const edge of this.edges) {
       if (edge.source.treeNode !== edge.target.treeNode) {
         const curSlack = edge.target.layer - edge.source.layer - edge.delta
@@ -241,7 +241,7 @@ class NetworkSimplex {
     return minSlackEdge
   }
 
-  private postorderTraversal(node: NNode): number {
+  private postorderTraversal(node: NNode<Node>): number {
     let lowest = 2147483647
     for (const edge of connectedEdges(node)) {
       if (edge.treeEdge && !this.edgeVisited[edge.internalId]) {
@@ -254,7 +254,7 @@ class NetworkSimplex {
     return this.lowestPoID[node.internalId]!
   }
 
-  private isInHead(node: NNode, edge: NEdge): boolean {
+  private isInHead(node: NNode<Node>, edge: NEdge<Node>): boolean {
     const source = edge.source
     const target = edge.target
     if (this.lowestPoID[source.internalId]! <= this.poID[node.internalId]!
@@ -269,7 +269,7 @@ class NetworkSimplex {
   }
 
   private cutvalues(): void {
-    const leafs: NNode[] = []
+    const leafs: NNode<Node>[] = []
     for (const node of this.graph.nodes) {
       let treeEdgeCount = 0
       node.unknownCutvalues.length = 0
@@ -310,16 +310,16 @@ class NetworkSimplex {
     }
   }
 
-  private leaveEdge(): NEdge | null {
+  private leaveEdge(): NEdge<Node> | null {
     for (const edge of this.treeEdges) {
       if (edge.treeEdge && this.cutvalue[edge.internalId]! < -1e-10) return edge
     }
     return null
   }
 
-  private enterEdge(leave: NEdge): NEdge | null {
+  private enterEdge(leave: NEdge<Node>): NEdge<Node> | null {
     if (!leave.treeEdge) throw new Error('The input edge is not a tree edge.')
-    let replace: NEdge | null = null
+    let replace: NEdge<Node> | null = null
     let repSlack = 2147483647
     for (const edge of this.edges) {
       const source = edge.source
@@ -335,7 +335,7 @@ class NetworkSimplex {
     return replace
   }
 
-  private exchange(leave: NEdge, enter: NEdge): void {
+  private exchange(leave: NEdge<Node>, enter: NEdge<Node>): void {
     if (!leave.treeEdge) throw new Error('Given leave edge is no tree edge.')
     if (enter.treeEdge) throw new Error('Given enter edge is a tree edge already.')
     leave.treeEdge = false
@@ -394,11 +394,11 @@ class NetworkSimplex {
 }
 
 /** NetworkSimplexLayerer.process, connectedComponents, and initialize, same source pin. */
-export function assignNetworkSimplexLayers(nodes: SimplexNode[], thoroughness: number): SimplexNode[][] {
+export function assignNetworkSimplexLayers<Node extends { ports: SimplexPort<Node>[]; rank: number }>(nodes: Node[], thoroughness: number): Node[][] {
   if (nodes.length < 1) return []
-  const components: SimplexNode[][] = []
-  const visited = new Set<SimplexNode>()
-  function connectedComponentsDFS(node: SimplexNode, component: SimplexNode[]): void {
+  const components: Node[][] = []
+  const visited = new Set<Node>()
+  function connectedComponentsDFS(node: Node, component: Node[]): void {
     visited.add(node)
     component.push(node)
     for (const port of node.ports) {
@@ -414,20 +414,20 @@ export function assignNetworkSimplexLayers(nodes: SimplexNode[], thoroughness: n
   }
   for (const node of nodes) {
     if (!visited.has(node)) {
-      const component: SimplexNode[] = []
+      const component: Node[] = []
       connectedComponentsDFS(node, component)
       if (components.length === 0 || components[0]!.length < component.length) components.unshift(component)
       else components.push(component)
     }
   }
 
-  const layers: SimplexNode[][] = []
+  const layers: Node[][] = []
   let previousLayeringNodeCounts: number[] | null = null
   for (const component of components) {
-    const graph: NGraph = { nodes: [] }
-    const nodeMap = new Map<SimplexNode, NNode>()
+    const graph: NGraph<Node> = { nodes: [] }
+    const nodeMap = new Map<Node, NNode<Node>>()
     for (const node of component) {
-      const nNode: NNode = { origin: node, incoming: [], outgoing: [], layer: 0, internalId: 0, treeNode: false, unknownCutvalues: [] }
+      const nNode: NNode<Node> = { origin: node, incoming: [], outgoing: [], layer: 0, internalId: 0, treeNode: false, unknownCutvalues: [] }
       graph.nodes.push(nNode)
       nodeMap.set(node, nNode)
     }
@@ -435,7 +435,7 @@ export function assignNetworkSimplexLayers(nodes: SimplexNode[], thoroughness: n
       for (const port of node.ports) {
         for (const edge of port.outgoing) {
           if (edge.source.node === edge.target.node) continue
-          const nEdge: NEdge = {
+          const nEdge: NEdge<Node> = {
             source: nodeMap.get(edge.source.node)!, target: nodeMap.get(edge.target.node)!,
             weight: Math.max(1, edge.priorityShortness), delta: 1, internalId: 0, treeEdge: false,
           }

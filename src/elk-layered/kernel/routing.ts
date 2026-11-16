@@ -14,8 +14,14 @@ interface Dependency { source: Segment; target: Segment; weight: number; critica
 const TOLERANCE = 1e-3
 export type RoutingDirection = 'WEST_TO_EAST' | 'NORTH_TO_SOUTH' | 'SOUTH_TO_NORTH'
 
+export interface LayerMeasurement {
+  widths: number[]
+  height: number
+  offsetY: number
+}
+
 /** LayerSizeAndGraphHeightCalculator, retained separately for intervening hierarchy processors. */
-export function measureLayers(layers: LayoutNode[][], options: Options): { widths: number[]; height: number; offsetY: number } {
+export function measureLayers(layers: LayoutNode[][], options: Options): LayerMeasurement {
   let minY = Number.POSITIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY
   const widths: number[] = []
   for (const layer of layers) {
@@ -35,7 +41,7 @@ export function measureLayers(layers: LayoutNode[][], options: Options): { width
   return { widths, height: maxY - minY, offsetY: 0 - minY }
 }
 /** OrthogonalEdgeRouter with the west-to-east routing direction strategy. */
-export function routeOrthogonal(layers: LayoutNode[][], options: Options, random: Random, measurement = measureLayers(layers, options)): { width: number; height: number; offsetY: number } {
+export function routeOrthogonal(layers: LayoutNode[][], options: Options, random: Random, measurement: LayerMeasurement = measureLayers(layers, options)): { width: number; height: number; offsetY: number } {
   const { widths, height, offsetY } = measurement
   const edgeSpacing = numberOption(options, 'layered.spacing.edgeEdgeBetweenLayers', 10), nodeSpacing = numberOption(options, 'layered.spacing.nodeNodeBetweenLayers', 20), edgeNodeSpacing = numberOption(options, 'layered.spacing.edgeNodeBetweenLayers', 10)
   let x = 0, left: LayoutNode[] | null = null

@@ -27,7 +27,7 @@ const conflicts: readonly (readonly number[])[] = [
   [0, 8, 2, 1, 4, 5, 10, 11, 14, 13, 7, 15],
 ]
 type Size = { x: number; y: number }
-type Group = Map<number, Component[]>
+type Group<PackedComponent extends Component> = Map<number, PackedComponent[]>
 function maximum(...values: number[]): number { let max = -Number.MAX_VALUE; for (const value of values) if (value > max) max = value; return max }
 function offset(component: Component, x: number, y: number): void {
   for (const node of component.nodes) { node.x += x; node.y += y }
@@ -60,8 +60,8 @@ function rows(components: Component[], options: ComponentPackingOptions): Size {
   }
   return { x: broadest + spacing, y: y + highest + spacing }
 }
-function place(group: Group, options: ComponentPackingOptions): Size {
-  const get = (mask: number): Component[] => group.get(mask) ?? [], spacing = options.spacing
+function place<PackedComponent extends Component>(group: Group<PackedComponent>, options: ComponentPackingOptions): Size {
+  const get = (mask: number): PackedComponent[] => group.get(mask) ?? [], spacing = options.spacing
   const c = rows(get(0), options), n = line(get(1), spacing, true), s = line(get(4), spacing, true), w = line(get(8), spacing, false), e = line(get(2), spacing, false)
   const nw = line(get(9), spacing, true), ne = line(get(3), spacing, true), sw = line(get(12), spacing, true), se = line(get(6), spacing, true)
   const we = line(get(10), spacing, false), ns = line(get(5), spacing, true), nwe = line(get(11), spacing, true), swe = line(get(14), spacing, true), wns = line(get(13), spacing, false), ens = line(get(7), spacing, false), all = line(get(15), spacing, true)
@@ -83,9 +83,9 @@ function place(group: Group, options: ComponentPackingOptions): Size {
   return { x: maximum(left + mid + nsWidth + right, we.x, nwe.x, swe.x), y: maximum(top + middle + weHeight + bottom, ns.y, wns.y, ens.y) }
 }
 /** ComponentGroupGraphPlacer.combine, including all sixteen external-side sectors. */
-export function packComponentGroups(components: Component[], options: ComponentPackingOptions): ComponentPackingResult {
+export function packComponentGroups<PackedComponent extends Component>(components: PackedComponent[], options: ComponentPackingOptions): ComponentPackingResult<PackedComponent> {
   if (components.length === 0) return { width: 0, height: 0 }
-  const groups: Group[] = []
+  const groups: Group<PackedComponent>[] = []
   for (const component of components) {
     const mask = component.connections ?? 0
     let target = groups.find(group => conflicts[mask]!.every(conflict => (group.get(conflict)?.length ?? 0) === 0))
