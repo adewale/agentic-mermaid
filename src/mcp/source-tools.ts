@@ -13,7 +13,7 @@ import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { RenderOptions } from '../types.ts'
 import type { ParsedDiagram, VerifyOptions, VerifyResult } from '../agent/types.ts'
 
-export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify' | 'describe' | 'mutate' | 'build'
+export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify' | 'describe' | 'mutate' | 'build' | 'preview'
 
 /** Shared structured results for the hosted tools and the local worker: every
  * runtime-neutral tool that parses and lays out a diagram. Adapters check
@@ -22,9 +22,7 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
   const source = args.source as string
   switch (name) {
     case 'render_svg': {
-      const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
-      const safety = verifyNoExternalRefs(rendered.svg)
-      if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
+      const rendered = renderStrictSvg(source, args)
       return {
         ok: true as const,
         svg: rendered.svg,
@@ -53,6 +51,7 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       }
     }
     case 'verify': return verifySummaryPayload(source)
+    case 'preview': return previewPayload(source, args)
     case 'describe': return mcpDescribePayload(source, args)
     case 'mutate': return editToolEnvelope(args, 'source')
     case 'build': return editToolEnvelope(args, 'family')
@@ -98,6 +97,26 @@ export function verifySummaryPayload(source: string, options: VerifyOptions = {}
     }
   }
   return compactVerification(parsed.value, verifyMermaid(parsed.value, options))
+}
+
+/** The hosted preview payload: verify's facts without the layout, plus the
+ * strict SVG that only the linked MCP Apps view reads (the hosted adapter keeps
+ * `svg` out of the model-visible text). A source that does not parse returns
+ * verify's failure payload and no diagram. */
+function previewPayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
+  const verified = verifySummaryPayload(source)
+  if (typeof verified.summary !== 'string') return verified
+  const { layout: _layout, ...facts } = verified
+  return { ...facts, svg: renderStrictSvg(source, args).svg }
+}
+
+/** Render under the host's SVG policy and enforce its no-external-reference
+ * invariant, so no client receives markup that fetches. */
+function renderStrictSvg(source: string, args: Record<string, unknown>) {
+  const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
+  const safety = verifyNoExternalRefs(rendered.svg)
+  if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
+  return rendered
 }
 
 /** Config warnings for the source and for the mermaidConfig the caller passed. */

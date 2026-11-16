@@ -27,6 +27,19 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
+- The hosted MCP server has a new `preview` tool and its first MCP Apps view.
+  `preview` renders and verifies a diagram in one call. Its text result is
+  verify's facts `{ ok, family, summary, warnings, checks }` without the
+  layout, or verify's failure payload when the source does not parse; the SVG
+  goes only in `structuredContent`, which MCP Apps hosts keep out of the
+  model's context. Hosts that support MCP Apps show a read-only diagram view
+  (`ui://agentic-mermaid/preview`) with the family, the verify verdict and any
+  warnings; other hosts receive the text result. The view is one
+  self-contained page that loads nothing from the network, so its declared CSP
+  allows no external origin. The hosted server now advertises the `resources`
+  capability to serve it. A heavy diagram's preview runs under the same
+  CPU-bounded isolate as `render_svg` and `verify`. The local server is
+  unchanged and publishes no resources.
 - Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
   `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
   `mode: "source-preserving"` and `am mutate --preserve-source` now accept every

@@ -293,14 +293,15 @@ describe('hosted direct-tool isolate', () => {
     ['describe', { source: 'mindmap\n  Root\n    Leaf', format: 'facts' }],
     ['mutate', { source: 'flowchart LR\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] }],
     ['build', { family: 'flowchart', ops: [{ kind: 'add_node', id: 'A', label: 'Start' }] }],
+    ['preview', { source: 'classDiagram\n  class Animal' }],
   ] as const).map(([name, args]) => callTool(context, name, args)))
 
   test('every layout tool runs in one per-deploy isolate with no network and its cpuMs, and answers as the inline path does', async () => {
     const { loader, requests } = toolLoader()
     const isolated = await tools({ execute, runTool: createLoaderToolRunner(loader, 'HARNESS') })
     expect(isolated).toEqual(await tools({ execute }))
-    expect(isolated.map(payload => payload.ok)).toEqual([true, true, false, true, true, true])
-    expect(requests.map(request => [request.body.url, request.body.name])).toEqual(['render_svg', 'render_ascii', 'verify', 'describe', 'mutate', 'build'].map(name => ['https://tool.internal/tool', name]))
+    expect(isolated.map(payload => payload.ok)).toEqual([true, true, false, true, true, true, true])
+    expect(requests.map(request => [request.body.url, request.body.name])).toEqual(['render_svg', 'render_ascii', 'verify', 'describe', 'mutate', 'build', 'preview'].map(name => ['https://tool.internal/tool', name]))
     for (const request of requests) {
       expect(request).toMatchObject({ id: `tool-${await deployTag('HARNESS')}`, globalOutbound: null, limits: { cpuMs: HOSTED_TOOL_CPU_MS, subRequests: 0 } })
       expect(request.modules).toEqual({ 'harness.js': 'HARNESS', 'user.js': 'export default undefined' })
@@ -426,6 +427,7 @@ describe('hosted isolate only for heavy layout', () => {
     ['mutate whose ops fail is judged on its source', true, { name: 'mutate', args: { source: cartesian(20), ops: [{ kind: 'remove_node', id: 'missing' }] } }],
     ['build of a 20 × 20 fan', true, { name: 'build', args: { family: 'flowchart', ops: fanOps(20) } }],
     ['build of a 19 × 19 fan', false, { name: 'build', args: { family: 'flowchart', ops: fanOps(19) } }],
+    ['preview of a 20 × 20 cartesian', true, { name: 'preview', args: { source: cartesian(20) } }],
   ] as const)('%s (isolate: %p)', (_name, heavy, request) => {
     expect(hostedToolNeedsIsolate(request as HostedToolRequest)).toBe(heavy)
   })

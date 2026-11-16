@@ -110,3 +110,12 @@ export function rpcError(id: number | string | null, code: number, message: stri
 export function toolResult(id: number | string | null, payload: unknown, isError: boolean): JsonRpcResponse {
   return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError })
 }
+
+/** Wrap the payload of a tool linked to an MCP Apps view. The view reads the
+ *  whole payload from `structuredContent`, which that spec keeps out of model
+ *  context; the text block, which the model and text-only hosts read, leaves
+ *  out the `viewOnly` fields (an SVG the person sees and the model never needs). */
+export function viewToolResult(id: number | string | null, payload: Record<string, unknown>, viewOnly: readonly string[], isError: boolean): JsonRpcResponse {
+  const forModel = Object.fromEntries(Object.entries(payload).filter(([key]) => !viewOnly.includes(key)))
+  return reply(id, { content: [{ type: 'text', text: JSON.stringify(forModel) }], structuredContent: payload, isError })
+}
