@@ -521,7 +521,13 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
       assertDomain: diagram => {
         if (diagram.body.kind !== 'sequence') throw new Error('Expected structured Sequence')
         const retained = diagram.body.statements.flatMap(statement => statement.kind === 'opaque-block' ? statement.lines.map(line => line.trim()) : [])
-        expect(retained).toEqual(expect.arrayContaining(['autonumber', 'activate A', 'deactivate A']))
+        expect(retained).toEqual(expect.arrayContaining(['autonumber']))
+        // Activations are typed statements, in source order around the fragment.
+        expect(diagram.body.statements.map(statement => statement.kind === 'activation' ? `${statement.activate ? 'activate' : 'deactivate'} ${statement.actorId}` : statement.kind))
+          .toEqual(expect.arrayContaining(['activate A', 'fragment', 'deactivate A']))
+        const kinds = diagram.body.statements.map(statement => statement.kind)
+        expect(kinds.indexOf('fragment')).toBeGreaterThan(kinds.indexOf('activation'))
+        expect(kinds.lastIndexOf('activation')).toBeGreaterThan(kinds.indexOf('fragment'))
         const fragment = diagram.body.statements.find(statement => statement.kind === 'fragment')
         expect(fragment?.kind === 'fragment' ? fragment.fragment.branches.map(branch => branch.messages.map(message => [message.from, message.to, message.style])) : undefined)
           .toEqual([[['A', 'U', 'reply']], [['A', 'D', 'sync'], ['D', 'A', 'reply'], ['A', 'U', 'reply']]])
