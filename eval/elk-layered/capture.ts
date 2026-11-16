@@ -1,5 +1,6 @@
 // Run with Bun: bun eval/elk-layered/capture.ts [capture-to-resume]
 // Additive stress packet: bun eval/elk-layered/capture.ts --current-main-stress <complete-canonical-capture> [supplement-to-resume]
+// External cohort: bun eval/elk-layered/capture.ts --supplement <complete-canonical-capture> <sources.json> [supplement-to-resume]
 // These mocks are eval-only: production candidate selection and retry code run
 // unchanged. Rejecting the first 0–3 ELK returns exercises their existing ladder.
 import { mock } from 'bun:test'
@@ -8,6 +9,7 @@ import { join, resolve } from 'node:path'
 import { serialize } from 'node:v8'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { createHash } from 'node:crypto'
 import { assertLayoutGraphWork } from '../../src/shared/diagram-limits.ts'
 import type { ElkNode } from 'elkjs'
 
@@ -16,11 +18,29 @@ process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
 // Additional current-Main stress inputs are recorded separately and retain an
 // explicit reference to the complete canonical packet they augment.
 const stressSupplement = process.argv[2] === '--current-main-stress'
-const canonicalDirectory = stressSupplement ? process.argv[3] : undefined
-if (stressSupplement && canonicalDirectory === undefined) throw new Error('Pass the complete retained canonical capture after --current-main-stress')
+const fileSupplement = process.argv[2] === '--supplement'
+const supplementary = stressSupplement || fileSupplement
+const canonicalDirectory = supplementary ? process.argv[3] : undefined
+if (supplementary && canonicalDirectory === undefined) throw new Error('Pass the complete retained canonical capture before the supplement')
 const canonical = canonicalDirectory === undefined ? undefined : JSON.parse(readFileSync(join(canonicalDirectory, 'capture.json'), 'utf8'))
-if (canonical !== undefined && (!canonical.complete || canonical.oracle !== 'elkjs/lib/elk-worker.js synchronous dispatcher' || canonical.supplements !== undefined || canonical.population !== undefined && canonical.population !== 'complete corpus')) throw new Error('The stress supplement requires a complete actual-elkjs canonical capture')
-const resumeDirectory = process.argv[stressSupplement ? 4 : 2]
+if (canonical !== undefined && (!canonical.complete || canonical.oracle !== 'elkjs/lib/elk-worker.js synchronous dispatcher' || canonical.supplements !== undefined || canonical.population !== undefined && canonical.population !== 'complete corpus')) throw new Error('A supplement requires a complete actual-elkjs canonical capture')
+type SourceSample = { id: string; family: string; source: string }
+let supplementSource: { path: string; sha256: string; provenance: unknown } | undefined
+let externalSamples: SourceSample[] | undefined
+if (fileSupplement) {
+  const sourcePath = process.argv[4]
+  if (sourcePath === undefined) throw new Error('Pass a source file containing cases with id, family and source strings')
+  const bytes = readFileSync(sourcePath)
+  const packet = JSON.parse(bytes.toString()) as { cases?: unknown; provenance?: unknown } | unknown[]
+  const rows = Array.isArray(packet) ? packet : packet.cases
+  const isSample = (row: unknown): row is SourceSample => row !== null && typeof row === 'object'
+    && typeof (row as SourceSample).id === 'string' && typeof (row as SourceSample).family === 'string' && typeof (row as SourceSample).source === 'string'
+  if (!Array.isArray(rows) || rows.length === 0 || !rows.every(isSample)) throw new Error('The source file must contain a nonempty cases array with id, family and source strings')
+  if (new Set(rows.map(row => row.id)).size !== rows.length) throw new Error('Supplement source ids must be unique')
+  externalSamples = rows
+  supplementSource = { path: resolve(sourcePath), sha256: createHash('sha256').update(bytes).digest('hex'), provenance: Array.isArray(packet) ? undefined : packet.provenance }
+}
+const resumeDirectory = process.argv[fileSupplement ? 5 : stressSupplement ? 4 : 2]
 const outputRoot = join(import.meta.dir, 'output')
 mkdirSync(outputRoot, { recursive: true })
 const output = resumeDirectory ?? mkdtempSync(join(outputRoot, 'capture-'))
@@ -140,12 +160,12 @@ function currentMainStressSamples(): { id: string; family: 'flowchart'; source: 
   ]
   return rows.map(([id, source]) => ({ id: 'current-main-stress/' + id, family: 'flowchart', source }))
 }
-const samples = stressSupplement ? currentMainStressSamples() : [
+const samples = externalSamples ?? (stressSupplement ? currentMainStressSamples() : [
   ...collectSamples({ includeStress: true }),
   ...generatedFlowchartSamples({ start: 0, count: 256 }),
   ...generatedFlowchartSamples({ start: 256, count: 128 }),
   ...generatedFlowchartSamples({ start: 0, count: 256 }, 'sha256-counter-v1'),
-]
+])
 const packageInfo = JSON.parse(readFileSync(join(import.meta.dir, '../../node_modules/elkjs/package.json'), 'utf8')) as { version: string }
 if (packageInfo.version !== '0.11.1') throw new Error(`Expected elkjs 0.11.1, received ${packageInfo.version}`)
 const metadata = {
@@ -159,12 +179,13 @@ const metadata = {
   serialization: 'node:v8 on the recorded runtime; preserves undefined, nonfinite numbers and negative zero',
   started: resumed?.started ?? new Date().toISOString(),
   ...(resumed ? { resumed: [...(resumed.resumed ?? []), { at: new Date().toISOString(), render: resumeRender, captures }] } : {}),
-  population: stressSupplement ? 'current-main-stress supplement' : 'complete corpus',
+  population: fileSupplement ? 'external corpus supplement' : stressSupplement ? 'current-main-stress supplement' : 'complete corpus',
+  ...(supplementSource === undefined ? {} : { supplementSource }),
   ...(canonicalDirectory === undefined ? {} : { supplements: { directory: resolve(canonicalDirectory), source: canonical.source, captures: canonical.captures } }),
   samples: samples.length,
   plannedRenders: samples.length * strategies.length * 4,
 }
-if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders || resumed.oracle !== metadata.oracle || resumed.population !== metadata.population || resumed.supplements?.directory !== metadata.supplements?.directory || resumed.supplements?.source !== metadata.supplements?.source || resumed.supplements?.captures !== metadata.supplements?.captures)) {
+if (resumed && (resumed.source !== metadata.source || resumed.runtime !== metadata.runtime || resumed.plannedRenders !== metadata.plannedRenders || resumed.oracle !== metadata.oracle || resumed.population !== metadata.population || resumed.supplements?.directory !== metadata.supplements?.directory || resumed.supplements?.source !== metadata.supplements?.source || resumed.supplements?.captures !== metadata.supplements?.captures || resumed.supplementSource?.path !== metadata.supplementSource?.path || resumed.supplementSource?.sha256 !== metadata.supplementSource?.sha256)) {
   throw new Error('Resume requires the original source, runtime, oracle and complete population, including its canonical reference')
 }
 writeFileSync(join(output, 'capture.json'), JSON.stringify({ ...metadata, complete: false }, null, 2))

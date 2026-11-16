@@ -159,6 +159,189 @@ const cases = [
       edges: [{ id: 'go', sources: ['gb'], targets: ['other'], labels: [{ text: 'cross', width: 34.6, height: 11.3 }] }],
     },
   },
+  {
+    name: 'ancestor endpoint with distinct parent and content padding',
+    graph: {
+      "id": "root",
+      "layoutOptions": {
+        "elk.algorithm": "layered",
+        "elk.direction": "DOWN",
+        "elk.spacing.nodeNode": "28",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+        "elk.spacing.edgeEdge": "12",
+        "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
+        "elk.layered.spacing.edgeNodeBetweenLayers": "12.375",
+        "elk.padding": "[top=40,left=40,bottom=40,right=40]",
+        "elk.edgeRouting": "ORTHOGONAL",
+        "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+        "elk.contentAlignment": "H_CENTER V_CENTER",
+        "elk.layered.thoroughness": "3",
+        "elk.layered.highDegreeNodes.treatment": "true",
+        "elk.layered.highDegreeNodes.threshold": "8",
+        "elk.layered.compaction.postCompaction.strategy": "LEFT_RIGHT_CONSTRAINT_LOCKING",
+        "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+        "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
+        "elk.layered.feedbackEdges": "true",
+        "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+        "elk.layered.wrapping.strategy": "OFF",
+        "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+      },
+      "children": [
+        {
+          "id": "G",
+          "layoutOptions": {
+            "elk.algorithm": "layered",
+            "elk.padding": "[top=44,left=16,bottom=16,right=16]",
+            "elk.edgeRouting": "ORTHOGONAL",
+            "elk.contentAlignment": "H_CENTER V_CENTER",
+            "elk.spacing.edgeEdge": "12",
+            "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
+            "elk.layered.spacing.edgeNodeBetweenLayers": "12.375",
+            "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+            "elk.spacing.nodeNode": "28"
+          },
+          "labels": [
+            {
+              "text": "G"
+            }
+          ],
+          "children": [
+            {
+              "id": "a",
+              "width": 60,
+              "height": 36.900000000000006,
+              "labels": [
+                {
+                  "text": "a"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "width": 60,
+              "height": 36.900000000000006,
+              "labels": [
+                {
+                  "text": "b"
+                }
+              ]
+            }
+          ],
+          "edges": []
+        }
+      ],
+      "edges": [
+        {
+          "id": "e0",
+          "sources": [
+            "G"
+          ],
+          "targets": [
+            "a"
+          ]
+        }
+      ]
+    },
+  },
+  {
+    name: 'ancestor endpoint above nested groups',
+    graph: {
+      "id": "root",
+      "layoutOptions": {
+        "elk.algorithm": "layered",
+        "elk.direction": "DOWN",
+        "elk.spacing.nodeNode": "28",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+        "elk.spacing.edgeEdge": "12",
+        "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
+        "elk.layered.spacing.edgeNodeBetweenLayers": "12.375",
+        "elk.padding": "[top=40,left=40,bottom=40,right=40]",
+        "elk.edgeRouting": "ORTHOGONAL",
+        "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+        "elk.contentAlignment": "H_CENTER V_CENTER",
+        "elk.layered.thoroughness": "3",
+        "elk.layered.highDegreeNodes.treatment": "true",
+        "elk.layered.highDegreeNodes.threshold": "8",
+        "elk.layered.compaction.postCompaction.strategy": "LEFT_RIGHT_CONSTRAINT_LOCKING",
+        "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+        "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
+        "elk.layered.feedbackEdges": "true",
+        "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+        "elk.layered.wrapping.strategy": "OFF",
+        "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+      },
+      "children": [
+        {
+          "id": "Outer",
+          "layoutOptions": {
+            "elk.algorithm": "layered",
+            "elk.padding": "[top=44,left=16,bottom=16,right=16]",
+            "elk.edgeRouting": "ORTHOGONAL",
+            "elk.contentAlignment": "H_CENTER V_CENTER",
+            "elk.spacing.edgeEdge": "12",
+            "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
+            "elk.layered.spacing.edgeNodeBetweenLayers": "12.375",
+            "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+            "elk.spacing.nodeNode": "28"
+          },
+          "labels": [
+            {
+              "text": "Outer"
+            }
+          ],
+          "children": [
+            {
+              "id": "Inner",
+              "layoutOptions": {
+                "elk.algorithm": "layered",
+                "elk.padding": "[top=44,left=16,bottom=16,right=16]",
+                "elk.edgeRouting": "ORTHOGONAL",
+                "elk.contentAlignment": "H_CENTER V_CENTER",
+                "elk.spacing.edgeEdge": "12",
+                "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
+                "elk.layered.spacing.edgeNodeBetweenLayers": "12.375",
+                "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+                "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+                "elk.spacing.nodeNode": "28"
+              },
+              "labels": [
+                {
+                  "text": "Inner"
+                }
+              ],
+              "children": [
+                {
+                  "id": "x",
+                  "width": 60,
+                  "height": 36.900000000000006,
+                  "labels": [
+                    {
+                      "text": "x"
+                    }
+                  ]
+                }
+              ],
+              "edges": []
+            }
+          ],
+          "edges": []
+        }
+      ],
+      "edges": [
+        {
+          "id": "e0",
+          "sources": [
+            "Outer"
+          ],
+          "targets": [
+            "Inner"
+          ]
+        }
+      ]
+    },
+  },
 ]
 
 test('elk-instance matches the dev-only elkjs oracle exactly', () => {

@@ -180,7 +180,7 @@ function emitGraph(graph: LayoutGraph, emitRoot = true): void {
   for (const edge of graph.sourceEdges) {
     if (edge.data === null) throw new Error('Layout edge did not exist in input')
     if (edge.noLayout) { writeMember(edge.data, 'container', edge.containerId === undefined ? graph.id : edge.containerId); continue }
-    const source = edge.source, target = edge.target, owner = source.node.layoutGraph ?? graph, offset = emittedEdgeOffset(edge, owner)
+    const source = edge.source, target = edge.target, owner = edgeEmissionGraph(edge, graph), offset = emittedEdgeOffset(edge, owner)
     const start = descendantOf(target.node, source.node) ? { x: source.x + source.anchorX - owner.offsetX, y: source.y + source.anchorY - owner.offsetY } : { x: source.node.x + source.x + source.anchorX, y: source.node.y + source.y + source.anchorY }
     const end = { x: target.node.x + target.x + target.anchorX, y: target.node.y + target.y + target.anchorY }
     if (edge.targetOffset !== undefined) { end.x += edge.targetOffset.x; end.y += edge.targetOffset.y }
@@ -199,16 +199,20 @@ function emitGraph(graph: LayoutGraph, emitRoot = true): void {
     for (const port of node.sourcePorts) for (const label of port.sourceLabels) emitLabel(label, false)
   }
   for (const edge of graph.sourceEdges) for (const label of edge.sourceLabels) {
-    if (!edge.noLayout && label.active) { const owner = edge.source.node.layoutGraph ?? graph, offset = emittedEdgeOffset(edge, owner); emitShape(label.data, { x: label.x + offset.x, y: label.y + offset.y, width: label.width, height: label.height }) }
+    if (!edge.noLayout && label.active) { const owner = edgeEmissionGraph(edge, graph), offset = emittedEdgeOffset(edge, owner); emitShape(label.data, { x: label.x + offset.x, y: label.y + offset.y, width: label.width, height: label.height }) }
     else emitLabel(label, false)
   }
 }
 function descendantOf(child: LayoutNode, parent: LayoutNode): boolean { for (let node = child.layoutGraph?.parentNode; node !== undefined; node = node.layoutGraph?.parentNode) if (node === parent) return true; return false }
+// The transferrer visits ancestor-to-descendant edges in the ancestor's nested graph.
+function edgeEmissionGraph(edge: LayoutEdge, graph: LayoutGraph): LayoutGraph {
+  return descendantOf(edge.target.node, edge.source.node) ? edge.source.node.nestedGraph! : edge.source.node.layoutGraph ?? graph
+}
 /** ElkGraphLayoutTransferrer.calculateHierarchicalOffset in source addition order. */
-function emittedEdgeOffset(edge: LayoutEdge, sourceGraph: LayoutGraph): { x: number; y: number } {
+function emittedEdgeOffset(edge: LayoutEdge, emissionGraph: LayoutGraph): { x: number; y: number } {
   const hierarchical = { x: 0, y: 0 }, target = edge.coordinateOrigin
   if (target !== undefined) {
-    let current = sourceGraph
+    let current = edge.source.node.layoutGraph ?? emissionGraph
     while (current !== target) {
       const parent = current.parentNode!
       current = parent.layoutGraph!
@@ -218,7 +222,7 @@ function emittedEdgeOffset(edge: LayoutEdge, sourceGraph: LayoutGraph): { x: num
       hierarchical.x += geometry.padding.left; hierarchical.y += geometry.padding.top
     }
   }
-  return { x: sourceGraph.offsetX + hierarchical.x, y: sourceGraph.offsetY + hierarchical.y }
+  return { x: emissionGraph.offsetX + hierarchical.x, y: emissionGraph.offsetY + hierarchical.y }
 }
 
 function emitLabel(label: LayoutLabel, apply: boolean): void { emitShape(label.data, apply ? label : { x: label.inputX, y: label.inputY, width: label.inputWidth, height: label.inputHeight }) }
