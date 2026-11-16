@@ -855,12 +855,24 @@ function renderFragment(fragment: SequenceFragment, indent = '  ', nested = fals
     }
     for (const item of branchItems(branch)) {
       if ('kind' in item && item.kind === 'fragment') lines.push(...renderFragment(item.fragment, body, true))
-      else if ('kind' in item && item.kind === 'opaque-block') lines.push(...preservedSource(item.lines))
+      else if ('kind' in item && item.kind === 'opaque-block') lines.push(...atDepth(preservedSource(item.lines), body))
       else lines.push(body + (!('kind' in item) ? renderMessage(item) : item.kind === 'note' ? renderNote(item) : renderDirective(item)).trimStart())
     }
   })
   lines.push(`${indent}end`)
   return lines
+}
+
+/** Preserved branch lines written at the branch's depth, keeping their
+ * indentation relative to each other. Only the line a statement starts on
+ * moves: a statement's continuation lines keep their text. */
+function atDepth(lines: readonly string[], indent: string): string[] {
+  const starts = scanSequenceStatementLines(lines).map(span => span.line).filter(line => lines[line]!.trim())
+  if (!starts.length) return [...lines]
+  const leading = (line: string) => line.length - line.trimStart().length
+  const shared = Math.min(...starts.map(line => leading(lines[line]!)))
+  const moved = new Set(starts)
+  return lines.map((line, index) => moved.has(index) ? indent + line.slice(shared) : line)
 }
 
 /** The line that starts each further branch of a multi-branch fragment. */

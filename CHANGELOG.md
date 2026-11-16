@@ -159,7 +159,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   order beside the branch's messages, notes and nested fragments, so the
   fragment's messages appear in `describe`, facts and the `describe` tree and
   fragment operations can edit them while the kept lines (comments included)
-  are written back as authored. A preserved branch line never holds a message
+  are written back as authored; when an edit rewrites the fragment, they move
+  to their branch's depth with their relative indentation, and a statement a
+  source-preserving edit adds beside them is indented like them. A preserved branch line never holds a message
   or a note, so branch indexes count every message and note. Mermaid 12.2.0
   reads a `box` inside a fragment as one at top level (it groups the
   participants it declares), as ours draws it; `set_participant_label` edits

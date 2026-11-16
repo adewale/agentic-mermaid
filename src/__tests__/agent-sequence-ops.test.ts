@@ -794,18 +794,21 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   })
 
   test.each([
-    ['edits a message between an activation and its deactivation', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'TWO' }, '    activate B\n  B->>A: TWO\n    deactivate B\n'],
-    ['adds a message below an activation', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'zero' }, '    activate B\n  A->>B: zero\n  B->>A: two\n'],
-    ['removes the message after a box', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '    end\n    loop again\n'],
-    ['adds a note above a deactivation', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['B'], text: 'busy', afterMessage: 0 }, '  B->>A: two\n  Note over B: busy\n    deactivate B\n'],
-    ['relabels the participant a boxed declaration names', { kind: 'set_participant_label', id: 'C', label: 'Sea' }, '    box Aqua Group\n      participant C as Sea\n    end\n'],
-    ['adds a fragment after a branch message, above a deactivation', { kind: 'add_fragment', fragmentPath: FIRST, fragmentKind: 'break', label: 'b', afterMessage: 0 }, '  B->>A: two\n  break b\n  end\n    deactivate B\n'],
-    ['moves a nested fragment above the message after a box', { kind: 'move_fragment', fragmentPath: SECOND, index: 0, beforeMessage: 0 }, '    end\n    loop again\n      # hash comment\n      C->>A: four\n      autonumber\n    end\n  A->>C: three\n'],
+    ['edits a message between an activation and its deactivation', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'TWO' }, '  activate B\n  B->>A: TWO\n  deactivate B\n'],
+    ['adds a message below an activation', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'zero' }, '  activate B\n  A->>B: zero\n  B->>A: two\n'],
+    ['removes the message after a box', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '  box Aqua Group\n    participant C as Cee\n  end\n    loop again\n'],
+    ['adds a note above a deactivation', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['B'], text: 'busy', afterMessage: 0 }, '  B->>A: two\n  Note over B: busy\n  deactivate B\n'],
+    ['relabels the participant a boxed declaration names', { kind: 'set_participant_label', id: 'C', label: 'Sea' }, '  box Aqua Group\n    participant C as Sea\n  end\n'],
+    ['adds a fragment after a branch message, above a deactivation', { kind: 'add_fragment', fragmentPath: FIRST, fragmentKind: 'break', label: 'b', afterMessage: 0 }, '  B->>A: two\n  break b\n  end\n  deactivate B\n'],
+    ['moves a nested fragment above the message after a box', { kind: 'move_fragment', fragmentPath: SECOND, index: 0, beforeMessage: 0 }, '  end\n    loop again\n      # hash comment\n      C->>A: four\n      autonumber\n    end\n  A->>C: three\n'],
   ] as const)('an op that %s keeps the preserved lines and is written as Mermaid reads it', async (_name, op, written) => {
     const edited = apply(sequence(PRESERVED), op as SequenceMutationOp)
     const output = serializeMermaid(edited)
     expect(output).toContain(written)
-    for (const line of ['%% why this branch', 'activate B', 'deactivate B', '# hash comment', 'autonumber', 'box Aqua Group']) expect(output).toContain(`    ${line}\n`)
+    // Kept lines are written at their branch's depth; an untouched nested
+    // fragment keeps its authored lines.
+    for (const line of ['%% why this branch', 'activate B', 'deactivate B', 'box Aqua Group']) expect(output).toContain(`\n  ${line}\n`)
+    for (const line of ['# hash comment', 'autonumber']) expect(output).toContain(`\n      ${line}\n`)
     const reread = sequence(output)
     expect(reread.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
     expect(serializeMermaid(reread)).toBe(output)

@@ -167,6 +167,21 @@ const PRESERVED_BRANCH_SEQUENCE = `sequenceDiagram
 	end
 `
 
+// Branches whose only authored lines are kept lines: a new statement is
+// indented like them, not like the fragment's opener.
+const KEPT_ONLY_SEQUENCE = `sequenceDiagram
+    participant A
+    participant B
+    alt ok
+        activate A
+    else no
+        A->>B: go
+        loop retry
+            %% only a comment
+        end
+    end
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -385,6 +400,8 @@ const CASES: Case[] = [
   { name: 'sequence remove_fragment two fragments deep', source: NESTED_SEQUENCE, op: { kind: 'remove_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], index: 0 }, touched: ['\t\t\tloop retry', '\t\t\t\tA ->> B: three', '\t\t\tend'], reference: [['\t\t\tloop retry\n\t\t\t\tA ->> B: three\n\t\t\tend\n', '']] },
   { name: 'sequence set_fragment_message_text between an activation and its deactivation', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\tB ->> A: two'], reference: [['A: two', 'A: again']] },
   { name: 'sequence set_participant_label of a boxed declaration in a fragment branch', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_participant_label', id: 'C', label: 'Sea' }, touched: ['\t\t\tparticipant C as Cee'], reference: [['as Cee', 'as Sea']] },
+  { name: 'sequence add_fragment_message into a branch holding only an activation', source: KEPT_ONLY_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'B', text: 'new' }, reference: [['        activate A\n', '        activate A\n        A->>B: new\n']] },
+  { name: 'sequence add_fragment_message into a nested branch holding only a comment', source: KEPT_ONLY_SEQUENCE, op: { kind: 'add_fragment_message', fragmentPath: [{ fragmentIndex: 0, branchIndex: 1 }], fragmentIndex: 0, from: 'A', to: 'B', text: 'new' }, reference: [['            %% only a comment\n', '            %% only a comment\n            A->>B: new\n']] },
   { name: 'sequence add_fragment anchored after a top-level message', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'add_fragment', fragmentKind: 'opt', label: 'maybe', afterMessage: 0 }, reference: [['\tA ->> B: one\n', '\tA ->> B: one\n\topt maybe\n\tend\n']] },
   { name: 'sequence move_fragment after a later top-level message', source: `${PRESERVED_BRANCH_SEQUENCE}\tA ->> B: four\n`, op: { kind: 'move_fragment', index: 0, afterMessage: 1 }, touched: ['\talt ok', '\t\t%% why this branch', '\t\tactivate B', '\t\tB ->> A: two', '\t\tdeactivate B', '\telse no', '\t\tbox Aqua Group', '\t\t\tparticipant C as Cee', '\t\tend', '\t\tA ->> C: three', '\tend'], reference: [['\talt ok\n\t\t%% why this branch\n\t\tactivate B\n\t\tB ->> A: two\n\t\tdeactivate B\n\telse no\n\t\tbox Aqua Group\n\t\t\tparticipant C as Cee\n\t\tend\n\t\tA ->> C: three\n\tend\n\tA ->> B: four\n', '\tA ->> B: four\n\talt ok\n\t\t%% why this branch\n\t\tactivate B\n\t\tB ->> A: two\n\t\tdeactivate B\n\telse no\n\t\tbox Aqua Group\n\t\t\tparticipant C as Cee\n\t\tend\n\t\tA ->> C: three\n\tend\n']] },
   { name: 'sequence add_note after a message', source: SEQUENCE, op: { kind: 'add_note', position: 'right', actorIds: ['C'], text: 'queued', afterMessage: 0 }, reference: [['\tK ->> C: event\n', '\tK ->> C: event\n\tNote right of C: queued\n']] },

@@ -220,7 +220,7 @@ describe('sequence identities survive portable structured writing', () => {
       expect(result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
         .map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(expected)
       expect(renderParse(written).messages.map(({ from, to, label }) => ({ from, to, text: label }))).toEqual(expected)
-      if (prefix.includes('\n\n')) expect(written).toContain(diagram === rewritten ? '\n%% preserved comment' : '\n\n%% preserved comment')
+      if (prefix.includes('\n\n')) expect(written).toContain(diagram === rewritten ? '\n  %% preserved comment' : '\n\n%% preserved comment')
       expect(serializeMermaid(sequence(written))).toBe(written)
     }
   })
