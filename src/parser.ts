@@ -239,16 +239,29 @@ function isFlowchartInteractionDirective(line: string): boolean {
   return /^(?:click|href)\s+/i.test(line.trim())
 }
 
-function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
+/** The node id and safe href of a `click` the parser applies, else null. */
+export function flowchartInteractionTarget(line: string): { id: string; href: string } | null {
   const match = line.trim().match(/^(?:click\s+)?(\S+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
-  if (!match) return
+  if (!match) return null
   const href = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
-  if (!/^(?:https?:|mailto:)/i.test(href)) return
-  const node = graph.nodes.get(match[1]!)
-  if (node) {
-    node.href = href
-    if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'set-interaction', { id: node.id, href })
+  return /^(?:https?:|mailto:)/i.test(href) ? { id: match[1]!, href } : null
+}
+
+/** A `click` on a node not declared yet is held until the end of the source
+ * (`pending`), then applied to that node unless a `click` after the node's
+ * declaration gave it a link. Pinned Mermaid ignores it; verify reports it
+ * (flowchart_statement_before_entity). */
+function applyFlowchartInteraction(graph: MermaidGraph, line: string, pending: Map<string, string>): void {
+  const target = flowchartInteractionTarget(line)
+  if (!target) return
+  const node = graph.nodes.get(target.id)
+  if (!node) {
+    pending.set(target.id, target.href)
+    return
   }
+  pending.delete(target.id)
+  node.href = target.href
+  if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'set-interaction', { id: node.id, href: target.href })
 }
 
 /** Upstream's metadata token is exactly `@{`, right after its id. Ours also
@@ -356,6 +369,8 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
   const membership = createSubgraphMembership()
   // Resolve group references after all declarations have closed.
   const listings: Array<{ lister: string; ids: string[] }> = []
+  // Links a `click` gave nodes declared after it.
+  const pendingInteractions = new Map<string, string>()
 
   /** Close the innermost open subgraph, if any. */
   const closeSubgraph = (): void => {
@@ -388,7 +403,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
       try {
       // --- source-level directives that do not affect local layout ---
       if (isFlowchartInteractionDirective(line)) {
-        applyFlowchartInteraction(graph, line)
+        applyFlowchartInteraction(graph, line, pendingInteractions)
         continue
       }
       const edgeMetadata = edgeMetadataStatement(graph, line)
@@ -526,6 +541,12 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
   // A subgraph no `end` closes runs to the end of the source, where Mermaid
   // rejects the diagram; verify reports it (flowchart_unclosed_subgraph).
   while (subgraphStack.length > 0) closeSubgraph()
+  for (const [id, href] of pendingInteractions) {
+    const node = graph.nodes.get(id)
+    if (!node) continue
+    node.href = href
+    if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'set-interaction', { id, href })
+  }
   listSubgraphs(graph, listings.map(({ lister, ids }) => ({ lister: subgraphsById.get(lister)!, ids: ids.map(id => subgraphsById.get(id)) })))
   return graph
 }

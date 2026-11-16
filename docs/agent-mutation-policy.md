@@ -162,7 +162,13 @@ family:
 3. The candidate is published only when the shared parser reads it back as the
    same diagram as the canonical edit: the same facts and the same canonical
    statements. Statement order the facts do not carry (declaration order, for
-   example) may follow the authored order.
+   example) may follow the authored order. It must also leave no statement
+   before the entity it applies to that the authored source did not have
+   there: Mermaid 12.2.0 applies a flowchart `class` or `click`, and a Class
+   `style`, `cssClass`, link or `classDef`, only to an entity (or style class
+   membership) that exists where the statement stands, though our reader
+   applies it anyway (the family's `existingTargets`, which `verify` also
+   reports).
 4. When no local change passes, the canonical source is returned with
    `preservation: { method: 'canonical', reason }`; otherwise the result
    carries `preservation: { method: 'local' }`. A diagram that was not parsed
@@ -208,13 +214,19 @@ that line's authored block, within the same block). Removing `[*] --> S`
 before `note right of S` would otherwise leave the note to declare `S` where
 it stands, which our reader and Mermaid 12.2.0 both read differently from the
 canonical edit; the note instead follows `S --> T`, or the composite whose
-body now names `S` first.
+body now names `S` first. The kept lines between that apply to the name only
+where it exists move with it, in order: removing `A --> B` before
+`class B hot` and `click B "…"` moves both past `B --> C`, and removing
+`A <|-- B` moves `style B …` and `cssClass "B" hot` past `B --> C`. A line
+read as nothing alone (a flowchart `click B` with no `B` before it) is traced
+by its reading after the earlier lines that share a word with it.
 
 Typical fallbacks: a move that would reorder kept statements (a note on `S`
 that would have to follow `S --> T` past a note that declares `T` there; the
-receipt names the facts the closest candidate reads otherwise), a kept line
-whose reading depends on what precedes it and that no pass traces (a
-flowchart `click B` whose only earlier mention of `B` the edit removes), an
+receipt names the facts the closest candidate reads otherwise), a new
+statement that would stand before the entity it applies to (`class D hot`
+beside a classDef written above `D`, or a `cssClass` after the classDef it
+uses; the receipt names the statement), an
 edit that empties a family below its grammar floor, a canonical difference
 beyond the diff budget, and edits to wrappers the canonical writer does not
 own. The receipt names the reason (the statement that could not be traced or

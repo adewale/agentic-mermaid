@@ -56,12 +56,12 @@ import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-co
 import { adoptStatementAccessibility, ownBodyAccessibility } from './accessibility-envelope.ts'
 import { grammarAccessibilityFields } from '../shared/grammar-text.ts'
 import { parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
-import { parseClassBody, renderClass, verifyClass } from './class-body.ts'
+import { classExistingTargets, classPrematureStatementsOf, parseClassBody, renderClass, verifyClass } from './class-body.ts'
 import { parseErBody, renderEr, verifyErBody } from './er-body.ts'
 import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
 import { buildFlowchartSourceMap, type FlowchartBody, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
-import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
+import { containsFlowchartOpaqueSyntax, flowchartExistingTargets, flowchartPrematureStatements } from './flowchart-unsupported.ts'
 import { ganttAxisFormatWrittenAsConfig, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
 import { parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
@@ -137,8 +137,9 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 
 // Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
 // descriptor, which binds the flowchart header.
-function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize'> {
+function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize' | 'existingTargets'> {
   return {
+    existingTargets: { targets: flowchartExistingTargets, premature: flowchartPrematureStatements },
     parse: ({ source, opaqueSource }) => {
       if (containsFlowchartOpaqueSyntax(source.familyBody)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
       return parseFlowchartBody(source.familyBody, opaqueSource)
@@ -778,6 +779,7 @@ export const CLASS_SOURCE_HOOKS = {
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
+  existingTargets: { targets: classExistingTargets, premature: classPrematureStatementsOf },
   // Mermaid's Class grammar has no title statement: it ignores `title …` or
   // rejects it. The title is the frontmatter `title:`, which Mermaid draws;
   // a body statement, read generously, wins as it does when rendering.

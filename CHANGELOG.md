@@ -75,7 +75,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   now names the state first instead of falling back; left in place it would
   declare the state there, which both our reader and Mermaid 12.2.0 read
   differently. A fallback whose closest candidate writes the edited statements
-  in another order names the facts it reads otherwise.
+  in another order names the facts it reads otherwise. A statement Mermaid
+  applies only to an entity that already exists (a flowchart `class` or
+  `click`, a Class `style`, `cssClass` or link) is never left before the
+  entity's first remaining mention: removing `A --> B` moves `class B hot`
+  and `click B …` verbatim past `B --> C`, and removing `A <|-- B` moves
+  `style B …` past `B --> C`. Such edits used to stay local while
+  Mermaid 12.2.0 dropped the class, style or link, or fell back for a
+  `click`. A local candidate that would leave one there (a new `class D` next
+  to a classDef above D) falls back instead.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the
@@ -261,6 +269,20 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   inactive participant still reads and verify still warns
   (`sequence_inactive_deactivation`); an edit is refused only when it adds
   such a deactivation.
+
+- A statement written before the entity it applies to is read as the author
+  meant, reported and written where Mermaid applies it. Mermaid 12.2.0
+  accepts these but ignores the statement: a flowchart `class` before its
+  node, link or subgraph (inside a subgraph before its `end`), a flowchart
+  `click` before its node, a Class `style` or link before its class, and a
+  Class `classDef` before the `cssClass` or `:::` that gives a class its
+  style class. `verify` reports `UNSUPPORTED_SYNTAX`
+  (`flowchart_statement_before_entity`, `class_statement_before_class`,
+  `class_classdef_before_style_class`; the cssClass case keeps
+  `class_css_class_before_class`), and the canonical writer, which already
+  writes them after their entity, gives Mermaid the author's meaning. A
+  flowchart `click` before its node, which ours ignored as Mermaid does (and
+  a canonical rewrite then deleted), now links the node.
 
 - ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
   `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,

@@ -354,6 +354,46 @@ const NOTED_BEFORE_COMPOSITE = `stateDiagram-v2
   }
 `
 
+// Statements Mermaid applies only to an entity that exists where they stand,
+// written after its first mention, which the edit removes: left in place,
+// Mermaid would ignore them (our reader would not), so they move past the
+// next line naming their entity.
+const CLASSED_NODE = `flowchart TD
+  A --> B
+  class B hot
+  B --> C
+  classDef hot fill:#f96
+`
+
+const LINKED_NODE = `flowchart TD
+  A --> B
+  click B "https://example.com"
+  B --> C
+`
+
+// `class B,C` already stands before C's first mention, which Mermaid ignores.
+const CLASSED_AND_LINKED = `flowchart LR
+    A --> B
+  class B,C hot
+    click B href "https://example.com"
+  B --> C
+  classDef hot fill:#f96
+`
+
+const STYLED_CLASS = `classDiagram
+  A <|-- B
+  style B fill:#f96
+  cssClass "B" hot
+  B --> C
+  classDef hot stroke:#333
+`
+
+const LINKED_CLASS = `classDiagram
+  A <|-- B
+  link B "https://example.com" "tip"
+  B --> C
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -463,6 +503,11 @@ const CASES: Case[] = [
   { name: 'state remove_transition moves a note past the line that now names its state first', source: NOTED_STATE, op: { kind: 'remove_transition', index: 0 }, touched: ['  [*] --> S', '  note right of S', '    noted', '  end note'], reference: [['  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n', '  S --> T\n  note right of S\n    noted\n  end note\n']] },
   { name: 'state remove_state of a neighbour moves the note on the state it named past a transition between', source: NOTED_NEIGHBOUR, op: { kind: 'remove_state', id: 'X' }, touched: ['    X --> S', '    note left of S', '      waiting', '      here', '    end note'], reference: [['    X --> S\n    note left of S\n      waiting\n      here\n    end note\n', ''], ['    S --> T\n', '    S --> T\n    note left of S\n      waiting\n      here\n    end note\n']] },
   { name: 'state remove_transition moves a note past the composite that now names its state first', source: NOTED_BEFORE_COMPOSITE, op: { kind: 'remove_transition', from: '[*]', to: 'S' }, touched: ['  [*] --> S', '  note right of S : noted'], reference: [['  [*] --> S\n  note right of S : noted\n', ''], ['    S --> T\n  }\n', '    S --> T\n  }\n  note right of S : noted\n']] },
+  { name: 'flowchart remove_edge moves a class past the line that now names its node first', source: CLASSED_NODE, op: { kind: 'remove_edge', id: 'A->B' }, touched: ['  A --> B', '  class B hot'], reference: [['  A --> B\n  class B hot\n  B --> C\n', '  B --> C\n  class B hot\n  A[A]\n']] },
+  { name: 'flowchart remove_node moves a click, read after the line before it, past the line that now names its node first', source: LINKED_NODE, op: { kind: 'remove_node', id: 'A' }, touched: ['  A --> B', '  click B "https://example.com"'], reference: [['  A --> B\n  click B "https://example.com"\n  B --> C\n', '  B --> C\n  click B "https://example.com"\n']] },
+  { name: 'flowchart remove_edge moves a class naming two nodes and a click, in order, past the next line naming the node', source: CLASSED_AND_LINKED, op: { kind: 'remove_edge', id: 'A->B' }, touched: ['    A --> B', '  class B,C hot', '    click B href "https://example.com"'], reference: [['    A --> B\n  class B,C hot\n    click B href "https://example.com"\n  B --> C\n', '  B --> C\n  class B,C hot\n    click B href "https://example.com"\n  A[A]\n']] },
+  { name: 'class remove_relation moves a style and cssClass, in order, past the line that now names their class first', source: STYLED_CLASS, op: { kind: 'remove_relation', index: 0 }, touched: ['  A <|-- B', '  style B fill:#f96', '  cssClass "B" hot'], reference: [['  A <|-- B\n  style B fill:#f96\n  cssClass "B" hot\n  B --> C\n', '  class A\n  B --> C\n  style B fill:#f96\n  cssClass "B" hot\n']] },
+  { name: 'class remove_class moves a link past the line that now names its class first', source: LINKED_CLASS, op: { kind: 'remove_class', id: 'A' }, touched: ['  A <|-- B', '  link B "https://example.com" "tip"'], reference: [['  A <|-- B\n  link B "https://example.com" "tip"\n  B --> C\n', '  B --> C\n  link B "https://example.com" "tip"\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -540,6 +585,19 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read).toEqual(expected!)
     expect(read!.ok).toBe(true)
   }, 20_000)
+
+  // A new statement whose authored neighbour stands before the entity it
+  // needs: next to a classDef above D, `class D hot` would stand before D,
+  // and a cssClass after the classDef it uses, both of which Mermaid ignores
+  // there. No local change places them after it, so the edit falls back.
+  test.each([
+    ['flowchart TD\n  classDef hot fill:#f96\n  A --> D\n', { kind: 'set_node_class', id: 'D', className: 'hot' }, '"class D hot" before the first mention of D'],
+    ['classDiagram\n  classDef hot fill:#f96\n  class B\n', { kind: 'set_css_class', class: 'B', className: 'hot' }, '"classDef hot fill:#f96" before the first mention of B'],
+  ] as const)('a new statement that would stand before its entity falls back: %j', (source, op, left) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: `no local change to the authored source reads back as the edited diagram: the closest local change leaves ${left}, where Mermaid 12.2.0 ignores it` })
+  })
 
   // A note that must stay first (it declares T) and one that would have to
   // move past it: no local change keeps the notes in order, and the receipt

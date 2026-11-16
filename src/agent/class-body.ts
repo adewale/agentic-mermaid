@@ -46,6 +46,7 @@ import { compactStyleDeclarations, ownStyleDeclarations, parseMutableStyleProps,
 import { classLikeStyleHasValueCommas, classLikeStyleStatement, portableClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+import type { PrematureStatement } from './family-registry.ts'
 import type { ClassBody, ClassMutationOp, ClassNamespaceDecl, ClassNode, ClassNote, ClassRelation, ClassRelationKind, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 import { appendSourceStatement, applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
@@ -1142,20 +1143,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: `${what}. Pinned Mermaid rejects this; put the comment on a line of its own.`,
     })
   }
-  // The classes a statement declares as Mermaid reads it, which a cssClass
-  // can style only after them.
-  const declares = (value: ClassStatementNode['value']): string[] =>
-    value.kind === 'class' ? [value.declaration.id] : value.kind === 'annotation' ? [value.annotation.id] : value.kind === 'member' && value.reference ? [value.reference.id] : value.kind === 'relationship' ? [value.relationship.from, value.relationship.to] : []
-  const declaredAnywhere = new Set<string>()
-  const collect = (nodes: readonly ClassStatementNode[]): void => {
-    for (const node of nodes) {
-      for (const id of declares(node.value)) declaredAnywhere.add(id)
-      collect(node.children ?? [])
-    }
-  }
   const extensionWarnings = (nodes: ClassStatementNode[]): void => {
-    collect(nodes)
-    const declaredSoFar = new Set<string>()
     const pending = [...nodes].reverse()
     const semicolonLines = new Set<number>()
     while (pending.length) {
@@ -1213,7 +1201,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           ? 'Native CSS commas remain inside their property values. Pinned Mermaid splits raw commas into separate styles; the writer protects value delimiters with entity codes.'
           : 'This style contains text outside the supported SVG attribute domain. Source is preserved, but typed editing is unavailable.',
       })
-      const identities = declares(value).concat(value.kind === 'interaction' ? [value.interaction.id] : value.kind === 'note' && value.reference ? [value.reference.id] : [])
+      const identities = classesDeclared(value).concat(value.kind === 'interaction' ? [value.interaction.id] : value.kind === 'note' && value.reference ? [value.reference.id] : [])
       if (identities.some(hasClassDirectionToken) || value.kind === 'namespace' && hasClassDirectionToken(value.path.join('.'))) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_direction_identity', line: header + 1 + node.source.line,
         message: 'A greedy Mermaid direction token consumes this identity even inside backticks. Native reading and source are retained; typed editing is unavailable.',
@@ -1237,11 +1225,6 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           line: header + 1 + node.source.line,
           message: "A :::style class before an inline <<annotation>> is read as the class's style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.",
         })
-      for (const id of declares(value)) declaredSoFar.add(id)
-      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id))) warnings.push({
-        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_css_class_before_class', line: header + 1 + node.source.line,
-        message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
-      })
       if (value.kind === 'assignment' && value.form !== 'cssClass') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_assignment', line: header + 1 + node.source.line,
         message: value.form === 'class'
@@ -1309,23 +1292,104 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
-  // An accTitle or accDescr is Mermaid's own statement, not a member: read
-  // the statements around it, its lines left blank.
+  const { statements, emptyDescriptions } = classSourceStatements(bodyLines)
+  for (const index of emptyDescriptions) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_accessibility_description', line: header + index + 2,
+    message: 'An empty accessibility description is retained, but pinned Mermaid rejects an empty Class accDescr block. The writer preserves the empty value in a native metadata comment.',
+  })
+  extensionWarnings(statements)
+  for (const { line, statement, names } of prematureClassStatements(statements, header)) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: /^cssClass\s/.test(statement) ? 'class_css_class_before_class' : /^classDef\s/.test(statement) ? 'class_classdef_before_style_class' : 'class_statement_before_class', line,
+    message: /^classDef\s/.test(statement)
+      ? `This \`classDef\` comes before the line that gives ${names.join(', ')} its style class, and styles ${names.length > 1 ? 'them' : 'it'}. Pinned Mermaid copies a classDef's style only onto classes that already have that style class where the classDef stands, and draws ${names.join(', ')} without it; move the classDef after that line.`
+      : `This \`${statement.split(/\s/, 1)[0]}\` comes before the class it names, ${names.join(', ')}, and is applied to it. Pinned Mermaid applies it only to a class declared above it, and ignores this one; move the line after the first mention of ${names.join(', ')}.`,
+  })
+  return warnings
+}
+
+/** The statements of a Class body (the lines after its header), an accTitle
+ * or accDescr, which is Mermaid's own statement and not a member, read as
+ * blank lines; and the body lines of empty accessibility descriptions. */
+function classSourceStatements(bodyLines: readonly string[]): { statements: ClassStatementNode[]; emptyDescriptions: number[] } {
   const statementLines = [...bodyLines]
+  const emptyDescriptions: number[] = []
   for (let index = 0; index < statementLines.length; index++) {
     const directive = parseAccessibilityDirective(statementLines, index)
     if (directive === undefined) break
     if (directive === null) continue
-    if (!directive.title && directive.form !== 'native' && directive.value === '') warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_accessibility_description', line: header + index + 2,
-      message: 'An empty accessibility description is retained, but pinned Mermaid rejects an empty Class accDescr block. The writer preserves the empty value in a native metadata comment.',
-    })
+    if (!directive.title && directive.form !== 'native' && directive.value === '') emptyDescriptions.push(index)
     for (let at = index; at <= directive.endIndex; at++) statementLines[at] = ''
     if (directive.suffixLine) statementLines[directive.endIndex] = directive.suffixLine
     index = directive.endIndex
   }
-  extensionWarnings(readClassStatements(statementLines).statements)
-  return warnings
+  return { statements: readClassStatements(statementLines).statements, emptyDescriptions }
+}
+
+/** The classes a statement declares as Mermaid reads it. */
+function classesDeclared(value: ClassStatementNode['value']): string[] {
+  return value.kind === 'class' ? [value.declaration.id] : value.kind === 'annotation' ? [value.annotation.id] : value.kind === 'member' && value.reference ? [value.reference.id] : value.kind === 'relationship' ? [value.relationship.from, value.relationship.to] : []
+}
+
+/** The classes a Class statement applies to only where they are already
+ * declared: those of `style`, a quoted `cssClass` and a link (`click … href`,
+ * `link`). Pinned Mermaid's setCssStyle, setCssClass and setLink skip a
+ * class not declared yet. */
+function classStatementTargets(value: ClassStatementNode['value']): string[] {
+  return value.kind === 'style' || (value.kind === 'assignment' && value.form === 'cssClass') ? value.references.map(reference => reference.id)
+    : value.kind === 'interaction' ? [value.interaction.id] : []
+}
+
+/** classStatementTargets of one canonical statement. */
+export function classExistingTargets(statement: string): string[] {
+  const node = readClassStatements([statement.trim()], undefined, false).statements[0]
+  return node ? classStatementTargets(node.value) : []
+}
+
+/** classPrematureStatements of a Class diagram's canonicalSource. */
+export function classPrematureStatementsOf(canonicalSource: string): PrematureStatement[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^classDiagram(?:-v2)?\b/.test(line.trim()))
+  return header < 0 ? [] : prematureClassStatements(classSourceStatements(lines.slice(header + 1)).statements, header)
+}
+
+/**
+ * The Class statements written before a class they apply to is declared
+ * (classStatementTargets), and the classDefs written before the line that
+ * gives a class their style class with no classDef of that name after it:
+ * pinned Mermaid ignores the first, and copies a classDef's style only onto
+ * classes that already have that style class. Each names those classes, on
+ * its line (`header` is the header's index in the source read).
+ */
+function prematureClassStatements(statements: readonly ClassStatementNode[], header: number): PrematureStatement[] {
+  const nodes: ClassStatementNode[] = []
+  const flatten = (list: readonly ClassStatementNode[]): void => { for (const node of list) { nodes.push(node); flatten(node.children ?? []) } }
+  flatten(statements)
+  const declared = new Map<string, number>()
+  nodes.forEach((node, at) => { for (const id of classesDeclared(node.value)) if (!declared.has(id)) declared.set(id, at) })
+  // Where each class first has each style class, as Mermaid applies it.
+  const styled = new Map<string, Map<string, number>>()
+  const style = (name: string, id: string, at: number) => {
+    const first = styled.get(name) ?? new Map<string, number>()
+    if (!first.has(id)) first.set(id, at)
+    styled.set(name, first)
+  }
+  const defined = new Map<string, number[]>()
+  nodes.forEach((node, at) => {
+    const value = node.value
+    if (value.kind === 'class' && value.declaration.className) for (const name of value.declaration.className.split(/\s+/).filter(Boolean)) style(name, value.declaration.id, at)
+    if (value.kind === 'annotation' && value.annotation.className) for (const name of value.annotation.className.split(/\s+/).filter(Boolean)) style(name, value.annotation.id, at)
+    if (value.kind === 'assignment' && value.form === 'cssClass') for (const { id } of value.references) if ((declared.get(id) ?? Infinity) < at) style(value.name, id, at)
+    if (value.kind === 'classDef') for (const name of value.names) defined.set(name, [...defined.get(name) ?? [], at])
+  })
+  const found: PrematureStatement[] = []
+  nodes.forEach((node, at) => {
+    const value = node.value
+    const names = value.kind === 'classDef'
+      ? [...new Set(value.names.flatMap(name => [...styled.get(name) ?? []].flatMap(([id, from]) => from > at && !defined.get(name)!.some(later => later > from) ? [id] : [])))]
+      : classStatementTargets(value).filter(id => (declared.get(id) ?? -1) > at)
+    if (names.length > 0) found.push({ line: header + 1 + node.source.line, statement: node.text.trim(), names })
+  })
+  return found
 }
 
 export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning[] {

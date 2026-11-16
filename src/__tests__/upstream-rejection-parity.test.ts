@@ -343,6 +343,25 @@ const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly
   ['a `;` between linkStyle properties', 'flowchart LR\n  A --> B\n  linkStyle 0 stroke:red;stroke-width:2px', ['A', 'B', 'stroke-width:2px'], ['A', 'B'], 'stroke="red"', 'flowchart_style_semicolon', 3],
 ]
 
+// Mermaid accepts each of these but ignores the statement written before the
+// entity it applies to: its DB applies a flowchart `class` or `click`, and a
+// Class `style`, link or classDef, only to an entity that exists where the
+// statement stands. Ours reads it where the entity is defined, verify reports
+// it, and the writer writes it after the entity, where Mermaid applies it.
+// [construct, source, text the render draws, syntax verify reports, its line,
+//  what Mermaid applies reading the source, and reading its canonical rewrite]
+const APPLIED_BEFORE_ENTITY: ReadonlyArray<readonly [string, string, string, string, number, readonly string[], readonly string[]]> = [
+  ['a flowchart class before its node', 'flowchart TD\n  class B hot\n  A --> B\n  classDef hot fill:#f96', '#f96', 'flowchart_statement_before_entity', 2, [], ['B.hot']],
+  ['a flowchart class naming a defined node and a later one', 'flowchart TD\n  A --> C\n  class B,C hot\n  B --> C\n  classDef hot fill:#f96', '#f96', 'flowchart_statement_before_entity', 3, ['C.hot'], ['C.hot', 'B.hot']],
+  ['a flowchart class before its link', 'flowchart TD\n  class e1 hot\n  A e1@--> B\n  classDef hot stroke:#f96', '#f96', 'flowchart_statement_before_entity', 2, [], ['e1.hot']],
+  ['a flowchart class inside the subgraph it names', 'flowchart TD\n  subgraph S[Stage]\n    class S hot\n    A\n  end\n  classDef hot fill:#f96', '>Stage<', 'flowchart_statement_before_entity', 3, [], ['S.hot']],
+  ['a flowchart click before its node', 'flowchart TD\n  click B "https://example.com"\n  A --> B', 'data-href="https://example.com"', 'flowchart_statement_before_entity', 2, [], ['B.clickable', 'B->https://example.com/']],
+  ['a Class style before its class', 'classDiagram\n  style B fill:#f96\n  A <|-- B', '#f96', 'class_statement_before_class', 2, [], ['B{fill:#f96}']],
+  ['a Class link before its class', 'classDiagram\n  link B "https://example.com"\n  A <|-- B', 'data-href="https://example.com"', 'class_statement_before_class', 2, [], ['B.clickable', 'B->https://example.com/']],
+  ['a Class click before its class', 'classDiagram\n  click B href "https://example.com" "tip"\n  A <|-- B', 'data-href="https://example.com"', 'class_statement_before_class', 2, [], ['B.clickable', 'B->https://example.com/']],
+  ['a Class classDef before the cssClass that uses it', 'classDiagram\n  classDef hot fill:#f96\n  A <|-- B\n  cssClass "B" hot', '#f96', 'class_classdef_before_style_class', 2, ['B.hot'], ['B.hot', 'B{fill:#f96}']],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -530,6 +549,28 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(mermaid.ok && mermaid.flowchart?.vertices.map(vertex => vertex.id).sort()).toEqual([...mermaidNodes].sort())
     expect({ nodes: [...parseMermaid(source).nodes.keys()].sort(), ...readGenerously(source, text) })
       .toEqual({ nodes: [...ourNodes].sort(), typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
+  })
+})
+
+describe('read as the author meant what pinned Mermaid ignores before its entity, and warn', () => {
+  // The classes, styles and links Mermaid's DB gives flowchart nodes, links
+  // and subgraphs, or Class classes.
+  const applied = (diagram: { type: string; db: any }): string[] => {
+    const db = diagram.db
+    if (diagram.type.startsWith('flowchart')) return [
+      ...[...db.getVertices().values()].flatMap((v: any) => [...v.classes.map((c: string) => `${v.id}.${c}`), ...(v.link ? [`${v.id}->${v.link}`] : [])]),
+      ...db.getEdges().flatMap((e: any) => (e.classes ?? []).map((c: string) => `${e.id}.${c}`)),
+      ...db.getSubGraphs().flatMap((s: any) => s.classes.map((c: string) => `${s.id}.${c}`)),
+    ]
+    return [...db.getClasses().values()].flatMap((c: any) => [...c.cssClasses.split(' ').filter((n: string) => n && n !== 'default').map((n: string) => `${c.id}.${n}`), ...(c.styles.length ? [`${c.id}{${c.styles.join(';')}}`] : []), ...(c.link ? [`${c.id}->${c.link}`] : [])])
+  }
+
+  test.each(APPLIED_BEFORE_ENTITY)('%s is read, drawn, reported and written where Mermaid applies it', async (_construct, source, text, syntax, line, asAuthored, asWritten) => {
+    const parsed = parseRegisteredMermaid(source)
+    const written = parsed.ok ? serializeMermaid(parsed.value) : ''
+    const [authored, rewritten] = await upstream.projectEach([source, written], applied)
+    expect({ ...readGenerously(source, text), authored, rewritten, rewrittenReported: verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').length })
+      .toEqual({ typed: source.startsWith('class') ? 'class' : 'flowchart', draws: true, reported: [`${syntax}@${line}`], authored: { ok: true, value: [...asAuthored] }, rewritten: { ok: true, value: [...asWritten] }, rewrittenReported: 0 })
   })
 })
 
