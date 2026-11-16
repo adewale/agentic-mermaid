@@ -95,12 +95,16 @@ class TransitiveOrdering<T> {
     const bs = this.smallerThan.get(bigger)!, ss = this.smallerThan.get(smaller)!
     bb.add(smaller); ss.add(bigger)
     for (const verySmall of sb) {
-      bb.add(verySmall); this.smallerThan.get(verySmall)!.add(bigger)
-      for (const value of bs) this.smallerThan.get(verySmall)!.add(value)
+      bb.add(verySmall)
+      const biggerElements = this.smallerThan.get(verySmall)!
+      biggerElements.add(bigger)
+      for (const value of bs) biggerElements.add(value)
     }
     for (const veryBig of bs) {
-      ss.add(veryBig); this.biggerThan.get(veryBig)!.add(smaller)
-      for (const value of sb) this.biggerThan.get(veryBig)!.add(value)
+      ss.add(veryBig)
+      const smallerElements = this.biggerThan.get(veryBig)!
+      smallerElements.add(smaller)
+      for (const value of sb) smallerElements.add(value)
     }
   }
   clear(): void { this.biggerThan = new Map(); this.smallerThan = new Map() }
@@ -723,28 +727,29 @@ class BarycenterPortDistributor {
     let consumedRank = 0
     for (const node of layer) {
       if (output) {
-        const ports = node.ports.filter(port => port.outgoing.length > 0)
         if (this.nodeRelative) {
-          const increment = 1 / (ports.length + 1)
+          let portCount = 0
+          for (const port of node.ports) if (port.outgoing.length > 0) portCount++
+          const increment = 1 / (portCount + 1)
           let position = consumedRank + increment
-          for (const port of ports) { this.portRanks.set(port, position); position += increment }
+          for (const port of node.ports) if (port.outgoing.length > 0) { this.portRanks.set(port, position); position += increment }
           consumedRank += 1
         } else {
           let position = 0
-          for (const port of ports) this.portRanks.set(port, consumedRank + ++position)
+          for (const port of node.ports) if (port.outgoing.length > 0) this.portRanks.set(port, consumedRank + ++position)
           consumedRank += position
         }
       } else {
-        const ports = node.ports.filter(port => port.incoming.length > 0)
-        const northCount = ports.filter(port => port.side === 'NORTH').length
-        const increment = this.nodeRelative ? 1 / (ports.length + 1) : 1
+        let portCount = 0, northCount = 0
+        for (const port of node.ports) if (port.incoming.length > 0) { portCount++; if (port.side === 'NORTH') northCount++ }
+        const increment = this.nodeRelative ? 1 / (portCount + 1) : 1
         let northPosition = consumedRank + northCount * increment
-        let restPosition = this.nodeRelative ? consumedRank + 1 - increment : consumedRank + ports.length
-        for (const port of ports) {
+        let restPosition = this.nodeRelative ? consumedRank + 1 - increment : consumedRank + portCount
+        for (const port of node.ports) if (port.incoming.length > 0) {
           if (port.side === 'NORTH') { this.portRanks.set(port, northPosition); northPosition -= increment }
           else { this.portRanks.set(port, restPosition); restPosition -= increment }
         }
-        consumedRank += this.nodeRelative ? 1 : ports.length
+        consumedRank += this.nodeRelative ? 1 : portCount
       }
     }
   }
