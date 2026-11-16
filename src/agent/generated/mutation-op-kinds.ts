@@ -176,6 +176,7 @@ export const MUTATION_OPS_BY_FAMILY = {
     "move_message",
     "set_participant_label",
     "add_fragment",
+    "move_fragment",
     "remove_fragment",
     "set_fragment_label",
     "add_fragment_branch",

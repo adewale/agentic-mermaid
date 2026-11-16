@@ -46,7 +46,11 @@ state the fields to pass, the path as JSON:
 `message#N op fragmentPath [{"fragmentIndex":0,"branchIndex":1}] fragmentIndex 0 branchIndex 0 index 0`,
 and likewise for `note#N op …` and `fragment#… op …`. `add_fragment` with a
 path appends the new fragment to that branch (or puts it before fragment
-`index` there). An edit inside a nested fragment rewrites it and the
+`index` there). `add_fragment` also takes `afterMessage` or `beforeMessage`,
+placed as a note's anchors place it: a top-level message index, or with
+`fragmentPath` an index among that branch's messages. `move_fragment`
+(`fragmentPath`, `index`, an anchor) moves a fragment and its contents within
+its own scope; moving one into another branch is remove plus re-add. An edit inside a nested fragment rewrites it and the
 fragments around it; nested fragments are written one level deeper than the
 statements beside them, and untouched ones keep their authored lines.
 

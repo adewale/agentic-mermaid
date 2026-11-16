@@ -1134,11 +1134,28 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const scope = fragmentScope(statements, op.fragmentPath)
       if (!scope.ok) return scope
       if (scope.value.enclosing.length >= DIAGRAM_WORK_LIMITS.nesting) return err({ code: 'INVALID_OP', message: `A sequence fragment nests at most ${DIAGRAM_WORK_LIMITS.nesting} deep` })
-      const count = scope.value.fragments.length
-      const index = op.index ?? count
-      if (!Number.isInteger(index) || index < 0 || index > count) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${count})${scope.value.where}` })
-      scope.value.insert(index, { fragmentKind: op.fragmentKind, ...(label.value ? { label: label.value } : {}), branches: [{ messages: [] }] })
+      const fragment: SequenceFragment = { fragmentKind: op.fragmentKind, ...(label.value ? { label: label.value } : {}), branches: [{ messages: [] }] }
+      if (op.afterMessage !== undefined || op.beforeMessage !== undefined) {
+        if (op.index !== undefined) return err({ code: 'INVALID_OP', message: 'Give a fragment index, afterMessage or beforeMessage, not more than one' })
+        const placed = placeFragment(scope.value, statements, messages.length, op, fragment)
+        if (!placed.ok) return placed
+      } else {
+        const count = scope.value.fragments.length
+        const index = op.index ?? count
+        if (!Number.isInteger(index) || index < 0 || index > count) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${count})${scope.value.where}` })
+        scope.value.insert(index, fragment)
+      }
       retire(scope.value)
+      break
+    }
+    case 'move_fragment': {
+      const target = editedFragment(statements, op.fragmentPath, op.index)
+      if (!target.ok) return target
+      const { scope, fragment } = target.value
+      scope.remove(op.index)
+      const placed = placeFragment(scope, statements, messages.length, op, fragment)
+      if (!placed.ok) return placed
+      retire(scope)
       break
     }
     case 'remove_fragment': {
@@ -1517,6 +1534,8 @@ function fragmentCreate(fragment: SequenceFragment, id: string): { create: Seque
  * around it, whose authored spelling an edit inside retires. */
 interface FragmentScope {
   fragments: SequenceFragment[]
+  /** The branch `fragmentPath` reaches; none at top level. */
+  branch?: SequenceFragmentBranch
   enclosing: SequenceFragment[]
   /** ` in fragment#… branch#…` for a nested scope, for messages. */
   where: string
@@ -1542,7 +1561,7 @@ function fragmentScope(statements: SequenceStatement[], path: readonly SequenceF
     const name = sequenceFragmentName({ fragmentPath: steps, fragmentIndex: fragmentIndex! })
     if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment#${name} (fragmentPath step ${steps.length}; ${countText(fragment.branches.length, 'branch')})` })
     steps.push({ fragmentIndex: fragmentIndex!, branchIndex: branchIndex! })
-    scope = { ...branchScope(branch), enclosing: [...scope.enclosing, fragment], where: ` in fragment#${name} branch#${branchIndex}` }
+    scope = { ...branchScope(branch), branch, enclosing: [...scope.enclosing, fragment], where: ` in fragment#${name} branch#${branchIndex}` }
   }
   return ok(scope)
 }
@@ -1589,6 +1608,21 @@ function retire(scope: FragmentScope, fragment?: SequenceFragment): void {
   if (fragment) delete fragment.rawLines
 }
 
+/** Put a fragment where a note with the same anchors would go, among the
+ * statements of its scope; with neither anchor, after everything. */
+function placeFragment(scope: FragmentScope, statements: SequenceStatement[], messageCount: number, anchor: { afterMessage?: number; beforeMessage?: number }, fragment: SequenceFragment): Result<void, MutationError> {
+  if (scope.branch) {
+    const at = branchNotePosition(scope.branch, anchor, 'fragment')
+    if (!at.ok) return at
+    ;(scope.branch.statements ??= []).splice(at.value.at, 0, { before: at.value.before, statement: { kind: 'fragment', fragment } })
+  } else {
+    const at = notePosition(statements, messageCount, anchor, 'fragment')
+    if (!at.ok) return at
+    statements.splice(at.value, 0, { kind: 'fragment', fragment })
+  }
+  return ok(undefined)
+}
+
 function noteStatements(statements: SequenceStatement[]): Array<{ position: number; statement: SequenceNoteStatement }> {
   const out: Array<{ position: number; statement: SequenceNoteStatement }> = []
   statements.forEach((statement, position) => { if (statement.kind === 'note') out.push({ position, statement }) })
@@ -1600,16 +1634,17 @@ function noteNotFound(statements: SequenceStatement[], index: number): MutationE
   return { code: 'INVALID_OP', message: `No top-level sequence note at index ${index}${count ? ` (0..${count - 1})` : ' (the diagram has no top-level notes)'}` }
 }
 
-/** Where a note anchored to a top-level message goes: right after message
- * `afterMessage` and the notes already after it, right before message
- * `beforeMessage` and the create/destroy lines bound to it, or at the end. */
-function notePosition(statements: SequenceStatement[], messageCount: number, anchor: { afterMessage?: number; beforeMessage?: number }): Result<number, MutationError> {
+/** Where a note (or a fragment) anchored to a top-level message goes: right
+ * after message `afterMessage` and the notes already after it, right before
+ * message `beforeMessage` and the create/destroy lines bound to it, or at the
+ * end. */
+function notePosition(statements: SequenceStatement[], messageCount: number, anchor: { afterMessage?: number; beforeMessage?: number }, subject: 'note' | 'fragment' = 'note'): Result<number, MutationError> {
   const { afterMessage, beforeMessage } = anchor
-  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: 'Give a note afterMessage or beforeMessage, not both' })
+  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: `Give a ${subject} afterMessage or beforeMessage, not both` })
   const index = afterMessage ?? beforeMessage
   if (index === undefined) return ok(statements.length)
   if (!Number.isInteger(index) || index < 0 || index >= messageCount) {
-    return err({ code: 'MESSAGE_NOT_FOUND', message: `No top-level message at index ${index}${messageCount ? ` (0..${messageCount - 1})` : ' (the diagram has no top-level messages)'}` })
+    return err({ code: anchorMissCode(subject), message: `No top-level message at index ${index}${messageCount ? ` (0..${messageCount - 1})` : ' (the diagram has no top-level messages)'}` })
   }
   let at = statements.findIndex(statement => statement.kind === 'message' && statement.ref === index)
   if (afterMessage !== undefined) {
@@ -1624,15 +1659,15 @@ function notePosition(statements: SequenceStatement[], messageCount: number, anc
 /** Where a note anchored to a branch message goes, as at top level (see
  * notePosition): its `before` message index and its place among the branch's
  * statements, which are kept in source order. */
-function branchNotePosition(branch: SequenceFragmentBranch, anchor: { afterMessage?: number; beforeMessage?: number }): Result<{ before: number; at: number }, MutationError> {
+function branchNotePosition(branch: SequenceFragmentBranch, anchor: { afterMessage?: number; beforeMessage?: number }, subject: 'note' | 'fragment' = 'note'): Result<{ before: number; at: number }, MutationError> {
   const { afterMessage, beforeMessage } = anchor
-  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: 'Give a note afterMessage or beforeMessage, not both' })
+  if (afterMessage !== undefined && beforeMessage !== undefined) return err({ code: 'INVALID_OP', message: `Give a ${subject} afterMessage or beforeMessage, not both` })
   const entries = branch.statements ?? []
   const count = branch.messages.length
   const index = afterMessage ?? beforeMessage
   if (index === undefined) return ok({ before: count, at: entries.length })
   if (!Number.isInteger(index) || index < 0 || index >= count) {
-    return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${index} in this fragment branch${count ? ` (0..${count - 1})` : ' (the branch has no messages)'}` })
+    return err({ code: anchorMissCode(subject), message: `No message at index ${index} in this fragment branch${count ? ` (0..${count - 1})` : ' (the branch has no messages)'}` })
   }
   const before = afterMessage !== undefined ? index + 1 : index
   if (afterMessage !== undefined) {
@@ -1648,6 +1683,10 @@ function branchNotePosition(branch: SequenceFragmentBranch, anchor: { afterMessa
   while (at > 0 && entries[at - 1]!.before === before && isDirective(entries[at - 1]!.statement)) at--
   return ok({ before, at })
 }
+
+/** A note anchor names a message that is not there; a fragment op refuses
+ * the anchor itself. */
+const anchorMissCode = (subject: 'note' | 'fragment'): MutationError['code'] => subject === 'note' ? 'MESSAGE_NOT_FOUND' : 'INVALID_OP'
 
 function normalizeFragmentLabel(value: string | null | undefined): Result<string | undefined, MutationError> {
   if (value === null || value === undefined) return ok(undefined)

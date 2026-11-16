@@ -678,6 +678,10 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['relabels a fragment two deep', { kind: 'set_fragment_label', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], index: 0, label: 'fine' }, '  rect rgb(200, 220, 255)\n  alt fine\n'],
     ['adds a branch two deep', { kind: 'add_fragment_branch', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, label: 'later' }, '  else later\n  end\n  end\n'],
     ['relabels a branch three deep', { kind: 'set_fragment_branch_label', fragmentPath: LOOP.slice(0, 1).concat({ fragmentIndex: 0, branchIndex: 0 }), fragmentIndex: 0, branchIndex: 0, label: 'again' }, '    loop again\n'],
+    ['adds a fragment after a message three deep, below its note', { kind: 'add_fragment', fragmentPath: [...LOOP, { fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'opt', label: 'late', afterMessage: 0 }, '      A->>B: three\n      Note right of B: busy\n      opt late\n      end\n    end\n'],
+    ['adds a fragment after a branch message, above the fragment after it', { kind: 'add_fragment', fragmentPath: LOOP, fragmentKind: 'opt', label: 'late', afterMessage: 0 }, '    B->>A: two\n    opt late\n    end\n      loop retry\n'],
+    ['adds a fragment before a message three deep, above the destroy bound to it', { kind: 'add_fragment', fragmentPath: [...OPT, { fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'break', label: 'stop', beforeMessage: 0 }, '      Note over A: last try\n      break stop\n      end\n      destroy C\n'],
+    ['moves a nested fragment, contents and all, below the branch message after it', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, afterMessage: 1 }, '    B->>A: four\n      loop retry\n        A->>B: three\n        Note right of B: busy\n      end\n  else no\n'],
   ] as const)('an op that %s is written as Mermaid reads it', async (_name, op, written) => {
     const edited = apply(sequence(DEEP), op as SequenceMutationOp)
     const output = serializeMermaid(edited)
@@ -701,6 +705,7 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['a fragmentPath that is not a list', { kind: 'add_fragment', fragmentPath: { fragmentIndex: 0, branchIndex: 0 }, fragmentKind: 'opt' }, 'INVALID_OP'],
     ['a message missing from a nested branch', { kind: 'set_fragment_message_text', fragmentPath: LOOP, fragmentIndex: 0, index: 1, text: 'x' }, 'MESSAGE_NOT_FOUND'],
     ['a nested edit separating a destroy from its message', { kind: 'add_fragment_message', fragmentPath: OPT, fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'x' }, 'INVALID_OP'],
+    ['a fragment moved out of range', { kind: 'move_fragment', fragmentPath: OPT, index: 1 }, 'INVALID_OP'],
   ] as const)('an op naming %s is refused and changes nothing', (_name, op, code) => {
     const parsed = sequence(DEEP)
     const result = mutate(parsed, op as unknown as SequenceMutationOp)
@@ -794,6 +799,8 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['removes the message after a box', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '    end\n    loop again\n'],
     ['adds a note above a deactivation', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['B'], text: 'busy', afterMessage: 0 }, '  B->>A: two\n  Note over B: busy\n    deactivate B\n'],
     ['relabels the participant a boxed declaration names', { kind: 'set_participant_label', id: 'C', label: 'Sea' }, '    box Aqua Group\n      participant C as Sea\n    end\n'],
+    ['adds a fragment after a branch message, above a deactivation', { kind: 'add_fragment', fragmentPath: FIRST, fragmentKind: 'break', label: 'b', afterMessage: 0 }, '  B->>A: two\n  break b\n  end\n    deactivate B\n'],
+    ['moves a nested fragment above the message after a box', { kind: 'move_fragment', fragmentPath: SECOND, index: 0, beforeMessage: 0 }, '    end\n    loop again\n      # hash comment\n      C->>A: four\n      autonumber\n    end\n  A->>C: three\n'],
   ] as const)('an op that %s keeps the preserved lines and is written as Mermaid reads it', async (_name, op, written) => {
     const edited = apply(sequence(PRESERVED), op as SequenceMutationOp)
     const output = serializeMermaid(edited)
@@ -810,6 +817,39 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     const actors = await mermaidActors(output)
     if (!actors.ok) throw new Error(actors.error)
     expect(ourActors(output)).toEqual(actors.value)
+  })
+
+  const TOP = 'sequenceDiagram\n  A->>B: one\n  Note over A: seen\n  create participant C\n  B->>C: two\n  alt ok\n    C->>A: three\n  end\n  A->>B: four\n'
+
+  test.each([
+    ['after a message, below its note', { kind: 'add_fragment', fragmentKind: 'opt', label: 'o', afterMessage: 0 }, '  Note over A: seen\n  opt o\n  end\n  create participant C\n'],
+    ['before a message, above the create bound to it', { kind: 'add_fragment', fragmentKind: 'par', label: 'p', beforeMessage: 1 }, '  Note over A: seen\n  par p\n  end\n  create participant C\n  B->>C: two\n'],
+    ['after a message, above the fragment after it', { kind: 'add_fragment', fragmentKind: 'loop', label: 'l', afterMessage: 1 }, '  B->>C: two\n  loop l\n  end\n  alt ok\n'],
+    ['moved, contents and all, after a later message', { kind: 'move_fragment', index: 0, afterMessage: 2 }, '  A->>B: four\n  alt ok\n    C->>A: three\n  end\n'],
+  ] as const)('a top-level fragment placed %s is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(TOP), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    expect(serializeMermaid(sequence(output))).toBe(output)
+    expect(describeMermaidFacts(sequence(output))).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidStream(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(edited.body))
+  })
+
+  test.each([
+    ['both anchors', { kind: 'add_fragment', fragmentKind: 'opt', afterMessage: 0, beforeMessage: 1 }, 'Give a fragment afterMessage or beforeMessage, not both'],
+    ['an index and an anchor', { kind: 'add_fragment', fragmentKind: 'opt', index: 0, afterMessage: 0 }, 'Give a fragment index, afterMessage or beforeMessage, not more than one'],
+    ['an anchor past the top-level messages', { kind: 'add_fragment', fragmentKind: 'opt', afterMessage: 3 }, 'No top-level message at index 3 (0..2)'],
+    ['an anchor past the branch messages', { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'opt', beforeMessage: 1 }, 'No message at index 1 in this fragment branch (0..0)'],
+    ['a move both anchors', { kind: 'move_fragment', index: 0, afterMessage: 0, beforeMessage: 1 }, 'Give a fragment afterMessage or beforeMessage, not both'],
+    ['a move past the top-level messages', { kind: 'move_fragment', index: 0, beforeMessage: -1 }, 'No top-level message at index -1 (0..2)'],
+    ['a move above the create its fragment needs', { kind: 'move_fragment', index: 0, beforeMessage: 0 }, 'This edit would leave sequence source Mermaid rejects'],
+  ] as const)('a fragment op giving %s is refused with the valid range and changes nothing', (_name, op, message) => {
+    const parsed = sequence(TOP)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(message) })
+    expect(serializeMermaid(parsed)).toBe(TOP)
   })
 })
 

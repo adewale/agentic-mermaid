@@ -170,6 +170,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   or note (a nested `rect` the renderer reads no color for, a note the typed
   writer cannot spell, a `box` holding more than declarations) or when it
   nests past the host limit of 64, which the verify warning now says.
+- `add_fragment` takes `afterMessage` or `beforeMessage`, anchoring the new
+  fragment to a message as `add_note` anchors a note: a top-level message
+  index (`message#N op index K`), or with `fragmentPath` an index among that
+  branch's messages. The fragment goes right after the message and the notes
+  under it, or right above the message and the `create`/`destroy` lines bound
+  to it. New `move_fragment` moves a fragment, contents and all, to such an
+  anchor in its own scope (appended without one). Giving both anchors, an
+  anchor with `index`, or an anchor out of range is refused with
+  `INVALID_OP` naming the valid range.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

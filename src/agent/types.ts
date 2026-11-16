@@ -1456,7 +1456,12 @@ export type SequenceMutationOp =
   // scope: the top level, or with `fragmentPath` the branch its steps reach
   // (each step picks a fragment of the current scope and one of its
   // branches). Facts state each fragment's, message's and note's address.
-  | { kind: 'add_fragment'; fragmentPath?: SequenceFragmentStep[]; fragmentKind: SequenceFragmentKind; label?: string; index?: number }
+  // `index` places a new fragment before fragment `index` of its scope;
+  // `afterMessage`/`beforeMessage` anchor it to a message of that scope as
+  // a note is anchored (with `fragmentPath`, a branch message index).
+  // move_fragment moves a fragment, contents and all, within its scope.
+  | { kind: 'add_fragment'; fragmentPath?: SequenceFragmentStep[]; fragmentKind: SequenceFragmentKind; label?: string; index?: number; afterMessage?: number; beforeMessage?: number }
+  | { kind: 'move_fragment'; fragmentPath?: SequenceFragmentStep[]; index: number; afterMessage?: number; beforeMessage?: number }
   | { kind: 'remove_fragment'; fragmentPath?: SequenceFragmentStep[]; index: number }
   | { kind: 'set_fragment_label'; fragmentPath?: SequenceFragmentStep[]; index: number; label: string | null }
   | { kind: 'add_fragment_branch'; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; label?: string }
