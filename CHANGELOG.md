@@ -69,8 +69,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   several statements and `:::` classes edit locally. A new edge that is a
   node's first mention keeps the node's label on its declaration line. Nested
   namespaces and a class annotated on one line edit locally. A fallback whose
-  closest candidate has the edit's facts (a state note left before the state's
-  only transition) says so.
+  closest candidate has the edit's facts says so. A state note written after
+  its state's first mention, when the edit removes that mention (`[*] --> S`
+  before `note right of S`), moves verbatim past the line or composite that
+  now names the state first instead of falling back; left in place it would
+  declare the state there, which both our reader and Mermaid 12.2.0 read
+  differently. A fallback whose closest candidate writes the edited statements
+  in another order names the facts it reads otherwise.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

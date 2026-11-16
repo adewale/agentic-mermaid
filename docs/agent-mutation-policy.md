@@ -200,9 +200,21 @@ as the edited block. A declaration whose label the writer would move onto a
 new statement that now mentions it first keeps its line, and the new statement
 names it bare (`n0[Zero]` stays and the edge is written `n0 --> n1`).
 
-Typical fallbacks: a kept line whose position changes what it declares (a
-state note left before the state's only remaining transition declares the
-state there; the receipt says the closest candidate has the edit's facts), an
+A kept line stays after the first mention it was written after. When the
+closest candidate still misreads a name and the edit removed every earlier
+line naming it, the statement on the first kept line naming it moves verbatim,
+with every line it is read from, to just after the next line naming it (past
+that line's authored block, within the same block). Removing `[*] --> S`
+before `note right of S` would otherwise leave the note to declare `S` where
+it stands, which our reader and Mermaid 12.2.0 both read differently from the
+canonical edit; the note instead follows `S --> T`, or the composite whose
+body now names `S` first.
+
+Typical fallbacks: a move that would reorder kept statements (a note on `S`
+that would have to follow `S --> T` past a note that declares `T` there; the
+receipt names the facts the closest candidate reads otherwise), a kept line
+whose reading depends on what precedes it and that no pass traces (a
+flowchart `click B` whose only earlier mention of `B` the edit removes), an
 edit that empties a family below its grammar floor, a canonical difference
 beyond the diff budget, and edits to wrappers the canonical writer does not
 own. The receipt names the reason (the statement that could not be traced or

@@ -291,6 +291,35 @@ const INLINE_ANNOTATION = `classDiagram
   class Shape <<interface>>
 `
 
+// Notes written after their state's first mention, which the edit removes:
+// a note left first would declare its state where it stands.
+const NOTED_STATE = `stateDiagram-v2
+  %% keep
+  [*] --> S
+  note right of S
+    noted
+  end note
+  S --> T
+`
+
+const NOTED_NEIGHBOUR = `stateDiagram-v2
+    X --> S
+    note left of S
+      waiting
+      here
+    end note
+  A --> B
+    S --> T
+`
+
+const NOTED_BEFORE_COMPOSITE = `stateDiagram-v2
+  [*] --> S
+  note right of S : noted
+  state C {
+    S --> T
+  }
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -391,6 +420,9 @@ const CASES: Case[] = [
   { name: 'flowchart add_edge from a node declared on its own line keeps its label there', source: DECLARED_FIRST, op: { kind: 'add_edge', from: 'n0', to: 'n1' }, reference: [['  n2 --> n1\n', '  n2 --> n1\n  n0 --> n1\n']] },
   { name: 'class remove_class from a nested namespace', source: NESTED_NAMESPACES, op: { kind: 'remove_class', id: 'UserService' }, touched: ['        namespace Auth {', '            class UserService {', '                +login()', '            }', '        }', '    Gateway --> UserService : delegates'], reference: [['        namespace Auth {\n            class UserService {\n                +login()\n            }\n        }\n', ''], ['    Gateway --> UserService : delegates\n', '']] },
   { name: 'class add_member to a class written with its annotation on one line', source: INLINE_ANNOTATION, op: { kind: 'add_member', class: 'Shape', text: '+int added' }, touched: ['  class Shape <<interface>>'], reference: [['  class Shape <<interface>>\n', '  class Shape {\n    <<interface>>\n    +int added\n  }\n']] },
+  { name: 'state remove_transition moves a note past the line that now names its state first', source: NOTED_STATE, op: { kind: 'remove_transition', index: 0 }, touched: ['  [*] --> S', '  note right of S', '    noted', '  end note'], reference: [['  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n', '  S --> T\n  note right of S\n    noted\n  end note\n']] },
+  { name: 'state remove_state of a neighbour moves the note on the state it named past a transition between', source: NOTED_NEIGHBOUR, op: { kind: 'remove_state', id: 'X' }, touched: ['    X --> S', '    note left of S', '      waiting', '      here', '    end note'], reference: [['    X --> S\n    note left of S\n      waiting\n      here\n    end note\n', ''], ['    S --> T\n', '    S --> T\n    note left of S\n      waiting\n      here\n    end note\n']] },
+  { name: 'state remove_transition moves a note past the composite that now names its state first', source: NOTED_BEFORE_COMPOSITE, op: { kind: 'remove_transition', from: '[*]', to: 'S' }, touched: ['  [*] --> S', '  note right of S : noted'], reference: [['  [*] --> S\n  note right of S : noted\n', ''], ['    S --> T\n  }\n', '    S --> T\n  }\n  note right of S : noted\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -469,14 +501,13 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read!.ok).toBe(true)
   }, 20_000)
 
-  // A kept line whose position changes what it declares: with `[*] --> S`
-  // gone, the note left before `S --> T` would declare S on its own, which
-  // Mermaid draws differently, so the edit falls back and the receipt says
-  // the closest candidate has the edit's facts.
-  test('a state note left before its state\'s only transition falls back with a named reason', () => {
-    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n'
+  // A note that must stay first (it declares T) and one that would have to
+  // move past it: no local change keeps the notes in order, and the receipt
+  // names the facts the closest candidate reads otherwise.
+  test('a state edit that would reorder notes falls back with a named reason', () => {
+    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S : one\n  note left of T : two\n  S --> T\n'
     const result = applyOps({ source, ops: [{ kind: 'remove_transition', index: 0 }], mode: 'source-preserving' })
     if (!result.ok) throw new Error(JSON.stringify(result.error))
-    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change has the edit\'s facts but also reads "S"' })
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change writes the edited statements, but reads "note#0 left of T : two" and 1 more where the edit has "note#0 right of S : one" and 1 more' })
   })
 })

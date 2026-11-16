@@ -37,6 +37,12 @@
 // statement keeps its line, and the new statement names it bare. A brace
 // opener the parser does not accept empty (a namespace) is read as a block,
 // and a block written on one line is rewritten there as the edited block.
+//
+// A last pass keeps each kept line after the first mention it was written
+// after. When a closer candidate misreads a name and the edit removed every
+// earlier line naming it, the statement on the first kept line naming it
+// (`note right of S` once `[*] --> S` goes, which would declare S where it
+// stands) moves verbatim to just after the next line naming it.
 // The caller otherwise writes the canonical source and says why: the closest
 // candidate's misreading, or the statement that could not be placed.
 // ============================================================================
@@ -702,6 +708,10 @@ interface Variant {
    * canonical statement is not in, and write the statements of a rewritten
    * line together in canonical order. */
   readonly residual?: boolean
+  /** First-mention pass: names a closer candidate misread. A kept line left
+   * as the first mention of such a name, whose earlier mentions the edit
+   * removed, moves after the next line that names it. */
+  readonly follow?: ReadonlySet<string>
 }
 const VARIANTS: readonly Variant[] = [
   ...[false, true].flatMap(loose => [true, false].flatMap(splice => [true, false].map(previous => ({ splice, loose, previous, move: false, pair: true })))),
@@ -1131,7 +1141,76 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     }
   }
   for (const where of ['before', 'after'] as const) for (const [line, list] of placed[where]) plan[where].set(line, list.map(([, text]) => text))
+  if (variant.follow && parts && nesting) followFirstMentions(lines, c0, c1, plan, { gone, rewritten, roles, partsOf, placed, nesting }, variant.follow, reader)
   return plan
+}
+
+/**
+ * First-mention pass: a line the author wrote after a name's first mention
+ * stays after it. When the edit removes every earlier line naming a name a
+ * closer candidate misread (`[*] --> S` before `note right of S`), the
+ * statement the first kept line naming it reads (the note, every line it is
+ * read from) moves verbatim to just after the next kept line naming it, past
+ * that line's authored block, within the same block. A note left first
+ * would declare its state there instead.
+ */
+function followFirstMentions(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], plan: Plan, { gone, rewritten, roles, partsOf, placed, nesting }: {
+  gone: ReadonlySet<number>
+  rewritten: ReadonlySet<number>
+  roles: ReadonlyMap<number, readonly number[]>
+  partsOf: (index: number) => readonly number[]
+  placed: { readonly before: ReadonlyMap<number, ReadonlyArray<[number, string]>>; readonly after: ReadonlyMap<number, ReadonlyArray<[number, string]>> }
+  nesting: NonNullable<Trace['nesting']>
+}, names: ReadonlySet<string>, reader: LineReader): void {
+  const words = (statement: string) => new Set(statement.match(WORDS) ?? [])
+  const removedWords = new Set([...gone].flatMap(index => [...words(c0[index]!)]))
+  const lineWords = lines.map((_, line) => new Set((roles.get(line) ?? []).flatMap(index => [...words(c0[index]!)])))
+  const written = (line: number) => [...placed.before.get(line) ?? [], ...placed.after.get(line) ?? []]
+  for (const name of names) {
+    if (!removedWords.has(name)) continue
+    const naming = lines.flatMap((_, line) => line > 0 && lineWords[line]!.has(name) ? [line] : [])
+    const first = naming.find(line => !plan.removed.has(line))
+    // The earliest mention is kept, or a new statement names it first.
+    if (first === undefined || first === naming[0] || lines.slice(0, first + 1).some((_, line) => written(line).some(([index]) => words(c1[index]!).has(name)))) continue
+    const unit = statementAt(lines, c0, first, { roles, partsOf, nesting }, reader)
+    if (!unit) continue
+    const [from, to] = unit, moving = Array.from({ length: to - from + 1 }, (_, offset) => from + offset)
+    const statements = moving.flatMap(line => roles.get(line) ?? [])
+    if (statements.some(index => gone.has(index) || rewritten.has(index)) || moving.some(line => plan.removed.has(line) || plan.text.has(line) || written(line).length)) continue
+    // The next line naming it, or the authored block holding that line.
+    let next = naming.find(line => line > to && !plan.removed.has(line)) ?? -1
+    while (next >= 0 && nesting.enclosing[next] !== nesting.enclosing[from]) next = nesting.enclosing[next]!
+    if (next < 0) continue
+    const anchor = nesting.closer.get(next) ?? next
+    if (plan.removed.has(anchor)) continue
+    for (const line of moving) plan.removed.add(line)
+    plan.after.set(anchor, [...moving.map(line => lines[line]!.text), ...plan.after.get(anchor) ?? []])
+  }
+}
+
+/** The authored lines [from, to] of the whole statement read from `line`:
+ * every line its statements are read from, the closers of blocks they open,
+ * and the lines after them until the run reads alone as exactly what its
+ * lines are read as (a block note's body lines and `end note`). */
+function statementAt(lines: readonly AuthoredLine[], c0: readonly string[], line: number, { roles, partsOf, nesting }: {
+  roles: ReadonlyMap<number, readonly number[]>
+  partsOf: (index: number) => readonly number[]
+  nesting: NonNullable<Trace['nesting']>
+}, reader: LineReader): [number, number] | undefined {
+  const parts = (roles.get(line) ?? []).flatMap(index => [...partsOf(index)])
+  if (!parts.length) return undefined
+  const from = Math.min(line, ...parts)
+  let to = Math.max(line, ...parts)
+  for (let step = 0; step <= MAX_SPLIT_LINES && to < lines.length; step++) {
+    const unit = Array.from({ length: to - from + 1 }, (_, offset) => from + offset)
+    const closer = Math.max(-1, ...unit.map(at => nesting.closer.get(at) ?? -1))
+    if (closer > to) { to = closer; continue }
+    const reading = reader.isolated(unit.map(at => lines[at]!.text).join('\n').trim())
+    const reads = (at: number) => (roles.get(at) ?? []).some(index => reading?.has(c0[index]!.trim()))
+    if (reading && unit.every(at => (roles.get(at) ?? []).every(index => reading.has(c0[index]!.trim()))) && !reads(to + 1)) return [from, to]
+    to++
+  }
+  return undefined
 }
 
 /** The authored step between nesting levels: a tab, or the smallest indent. */
@@ -1194,6 +1273,8 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     return diffs.get(loose)
   }
   let unplanned: string | undefined, closest: { size: number; reason: string } | undefined
+  // The names in statements a rejected candidate gains or lacks.
+  const misread = new Set<string>()
   const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[]): { source: string; diagram: ParsedDiagram } | undefined => {
     unplanned = undefined
     // The candidate that rewrites the fewest authored lines is read first, so
@@ -1215,6 +1296,7 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
       const parsed = parseRegisteredMermaid(source)
       if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return { source, diagram: parsed.value }
       const miss = misreading(parsed, c1, facts)
+      for (const name of miss.names) misread.add(name)
       if (!closest || miss.size < closest.size) closest = miss
     }
     return undefined
@@ -1224,10 +1306,17 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     // removed as one authored line, and redeclared statements and blocks are
     // traced to every line they are read from.
     const joined = joinSplitValues(lines, c0, reader)
-    return attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
-      // Block members are traced to the lines inside their authored block,
-      // and new statements are placed by the authored block structure.
-      ?? attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true, true), RESIDUAL_VARIANTS)
+    const structural = attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
+    if (structural) return structural
+    // Block members are traced to the lines inside their authored block,
+    // and new statements are placed by the authored block structure.
+    const residual = traceOwners(wrapper, joined, c0, before, reader, true, true)
+    const placed = attempt(joined, residual, RESIDUAL_VARIANTS)
+    if (placed || !misread.size) return placed
+    // A kept line the edit leaves as the first mention of a misread name
+    // moves after the next line that names it.
+    const follow = new Set(misread)
+    return attempt(joined, residual, RESIDUAL_VARIANTS.map(variant => ({ ...variant, follow })))
   })()
   if (projected) return ok(projected)
   if (closest) return err(`no local change to the authored source reads back as the edited diagram: ${closest.reason}`)
@@ -1239,11 +1328,13 @@ const quote = (statement: string) => JSON.stringify(statement.trim().length > 60
 
 /** How a rejected candidate reads differently from the edit: a parse
  * failure, else the canonical statements it gains and lacks, saying when it
- * has the edit's facts (a kept line now declares something where it stands). */
-function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string } {
-  if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})` }
+ * has the edit's facts (a kept line now declares something where it stands),
+ * else the facts it reads otherwise (statements in another order); and the
+ * names in the statements it gains and lacks. */
+function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string; names: readonly string[] } {
+  if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})`, names: [] }
   const found = statements(parsed.value)
-  if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram` }
+  if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram`, names: [] }
   const spell = (line: string) => line.replace(/\s+/g, '')
   const tally = (values: readonly string[]) => {
     const result = new Map<string, { text: string; count: number }>()
@@ -1254,9 +1345,15 @@ function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: strin
   const left = (a: typeof got, b: typeof got) => [...a].flatMap(([key, { text, count }]) => Array.from({ length: Math.max(0, count - (b.get(key)?.count ?? 0)) }, () => text))
   const extra = left(got, want), missing = left(want, got)
   const list = (values: readonly string[]) => `${quote(values[0]!)}${values.length > 1 ? ` and ${values.length - 1} more` : ''}`
-  if (!extra.length && !missing.length) return { size: 0, reason: 'the closest local change writes the edited statements, but they read with different order, metadata or facts' }
+  const foundFacts = describeMermaidFacts(parsed.value)
+  if (!extra.length && !missing.length) {
+    // The facts carry every ordered meaning: name the first that differs.
+    const gained = foundFacts.filter(fact => !facts.includes(fact)), lost = facts.filter(fact => !foundFacts.includes(fact))
+    const reason = gained.length && lost.length ? `the closest local change writes the edited statements, but reads ${list(gained)} where the edit has ${list(lost)}` : 'the closest local change writes the edited statements, but they read with different order, metadata or facts'
+    return { size: 0, reason, names: [] }
+  }
   const sorted = (values: readonly string[]) => [...values].sort()
-  const closest = sameSourceMeaning(sorted(describeMermaidFacts(parsed.value)), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
+  const closest = sameSourceMeaning(sorted(foundFacts), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
   const reason = !missing.length ? `${closest} also reads ${list(extra)}` : !extra.length ? `${closest} lacks ${list(missing)}` : `${closest} reads ${list(extra)} where the edit has ${list(missing)}`
-  return { size: extra.length + missing.length, reason }
+  return { size: extra.length + missing.length, reason, names: [...extra, ...missing].flatMap(line => line.match(WORDS) ?? []) }
 }
