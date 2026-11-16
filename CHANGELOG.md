@@ -82,8 +82,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   and `click B …` verbatim past `B --> C`, and removing `A <|-- B` moves
   `style B …` past `B --> C`. Such edits used to stay local while
   Mermaid 12.2.0 dropped the class, style or link, or fell back for a
-  `click`. A local candidate that would leave one there (a new `class D` next
-  to a classDef above D) falls back instead.
+  `click`. A new statement that would stand there is written after what it
+  needs instead of falling back: `class D hot` added beside a classDef above D
+  follows D's first mention (past a subgraph's `end`), a new Class `style` or
+  `cssClass` follows its class, and a new Class classDef follows the
+  `cssClass` that gives a class its style class. A kept Class classDef that a
+  new `cssClass` would leave before the class it styles stays where the
+  `cssClass` can be written between the class and it; otherwise it moves
+  verbatim to just after the `cssClass`. Such a move never passes a statement
+  Mermaid reads in order with it (another classDef or a `style` the canonical
+  edit writes after it), which falls back. The fallback reason for a classDef
+  says it stands before the class's style-class assignment, not before its
+  first mention.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the

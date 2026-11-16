@@ -394,6 +394,47 @@ const LINKED_CLASS = `classDiagram
   B --> C
 `
 
+// New statements whose canonical neighbour stands before what they need: a
+// classDef written above the node or class they style. Mermaid would ignore
+// them there, so they follow what they need, or the kept classDef follows
+// the new statement that gives a class its style class.
+const CLASSDEF_ABOVE_NODES = `flowchart LR
+  classDef hot fill:#f96
+  A --> B
+  B --> C
+  C --> D
+`
+
+const CLASSDEF_ABOVE_SUBGRAPH = 'flowchart TD\n\tclassDef hot fill:#f96\n\tsubgraph S\n\t\tA --> D\n\tend\n\tD --> E\n'
+
+const CLASSDEF_ABOVE_CLASS = `classDiagram
+  classDef hot fill:#f96
+  class B {
+    +int x
+  }
+  B --> C
+`
+
+// B is declared between two classDefs: a new cssClass can stand after B and
+// before the classDef it uses.
+const CLASSDEFS_AROUND_CLASS = `classDiagram
+  classDef cool fill:#0f0
+  class B
+  classDef hot fill:#f96
+  class C
+`
+
+const STYLE_CLASS_BEFORE_DEF = `classDiagram
+  classDef cool fill:#0f0
+  class B
+  cssClass "B" hot
+`
+
+const CLASSDEF_ABOVE_RELATION = `classDiagram
+  classDef hot fill:#f96
+  A <|-- B
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -512,6 +553,12 @@ const CASES: Case[] = [
   { name: 'flowchart remove_edge moves a class naming two nodes and a click, in order, past the next line naming the node', source: CLASSED_AND_LINKED, op: { kind: 'remove_edge', id: 'A->B' }, touched: ['    A --> B', '  class B,C hot', '    click B href "https://example.com"'], reference: [['    A --> B\n  class B,C hot\n    click B href "https://example.com"\n  B --> C\n', '  B --> C\n  class B,C hot\n    click B href "https://example.com"\n  A[A]\n']] },
   { name: 'class remove_relation moves a style and cssClass, in order, past the line that now names their class first', source: STYLED_CLASS, op: { kind: 'remove_relation', index: 0 }, touched: ['  A <|-- B', '  style B fill:#f96', '  cssClass "B" hot'], reference: [['  A <|-- B\n  style B fill:#f96\n  cssClass "B" hot\n  B --> C\n', '  class A\n  B --> C\n  style B fill:#f96\n  cssClass "B" hot\n']] },
   { name: 'class remove_class moves a link past the line that now names its class first', source: LINKED_CLASS, op: { kind: 'remove_class', id: 'A' }, touched: ['  A <|-- B', '  link B "https://example.com" "tip"'], reference: [['  A <|-- B\n  link B "https://example.com" "tip"\n  B --> C\n', '  B --> C\n  link B "https://example.com" "tip"\n']] },
+  { name: 'flowchart set_node_class beside a classDef above the node is written after the node\'s first mention', source: CLASSDEF_ABOVE_NODES, op: { kind: 'set_node_class', id: 'C', className: 'hot' }, reference: [['  B --> C\n', '  B --> C\n  class C hot\n']] },
+  { name: 'flowchart set_node_class of a node first named in a subgraph is written after its end, indented like it', source: CLASSDEF_ABOVE_SUBGRAPH, op: { kind: 'set_node_class', id: 'D', className: 'hot' }, reference: [['\tend\n', '\tend\n\tclass D hot\n']] },
+  { name: 'class set_css_class moves the classDef above the class verbatim after the new cssClass', source: CLASSDEF_ABOVE_CLASS, op: { kind: 'set_css_class', class: 'B', className: 'hot' }, touched: ['  classDef hot fill:#f96'], reference: [['  classDef hot fill:#f96\n', ''], ['  B --> C\n', '  B --> C\n  cssClass "B" hot\n  classDef hot fill:#f96\n']] },
+  { name: 'class set_css_class is written after its class and before the classDef it uses', source: CLASSDEFS_AROUND_CLASS, op: { kind: 'set_css_class', class: 'B', className: 'hot' }, reference: [['  class B\n', '  class B\n  cssClass "B" hot\n']] },
+  { name: 'class define_class is written after the cssClass that gives a class its style class', source: STYLE_CLASS_BEFORE_DEF, op: { kind: 'define_class', name: 'hot', style: 'fill:#f96' }, reference: [['  cssClass "B" hot\n', '  cssClass "B" hot\n  classDef hot fill:#f96\n']] },
+  { name: 'class set_class_style beside a classDef above the class is written after the class\'s first mention', source: CLASSDEF_ABOVE_RELATION, op: { kind: 'set_class_style', class: 'B', style: 'fill:#0f0' }, reference: [['  A <|-- B\n', '  A <|-- B\n  style B fill:#0f0\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -590,17 +637,18 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read!.ok).toBe(true)
   }, 20_000)
 
-  // A new statement whose authored neighbour stands before the entity it
-  // needs: next to a classDef above D, `class D hot` would stand before D,
-  // and a cssClass after the classDef it uses, both of which Mermaid ignores
-  // there. No local change places them after it, so the edit falls back.
+  // A kept classDef that must follow a new cssClass, but would pass a
+  // statement Mermaid reads in order with it: another classDef or a `style`
+  // the canonical edit writes after it (the later one wins). Moving it would
+  // change what Mermaid draws while our reader sees the same diagram, so
+  // the edit falls back, naming the line that gives the class its style class.
   test.each([
-    ['flowchart TD\n  classDef hot fill:#f96\n  A --> D\n', { kind: 'set_node_class', id: 'D', className: 'hot' }, '"class D hot" before the first mention of D'],
-    ['classDiagram\n  classDef hot fill:#f96\n  class B\n', { kind: 'set_css_class', class: 'B', className: 'hot' }, '"classDef hot fill:#f96" before the first mention of B'],
-  ] as const)('a new statement that would stand before its entity falls back: %j', (source, op, left) => {
-    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    ['classDiagram\n  classDef hot fill:#f96\n  classDef cool fill:#0f0\n  class B\n', [{ kind: 'set_css_class', class: 'B', className: 'hot' }], 'B'],
+    ['classDiagram\n  classDef hot fill:#f96\n  class C\n  style C fill:#000\n  class B\n', [{ kind: 'set_css_class', class: 'B', className: 'hot' }, { kind: 'set_css_class', class: 'C', className: 'hot' }], 'C'],
+  ] as const)('a classDef that cannot follow the new cssClass it needs falls back: %j', (source, ops, name) => {
+    const result = applyOps({ source, ops: [...ops], mode: 'source-preserving' })
     if (!result.ok) throw new Error(JSON.stringify(result.error))
-    expect(result.preservation).toEqual({ method: 'canonical', reason: `no local change to the authored source reads back as the edited diagram: the closest local change leaves ${left}, where Mermaid 12.2.0 ignores it` })
+    expect(result.preservation).toEqual({ method: 'canonical', reason: `no local change to the authored source reads back as the edited diagram: the closest local change leaves "classDef hot fill:#f96" before ${name}'s style-class assignment, where Mermaid 12.2.0 ignores it` })
   })
 
   // A note that must stay first (it declares T) and one that would have to

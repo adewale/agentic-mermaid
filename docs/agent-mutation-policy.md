@@ -221,12 +221,31 @@ where it exists move with it, in order: removing `A --> B` before
 read as nothing alone (a flowchart `click B` with no `B` before it) is traced
 by its reading after the earlier lines that share a word with it.
 
+A new statement written beside its canonical neighbour can stand before what
+it needs, where Mermaid 12.2.0 ignores it: `class D hot` beside a classDef
+written above `D`, or a new Class classDef before the `cssClass "B" hot` that
+gives `B` its style class. When no other candidate reads back, a placement
+pass writes it at the earliest place after what it needs, within the block
+it was placed in and indented like the line it now follows: after the next
+line naming the entity (past that line's authored block), and for a classDef
+after the next line that gives the class its style class. A kept Class
+classDef that a new `cssClass` leaves before the class it styles stays when
+the `cssClass` can be written after the class and before it; otherwise the
+classDef moves verbatim to just after the `cssClass`. No such move passes a
+statement Mermaid reads in order with the one moved: one sharing a word with
+it, one that applies only to an existing entity, or, for a statement that
+applies so, one sharing a word with another statement on the same entity (a
+`style B` and the classDef of `B`'s style class: the later one wins). Each
+round reads the closest candidates' premature statements (the family's
+`existingTargets`) and places them; it runs only after every other pass
+failed, at most four rounds.
+
 Typical fallbacks: a move that would reorder kept statements (a note on `S`
 that would have to follow `S --> T` past a note that declares `T` there; the
-receipt names the facts the closest candidate reads otherwise), a new
-statement that would stand before the entity it applies to (`class D hot`
-beside a classDef written above `D`, or a `cssClass` after the classDef it
-uses; the receipt names the statement), an
+receipt names the facts the closest candidate reads otherwise), a classDef
+that would have to pass another classDef or a `style` to follow the new
+`cssClass` it needs (the receipt names the classDef and the class whose
+style-class assignment it would precede), an
 edit that empties a family below its grammar floor, a canonical difference
 beyond the diff budget, and edits to wrappers the canonical writer does not
 own. The receipt names the reason (the statement that could not be traced or
