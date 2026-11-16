@@ -13,56 +13,64 @@
 
 export type CycleLayerConstraint = 'NONE' | 'FIRST' | 'FIRST_SEPARATE' | 'LAST' | 'LAST_SEPARATE'
 
-export interface CycleNode {
-  ports: CyclePort[]
+export interface CycleNode<Port> {
+  ports: Port[]
   cycleIndex?: number
   modelOrder?: number
   layerConstraint?: CycleLayerConstraint
   cycleBreakingGroupId?: number
 }
 
-export interface CyclePort {
-  node: CycleNode
-  incoming: CycleEdge[]
-  outgoing: CycleEdge[]
+export interface CyclePort<Node, Edge> {
+  node: Node
+  incoming: Edge[]
+  outgoing: Edge[]
 }
 
-export interface CycleEdge {
-  source: CyclePort
-  target: CyclePort
+export interface CycleEdge<Port> {
+  source: Port
+  target: Port
   priorityDirection: number
 }
 
-export interface CycleGraph {
-  nodes: CycleNode[]
+export interface CycleGraph<
+  Node extends CycleNode<CyclePort<Node, Edge>>,
+  Edge extends CycleEdge<CyclePort<Node, Edge>>,
+> {
+  nodes: Node[]
   random: { nextInt(bound: number): number }
   cyclic: boolean
-  reverseEdge(edge: CycleEdge): void
+  reverseEdge(edge: Edge): void
 }
 
-export interface ModelOrderCycleGraph extends CycleGraph {
+export interface ModelOrderCycleGraph<
+  Node extends CycleNode<CyclePort<Node, Edge>>,
+  Edge extends CycleEdge<CyclePort<Node, Edge>>,
+> extends CycleGraph<Node, Edge> {
   maxModelOrderNodes: number
   modelOrderGroupCount: number
   enforceGroupModelOrder: boolean
 }
+
+type ModelOrderNode = Pick<CycleNode<unknown>, 'layerConstraint' | 'modelOrder' | 'cycleBreakingGroupId'>
 
 /**
  * GreedyCycleBreaker.process/updateNeighbors, ELK v0.11.0
  * (54123e884b1ae743b453260f713b20c9bf5787f2), with published elkjs 0.11.1
  * GWT arithmetic. The caller owns edge reversal, including collector ports.
  */
-export function breakGreedyCycles(graph: CycleGraph): void {
+export function breakGreedyCycles<Node extends CycleNode<CyclePort<Node, Edge>>, Edge extends CycleEdge<CyclePort<Node, Edge>>>(graph: CycleGraph<Node, Edge>): void {
   runGreedyCycleBreaker(graph, nodes => nodes[graph.random.nextInt(nodes.length)]!)
 }
 
-function runGreedyCycleBreaker(graph: CycleGraph, chooseNodeWithMaxOutflow: (nodes: CycleNode[]) => CycleNode): void {
+function runGreedyCycleBreaker<Node extends CycleNode<CyclePort<Node, Edge>>, Edge extends CycleEdge<CyclePort<Node, Edge>>>(graph: CycleGraph<Node, Edge>, chooseNodeWithMaxOutflow: (nodes: Node[]) => Node): void {
   const nodes = graph.nodes
   let unprocessedNodeCount = nodes.length
   const indeg: number[] = new Array(unprocessedNodeCount).fill(0)
   const outdeg: number[] = new Array(unprocessedNodeCount).fill(0)
   const mark: number[] = new Array(unprocessedNodeCount).fill(0)
-  const sources: CycleNode[] = []
-  const sinks: CycleNode[] = []
+  const sources: Node[] = []
+  const sinks: Node[] = []
   let sourceHead = 0
   let sinkHead = 0
 
@@ -86,7 +94,7 @@ function runGreedyCycleBreaker(graph: CycleGraph, chooseNodeWithMaxOutflow: (nod
     index++
   }
 
-  function updateNeighbor(node: CycleNode, port: CyclePort, edge: CycleEdge): void {
+  function updateNeighbor(node: Node, port: CyclePort<Node, Edge>, edge: Edge): void {
     const connectedPort = edge.source === port ? edge.target : edge.source
     const endpoint = connectedPort.node
     if (node === endpoint) return
@@ -104,7 +112,7 @@ function runGreedyCycleBreaker(graph: CycleGraph, chooseNodeWithMaxOutflow: (nod
     }
   }
 
-  function updateNeighbors(node: CycleNode): void {
+  function updateNeighbors(node: Node): void {
     for (const port of node.ports) {
       for (const edge of port.incoming) updateNeighbor(node, port, edge)
       for (const edge of port.outgoing) updateNeighbor(node, port, edge)
@@ -113,7 +121,7 @@ function runGreedyCycleBreaker(graph: CycleGraph, chooseNodeWithMaxOutflow: (nod
 
   let nextRight = -1
   let nextLeft = 1
-  const maxNodes: CycleNode[] = []
+  const maxNodes: Node[] = []
   while (unprocessedNodeCount > 0) {
     while (sinkHead < sinks.length) {
       const sink = sinks[sinkHead++]!
@@ -174,7 +182,7 @@ class GroupModelOrderCalculator {
   private firstSeparateNodes = 0
   private lastSeparateNodes = 0
 
-  private constraintOrder(node: CycleNode, offset: number): number {
+  private constraintOrder(node: ModelOrderNode, offset: number): number {
     switch (node.layerConstraint) {
       case 'FIRST_SEPARATE': {
         const modelOrder = 2 * -offset + this.firstSeparateNodes
@@ -195,13 +203,13 @@ class GroupModelOrderCalculator {
     }
   }
 
-  computeConstraintModelOrder(node: CycleNode, offset: number): number {
+  computeConstraintModelOrder(node: ModelOrderNode, offset: number): number {
     let modelOrder = this.constraintOrder(node, offset)
     if (node.modelOrder !== undefined) modelOrder += node.modelOrder
     return modelOrder
   }
 
-  computeConstraintGroupModelOrder(node: CycleNode, offset: number, smallOffset: number): number {
+  computeConstraintGroupModelOrder(node: ModelOrderNode, offset: number, smallOffset: number): number {
     let modelOrder = this.constraintOrder(node, offset)
     if (node.modelOrder !== undefined) modelOrder += (node.cycleBreakingGroupId ?? 0) * smallOffset + node.modelOrder
     return modelOrder
@@ -214,8 +222,8 @@ class GroupModelOrderCalculator {
 }
 
 /** ModelOrderCycleBreaker.process from the same pinned ELK source. */
-export function breakModelOrderCycles(graph: ModelOrderCycleGraph): void {
-  const reversedEdges: CycleEdge[] = []
+export function breakModelOrderCycles<Node extends CycleNode<CyclePort<Node, Edge>>, Edge extends CycleEdge<CyclePort<Node, Edge>>>(graph: ModelOrderCycleGraph<Node, Edge>): void {
+  const reversedEdges: Edge[] = []
   const offset = Math.max(graph.nodes.length, graph.maxModelOrderNodes)
   const bigOffset = offset * graph.modelOrderGroupCount
   const enforceGroupModelOrder = graph.enforceGroupModelOrder
@@ -242,9 +250,9 @@ export function breakModelOrderCycles(graph: ModelOrderCycleGraph): void {
 }
 
 /** GreedyModelOrderCycleBreaker.chooseNodeWithMaxOutflow from the same source. */
-export function breakGreedyModelOrderCycles(graph: ModelOrderCycleGraph): void {
+export function breakGreedyModelOrderCycles<Node extends CycleNode<CyclePort<Node, Edge>>, Edge extends CycleEdge<CyclePort<Node, Edge>>>(graph: ModelOrderCycleGraph<Node, Edge>): void {
   runGreedyCycleBreaker(graph, nodes => {
-    let returnNode: CycleNode | null = null
+    let returnNode: Node | null = null
     let minimumModelOrder = 2147483647
     const offset = Math.max(graph.nodes.length, graph.maxModelOrderNodes)
     const bigOffset = offset * graph.modelOrderGroupCount

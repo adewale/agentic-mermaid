@@ -274,7 +274,7 @@ function prepareLayout(nodes: LayoutNode[], graph: LayoutGraph, random: Random, 
   const loops = preprocessSelfLoops(nodes, state.options)
   const feedback = booleanOption(state.options, 'layered.feedbackEdges', false)
   if (feedback) assignPortSides(nodes)
-  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: import('./cycle-breaking.ts').CycleEdge) => reverseEdge(edge as import('./graph.ts').LayoutEdge, true), maxModelOrderNodes: graph.maxModelOrderNodes!, modelOrderGroupCount: graph.modelOrderGroupCount!, enforceGroupModelOrder: enumOption(state.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
+  const cycleGraph = { nodes, random, cyclic: false, reverseEdge: (edge: LayoutEdge) => reverseEdge(edge, true), maxModelOrderNodes: graph.maxModelOrderNodes!, modelOrderGroupCount: graph.modelOrderGroupCount!, enforceGroupModelOrder: enumOption(state.options, 'layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy', ['ONLY_WITHIN_GROUP', 'MODEL_ORDER', 'ENFORCED'] as const, 'ONLY_WITHIN_GROUP') === 'ENFORCED' }
   const cycle = enumOption(state.options, 'layered.cycleBreaking.strategy', ['GREEDY', 'DEPTH_FIRST', 'INTERACTIVE', 'MODEL_ORDER', 'GREEDY_MODEL_ORDER', 'SCC_CONNECTIVITY', 'SCC_NODE_TYPE', 'DFS_NODE_ORDER', 'BFS_NODE_ORDER'] as const, 'GREEDY')
   if (cycle === 'GREEDY') breakGreedyCycles(cycleGraph)
   else if (cycle === 'MODEL_ORDER') breakModelOrderCycles(cycleGraph)

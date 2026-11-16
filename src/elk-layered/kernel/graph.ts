@@ -27,7 +27,7 @@ export interface LayoutLabel {
   options: Options
 }
 
-export interface LayoutPort extends CyclePort {
+export interface LayoutPort extends CyclePort<LayoutNode, LayoutEdge> {
   insideConnections?: boolean
   connectedToExternalNodes?: boolean
   portDummy?: LayoutNode
@@ -57,7 +57,7 @@ export interface LayoutPort extends CyclePort {
   anchorY: number
 }
 
-export interface LayoutEdge extends CycleEdge {
+export interface LayoutEdge extends CycleEdge<LayoutPort> {
   containerGraph?: LayoutGraph
   containerId?: string | null
   coordinateOrigin?: LayoutGraph
@@ -92,7 +92,7 @@ export interface SkippedLayoutEdge {
 
 export type LayoutNodeType = 'NORMAL' | 'LONG_EDGE' | 'EXTERNAL_PORT' | 'NORTH_SOUTH_PORT' | 'LABEL' | 'BREAKING_POINT' | 'PLACEHOLDER' | 'NONSHIFTING_PLACEHOLDER'
 export type PortConstraints = 'UNDEFINED' | 'FREE' | 'FIXED_SIDE' | 'FIXED_ORDER' | 'FIXED_RATIO' | 'FIXED_POS'
-export interface LayoutNode extends CycleNode {
+export interface LayoutNode extends CycleNode<LayoutPort> {
   northSouthOrigin?: LayoutNode | LayoutEdge
   parent?: LayoutNode
   contentGraph?: LayoutGraph
