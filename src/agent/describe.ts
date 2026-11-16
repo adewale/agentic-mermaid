@@ -581,10 +581,11 @@ function sequenceFragmentDisplay(fragment: SequenceFragment, name: string): stri
   const branches = fragment.branches.map((branch, branchIndex) => {
     const label = sequenceBranchDisplay(fragment, branchIndex)
     let nested = 0
-    const items = sequenceBranchItems(branch).map(item => !('kind' in item) ? `${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`
-      : item.kind === 'note' ? sequenceNoteDisplay(item)
-        : item.kind === 'fragment' ? `{ ${sequenceFragmentDisplay(item.fragment, `${name}.${branchIndex}.${nested++}`)} }`
-          : sequenceLifecycleDisplay(item)).join('; ') || 'no messages'
+    // Preserved lines are left out, as top-level ones are.
+    const items = sequenceBranchItems(branch).flatMap(item => !('kind' in item) ? [`${item.from} -> ${item.to}: ${sequenceDisplayText(item.text, item.textContent)}`]
+      : item.kind === 'note' ? [sequenceNoteDisplay(item)]
+        : item.kind === 'fragment' ? [`{ ${sequenceFragmentDisplay(item.fragment, `${name}.${branchIndex}.${nested++}`)} }`]
+          : item.kind === 'opaque-block' ? [] : [sequenceLifecycleDisplay(item)]).join('; ') || 'no messages'
     return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${items}`
   })
   return `fragment ${name} (${fragment.fragmentKind}): ${branches.join(' | ')}`

@@ -150,8 +150,26 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   fragmentIndex 0 branchIndex 0 index 0`); top-level fragments gain a
   `fragment#F op fragmentIndex F` fact. An edited nested fragment is written
   one level deeper than the statements beside it, and source-preserving edits
-  splice it into the authored lines. A fragment holding a comment, an
-  activation or a `box` stays preserved source as before.
+  splice it into the authored lines.
+
+- Sequence fragments holding a comment, an `activate`/`deactivate`, a `box`
+  of participant declarations, `autonumber` or another line the typed body
+  does not model stay typed. Those lines used to make the whole fragment
+  preserved source; each now rides along verbatim in its branch, in source
+  order beside the branch's messages, notes and nested fragments, so the
+  fragment's messages appear in `describe`, facts and the `describe` tree and
+  fragment operations can edit them while the kept lines (comments included)
+  are written back as authored. A preserved branch line never holds a message
+  or a note, so branch indexes count every message and note. Mermaid 12.2.0
+  reads a `box` inside a fragment as one at top level (it groups the
+  participants it declares), as ours draws it; `set_participant_label` edits
+  a boxed declaration in a branch in place. verify still names the kept
+  constructs (`sequence_opaque_segment`) and still reports a `deactivate`
+  inside a branch of a participant that is not active. A fragment stays
+  preserved source as a whole only when its kept lines would hide a message
+  or note (a nested `rect` the renderer reads no color for, a note the typed
+  writer cannot spell, a `box` holding more than declarations) or when it
+  nests past the host limit of 64, which the verify warning now says.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

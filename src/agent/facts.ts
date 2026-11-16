@@ -421,6 +421,12 @@ function factsSequence(out: string[], body: SequenceBody): void {
         : branchIndex === 0 && fragment.label !== undefined ? shown(fragment.label, fragment.labelContent) : ''
       add(out, `${name} branch#${branchIndex}${label ? ` : ${label}` : ''}`)
       if (branch.wrap !== undefined) add(out, `${name} branch#${branchIndex} wrap ${branch.wrap}`)
+      // Preserved branch lines hold no message or note; a title still reads
+      // back, as from a top-level segment.
+      for (const { statement } of branch.statements ?? []) {
+        if (statement.kind !== 'opaque-block') continue
+        for (const { syntax } of readSequenceStatements(statement.lines).statements) if (syntax?.kind === 'title') add(out, `title ${clean(sequencePayloadDisplayText(syntax.text))}`)
+      }
     })
   }
   // Lifecycle directives and notes, placed by the message# that follows them.

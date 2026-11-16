@@ -119,11 +119,14 @@ const gantt = (lines: string[]) => ({ source: `${lines.join('\n')}\n`, comments:
 // comment's indentation; a moved line now keeps its authored bytes. The other
 // two caught the property's draft, which wrongly expected comment order to
 // survive a reorder: Gantt keeps comments as segments of their section, so a
-// moved section may carry them past each other.
+// moved section may carry them past each other. The last caught the
+// property expecting a comment inside a removed sequence fragment to survive:
+// the fragment's kept lines go with it, as its messages do.
 const EXAMPLES: Array<[Case]> = [
   [['gantt', gantt(['gantt', '', 'title Plan', 'dateFormat YYYY-MM-DD', '%% a', 'section Build', '%% a', 'Design :des, 2024-01-01, 5d', '%% note', 'Code :code, after des, 10d', 'section Ship', '\t%% a', 'Release :milestone, rel, 2024-01-20, 0d']), [{ kind: 'move_section', from: 0, to: 1 }, { kind: 'add_section', label: 'des' }]]],
   [['gantt', gantt(['gantt', 'title Plan', '', 'dateFormat YYYY-MM-DD', '', 'section Build', 'Design :des, 2024-01-01, 5d', '%% a', 'Code :code, after des, 10d', 'section Ship', '%% note', 'Release :milestone, rel, 2024-01-20, 0d', '%% a']), [{ kind: 'move_section', from: 1, to: 0 }]]],
   [['gantt', gantt(['gantt', '%% a', 'title Plan', 'dateFormat YYYY-MM-DD', '', 'section Build', 'Design :des, 2024-01-01, 5d', 'Code :code, after des, 10d', '%% a', 'section Ship', 'Release :milestone, rel, 2024-01-20, 0d', '%% note']), [{ kind: 'move_section', from: 0, to: 1 }, { kind: 'add_task', sectionIndex: 0, label: 'des', end: 'des' }]]],
+  [['sequence', { source: 'sequenceDiagram\nparticipant A as Alice\nparticipant B as Bob\nA ->> B: hello\nalt ok\n%% note\nB -->> A: fine\n\nelse no\n%% note\nB -x A: fail\n%% note\nend\nNote over A,B: done\n%% note\n', comments: ['%% note', '', '%% note', '%% note', '%% note'] }, [{ kind: 'remove_fragment', index: 0 }]]],
 ]
 
 describe('source-preserving edits agree with canonical edits', () => {
@@ -149,7 +152,8 @@ describe('source-preserving edits agree with canonical edits', () => {
         current = preserved.value.diagram
         text = preserved.value.source
       }
-      if (!allLocal) return
+      // A removed fragment takes the comments kept in its branches with it.
+      if (!allLocal || ops.some(op => op.kind === 'remove_fragment')) return
       const reordered = ops.some(op => /^(?:move|reorder)_/.test(String(op.kind)))
       const missing = (reordered ? missingAnywhere : missingInOrder)(comments, text.split('\n'))
       expect({ text, missing }).toEqual({ text, missing: [] })

@@ -204,12 +204,14 @@ describe('sequence identities survive portable structured writing', () => {
     'participant b\nactivate b;',
     'participant b;\n\n%% preserved comment',
     'activate b;',
-  ])('metadata message boundaries survive preserved fragment source after %s', async prefix => {
+  ])('metadata message boundaries survive preserved branch lines after %s', async prefix => {
     const source = `sequenceDiagram\nloop retry\n${prefix}\n@{->>b: preserved\nend`
     expect(await upstream.accepts(source), source).toBe(true)
     const parsed = sequence(source)
-    expect(parsed.body.statements[0]!.kind).toBe('opaque-block')
-    for (const diagram of [parsed, apply(parsed, { kind: 'add_participant', id: 'Control' })]) {
+    expect(parsed.body.statements[0]!.kind).toBe('fragment')
+    // An edit inside the fragment writes it canonically around the lines it keeps.
+    const rewritten = apply(parsed, { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'preserved' })
+    for (const diagram of [parsed, apply(parsed, { kind: 'add_participant', id: 'Control' }), rewritten]) {
       const written = serializeMermaid(diagram)
       const result = await upstream.parse(written)
       expect(result.ok, written).toBe(true)
@@ -218,7 +220,7 @@ describe('sequence identities survive portable structured writing', () => {
       expect(result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
         .map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(expected)
       expect(renderParse(written).messages.map(({ from, to, label }) => ({ from, to, text: label }))).toEqual(expected)
-      if (prefix.includes('\n\n')) expect(written).toContain('\n\n%% preserved comment')
+      if (prefix.includes('\n\n')) expect(written).toContain(diagram === rewritten ? '\n%% preserved comment' : '\n\n%% preserved comment')
       expect(serializeMermaid(sequence(written))).toBe(written)
     }
   })
@@ -460,8 +462,8 @@ describe('sequence create/destroy are typed statements', () => {
     expect(serializeMermaid(parsed)).toBe(source)
   })
 
-  test('a lifecycle directive inside a nested fragment holding an activation is named by the opaque warning', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  rect rgb(1, 2, 3)\n    alt done\n      activate A\n      destroy B\n      A->>B: bye\n    end\n  end\n'
+  test('a lifecycle directive inside a preserved nested fragment is named by the opaque warning', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  rect #ff0000\n    alt done\n      activate A\n      destroy B\n      A->>B: bye\n    end\n  end\n'
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(rect fragment, alt fragment, activate/deactivate, destroy)'),

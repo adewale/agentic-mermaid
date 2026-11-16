@@ -12,10 +12,15 @@
 //   - Fragments         = alt|opt|loop|par|critical|break|rect … end → a typed
 //                         fragment whose branches hold messages, notes,
 //                         create/destroy lines and nested fragments, written
-//                         back byte for byte until an op edits it. A block
-//                         outside that model (a box, a comment or an
-//                         activation inside) → ONE opaque-block segment,
-//                         inner lines kept byte-for-byte.
+//                         back byte for byte until an op edits it. Other
+//                         lines in a branch (comments, activations, a `box`
+//                         of declarations…) ride along verbatim as preserved
+//                         branch statements, in source order. A block whose
+//                         preserved lines would hide a message or a note (a
+//                         rect the renderer reads no color for, a note the
+//                         typed writer cannot spell, nesting past the host
+//                         limit) → ONE opaque-block segment, inner lines
+//                         kept byte-for-byte.
 //   - Other single lines = activate/deactivate, autonumber, title… →
 //                         each joins an adjacent opaque-block segment.
 //   - Unbalanced `end` / unclosed block / un-segmentable input → return null
@@ -34,7 +39,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageArrow, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceFragmentBranch, SequenceFragmentStatement, SequenceFragmentStep, SequenceNoteStatement, SequenceNotePosition, SequenceCreateStatement, SequenceDestroyStatement, MutationError, Result, LayoutWarning,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceFragmentBranch, SequenceFragmentStatement, SequenceFragmentStep, SequencePreservedLines, SequenceNoteStatement, SequenceNotePosition, SequenceCreateStatement, SequenceDestroyStatement, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement, type SequenceStatementSyntax } from '../sequence/parser.ts'
@@ -267,10 +272,11 @@ function portableRaw(entry: SequenceSourceStatement): string {
   return message ? messageWithBoundary(message.from, source) : source
 }
 
-/** A block as a typed fragment, or null when it holds a statement outside
- * the model. `offset` is the opener's index among the source statements
- * (the reader's block boundaries count from there); fragments nest as deep as
- * the host nesting limit. */
+/** A block as a typed fragment, or null when it holds a message or note
+ * outside the model. Other lines stay verbatim in their branch, as at top
+ * level. `offset` is the opener's index among the source statements (the
+ * reader's block boundaries count from there); fragments nest as deep as the
+ * host nesting limit. */
 function parseTypedFragment(entries: SequenceSourceStatement[], offset: number, depth = 1): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
@@ -281,13 +287,18 @@ function parseTypedFragment(entries: SequenceSourceStatement[], offset: number, 
   // read as a color (a `#` comment, a wrap control) stays verbatim source.
   if (fragmentKind === 'rect' && (opener.wrap !== undefined || rectColorError(opener.label))) return null
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
+  // Adjacent preserved lines join one statement, as top-level segments do.
+  const preserve = (lines: string[]): void => {
+    const branch = branches.at(-1)!
+    const list = branch.statements ??= []
+    const last = list.at(-1)
+    if (last?.before === branch.messages.length && last.statement.kind === 'opaque-block') last.statement.lines.push(...lines)
+    else list.push({ before: branch.messages.length, statement: { kind: 'opaque-block', lines: [...lines] } })
+  }
   for (let at = 1; at < entries.length - 1; at++) {
     const entry = entries[at]!
     const line = entry.raw.trim()
     if (!line) continue
-    // Editing a fragment that carries comments would otherwise discard them.
-    // Keep the entire block opaque until comments gain their own typed model.
-    if (line.startsWith('%%')) return null
     const inner = entry.syntax
     if (inner?.kind === 'continuation') {
       const continuation = inner.continuation
@@ -304,16 +315,35 @@ function parseTypedFragment(entries: SequenceSourceStatement[], offset: number, 
       at = end
       continue
     }
+    if (inner?.kind === 'box') {
+      // Mermaid reads a box in a fragment as it reads one at top level: it
+      // groups the participants it declares, wherever it is written. A box
+      // holds declarations only; anything else keeps the block opaque.
+      const end = entry.endIndex! - offset
+      const box = entries.slice(at, end + 1)
+      if (box.slice(1, -1).some(({ raw, syntax }) => syntax ? syntax.kind !== 'declaration' : raw.trim() && !isSequenceCommentLine(raw))) return null
+      preserve(box.map(({ raw }) => raw))
+      at = end
+      continue
+    }
     if (inner?.kind === 'create' || inner?.kind === 'destroy' || inner?.kind === 'note') {
       const statement = inner.kind === 'destroy' ? { kind: 'destroy' as const, actorId: inner.actorId }
         : inner.kind === 'note' ? typedNote(inner.note) : typedCreate(inner.declaration)
-      if (!statement) return null
+      // A note stays countable; a `create` with metadata the body does not
+      // model stays verbatim, as at top level.
+      if (!statement && inner.kind === 'note') return null
+      if (!statement) { preserve([entry.raw]); continue }
       const branch = branches.at(-1)!
       ;(branch.statements ??= []).push({ before: branch.messages.length, statement })
       continue
     }
-    if (inner?.kind !== 'message') return null
-    branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
+    if (inner?.kind === 'message') {
+      branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
+      continue
+    }
+    // Any other line (a comment, activate/deactivate, autonumber, a
+    // declaration…) stays verbatim in its branch.
+    preserve([entry.raw])
   }
   if (fragmentKind === 'rect') return { fragmentKind, ...(opener.label ? { label: opener.label } : {}), branches, rawLines: entries.map(portableRaw) }
   const text = readSequenceText(opener.label)
@@ -363,7 +393,7 @@ export function sequenceTimeline(body: SequenceBody): SequenceTimelineEntry[] {
         if (!('kind' in item)) out.push({ kind: 'message', message: item, index: message++, place: at })
         else if (item.kind === 'note') out.push({ kind: 'note', note: item, index: note++, place: at })
         else if (item.kind === 'fragment') visit(item.fragment, path, nested++)
-        else out.push({ kind: 'lifecycle', statement: item, place: at })
+        else if (item.kind !== 'opaque-block') out.push({ kind: 'lifecycle', statement: item, place: at })
       }
     })
   }
@@ -451,8 +481,14 @@ export function sequenceMessageStyle(arrow: string): SequenceMessageStyle {
  * belong to their block. */
 export function sequencePreservedConstructs(lines: readonly string[]): string[] {
   const names = new Set<string>()
-  for (const entry of readSequenceStatements([...lines]).statements) {
+  const { statements } = readSequenceStatements([...lines])
+  const depth: number[] = []
+  for (const [index, entry] of statements.entries()) {
     const syntax = entry.syntax
+    // Typed fragments nest as deep as the host work limit; deeper source
+    // stays preserved, and says so.
+    depth[index] = (entry.parent === undefined ? 0 : depth[entry.parent]!) + (syntax?.kind === 'block' ? 1 : 0)
+    if (depth[index]! > DIAGRAM_WORK_LIMITS.nesting) names.add(`fragments nested past the host limit of ${DIAGRAM_WORK_LIMITS.nesting}`)
     if (!syntax) {
       if (entry.raw.trim() && !isSequenceCommentLine(entry.raw.trim())) names.add('unrecognized statement')
       continue
@@ -466,6 +502,13 @@ export function sequencePreservedConstructs(lines: readonly string[]): string[] 
     if (name) names.add(name)
   }
   return [...names]
+}
+
+/** Every preserved line of the body in source order: top-level segments and
+ * the preserved lines of fragment branches. */
+export function sequencePreservedLines(body: SequenceBody): string[] {
+  return body.statements.flatMap(statement => statement.kind === 'opaque-block' ? statement.lines
+    : statement.kind === 'fragment' ? [...preservedSegments(statement.fragment)].flatMap(({ segment }) => segment.lines) : [])
 }
 
 /** Sequence source ours reads where pinned Mermaid rejects it, each on its
@@ -665,8 +708,7 @@ export function renderSequence(body: SequenceBody): string {
     const mentioned = new Set<string>()
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
-        assertParticipantDeclarations(readSequenceStatements(st.lines))
-        for (const l of st.lines) lines.push(isSequenceCommentLine(l) ? writeMermaidComment(l) : l)
+        lines.push(...preservedSource(st.lines))
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
         if (p) lines.push(renderParticipant(p, mentioned.has(p.id)))
@@ -691,6 +733,12 @@ export function renderSequence(body: SequenceBody): string {
   }
 
   return lines.join('\n') + '\n'
+}
+
+/** Preserved lines as written, a comment kept from reading as a directive. */
+function preservedSource(lines: readonly string[]): string[] {
+  assertParticipantDeclarations(readSequenceStatements(lines))
+  return lines.map(line => isSequenceCommentLine(line) ? writeMermaidComment(line) : line)
 }
 
 function actorIdError(id: string, context: 'declaration' | 'sender' | 'receiver'): MutationError | undefined {
@@ -731,7 +779,8 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
       invalid = noteActorsError(statement.position, statement.actorIds)
     } else if (statement.kind === 'fragment') {
       for (const item of fragmentLeaves(statement.fragment)) {
-        invalid = !('kind' in item) ? messageIdError(item) : item.kind === 'note' ? noteActorsError(item.position, item.actorIds) : directiveIdError(item)
+        invalid = !('kind' in item) ? messageIdError(item) : item.kind === 'note' ? noteActorsError(item.position, item.actorIds)
+          : item.kind === 'opaque-block' ? undefined : directiveIdError(item)
         if (invalid) return invalid
       }
     }
@@ -752,16 +801,16 @@ const directiveId = (statement: SequenceCreateStatement | SequenceDestroyStateme
 type BranchItem = SequenceMessage | SequenceBranchStatementValue
 type SequenceBranchStatementValue = NonNullable<SequenceFragmentBranch['statements']>[number]['statement']
 
-/** A branch's messages, lifecycle directives, notes and nested fragments in
- * source order. */
+/** A branch's messages, lifecycle directives, notes, nested fragments and
+ * preserved lines in source order. */
 export function sequenceBranchItems(branch: SequenceFragmentBranch): BranchItem[] {
   const at = (index: number) => (branch.statements ?? []).filter(entry => entry.before === index).map(entry => entry.statement)
   return [...branch.messages.flatMap((message, index) => [...at(index), message]), ...at(branch.messages.length)]
 }
 const branchItems = sequenceBranchItems
 
-/** A fragment's messages, lifecycle directives and notes in source order,
- * those of its nested fragments included. */
+/** A fragment's messages, lifecycle directives, notes and preserved lines in
+ * source order, those of its nested fragments included. */
 function* fragmentLeaves(fragment: SequenceFragment): Generator<Exclude<BranchItem, SequenceFragmentStatement>> {
   for (const branch of fragment.branches) {
     for (const item of branchItems(branch)) {
@@ -806,6 +855,7 @@ function renderFragment(fragment: SequenceFragment, indent = '  ', nested = fals
     }
     for (const item of branchItems(branch)) {
       if ('kind' in item && item.kind === 'fragment') lines.push(...renderFragment(item.fragment, body, true))
+      else if ('kind' in item && item.kind === 'opaque-block') lines.push(...preservedSource(item.lines))
       else lines.push(body + (!('kind' in item) ? renderMessage(item) : item.kind === 'note' ? renderNote(item) : renderDirective(item)).trimStart())
     }
   })
@@ -866,15 +916,18 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
   switch (statement.kind) {
     case 'participant': return participants[statement.ref] ? [participants[statement.ref]!.id] : []
     case 'message': return endpoints(messages[statement.ref])
-    case 'fragment': return [...fragmentLeaves(statement.fragment)].flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : item.kind === 'note' ? [...item.actorIds] : [])
+    case 'fragment': return [...fragmentLeaves(statement.fragment)].flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : item.kind === 'note' ? [...item.actorIds]
+      : item.kind === 'opaque-block' ? preservedIds(item.lines) : [])
     case 'actor-links': return [statement.actorId]
     case 'create': return [statement.id]
     // `destroy` refers to a participant without creating it.
     case 'destroy': return []
     case 'note': return [...statement.actorIds]
-    case 'opaque-block': return statement.lines.flatMap(line => preservedLineEvents(line).map(event => event.id))
+    case 'opaque-block': return preservedIds(statement.lines)
   }
 }
+
+const preservedIds = (lines: readonly string[]): string[] => lines.flatMap(line => preservedLineEvents(line).map(event => event.id))
 
 /** ID metadata lookahead crosses newlines and preserved comments. Both raw
  * and modeled messages must end that lexical state before an `@{` sender. */
@@ -1022,7 +1075,10 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       // statement creates first (`A->>B`, relabelling B).
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
-      if (naming?.preserved && relabelPreservedDeclaration(statements[naming.index]!, p)) break
+      if (naming?.segment && relabelPreservedDeclaration(naming.segment, p)) {
+        for (const holder of naming.holders) delete holder.rawLines
+        break
+      }
       // A participant its `create` line names is renamed there, in a
       // fragment branch too.
       const creating = naming === undefined ? statements[creatingStatement(statements, participants, messages, p.id)] : undefined
@@ -1276,9 +1332,10 @@ function renderedOrUndefined(body: SequenceBody): string | undefined {
 }
 
 function hasLifecycleDirective(body: SequenceBody): boolean {
+  const preserved = (lines: readonly string[]) => lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))
   return body.statements.some(statement => statement.kind === 'create' || statement.kind === 'destroy'
-    || (statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => 'kind' in item && item.kind !== 'note'))
-    || (statement.kind === 'opaque-block' && statement.lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))))
+    || (statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => 'kind' in item && (item.kind === 'opaque-block' ? preserved(item.lines) : item.kind !== 'note')))
+    || (statement.kind === 'opaque-block' && preserved(statement.lines)))
 }
 
 /** An edit may not leave a `create`/`destroy` without the message Mermaid
@@ -1336,24 +1393,38 @@ function reparsedParticipants(body: SequenceBody, options: SequenceParticipantFo
 }
 
 /** The statement whose declaration names participant `id` last: its own
- * declaration statement, or a preserved line that declares it with an alias. */
-function namingDeclaration(statements: SequenceStatement[], ref: number, id: string): { index: number; preserved: boolean } | undefined {
+ * declaration statement, or a preserved line that declares it with an alias
+ * (at top level, or in a fragment branch: `segment`, in the fragments
+ * `holders`). */
+function namingDeclaration(statements: SequenceStatement[], ref: number, id: string): { index: number; preserved: boolean; segment?: SequencePreservedLines; holders: SequenceFragment[] } | undefined {
   // One naming rule (`as …` or a metadata alias), the parser's.
   const names = (line: string) => preservedLineEvents(line)
     .some(event => event.kind === 'declare' && event.id === id && event.label !== undefined && !event.create)
   for (let index = statements.length - 1; index >= 0; index--) {
     const statement = statements[index]!
-    if (statement.kind === 'participant' && statement.ref === ref) return { index, preserved: false }
-    if (statement.kind === 'opaque-block' && statement.lines.some(names)) return { index, preserved: true }
+    if (statement.kind === 'participant' && statement.ref === ref) return { index, preserved: false, holders: [] }
+    if (statement.kind === 'opaque-block' && statement.lines.some(names)) return { index, preserved: true, segment: statement, holders: [] }
+    const nested = statement.kind === 'fragment' ? [...preservedSegments(statement.fragment)].findLast(({ segment }) => segment.lines.some(names)) : undefined
+    if (nested) return { index, preserved: true, ...nested }
   }
   return undefined
+}
+
+/** A fragment's preserved branch lines in source order, at any depth, each
+ * with the fragments that hold it, outermost first. */
+function* preservedSegments(fragment: SequenceFragment): Generator<{ segment: SequencePreservedLines; holders: SequenceFragment[] }> {
+  for (const branch of fragment.branches) {
+    for (const { statement } of branch.statements ?? []) {
+      if (statement.kind === 'opaque-block') yield { segment: statement, holders: [fragment] }
+      else if (statement.kind === 'fragment') for (const found of preservedSegments(statement.fragment)) yield { segment: found.segment, holders: [fragment, ...found.holders] }
+    }
+  }
 }
 
 /** Update the existing declaration inside a preserved segment. Adding a new
  * declaration after the entire segment can reset later actor properties or
  * duplicate box membership, even though every original source line survives. */
-function relabelPreservedDeclaration(statement: SequenceStatement, participant: SequenceParticipant): boolean {
-  if (statement.kind !== 'opaque-block') return false
+function relabelPreservedDeclaration(statement: SequencePreservedLines, participant: SequenceParticipant): boolean {
   const entries = readSequenceStatements(statement.lines).statements
   const entry = entries.findLast(candidate => candidate.syntax?.kind === 'declaration'
     && candidate.syntax.declaration.id === participant.id && candidate.syntax.declaration.aliased)
@@ -1408,10 +1479,11 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   // it names it (`d1--xA` names A with no token boundary before it), or when
   // the id appears in it as a token at all (`activate A`).
   const names = (line: string) => preservedLineEvents(line).some(event => event.id === id)
+  const preserved = (lines: readonly string[]) => lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line)))
   return statements.some(statement =>
-    (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line))))
+    (statement.kind === 'opaque-block' && preserved(statement.lines))
     || (statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => !('kind' in item) ? item.from === id || item.to === id
-      : item.kind === 'note' ? item.actorIds.includes(id) : directiveId(item) === id)))
+      : item.kind === 'note' ? item.actorIds.includes(id) : item.kind === 'opaque-block' ? preserved(item.lines) : directiveId(item) === id)))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {

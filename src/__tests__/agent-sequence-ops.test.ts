@@ -258,8 +258,8 @@ describe('sequence message style names the arrow Mermaid reads and ours draws', 
   test('every parsed arrow: typed style, facts, written arrow and drawn heads agree', () => {
     const lines = ARROW_CASES.map((c, i) => `A${c.arrow}B: m${i}`)
     for (const preserved of [false, true]) {
-      // An activation is outside the typed fragment model, so this rect stays preserved source.
-      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect rgb(1, 2, 3)', ...lines, 'activate A', 'end'] : lines)].join('\n'))
+      // The renderer reads no color from `#ff0000`, so this rect stays preserved source.
+      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect #ff0000', ...lines, 'end'] : lines)].join('\n'))
       const facts = describeMermaidFacts(d)
       const subject = (i: number) => preserved ? `preserved-message#0.${i + 1}` : `message#${i}`
       ARROW_CASES.forEach((c, i) => {
@@ -519,7 +519,7 @@ describe('critical, break and rect fragments are typed like alt, opt, loop and p
 
   test.each([
     ['a rect whose argument is a # comment', 'rect #ff0000'],
-    ['a rect holding a fragment with an activation', 'rect rgb(1, 2, 3)\n    alt yes\n      activate A\n      A->>B: x\n    end'],
+    ['a rect holding a rect whose argument is a # comment', 'rect rgb(1, 2, 3)\n    alt yes\n      rect #ff0000\n        A->>B: x\n      end\n    end'],
   ])('%s stays preserved source', (_name, block) => {
     const source = `sequenceDiagram\n  A->>B: hi\n  ${block}\n  end\n`
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
@@ -616,16 +616,19 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   const LOOP = [...ALT, { fragmentIndex: 0, branchIndex: 0 }]
   const OPT = [...ALT, { fragmentIndex: 0, branchIndex: 1 }]
 
-  /** Messages, notes and fragment markers in order, as Mermaid's database holds them. */
+  /** Messages, notes, activations and fragment markers in order, as
+   * Mermaid's database holds them. */
   const mermaidStream = (source: string) => upstream.project(source, diagram => {
     const names = Object.fromEntries(Object.entries(diagram.db.LINETYPE as Record<string, number>).map(([name, type]) => [type, name]))
     return diagram.db.getMessages().map((m: { from?: string; to?: string; type: number; placement: number; message: unknown }) => m.type === diagram.db.LINETYPE.NOTE
       ? `note ${['left', 'right', 'over'][m.placement]} ${m.from === m.to ? m.from : `${m.from},${m.to}`}: ${m.message}`
-      : m.from === undefined ? `${names[m.type]} ${typeof m.message === 'string' ? m.message : ''}`.trim() : `${m.from}->${m.to}: ${m.message}`)
+      : m.from === undefined ? `${names[m.type]} ${typeof m.message === 'string' ? m.message : ''}`.trim()
+        : m.to === undefined ? `${names[m.type]} ${m.from}` : `${m.from}->${m.to}: ${m.message}`)
   })
 
   /** The same, read from the typed body: each fragment's markers around its
-   * branches' messages, notes and nested fragments. */
+   * branches' messages, notes, nested fragments and the activations and
+   * `autonumber` its preserved lines hold. */
   const MARKERS: Record<SequenceFragment['fragmentKind'], readonly [string, string, string]> = {
     alt: ['ALT_START', 'ALT_ELSE', 'ALT_END'], opt: ['OPT_START', '', 'OPT_END'], loop: ['LOOP_START', '', 'LOOP_END'], par: ['PAR_START', 'PAR_AND', 'PAR_END'],
     par_over: ['PAR_OVER_START', 'PAR_AND', 'PAR_END'], critical: ['CRITICAL_START', 'CRITICAL_OPTION', 'CRITICAL_END'], break: ['BREAK_START', '', 'BREAK_END'], rect: ['RECT_START', '', 'RECT_END'],
@@ -633,13 +636,18 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   function typedStream(body: SequenceBody): string[] {
     const message = (m: SequenceMessage) => `${m.from}->${m.to}: ${m.text}`
     const note = (n: SequenceNoteStatement) => `note ${n.position} ${n.actorIds.join(',')}: ${n.text}`
+    const preserved = (line: string): string[] => {
+      const [keyword, id] = line.trim().split(/\s+/)
+      return keyword === 'activate' ? [`ACTIVE_START ${id}`] : keyword === 'deactivate' ? [`ACTIVE_END ${id}`] : keyword === 'autonumber' ? ['AUTONUMBER'] : []
+    }
     const fragment = (f: SequenceFragment): string[] => {
       const [start, next, end] = MARKERS[f.fragmentKind]
       return [...f.branches.flatMap((branch, i) => [`${i === 0 ? start : next} ${(i === 0 ? f.label : branch.label) ?? ''}`.trim(), ...items(branch)]), end]
     }
     const items = (branch: SequenceFragmentBranch): string[] => {
       const at = (k: number) => (branch.statements ?? []).filter(entry => entry.before === k)
-        .flatMap(({ statement }) => statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
+        .flatMap(({ statement }) => statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment)
+          : statement.kind === 'opaque-block' ? statement.lines.flatMap(preserved) : [])
       return [...branch.messages.flatMap((m, k) => [...at(k), message(m)]), ...at(branch.messages.length)]
     }
     return body.statements.flatMap(statement => statement.kind === 'message' ? [message(body.messages[statement.ref]!)]
@@ -706,6 +714,11 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     const nested = (depth: number) => ['sequenceDiagram', ...Array.from({ length: depth }, (_, i) => `${'  '.repeat(i + 1)}loop l${i}`), `${'  '.repeat(depth + 1)}A->>B: deep`, ...Array.from({ length: depth }, (_, i) => `${'  '.repeat(depth - i)}end`)].join('\n')
     expect(sequence(nested(limit)).body.statements.map(statement => statement.kind)).toEqual(['fragment'])
     expect(sequence(nested(limit + 1)).body.statements.map(statement => statement.kind)).toEqual(['opaque-block'])
+    // verify says why the deeper block is not typed.
+    expect(verifyMermaid(nested(limit + 1)).warnings).toContainEqual(expect.objectContaining({
+      syntax: 'sequence_opaque_segment', message: expect.stringContaining(`fragments nested past the host limit of ${limit}`),
+    }))
+    expect(JSON.stringify(verifyMermaid(nested(limit)).warnings)).not.toContain('host limit')
     const path = Array.from({ length: limit }, () => ({ fragmentIndex: 0, branchIndex: 0 }))
     const refused = mutate(sequence(nested(limit)), { kind: 'add_fragment', fragmentPath: path, fragmentKind: 'opt' })
     expect(refused.ok ? 'accepted' : refused.error.code).toBe('INVALID_OP')
@@ -714,6 +727,89 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
 
   test('describe lists nested fragments inside their branch', () => {
     expect(describeMermaid(sequence(DEEP))).toContain('fragment 0 (rect): branch 0 (rgb(200, 220, 255)): { fragment 0.0.0 (alt): branch 0 (ok): B -> A: two; { fragment 0.0.0.0.0 (loop): branch 0 (retry): A -> B: three; note right of B: busy }; B -> A: four | branch 1 (no): create participant C; A -> C: five; { fragment 0.0.0.1.0 (opt): branch 0 (maybe): note over A: last try; destroy C; C -> A: six } }')
+  })
+
+  // A comment, an activation, a `box` of declarations, a `#` comment and
+  // `autonumber` in branches, at two depths.
+  const PRESERVED = `sequenceDiagram
+  participant A
+  participant B
+  A->>B: one
+  alt ok
+    %% why this branch
+    activate B
+    B->>A: two
+    deactivate B
+  else no
+    box Aqua Group
+      participant C as Cee
+    end
+    A->>C: three
+    loop again
+      # hash comment
+      C->>A: four
+      autonumber
+    end
+  end
+  A->>B: five
+`
+  const FIRST = [{ fragmentIndex: 0, branchIndex: 0 }]
+  const SECOND = [{ fragmentIndex: 0, branchIndex: 1 }]
+
+  /** Each participant's drawn name and the participants of its box, as Mermaid reads them. */
+  const mermaidActors = (source: string) => upstream.project(source, diagram => [...diagram.db.getActors().values()]
+    .map((a: { name: string; description: string; box?: { actorKeys: string[] } }) => `${a.name}: ${a.description}${a.box ? ` in ${a.box.actorKeys.join(',')}` : ''}`))
+  const ourActors = (source: string) => {
+    const diagram = parseSequenceDiagram(source.split('\n').map(line => line.trim()).filter(Boolean))
+    return diagram.actors.map(a => `${a.id}: ${a.label}${a.box !== undefined ? ` in ${diagram.boxes![a.box]!.actorIds.join(',')}` : ''}`)
+  }
+
+  test('unmodelled lines in a branch stay verbatim beside its typed statements, and Mermaid reads the fragment as typed', async () => {
+    const parsed = sequence(PRESERVED)
+    expect(parsed.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(serializeMermaid(parsed)).toBe(PRESERVED)
+    const alt = (parsed.body.statements[3] as { fragment: SequenceFragment }).fragment
+    expect(alt.branches[0]!.statements).toEqual([
+      { before: 0, statement: { kind: 'opaque-block', lines: ['    %% why this branch', '    activate B'] } },
+      { before: 1, statement: { kind: 'opaque-block', lines: ['    deactivate B'] } },
+    ])
+    expect(factAddress(parsed, 'message#2')).toEqual({ fragmentIndex: 0, branchIndex: 1, index: 0 })
+    expect(describeMermaid(parsed)).toContain('fragment 0 (alt): branch 0 (ok): B -> A: two | branch 1 (no): A -> C: three; { fragment 0.1.0 (loop): branch 0 (again): C -> A: four }')
+    // The preserved constructs are named; the fragments around them are not.
+    expect(verifyMermaid(PRESERVED).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({
+      syntax: 'sequence_opaque_segment', message: expect.stringContaining('(activate/deactivate, box, autonumber)'),
+    })])
+    const read = await mermaidStream(PRESERVED)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(parsed.body))
+    const actors = await mermaidActors(PRESERVED)
+    if (!actors.ok) throw new Error(actors.error)
+    expect(actors.value).toEqual(['A: A', 'B: B', 'C: Cee in C'])
+    expect(ourActors(PRESERVED)).toEqual(actors.value)
+  })
+
+  test.each([
+    ['edits a message between an activation and its deactivation', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'TWO' }, '    activate B\n  B->>A: TWO\n    deactivate B\n'],
+    ['adds a message below an activation', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'zero' }, '    activate B\n  A->>B: zero\n  B->>A: two\n'],
+    ['removes the message after a box', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '    end\n    loop again\n'],
+    ['adds a note above a deactivation', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['B'], text: 'busy', afterMessage: 0 }, '  B->>A: two\n  Note over B: busy\n    deactivate B\n'],
+    ['relabels the participant a boxed declaration names', { kind: 'set_participant_label', id: 'C', label: 'Sea' }, '    box Aqua Group\n      participant C as Sea\n    end\n'],
+  ] as const)('an op that %s keeps the preserved lines and is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(PRESERVED), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    for (const line of ['%% why this branch', 'activate B', 'deactivate B', '# hash comment', 'autonumber', 'box Aqua Group']) expect(output).toContain(`    ${line}\n`)
+    const reread = sequence(output)
+    expect(reread.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(serializeMermaid(reread)).toBe(output)
+    expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidStream(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(edited.body))
+    expect(read.value.filter((entry: string) => !/^[A-Z_]+(?: |$)/.test(entry))).toEqual(ourTimeline(output))
+    const actors = await mermaidActors(output)
+    if (!actors.ok) throw new Error(actors.error)
+    expect(ourActors(output)).toEqual(actors.value)
   })
 })
 

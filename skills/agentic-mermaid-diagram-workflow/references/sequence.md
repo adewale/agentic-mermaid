@@ -60,9 +60,13 @@ fragments (facts: `create …`, `destroy …`, with `fragment#f branch#b` inside
 fragment); an edit that would separate a directive from the message Mermaid
 requires right after it is refused. A fragment may hold further fragments
 (see Nested fragments above). Other constructs (box/activate/autonumber/title,
-a comment, and a fragment holding one of them) ride along VERBATIM as
-opaque-block segments while
-participant and top-level message ops remain live. Only an un-segmentable
+a comment) ride along VERBATIM as opaque-block segments, at top level and
+inside a fragment branch, in source order, while participant, message and
+fragment ops remain live; a kept branch line never holds a message or note,
+so branch indexes count them all. A fragment stays one opaque segment only
+when its kept lines would hide a message or note (a nested `rect` the
+renderer reads no color for, a box holding more than declarations, a note
+the writer cannot spell) or nests past 64 (verify says so). Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE
 body. Either way the parser never silently drops constructs.
 

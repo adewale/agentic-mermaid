@@ -167,15 +167,23 @@ export interface SequenceFragmentBranch {
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
-  /** The branch's `create`/`destroy` lines, notes and nested fragments, in
-   * source order, each before branch message `before` (`messages.length`:
-   * after the last). Directives bind as top-level ones do: to the next
-   * message involving their participant, in this branch or after it. */
+  /** The branch's `create`/`destroy` lines, notes, nested fragments and
+   * preserved source lines, in source order, each before branch message
+   * `before` (`messages.length`: after the last). Directives bind as
+   * top-level ones do: to the next message involving their participant, in
+   * this branch or after it. */
   statements?: SequenceBranchStatement[]
 }
 export interface SequenceBranchStatement {
   before: number
-  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement | SequenceFragmentStatement
+  statement: SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement | SequenceFragmentStatement | SequencePreservedLines
+}
+/** Source lines kept verbatim (comments, activations, a `box` of
+ * declarations…), as at top level. In a branch they never hold a message or
+ * a note, so the branch's message and note indexes count all of them. */
+export interface SequencePreservedLines {
+  kind: 'opaque-block'
+  lines: string[]
 }
 /** A fragment in the statement order: at top level, or nested in a branch. */
 export interface SequenceFragmentStatement {
@@ -237,10 +245,10 @@ export interface SequenceNoteStatement {
 
 // Ordered statement list. Refs index into the top-level arrays. Control
 // fragments of messages are typed (with their `create`/`destroy` lines,
-// notes and nested fragments) so their messages participate in
-// describe/facts/verify and can be authored through mutation ops, as are
-// notes. Constructs outside that closed model (box, activations…) remain
-// lossless opaque segments.
+// notes and nested fragments, with other lines kept verbatim in their
+// branch) so their messages participate in describe/facts/verify and can be
+// authored through mutation ops, as are notes. Constructs outside that closed
+// model (box, activations…) remain lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
@@ -249,7 +257,7 @@ export type SequenceStatement =
   | SequenceDestroyStatement
   | SequenceNoteStatement
   | SequenceFragmentStatement
-  | { kind: 'opaque-block'; lines: string[] }
+  | SequencePreservedLines
 
 export interface SequenceBody {
   kind: 'sequence'

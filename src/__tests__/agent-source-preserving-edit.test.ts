@@ -148,6 +148,25 @@ const NESTED_SEQUENCE = `sequenceDiagram
 \tend
 `
 
+// A comment, activations and a box of declarations kept verbatim in the
+// branches of a typed fragment.
+const PRESERVED_BRANCH_SEQUENCE = `sequenceDiagram
+	participant A
+	participant B
+	A ->> B: one
+	alt ok
+		%% why this branch
+		activate B
+		B ->> A: two
+		deactivate B
+	else no
+		box Aqua Group
+			participant C as Cee
+		end
+		A ->> C: three
+	end
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -364,6 +383,8 @@ const CASES: Case[] = [
   { name: 'sequence set_fragment_message_text three fragments deep', source: NESTED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\t\t\tA ->> B: three'], reference: [['B: three', 'B: again']] },
   { name: 'sequence add_fragment into a nested branch is indented like its siblings', source: NESTED_SEQUENCE, op: { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 1 }], fragmentKind: 'opt', label: 'maybe' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\topt maybe\n\t\t\tend\n']] },
   { name: 'sequence remove_fragment two fragments deep', source: NESTED_SEQUENCE, op: { kind: 'remove_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], index: 0 }, touched: ['\t\t\tloop retry', '\t\t\t\tA ->> B: three', '\t\t\tend'], reference: [['\t\t\tloop retry\n\t\t\t\tA ->> B: three\n\t\t\tend\n', '']] },
+  { name: 'sequence set_fragment_message_text between an activation and its deactivation', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\tB ->> A: two'], reference: [['A: two', 'A: again']] },
+  { name: 'sequence set_participant_label of a boxed declaration in a fragment branch', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_participant_label', id: 'C', label: 'Sea' }, touched: ['\t\t\tparticipant C as Cee'], reference: [['as Cee', 'as Sea']] },
   { name: 'sequence add_note after a message', source: SEQUENCE, op: { kind: 'add_note', position: 'right', actorIds: ['C'], text: 'queued', afterMessage: 0 }, reference: [['\tK ->> C: event\n', '\tK ->> C: event\n\tNote right of C: queued\n']] },
   { name: 'sequence remove_note', source: SEQUENCE, op: { kind: 'remove_note', index: 0 }, touched: ['\tNote over K,C: done'], reference: [['\tNote over K,C: done\n', '']] },
   { name: 'sequence set_note_text', source: SEQUENCE, op: { kind: 'set_note_text', index: 0, text: 'all done' }, touched: ['\tNote over K,C: done'], reference: [['K,C: done', 'K,C: all done']] },
