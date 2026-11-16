@@ -1,8 +1,10 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { runSourceToolIsolated, SourceToolExecutor, type RenderProcess } from '../mcp/source-worker-client.ts'
 import { sourceToolMessage, SourceToolMessageLimitError, type SourceToolRequest } from '../mcp/source-tool-message.ts'
@@ -10,6 +12,7 @@ import { SourceRenderProcess } from '../mcp/source-render-process.ts'
 import { SOURCE_TOOL_RESULT_BYTES } from '../mcp/source-worker-limits.ts'
 
 const temp = useTempDirs('am-source-tools-')
+const runHeapChild = useTestChildren(10_000)
 
 function workerFixture(code: string): URL {
   return pathToFileURL(temp.file('renderer-fixture.mjs', `import { parentPort } from 'node:worker_threads';\n${code}`))
@@ -45,19 +48,52 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('local MCP direct source tools', () => {
-  test('inherited Node flags cannot enlarge the optional V8 heap guard', () => {
+  test('inherited Node flags cannot enlarge the optional V8 heap guard', async () => {
     const worker = workerFixture(`import { getHeapStatistics } from 'node:v8';
 parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:JSON.stringify({heap:getHeapStatistics().heap_size_limit})}));
 parentPort.postMessage({type:'ready'});`)
     const entry = new URL('../mcp/source-render-process.ts', import.meta.url).href
-    const code = `import {SourceRenderProcess} from ${JSON.stringify(entry)}; const renderer=new SourceRenderProcess({worker:new URL(${JSON.stringify(worker.href)})}); renderer.once('message', reply=>{console.log(reply.json);renderer.terminate()}); renderer.postMessage({type:'request',id:1,json:'{}'});`
-    const child = spawnSync('node', ['--max-old-space-size=1024', '--input-type=module', '-e', code], {
-      env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=2048' }, encoding: 'utf8', timeout: 10_000,
-    })
-    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
-    const { heap } = JSON.parse(child.stdout)
-    expect(heap).toBeGreaterThan(480 * 1024 * 1024)
-    expect(heap).toBeLessThanOrEqual(512 * 1024 * 1024)
+    const progress = temp.file('heap-guard-lifecycle.jsonl', '')
+    const code = `
+      const { appendFileSync } = await import('node:fs')
+      const phase = name => appendFileSync(${JSON.stringify(progress)}, JSON.stringify({ phase: name, at: Date.now() }) + String.fromCharCode(10))
+      phase('node-started')
+      const { SourceRenderProcess } = await import(${JSON.stringify(entry)})
+      phase('renderer-imported')
+      const renderer = new SourceRenderProcess({ worker: new URL(${JSON.stringify(worker.href)}) })
+      const closed = new Promise(resolve => renderer.once('exit', () => { phase('renderer-closed'); resolve() }))
+      const wait = name => new Promise((resolve, reject) => {
+        const clean = () => { renderer.removeListener(name, onEvent); renderer.removeListener('error', onError); renderer.removeListener('exit', onExit) }
+        const onEvent = value => { clean(); phase(name); resolve(value) }
+        const onError = error => { clean(); reject(error) }
+        const onExit = (code, signal) => { clean(); reject(new Error('renderer exited before ' + name + ': ' + code + '/' + signal)) }
+        renderer.once(name, onEvent); renderer.once('error', onError); renderer.once('exit', onExit)
+      })
+      let reply
+      try {
+        const ready = wait('ready'), response = wait('message')
+        renderer.postMessage({ type: 'request', id: 1, json: '{}' })
+        phase('request-queued')
+        ;[, reply] = await Promise.all([ready, response])
+      } finally {
+        phase('terminate-requested')
+        renderer.terminate()
+        await closed
+      }
+      await new Promise((resolve, reject) => process.stdout.write(reply.json, error => error ? reject(error) : resolve()))
+      phase('stdout-drained')
+    `
+    try {
+      const child = await runHeapChild('node', ['--max-old-space-size=1024', '--input-type=module', '-e', code], {
+        env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=2048' },
+      })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const { heap } = JSON.parse(child.stdout)
+      expect(heap).toBeGreaterThan(480 * 1024 * 1024)
+      expect(heap).toBeLessThanOrEqual(512 * 1024 * 1024)
+    } catch (error) {
+      throw new Error(`Heap guard lifecycle:\n${readFileSync(progress, 'utf8')}`, { cause: error })
+    }
   }, 15_000)
 
   test('bounds native Buffer allocations with the whole-process watchdog', async () => {
