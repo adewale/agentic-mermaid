@@ -218,9 +218,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   as authored, in source order, so serializer, SVG, ASCII and Unicode output
   of unedited diagrams is unchanged. The `sequence_opaque_segment` warning
   no longer lists them; a diagram whose only preserved lines were
-  activations no longer warns (168 of the repo's 933 sequence and ZenUML
-  sources, and the official `sequenceDiagram.md` explicit-activation
-  example). Mermaid
+  activations no longer warns (the official `sequenceDiagram.md`
+  explicit-activation example among them), and its wording names what preserved lines lack: describe leaves
+  them out and typed operations cannot add, move or remove them. Mermaid
   writes no `+`/`-` on a message with a central connection `()`, so
   `set_message_activation` refuses one there.
 

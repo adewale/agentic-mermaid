@@ -1428,7 +1428,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'sequence_opaque_segment',
-      message: `This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations (${sequencePreservedConstructs(opaqueLines).join(', ')}). Inspect the source directly before relying on semantic read-back.`,
+      message: `This sequence keeps source lines verbatim that the typed body does not model (${sequencePreservedConstructs(opaqueLines).join(', ')}): describe leaves them out and typed operations cannot add, move or remove them. Inspect the source directly before relying on semantic read-back.`,
     })
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
