@@ -1164,10 +1164,22 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const target = editedFragment(statements, op.fragmentPath, op.index)
       if (!target.ok) return target
       const { scope, fragment } = target.value
+      // The destination is read in the body as it is, as the source is.
+      const into = op.toFragmentPath === undefined ? ok(scope) : fragmentScope(statements, op.toFragmentPath, 'toFragmentPath')
+      if (!into.ok) return into
+      const name = sequenceFragmentName({ fragmentPath: op.fragmentPath ?? [], fragmentIndex: op.index })
+      const step = into.value.enclosing.indexOf(fragment)
+      if (step >= 0) return err({ code: 'INVALID_OP', message: `Sequence fragment#${name} cannot move into itself or a fragment nested in it (toFragmentPath step ${step} is that fragment)` })
+      const depth = into.value.enclosing.length + fragmentDepth(fragment)
+      if (depth > DIAGRAM_WORK_LIMITS.nesting) return err({ code: 'INVALID_OP', message: `Moving sequence fragment#${name} there would nest fragments ${depth} deep; a sequence fragment nests at most ${DIAGRAM_WORK_LIMITS.nesting} deep` })
       scope.remove(op.index)
-      const placed = placeFragment(scope, statements, messages.length, op, fragment)
+      const placed = placeFragment(into.value, statements, messages.length, op, fragment)
       if (!placed.ok) return placed
       retire(scope)
+      retire(into.value)
+      // In another scope its authored lines move to that scope's depth, as
+      // the statements written there are.
+      if (into.value.branch !== scope.branch && fragment.rawLines) fragment.rawLines = atDepth(fragment.rawLines, '  '.repeat(Math.max(1, into.value.enclosing.length)))
       break
     }
     case 'remove_fragment': {
@@ -1556,8 +1568,8 @@ interface FragmentScope {
   remove(index: number): void
 }
 
-function fragmentScope(statements: SequenceStatement[], path: readonly SequenceFragmentStep[] | undefined): Result<FragmentScope, MutationError> {
-  if (path !== undefined && !Array.isArray(path)) return err({ code: 'INVALID_OP', message: 'Sequence fragmentPath must be an array of { fragmentIndex, branchIndex } steps' })
+function fragmentScope(statements: SequenceStatement[], path: readonly SequenceFragmentStep[] | undefined, field = 'fragmentPath'): Result<FragmentScope, MutationError> {
+  if (path !== undefined && !Array.isArray(path)) return err({ code: 'INVALID_OP', message: `Sequence ${field} must be an array of { fragmentIndex, branchIndex } steps` })
   const top = statements.flatMap((statement, position) => statement.kind === 'fragment' ? [{ position, statement }] : [])
   let scope: FragmentScope = {
     fragments: top.map(entry => entry.statement.fragment), enclosing: [], where: '',
@@ -1568,10 +1580,10 @@ function fragmentScope(statements: SequenceStatement[], path: readonly SequenceF
   for (const step of path ?? []) {
     const { fragmentIndex, branchIndex } = typeof step === 'object' && step !== null ? step : { fragmentIndex: undefined, branchIndex: undefined }
     const fragment = scope.fragments[fragmentIndex as number]
-    if (!fragment) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${fragmentIndex}${scope.where} (fragmentPath step ${steps.length}; ${countText(scope.fragments.length, 'fragment')})` })
+    if (!fragment) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${fragmentIndex}${scope.where} (${field} step ${steps.length}; ${countText(scope.fragments.length, 'fragment')})` })
     const branch = fragment.branches[branchIndex as number]
     const name = sequenceFragmentName({ fragmentPath: steps, fragmentIndex: fragmentIndex! })
-    if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment#${name} (fragmentPath step ${steps.length}; ${countText(fragment.branches.length, 'branch')})` })
+    if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment#${name} (${field} step ${steps.length}; ${countText(fragment.branches.length, 'branch')})` })
     steps.push({ fragmentIndex: fragmentIndex!, branchIndex: branchIndex! })
     scope = { ...branchScope(branch), branch, enclosing: [...scope.enclosing, fragment], where: ` in fragment#${name} branch#${branchIndex}` }
   }
@@ -1612,6 +1624,11 @@ function editedBranch(statements: SequenceStatement[], path: readonly SequenceFr
   const branch = fragment.branches[branchIndex]
   if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}${scope.where}` })
   return ok({ fragment, branch, retire: () => retire(scope, fragment) })
+}
+
+/** How deep a fragment nests: 1, plus its deepest nested fragment's depth. */
+function fragmentDepth(fragment: SequenceFragment): number {
+  return 1 + Math.max(0, ...fragment.branches.flatMap(branch => (branch.statements ?? []).flatMap(({ statement }) => statement.kind === 'fragment' ? [fragmentDepth(statement.fragment)] : [])))
 }
 
 /** An edit inside a fragment rewrites it and every fragment around it. */

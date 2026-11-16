@@ -682,12 +682,16 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['adds a fragment after a branch message, above the fragment after it', { kind: 'add_fragment', fragmentPath: LOOP, fragmentKind: 'opt', label: 'late', afterMessage: 0 }, '    B->>A: two\n    opt late\n    end\n      loop retry\n'],
     ['adds a fragment before a message three deep, above the destroy bound to it', { kind: 'add_fragment', fragmentPath: [...OPT, { fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'break', label: 'stop', beforeMessage: 0 }, '      Note over A: last try\n      break stop\n      end\n      destroy C\n'],
     ['moves a nested fragment, contents and all, below the branch message after it', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, afterMessage: 1 }, '    B->>A: four\n      loop retry\n        A->>B: three\n        Note right of B: busy\n      end\n  else no\n'],
+    ['moves a nested fragment into the other branch, at that branch\'s depth', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: OPT, afterMessage: 0 }, '  alt ok\n    B->>A: two\n    B->>A: four\n  else no\n    create participant C\n    A->>C: five\n    loop retry\n      A->>B: three\n      Note right of B: busy\n    end\n      opt maybe\n'],
+    ['moves a nested fragment into a fragment nested in its sibling, above the destroy bound to a message', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: [...OPT, { fragmentIndex: 0, branchIndex: 0 }], beforeMessage: 0 }, '    opt maybe\n      Note over A: last try\n      loop retry\n        A->>B: three\n        Note right of B: busy\n      end\n      destroy C\n      C->>A: six\n'],
+    ['moves a nested fragment out to the branch around it', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: ALT }, '    A->>C: five\n  end\n  opt maybe\n    Note over A: last try\n    destroy C\n    C->>A: six\n  end\n  end\n  A->>B: seven\n'],
+    ['moves a nested fragment out to the top level', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: [], afterMessage: 1 }, '    A->>C: five\n  end\n  end\n  A->>B: seven\n  opt maybe\n    Note over A: last try\n    destroy C\n    C->>A: six\n  end\n'],
   ] as const)('an op that %s is written as Mermaid reads it', async (_name, op, written) => {
     const edited = apply(sequence(DEEP), op as SequenceMutationOp)
     const output = serializeMermaid(edited)
     expect(output).toContain(written)
     const reread = sequence(output)
-    expect(reread.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(reread.body.statements.map(statement => statement.kind)).toEqual(edited.body.statements.map(statement => statement.kind))
     expect(serializeMermaid(reread)).toBe(output)
     expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
     const read = await mermaidStream(output)
@@ -706,6 +710,12 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['a message missing from a nested branch', { kind: 'set_fragment_message_text', fragmentPath: LOOP, fragmentIndex: 0, index: 1, text: 'x' }, 'MESSAGE_NOT_FOUND'],
     ['a nested edit separating a destroy from its message', { kind: 'add_fragment_message', fragmentPath: OPT, fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'x' }, 'INVALID_OP'],
     ['a fragment moved out of range', { kind: 'move_fragment', fragmentPath: OPT, index: 1 }, 'INVALID_OP'],
+    ['a fragment moved into its own branch', { kind: 'move_fragment', fragmentPath: ALT, index: 0, toFragmentPath: LOOP }, 'INVALID_OP'],
+    ['a fragment moved into a fragment nested in it', { kind: 'move_fragment', index: 0, toFragmentPath: [...LOOP, { fragmentIndex: 0, branchIndex: 0 }] }, 'INVALID_OP'],
+    ['a destination path step naming a missing branch', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: [...ALT, { fragmentIndex: 0, branchIndex: 2 }] }, 'INVALID_OP'],
+    ['a destination path that is not a list', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: { fragmentIndex: 0, branchIndex: 0 } }, 'INVALID_OP'],
+    ['a destination anchor past its branch\'s messages', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: OPT, afterMessage: 1 }, 'INVALID_OP'],
+    ['a move to the top level that puts a destroy and its message above the create', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: [], beforeMessage: 0 }, 'INVALID_OP'],
   ] as const)('an op naming %s is refused and changes nothing', (_name, op, code) => {
     const parsed = sequence(DEEP)
     const result = mutate(parsed, op as unknown as SequenceMutationOp)
@@ -728,6 +738,14 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     const refused = mutate(sequence(nested(limit)), { kind: 'add_fragment', fragmentPath: path, fragmentKind: 'opt' })
     expect(refused.ok ? 'accepted' : refused.error.code).toBe('INVALID_OP')
     expect(mutate(sequence(nested(limit)), { kind: 'add_fragment', fragmentPath: path.slice(1), fragmentKind: 'opt' }).ok).toBe(true)
+    // A moved fragment brings its own depth: an opt holding a loop fits one
+    // level above the deepest branch of a chain one short of the limit.
+    const pair = sequence(`${nested(limit - 1)}\n  opt pair\n    loop inner\n      A->>B: x\n    end\n  end`)
+    const tooDeep = mutate(pair, { kind: 'move_fragment', index: 1, toFragmentPath: path.slice(1) })
+    expect(tooDeep.ok ? 'accepted' : tooDeep.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(`would nest fragments ${limit + 1} deep`) })
+    const moved = mutate(pair, { kind: 'move_fragment', index: 1, toFragmentPath: path.slice(2) })
+    if (!moved.ok) throw new Error(moved.error.message)
+    expect(sequence(serializeMermaid(moved.value)).body.statements.map(statement => statement.kind)).toEqual(['fragment'])
   })
 
   test('describe lists nested fragments inside their branch', () => {

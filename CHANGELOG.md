@@ -178,9 +178,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   branch's messages. The fragment goes right after the message and the notes
   under it, or right above the message and the `create`/`destroy` lines bound
   to it. New `move_fragment` moves a fragment, contents and all, to such an
-  anchor in its own scope (appended without one). Giving both anchors, an
-  anchor with `index`, or an anchor out of range is refused with
-  `INVALID_OP` naming the valid range.
+  anchor (appended without one): in its own scope, or with `toFragmentPath`
+  (steps to the destination branch, as the facts address it before the move;
+  `[]` is the top level) into another branch or out to the top level, its
+  anchors then counting that branch's messages. A fragment moved to another
+  scope keeps its authored lines, moved to that scope's depth. Giving both
+  anchors, an anchor with `index`, an anchor out of range, a destination path
+  step that names no fragment or branch, a move into the fragment itself or a
+  fragment nested in it, or one that would nest fragments past the host limit
+  of 64 is refused with `INVALID_OP`.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while

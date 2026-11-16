@@ -91,7 +91,7 @@ const SEQUENCE_FRAGMENT_BEFORE = 'message index K in the scope; the fragment goe
 const SEQUENCE_BRANCH_NOTE_INDEX = 'index among the branch\'s notes: the K of facts `note#N op fragmentIndex F branchIndex B index K`'
 // A nested fragment is reached through the branches around it; facts state
 // the path with every fragment, message and note address that needs one.
-const fragmentPath = (): FieldSpec => withNote(objArr(false, { fields: { fragmentIndex: num(), branchIndex: num() } }), 'steps to the branch holding the fragment, outermost first: the P of facts `… op fragmentPath P …`; default: top level')
+const fragmentPath = (note = 'steps to the branch holding the fragment, outermost first: the P of facts `… op fragmentPath P …`; default: top level'): FieldSpec => withNote(objArr(false, { fields: { fragmentIndex: num(), branchIndex: num() } }), note)
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many', 'parent']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -184,7 +184,7 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   move_message: { fields: { from: withNote(num(), SEQUENCE_TOP_INDEX), to: withNote(num(), `target position as a ${SEQUENCE_TOP_INDEX}`) } },
   set_participant_label: { fields: { id: str(), label: str() } },
   add_fragment: { fields: { fragmentPath: fragmentPath(), fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: withNote(str(false), 'a rect takes its fill color (a CSS color); omit for the default fill'), index: withNote(num(false), 'fragment insert position; default: append'), afterMessage: withNote(num(false), SEQUENCE_FRAGMENT_AFTER), beforeMessage: withNote(num(false), SEQUENCE_FRAGMENT_BEFORE) } },
-  move_fragment: { fields: { fragmentPath: fragmentPath(), index: num(), afterMessage: withNote(num(false), `${SEQUENCE_FRAGMENT_AFTER}; omit both to append`), beforeMessage: withNote(num(false), SEQUENCE_FRAGMENT_BEFORE) } },
+  move_fragment: { fields: { fragmentPath: fragmentPath(), index: num(), toFragmentPath: fragmentPath('steps to the destination branch (P plus its F and B); [] top level; default: fragmentPath. Anchors count its messages'), afterMessage: withNote(num(false), `${SEQUENCE_FRAGMENT_AFTER}; omit both to append`), beforeMessage: withNote(num(false), SEQUENCE_FRAGMENT_BEFORE) } },
   remove_fragment: { fields: { fragmentPath: fragmentPath(), index: num() } },
   set_fragment_label: { fields: { fragmentPath: fragmentPath(), index: num(), label: strOrNull() } },
   add_fragment_branch: { fields: { fragmentPath: fragmentPath(), fragmentIndex: num(), label: str(false) } },

@@ -50,7 +50,11 @@ path appends the new fragment to that branch (or puts it before fragment
 placed as a note's anchors place it: a top-level message index, or with
 `fragmentPath` an index among that branch's messages. `move_fragment`
 (`fragmentPath`, `index`, an anchor) moves a fragment and its contents within
-its own scope; moving one into another branch is remove plus re-add. An edit inside a nested fragment rewrites it and the
+its own scope, or with `toFragmentPath` into another branch (the branch's
+`fragmentPath` plus `{ fragmentIndex, branchIndex }`, read before the move;
+`[]` is the top level), its anchors then counting that branch's messages. A
+move into the fragment itself or one nested in it, or past the nesting limit,
+is refused. An edit inside a nested fragment rewrites it and the
 fragments around it; nested fragments are written one level deeper than the
 statements beside them, and untouched ones keep their authored lines.
 
