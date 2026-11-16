@@ -130,6 +130,24 @@ const BRANCHED_SEQUENCE = `sequenceDiagram
   end
 `
 
+// Fragments nested two and three deep, indented with tabs and their messages
+// spelled with spaces.
+const NESTED_SEQUENCE = `sequenceDiagram
+\tparticipant A
+\tparticipant B
+\tA ->> B: one
+\trect rgb(200, 220, 255)
+\t\talt ok
+\t\t\tB ->> A: two
+\t\t\tloop retry
+\t\t\t\tA ->> B: three
+\t\t\tend
+\t\telse no
+\t\t\tA ->> B: four
+\t\tend
+\tend
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -223,6 +241,60 @@ const REDECLARED_ER = `erDiagram
     }
 `
 
+// Subgraph members declared by edges: `a2` is first mentioned outside the
+// subgraph, and `a1-->a2` inside it makes both members.
+const EDGE_MEMBERS = `flowchart TB
+    %% members declared by edges
+    c1-->a2
+    subgraph one
+    a1-->a2
+    end
+    subgraph two
+      b1-->b2
+    end
+`
+
+// One line carrying two edges and a class.
+const AMPERSAND_CLASSES = `flowchart TD
+  %% keep
+  A:::hot & B --> C
+  classDef hot fill:#f96
+`
+
+// A node declared on its own line, whose label the writer moves onto the
+// first edge that mentions it.
+const DECLARED_FIRST = `flowchart TD
+  %% keep
+  n0[Zero]
+  n1{One}
+  n2 --> n1
+`
+
+// Namespaces the writer flattens (`namespace Platform.Auth`), and a block
+// written on one line.
+const NESTED_NAMESPACES = `classDiagram
+    namespace Platform {
+        namespace Auth {
+            class UserService {
+                +login()
+            }
+        }
+        class Gateway {
+            +route()
+        }
+    }
+    Gateway --> UserService : delegates
+`
+
+const INLINE_ANNOTATION = `classDiagram
+  %% keep
+  class Shape <<interface>>
+`
+
+// Enough messages that moving the first one last changes a canonical line
+// difference larger than the table the diff uses for small edits.
+const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
+
 interface Case {
   name: string
   source: string
@@ -259,6 +331,10 @@ const CASES: Case[] = [
   { name: 'sequence add_participant', source: SEQUENCE, op: { kind: 'add_participant', id: 'D', label: 'Database' }, reference: [['\tparticipant C as Controller\n', '\tparticipant C as Controller\n\tparticipant D as Database\n']] },
   { name: 'sequence add_fragment_message after a destroy in a verbatim alt branch', source: 'sequenceDiagram\n\tA->>B: hi\n\talt done\n\t\tdestroy B\n\t\tA->>B: bye\n\telse retry\n\t\tA->>A: tail\n\tend\n', op: { kind: 'add_fragment_message', fragmentIndex: 0, index: 1, from: 'A', to: 'A', text: 'after' }, reference: [['\t\tA->>B: bye\n', '\t\tA->>B: bye\n\t\tA->>A: after\n']] },
   { name: 'sequence add_fragment_note inside a verbatim alt branch', source: SEQUENCE, op: { kind: 'add_fragment_note', fragmentIndex: 0, position: 'right', actorIds: ['K'], text: 'acked', afterMessage: 1 }, reference: [['\t\tK -->> C: ok\n', '\t\tK -->> C: ok\n\t\tNote right of K: acked\n']] },
+  { name: 'sequence add_fragment_message into the branch of a nested alt', source: NESTED_SEQUENCE, op: { kind: 'add_fragment_message', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, branchIndex: 1, from: 'B', to: 'A', text: 'deep' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\tB->>A: deep\n']] },
+  { name: 'sequence set_fragment_message_text three fragments deep', source: NESTED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\t\t\tA ->> B: three'], reference: [['B: three', 'B: again']] },
+  { name: 'sequence add_fragment into a nested branch is indented like its siblings', source: NESTED_SEQUENCE, op: { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 1 }], fragmentKind: 'opt', label: 'maybe' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\topt maybe\n\t\t\tend\n']] },
+  { name: 'sequence remove_fragment two fragments deep', source: NESTED_SEQUENCE, op: { kind: 'remove_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], index: 0 }, touched: ['\t\t\tloop retry', '\t\t\t\tA ->> B: three', '\t\t\tend'], reference: [['\t\t\tloop retry\n\t\t\t\tA ->> B: three\n\t\t\tend\n', '']] },
   { name: 'sequence add_note after a message', source: SEQUENCE, op: { kind: 'add_note', position: 'right', actorIds: ['C'], text: 'queued', afterMessage: 0 }, reference: [['\tK ->> C: event\n', '\tK ->> C: event\n\tNote right of C: queued\n']] },
   { name: 'sequence remove_note', source: SEQUENCE, op: { kind: 'remove_note', index: 0 }, touched: ['\tNote over K,C: done'], reference: [['\tNote over K,C: done\n', '']] },
   { name: 'sequence set_note_text', source: SEQUENCE, op: { kind: 'set_note_text', index: 0, text: 'all done' }, touched: ['\tNote over K,C: done'], reference: [['K,C: done', 'K,C: all done']] },
@@ -307,6 +383,14 @@ const CASES: Case[] = [
   { name: 'state rename_state renames its label line and its block', source: REDECLARED_STATE, op: { kind: 'rename_state', from: 'Busy', to: 'Active' }, touched: ['  Wait --> Busy', '  Busy: Working', '    state Busy {'], reference: [['--> Busy', '--> Active'], ['Busy: Working', 'Active: Working'], ['state Busy {', 'state Active {']] },
   { name: 'er rename_entity renames both of its blocks', source: REDECLARED_ER, op: { kind: 'rename_entity', from: 'CUSTOMER', to: 'CLIENT' }, touched: ['    CUSTOMER {', '  CUSTOMER ||--o{ ORDER : places'], reference: [['CUSTOMER {\n        string name', 'CLIENT {\n        string name'], ['CUSTOMER ||', 'CLIENT ||'], ['CUSTOMER {\n        string email', 'CLIENT {\n        string email']] },
   { name: 'er remove_entity removes both of its blocks', source: REDECLARED_ER, op: { kind: 'remove_entity', id: 'CUSTOMER' }, touched: ['    CUSTOMER {', '        string name', '    }', '  CUSTOMER ||--o{ ORDER : places', '        string email'], reference: [['    CUSTOMER {\n        string name\n    }\n  CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string email\n    }\n', '    ORDER\n']] },
+  { name: 'sequence set_fragment_message_text keeps the message\'s authored spacing', source: BRANCHED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'yes please' }, touched: ['      A ->> B : yes'], reference: [['B : yes', 'B : yes please']] },
+  { name: 'sequence move_message across a difference larger than the diff table', source: MANY_MESSAGES, op: { kind: 'move_message', from: 0, to: 2100 }, touched: ['  A ->> B: first'], reference: [['  A ->> B: first\n', ''], ['  B->>A: m2099\n', '  B->>A: m2099\n  A ->> B: first\n']] },
+  { name: 'flowchart remove_node keeps the subgraph member its edge declared', source: EDGE_MEMBERS, op: { kind: 'remove_node', id: 'a1' }, touched: ['    a1-->a2'], reference: [['    a1-->a2\n', '    a2\n']] },
+  { name: 'flowchart add_node after edges inside a subgraph stays outside it', source: EDGE_MEMBERS, op: { kind: 'add_node', id: 'N', label: 'New' }, reference: [['      b1-->b2\n    end\n', '      b1-->b2\n    end\n    N[New]\n']] },
+  { name: 'flowchart remove_edge from a line with two edges and a class', source: AMPERSAND_CLASSES, op: { kind: 'remove_edge', id: 'A->C' }, touched: ['  A:::hot & B --> C'], reference: [['  A:::hot & B --> C\n', '  B --> C\n  A[A]\n  class A hot\n']] },
+  { name: 'flowchart add_edge from a node declared on its own line keeps its label there', source: DECLARED_FIRST, op: { kind: 'add_edge', from: 'n0', to: 'n1' }, reference: [['  n2 --> n1\n', '  n2 --> n1\n  n0 --> n1\n']] },
+  { name: 'class remove_class from a nested namespace', source: NESTED_NAMESPACES, op: { kind: 'remove_class', id: 'UserService' }, touched: ['        namespace Auth {', '            class UserService {', '                +login()', '            }', '        }', '    Gateway --> UserService : delegates'], reference: [['        namespace Auth {\n            class UserService {\n                +login()\n            }\n        }\n', ''], ['    Gateway --> UserService : delegates\n', '']] },
+  { name: 'class add_member to a class written with its annotation on one line', source: INLINE_ANNOTATION, op: { kind: 'add_member', class: 'Shape', text: '+int added' }, touched: ['  class Shape <<interface>>'], reference: [['  class Shape <<interface>>\n', '  class Shape {\n    <<interface>>\n    +int added\n  }\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -384,4 +468,15 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read).toEqual(expected!)
     expect(read!.ok).toBe(true)
   }, 20_000)
+
+  // A kept line whose position changes what it declares: with `[*] --> S`
+  // gone, the note left before `S --> T` would declare S on its own, which
+  // Mermaid draws differently, so the edit falls back and the receipt says
+  // the closest candidate has the edit's facts.
+  test('a state note left before its state\'s only transition falls back with a named reason', () => {
+    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n'
+    const result = applyOps({ source, ops: [{ kind: 'remove_transition', index: 0 }], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change has the edit\'s facts but also reads "S"' })
+  })
 })

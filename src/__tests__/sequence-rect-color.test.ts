@@ -79,12 +79,14 @@ describe('Sequence rect background color', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const body = asSequence(parsed.value)?.body
-    expect(body?.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'opaque-block', 'message'])
-    const opaque = body?.statements[3]
-    expect(opaque?.kind).toBe('opaque-block')
-    if (opaque?.kind !== 'opaque-block') return
+    expect(body?.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    const outer = body?.statements[3]
+    if (outer?.kind !== 'fragment') return
+    // Both colors are typed labels, the inner rect a fragment nested in the outer.
+    const inner = outer.fragment.branches[0]!.statements?.[0]?.statement
+    expect([outer.fragment.label, inner?.kind === 'fragment' ? inner.fragment.label : undefined]).toEqual(['rgb(191, 223, 255)', 'rgba(0, 0, 255, .1)'])
     const authoredBlockLines = SOURCE.trimEnd().split('\n').slice(4, -1)
-    expect(opaque.lines).toEqual(authoredBlockLines)
+    expect(outer.fragment.rawLines).toEqual(authoredBlockLines)
     const serialized = serializeMermaid(parsed.value)
     expect(serialized).toContain(authoredBlockLines.join('\n'))
     expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks).toEqual(

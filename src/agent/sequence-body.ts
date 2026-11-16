@@ -9,9 +9,13 @@
 //   - Structured lines  = participant/actor declarations, simple messages,
 //                         notes and the `create`/`destroy` lifecycle
 //                         directives.
-//   - Block constructs  = alt|opt|loop|par|critical|break|rect … end (nesting-
-//                         tracked) → ONE opaque-block segment, inner lines kept
-//                         byte-for-byte (original indentation).
+//   - Fragments         = alt|opt|loop|par|critical|break|rect … end → a typed
+//                         fragment whose branches hold messages, notes,
+//                         create/destroy lines and nested fragments, written
+//                         back byte for byte until an op edits it. A block
+//                         outside that model (a box, a comment or an
+//                         activation inside) → ONE opaque-block segment,
+//                         inner lines kept byte-for-byte.
 //   - Other single lines = activate/deactivate, autonumber, title… →
 //                         each joins an adjacent opaque-block segment.
 //   - Unbalanced `end` / unclosed block / un-segmentable input → return null
@@ -30,7 +34,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageArrow, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceFragmentBranch, SequenceNoteStatement, SequenceNotePosition, SequenceCreateStatement, SequenceDestroyStatement, MutationError, Result, LayoutWarning,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, SequenceFragmentBranch, SequenceFragmentStatement, SequenceFragmentStep, SequenceNoteStatement, SequenceNotePosition, SequenceCreateStatement, SequenceDestroyStatement, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement, type SequenceStatementSyntax } from '../sequence/parser.ts'
@@ -43,6 +47,7 @@ import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText, writeSequenceControlledText } from '../sequence/text.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { sequenceRectColor } from '../sequence/colors.ts'
+import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -154,8 +159,8 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       // The shared reader, not a second depth scanner, owns this boundary.
       const block = raw.slice(i, entry.endIndex! + 1)
       const blockLines = block.map(portableRaw)
+      const fragment = parseTypedFragment(block, i)
       i = entry.endIndex! + 1
-      const fragment = parseTypedFragment(block)
       for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
       if (fragment) {
         statements.push({ kind: 'fragment', fragment })
@@ -262,16 +267,22 @@ function portableRaw(entry: SequenceSourceStatement): string {
   return message ? messageWithBoundary(message.from, source) : source
 }
 
-function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
+/** A block as a typed fragment, or null when it holds a statement outside
+ * the model. `offset` is the opener's index among the source statements
+ * (the reader's block boundaries count from there); fragments nest as deep as
+ * the host nesting limit. */
+function parseTypedFragment(entries: SequenceSourceStatement[], offset: number, depth = 1): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
   if (!opener || !['alt', 'opt', 'loop', 'par', 'par_over', 'critical', 'break', 'rect'].includes(opener.type)) return null
+  if (depth > DIAGRAM_WORK_LIMITS.nesting) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   // A rect's argument is a color, kept as written. One the renderer does not
   // read as a color (a `#` comment, a wrap control) stays verbatim source.
   if (fragmentKind === 'rect' && (opener.wrap !== undefined || rectColorError(opener.label))) return null
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
-  for (const entry of entries.slice(1, -1)) {
+  for (let at = 1; at < entries.length - 1; at++) {
+    const entry = entries[at]!
     const line = entry.raw.trim()
     if (!line) continue
     // Editing a fragment that carries comments would otherwise discard them.
@@ -282,6 +293,15 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
       const continuation = inner.continuation
       const text = readSequenceText(continuation.label)
       branches.push({ ...(continuation.wrap === undefined ? {} : { wrap: continuation.wrap }), ...(text.value ? { label: text.value } : {}), ...(text.content ? { labelContent: text.content } : {}), messages: [] })
+      continue
+    }
+    if (inner?.kind === 'block') {
+      const end = entry.endIndex! - offset
+      const nested = parseTypedFragment(entries.slice(at, end + 1), offset + at, depth + 1)
+      if (!nested) return null
+      const branch = branches.at(-1)!
+      ;(branch.statements ??= []).push({ before: branch.messages.length, statement: { kind: 'fragment', fragment: nested } })
+      at = end
       continue
     }
     if (inner?.kind === 'create' || inner?.kind === 'destroy' || inner?.kind === 'note') {
@@ -307,15 +327,78 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
   }
 }
 
+/** Where a fragment sits: the `fragmentPath` steps the fragment ops take to
+ * the branch holding it (empty at top level) and its `fragmentIndex` among
+ * that scope's fragments. */
+export interface SequenceFragmentPlace {
+  fragment: SequenceFragment
+  fragmentPath: SequenceFragmentStep[]
+  fragmentIndex: number
+}
+
+/** The branch a message, note or lifecycle line is written in. */
+export interface SequenceBranchPlace extends SequenceFragmentPlace { branchIndex: number }
+
+/** The typed statements in drawing order, each with the address its ops
+ * take: a message's or note's `index` is its top-level index or its index in
+ * its branch; a fragment comes before its contents. */
+export type SequenceTimelineEntry =
+  | { kind: 'message'; message: SequenceMessage; index: number; place?: SequenceBranchPlace }
+  | { kind: 'note'; note: SequenceNoteStatement; index: number; place?: SequenceBranchPlace }
+  | { kind: 'lifecycle'; statement: SequenceCreateStatement | SequenceDestroyStatement; place?: SequenceBranchPlace }
+  | { kind: 'fragment'; place: SequenceFragmentPlace }
+
+export function sequenceTimeline(body: SequenceBody): SequenceTimelineEntry[] {
+  const out: SequenceTimelineEntry[] = []
+  const visit = (fragment: SequenceFragment, fragmentPath: SequenceFragmentStep[], fragmentIndex: number): void => {
+    const place = { fragment, fragmentPath, fragmentIndex }
+    out.push({ kind: 'fragment', place })
+    fragment.branches.forEach((branch, branchIndex) => {
+      const at = { ...place, branchIndex }
+      const path = [...fragmentPath, { fragmentIndex, branchIndex }]
+      let message = 0
+      let note = 0
+      let nested = 0
+      for (const item of branchItems(branch)) {
+        if (!('kind' in item)) out.push({ kind: 'message', message: item, index: message++, place: at })
+        else if (item.kind === 'note') out.push({ kind: 'note', note: item, index: note++, place: at })
+        else if (item.kind === 'fragment') visit(item.fragment, path, nested++)
+        else out.push({ kind: 'lifecycle', statement: item, place: at })
+      }
+    })
+  }
+  let note = 0
+  let fragmentIndex = 0
+  for (const statement of body.statements) {
+    if (statement.kind === 'message') {
+      const message = body.messages[statement.ref]
+      if (message) out.push({ kind: 'message', message, index: statement.ref })
+    } else if (statement.kind === 'note') out.push({ kind: 'note', note: statement, index: note++ })
+    else if (statement.kind === 'create' || statement.kind === 'destroy') out.push({ kind: 'lifecycle', statement })
+    else if (statement.kind === 'fragment') visit(statement.fragment, [], fragmentIndex++)
+  }
+  return out
+}
+
+/** A fragment's name in facts: `F` at top level, and for a nested fragment
+ * each step's fragment and branch index before its own (`0.1.0` is fragment 0
+ * of branch 1 of top-level fragment 0). */
+export function sequenceFragmentName({ fragmentPath, fragmentIndex }: Pick<SequenceFragmentPlace, 'fragmentPath' | 'fragmentIndex'>): string {
+  return [...fragmentPath.flatMap(step => [step.fragmentIndex, step.branchIndex]), fragmentIndex].join('.')
+}
+
 /** A message with its place in the timeline and the `index` the message ops
  * take for it: its top-level message index, or its index in its fragment
- * branch (with `fragmentIndex` and `branchIndex`). */
+ * branch (with `fragmentIndex`, `branchIndex` and, for a nested fragment,
+ * `fragmentPath`). */
 export type SequenceMessageContext =
   | { scope: 'top-level'; message: SequenceMessage; index: number }
   | {
     scope: 'fragment'
     message: SequenceMessage
     index: number
+    fragment: SequenceFragment
+    fragmentPath?: SequenceFragmentStep[]
     fragmentIndex: number
     branchIndex: number
     fragmentKind: SequenceFragment['fragmentKind']
@@ -325,25 +408,19 @@ export type SequenceMessageContext =
 
 /** Preserve control-flow location while exposing messages for read-back. */
 export function sequenceMessageContexts(body: SequenceBody): SequenceMessageContext[] {
-  const out: SequenceMessageContext[] = []
-  let fragmentIndex = 0
-  for (const statement of body.statements) {
-    if (statement.kind === 'message') {
-      const message = body.messages[statement.ref]
-      if (message) out.push({ scope: 'top-level', message, index: statement.ref })
-    } else if (statement.kind === 'fragment') {
-      statement.fragment.branches.forEach((branch, branchIndex) => {
-        branch.messages.forEach((message, index) => out.push({
-          scope: 'fragment', message, index, fragmentIndex, branchIndex,
-          fragmentKind: statement.fragment.fragmentKind,
-          ...(statement.fragment.label ? { fragmentLabel: statement.fragment.label } : {}),
-          ...(branch.label ? { branchLabel: branch.label } : {}),
-        }))
-      })
-      fragmentIndex++
-    }
-  }
-  return out
+  return sequenceTimeline(body).flatMap((entry): SequenceMessageContext[] => {
+    if (entry.kind !== 'message') return []
+    const { message, index, place } = entry
+    if (!place) return [{ scope: 'top-level', message, index }]
+    const { fragment, fragmentPath, fragmentIndex, branchIndex } = place
+    const branch = fragment.branches[branchIndex]!
+    return [{
+      scope: 'fragment', message, index, fragment, ...(fragmentPath.length ? { fragmentPath } : {}), fragmentIndex, branchIndex,
+      fragmentKind: fragment.fragmentKind,
+      ...(fragment.label ? { fragmentLabel: fragment.label } : {}),
+      ...(branch.label ? { branchLabel: branch.label } : {}),
+    }]
+  })
 }
 
 /** Messages in rendered interaction order. Use sequenceMessageContexts when
@@ -653,15 +730,9 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
     } else if (statement.kind === 'note') {
       invalid = noteActorsError(statement.position, statement.actorIds)
     } else if (statement.kind === 'fragment') {
-      for (const branch of statement.fragment.branches) {
-        for (const message of branch.messages) {
-          invalid = messageIdError(message)
-          if (invalid) return invalid
-        }
-        for (const { statement: inner } of branch.statements ?? []) {
-          invalid = inner.kind === 'note' ? noteActorsError(inner.position, inner.actorIds) : directiveIdError(inner)
-          if (invalid) return invalid
-        }
+      for (const item of fragmentLeaves(statement.fragment)) {
+        invalid = !('kind' in item) ? messageIdError(item) : item.kind === 'note' ? noteActorsError(item.position, item.actorIds) : directiveIdError(item)
+        if (invalid) return invalid
       }
     }
     if (invalid) return invalid
@@ -675,57 +746,70 @@ function directiveIdError(statement: SequenceCreateStatement | SequenceDestroySt
   return actorIdError(id, 'declaration') ?? (/\s/.test(id) ? { code: 'INVALID_OP', message: `Sequence participant ID "${id}" contains spaces; create and destroy need an ID without spaces` } : undefined)
 }
 
+const isDirective = (statement: { kind: string }): boolean => statement.kind === 'create' || statement.kind === 'destroy'
 const directiveId = (statement: SequenceCreateStatement | SequenceDestroyStatement): string => statement.kind === 'create' ? statement.id : statement.actorId
 
-type BranchItem = SequenceMessage | SequenceCreateStatement | SequenceDestroyStatement | SequenceNoteStatement
+type BranchItem = SequenceMessage | SequenceBranchStatementValue
+type SequenceBranchStatementValue = NonNullable<SequenceFragmentBranch['statements']>[number]['statement']
 
-/** A branch's messages, lifecycle directives and notes in source order. */
+/** A branch's messages, lifecycle directives, notes and nested fragments in
+ * source order. */
 export function sequenceBranchItems(branch: SequenceFragmentBranch): BranchItem[] {
   const at = (index: number) => (branch.statements ?? []).filter(entry => entry.before === index).map(entry => entry.statement)
   return [...branch.messages.flatMap((message, index) => [...at(index), message]), ...at(branch.messages.length)]
 }
 const branchItems = sequenceBranchItems
 
+/** A fragment's messages, lifecycle directives and notes in source order,
+ * those of its nested fragments included. */
+function* fragmentLeaves(fragment: SequenceFragment): Generator<Exclude<BranchItem, SequenceFragmentStatement>> {
+  for (const branch of fragment.branches) {
+    for (const item of branchItems(branch)) {
+      if ('kind' in item && item.kind === 'fragment') yield* fragmentLeaves(item.fragment)
+      else yield item
+    }
+  }
+}
+
 export type SequenceNoteContext =
   | { scope: 'top-level'; note: SequenceNoteStatement; index: number }
-  | { scope: 'fragment'; note: SequenceNoteStatement; index: number; fragmentIndex: number; branchIndex: number }
+  | { scope: 'fragment'; note: SequenceNoteStatement; index: number; fragmentPath?: SequenceFragmentStep[]; fragmentIndex: number; branchIndex: number }
 
 /** Notes in drawing order, each with the `index` the note ops take: its
  * top-level note index, or its index among its branch's notes. */
 export function sequenceNoteContexts(body: SequenceBody): SequenceNoteContext[] {
-  const out: SequenceNoteContext[] = []
-  let top = 0
-  let fragmentIndex = 0
-  for (const statement of body.statements) {
-    if (statement.kind === 'note') out.push({ scope: 'top-level', note: statement, index: top++ })
-    else if (statement.kind === 'fragment') {
-      statement.fragment.branches.forEach((branch, branchIndex) => {
-        let index = 0
-        for (const item of branchItems(branch)) if ('kind' in item && item.kind === 'note') out.push({ scope: 'fragment', note: item, index: index++, fragmentIndex, branchIndex })
-      })
-      fragmentIndex++
-    }
-  }
-  return out
+  return sequenceTimeline(body).flatMap((entry): SequenceNoteContext[] => {
+    if (entry.kind !== 'note') return []
+    const { note, index, place } = entry
+    return [place ? { scope: 'fragment', note, index, ...(place.fragmentPath.length ? { fragmentPath: place.fragmentPath } : {}), fragmentIndex: place.fragmentIndex, branchIndex: place.branchIndex } : { scope: 'top-level', note, index }]
+  })
 }
 
-function renderFragment(fragment: SequenceFragment): string[] {
+/** A fragment's lines: as authored until an op edits it, else canonical. A
+ * top-level fragment writes its body at its opener's depth; a nested
+ * fragment's opener lines up with the statements beside it and its body is
+ * one level deeper. */
+function renderFragment(fragment: SequenceFragment, indent = '  ', nested = false): string[] {
   if (fragment.rawLines) {
     assertParticipantDeclarations(readSequenceStatements(fragment.rawLines))
     return [...fragment.rawLines]
   }
-  const prefix = `  ${fragment.fragmentKind} `
+  const body = nested ? `${indent}  ` : indent
+  const prefix = `${indent}${fragment.fragmentKind} `
   const opener = fragment.fragmentKind === 'rect' ? prefix + (fragment.label ?? '')
     : fragment.label || fragment.wrap !== undefined ? prefix + writeSequenceControlledText(fragment.label ?? '', fragment.labelContent, fragment.wrap, prefix) : prefix
   const lines = [opener.trimEnd()]
   fragment.branches.forEach((branch, index) => {
     if (index > 0) {
-      const branchPrefix = `  ${BRANCH_KEYWORD[fragment.fragmentKind] ?? 'else'} `
+      const branchPrefix = `${indent}${BRANCH_KEYWORD[fragment.fragmentKind] ?? 'else'} `
       lines.push(branch.label || branch.wrap !== undefined ? branchPrefix + writeSequenceControlledText(branch.label ?? '', branch.labelContent, branch.wrap, branchPrefix) : branchPrefix.trimEnd())
     }
-    for (const item of branchItems(branch)) lines.push(!('kind' in item) ? `  ${renderMessage(item).trimStart()}` : item.kind === 'note' ? renderNote(item) : renderDirective(item))
+    for (const item of branchItems(branch)) {
+      if ('kind' in item && item.kind === 'fragment') lines.push(...renderFragment(item.fragment, body, true))
+      else lines.push(body + (!('kind' in item) ? renderMessage(item) : item.kind === 'note' ? renderNote(item) : renderDirective(item)).trimStart())
+    }
   })
-  lines.push('  end')
+  lines.push(`${indent}end`)
   return lines
 }
 
@@ -782,7 +866,7 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
   switch (statement.kind) {
     case 'participant': return participants[statement.ref] ? [participants[statement.ref]!.id] : []
     case 'message': return endpoints(messages[statement.ref])
-    case 'fragment': return statement.fragment.branches.flatMap(branch => branchItems(branch).flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : item.kind === 'note' ? [...item.actorIds] : []))
+    case 'fragment': return [...fragmentLeaves(statement.fragment)].flatMap(item => !('kind' in item) ? endpoints(item) : item.kind === 'create' ? [item.id] : item.kind === 'note' ? [...item.actorIds] : [])
     case 'actor-links': return [statement.actorId]
     case 'create': return [statement.id]
     // `destroy` refers to a participant without creating it.
@@ -942,11 +1026,10 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       // A participant its `create` line names is renamed there, in a
       // fragment branch too.
       const creating = naming === undefined ? statements[creatingStatement(statements, participants, messages, p.id)] : undefined
-      const created = creating?.kind === 'create' ? creating
-        : creating?.kind === 'fragment' ? creating.fragment.branches.flatMap(branch => branch.statements ?? []).map(entry => entry.statement).find(inner => inner.kind === 'create' && inner.id === p.id)
-          : undefined
+      const inFragment = creating?.kind === 'fragment' ? fragmentCreate(creating.fragment, p.id) : undefined
+      const created = creating?.kind === 'create' ? creating : inFragment?.create
       if (created?.kind === 'create' && created.id === p.id) {
-        if (creating?.kind === 'fragment') delete creating.fragment.rawLines
+        for (const holder of inFragment?.holders ?? []) delete holder.rawLines
         created.label = p.label
         if (p.labelContent) created.labelContent = p.labelContent
         else delete created.labelContent
@@ -992,121 +1075,110 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!label.ok) return label
       const color = op.fragmentKind === 'rect' ? rectColorError(label.value) : undefined
       if (color) return err(color)
-      const fragments = fragmentStatements(statements)
-      const index = op.index ?? fragments.length
-      if (!Number.isInteger(index) || index < 0 || index > fragments.length) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${fragments.length})` })
-      const statement: SequenceStatement = { kind: 'fragment', fragment: { fragmentKind: op.fragmentKind, ...(label.value ? { label: label.value } : {}), branches: [{ messages: [] }] } }
-      const position = index < fragments.length ? fragments[index]!.position : statements.length
-      statements.splice(position, 0, statement)
+      const scope = fragmentScope(statements, op.fragmentPath)
+      if (!scope.ok) return scope
+      if (scope.value.enclosing.length >= DIAGRAM_WORK_LIMITS.nesting) return err({ code: 'INVALID_OP', message: `A sequence fragment nests at most ${DIAGRAM_WORK_LIMITS.nesting} deep` })
+      const count = scope.value.fragments.length
+      const index = op.index ?? count
+      if (!Number.isInteger(index) || index < 0 || index > count) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${count})${scope.value.where}` })
+      scope.value.insert(index, { fragmentKind: op.fragmentKind, ...(label.value ? { label: label.value } : {}), branches: [{ messages: [] }] })
+      retire(scope.value)
       break
     }
     case 'remove_fragment': {
-      const target = fragmentStatements(statements)[op.index]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
-      statements.splice(target.position, 1)
+      const target = editedFragment(statements, op.fragmentPath, op.index)
+      if (!target.ok) return target
+      target.value.scope.remove(op.index)
+      retire(target.value.scope)
       break
     }
     case 'set_fragment_label': {
-      const target = fragmentStatements(statements)[op.index]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
+      const target = editedFragment(statements, op.fragmentPath, op.index)
+      if (!target.ok) return target
+      const { fragment } = target.value
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
-      const color = target.statement.fragment.fragmentKind === 'rect' ? rectColorError(label.value) : undefined
+      const color = fragment.fragmentKind === 'rect' ? rectColorError(label.value) : undefined
       if (color) return err(color)
       // A matching setter can follow a direct body edit. Rebuild the source;
       // valid labelContent still preserves the label's authored spelling.
-      delete target.statement.fragment.rawLines
-      if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
-      if (label.value) target.statement.fragment.label = label.value
-      else delete target.statement.fragment.label
+      retire(target.value.scope, fragment)
+      if (fragment.label !== label.value || fragment.labelContent?.value !== fragment.label) delete fragment.labelContent
+      if (label.value) fragment.label = label.value
+      else delete fragment.label
       break
     }
     case 'add_fragment_branch': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      if (!BRANCH_KEYWORD[target.statement.fragment.fragmentKind]) return err({ code: 'INVALID_OP', message: 'Only alt, par, par_over and critical fragments can have multiple branches' })
+      const target = editedFragment(statements, op.fragmentPath, op.fragmentIndex)
+      if (!target.ok) return target
+      const { fragment } = target.value
+      if (!BRANCH_KEYWORD[fragment.fragmentKind]) return err({ code: 'INVALID_OP', message: 'Only alt, par, par_over and critical fragments can have multiple branches' })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
-      delete target.statement.fragment.rawLines
-      target.statement.fragment.branches.push({ ...(label.value ? { label: label.value } : {}), messages: [] })
+      retire(target.value.scope, fragment)
+      fragment.branches.push({ ...(label.value ? { label: label.value } : {}), messages: [] })
       break
     }
     case 'set_fragment_branch_label': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex)
-      if (!branch.ok) return branch
+      const target = editedBranch(statements, op.fragmentPath, op.fragmentIndex, op.branchIndex)
+      if (!target.ok) return target
+      const { fragment, branch } = target.value
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
-      const color = target.statement.fragment.fragmentKind === 'rect' && op.branchIndex === 0 ? rectColorError(label.value) : undefined
+      const color = fragment.fragmentKind === 'rect' && op.branchIndex === 0 ? rectColorError(label.value) : undefined
       if (color) return err(color)
-      delete target.statement.fragment.rawLines
-      if (branch.value.label !== label.value || branch.value.labelContent?.value !== branch.value.label) delete branch.value.labelContent
+      target.value.retire()
+      if (branch.label !== label.value || branch.labelContent?.value !== branch.label) delete branch.labelContent
       if (op.branchIndex === 0) {
         // Mermaid spells the first branch label on the fragment opener (`alt x`),
         // not on an `else`/`and` continuation line.
-        if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
-        if (label.value) target.statement.fragment.label = label.value
-        else delete target.statement.fragment.label
-        delete branch.value.label
+        if (fragment.label !== label.value || fragment.labelContent?.value !== fragment.label) delete fragment.labelContent
+        if (label.value) fragment.label = label.value
+        else delete fragment.label
+        delete branch.label
       } else {
-        if (label.value) branch.value.label = label.value
-        else delete branch.value.label
+        if (label.value) branch.label = label.value
+        else delete branch.label
       }
       break
     }
     case 'add_fragment_message': {
       const invalidId = messageIdError(op)
       if (invalidId) return err(invalidId)
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      const index = op.index ?? branch.value.messages.length
-      if (!Number.isInteger(index) || index < 0 || index > branch.value.messages.length) return err({ code: 'INVALID_OP', message: `Sequence fragment message index ${index} out of range` })
+      const target = editedBranch(statements, op.fragmentPath, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!target.ok) return target
+      const { branch } = target.value
+      const index = op.index ?? branch.messages.length
+      if (!Number.isInteger(index) || index < 0 || index > branch.messages.length) return err({ code: 'INVALID_OP', message: `Sequence fragment message index ${index} out of range` })
       ensureParticipant(participants, op.from)
       ensureParticipant(participants, op.to)
-      delete target.statement.fragment.rawLines
-      branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync', ...(op.wrap === undefined ? {} : { wrap: op.wrap }) })
+      target.value.retire()
+      branch.messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync', ...(op.wrap === undefined ? {} : { wrap: op.wrap }) })
       // As at top level, the new message takes the place of the one at
-      // `index`, after the directives above it.
-      for (const entry of branch.value.statements ?? []) if (entry.before > index) entry.before++
+      // `index`, after the directives, notes and fragments above it.
+      for (const entry of branch.statements ?? []) if (entry.before > index) entry.before++
       break
     }
-    case 'remove_fragment_message': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      if (!branch.value.messages[op.index]) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
-      delete target.statement.fragment.rawLines
-      branch.value.messages.splice(op.index, 1)
-      for (const entry of branch.value.statements ?? []) if (entry.before > op.index) entry.before--
-      break
-    }
-    case 'set_fragment_message_wrap': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      const message = branch.value.messages[op.index]
-      if (!message) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
-      delete target.statement.fragment.rawLines
-      if (op.wrap === null) delete message.wrap
-      else message.wrap = op.wrap
-      break
-    }
+    case 'remove_fragment_message':
+    case 'set_fragment_message_wrap':
     case 'set_fragment_message_text': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      const message = branch.value.messages[op.index]
+      const target = editedBranch(statements, op.fragmentPath, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!target.ok) return target
+      const { branch } = target.value
+      const message = branch.messages[op.index]
       if (!message) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
-      delete target.statement.fragment.rawLines
-      const text = normalizeSequenceMessageText(op.text)
-      if (message.text !== text || message.textContent?.value !== message.text) delete message.textContent
-      message.text = text
+      target.value.retire()
+      if (op.kind === 'remove_fragment_message') {
+        branch.messages.splice(op.index, 1)
+        for (const entry of branch.statements ?? []) if (entry.before > op.index) entry.before--
+      } else if (op.kind === 'set_fragment_message_wrap') {
+        if (op.wrap === null) delete message.wrap
+        else message.wrap = op.wrap
+      } else {
+        const text = normalizeSequenceMessageText(op.text)
+        if (message.text !== text || message.textContent?.value !== message.text) delete message.textContent
+        message.text = text
+      }
       break
     }
     case 'add_note': {
@@ -1151,14 +1223,13 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (invalid) return err(invalid)
       const missing = op.actorIds.find(id => !participants.some(p => p.id === id))
       if (missing !== undefined) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${missing}" not found; add it before placing a note on it` })
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      const at = branchNotePosition(branch.value, op)
+      const target = editedBranch(statements, op.fragmentPath, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!target.ok) return target
+      const { branch } = target.value
+      const at = branchNotePosition(branch, op)
       if (!at.ok) return at
-      delete target.statement.fragment.rawLines
-      ;(branch.value.statements ??= []).splice(at.value.at, 0, { before: at.value.before, statement: {
+      target.value.retire()
+      ;(branch.statements ??= []).splice(at.value.at, 0, { before: at.value.before, statement: {
         kind: 'note', position: op.position, actorIds: [...op.actorIds], text: normalizeSequenceMessageText(op.text),
         ...(op.wrap === undefined ? {} : { wrap: op.wrap }),
       } })
@@ -1167,15 +1238,14 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     case 'remove_fragment_note':
     case 'set_fragment_note_text':
     case 'move_fragment_note': {
-      const target = fragmentStatements(statements)[op.fragmentIndex]
-      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
-      if (!branch.ok) return branch
-      const entries = branch.value.statements ?? []
+      const target = editedBranch(statements, op.fragmentPath, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!target.ok) return target
+      const { branch } = target.value
+      const entries = branch.statements ?? []
       const notes = entries.filter(entry => entry.statement.kind === 'note')
       const entry = notes[op.index]
       if (!entry || entry.statement.kind !== 'note') return err({ code: 'INVALID_OP', message: `No note at index ${op.index} in branch ${op.branchIndex ?? 0} of sequence fragment ${op.fragmentIndex}${notes.length ? ` (0..${notes.length - 1})` : ' (the branch has no notes)'}` })
-      delete target.statement.fragment.rawLines
+      target.value.retire()
       if (op.kind === 'set_fragment_note_text') {
         const note = entry.statement
         const text = normalizeSequenceMessageText(op.text)
@@ -1185,7 +1255,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       }
       entries.splice(entries.indexOf(entry), 1)
       if (op.kind === 'move_fragment_note') {
-        const at = branchNotePosition(branch.value, op)
+        const at = branchNotePosition(branch, op)
         if (!at.ok) return at
         entries.splice(at.value.at, 0, { before: at.value.before, statement: entry.statement })
       }
@@ -1207,7 +1277,7 @@ function renderedOrUndefined(body: SequenceBody): string | undefined {
 
 function hasLifecycleDirective(body: SequenceBody): boolean {
   return body.statements.some(statement => statement.kind === 'create' || statement.kind === 'destroy'
-    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.statements?.some(entry => entry.statement.kind !== 'note')))
+    || (statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => 'kind' in item && item.kind !== 'note'))
     || (statement.kind === 'opaque-block' && statement.lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))))
 }
 
@@ -1340,8 +1410,8 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   const names = (line: string) => preservedLineEvents(line).some(event => event.id === id)
   return statements.some(statement =>
     (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line))))
-    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id)
-      || branch.statements?.some(({ statement: inner }) => inner.kind === 'note' ? inner.actorIds.includes(id) : directiveId(inner) === id))))
+    || (statement.kind === 'fragment' && [...fragmentLeaves(statement.fragment)].some(item => !('kind' in item) ? item.from === id || item.to === id
+      : item.kind === 'note' ? item.actorIds.includes(id) : directiveId(item) === id)))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
@@ -1357,10 +1427,94 @@ function cloneStatement(s: SequenceStatement): SequenceStatement {
   return { ...s }
 }
 
-function fragmentStatements(statements: SequenceStatement[]): Array<{ position: number; statement: Extract<SequenceStatement, { kind: 'fragment' }> }> {
-  const out: Array<{ position: number; statement: Extract<SequenceStatement, { kind: 'fragment' }> }> = []
-  statements.forEach((statement, position) => { if (statement.kind === 'fragment') out.push({ position, statement }) })
-  return out
+/** The `create` line of participant `id` in a fragment, at any depth, with
+ * the fragments that hold it, outermost first. */
+function fragmentCreate(fragment: SequenceFragment, id: string): { create: SequenceCreateStatement; holders: SequenceFragment[] } | undefined {
+  for (const branch of fragment.branches) {
+    for (const { statement } of branch.statements ?? []) {
+      if (statement.kind === 'create' && statement.id === id) return { create: statement, holders: [fragment] }
+      const found = statement.kind === 'fragment' ? fragmentCreate(statement.fragment, id) : undefined
+      if (found) return { create: found.create, holders: [fragment, ...found.holders] }
+    }
+  }
+  return undefined
+}
+
+/** The fragments of one scope, the top level or the branch an op's
+ * `fragmentPath` reaches, in source order; `enclosing` are the fragments
+ * around it, whose authored spelling an edit inside retires. */
+interface FragmentScope {
+  fragments: SequenceFragment[]
+  enclosing: SequenceFragment[]
+  /** ` in fragment#… branch#…` for a nested scope, for messages. */
+  where: string
+  /** Insert a fragment before fragment `index`, or after everything. */
+  insert(index: number, fragment: SequenceFragment): void
+  remove(index: number): void
+}
+
+function fragmentScope(statements: SequenceStatement[], path: readonly SequenceFragmentStep[] | undefined): Result<FragmentScope, MutationError> {
+  if (path !== undefined && !Array.isArray(path)) return err({ code: 'INVALID_OP', message: 'Sequence fragmentPath must be an array of { fragmentIndex, branchIndex } steps' })
+  const top = statements.flatMap((statement, position) => statement.kind === 'fragment' ? [{ position, statement }] : [])
+  let scope: FragmentScope = {
+    fragments: top.map(entry => entry.statement.fragment), enclosing: [], where: '',
+    insert: (index, fragment) => { statements.splice(top[index]?.position ?? statements.length, 0, { kind: 'fragment', fragment }) },
+    remove: index => { statements.splice(top[index]!.position, 1) },
+  }
+  const steps: SequenceFragmentStep[] = []
+  for (const step of path ?? []) {
+    const { fragmentIndex, branchIndex } = typeof step === 'object' && step !== null ? step : { fragmentIndex: undefined, branchIndex: undefined }
+    const fragment = scope.fragments[fragmentIndex as number]
+    if (!fragment) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${fragmentIndex}${scope.where} (fragmentPath step ${steps.length}; ${countText(scope.fragments.length, 'fragment')})` })
+    const branch = fragment.branches[branchIndex as number]
+    const name = sequenceFragmentName({ fragmentPath: steps, fragmentIndex: fragmentIndex! })
+    if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment#${name} (fragmentPath step ${steps.length}; ${countText(fragment.branches.length, 'branch')})` })
+    steps.push({ fragmentIndex: fragmentIndex!, branchIndex: branchIndex! })
+    scope = { ...branchScope(branch), enclosing: [...scope.enclosing, fragment], where: ` in fragment#${name} branch#${branchIndex}` }
+  }
+  return ok(scope)
+}
+
+function branchScope(branch: SequenceFragmentBranch): Pick<FragmentScope, 'fragments' | 'insert' | 'remove'> {
+  const entries = (branch.statements ?? []).filter((entry): entry is { before: number; statement: SequenceFragmentStatement } => entry.statement.kind === 'fragment')
+  return {
+    fragments: entries.map(entry => entry.statement.fragment),
+    insert: (index, fragment) => {
+      const list = branch.statements ??= []
+      const next = entries[index]
+      if (next) list.splice(list.indexOf(next), 0, { before: next.before, statement: { kind: 'fragment', fragment } })
+      else list.push({ before: branch.messages.length, statement: { kind: 'fragment', fragment } })
+    },
+    remove: index => { branch.statements!.splice(branch.statements!.indexOf(entries[index]!), 1) },
+  }
+}
+
+const countText = (count: number, noun: string): string => count ? `0..${count - 1}` : `no ${noun === 'branch' ? 'branches' : `${noun}s`} there`
+
+/** The fragment `index` of the scope `path` reaches, which an op is about to
+ * edit (`retire` it and its scope first). */
+function editedFragment(statements: SequenceStatement[], path: readonly SequenceFragmentStep[] | undefined, index: number): Result<{ scope: FragmentScope; fragment: SequenceFragment }, MutationError> {
+  const scope = fragmentScope(statements, path)
+  if (!scope.ok) return scope
+  const fragment = scope.value.fragments[index]
+  if (!fragment) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${index}${scope.value.where}` })
+  return ok({ scope: scope.value, fragment })
+}
+
+/** Branch `branchIndex` of that fragment, with `retire` for the fragment. */
+function editedBranch(statements: SequenceStatement[], path: readonly SequenceFragmentStep[] | undefined, fragmentIndex: number, branchIndex: number): Result<{ fragment: SequenceFragment; branch: SequenceFragmentBranch; retire(): void }, MutationError> {
+  const target = editedFragment(statements, path, fragmentIndex)
+  if (!target.ok) return target
+  const { scope, fragment } = target.value
+  const branch = fragment.branches[branchIndex]
+  if (!branch) return err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}${scope.where}` })
+  return ok({ fragment, branch, retire: () => retire(scope, fragment) })
+}
+
+/** An edit inside a fragment rewrites it and every fragment around it. */
+function retire(scope: FragmentScope, fragment?: SequenceFragment): void {
+  for (const enclosing of scope.enclosing) delete enclosing.rawLines
+  if (fragment) delete fragment.rawLines
 }
 
 function noteStatements(statements: SequenceStatement[]): Array<{ position: number; statement: SequenceNoteStatement }> {
@@ -1419,7 +1573,7 @@ function branchNotePosition(branch: SequenceFragmentBranch, anchor: { afterMessa
   // Right above the message: above the create/destroy lines bound to it.
   let at = entries.findIndex(entry => entry.before > before)
   if (at < 0) at = entries.length
-  while (at > 0 && entries[at - 1]!.before === before && entries[at - 1]!.statement.kind !== 'note') at--
+  while (at > 0 && entries[at - 1]!.before === before && isDirective(entries[at - 1]!.statement)) at--
   return ok({ before, at })
 }
 
@@ -1427,13 +1581,6 @@ function normalizeFragmentLabel(value: string | null | undefined): Result<string
   if (value === null || value === undefined) return ok(undefined)
   if (typeof value !== 'string' || !value.trim() || /[\r\n]/.test(value)) return err({ code: 'INVALID_OP', message: 'Sequence fragment label must be a non-empty single line or null' })
   return ok(value.trim())
-}
-
-function findFragmentBranch(statements: SequenceStatement[], fragmentIndex: number, branchIndex: number): Result<SequenceFragment['branches'][number], MutationError> {
-  const target = fragmentStatements(statements)[fragmentIndex]
-  if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${fragmentIndex}` })
-  const branch = target.statement.fragment.branches[branchIndex]
-  return branch ? ok(branch) : err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}` })
 }
 
 function ensureParticipant(ps: SequenceParticipant[], id: string): void {
