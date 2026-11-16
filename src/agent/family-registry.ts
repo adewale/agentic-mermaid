@@ -290,15 +290,23 @@ export interface FamilyConfigContract {
   noopKeys?: readonly string[]
 }
 
-/** A statement written before the entity it applies to, which pinned Mermaid
- * ignores there (FamilyOperations.existingTargets). */
+/** A statement written before what pinned Mermaid needs it after, which
+ * Mermaid therefore reads otherwise than ours (FamilyOperations.existingTargets):
+ * before the entity it applies to, where Mermaid ignores it, or before a
+ * statement Mermaid draws over it. */
 export interface PrematureStatement {
   /** Its line in the source read. */
   readonly line: number
   /** The statement as written, trimmed. */
   readonly statement: string
-  /** The entities it names before their first mention. */
+  /** The entities it names before their first mention, or (with `follows`)
+   * whose paint Mermaid draws otherwise. */
   readonly names: readonly string[]
+  /** The statement, as written and trimmed, it stands before whose paint
+   * Mermaid draws over its own on `names` where ours draws its own (a Class
+   * `style B` before the classDef of B's style class). Absent when it stands
+   * before an entity's first mention. */
+  readonly follows?: string
 }
 
 export interface FamilyOperations {
@@ -356,13 +364,16 @@ export interface FamilyOperations {
   sourceMapGrammar?: SourceSpanGrammar
   buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
   /**
-   * Statements pinned Mermaid applies only to an entity that already exists
-   * where they stand, ignoring them before its first mention (a flowchart
-   * `class B hot`, a Class `style B …`). `targets` reads one canonical
-   * statement: the entities it applies to only so. `premature` reads a
-   * source (a diagram's canonicalSource): such statements written before
-   * their entity's first mention. Verify reports them; a source-preserving
-   * edit adds none (source-projection.ts).
+   * Statements pinned Mermaid reads by where they stand while ours does not.
+   * Mermaid applies some only to an entity that already exists there,
+   * ignoring them before its first mention (a flowchart `class B hot`, a
+   * Class `style B …`); `targets` reads one canonical statement: the
+   * entities it applies to only so. Mermaid also draws a Class class's paint
+   * in statement order, where ours draws its own `style` over its style
+   * classes. `premature` reads a source (a diagram's canonicalSource): the
+   * statements written before their entity's first mention, and those whose
+   * paint a later statement replaces in Mermaid only (`follows`). Verify
+   * reports them; no source-preserving edit adds one (source-projection.ts).
    */
   existingTargets?: {
     readonly targets: (statement: string) => readonly string[]

@@ -232,13 +232,26 @@ after the next line that gives the class its style class. A kept Class
 classDef that a new `cssClass` leaves before the class it styles stays when
 the `cssClass` can be written after the class and before it; otherwise the
 classDef moves verbatim to just after the `cssClass`. No such move passes a
-statement Mermaid reads in order with the one moved: one sharing a word with
-it, one that applies only to an existing entity, or, for a statement that
-applies so, one sharing a word with another statement on the same entity (a
-`style B` and the classDef of `B`'s style class: the later one wins). Each
-round reads the closest candidates' premature statements (the family's
-`existingTargets`) and places them; it runs only after every other pass
-failed, at most four rounds.
+statement sharing a word with the one moved, whose order ours may read where
+the read-back compares statements as a multiset (two `cssClass` lines giving
+one class its style classes). Each round reads the closest candidates'
+premature statements (the family's `existingTargets`) and places them; it
+runs only after every other pass failed, at most four rounds.
+
+Mermaid 12.2.0 also draws a Class class's paint in statement order, the last
+`style` or classDef setting a property winning, where ours draws the class's
+own `style` over its style classes, and a style class given later over one
+given earlier, whatever the order. The family's `existingTargets` reports such
+a statement too (`follows`: the later statement Mermaid draws over it), and
+every candidate, however it kept, moved, rewrote or placed its lines, may
+leave one only exactly as authored (the same statement, on the same class,
+before the same statement). The placement pass writes the new one of the two
+on the other side of the kept one: a new or edited `style B` after the kept
+classDef of `B`'s style class, a new or edited classDef just before the kept
+`style B`; that move may pass the kept line. When both are kept (a new
+`cssClass` giving `B` the style class of a classDef below a kept `style B`),
+the edit falls back, naming the two lines by keyword and target, never their
+paint.
 
 Typical fallbacks: a move that would reorder kept statements (a note on `S`
 that would have to follow `S --> T` past a note that declares `T` there; the

@@ -435,6 +435,32 @@ const CLASSDEF_ABOVE_RELATION = `classDiagram
   A <|-- B
 `
 
+// A Class `style` whose canonical neighbour stands above the classDef of its
+// class's style class, and a classDef above a `style` setting the same
+// property. Mermaid draws the later line's paint, so the new or edited line is
+// written on the side of the kept one where Mermaid draws ours; written beside
+// its neighbour, it would be drawn over.
+const STYLE_ABOVE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style A fill:#eee
+  classDef hot fill:#f96
+`
+
+const STROKE_ABOVE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style B stroke:#333
+  classDef hot fill:#f96
+`
+
+const STYLE_ABOVE_STROKE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style B fill:#000
+  classDef hot stroke:#333
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -559,6 +585,9 @@ const CASES: Case[] = [
   { name: 'class set_css_class is written after its class and before the classDef it uses', source: CLASSDEFS_AROUND_CLASS, op: { kind: 'set_css_class', class: 'B', className: 'hot' }, reference: [['  class B\n', '  class B\n  cssClass "B" hot\n']] },
   { name: 'class define_class is written after the cssClass that gives a class its style class', source: STYLE_CLASS_BEFORE_DEF, op: { kind: 'define_class', name: 'hot', style: 'fill:#f96' }, reference: [['  cssClass "B" hot\n', '  cssClass "B" hot\n  classDef hot fill:#f96\n']] },
   { name: 'class set_class_style beside a classDef above the class is written after the class\'s first mention', source: CLASSDEF_ABOVE_RELATION, op: { kind: 'set_class_style', class: 'B', style: 'fill:#0f0' }, reference: [['  A <|-- B\n', '  A <|-- B\n  style B fill:#0f0\n']] },
+  { name: 'class set_class_style beside a style above the classDef of the class\'s style class is written after the classDef', source: STYLE_ABOVE_CLASSDEF, op: { kind: 'set_class_style', class: 'B', style: 'fill:#000' }, reference: [['  classDef hot fill:#f96\n', '  classDef hot fill:#f96\n  style B fill:#000\n']] },
+  { name: 'class set_class_style adding the property a later classDef sets moves the style after it', source: STROKE_ABOVE_CLASSDEF, op: { kind: 'set_class_style', class: 'B', style: 'fill:#000,stroke:#333' }, touched: ['  style B stroke:#333'], reference: [['  style B stroke:#333\n', ''], ['  classDef hot fill:#f96\n', '  classDef hot fill:#f96\n  style B fill:#000,stroke:#333\n']] },
+  { name: 'class define_class adding the property an earlier style sets moves the classDef above it', source: STYLE_ABOVE_STROKE_CLASSDEF, op: { kind: 'define_class', name: 'hot', style: 'fill:#f96,stroke:#333' }, touched: ['  classDef hot stroke:#333'], reference: [['  classDef hot stroke:#333\n', ''], ['  style B fill:#000\n', '  classDef hot fill:#f96,stroke:#333\n  style B fill:#000\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -649,6 +678,17 @@ describe('source-preserving typed edits of structured bodies', () => {
     const result = applyOps({ source, ops: [...ops], mode: 'source-preserving' })
     if (!result.ok) throw new Error(JSON.stringify(result.error))
     expect(result.preservation).toEqual({ method: 'canonical', reason: `no local change to the authored source reads back as the edited diagram: the closest local change leaves "classDef hot fill:#f96" before ${name}'s style-class assignment, where Mermaid 12.2.0 ignores it` })
+  })
+
+  // An edit whose only local change leaves a Class `style` above the
+  // classDef that Mermaid then draws over it: the new `cssClass` gives B the
+  // style class of the kept classDef below the kept `style B`. Ours draws the
+  // style either way; the edit falls back, naming the two lines, not their
+  // paint.
+  test('a Class edit that would leave a style above a classDef drawn over it falls back', () => {
+    const result = applyOps({ source: 'classDiagram\n  A <|-- B\n  style B fill:#000\n  classDef hot fill:#f96\n', ops: [{ kind: 'set_css_class', class: 'B', className: 'hot' }], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change leaves "style B" before "classDef hot", which Mermaid 12.2.0 draws over it on B' })
   })
 
   // A note that must stay first (it declares T) and one that would have to

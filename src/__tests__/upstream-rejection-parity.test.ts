@@ -362,6 +362,30 @@ const APPLIED_BEFORE_ENTITY: ReadonlyArray<readonly [string, string, string, str
   ['a Class classDef before the cssClass that uses it', 'classDiagram\n  classDef hot fill:#f96\n  A <|-- B\n  cssClass "B" hot', '#f96', 'class_classdef_before_style_class', 2, ['B.hot'], ['B.hot', 'B{fill:#f96}']],
 ]
 
+// Mermaid draws a Class class's paint in statement order: its DB appends a
+// `style` (setCssStyle) and each classDef of a style class the class has
+// where the classDef stands (defineClass, `default` included) to one list,
+// which classBox writes as one inline style, so the last statement setting a
+// property wins. Ours draws `classDef default`, then the style classes in the
+// order given, then the class's own `style`, whatever the order (as Mermaid's
+// flowchart does; docs/design/families/class.md), verify reports where the
+// order makes Mermaid draw otherwise, and the writer orders lines so Mermaid
+// draws ours. Flowchart Mermaid already draws as ours in either order.
+// [construct, source, class, fill and stroke ours draws (an unset stroke is
+//  the theme's), syntax verify reports and its line (none when ''), fill and
+//  stroke Mermaid draws as authored, and reading the canonical rewrite]
+const PAINT_ORDER: ReadonlyArray<readonly [string, string, string, string, string, number, string, string]> = [
+  ['a Class style above the classDef of its cssClass', 'classDiagram\n  class B\n  cssClass "B" hot\n  style B fill:#000000\n  classDef hot fill:#ff9966', 'B', '#000000 #949495', 'class_style_before_classdef', 4, '#ff9966 -', '#000000 -'],
+  ['a Class style above the classDef of its ::: class', 'classDiagram\n  class B:::hot\n  style B fill:#000000\n  classDef hot fill:#ff9966', 'B', '#000000 #949495', 'class_style_before_classdef', 3, '#ff9966 -', '#000000 -'],
+  ['a Class style and classDef sharing only fill', 'classDiagram\n  class B:::hot\n  style B fill:#000000,stroke:#00ff00\n  classDef hot fill:#ff9966,stroke-width:4px', 'B', '#000000 #00ff00', 'class_style_before_classdef', 3, '#ff9966 #00ff00', '#000000 #00ff00'],
+  ['a Class classDef defined again below the style', 'classDiagram\n  class B:::hot\n  classDef hot fill:#ff0000\n  style B fill:#000000\n  classDef hot fill:#00ff00', 'B', '#000000 #949495', 'class_style_before_classdef', 4, '#00ff00 -', '#000000 -'],
+  ['a Class classDef defined again below the style, on another property', 'classDiagram\n  class B:::hot\n  classDef hot fill:#ff0000\n  style B fill:#000000\n  classDef hot stroke:#00ff00', 'B', '#000000 #00ff00', '', 0, '#000000 #00ff00', '#000000 #00ff00'],
+  ['a Class classDef above the style', 'classDiagram\n  class B\n  cssClass "B" hot\n  classDef hot fill:#ff9966\n  style B fill:#000000', 'B', '#000000 #949495', '', 0, '#000000 -', '#000000 -'],
+  ['two Class classDefs written against the order given', 'classDiagram\n  class B:::a\n  cssClass "B" b\n  classDef b fill:#0000ff\n  classDef a fill:#ff0000', 'B', '#0000ff #949495', 'class_classdef_order', 4, '#ff0000 -', '#0000ff -'],
+  ['a Class classDef default below a style class', 'classDiagram\n  class B:::hot\n  classDef hot fill:#ff0000\n  classDef default fill:#0000ff', 'B', '#ff0000 #949495', 'class_classdef_order', 3, '#0000ff -', '#ff0000 -'],
+  ['a flowchart style above the classDef of its class', 'flowchart TD\n  B\n  class B hot\n  style B fill:#000000\n  classDef hot fill:#ff9966,stroke:#00ff00', 'B', '#000000 #00ff00', '', 0, '#000000 #00ff00', '#000000 #00ff00'],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -571,6 +595,38 @@ describe('read as the author meant what pinned Mermaid ignores before its entity
     const [authored, rewritten] = await upstream.projectEach([source, written], applied)
     expect({ ...readGenerously(source, text), authored, rewritten, rewrittenReported: verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').length })
       .toEqual({ typed: source.startsWith('class') ? 'class' : 'flowchart', draws: true, reported: [`${syntax}@${line}`], authored: { ok: true, value: [...asAuthored] }, rewritten: { ok: true, value: [...asWritten] }, rewrittenReported: 0 })
+  })
+})
+
+describe('draw a class\'s own style over its style classes whatever the order, and warn where Mermaid draws otherwise', () => {
+  // The fill and stroke ours draws on the class box or node shape.
+  const drawn = (source: string, id: string): string => {
+    const shape = renderMermaidSVG(source).match(new RegExp(`<rect [^>]*data-id="${source.startsWith('class') ? `class:${id}:box` : `node-shape:${id}`}"`))?.[0] ?? ''
+    return ['fill', 'stroke'].map(name => shape.match(new RegExp(` ${name}="([^"]*)"`))?.[1] ?? '-').join(' ')
+  }
+  // Mermaid's paint, written as the inline style its renderer gives the
+  // shape (Class classBox: the class's style list; flowchart: compileStyles,
+  // classDefs in the order given, then `style`), resolved as CSS resolves
+  // an inline style: the last declaration of a property wins.
+  const mermaidDrawn = (diagram: { type: string; db: any }): Record<string, string> => {
+    const db = diagram.db
+    const entries: Array<[string, string[]]> = typeof db.getVertices === 'function'
+      ? [...db.getVertices().values()].map((v: any) => [v.id, [...v.classes.flatMap((name: string) => db.getClasses().get(name)?.styles ?? []), ...v.styles]])
+      : [...db.getClasses().values()].map((c: any) => [c.id, c.styles])
+    return Object.fromEntries(entries.map(([id, styles]) => {
+      const box = document.createElement('div')
+      box.setAttribute('style', styles.join(';'))
+      return [id, `${box.style.getPropertyValue('fill') || '-'} ${box.style.getPropertyValue('stroke') || '-'}`]
+    }))
+  }
+
+  test.each(PAINT_ORDER)('%s', async (_construct, source, id, ours, syntax, line, asAuthored, asWritten) => {
+    const parsed = parseRegisteredMermaid(source)
+    const written = parsed.ok ? serializeMermaid(parsed.value) : ''
+    const [authored, rewritten] = await upstream.projectEach([source, written], mermaidDrawn)
+    const reported = (text: string) => verifyMermaid(text).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    expect({ ours: drawn(source, id), oursWritten: drawn(written, id), reported: reported(source), authored: authored!.ok && authored!.value[id], rewritten: rewritten!.ok && rewritten!.value[id], rewrittenReported: reported(written) })
+      .toEqual({ ours, oursWritten: ours, reported: syntax ? [`${syntax}@${line}`] : [], authored: asAuthored, rewritten: asWritten, rewrittenReported: [] })
   })
 })
 

@@ -90,8 +90,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   new `cssClass` would leave before the class it styles stays where the
   `cssClass` can be written between the class and it; otherwise it moves
   verbatim to just after the `cssClass`. Such a move never passes a statement
-  Mermaid reads in order with it (another classDef or a `style` the canonical
-  edit writes after it), which falls back. The fallback reason for a classDef
+  sharing a word with it (another classDef or a `style` the canonical edit
+  writes after it), which falls back. The fallback reason for a classDef
   says it stands before the class's style-class assignment, not before its
   first mention.
 
@@ -312,6 +312,32 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   writes them after their entity, gives Mermaid the author's meaning. A
   flowchart `click` before its node, which ours ignored as Mermaid does (and
   a canonical rewrite then deleted), now links the node.
+
+- A Class class's own `style` is drawn over its style classes, and a style
+  class given later over one given earlier, whatever the order of the lines,
+  as before; but Mermaid 12.2.0 draws a class's paint in statement order (the
+  last `style` or classDef setting a property wins, `classDef default`
+  included), and nothing said so. `verify` now reports `UNSUPPORTED_SYNTAX`
+  where the authored order makes Mermaid draw otherwise:
+  `class_style_before_classdef` on a `style` above the classDef of the
+  class's style class setting the same property, and `class_classdef_order`
+  on a classDef Mermaid draws over with a later one (two style classes
+  written against the order given, or `classDef default` below a style
+  class). The message names the classDefs, classes and properties, never a
+  value. The canonical writer, which already writes `style` after every
+  classDef, now also writes `classDef default` and each class's style classes
+  in the order ours draws them, so Mermaid draws the rewrite as ours.
+  Source-preserving edits checked only that a statement stood after the
+  entity it needs; one could leave a `style` above a classDef setting the same
+  property (editing `style B stroke:#333` to add `fill` above `classDef hot
+  fill:#f96`, or a new `style B` beside a `style A` above it) and stay local
+  while Mermaid drew the classDef's fill. Every candidate is now checked: the
+  new or edited line is written on the side of the kept one where Mermaid
+  draws ours, or the edit falls back, naming the two lines (`leaves "style B"
+  before "classDef hot", which Mermaid 12.2.0 draws over it on B`). An
+  authored pair is kept only exactly as authored. Paint the renderer refuses
+  (`INVALID_STYLE_COLOR`) is refused as before in either order and position,
+  and is not compared.
 
 - ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
   `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
