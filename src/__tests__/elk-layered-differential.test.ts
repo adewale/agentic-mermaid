@@ -18,6 +18,17 @@ const cases = [
     },
   },
   {
+    name: 'shared inverted source with opposite helper ordering relations',
+    graph: {
+      id: 'root', layoutOptions: { 'elk.algorithm': 'layered', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES' },
+      children: [
+        { id: 'a', width: 40, height: 30, layoutOptions: { 'elk.portConstraints': 'FIXED_SIDE', 'elk.layered.layering.layerConstraint': 'FIRST' }, ports: [{ id: 'aw', layoutOptions: { 'elk.port.side': 'WEST' } }] },
+        { id: 'b', width: 40, height: 30 },
+      ],
+      edges: [{ id: 'e0', sources: ['aw'], targets: ['b'] }, { id: 'e1', sources: ['aw'], targets: ['b'] }],
+    },
+  },
+  {
     name: 'inverted and north/south ports',
     graph: {
       id: 'root', layoutOptions: { 'elk.algorithm': 'layered' },
