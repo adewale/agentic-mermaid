@@ -1,6 +1,6 @@
 import { erInkIndex } from './ink-index.ts'
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
-import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
+import { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
@@ -26,10 +26,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { directionToElk } from '../layout/backend.ts'
-import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
-import { LayoutCertificationError } from '../layout/certification-error.ts'
-import { measureRenderStage } from '../render-stages.ts'
+import { runElkGraphBackend } from '../layout/backend.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
 import { erCommentText } from './text.ts'
@@ -798,7 +795,7 @@ function buildErElkGraph(
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
   // ER cardinalities are real endpoint ink, unlike ELK's zero-sized ports.
   // Reserve their normal reach before ELK chooses nearby return channels.
-  // Match Native's conservative per-card incidence capacity as well: ELK may
+  // Reserve conservative per-card incidence capacity: ELK may
   // place every incidence on one face, including both ends of a self-loop.
   let markerClearance = 0
   const spans = new Map<string, number>()
@@ -1427,7 +1424,7 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle, styl
 }
 
 /**
- * Lay out a parsed ER diagram using ELK.js.
+ * Lay out a parsed ER diagram using ELK.
  */
 export function layoutErDiagram(
   diagram: ErDiagram,
@@ -1437,71 +1434,13 @@ export function layoutErDiagram(
   assertErDiagramWork(diagram)
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
   const work: ErGeometryWork = { operations: 0 }
-  // Selection belongs to the complete family artifact. Only an explicitly
-  // requested fallback may translate these known ER candidate refusals into
-  // the shared selector's typed rejection; strict Native retains its errors.
-  const nativeCandidate = (produce: () => PositionedErDiagram): PositionedErDiagram => {
-    try { return produce() } catch (error) {
-      if (options.graphLayout?.backend !== 'agentic' || options.graphLayout.fallback !== 'elk'
-        || !(error instanceof ErRouteGeometryError || error instanceof ErRouteWorkLimitError || error instanceof ErLabelWorkLimitError)) throw error
-      const rejected = new LayoutCertificationError([{ strategy: 'er-final-geometry', violations: [error.message] }])
-      rejected.cause = error
-      throw rejected
-    }
-  }
   if (diagram.entities.length === 0) {
     const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
     const frames = () => diagram.groups.length ? finishErGeometry(withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace, work), style, styleFace), diagram.title, style), style, styleFace, work) : empty()
-    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true)
+    return runElkGraphBackend(options, () => { erCharge(work, 0); return frames() })
   }
   const entitySizes = measureErEntities(diagram, style)
-  const nativePlacement = (): ErPlacement => {
-    const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
-    const groupIds = new Set(diagram.groups.map(group => group.id))
-    const subjects = new Set([...indices.keys(), ...groupIds])
-    const spans = new Map<string, number>()
-    let layerSpacing = options.layerSpacing ?? ER.layerSpacing
-    let minimumTerminalLead = 0
-    for (const rel of diagram.relationships) {
-      const role = erRelationshipStyle(rel, styleFace)
-      for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
-        const bound = erCardinalityEnvelope(kind, style.lineWidth)
-        erCharge(work)
-        if (!bound) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-        const depth = bound.x1 + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
-        const lead = depth + Math.min(role?.bendRadius ?? style.edgeBendRadius, depth)
-        minimumTerminalLead = Math.max(minimumTerminalLead, lead)
-        // The layered producer's earliest channel turn is layerSpacing/4.
-        layerSpacing = Math.max(layerSpacing, 4 * lead)
-        if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
-      }
-    }
-    const nativeSizes = new Map(diagram.entities.map(entity => {
-      const size = entitySizes.get(entity.id)!, span = (spans.get(entity.id) ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
-      return [entity.id, { ...size, width: Math.max(size.width, span), height: Math.max(size.height, span) }] as const
-    }))
-    const edges = diagram.relationships.flatMap((rel, relationshipIndex) => {
-      const source = groupIds.has(rel.entity1) ? undefined : indices.get(rel.entity1), target = groupIds.has(rel.entity2) ? undefined : indices.get(rel.entity2)
-      if (!subjects.has(rel.entity1) || !subjects.has(rel.entity2)) throw new Error('ER relationship references an undeclared entity or frame')
-      // The bottom-up compound projection below retains every frame-level
-      // dependency; only leaf placement is delegated to this measured call.
-      if (source === undefined || target === undefined) return []
-      const block = erRelationshipBlock(rel, style, styleFace)
-      return [{ relationshipIndex, source, target, minSpan: 1, ...(rel.label ? { label: { width: block.width + 16, height: block.height + 16 } } : {}) }]
-    })
-    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
-      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
-      layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
-    }))
-    return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
-      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),
-      routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
-      labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
-        ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
-  }
   const elkPlacement = (): ErPlacement => {
-    // A fallback is not a fresh request or a fresh geometry-work allowance.
     erCharge(work, 0)
     const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace, work)
     const placed = elkLayoutSync(elkGraph)
@@ -1514,7 +1453,7 @@ export function layoutErDiagram(
     const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work), style, styleFace), diagram.title, style)
     return finishErGeometry(positioned, style, styleFace, work)
   }
-  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(nativePlacement())), () => finish(elkPlacement()), true)
+  return runElkGraphBackend(options, () => finish(elkPlacement()))
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

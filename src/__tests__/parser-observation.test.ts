@@ -48,7 +48,7 @@ describe('native parser observation', () => {
       const source = getFamily(family)!.example
       const events: ParserObservation[] = []
       // Observe actual parser work rather than an exact positioned-cache hit.
-      const render = () => withPerformanceExperiments(['text-spans', 'indexed-layout'], () => renderMermaidSVG(source))
+      const render = () => withPerformanceExperiments(['text-spans'], () => renderMermaidSVG(source))
       const control = render()
       const observed = withParserObservation(
         family,

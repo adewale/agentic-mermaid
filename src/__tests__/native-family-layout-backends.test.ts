@@ -9,11 +9,11 @@ const forests = {
   agentflow: 'agentflow-beta LR\nA[Root] --> B[Approve]\nA --> C[Review]\nC --> D[Archive]',
 }
 for (const [family, input] of Object.entries(forests)) {
-  test.each(['LR', 'RL', 'TB', 'BT'])(`${family} eligible forest keeps readable typed contacts in %s using the certified native producer`, direction => {
+  test.each(['LR', 'RL', 'TB', 'BT'])(`${family} forest keeps readable typed contacts in %s using ELK`, direction => {
     const source = input.replace('LR', direction), stages: string[] = []
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, { style: 'github-dark' }))
-    expect(stages).toContain('agentic'); expect(stages).not.toContain('elk')
-    expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ selected: 'agentic', fallback: 'elk' }))
+    expect(stages).toContain('elk'); expect(stages).not.toContain('agentic')
+    expect(rendered.receipt.layoutDecisions).toBeUndefined()
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     const { layout } = layoutMermaidWithReceipt(source, { style: 'github-dark' })
     expect(layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
@@ -38,16 +38,22 @@ for (const [family, input] of Object.entries(forests)) {
     if (!parsed.ok) throw Error('Expected native fixture')
     expect(renderMermaidSVGWithReceipt(parsed.value, { style: 'github-dark' }).svg).toBe(rendered.svg)
     const explicitStages: string[] = []
-    withRenderStageObserver(sample => explicitStages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }))
+    const explicit = withRenderStageObserver(sample => explicitStages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, { style: 'github-dark', graphLayout: { backend: 'elk' } }))
     expect(explicitStages).toContain('elk'); expect(explicitStages).not.toContain('agentic')
+    expect(explicit.svg).toBe(rendered.svg)
   })
 }
 
 test.each([
   'usecase-beta', 'agentflow-beta TB',
-])('empty native dialect scaffold renders without ELK: %s', source => {
+])('empty native dialect scaffold preserves the explicit ELK result: %s', source => {
   const stages: string[] = [], result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source))
-  expect(result.svg).toContain('<svg'); expect(stages).not.toContain('elk')
+  expect(result.svg).toContain('<svg'); expect(stages).toContain('elk')
+  expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
+  expect(result.receipt.layoutDecisions).toBeUndefined()
+  const { layout } = layoutMermaidWithReceipt(source)
+  expect(layout.nodes).toHaveLength(0)
+  expect(layout.edges).toHaveLength(0)
 })
 
 test.each([
@@ -56,7 +62,7 @@ test.each([
   'agentflow-beta TB\nA --> B\nA --> B',
   'usecase-beta\nsystemBoundary S[System]\nA("Inside")\nend',
   'usecase-beta\nA("One")\nB("Two")\nA --> B\nB --> A',
-])('compound and cyclic native dialects retain ELK until separately qualified: %s', source => {
+])('compound and cyclic native dialects use ELK: %s', source => {
   const stages: string[] = []
   withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source))
   expect(stages).toContain('elk'); expect(stages).not.toContain('agentic')

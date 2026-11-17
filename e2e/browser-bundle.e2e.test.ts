@@ -126,7 +126,7 @@ function ensureBrowserBundle(target: 'complete' | 'zenuml' = 'complete') {
   }
 }
 
-function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
+function lazyImplementationChunk(input = 'src/elk-layered/kernel/layout.ts'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
@@ -244,7 +244,8 @@ describe('browser bundle', () => {
     else expect(differences, `${d} vs ${other}`).not.toEqual([])
   })
 
-  test.each(['elk', 'agentic'] as const)('IIFE preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+  test('IIFE preserves ELK shape metadata SVG, receipt and diagnostics', async () => {
+    const backend = 'elk' as const
     for (const input of SHAPE_METADATA_PARITY_CASES) {
       const options = {
         security: 'strict' as const,
@@ -593,6 +594,7 @@ describe('async family-loaded browser renderer', () => {
     const cases = [
       { nodeSpacing: -1 },
       { graphLayout: { backend: 'elk', fallback: 'elk' } },
+      { graphLayout: { backend: 'agentic' } },
       { graphLayout: { backend: 'agentic', extra: true } },
       { graphLayout: { backend: 'wrong' } },
       { bg: 'url(https://example.invalid/image)' },
@@ -622,7 +624,8 @@ describe('async family-loaded browser renderer', () => {
     } finally { await page.close() }
   }, BUILD_TIMEOUT_MS)
 
-  test.each(['elk', 'agentic'] as const)('lazy prose stripping preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+  test('lazy prose stripping preserves ELK shape metadata SVG, receipt and diagnostics', async () => {
+    const backend = 'elk' as const
     const page = await browser.newPage()
     try {
       await page.goto(`${base}/blank.html`)
@@ -691,7 +694,8 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test.each(['elk', 'agentic'] as const)('%s-backed families fetch and reuse only the selected solver', async backend => {
+  test('ELK families fetch and reuse the sole graph solver', async () => {
+    const backend = 'elk' as const
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
@@ -715,8 +719,7 @@ describe('async family-loaded browser renderer', () => {
         return Promise.all(sources.map(source => api.renderMermaidSVGAsync(source, { graphLayout: { backend } })))
       }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend, sources })
       expect(svgs).toEqual(sources.map(source => renderMermaidSVG(source, { graphLayout: { backend } })))
-      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(backend === 'elk' ? 1 : 0)
-      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(backend === 'agentic' ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(1)
     } finally {
       await page.close()
     }
@@ -734,7 +737,7 @@ describe('async family-loaded browser renderer', () => {
         return api.renderMermaidSVGAsync(source, { security: 'strict' })
       }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
       expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
-      expect(requests).not.toContain(lazyImplementationChunk())
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(1)
       const sequence = 'sequenceDiagram\n  Alice->>Bob: Ready'
       const plainSequence = await page.evaluate(async ([entryUrl, source]) => {
         const api = await import(entryUrl)
@@ -770,7 +773,8 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test.each(['elk', 'agentic'] as const)('%s preserves opt-in layout evidence and font metrics across dependency replay', async backend => {
+  test.each(['font', 'optimization'] as const)('ELK preserves opt-in evidence across dependency replay with %s loaded first', async first => {
+    const backend = 'elk' as const
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
@@ -788,16 +792,16 @@ describe('async family-loaded browser renderer', () => {
       expect(requests).not.toContain(fontChunk)
       expect(requests).not.toContain(optionalChunk)
       // Same source and explicit producer as the measured main-branch ceiling.
-      expect(requests.filter(path => path.endsWith('.js')).length).toBeLessThanOrEqual(backend === 'elk' ? 35 : 37)
-      await page.evaluate(async ({ entry, source, options, backend }) => {
+      expect(requests.filter(path => path.endsWith('.js')).length).toBeLessThanOrEqual(35)
+      await page.evaluate(async ({ entry, source, options, backend, first }) => {
         const api = await import(entry)
-        const selected = backend === 'elk'
+        const selected = first === 'font'
           ? { security: 'strict', fontMetrics: 'bundled-inter', graphLayout: { backend } }
           : { security: 'strict', graphLayout: options.graphLayout }
         await api.renderMermaidSVGWithReceiptAsync(source, selected)
-      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, backend })
-      expect(requests.filter(path => path === fontChunk)).toHaveLength(backend === 'elk' ? 1 : 0)
-      expect(requests.filter(path => path === optionalChunk)).toHaveLength(backend === 'agentic' ? 1 : 0)
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, backend, first })
+      expect(requests.filter(path => path === fontChunk)).toHaveLength(first === 'font' ? 1 : 0)
+      expect(requests.filter(path => path === optionalChunk)).toHaveLength(first === 'optimization' ? 1 : 0)
       const actual = await page.evaluate(async ({ entry, source, options }) => {
         const api = await import(entry)
         const cold = await api.renderMermaidSVGWithReceiptAsync(source, options)
@@ -890,19 +894,18 @@ describe('async family-loaded browser renderer', () => {
       } finally { await page.close() }
     })
   }
-  test.each(['native', 'cross-scope', 'large-cross-scope', 'frame-endpoint', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
-    const fallback = mode === 'local-limit'
+  test.each(['basic', 'cross-scope', 'large-cross-scope', 'frame-endpoint', 'compound', 'long-link', 'refined-cycle'])('ELK graph placement preserves output and diagnostics across deferred loading (%s)', async mode => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
       : mode === 'large-cross-scope' ? flowchartSubgraphs(12, 8)
       : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
-      // Ancestor-frame contacts stay native without materializing private ranks.
+      // Keep the authored long ancestor-frame contact through provider replay.
       : mode === 'compound' ? `---\ntitle: Deferred providers\n---\nflowchart LR\nsubgraph Outer\n A["x#hearts;y"]\nend\nOuter ${'-'.repeat(2049)}> A`
-      : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
+      : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'long-link' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
     const options = {
-      graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
+      graphLayout: { backend: 'elk' as const },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },
     }
     try {
@@ -918,19 +921,18 @@ describe('async family-loaded browser renderer', () => {
       const diagnostics: unknown[] = []
       const expected = await sourceSVGWithReceipt(source, options, diagnostics)
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
-      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
-      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(1)
       if (mode === 'compound') for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
-      expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
+      expect(result.receipt.layoutDecisions[0].selected).toBe('elk')
     } finally { await page.close() }
   })
 
-  test('a failed native chunk rejects without ELK fallback and a fresh document can recover', async () => {
+  test('a failed ELK chunk rejects and a fresh document can recover', async () => {
     const page = await browser.newPage()
     const requests: string[] = []
-    const implementation = lazyImplementationChunk('/layout/agentic-layered-core.ts')
+    const implementation = lazyImplementationChunk()
     const source = 'flowchart TD\n A[Source] --> B[Target]'
-    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const }, security: 'strict' as const }
+    const options = { graphLayout: { backend: 'elk' as const }, security: 'strict' as const }
     let attempts = 0
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     await page.route(`**/dist/${implementation}`, route => ++attempts === 1 ? route.abort('failed') : route.continue())
@@ -944,7 +946,7 @@ describe('async family-loaded browser renderer', () => {
       expect(failure).not.toBeNull()
       expect(failure!.name).toBe('TypeError')
       expect(attempts).toBe(1)
-      expect(requests).not.toContain(lazyImplementationChunk())
+      expect(requests.filter(path => path === implementation)).toHaveLength(1)
       await page.reload()
       const recovered = await page.evaluate(async ({ entry, source, options }) => {
         const api = await import(entry)
@@ -954,7 +956,7 @@ describe('async family-loaded browser renderer', () => {
       const expected = await sourceSVGWithReceipt(source, options)
       expect(recovered).toEqual({ svg: expected.svg, receipt: expected.receipt })
       expect(attempts).toBe(2)
-      expect(requests).not.toContain(lazyImplementationChunk())
+      expect(requests.filter(path => path === implementation)).toHaveLength(2)
     } finally { await page.close() }
   })
 

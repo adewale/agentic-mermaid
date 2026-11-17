@@ -77,24 +77,23 @@ describe('ER label reservations and foreign shafts', () => {
     expect(foreignConflicts(placed)).toBe(0)
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('translates producer reservations with the route and title in %s', direction => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('reserves title space above final labels and routes in %s', direction => {
     const source = `erDiagram\ndirection ${direction}\nA ||--o{ B : owns\nB ||--o{ C : contains`
     const parsed = parseErDiagram(toMermaidLines(source))
     parsed.title = 'Account ownership'
-    const placed = layoutErDiagram(parsed, { graphLayout: { backend: 'agentic' } })
-    expect(placed.labelPlacement).toBe('shaft-aware')
-    expect(placed.relationships.some(rel => rel.labelPosition)).toBe(true)
-    for (const rel of placed.relationships) if (rel.labelPosition) {
-      const p = rel.labelPosition
-      expect(rel.points.slice(1).some((b, i) => {
-        const a = rel.points[i]!
-        return a.x === b.x && Math.abs(p.x - a.x) < .001 && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)
-          || a.y === b.y && Math.abs(p.y - a.y) < .001 && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x)
-      })).toBe(true)
+    const placed = layoutErDiagram(parsed, { graphLayout: { backend: 'elk' } })
+    expect(placed.title!.text).toBe('Account ownership')
+    const bottom = placed.title!.y + placed.title!.block!.height / 2
+    for (const entity of placed.entities) expect(entity.y).toBeGreaterThan(bottom)
+    expect(placed.relationships.map(rel => [rel.entity1, rel.entity2, rel.label])).toEqual([['A', 'B', 'owns'], ['B', 'C', 'contains']])
+    for (const rel of placed.relationships) {
+      for (const point of rel.points) expect(point.y).toBeGreaterThan(bottom)
+      expect(rel.finalLabelPosition!.y).toBeGreaterThan(bottom)
     }
+    expect(foreignConflicts(placed)).toBe(0)
   })
 
-  test('does not opt ELK into native label placement', () => {
+  test('keeps ELK label placement separate from optional shaft reservations', () => {
     const source = 'erDiagram\nA ||--o{ B : owns'
     const placed = layoutErDiagram(parseErDiagram(toMermaidLines(source)), { graphLayout: { backend: 'elk' } })
     expect(placed.labelPlacement).toBeUndefined()
@@ -110,9 +109,9 @@ describe('ER label reservations and foreign shafts', () => {
       bindings: [{ role: 'relationship', channel: 'category', value: 'identifying', slot: 'identifying' }],
     }],
   ]
-  test.each(styleFaces)('shares final native label centers between projection and paint with %s', (_, styleFace) => {
+  test.each(styleFaces)('shares final label centers between projection and paint with %s', (_, styleFace) => {
     const source = 'erDiagram\nA ||--o{ B : owns\nA ||..o{ C : references\nB ||--o{ D : contains\nC ||..o{ D : finds'
-    const options = { graphLayout: { backend: 'agentic' as const } }
+    const options = { graphLayout: { backend: 'elk' as const } }
     const placed = layoutErDiagram(parseErDiagram(toMermaidLines(source)), options, styleFace)
     const original = structuredClone(placed)
     const projected = projectErPositioned({ positioned: placed, options: {} })
@@ -132,7 +131,7 @@ describe('ER label reservations and foreign shafts', () => {
       ...(i > 0 ? [`  E${Math.floor((i - 1) / 2)} ||--o{ E${i} : has`] : []),
     ]).flat()].join('\n')
     const parsed = parseErDiagram(toMermaidLines(source))
-    const placed = layoutErDiagram(parsed, { graphLayout: { backend: 'agentic' } })
+    const placed = layoutErDiagram(parsed, { graphLayout: { backend: 'elk' } })
     expect(placed.relationships.map(({ entity1, entity2, cardinality1, cardinality2, identifying, label }) => ({ entity1, entity2, cardinality1, cardinality2, identifying, label }))).toEqual(parsed.relationships)
     expect(foreignConflicts(placed)).toBe(0)
   })

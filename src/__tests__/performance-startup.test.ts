@@ -4,14 +4,14 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-// The labelled edge is deliberately ineligible for the forest solver: observing
-// zero ELK calls on the repeat then proves positioned reuse, not forest dispatch.
+// Observing zero ELK calls on the repeat proves positioned reuse after the
+// lower-level ELK result cache has been cleared.
 test.each([
-  { id: 'default', setting: undefined, browser: false, flags: ['text-spans', 'indexed-layout', 'position-cache'], cached: true },
+  { id: 'default', setting: undefined, browser: false, flags: ['text-spans', 'position-cache'], cached: true },
   { id: 'disabled', setting: '', browser: false, flags: [], cached: false },
   { id: 'explicit subset', setting: 'text-spans', browser: false, flags: ['text-spans'], cached: false },
   { id: 'browser disabled', setting: '', browser: true, flags: [], cached: false },
-  { id: 'browser selected', setting: 'text-spans,indexed-layout,position-cache', browser: true, flags: ['text-spans', 'indexed-layout', 'position-cache'], cached: true },
+  { id: 'browser selected', setting: 'text-spans,position-cache', browser: true, flags: ['text-spans', 'position-cache'], cached: true },
 ])('startup $id preserves complete SVG and selects the requested layout paths', async ({ setting, browser, flags, cached }) => {
   const env: Record<string, string | undefined> = { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1' }
   delete env.AGENTIC_MERMAID_EXPERIMENTS
@@ -34,10 +34,10 @@ test.each([
     clearElkLayoutCache()
     let elkCalls = 0
     const second = withRenderStageObserver(sample => { if (sample.stage === 'elk') elkCalls++ }, () => renderMermaidSVG(source))
-    const forest = layoutGraphSync(parseMermaid('flowchart LR\\nRoot --> Child'))
+    const graph = layoutGraphSync(parseMermaid('flowchart LR\\nRoot --> Child'))
     console.error('startup: rendering and layout complete')
     console.log(JSON.stringify({ flags: PERFORMANCE_EXPERIMENTS.filter(performanceExperimentEnabled),
-      equal: first === second, bytes: Buffer.byteLength(second), elkCalls, strategy: forest.certification.strategy }))
+      equal: first === second, bytes: Buffer.byteLength(second), elkCalls, strategy: graph.certification.strategy }))
   `], { cwd: resolve(import.meta.dir, '../..'), env })
   expect(child.status, JSON.stringify(child)).toBe(0)
   const result = JSON.parse(child.stdout) as { flags: string[]; equal: boolean; bytes: number; elkCalls: number; strategy: string }
@@ -46,5 +46,5 @@ test.each([
   expect(result.bytes).toBeGreaterThan(0)
   if (cached) expect(result.elkCalls).toBe(0)
   else expect(result.elkCalls).toBeGreaterThan(0)
-  expect(result.strategy === 'indexed-forest').toBe((flags as readonly string[]).includes('indexed-layout'))
+  expect(result.strategy).toBe('default')
 })

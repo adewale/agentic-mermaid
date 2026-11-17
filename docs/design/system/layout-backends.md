@@ -1,109 +1,118 @@
-# Graph layout backends
+# Graph placement
 
-This is the current selection and execution contract. Agentic is opt-in; ELK
-remains supported. The [October design and experiments](../../project/archive/layout-backends-2026-10.md)
-retain their original revisions and adverse results. Further quality and cost
-qualification belongs to [0.6 qualification](layout-0.6-qualification.md) and
-the existing Native-layout section of [TODO.md](../../../TODO.md).
+ELK.ts is the sole general graph-placement engine. Family adapters retain their
+specialized measurement, route, marker and container rules; sequence, chart and
+terminal-cell layouts remain specialized. The former Native/Agentic graph
+backend and automatic forest producers have been removed.
 
-## Selection
+The prior two-backend design and measurements are preserved in Git history at
+[57529f20](https://github.com/adewale/agentic-mermaid/blob/57529f206eb9e2484c703b7b2ceebc61bce68737/docs/design/system/layout-backends.md).
+They describe the retired implementation, not the current runtime contract.
 
-`graphLayout` selects graph geometry. Scene drawing backends and terminal-cell
-placement have their own contracts.
+## Public preferences and migration
 
-| Request | Behavior |
-| --- | --- |
-| Omitted | Existing automatic policy, including eligible forest placement and caching |
-| `{ backend: 'elk' }` | ELK placement followed by the family's route repairs and certification |
-| `{ backend: 'agentic' }` | Strict Agentic placement; an unsupported input declines explicitly |
-| `{ backend: 'agentic', fallback: 'elk' }` | Agentic first, with an attributed ELK fallback for supported refusal classes |
-
-An omitted fallback means `none`. Empty selectors, unknown fields and redundant
-`{ backend: 'elk', fallback: 'elk' }` are rejected during option admission.
-Mermaid `config.layout` and family `defaultRenderer` fields are not aliases
-for this option.
+Omitting `graphLayout` uses ELK.ts wherever a general graph placement is needed.
+The optional `backend: 'elk'` and `fallback: 'none'` spellings remain accepted for
+existing ELK callers. There is no alternate backend or graph-backend fallback.
+`backend: 'agentic'` and `fallback: 'elk'` fail option admission rather than
+silently choosing a different implementation.
 
 ```ts
 import { renderMermaidSVGWithReceipt } from 'agentic-mermaid'
 
-const { svg, receipt } = renderMermaidSVGWithReceipt('flowchart LR; A --> B', {
-  graphLayout: { backend: 'agentic', fallback: 'elk' },
-})
+const { svg, receipt } = renderMermaidSVGWithReceipt(
+  'flowchart LR; Idea --> Ship',
+  { graphLayout: { quality: 'balanced' } },
+)
 console.log(receipt.layoutDecisions)
 ```
 
-The CLI exposes `--graph-layout` and `--graph-layout-fallback`; library,
-browser and MCP options use the same checked render contract.
+Native's different coordinates, private capacity limits and optional port-aware
+search are not promises of the surviving engine. Flowchart forests, eligible
+Usecase/Agentflow forests and Swimlane lane placement now use ELK. Their default
+geometry and execution/download costs can change. Raw ELK output remains
+qualified against elkjs 0.11.1 at `src/elk-instance.ts`.
 
-## Supported geometry and limits
+Explicit producer evidence reports `elk-layered@1`, selected ELK and no fallback.
+An omitted policy retains implicit evidence instead of inventing an explicit
+selection. Primary graphical and optional terminal-companion roles remain
+separate. Historical receipts remain readable as historical data.
 
-The owned kernel serves Flowchart, State, Architecture, Class, ER and
-Requirement adapters. It supports bounded cyclic and compound inputs, loops,
-labels and authored endpoint identities. Family adapters retain their card,
-header, port and routing rules. Hints, ambiguous identities and exhausted
-searches can still decline. Selection support does not establish universal
-ELK parity or a performance advantage.
+## Production path
+
+1. Public render admission captures source, styles, options and ownership once.
+2. Family adapters measure their actual text, frames, markers and labels.
+3. `layout/graph-measurement.ts` owns shared graph text and box measurement.
+4. `layout-engine.ts` converts a Mermaid graph to the existing ELK JSON boundary.
+5. `elk-instance.ts` applies the existing work admission and weighted LRU, then
+   invokes ELK.ts. elkjs is a development-only differential oracle.
+6. The result is converted into positioned geometry. The shared finishing
+   context requires its ELK result; no Native-owned-edge alternative remains.
+7. Existing ordered geometry passes and independent final certification run.
+8. Scene lowering, painted ownership, SVG/PNG and terminal projection retain
+   their own contracts. The built-in native Scene paint producer is distinct
+   from the retired Native graph-placement algorithm.
+
+No new measured-graph conversion, result cache or phase-wrapper allocation is
+introduced solely to name these stages. Private physical route checks use the
+small solver-independent `MeasuredRouteGraph` and `ChannelWork` types.
+
+## Recovery and quality
+
+Removing a backend does not remove ELK's established recovery policy. The four
+candidate combinations preserve hierarchy/corank choices. Each retains the
+bounded option-degradation ladder; deferred loading and hard work-limit errors
+escape to their owning boundary. Existing workload policies can use a smaller
+subset, but the exceptional upper bound remains sixteen ELK attempts.
+
+A failed attempt can mutate its ELK input. Recovery therefore rebuilds its
+private graph instead of reusing potentially corrupted input. Existing route
+alternatives, singleton handling, labels, bundling and certification order remain.
+
+`quality: 'balanced'` enables the existing bounded non-regressing ELK ordering
+proposal. Explicit adjacency remains authoritative. Flowchart viewport wrapping
+also retains its existing bounded search and explicit wrapping precedence.
+These are opt-in preferences, not another graph engine or a proof waiver.
+
+Class may reserve more header bypass space after a typed, actually measured
+header-route capacity failure. That recovery uses its existing maximum three
+layout passes and the same nonrefunded work ledger. Unrelated failures do not
+qualify; authored diagnostic text cannot select recovery. Already successful
+Class layouts keep the original path.
+
+## Safety and limits
+
+Authored identities, endpoint references, mutable/getter isolation, Unicode,
+CSS, definitions, producer ownership and final ink certification remain shared
+requirements. No Native deletion makes a geometry pass or defensive copy
+redundant by itself. Custom measurement callbacks and recovery ownership must
+still be respected.
+
+`layoutSafety: 'strict'` requires complete passed evidence. Report mode can
+return drawable output with explicit failed or unverified evidence. An unknown
+proof is not a pass, and successful rendering is not full visual fidelity.
 
 <!-- BEGIN GENERATED: graph-layout-limits -->
 | Scope | Limit |
 | --- | --- |
 | Host nodes, including group frames | 5,000 |
 | Host edges | 5,000 |
-| Agentic measured nodes, including group frames | 4,096 |
-| Agentic internal edges | 16,384 |
-| Agentic internal ranks | 4,096 |
-| Agentic expanded workspace vertices | 32,768 |
 <!-- END GENERATED: graph-layout-limits -->
 
-Self-loops and compound routing introduce internal helpers. Those consume
-workspace and can make a diagram below the authored-node ceiling decline.
-Separate rank, route-search, geometry and paint allowances also apply; fitting
-the table is not a guarantee of successful rendering. Source, frontmatter and
-Style cannot raise these limits.
+The host limits and independent routing/paint budgets remain unchanged.
+Unreachable ELK strategies outside this port's supported configuration fail
+explicitly. This is not a complete replacement for every arbitrary ELK option.
 
-## Failure and evidence
+## Qualification
 
-An unsupported strict Agentic input throws `GraphLayoutUnsupportedError`
-(`GRAPH_LAYOUT_UNSUPPORTED`). With explicit ELK fallback, the family selector
-records the refusal and actual selection in `receipt.layoutDecisions`.
-Known final-geometry candidate rejections may also permit fallback at the
-owning family boundary. Unexpected engine defects and global admission limits
-remain errors.
+Use the existing differential boundary test and `eval/elk-layered` corpus
+capture/comparison to check strict graph values and array order against the
+pinned dev oracle. Rendering tests separately check authored meaning, final
+contacts, markers, dimensions and proof availability. Shared parser/terminal
+results are not independent solver wins.
 
-Receipts preserve requested backend, fallback policy, attempts, selected
-backend and implementation identity. A render completed by ELK is an ELK
-completion. Cached geometry retains that decision and replays request-specific
-diagnostics without exposing mutable shared arrays.
-
-Both producers preserve authored nodes, groups, relationship occurrences and
-directed endpoints. They share final geometry/paint certification and output
-security. Rejected candidates cannot alter source or the later ELK workspace.
-
-## Outputs and browser delivery
-
-SVG, PNG, verification and layout JSON consume the resolved graph selection.
-Terminal cells retain family placement rules; pixel companions and
-Architecture's pixel-to-cell dependency honor the selector.
-
-`agentic-mermaid/browser/lazy` loads the selected solver on demand. A successful
-strict Agentic render does not fetch ELK; explicit ELK and actual fallback do.
-The synchronous browser entry remains an all-in-one bundle. Evaluate actual
-request graphs and compressed transfer bytes separately from execution time.
-
-## Owners and validation
-
-| Boundary | Owner |
-| --- | --- |
-| Options and applicability | `src/render-contract.ts` |
-| Selection, typed refusal and decisions | `src/layout/backend.ts` |
-| Measured solver and bounds | `src/layout/agentic-layered-core.ts`, `src/layout/agentic-limits.ts` |
-| Family geometry | `src/layout-engine.ts`, `src/class/layout.ts`, `src/er/layout.ts`, `src/architecture/layout.ts`, `src/requirement/` |
-| Final artifact checks | `src/route-contracts.ts`, `src/scene/paint-certification.ts` |
-
-Use the existing Agentic and family backend tests for identities, endpoints,
-fallback and bounded-work behavior. Compare final artifacts on the same inputs
-and requested policies; retain refusals, fallback and adverse measurements.
-The [release guide](../../contributing/releasing.md#local-release-benchmarks)
-owns local measurement commands. Historical campaigns are evidence for their
-recorded revisions, while the [0.6 contract](layout-0.6-qualification.md) owns
-future qualification. ELK remains the default.
+After material source or base changes, run the required local CI on the exact
+combined head, inspect actual package bytes and compressed request closures,
+and compare fully consumed cold/import/cache/edit runtime and RSS/heap. Retain
+failed, unsupported, unverified and adverse measurements. Trident completion,
+label fidelity and paint certification describe different evidence.

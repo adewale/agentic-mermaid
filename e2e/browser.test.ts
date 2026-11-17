@@ -435,23 +435,23 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
       const source = 'flowchart LR\nStandalone --> Verified'
       const artifact = await api.renderMermaidSVGWithReceipt(source)
       const selections = []
-      for (const backend of ['elk', 'agentic']) {
+      for (const backend of ['elk']) {
         const result = await api.renderMermaidSVGWithReceipt(source, { graphLayout: { backend } })
         selections.push({ selected: result.receipt.layoutDecisions?.[0]?.selected, verified: result.verification.ok })
       }
       const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
-      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
-      // Use the unchanged private-rank limit as the fallback witness.
-      const fallbackSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', ' B[Tail]', ' A ' + '-'.repeat(2049) + '> B', 'end'].join('\n')
-      const fallback = await api.renderMermaidSVGWithReceipt(fallbackSource, {
-        graphLayout: { backend: 'agentic', fallback: 'elk' },
+      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'elk' } })
+      // The former Native rank-limit witness remains a real ELK render.
+      const longLinkSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', ' B[Tail]', ' A ' + '-'.repeat(2049) + '> B', 'end'].join('\n')
+      const longLink = await api.renderMermaidSVGWithReceipt(longLinkSource, {
+        graphLayout: { backend: 'elk', fallback: 'none' },
       })
-      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], fallback: fallback.receipt.layoutDecisions?.[0] }
+      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], longLink: longLink.receipt.layoutDecisions?.[0] }
     })
     expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
-    expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
-    expect(preview.promoted).toMatchObject({ requested: 'agentic', selected: 'agentic' })
-    expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    expect(preview.selections).toEqual([{ selected: 'elk', verified: true }])
+    expect(preview.promoted).toMatchObject({ requested: 'elk', selected: 'elk' })
+    expect(preview.longLink).toMatchObject({ requested: 'elk', selected: 'elk', fallback: 'none' })
     // The self-contained module has its own compression path. Exercise every
     // registered family through that emitted worker against the source renderer.
     const styles = [undefined, 'hand-drawn', 'watercolor'] as const
@@ -507,8 +507,8 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
       const api = (window as any).__mermaid
       const source = 'flowchart LR\nRecovered --> Verified'
       const [ascii, unicode] = await Promise.all([
-        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
-        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'elk' } }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'elk' } }),
       ])
       return {
         ascii: ascii.text,
@@ -520,7 +520,7 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     expect(text.ascii).toContain('Recovered')
     expect(text.unicode).toContain('Verified')
     for (const decisions of [text.asciiDecisions, text.unicodeDecisions]) expect(decisions).toEqual([
-      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+      expect.objectContaining({ selected: 'elk', role: 'companion' }),
     ])
     // Exercise the real Canvas/font/export path, which remains on the main thread.
     await standalone.locator('#export-chevron-btn').click()

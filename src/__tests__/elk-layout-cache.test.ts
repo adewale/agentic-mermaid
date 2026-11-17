@@ -45,14 +45,10 @@ describe('ELK layout cache', () => {
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
       import { spyOn } from 'bun:test'
-      import * as constructors from './src/elk-constructor.ts'
+      import * as solvers from './src/elk-solver.ts'
       let layouts = 0
       let output = input => ({ ...input, width: 1, height: 1 })
-      const raw = { onmessage: null, dispatcher: { saveDispatch({ data }) {
-        layouts++
-        raw.onmessage({ data: { data: output(data.graph) } })
-      } } }
-      spyOn(constructors, 'elkConstructor').mockReturnValue(class { worker = { worker: raw } })
+      spyOn(solvers, 'elkSolver').mockReturnValue(input => { layouts++; return output(input) })
       const { elkLayoutSync, clearElkLayoutCache } = await import('./src/elk-instance.ts')
       const request = (id, padding = '') => ({ id, children: [], edges: [], padding })
       const solve = (id, padding) => elkLayoutSync(request(id, padding))

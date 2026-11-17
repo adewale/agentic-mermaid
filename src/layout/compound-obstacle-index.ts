@@ -1,7 +1,7 @@
 import type { Point } from '../types.ts'
 import { pointOnMeasuredSegment } from './measured-route-safety.ts'
 import { buildNodeLaneIndex, nodeLaneCell, type NodeLaneIndex } from '../shared/node-lane-index.ts'
-import type { ChannelWork } from './channel-tracks.ts'
+import type { ChannelWork } from './measured-graph.ts'
 import type { RoutingBox } from './compound-visibility.ts'
 
 export interface CompoundProjection { left: number; right: number; top: number; bottom: number }

@@ -69,7 +69,7 @@ describe('raster-safe Flowchart endpoint markers', () => {
     expect(Math.abs(start.height - end.height)).toBeLessThanOrEqual(1)
   })
 
-  for (const backend of ['agentic', 'elk'] as const) for (const direction of ['LR', 'RL', 'TB', 'BT'] as const) {
+  for (const backend of ['elk'] as const) for (const direction of ['LR', 'RL', 'TB', 'BT'] as const) {
     test(`${backend} ${direction} keeps every actual cross cap on the route side of both endpoint faces`, () => {
       for (const fixed of [false, true]) {
         const source = `flowchart ${direction}\nA x--x B${fixed ? '\nlinkStyle 0 stroke:#ff0000,stroke-width:4px' : ''}`

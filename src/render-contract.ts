@@ -262,7 +262,7 @@ const GRAPH_LAYOUT_QUALITY_FIELDS = { quality: { type: 'string', enum: ['balance
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   fontMetrics: { typeScript: "'estimate' | 'bundled-inter'", description: 'Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates.', defaultLabel: '`estimate`', validationExpectation: 'be estimate or bundled-inter', schema: { type: 'string', enum: ['estimate', 'bundled-inter'] }, terminal: 'not-applicable', terminalNote: 'terminal cells do not use font advances' },
   layoutHints: { typeScript: '{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }', description: 'Relative ranks, sibling adjacency and short-edge preferences.', defaultLabel: 'unset', validationExpectation: 'contain integer ranks, node groups and edge IDs', schema: { type: 'object', additionalProperties: false, properties: { ranks: { type: 'object', additionalProperties: { type: 'integer', minimum: 0, maximum: 10000 } }, adjacent: { type: 'array', items: { type: 'array', minItems: 2, items: { type: 'string' } } }, shortEdges: { type: 'array', items: { type: 'string' } } } }, terminal: 'not-applicable', terminalNote: 'not used by terminals', applicableBuiltinFamilies: ['flowchart', 'state', 'usecase', 'swimlane', 'agentflow'] },
-  graphLayout: { typeScript: "{ backend: 'elk' | 'agentic'; fallback?: 'none' | 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }", description: 'Graph geometry producer and explicit Agentic fallback policy.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be a graph layout selection object', schema: { anyOf: [closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout.', ['backend']), closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Owned graph layout with optional ELK fallback.', ['backend'])] }, terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
+  graphLayout: { typeScript: "{ backend?: 'elk'; fallback?: 'none'; quality?: 'balanced'; viewport?: { width: number; height: number } }", description: 'ELK graph placement and bounded quality preferences. Native selection and backend fallback have been removed.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be an ELK graph layout preference object; Native (agentic) is no longer supported', schema: closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout preferences.'), terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
   layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
   bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
   fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
@@ -770,10 +770,7 @@ function receiptDiagnostics(
   return Object.freeze([
     ...(Object.hasOwn(request, 'resolutionDiagnostics') ? request.resolutionDiagnostics! : []),
     ...diagnostics,
-    ...graphLayoutDecisionsOf(request).flatMap(decision => decision.requested === 'agentic' && decision.selected === 'elk' ? [{
-      code: 'GRAPH_LAYOUT_FALLBACK', feature: 'graph-layout',
-      message: `Agentic graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
-    }] : []),
+
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)
     if (seen.has(key)) return []
@@ -1894,7 +1891,11 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   let effective: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : { ...options }
-  if (options.graphLayout) effective.graphLayout = { ...options.graphLayout, fallback: options.graphLayout.fallback ?? 'none' }
+  if (options.graphLayout) {
+    const graphLayout = { ...options.graphLayout, fallback: options.graphLayout.fallback ?? 'none' }
+    graphLayout.backend ??= 'elk'
+    effective.graphLayout = graphLayout
+  }
 
   const styled = style !== undefined && isStyledSpec(style)
   if (styled) effective = applyStyleDefaults(effective, style, source.config.themeVariables)

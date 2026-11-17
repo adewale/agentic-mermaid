@@ -98,7 +98,7 @@ describe('renderMermaidASCII – architecture diagrams', () => {
 
   const corpus = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
   it.each([false, true])('keeps every aligned and junction relationship connected through visible owned ink (ASCII=%s)', useAscii => {
-    for (const backend of ['elk', 'agentic'] as const) for (const [index, endpoints] of [
+    for (const backend of ['elk'] as const) for (const [index, endpoints] of [
       [3, [['src_a', 'db_one'], ['src_b', 'db_two'], ['src_c', 'db_three'], ['db_two', 'brief'], ['brief', 'analyst'], ['analyst', 'delivery']]],
       [4, [['left_disk', 'junctionCenter'], ['top_disk', 'junctionCenter'], ['bottom_disk', 'junctionCenter'], ['junctionCenter', 'junctionRight'], ['top_gateway', 'junctionRight'], ['bottom_gateway', 'junctionRight']]],
     ] as const) {
@@ -133,7 +133,7 @@ describe('renderMermaidASCII – architecture diagrams', () => {
   })
 
   it.each([false, true])('keeps reciprocal container contacts on real frame ink beside wide headers (ASCII=%s)', useAscii => {
-    for (const backend of ['elk', 'agentic'] as const) for (const side of ['T', 'R', 'B', 'L'] as const) {
+    for (const backend of ['elk'] as const) for (const side of ['T', 'R', 'B', 'L'] as const) {
       const source = `architecture-beta
 group outer(cloud)[Outer]
 group inner(server)[Header 界👩🏽‍💻 complete] in outer

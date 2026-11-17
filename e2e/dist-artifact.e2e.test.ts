@@ -45,7 +45,7 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     })
     expect({ status: bundled.status, stderr: bundled.stderr }).toEqual({ status: 0, stderr: '' })
     expect(existsSync(outfile)).toBe(true)
-    // A browser bundler resolves `#elk-constructor` to the bundled ELK, so an
+    // A browser bundler resolves `#elk-solver` to the bundled ELK, so an
     // ELK family lays out synchronously with no Node module loader.
     const rendered = spawnSync('bun', ['--eval', `const { renderMermaidSVG } = await import(${JSON.stringify(outfile)}); console.log(renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B', { fontMetrics: 'bundled-inter', graphLayout: { backend: 'elk', quality: 'balanced' } }).startsWith('<svg'))`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: rendered.status, stdout: rendered.stdout.trim(), stderr: rendered.stderr }).toEqual({ status: 0, stdout: 'true', stderr: '' })
@@ -55,7 +55,7 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     const probe = `
       import { createRequire } from 'node:module'
       const require = createRequire(import.meta.url)
-      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.includes('/elkjs/')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
+      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.endsWith('/elk-solver.cjs')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
       const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
       const states = [loaded()]
       renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')
@@ -71,8 +71,9 @@ describe('built artifact bundler and deferred dependency contracts', () => {
       console.log(JSON.stringify(states))`
     const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
-    // Import, sequence, certified forest, then an ineligible labelled edge.
-    expect(JSON.parse(run.stdout)).toEqual([[false, false, false], [false, false, false], [false, false, false], [true, false, false], [true, true, false], [true, true, true]])
+    // Import and sequence stay solver-free; the first graph loads ELK.
+    // Labelled graphs retain it; metrics and quality kernels load when requested.
+    expect(JSON.parse(run.stdout)).toEqual([[false, false, false], [false, false, false], [true, false, false], [true, false, false], [true, true, false], [true, true, true]])
   }, RUN_TIMEOUT_MS)
 
   test('a Node bundle of the agent entry carries ELK and needs no node_modules', () => {

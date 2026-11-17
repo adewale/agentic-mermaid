@@ -166,7 +166,7 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     expect(Math.hypot(Number(a!.cx) - Number(b!.cx), Number(a!.cy) - Number(b!.cy)) - Number(a!.r) - Number(b!.r)).toBeGreaterThanOrEqual(36)
   })
 
-  for (const graphLayout of [undefined, { backend: 'elk' }, { backend: 'agentic', fallback: 'none' }, { backend: 'agentic', fallback: 'elk' }] as const) {
+  for (const graphLayout of [undefined, { backend: 'elk' }, { backend: 'elk', fallback: 'none' }, { backend: 'elk', fallback: 'none' }] as const) {
     for (const [from, to] of [['R', 'L'], ['L', 'R'], ['T', 'B'], ['B', 'T']]) {
       test(`large Architecture ring binds shaft and visible marker contacts to actual paint: ${graphLayout?.backend ?? 'default'}/${graphLayout?.fallback ?? 'none'}/${from}`, () => {
         const source = `architecture-beta\njunction j\nservice b(server)[B]\nj:${from}<-->${to}:b`

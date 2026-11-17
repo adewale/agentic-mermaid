@@ -2,9 +2,7 @@ import { requirementArrow, requirementContains, requirementMarkerTerminal } from
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
-import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
-import { measureRenderStage } from '../render-stages.ts'
+import { runElkGraphBackend } from '../layout/backend.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
@@ -76,15 +74,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   const nodeSpacing = options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity),
     layerSpacing = options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)
   const terminalLead = model.relations.some(edge => edge.type !== 'contains') ? requirementMarkerTerminal(requirementArrow.id, style.lineWidth, 'end') + style.edgeBendRadius : 0
-  type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
-  const result = runMeasuredGraphBackend<Placement>(options, () => {
-    return measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
-      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
-        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
-      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
-    }))
-  }, () => {
+  const result = runElkGraphBackend(options, () => {
     // Contains owns a source marker even when no relation owns an arrowhead.
     // Keep its painted depth ahead of ELK's first routing track and bend.
     const elkTerminalLead = Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0)

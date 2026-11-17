@@ -1,4 +1,4 @@
-import type { MeasuredGraph } from './agentic-layered-core.ts'
+import type { MeasuredRouteGraph } from './measured-graph.ts'
 import type { Point } from '../types.ts'
 import { countPolylineCrossings, crossingPoint, retainCrossingLocation, distinctCrossingLocations, CROSSING_ENDPOINT_RADIUS } from '../shared/edge-crossings.ts'
 import { formatSvgNumber, SVG_LONG_DECIMAL } from '../shared/svg-number.ts'
@@ -52,7 +52,7 @@ function sharpRefusal(witness: MeasuredSharpContactWitness | undefined, i:number
 /** Base work reserved by the caller for each segment pair. Complete sharp
  * admission first proves conservative support separation; only remaining
  * pairs execute the other two predicates. Proposals retain the old metric. */
-export function measuredRouteContactPairBudget(input:MeasuredGraph,phase:'complete'|'proposal'='complete'):1|3 {
+export function measuredRouteContactPairBudget(input:MeasuredRouteGraph,phase:'complete'|'proposal'='complete'):1|3 {
   return phase==='complete'&&input.maximumEdgeStrokeWidth!==undefined&&input.maximumEdgeBendRadius===0?1:3
 }
 
@@ -343,7 +343,7 @@ function straightThrough(points: readonly Point[], segment: number, p: Point, wr
     ||a.y===p.y&&b.y===p.y&&Math.min(a.x,b.x)<p.x&&p.x<Math.max(a.x,b.x)
 }
 
-function sharpContactsClear(points: Point[], index: number, routes: readonly {points:Point[];style:string}[], input: MeasuredGraph, width:number, widthText:string, visiblePeers:readonly number[], charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,witness?:MeasuredSharpContactWitness,projection?:SharpProjectionRows,selected?:readonly (readonly number[]|undefined)[]):boolean|undefined {
+function sharpContactsClear(points: Point[], index: number, routes: readonly {points:Point[];style:string}[], input: MeasuredRouteGraph, width:number, widthText:string, visiblePeers:readonly number[], charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,witness?:MeasuredSharpContactWitness,projection?:SharpProjectionRows,selected?:readonly (readonly number[]|undefined)[]):boolean|undefined {
   const edge=input.edges[index]!
   let servedPair:[{points:Point[]},{points:Point[]}]|undefined,servedSegments:[{a:Point;b:Point;edgeIndex:number;pointIndex:number},{a:Point;b:Point;edgeIndex:number;pointIndex:number}]|undefined
   // Numeric projection is local to this synchronous read-only score. Reuse
@@ -470,7 +470,7 @@ function orthogonal(points: readonly Point[]): boolean {
  * Only an authored common endpoint may be an unmarked contact. The private
  * final Class owner may reuse support separation only while geometry, input
  * metadata and its charge/reserve callbacks cannot mutate the query. */
-export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false): number | undefined {
+export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredRouteGraph, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false): number | undefined {
   return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,true,witness,prepaidPairBudget,reuseSharpSupports)
 }
 
@@ -537,7 +537,7 @@ function prepareOwnedNumericSeed(routes:readonly {points:Point[];style:string}[]
  * fixed/end-point indices, refreshed AFTER every Class geometry write. Input
  * topology, width/radius and point arrays stay immutable; only visibility may
  * change during this synchronous traversal. No contact result escapes. */
-export function createOwnedMeasuredRouteContactValidator(routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,validateSegments=false,seed?:OwnedMeasuredRouteNumericSeed):((index:number,witness?:MeasuredSharpContactWitness)=>boolean)|false|undefined {
+export function createOwnedMeasuredRouteContactValidator(routes:readonly {points:Point[];style:string}[],input:MeasuredRouteGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,validateSegments=false,seed?:OwnedMeasuredRouteNumericSeed):((index:number,witness?:MeasuredSharpContactWitness)=>boolean)|false|undefined {
   if(!seed&&input.maximumEdgeStrokeWidth!==undefined&&input.maximumEdgeBendRadius===0){
     const prepared=prepareOwnedNumericSeed(routes,charge,reserve)
     if(prepared===undefined)return undefined
@@ -613,7 +613,7 @@ export function createOwnedMeasuredRouteContactValidator(routes:readonly {points
 /** Search ranking only: retains the full-width shaft and legacy crossing
  * metric. This result is NOT a sharp-contact certificate. Every caller must
  * pass committed-marker/global final admission before returning geometry. */
-export function scoreMeasuredRouteProposalCrossings(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):number|undefined {
+export function scoreMeasuredRouteProposalCrossings(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredRouteGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):number|undefined {
   return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,false)
 }
 
@@ -693,7 +693,7 @@ function seededSharpPairs(points:readonly Point[],index:number,routes:readonly {
   return selected??null
 }
 
-function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge:MeasuredContactCharge|undefined,reserve:MeasuredContactCharge|undefined,sharp:boolean,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false,projection?:SharpProjectionRows):number|undefined {
+function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredRouteGraph,charge:MeasuredContactCharge|undefined,reserve:MeasuredContactCharge|undefined,sharp:boolean,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false,projection?:SharpProjectionRows):number|undefined {
   let score = 0
   let width: number | undefined, widthText: string | undefined
   if(projection){

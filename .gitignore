@@ -104,3 +104,7 @@ eval/mermaid-upstream-assertions/results/
 
 # Owned generated shared-library tool link (a symlink, not a directory).
 /eval/benchmark/node_modules
+
+# ELK differential captures and JVM processor traces (eval-only artifacts).
+/eval/elk-layered/output/
+/eval/elk-layered/jvm/target/

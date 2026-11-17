@@ -184,7 +184,7 @@ describe('graph work admission', () => {
     const elk = spyOn(elkAdapter, 'elkLayoutSync').mockImplementation(() => { throw new Error('ELK started') })
     try {
       for (const [source, options] of [[table(30, 30), {}], [table(40, 40, 'classDiagram\ndirection LR'), {}], [complete(40), {}],
-        [table(30, 30), { graphLayout: { backend: 'agentic', fallback: 'elk' } }]] as const) expect(() => renderMermaidSVG(source, options)).toThrow(ClassLayoutWorkLimitError)
+        [table(30, 30), { graphLayout: { backend: 'elk', fallback: 'none' } }]] as const) expect(() => renderMermaidSVG(source, options)).toThrow(ClassLayoutWorkLimitError)
       expect(elk).not.toHaveBeenCalled()
       // Rounded routes skip that admission; 19 x 19 (145 bent pairs) renders.
       for (const [source, options] of [[table(30, 30), { style: { roles: { edge: { bendRadius: 6 } } } }], [table(19, 19), {}]] as const) {

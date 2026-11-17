@@ -29,7 +29,6 @@ import type { PositionedDiagram } from './types.ts'
 // artifact. Keep this internal evidence outside descriptor-owned return data.
 const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
 const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
-const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
 
 /** Final family checks a drawing can fail while still showing every authored
  * element with its meaning. Non-finite or off-canvas geometry loses content
@@ -44,15 +43,7 @@ function graphUncertifiedReceipt(positioned: PositionedDiagram): UncertifiedLayo
 /** Pixel dependencies in terminal renderers use the same evidence boundary. */
 export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest, decision: GraphLayoutDecision, role: 'primary' | 'companion'): void {
   retainGraphLayoutDecision(request, { ...decision, role })
-  if (decision.requested !== 'agentic' || decision.selected !== 'elk' || reportedFallbacks.has(request)) return
-  reportedFallbacks.add(request)
-  const diagnostic = {
-    code: 'INEFFECTIVE_CONFIG' as const,
-    field: 'graphLayout.backend',
-    message: `Agentic graph layout declined this input; using the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
-  }
-  const report = resolvedRenderExecutionPlanOf(request).onConfigDiagnostic ?? ((value: typeof diagnostic) => console.warn(value.message))
-  report(diagnostic)
+
 }
 
 export function retainedFamilyProjection(result: FamilyLayoutResult): FamilyPositionedView | undefined {

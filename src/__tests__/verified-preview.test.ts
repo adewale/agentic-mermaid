@@ -90,16 +90,15 @@ describe('one positioned artifact for preview and verification', () => {
   })
   test.each([
     { name: 'ELK', backend: 'elk', frame: false, fallback: false },
-    { name: 'native', backend: 'agentic', frame: false, fallback: false },
-    { name: 'native frame terminal', backend: 'agentic', frame: true, fallback: false },
-    { name: 'explicit fallback', backend: 'agentic', frame: true, fallback: true },
+    { name: 'frame terminal', backend: 'elk', frame: true, fallback: false },
+    { name: 'long-link layout', backend: 'elk', frame: true, fallback: true },
   ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame, fallback }) => {
-    // Only the fallback row exceeds the unchanged private-rank limit.
+    // Retain the historical long-link input through the sole ELK engine.
     const source = fallback
       ? `flowchart LR\nsubgraph One\n A[Leaf]\n B[Tail]\n A ${'-'.repeat(2049)}> B\nend`
       : `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| C`
     const options = { security: 'strict' as const, embedFontImport: false,
-      graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
+      graphLayout: { backend, ...(fallback ? { fallback: 'none' as const } : {}) } }
     const expected = renderMermaidSVGWithReceipt(source, options)
     const expectedVerification = verifyMermaid(source, { renderOptions: options })
     const descriptor = getFamily('flowchart')!, stages: string[] = []
@@ -111,9 +110,7 @@ describe('one positioned artifact for preview and verification', () => {
       expect(result.svg).toBe(expected.svg)
       expect(result.receipt).toEqual(expected.receipt)
       expect(result.verification).toEqual(expectedVerification)
-      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(fallback ? 'elk' : backend)
-      if (backend === 'agentic' && !fallback) expect(stages).not.toContain('elk')
-      else expect(stages).toContain('elk')
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     } finally { restore() }
   })
 
@@ -522,7 +519,7 @@ describe('persistent preview worker queue', () => {
       const first = h.client.render('first', {})
       const replaced = h.client.render('replaced', {})
       const rejected = replaced.catch(error => error)
-      const options = { style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' as const } }
+      const options = { style: ['crisp', 'paper'], graphLayout: { backend: 'elk' as const } }
       const newest = h.client.render('newest', options)
       options.style[1] = 'dusk'
       expect(await rejected).toBeInstanceOf(PreviewSupersededError)
@@ -532,7 +529,7 @@ describe('persistent preview worker queue', () => {
       h.reply(1, '<svg>first</svg>')
       expect((await first).svg).toContain('first')
       expect(h.sent.map(r => r.source)).toEqual(['first', 'newest'])
-      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' } })
+      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'], graphLayout: { backend: 'elk' } })
       h.reply(3, '<svg>newest</svg>')
       expect((await newest).svg).toContain('newest')
       expect(h.workers).toHaveLength(1)

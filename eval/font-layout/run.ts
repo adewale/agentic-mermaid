@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path'
 import { cpus, platform, release, totalmem } from 'node:os'
 import { cases, timingIds } from './catalog.ts'
 import { assertLocalMeasurement } from '../trident/prepare.ts'
+import { assertCurrentConfiguration } from './configs.ts'
 
 assertLocalMeasurement()
 
@@ -12,6 +13,7 @@ const value = (flag: string, fallback: string) => args.includes(flag) ? args[arg
 const root = resolve(value('--root', join(import.meta.dir, '../..')))
 const out = resolve(value('--out', join(root, 'bench-report/font-layout')))
 const features = value('--features', '').split(',').filter(Boolean)
+assertCurrentConfiguration('elk', features)
 const round = Number(value('--round', '0'))
 const modes = value('--modes', 'quality,latency,memory').split(',')
 const source = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
@@ -37,13 +39,13 @@ writeFileSync(protocolPath, JSON.stringify(protocol, null, 2) + '\n')
 const file = join(out, `raw-${round}.jsonl`)
 for (const mode of modes) {
   const chosen = mode === 'quality' ? corpus : corpus.filter(item => timingIds.includes(item.id))
-  for (const item of chosen) for (const backend of ['elk', 'agentic'] as const) {
-    if (backend === 'agentic' && !['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'].includes(item.family)) continue
+  for (const item of chosen) {
+    const backend = 'elk'
     const start = performance.now()
     const result = spawnSync(process.execPath, [join(import.meta.dir, 'worker.ts')], {
       cwd: root, encoding: 'utf8', timeout: 60_000, maxBuffer: 16 * 1024 * 1024,
       input: JSON.stringify({ root, mode, out: join(out, backend, 'artifacts'), features, backend, repetitions: 9, item }),
-      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,indexed-layout', AGENTIC_MERMAID_LAYOUT_FEATURES: features.filter(name => name !== 'fonts').join(',') },
+      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans', AGENTIC_MERMAID_LAYOUT_FEATURES: features.filter(name => name !== 'fonts').join(',') },
     })
     const elapsedMs = performance.now() - start
     let observation: unknown

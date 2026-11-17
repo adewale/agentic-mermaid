@@ -81,12 +81,6 @@ const OPTION_EFFECT_PROBES: Readonly<Record<string, { source?: string; value?: u
   'layoutHints/usecase': { source: 'usecase-beta\nactor A\nactor B\nC("c")\nA --> C\nB --> C' },
   'layoutHints/swimlane': { source: 'swimlane-beta LR\nsubgraph lane[Team]\nA[a] --> C[c]\nB[b] --> C\nend' },
   'layoutHints/agentflow': { value: { adjacent: [['B', 'A']] } },
-  'graphLayout/flowchart': { source: 'flowchart TD\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
-  'graphLayout/state': { source: 'stateDiagram-v2\n  [*] --> A\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
-  'graphLayout/class': { source: 'classDiagram\n  A <|-- B\n  A <|-- C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
-  'graphLayout/er': { source: 'erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y\n  B ||--o{ D : z\n  C ||--o{ D : w', value: { backend: 'agentic' } },
-  'graphLayout/requirement': { source: 'requirementDiagram\n  requirement a {\n    id: 1\n  }\n  element b {\n  }\n  element c {\n  }\n  b - satisfies -> a\n  c - satisfies -> a', value: { backend: 'agentic' } },
-  'graphLayout/architecture': { source: 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  service c(server)[C]\n  a:R --> L:b\n  a:B --> T:c', value: { backend: 'agentic' } },
   'nodeSpacing/state': { source: 'stateDiagram-v2\n  [*] --> A\n  [*] --> B\n  A --> C\n  B --> C' },
   'nodeSpacing/er': { source: 'erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y' },
   'nodeSpacing/c4': { source: 'C4Context\n  Person(a, "A")\n  System(b, "B")\n  System(c, "C")\n  Rel(a, b, "uses")\n  Rel(a, c, "uses")', value: 177 },
@@ -190,10 +184,12 @@ describe('Section A canonical render contracts', () => {
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
   })
 
-  test('a family-scoped option changes exactly the families it names as applicable', () => {
+  test('appearance-changing family-scoped options affect exactly their applicable families', () => {
     // The descriptor is the applicability authority; this checks it against
-    // what renderers do, so it cannot drift either way: a listed family must
-    // draw differently with the option, an unlisted one must draw identically.
+    // what these drawing options do: a listed family must draw differently,
+    // and an unlisted one must draw identically. Backend-only ELK selection
+    // now names the default producer; its applicability and decision metadata
+    // are checked separately, without requiring a geometry change.
     // Shadow is one stylesheet rule for every family; it draws only where its
     // selectors match an element.
     const shadowReachesAnElement = (drawn: string): boolean => {
@@ -213,6 +209,7 @@ describe('Section A canonical render contracts', () => {
       .replace(/\bam-[a-z0-9]+\b/g, 'am-scope').replace(/\b([a-z]+)-[a-z0-9]{6}-(title|desc)\b/g, '$1-id-$2')
     const mismatches: string[] = []
     for (const field of SHARED_RENDER_OPTION_FIELDS) {
+      if (field === 'graphLayout') continue
       const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
       if (!('applicableBuiltinFamilies' in descriptor)) continue
       const applicable: readonly DiagramKind[] = descriptor.applicableBuiltinFamilies

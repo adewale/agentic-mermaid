@@ -2,7 +2,7 @@ import type { MermaidGraph, RenderOptions, PositionedGraph } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { LayoutCertificationError, GraphLayoutUnsupportedError, emitGraphLayoutDecision, withGraphLayoutDecisionObserver } from './backend.ts'
+import { LayoutCertificationError, emitGraphLayoutDecision, withGraphLayoutDecisionObserver } from './backend.ts'
 import { withinLayoutPreferenceBudget } from './route-geometry.ts'
 import { layoutOptimization } from './optimization-context.ts'
 
@@ -15,7 +15,7 @@ export function layoutFlowchartViewport(graph: MermaidGraph, options: RenderOpti
   return optimization.searchFlowchartViewport(graph, options, {
     place: (source, selected, decisions) => withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => place(source, selected)),
     wrap: (source, selected) => applyFlowchartLabelWrapping(source, selected, styleFace),
-    recoverable: error => error instanceof LayoutCertificationError || error instanceof GraphLayoutUnsupportedError,
+    recoverable: error => error instanceof LayoutCertificationError,
     emit: emitGraphLayoutDecision,
   })
 }

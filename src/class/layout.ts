@@ -1,6 +1,6 @@
 import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
-import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
+import type { MeasuredRouteGraph } from '../layout/measured-graph.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -13,9 +13,8 @@ import { type ClassRectangleContact, assertClassElkSelfContactsClear, constructC
 import { assertClassHeaderPeersClear, finalClassHeaderNumericSeed, type ClassHeaderNumericCapture } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
-import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
-import { classElkMarkerMinimums, classNativeMarkerMinimums } from './marker-port-capacity.ts'
-import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
+import { classElkMarkerMinimums } from './marker-port-capacity.ts'
+import { ClassHeaderRouteCapacityError, classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
 import { memberToString } from './text.ts'
 
 export { memberToString } from './text.ts'
@@ -28,8 +27,6 @@ export { memberToString } from './text.ts'
  *   2. Attributes section
  *   3. Methods section
  *
- * The native producer places namespace scopes from measured frames and retains
- * authored leaf endpoints when routing across their boundaries.
  * ELK namespaces lay out as compound nodes (the flowchart-subgraph pattern):
  * member classes are children of their namespace's compound, the compound
  * reserves a header band for the label via top padding, and relationships are
@@ -41,16 +38,13 @@ export { memberToString } from './text.ts'
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
-import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
-import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { ClassLayoutWorkLimitError } from './errors.ts'
 import { observeWork } from '../performance-observations.ts'
 import { directionToElk } from '../layout/backend.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { runElkGraphBackend } from '../layout/backend.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
-import { measureRenderStage } from '../render-stages.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { checkedAuthoredStyle, mergeStyleProps } from '../shared/style-props.ts'
@@ -340,8 +334,8 @@ interface ClassPlacement {
   height?: number
   nodes: { id: string; x: number; y: number; width?: number; height?: number; namespacePath?: string }[]
   routes: Map<number, { points: Point[]; labelPosition?: Point }>
-  /** Same-pass ELK identity and measured namespace metadata; absent for Native. */
-  namespaceLayouts?: ReadonlyMap<string, NamespaceLayout>
+  /** Same-pass ELK identity and measured namespace metadata. */
+  namespaceLayouts: ReadonlyMap<string, NamespaceLayout>
 }
 
 function projectClassElkPlacement(result: ElkNode, namespaceLayouts: ReadonlyMap<string, NamespaceLayout>): ClassPlacement {
@@ -381,7 +375,6 @@ function projectClassElkPlacement(result: ElkNode, namespaceLayouts: ReadonlyMap
   return { width: result.width, height: result.height, nodes, routes, namespaceLayouts }
 }
 
-/** Project either measured placement through Class-owned card/marker rules. */
 /** Renderer class cards inherit default paint, their ordered assigned classes,
  * then inline paint. Single-class and unstyled cards need no class-list draft.
  * Generated interface occurrences use their separate circle/label renderer. */
@@ -403,10 +396,9 @@ function classNodePaint(diagram: ClassDiagram, cls: ClassNode): Record<string, s
   }
 }
 
-function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
+function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
-  const namespaceInfoByPath = result.namespaceLayouts ? undefined : new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
 
   const positionedClasses: PositionedClassNode[] = []
   const positionedNamespaces: PositionedClassNamespace[] = []
@@ -416,20 +408,19 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
     const { x, y } = child
     if (child.namespacePath !== undefined) {
       const path = child.namespacePath
-      const layout = result.namespaceLayouts?.get(child.id)
-      const info = layout ?? namespaceInfoByPath?.get(path)
+      const layout = result.namespaceLayouts.get(child.id)!
       positionedNamespaces.push({
         id: path,
-        name: info?.ns.name ?? path,
-        label: info?.ns.label ?? info?.ns.name ?? path,
-        ...(info?.ns.labelContent ? { labelContent: info.ns.labelContent } : {}),
-        parentId: info?.parentPath,
-        classIds: info ? [...info.ns.classIds] : [],
+        name: layout.ns.name,
+        label: layout.ns.label ?? layout.ns.name,
+        ...(layout.ns.labelContent ? { labelContent: layout.ns.labelContent } : {}),
+        parentId: layout.parentPath,
+        classIds: [...layout.ns.classIds],
         x,
         y,
         width: child.width ?? 0,
         height: child.height ?? 0,
-        headerHeight: layout?.headerHeight ?? namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(resolveLabelContent(info?.ns.label ?? info?.ns.name ?? path, info?.ns.labelContent), style, 'group').text),
+        headerHeight: layout.headerHeight,
         ...(titles.has(path) ? { title: titles.get(path)! } : {}),
       })
       continue
@@ -650,22 +641,27 @@ function assertClassElkRouteWork(diagram: ClassDiagram, style: ResolvedRenderSty
 }
 
 /**
- * Lay out measured Class cards with the selected graph backend.
+ * Lay out measured Class cards with ELK.
  */
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
-  // Every admission check charges this one ledger, and a backend retry never
-  // restores its work. A refusal raised once it is spent reports the size
+  // Every admission check charges this one ledger. A refusal raised once
+  // it is spent reports the size
   // limit the diagram exceeded, not a failed certification.
   const inkWork = createClassMarkerAdmissionWork()
   try {
     return layoutClassDiagramWithin(inkWork, diagram, options, styleFace, paintBackendId)
   } catch (error) {
-    if (error instanceof LayoutCertificationError && inkWork.exhausted) throw new ClassLayoutWorkLimitError({ cause: error })
-    throw error
+    const failure = publicClassCertificationError(error)
+    if (failure instanceof LayoutCertificationError && inkWork.exhausted) throw new ClassLayoutWorkLimitError({ cause: failure })
+    throw failure
   } finally {
     observeWork('class-layout-admission', inkWork.operations)
   }
+}
+
+function publicClassCertificationError(error: unknown): unknown {
+  return error instanceof ClassHeaderRouteCapacityError ? new LayoutCertificationError(error.attempts) : error
 }
 
 function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: ClassDiagram, options: RenderOptions, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
@@ -673,138 +669,79 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
   // These first-party marker overlays are canonical. Sketch notes can extend
   // outside the native note envelope, so they cannot prove final non-restoration.
   const canonicalMarkers = paintBackendId === undefined || paintBackendId === 'backend:default' || ((paintBackendId === 'backend:rough' || paintBackendId === 'backend:hybrid') && diagram.notes.length === 0)
-  // Resolve once, before either callback, from the canonical request options.
+  // Resolve once from the canonical request options.
   const hasMarkers = diagram.relationships.some(rel => rel.markerAt !== 'none')
   const markerAdmission = canonicalMarkers && hasMarkers ? { colors: Object.freeze(resolveDiagramColors(options, options.mermaidConfig ?? {})), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
-    return runMeasuredGraphBackend(options, empty, empty)
+    return runElkGraphBackend(options, empty)
   }
   const classSizes = measureClassCards(diagram, style)
-  const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
   let titles: Map<string, string> = new Map()
-  return runMeasuredGraphBackend(
+  return runElkGraphBackend(
     options,
-    () => {
-      const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
-      const groupIndices = new Map(namespaces.map((info, index) => [info.path, index]))
-      if (groupIndices.size !== namespaces.length) throw new GraphLayoutUnsupportedError('ambiguous Class namespace paths')
-      const membership = new Map<string, number>()
-      for (const [index, info] of namespaces.entries()) for (const id of info.ns.classIds) if (!membership.has(id)) membership.set(id, index)
-      const generated = generatedIds(diagram.classes.map(cls => cls.id))
-      const groups = namespaces.map(info => {
-        const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
-        const headerHeight = namespaceHeaderHeight(style, block.text)
-        return {
-          id: generated(`class-namespace:${info.path}`, ['class', 'namespace', info.path]),
-          ...(info.parentPath ? { parent: groupIndices.get(info.parentPath)! } : {}),
-          minWidth: block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8),
-          headerHeight,
-          padding: { top: headerHeight + style.groupPaddingY, right: style.groupPaddingX + 8, bottom: style.groupPaddingY + 8, left: style.groupPaddingX + 8 },
-        }
-      })
-      const indices = new Map(diagram.classes.map((cls, index) => [cls.id, index]))
-      const labels = diagram.relationships.map(rel => {
-        const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
-        return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + RELATION_LABEL_HALO_WIDTH } : undefined
-      })
-      const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
-      // One Native placement, using copied minima. Extra vertical reservation
-      // is blank last-compartment space; authored text measurements stay fixed.
-      const nativeMinimums = inkWork ? classNativeMarkerMinimums(diagram.classes, diagram.relationships, markerTemplates, style.lineWidth, diagram.direction??'TB', inkWork) : undefined
-      const chargeNativeSize=(units:number):void=>{for(let unit=0;unit<units;unit++)if(!chargeClassMarkerAdmissionWork(inkWork!))throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Class marker capacity work limit']}])}
-      let nativeClassSizes = classSizes
-      for(const [id,minimum] of nativeMinimums ?? []){
-        chargeNativeSize(5)
-        const old=classSizes.get(id)!,height=Math.max(old.height,minimum.height),width=Math.max(old.width,minimum.width)
-        if(height===old.height&&width===old.width)continue
-        if(nativeClassSizes===classSizes){chargeNativeSize(classSizes.size+1);nativeClassSizes=new Map(classSizes)}
-        chargeNativeSize(3)
-        nativeClassSizes.set(id,{...old,width,height,methodHeight:old.methodHeight+(height-old.height)})
-      }
-      const markerNodeStrokes = diagram.classes.map(cls => {
-        const local = classNodePaint(diagram, cls)
-        const parsed = Number.parseFloat(local?.['stroke-width'] ?? '')
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
-      })
-      const placed = measureRenderStage('agentic', () =>
-        layoutAgenticGraph({
-          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
-          groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth, ...((paintBackendId === undefined || paintBackendId === 'backend:default') ? { paintCornerRadius: style.groupCornerRadius } : {}) })),
-          edges: diagram.relationships.map((rel, index) => {
-            const source = indices.get(rel.from),
-              target = indices.get(rel.to)
-            if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
-            return { source, target, minSpan: 1, markerPaint: markerTemplates[index], ...(labels[index] ? { label: labels[index] } : {}) }
-          }),
-          direction: diagram.direction ?? 'TB',
-          padding: CLS.padding,
-          nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
-          layerSpacing: options.layerSpacing ?? CLS.layerSpacing,
-          edgeSpacing: Math.max(6, style.lineWidth + 4),
-          minimumTerminalLead: Math.max(1, classTerminalLead(diagram, style)),
-          maximumEdgeStrokeWidth: style.lineWidth,
-          maximumEdgeBendRadius: style.edgeBendRadius,
-        }),
-      )
-      if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
-        throw new TypeError('Native Class placement lost measured subjects')
-      }
-      const geometry: ClassPlacement = {
-        width: placed.width,
-        height: placed.height,
-        nodes: [
-          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: nativeClassSizes.get(diagram.classes[index]!.id)!.width, height: nativeClassSizes.get(diagram.classes[index]!.id)!.height })),
-          ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespacePath: info.path })),
-        ],
-        routes: new Map(
-          placed.edges.map((edge, index) => [
-            index,
-            {
-              points: edge.points,
-              // Class text is painted eight pixels above its stored route anchor.
-              ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x, y: edge.labelPosition.y + 8 } } : {}),
-            },
-          ]),
-        ),
-      }
-      return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
-    },
     () => {
       assertClassElkRouteWork(diagram, style)
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
       let result: PositionedClassDiagram | undefined
       let headerInsets: ReadonlyMap<string, number> = new Map()
       let elkSizes = classSizes
-      for (let pass = 0; pass < 3; pass++) {
-        const { elkGraph, namespaceLayouts } = buildClassElkGraph(diagram, options, elkSizes, styleFace, titles, headerInsets)
-        // Freestanding notes need no engine work when there is no graph to place.
-        const elkResult = elkGraph.children?.length || elkGraph.edges?.length ? elkLayoutSync(elkGraph) : { ...elkGraph, width: 0, height: 0 }
-        result = extractClassLayout(projectClassElkPlacement(elkResult, namespaceLayouts), diagram, elkSizes, style, hierarchicalNamespaces, titles)
-        const wrapped = wrappedNamespaceTitles(result.namespaces, style)
-        const nextInsets = result.namespaces.length ? classMarkerHeaderInsets(result, style, headerInsets, inkWork) : headerInsets
-        const minimums = markerAdmission ? classElkMarkerMinimums(result, style, markerAdmission.work) : new Map()
-        let nextSizes = elkSizes
-        for (const [id, minimum] of minimums) {
-          const size = elkSizes.get(id)!
-          const width = Math.max(size.width, minimum.width),
-            height = Math.max(size.height, minimum.height)
-          if (width === size.width && height === size.height) continue
-          if (nextSizes === elkSizes) nextSizes = new Map(elkSizes)
-          nextSizes.set(id, { ...size, width, height, methodHeight: size.methodHeight + height - size.height })
+      let headerFailures: LayoutCertificationError[] | undefined
+      try {
+        for (let pass = 0; pass < 3; pass++) {
+          const { elkGraph, namespaceLayouts } = buildClassElkGraph(diagram, options, elkSizes, styleFace, titles, headerInsets)
+          // Freestanding notes need no engine work when there is no graph to place.
+          const elkResult = elkGraph.children?.length || elkGraph.edges?.length ? elkLayoutSync(elkGraph) : { ...elkGraph, width: 0, height: 0 }
+          result = extractClassLayout(projectClassElkPlacement(elkResult, namespaceLayouts), diagram, elkSizes, style, titles)
+          const wrapped = wrappedNamespaceTitles(result.namespaces, style)
+          const nextInsets = result.namespaces.length ? classMarkerHeaderInsets(result, style, headerInsets, inkWork) : headerInsets
+          const minimums = markerAdmission ? classElkMarkerMinimums(result, style, markerAdmission.work) : new Map()
+          let nextSizes = elkSizes
+          for (const [id, minimum] of minimums) {
+            const size = elkSizes.get(id)!
+            const width = Math.max(size.width, minimum.width),
+              height = Math.max(size.height, minimum.height)
+            if (width === size.width && height === size.height) continue
+            if (nextSizes === elkSizes) nextSizes = new Map(elkSizes)
+            nextSizes.set(id, { ...size, width, height, methodHeight: size.methodHeight + height - size.height })
+          }
+          if (nextSizes === elkSizes && wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) {
+            if (pass === 2) break
+            try {
+              return finishClassLayout(result, diagram, style, markerAdmission, inkWork, paintBackendId === undefined || paintBackendId === 'backend:default')
+            } catch (error) {
+              // Only an actual remaining header crossing may spend another
+              // pass from this request's existing three-pass allowance.
+              if (inkWork.exhausted || !(error instanceof ClassHeaderRouteCapacityError)) throw error
+              // Finishing mutates its private routes. Reproject the same ELK
+              // result so capacity counts the original authored incidences.
+              ;(headerFailures ??= []).push(error)
+              const original = extractClassLayout(projectClassElkPlacement(elkResult, namespaceLayouts), diagram, elkSizes, style, titles)
+              const retryInsets = classMarkerHeaderInsets(original, style, headerInsets, inkWork, true)
+              if (![...retryInsets].some(([id, inset]) => inset > (headerInsets.get(id) ?? style.groupPaddingY))) throw error
+              headerInsets = retryInsets
+              continue
+            }
+          }
+          titles = wrapped
+          headerInsets = nextInsets
+          elkSizes = nextSizes
         }
-        if (nextSizes === elkSizes && wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) break
-        titles = wrapped
-        headerInsets = nextInsets
-        elkSizes = nextSizes
+        return finishClassLayout(result!, diagram, style, markerAdmission, inkWork, paintBackendId === undefined || paintBackendId === 'backend:default')
+      } catch (error) {
+        const prior = headerFailures?.filter(previous => previous !== error)
+        if (prior?.length && error instanceof LayoutCertificationError) {
+          const failure = new LayoutCertificationError([...prior.flatMap(previous => previous.attempts), ...error.attempts])
+          failure.cause = publicClassCertificationError(error)
+          throw failure
+        }
+        throw error
       }
-      return finishClassLayout(result!, diagram, style, markerAdmission, inkWork, true, paintBackendId === undefined || paintBackendId === 'backend:default')
     },
-    true,
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false, literalRectangles = false): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, literalRectangles = false): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -820,7 +757,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
-  const endpointChanges = elk && literalRectangles && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
+  const endpointChanges = literalRectangles && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
   const contacts = retainClassRectangleContacts(positioned, inkWork)
   const result = withClassTitle(positioned!, diagram.title, style)
   if (result.classes.some(node => node.isInterface)) {
@@ -846,9 +783,13 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
   return result
 }
 
-/** Shared final geometric admission for both Class producers. */
+/** Final geometric admission for Class layout and owned drawing. */
 export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[]): void {
-  finalizeClassSurfaces(result, style, inkWork, contacts)
+  try {
+    finalizeClassSurfaces(result, style, inkWork, contacts)
+  } catch (error) {
+    throw publicClassCertificationError(error)
+  }
 }
 
 function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassRectangleContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>): void {
@@ -874,8 +815,7 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
   }
   if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
   assertClassElkSelfContactsClear(result,style,endpointChanges,peerWork)
-  const violations = classOwnedSurfaceViolations(result, style)
-  if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
+  classOwnedSurfaceViolations(result, style, true)
   // The private snapshot has one complete sharp authority. General/live and
   // rounded callers keep their original fresh header-peer validation.
   if(!stableGeometry||style.edgeBendRadius!==0)assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
@@ -899,15 +839,13 @@ function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: Re
   // Map/arrays/records and callbacks are local to this immutable final snapshot.
   pay(2 * result.classes.length + 3 * result.relationships.length + 8)
   const indices = new Map(result.classes.map((node, index) => [node.id, index]))
-  const input: MeasuredGraph = {
-    nodes: [],
+  const input: MeasuredRouteGraph = {
     edges: result.relationships.map(rel => {
       const source = indices.get(rel.from), target = indices.get(rel.to)
       if (source === undefined || target === undefined) refuse('Undeclared final Class endpoint')
-      return { source: source!, target: target!, minSpan: 1 }
+      return { source: source!, target: target! }
     }),
-    direction: 'TB', padding: 0, nodeSpacing: 0, layerSpacing: 0,
-          maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
+    maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
   }
   const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
   pay()

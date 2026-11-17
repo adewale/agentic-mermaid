@@ -26,6 +26,9 @@ import { parseRegisteredMermaid as parseMermaid, layoutMermaidWithReceipt, measu
 import type { QualityMetrics } from '../../src/agent/index.ts'
 import type { RenderOptions } from '../../src/types.ts'
 import { validateSerializableRenderOptions, type RenderRequestReceipt } from '../../src/render-contract.ts'
+import { isPlainRecord } from '../../src/shared/plain-data.ts'
+import { limitJsonConfigDiagnostics, validateJsonConfigAdmission } from '../../src/shared/json-config-admission.ts'
+import { validateJsonSchema } from '../../src/shared/schema-validation.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
@@ -34,6 +37,47 @@ import { generatedFlowchartSamples, graphStressSamples, type GeneratedFlowchartR
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const FIXTURES_DIR = join(import.meta.dir, 'fixtures')
+
+/** Frozen artifacts can name a retired producer; current captures cannot. */
+export type RecordedGraphLayoutOptions = NonNullable<RenderOptions['graphLayout']> | {
+  backend: 'agentic'; fallback?: 'none' | 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number }
+}
+export type RecordedRenderOptions = Omit<RenderOptions, 'graphLayout'> & { graphLayout?: RecordedGraphLayoutOptions }
+export interface RecordedGraphLayoutDecision {
+  readonly requested: 'elk' | 'agentic'
+  readonly fallback: 'none' | 'elk'
+  readonly selected: 'elk' | 'agentic'
+  readonly reason?: string
+  readonly attempts: readonly { readonly backend: 'elk' | 'agentic'; readonly outcome: 'selected' | 'unsupported' | 'candidate-rejected'; readonly reason?: string }[]
+  readonly implementation: string
+  readonly role?: 'primary' | 'companion'
+}
+export type RecordedRenderReceipt = Omit<RenderRequestReceipt, 'layoutDecisions'> & { layoutDecisions?: readonly RecordedGraphLayoutDecision[] }
+
+// The Native policy admitted by render-contract.ts at 57529f20. This schema
+// exists only at the report reader; it never enters a current render request.
+const RECORDED_NATIVE_POLICY_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['backend'], properties: {
+    backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] },
+    quality: { type: 'string', enum: ['balanced'] },
+    viewport: { type: 'object', additionalProperties: false, required: ['width', 'height'], properties: {
+      width: { type: 'number', exclusiveMinimum: 0 }, height: { type: 'number', exclusiveMinimum: 0 },
+    } },
+  },
+} as const
+
+function validateRecordedRenderOptions(value: unknown): string[] {
+  if (!isPlainRecord(value)) return validateSerializableRenderOptions(value)
+  // Charge the unmodified artifact as a whole before projecting its policy.
+  const admission = validateJsonConfigAdmission(value)
+  if (admission.length) return admission.map(problem => `${problem.path.join('.') || 'render options'} ${problem.message}`)
+  if (!isPlainRecord(value.graphLayout) || value.graphLayout.backend !== 'agentic') return validateSerializableRenderOptions(value)
+  const { graphLayout, ...currentOptions } = value
+  return limitJsonConfigDiagnostics([
+    ...validateSerializableRenderOptions(currentOptions),
+    ...validateJsonSchema(graphLayout, RECORDED_NATIVE_POLICY_SCHEMA).map(problem => `graphLayout${problem.path.length ? '.' + problem.path.join('.') : ''} ${problem.message}`),
+  ], 'render options')
+}
 
 export interface SampleResult {
   id: string
@@ -48,15 +92,15 @@ export interface SampleResult {
   metrics?: QualityMetrics
   svg?: string
   ascii?: string
-  svgReceipt?: RenderRequestReceipt
-  layoutReceipt?: RenderRequestReceipt
+  svgReceipt?: RecordedRenderReceipt
+  layoutReceipt?: RecordedRenderReceipt
 }
 
 export interface Snapshot {
   label: string
   rev: string
   dirty?: boolean
-  renderOptions?: RenderOptions
+  renderOptions?: RecordedRenderOptions
   population?: GeneratedFlowchartRange & { kind: 'generated-flowchart'; generator?: GeneratedFlowchartKind; terminal: 'not-requested' }
   createdAt: string
   samples: SampleResult[]
@@ -96,13 +140,15 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
 }
 
 export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeStress?: boolean } = {}): Snapshot {
+  const problems = options.renderOptions === undefined ? [] : validateSerializableRenderOptions(options.renderOptions)
+  if (problems.length) throw new RangeError(`Invalid current capture render options: ${problems.join('; ')}`)
   let rev = 'unknown'
   let dirty = true
   try {
     rev = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim()
     dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
   } catch { /* not a repo */ }
-  if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
+  if (options.generated && !options.renderOptions?.graphLayout?.backend) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
   const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : collectSamples({ includeStress: options.includeStress })
   if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
   const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
@@ -295,7 +341,7 @@ export function compareSnapshots(before: Snapshot, after: Snapshot, mode: Compar
     for (const sample of snapshot.samples) admitComparisonSample(sample)
     if (new Set(snapshot.samples.map(sample => sample.id)).size !== snapshot.samples.length) throw new TypeError('Invalid layout comparison: duplicate sample identities')
     if (snapshot.renderOptions !== undefined) {
-      const problems = validateSerializableRenderOptions(snapshot.renderOptions)
+      const problems = validateRecordedRenderOptions(snapshot.renderOptions)
       if (problems.length) throw new TypeError(`Invalid layout comparison render options: ${problems.join('; ')}`)
     }
   }
@@ -460,6 +506,7 @@ if (import.meta.main) {
     const out = arg('--out')
     if (!out) { console.error('snapshot requires --out <file.json>'); process.exit(2) }
     const backend = arg('--graph-layout'), fallback = arg('--graph-layout-fallback')
+    if (backend !== undefined && backend !== 'elk') throw new RangeError('--graph-layout supports only elk; Native (agentic) has been retired')
     if (fallback && !backend) throw new RangeError('--graph-layout-fallback requires --graph-layout')
     const renderOptions = backend ? { graphLayout: { backend, ...(fallback ? { fallback } : {}) } } as RenderOptions : undefined
     const problems = renderOptions ? validateSerializableRenderOptions(renderOptions) : []
@@ -487,7 +534,7 @@ if (import.meta.main) {
     console.log(`wrote ${out} (${mode} comparison): ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html [--comparison revision|backend]')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk] [--graph-layout-fallback none] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html [--comparison revision|backend]')
     process.exit(2)
   }
 }

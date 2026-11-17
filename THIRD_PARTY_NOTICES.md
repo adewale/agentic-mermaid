@@ -1,5 +1,34 @@
 # Third-party notices
 
+## ELK Layered TypeScript translation
+
+The TypeScript implementation under `src/elk-layered/kernel/` ports Eclipse
+ELK Layered tag `v0.11.0`, revision
+`54123e884b1ae743b453260f713b20c9bf5787f2`. The published elkjs `0.11.1`
+GWT output defines the JavaScript numeric and ordering behavior.
+
+- Source: <https://github.com/eclipse/elk/tree/54123e884b1ae743b453260f713b20c9bf5787f2>
+- Copyright: Kiel University and other contributors, as identified in each file.
+- License: **EPL-2.0**, reproduced in `LICENSES/ELK-EPL-2.0.md`.
+
+The JSON boundary also follows elkjs `0.11.1`, revision
+`572e73323791d05f09b0815ff639af2b67f202ab`,
+`src/java-additional/org/eclipse/elk/graph/json/JsonAdapter.xtend`, under EPL-2.0.
+
+Random-number, decimal parsing and stable merge-sorting behavior follows GWT
+`2.11.0`, the compiler runtime used by elkjs `0.11.1`. Adapted GWT portions
+retain their Google Apache-2.0 notices alongside the translation's EPL-2.0
+attribution. Apache-2.0 is reproduced in `LICENSES/Apache-2.0.txt`.
+
+- Source: <https://github.com/gwtproject/gwt/tree/2.11.0/user/super/com/google/gwt/emul/java>
+- Copyright: Google Inc. and other contributors, as identified upstream.
+
+The port's fuzzy comparisons also adapt Guava `31.1-jre`, retaining the Guava
+Authors' Apache-2.0 notices alongside EPL-2.0 attribution.
+
+- Source: <https://repo.maven.apache.org/maven2/com/google/guava/guava-gwt/31.1-jre/guava-gwt-31.1-jre-sources.jar>
+- Copyright: The Guava Authors, as identified in the adapted files.
+
 ## Pele parser and fishbone layout adaptations
 
 The native Block and Requirement parsers and Ishikawa layout adapt browserless

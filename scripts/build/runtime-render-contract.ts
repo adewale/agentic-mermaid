@@ -174,24 +174,18 @@ function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOpti
     !(ts.isInterfaceDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isFunctionDeclaration(statement))
     || statement.name?.text !== declarations[index])) throw new Error('Unsupported canonical layout error declarations')
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  let imports = 0, exports = 0
+  let exports = 0
   const statements = file.statements.filter(statement => {
     if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) || !statement.moduleSpecifier
       || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== './certification-error.ts') return true
-    if (ts.isImportDeclaration(statement)) {
-      const bindings = statement.importClause?.namedBindings
-      if (!bindings || !ts.isNamedImports(bindings) || bindings.elements.length !== 1
-        || bindings.elements[0]!.propertyName || bindings.elements[0]!.name.text !== 'LayoutCertificationError') throw new Error('Unsupported layout error facade import')
-      imports++
-    } else {
-      const bindings = statement.exportClause
-      if (!bindings || !ts.isNamedExports(bindings) || bindings.elements.length !== 3 || bindings.elements.some((element, index) =>
-        element.propertyName || element.name.text !== ['DeferredDependencyError', 'LayoutCertificationError', 'LayoutCertificationAttempt'][index])) throw new Error('Unsupported layout error facade exports')
-      exports++
-    }
+    if (ts.isImportDeclaration(statement)) throw new Error('The single-ELK backend must not import the canonical layout errors')
+    const bindings = statement.exportClause
+    if (!bindings || !ts.isNamedExports(bindings) || bindings.elements.length !== 3 || bindings.elements.some((element, index) =>
+      element.propertyName || element.name.text !== ['DeferredDependencyError', 'LayoutCertificationError', 'LayoutCertificationAttempt'][index])) throw new Error('Unsupported layout error facade exports')
+    exports++
     return false
   })
-  if (imports !== 1 || exports !== 1) throw new Error('Expected one canonical layout error import and export')
+  if (exports !== 1) throw new Error('Expected one canonical layout error export')
   const identities = readFileSync(resolve(dirname(path), '../shared/generated-identity.ts'), 'utf8')
   const identityFile = ts.createSourceFile('generated-identity.ts', identities, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const identityDeclarations: Array<[string, (statement: ts.Statement) => boolean]> = [

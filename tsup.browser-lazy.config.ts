@@ -14,7 +14,7 @@ export default defineConfig({
   entry: { 'browser-lazy/index': 'src/browser-lazy.ts' },
   format: ['esm'],
   platform: 'browser',
-  dts: { entry: { 'browser-lazy/index': 'src/browser-lazy.ts' } },
+  dts: { resolve: ['elkjs'], entry: { 'browser-lazy/index': 'src/browser-lazy.ts' } },
   splitting: true,
   sourcemap: false,
   // The preceding exact-target cleanup preserves Node/IIFE siblings while
@@ -55,15 +55,11 @@ export default defineConfig({
         build.onResolve({ filter: /\/state\/source-comments\.ts$/ }, args =>
           ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       }
-      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
+      build.onResolve({ filter: /\/elk-solver\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossings-indexed\.ts$/ }, args =>
-        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
-      build.onResolve({ filter: /\/indexed-forest\.ts$/ }, args =>
-        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
-      build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
         args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
       build.onResolve({ filter: /\/builtin-font-metrics\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))

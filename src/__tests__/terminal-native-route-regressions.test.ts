@@ -477,7 +477,7 @@ A --> B : edge`)
 
 test.each(['cyclic-labelled-15-chains', 'cyclic-labelled-19'].flatMap(fixture => [false, true].map(useAscii => [fixture, useAscii] as const)))('dense labelled Flow retains complete terminal routes: %s (ASCII=%s)', (fixture, useAscii) => {
   const source = readFileSync(new URL(`../../eval/layout-compare/fixtures/${fixture}.mmd`, import.meta.url), 'utf8')
-  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend: 'agentic', fallback: 'none' } })
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend: 'elk', fallback: 'none' } })
   expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000 } })
   const parsed = parseMermaid(source), doc = terminalDocumentOf(result)!, regions = doc.regions()
   const edges = regions.filter(region => region.kind === 'edge')

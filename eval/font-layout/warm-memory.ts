@@ -4,14 +4,14 @@ import { resolve, join } from 'node:path'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { cpus, platform, release } from 'node:os'
 import { pathToFileURL } from 'node:url'
-import { variants } from './configs.ts'
+import { assertCurrentConfiguration, variants } from './configs.ts'
 import type { RenderOptions } from '../../src/types.ts'
 import { assertLocalMeasurement } from '../trident/prepare.ts'
 
-assertLocalMeasurement()
-
 if (process.argv.includes('--child')) {
-  const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; mode: string; features: string[]; backend: 'elk' | 'agentic'; item: { id: string; source: string } }
+  const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; mode: string; features: string[]; backend: 'elk'; item: { id: string; source: string } }
+  assertCurrentConfiguration(input.backend, input.features)
+  assertLocalMeasurement()
   const png = input.mode.startsWith('png')
   const beforeImport = process.memoryUsage(), begin = performance.now()
   const api = await import(pathToFileURL(join(input.root, png ? 'dist/agent.js' : 'dist/index.js')).href)
@@ -19,8 +19,8 @@ if (process.argv.includes('--child')) {
   const importMs = performance.now() - begin, afterImport = process.memoryUsage()
   const options: RenderOptions = { security: 'strict', embedFontImport: false,
     ...(input.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}),
-    graphLayout: { backend: input.backend, fallback: input.backend === 'agentic' ? 'elk' : 'none',
-      ...(input.features.includes('elk-order') && input.backend === 'elk' || input.features.includes('ports') && input.backend === 'agentic' ? { quality: 'balanced' } : {}),
+    graphLayout: { backend: input.backend, fallback: 'none',
+      ...(input.features.includes('elk-order') ? { quality: 'balanced' } : {}),
       ...(input.features.includes('wrap') ? { viewport: { width: 800, height: 600 } } : {}),
     },
   }
@@ -45,6 +45,7 @@ if (process.argv.includes('--child')) {
   console.log(JSON.stringify({ id: input.item.id, backend: input.backend, features: input.features, failure, importMs, firstMs,
     beforeImport, afterImport, outputHeld, warmedOutputHeld, heldAfterGc, releasedAfterGc, resourceUsage: process.resourceUsage(), sink }))
 } else {
+  assertLocalMeasurement()
   const args = process.argv.slice(2)
   const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback
   const baseline = resolve(value('--baseline', '../baseline')), head = resolve(value('--head', '../cache-stage'))
@@ -61,13 +62,14 @@ if (process.argv.includes('--child')) {
     method: 'Additional lane declared after the initial campaign revealed the cache penalty. Same frozen corpus and controls; fresh default-cache children, first render then 12 additional SVG / 4 additional PNG calls matching latency invocation counts. Fully consumed output, then held/released GC snapshots. No PNG dimension-inspection Buffer is retained. Product caches/modules remain alive. Not cache saturation.',
     uncertainty: 'Observed A/A controls plus 3% practical floor; no repeat-until-win. Keep separate from first-call memory and latency lanes.' }, null, 2) + '\n')
   for (const mode of ['memory-warm', 'png-memory-warm']) for (let round = 0; round < 3; round++) {
-    for (const item of corpus.filter(item => (mode.startsWith('png') ? pngCohort : memoryCohort).includes(item.id))) for (const backend of ['elk', 'agentic'] as const) {
+    for (const item of corpus.filter(item => (mode.startsWith('png') ? pngCohort : memoryCohort).includes(item.id))) {
+      const backend = 'elk'
       const rotated = [...variants.slice(round), ...variants.slice(0, round)]
       for (const variant of [{ id: 'baseline', features: [], phase: 'control-before' }, ...rotated.map(v => ({ ...v, phase: 'feature' })), { id: 'baseline', features: [], phase: 'control-after' }]) {
         const root = variant.id === 'baseline' ? baseline : head, begin = performance.now()
         const result = spawnSync(process.execPath, [import.meta.path, '--child'], { cwd: root, encoding: 'utf8', timeout: 60_000, maxBuffer: 8 * 1024 * 1024,
           input: JSON.stringify({ root, mode, item, backend, features: variant.features }),
-          env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,indexed-layout,position-cache', AGENTIC_MERMAID_LAYOUT_FEATURES: variant.features.filter(f => f !== 'fonts').join(',') },
+          env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,position-cache', AGENTIC_MERMAID_LAYOUT_FEATURES: variant.features.filter(f => f !== 'fonts').join(',') },
         })
         let observation: unknown
         try { observation = JSON.parse(result.stdout.trim().split('\n').at(-1)!) } catch { observation = { failure: String(result.error ?? result.stderr ?? result.stdout) } }

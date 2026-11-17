@@ -9,8 +9,8 @@ import { attemptApi, failureCode } from './outcomes.ts'
 
 export function buildEditResults(): unknown[] {
 const results: unknown[] = []
-for (const mode of ['elk', 'agentic', 'agentic-with-elk'] as const) for (const sequence of editSequences()) {
-  const graphLayout: RenderOptions['graphLayout'] = mode === 'elk' ? { backend: 'elk' } : { backend: 'agentic', fallback: mode === 'agentic-with-elk' ? 'elk' : 'none' }
+for (const sequence of editSequences()) {
+  const mode = 'elk', graphLayout: RenderOptions['graphLayout'] = { backend: 'elk' }
   let previous: RenderedLayout | undefined, initialSvg: string | undefined
   for (const step of [{ name: 'initial', source: sequence.base, affected: [] as string[], options: undefined }, ...sequence.steps]) {
     const options: RenderOptions = { graphLayout, ...step.options, security: 'strict', onConfigDiagnostic: () => {} }
@@ -39,7 +39,7 @@ if (!process.argv.includes('--out') || !out) throw new Error('edit-run.ts requir
 const results = buildEditResults()
 const report = { protocol: 'layout-edit-stability@1', revision: execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(), dirty: execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0,
   cache: process.env.AGENTIC_MERMAID_ELK_CACHE, experiments: process.env.AGENTIC_MERMAID_EXPERIMENTS,
-  limitations: ['Quality-only public layout reruns, not performance measurements.', 'Raw and aligned motion are both retained; directly affected IDs are declared in edit-sequences.ts.', 'Backend fallback discontinuities remain visible in receipts.'], results }
+  limitations: ['Quality-only public layout reruns, not performance measurements.', 'Raw and aligned motion are both retained; directly affected IDs are declared in edit-sequences.ts.', 'Current captures use ELK only; historical Native and fallback records remain separate artifacts.'], results }
 writeFileSync(out, JSON.stringify(report, null, 2))
 console.log(JSON.stringify({ out, observations: results.length }))
 }

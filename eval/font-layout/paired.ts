@@ -31,13 +31,13 @@ writeFileSync(protocolPath, JSON.stringify({ version: 2, baseline: revision(base
   memoryCohort: ['campaign/digits', 'regression/mfa-login', 'contact-sheet/L', 'scaling/64'],
   uncertainty: 'Observed A/A controls plus predeclared 3% practical floor; no repeat-until-win, missing or failed rows retained. Exposed development corpus, not a holdout.',
 }, null, 2) + '\n')
-const invoke = (root: string, variant: { id: string; features: string[] }, item: typeof corpus[number], backend: 'elk' | 'agentic', mode: string, round: number, phase: string) => {
+const invoke = (root: string, variant: { id: string; features: string[] }, item: typeof corpus[number], backend: 'elk', mode: string, round: number, phase: string) => {
   const before = performance.now()
   const cached = mode === 'memory' || mode === 'cached' || mode.startsWith('png') || mode === 'startup'
   const result = spawnSync(process.execPath, [join(import.meta.dir, mode.startsWith('png') ? 'png-worker.ts' : 'worker.ts')], {
     cwd: root, encoding: 'utf8', timeout: 60_000, maxBuffer: 8 * 1024 * 1024,
     input: JSON.stringify({ root, mode: mode === 'recompute' || mode === 'cached' ? 'latency' : mode, out, features: variant.features, backend, repetitions: 9, item }),
-    env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: cached ? '1' : '0', AGENTIC_MERMAID_EXPERIMENTS: cached ? 'text-spans,indexed-layout,position-cache' : 'text-spans,indexed-layout', AGENTIC_MERMAID_LAYOUT_FEATURES: variant.features.filter(name => name !== 'fonts').join(',') },
+    env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: cached ? '1' : '0', AGENTIC_MERMAID_EXPERIMENTS: cached ? 'text-spans,position-cache' : 'text-spans', AGENTIC_MERMAID_LAYOUT_FEATURES: variant.features.filter(name => name !== 'fonts').join(',') },
   })
   let observation: unknown
   try { observation = JSON.parse(result.stdout.trim().split('\n').at(-1)!) } catch { observation = { failure: result.error ? String(result.error) : result.stderr || result.stdout } }
@@ -50,8 +50,8 @@ for (const mode of modes) {
       : corpus.filter(item => selected.includes(item.id))
   const count = mode === 'startup' ? 21 : rounds
   for (let round = 0; round < count; round++) {
-    for (const item of cohort) for (const backend of ['elk', 'agentic'] as const) {
-      if (backend === 'agentic' && !['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'].includes(item.family)) continue
+    for (const item of cohort) {
+      const backend = 'elk'
       invoke(baseline, { id: 'baseline', features: [] }, item, backend, mode, round, 'control-before')
       const offset = round % variants.length
       for (const variant of [...variants.slice(offset), ...variants.slice(0, offset)]) invoke(head, variant, item, backend, mode, round, 'feature')

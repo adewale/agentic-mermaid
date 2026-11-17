@@ -19,7 +19,7 @@ test.each(['0', '0.5'])('nested group opacity %s applies equally to ordinary and
   const outer = marks.group({ id: 'outer', role: 'group', open: '<g>', close: '</g>', paint: { opacity }, children: [{ node: inner, indent: 0 }] })
   const document = admitSceneDocument(scene([outer, cover(0, 0, 0)]), 'internal', false)
   const baseline = withPerformanceExperiments([], () => inspectScenePrimitives(document))
-  withPerformanceExperiments(['text-spans', 'indexed-layout', 'position-cache'], () => {
+  withPerformanceExperiments(['text-spans', 'position-cache'], () => {
     const inspection = inspectScenePrimitives(document)
     expect(inspection).toEqual(baseline)
     for (const primitive of inspection.primitives.filter(value => value.kind === 'text')) {

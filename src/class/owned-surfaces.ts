@@ -683,7 +683,11 @@ export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: Res
     if(!safe(note,i))throw new LayoutCertificationError([{strategy:'class-owned-note',violations:['Unproved translated note seat']}])
   }
 }
-export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): string[] {
+/** Internal retry authority comes from the geometric finding, never authored text. */
+export class ClassHeaderRouteCapacityError extends LayoutCertificationError {}
+
+export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, throwOnViolation = false): string[] {
+  let headerRouteFailures = 0
   const violations: string[] = [],
     headers = diagram.namespaces.map(ns => ({ id: ns.id, x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
     paint = classRelationshipPaintBoxes(diagram, style, headers.length > 0 || diagram.notes.length > 0),
@@ -727,7 +731,10 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
     for (let i = 1; i < rel.points.length; i++) {
       const a = rel.points[i - 1]!,
         b = rel.points[i]!
-      for (const h of headers) if (classSegmentEntersBox(a, b, expanded(h, shaftHalf))) violations.push(`Relationship ${rel.from} -> ${rel.to} enters namespace header ${h.id}`)
+      for (const h of headers) if (classSegmentEntersBox(a, b, expanded(h, shaftHalf))) {
+        violations.push(`Relationship ${rel.from} -> ${rel.to} enters namespace header ${h.id}`)
+        headerRouteFailures++
+      }
       for (const note of diagram.notes) if (roundedHit(a, b, expanded(note, shaftHalf), 2 + shaftHalf)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters note ${note.for ?? ''}`)
       for (let card = 0; card < diagram.classes.length; card++) {
         const cls = diagram.classes[card]!
@@ -747,11 +754,15 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
     for (const note of diagram.notes) if (item.kind === 'marker' ? classMarkerEntersNote(item.pieces ?? [], note) : overlaps(item.box, note)) violations.push(`${item.kind} enters note ${note.for ?? ''}`)
     if (item.kind !== 'marker') for (const cls of diagram.classes) if (!cls.isInterface && overlaps(item.box, cls)) violations.push(`${item.kind} enters card ${cls.id}`)
   }
+  if (throwOnViolation && violations.length) {
+    const ErrorType = headerRouteFailures === violations.length ? ClassHeaderRouteCapacityError : LayoutCertificationError
+    throw new ErrorType([{ strategy: 'class-owned-surfaces', violations }])
+  }
   return violations
 }
 
 /** Measured marker/header or own-boundary channel pressure in the existing sizing loop. */
-export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, current: ReadonlyMap<string, number>, work?: ClassMarkerAdmissionWork): Map<string, number> {
+export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, current: ReadonlyMap<string, number>, work?: ClassMarkerAdmissionWork, reserveTerminalRuns = false): Map<string, number> {
   const next = new Map(current),
     paint = classRelationshipPaintBoxes(diagram, style).filter(p => p.kind === 'marker'),
     groups = new Map(diagram.namespaces.map(ns => [ns.id, ns])),
@@ -794,6 +805,12 @@ export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: 
         pay()
         if(piece.kind==='circle')reach=Math.max(reach,emitted(a.y)-piece.cy+piece.r)
         else for(const point of piece.points){pay();reach=Math.max(reach,emitted(a.y)-point.y)}
+      }
+      // The repaired bypass must also retain the straight terminal run;
+      // painted marker depth alone can leave every bypass on the same row.
+      if(reserveTerminalRuns){
+        pay();const clearance=classRelationshipTerminalClearance(rel,style)
+        pay();reach=Math.max(reach,from?clearance.start:clearance.end)
       }
       // A rounded bypass corner spends min(radius, drop/2) of the drop into
       // this contact; it clears the glyph once the drop also holds this much.

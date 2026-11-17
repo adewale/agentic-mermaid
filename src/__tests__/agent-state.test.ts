@@ -256,7 +256,7 @@ describe('state round-trip identity', () => {
     const drawn = geometry(source)
     expect(geometry(parsed)).toEqual(drawn)
     expect(geometry(serializeMermaid(parsed))).toEqual(drawn)
-    for (const backend of ['elk', 'agentic'] as const) {
+    for (const backend of ['elk'] as const) {
       const options = { graphLayout: { backend } }
       const original = renderMermaidSVGWithReceipt(source, options)
       const roundtrip = renderMermaidSVGWithReceipt(parsed, options)

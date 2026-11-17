@@ -1,5 +1,5 @@
 import type { Point } from '../types.ts'
-import type { ChannelWork } from './channel-tracks.ts'
+import type { ChannelWork } from './measured-graph.ts'
 
 export interface RoutingBox { x: number; y: number; width: number; height: number }
 export interface Terminal { port: Point; stub: Point; penalty: number }

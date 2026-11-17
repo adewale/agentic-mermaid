@@ -53,10 +53,10 @@ describe('er subgraph native rendering (#103)', () => {
     expect(() => renderMermaidSVG(source)).toThrow(ErRouteWorkLimitError)
     const elk = spyOn(elkProducer, 'elkLayoutSync')
     try {
-      // This request genuinely spends the common family allowance. A typed
-      // Native refusal cannot buy another 400000 checks by asking for ELK.
-      expect(() => layoutErDiagram(parseErDiagram(toMermaidLines(source)), { graphLayout: { backend: 'agentic', fallback: 'elk' } })).toThrow(ErRouteWorkLimitError)
-      expect(elk).not.toHaveBeenCalled()
+      // ELK placement and final family routing share the existing allowance;
+      // exhaustion must not restart the producer with a fresh budget.
+      expect(() => layoutErDiagram(parseErDiagram(toMermaidLines(source)), { graphLayout: { backend: 'elk', fallback: 'none' } })).toThrow(ErRouteWorkLimitError)
+      expect(elk).toHaveBeenCalledTimes(1)
     } finally { elk.mockRestore() }
     const { default: browser } = await import('../browser-lazy/families/er.ts')
     await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'ErRouteWorkLimitError', code: 'ER_ROUTE_WORK_LIMIT' })

@@ -80,7 +80,7 @@ it.each(['\u200b', '\u00ad', '\u00ad\u200b', '<b>\u00ad\u200b</b>'])('discretion
   if (!parsed.ok) return
   const flowchart = asFlowchart(parsed.value)!
   const before = serializeMermaid(parsed.value)
-  for (const backend of ['agentic', 'elk'] as const) {
+  for (const backend of ['elk'] as const) {
     const options = { graphLayout: { backend, fallback: 'none' as const } }
     const layout = layoutMermaid(parsed.value, options)
     expect(layout.edges[0]!.label).toBeUndefined()
@@ -99,7 +99,7 @@ it('keeps visible edge captions beside unused discretionary hints', () => {
   const parsed = parseMermaid(source)
   expect(parsed.ok).toBe(true)
   if (!parsed.ok) return
-  for (const backend of ['agentic', 'elk'] as const) {
+  for (const backend of ['elk'] as const) {
     const options = { graphLayout: { backend, fallback: 'none' as const } }
     expect(layoutMermaid(parsed.value, options).edges[0]!.label?.text).toBe(caption)
     const svg = renderMermaidSVG(source, options)

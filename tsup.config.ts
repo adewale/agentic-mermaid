@@ -14,8 +14,8 @@ export default defineConfig({
     'agentic-mermaid-mcp': 'src/mcp/mcp-bin.ts',
     'source-worker': 'src/mcp/source-worker.ts',
     'source-supervisor': 'src/mcp/source-supervisor.ts',
-    // The default target of package.json `#elk-constructor`; see the plugin below.
-    'elk-constructor': 'src/elk-constructor.ts',
+    // The default target of package.json `#elk-solver`; see the plugin below.
+    'elk-solver': 'src/elk-solver.ts',
     'builtin-font-metrics': 'src/builtin-font-metrics.ts',
     'builtin-font-metrics.node': 'src/builtin-font-metrics.node.ts',
     'layout-optimization': 'src/layout/optimization-context.ts',
@@ -23,7 +23,7 @@ export default defineConfig({
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
-  dts: { entry: { index: 'src/index.ts', zenuml: 'src/zenuml/index.ts', svg: 'src/svg.ts', 'svg-styles': 'src/svg-styles.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
+  dts: { resolve: ['elkjs'], entry: { index: 'src/index.ts', zenuml: 'src/zenuml/index.ts', svg: 'src/svg.ts', 'svg-styles': 'src/svg-styles.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
   // Node/bundler ESM entries share the renderer and agent substrate. The
   // directly served optional ZenUML browser ESM is built separately so it
   // cannot inherit bare Node-runtime dependency imports from these chunks.
@@ -44,15 +44,13 @@ export default defineConfig({
   // cannot resolve roughjs' extensionless bin/generator subpath. They remain
   // development inputs, not runtime dependencies of the published artifact.
   noExternal: ['roughjs', 'perfect-freehand'],
-  external: ['./inter-metrics-kernel.cjs', './layout-optimization.cjs', '@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
-  // Leave the ELK constructor to the consumer's resolver: under the `node`
-  // condition Node and Bun load elkjs on first use, while browser and workerd
-  // bundlers of these entries still bundle it. The Node twin is copied as is,
-  // because bundling would hide its literal require from a consumer's bundler.
+  external: ['./inter-metrics-kernel.cjs', './layout-optimization.cjs', '@resvg/resvg-js', './elk-solver.cjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
+  // Keep the solver provider external so installed Node entries load the CJS
+  // kernel on first ELK use. Other bundlers resolve the ESM provider.
   onSuccess: async () => {
-    copyFileSync('src/elk-constructor.node.js', 'dist/elk-constructor.node.js')
+    copyFileSync('src/elk-solver.node.cjs', 'dist/elk-solver.node.cjs')
     copyFileSync('src/optional-kernels.node.js', 'dist/optional-kernels.node.js')
-    for (const [entry, output] of [['src/inter-metrics-kernel.ts', 'inter-metrics-kernel'], ['src/layout/optimization-runtime.ts', 'layout-optimization']]) {
+    for (const [entry, output] of [['src/elk-solver.ts', 'elk-solver'], ['src/inter-metrics-kernel.ts', 'inter-metrics-kernel'], ['src/layout/optimization-runtime.ts', 'layout-optimization']]) {
       await build({ entryPoints: [entry!], outfile: `dist/${output}.cjs`, bundle: true, platform: 'node', format: 'cjs', target: 'es2022', minify: true })
     }
   },
@@ -68,8 +66,8 @@ export default defineConfig({
         args.kind === 'entry-point' ? undefined : { path: '#builtin-font-metrics', external: true })
       build.onResolve({ filter: /\/optimization-context\.ts$/ }, args =>
         args.kind === 'entry-point' ? undefined : { path: '#layout-optimization', external: true })
-      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
-        args.kind === 'entry-point' ? undefined : { path: '#elk-constructor', external: true })
+      build.onResolve({ filter: /\/elk-solver\.ts$/ }, args =>
+        args.kind === 'entry-point' ? undefined : { path: '#elk-solver', external: true })
     },
   }],
 })

@@ -1,10 +1,10 @@
+import type { ArchitectureVisualOverrides } from './architecture/config.ts'
+import type { MermaidRuntimeConfig } from './mermaid-source.ts'
+import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { LabelContent } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
-import type { MermaidRuntimeConfig } from './mermaid-source.ts'
-import type { DiagramColors } from './theme.ts'
-import type { ArchitectureVisualOverrides } from './architecture/config.ts'
-import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { PositionedDiagramTitle } from './styles.ts'
+import type { DiagramColors } from './theme.ts'
 
 // ============================================================================
 // Parsed graph — logical structure extracted from Mermaid text
@@ -88,29 +88,29 @@ export type NodeShape =
   | 'diamond'
   | 'stadium'
   | 'circle'
-  | 'ellipse'        // (-text-) — elliptical outline
+  | 'ellipse' // (-text-) — elliptical outline
   // Batch 1 additions
-  | 'subroutine'     // [[text]]  — double-bordered rectangle
-  | 'doublecircle'   // (((text))) — concentric circles
-  | 'hexagon'        // {{text}}  — six-sided polygon
+  | 'subroutine' // [[text]]  — double-bordered rectangle
+  | 'doublecircle' // (((text))) — concentric circles
+  | 'hexagon' // {{text}}  — six-sided polygon
   // Batch 2 additions
-  | 'cylinder'       // [(text)]  — database cylinder
-  | 'asymmetric'     // >text]    — flag/banner shape
-  | 'trapezoid'      // [/text\]  — wider bottom
-  | 'trapezoid-alt'  // [\text/]  — wider top
+  | 'cylinder' // [(text)]  — database cylinder
+  | 'asymmetric' // >text]    — flag/banner shape
+  | 'trapezoid' // [/text\]  — wider bottom
+  | 'trapezoid-alt' // [\text/]  — wider top
   // Parallelograms (Mermaid lean_right / lean_left — the flowchart I/O symbol)
-  | 'lean-r'         // [/text/]  — leans right
-  | 'lean-l'         // [\text\]  — leans left
+  | 'lean-r' // [/text/]  — leans right
+  | 'lean-l' // [\text\]  — leans left
   // Batch 3 state diagram pseudostates
-  | 'state-start'    // filled circle (start pseudostate)
-  | 'state-end'      // bullseye circle (end pseudostate)
+  | 'state-start' // filled circle (start pseudostate)
+  | 'state-end' // bullseye circle (end pseudostate)
   // Batch 4 state pseudostates (plan §State 2; upstream #2514 / PR #5700).
   // State-parser-only: the flowchart grammar and op menu never produce these.
-  | 'state-fork'     // <<fork>> — filled bar perpendicular to the flow
-  | 'state-join'     // <<join>> — filled bar (same geometry as fork)
-  | 'state-choice'   // <<choice>> — small unlabeled diamond
-  | 'state-history'  // [H] / <<history>> — circle containing H (H* when deep)
-  | 'state-note'     // named floating annotation, distinct from a state
+  | 'state-fork' // <<fork>> — filled bar perpendicular to the flow
+  | 'state-join' // <<join>> — filled bar (same geometry as fork)
+  | 'state-choice' // <<choice>> — small unlabeled diamond
+  | 'state-history' // [H] / <<history>> — circle containing H (H* when deep)
+  | 'state-note' // named floating annotation, distinct from a state
 
 export interface MermaidEdge {
   source: string
@@ -301,9 +301,9 @@ export interface PositionedEdge {
 
 export type RouteClass =
   | 'primary-forward' // added in author order without creating a cycle; owns the straight lane
-  | 'feedback'        // would create a cycle; may straighten onto its own reverse lane, never the forward edge's lane
+  | 'feedback' // would create a cycle; may straighten onto its own reverse lane, never the forward edge's lane
   | 'self-loop'
-  | 'container'       // endpoint is a subgraph id
+  | 'container' // endpoint is a subgraph id
   | 'cross-hierarchy' // endpoints live in different subgraph scopes
 
 export type LayoutRouteClass = RouteClass | 'family-layout'
@@ -326,17 +326,7 @@ export type DiamondFacet = 'NE' | 'SE' | 'SW' | 'NW'
  *  diamond — a facet-midpoint. */
 export type AnyPort = PortSide | DiamondFacet
 
-export type PortSemanticRole =
-  | 'flow-source'
-  | 'flow-target'
-  | 'feedback-source'
-  | 'feedback-target'
-  | 'self-loop-source'
-  | 'self-loop-target'
-  | 'container-source'
-  | 'container-target'
-  | 'cross-hierarchy-source'
-  | 'cross-hierarchy-target'
+export type PortSemanticRole = 'flow-source' | 'flow-target' | 'feedback-source' | 'feedback-target' | 'self-loop-source' | 'self-loop-target' | 'container-source' | 'container-target' | 'cross-hierarchy-source' | 'cross-hierarchy-target'
 
 /** Dynamic port allocation metadata: which side an endpoint semantically uses,
  *  its deterministic order among the endpoints on that side, and why it is
@@ -360,14 +350,14 @@ export interface RouteBlocker {
 }
 
 export type RouteInvariant =
-  | 'straight'          // exactly two points, axis-aligned with the flow
-  | 'explained-detour'  // bends, and directLaneBlockedBy says why
-  | 'bundle'            // path owned by the fan-out/fan-in bundler
-  | 'outer-feedback'    // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
-  | 'feedback-detour'   // feedback that neither straightened nor reached an outer channel
+  | 'straight' // exactly two points, axis-aligned with the flow
+  | 'explained-detour' // bends, and directLaneBlockedBy says why
+  | 'bundle' // path owned by the fan-out/fan-in bundler
+  | 'outer-feedback' // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
+  | 'feedback-detour' // feedback that neither straightened nor reached an outer channel
   | 'self-loop'
   | 'container-attach'
-  | 'unverified-shape'  // endpoint shape has no straight attachment side
+  | 'unverified-shape' // endpoint shape has no straight attachment side
 
 interface RouteCertificateBase {
   /** Index into MermaidGraph.edges */
@@ -408,46 +398,46 @@ export type RouteCertificate = StraightRouteCertificate | NonStraightRouteCertif
 
 export type FamilyEdgeRouteCertificate =
   | {
-    family: 'class' | 'er'
-    edgeIndex: number
-    routeClass: 'family-layout'
-    invariant: 'orthogonal-box' | 'unverified-family-route'
-    bendCount: number
-    orthogonal: boolean
-    sourceBoundary: boolean
-    targetBoundary: boolean
-  }
+      family: 'class' | 'er'
+      edgeIndex: number
+      routeClass: 'family-layout'
+      invariant: 'orthogonal-box' | 'unverified-family-route'
+      bendCount: number
+      orthogonal: boolean
+      sourceBoundary: boolean
+      targetBoundary: boolean
+    }
   | {
-    family: 'architecture'
-    edgeIndex: number
-    routeClass: 'family-layout'
-    invariant: 'side-anchored' | 'unverified-family-route'
-    bendCount: number
-    orthogonal: boolean
-    sourceSide: 'L' | 'R' | 'T' | 'B'
-    targetSide: 'L' | 'R' | 'T' | 'B'
-    sourceBoundary: 'item' | 'group'
-    targetBoundary: 'item' | 'group'
-    sourceAnchored: boolean
-    targetAnchored: boolean
-    /** Authored endpoint half-plane constraints after deterministic placement. */
-    placement: 'satisfied' | 'conflicted'
-    sourceFacesTarget: boolean
-    targetFacesSource: boolean
-    /** Every route segment clears non-incident service, junction, and group interiors. */
-    obstacleFree: boolean
-  }
+      family: 'architecture'
+      edgeIndex: number
+      routeClass: 'family-layout'
+      invariant: 'side-anchored' | 'unverified-family-route'
+      bendCount: number
+      orthogonal: boolean
+      sourceSide: 'L' | 'R' | 'T' | 'B'
+      targetSide: 'L' | 'R' | 'T' | 'B'
+      sourceBoundary: 'item' | 'group'
+      targetBoundary: 'item' | 'group'
+      sourceAnchored: boolean
+      targetAnchored: boolean
+      /** Authored endpoint half-plane constraints after deterministic placement. */
+      placement: 'satisfied' | 'conflicted'
+      sourceFacesTarget: boolean
+      targetFacesSource: boolean
+      /** Every route segment clears non-incident service, junction, and group interiors. */
+      obstacleFree: boolean
+    }
   | {
-    family: 'sequence' | 'zenuml'
-    edgeIndex: number
-    routeClass: 'family-layout'
-    invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'
-    bendCount: number
-    horizontal: boolean
-    sourceLifeline: boolean
-    targetLifeline: boolean
-    selfMessage: boolean
-  }
+      family: 'sequence' | 'zenuml'
+      edgeIndex: number
+      routeClass: 'family-layout'
+      invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'
+      bendCount: number
+      horizontal: boolean
+      sourceLifeline: boolean
+      targetLifeline: boolean
+      selfMessage: boolean
+    }
 
 export type RegionContainmentCertificate = {
   family: 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
@@ -526,9 +516,10 @@ export interface GraphLayoutHints {
 }
 
 export interface GraphLayoutOptions {
-  backend: 'elk' | 'agentic'
-  /** Agentic may explicitly fall back to ELK; omitted means none. */
-  fallback?: 'none' | 'elk'
+  /** Optional compatibility spelling for the sole graph-placement engine. */
+  backend?: 'elk'
+  /** No secondary graph-placement engine is used. */
+  fallback?: 'none'
   /** Bounded certified alternatives; omitted preserves existing geometry. */
   quality?: 'balanced'
   /** Flowchart-only target for selecting wrapping, never output stretching. */

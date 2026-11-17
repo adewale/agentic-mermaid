@@ -1,10 +1,10 @@
-import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS, SDK_WARNING_CODE_DECLARATIONS } from './generated/sdk-types.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
-import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 import { RESOLVED_SCENE_VERSION } from '../scene/resolved-types.ts'
+import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
+import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_RESOLVED_SCENE_DECLARATIONS, SDK_TEXT_DECLARATIONS, SDK_WARNING_CODE_DECLARATIONS } from './generated/sdk-types.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -98,7 +98,7 @@ interface RenderExecutionDecision {
   readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' }
   readonly digest: string
 }
-type GraphLayoutDecision = Readonly<{ requested: 'elk' | 'agentic'; fallback: 'none' | 'elk'; selected: 'elk' | 'agentic'; reason?: string; attempts: readonly Readonly<{ backend: 'elk' | 'agentic'; outcome: 'selected' | 'unsupported' | 'candidate-rejected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
+type GraphLayoutDecision = Readonly<{ requested: 'elk'; fallback: 'none'; selected: 'elk'; reason?: string; attempts: readonly Readonly<{ backend: 'elk'; outcome: 'selected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
 interface RenderRequestReceipt { version: ${RENDER_CONTRACT_VERSION}; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision; layoutDecisions?: readonly GraphLayoutDecision[] }`
 
 /** Lossless whitespace projection for the tools/list context budget. Every
@@ -180,7 +180,8 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
  * while intentionally summarizing the full terminal evidence records. */
 const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true }).replaceAll(' | ', '|').replaceAll(', ', ',')
 
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = compactSdkDeclaration(`${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = compactSdkDeclaration(
+  `${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
@@ -191,7 +192,10 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+    .replace(/; +/g, ';')
+    .replace(/: +/g, ':'),
+).replaceAll('Record<string,unknown>', 'Fields')
 
 export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; labels?: Array<{ id: string; text: string; bounds?: LayoutRect; container?: LayoutRect; visibility?: 'visible' | 'hidden' | 'semantic' }>; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }`
 

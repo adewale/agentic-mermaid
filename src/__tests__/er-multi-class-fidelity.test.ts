@@ -81,7 +81,7 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     const entities = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities()
     expect(entities.get('A')?.cssClasses).toBe('default first second')
     expect(parseErDiagram(repeated.trim().split('\n').map(line => line.trim())).entities[0]?.className).toBe('first second')
-    for (const backend of ['agentic', 'elk'] as const) {
+    for (const backend of ['elk'] as const) {
       const svg = renderMermaidSVG(repeated, { graphLayout: { backend, fallback: 'none' } })
       expect(svg).toContain('class="entity first second" data-id="A"')
       const box = (id: string) => svg.match(new RegExp(`<rect\\b[^>]*data-id="entity-rect:${id}"[^>]*\\/>`))?.[0]

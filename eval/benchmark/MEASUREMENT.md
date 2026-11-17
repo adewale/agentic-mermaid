@@ -1,7 +1,7 @@
 # Benchmark measurement rules
 
 The focused font/layout cost campaign lives under `eval/font-layout/`.
-`run.ts --root CHECKOUT --out DIRECTORY --features fonts,elk-order,ports,wrap`
+`run.ts --root CHECKOUT --out DIRECTORY --features fonts,elk-order,wrap`
 records the fixed tracker/campaign corpus, per-case quality/raster artifacts,
 latency and separate resource observations. Run without features on the pinned
 base before changing production code. `font-oracle.py CHECKOUT CORPUS OUTPUT
@@ -23,16 +23,15 @@ original development workload remains exposed, not an independent holdout.
 `cache-replay.ts --root BUILT_CHECKOUT --reference QUALITY_DIRECTORY --out FILE`
 compares first and repeated public receipt calls with every retained quality
 SVG. Reuse raster evidence only for exact identical SVG bytes; retain the replay
-source and all mismatches. `python3 eval/font-layout/report.py MEASUREMENTS
-PAIRED_SUBDIRECTORY OUTPUT_STEM` generates matched JSON and an HTML comparison
-with absolute per-case costs, control variation, interaction ablations and real
-rendered evidence. It audits missing, duplicate and unexpected cost rows. Keep
-earlier iterations when measurements motivate a follow-up optimization.
+source and all mismatches. `report.py` remains a reader for the dated, frozen
+Native/ports campaign protocol; it does not accept the current single-ELK
+measurements. Keep earlier iterations when measurements motivate a follow-up
+optimization.
 
 `warm-memory.ts --baseline BASE --head HEAD --out DIRECTORY` is a separate
 follow-up lane for retained memory after the same call counts as latency:
 13 SVG or five PNG calls in each fresh child. It preserves first-call and
-warmed snapshots, held/released GC phases, alternating controls, all ten
+warmed snapshots, held/released GC phases, alternating controls, all eight
 configurations, three rounds and the frozen memory cohorts. Run it only after
 timing exits. It does not saturate mixed-workload caches. The report merges
 this lane only when its base/head revisions match the selected paired campaign.

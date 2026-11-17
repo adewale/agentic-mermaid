@@ -235,7 +235,7 @@ describe('property-based class parsing', () => {
   })
 
   for (const variant of [0, 1, 2])
-    for (const backend of ['agentic', 'elk'] as const) {
+    for (const backend of ['elk'] as const) {
       it(`retains authored 8-class occurrences, ${backend}, wrapper ${variant}`, () => {
         const sample = classDevelopmentCase(8, variant),
           expected = sample.expected

@@ -14,12 +14,11 @@ import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 
-import * as agenticProducer from '../layout/agentic-layered.ts'
 import * as elkProducer from '../elk-instance.ts'
 import * as erLabels from '../er/label-layout.ts'
-import { ErRouteGeometryError } from '../er/errors.ts'
+import { withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
 
-const native = { graphLayout: { backend: 'agentic' as const } }
+const elkOptions = { graphLayout: { backend: 'elk' as const } }
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8')
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
@@ -40,12 +39,12 @@ describe('ER layout backends', () => {
   })
 
   test.each([
-    ...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
+    ...['elk'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
     ...['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend: 'elk', direction, size: 208 })),
     ...['TB', 'LR'].map(direction => ({ backend: 'elk', direction, size: 256 })),
   ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
     const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
-    const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
+    const options = { graphLayout: { backend: backend as 'elk', fallback: 'none' as const } }
     let result!: ReturnType<typeof layoutMermaidWithReceipt>
     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
     const { layout, receipt } = result
@@ -74,39 +73,38 @@ describe('ER layout backends', () => {
     const source = `erDiagram\n  direction ${direction}\n` + Array.from({ length: 40 }, (_, index) =>
       `  E${index} {\n    int id PK\n    string name${index}\n  }\n` + (index ? `  E${Math.floor((index - 1) / 2)} ||--o{ E${index} : has\n` : ''),
     ).join('')
-    const result = layoutMermaidWithReceipt(source, native), quality = measureQuality(result.layout)
+    const result = layoutMermaidWithReceipt(source, elkOptions), quality = measureQuality(result.layout)
     expect(result.layout.nodes).toHaveLength(40)
     expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 39 }, (_, index) => [`E${Math.floor(index / 2)}`, `E${index + 1}`]))
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
     expect(quality.labelConflicts?.total).toBe(0)
-    expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
+    expect(renderMermaidSVGWithReceipt(source, elkOptions).receipt.layoutCertification?.status).toBe('passed')
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'])('preserves cards, cardinalities, identifying shafts and labels in %s', direction => {
     const source = fixture.replace('direction LR', `direction ${direction}`)
     const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
-    const placed = layoutErDiagram(model, native)
+    const placed = layoutErDiagram(model, elkOptions)
     expect(model).toEqual(original)
-    expect(layoutErDiagram(model, native)).toEqual(placed)
+    expect(layoutErDiagram(model, elkOptions)).toEqual(placed)
     expect(placed.entities.map(entity => [entity.id, entity.attributes])).toEqual(model.entities.map(entity => [entity.id, entity.attributes]))
     expect(placed.relationships.map(({ entity1, entity2, cardinality1, cardinality2, identifying, label }) => ({ entity1, entity2, cardinality1, cardinality2, identifying, label }))).toEqual(model.relationships.map(({ entity1, entity2, cardinality1, cardinality2, identifying, label }) => ({ entity1, entity2, cardinality1, cardinality2, identifying, label })))
     for (const rel of placed.relationships) {
       expect(rel.points.length).toBeGreaterThanOrEqual(2)
       for (let i = 1; i < rel.points.length; i++) expect(rel.points[i - 1]!.x === rel.points[i]!.x || rel.points[i - 1]!.y === rel.points[i]!.y).toBe(true)
     }
-    const rendered = renderMermaidSVGWithReceipt(source, native)
+    const rendered = renderMermaidSVGWithReceipt(source, elkOptions)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', role: 'primary' })])
     for (const label of ['CUSTOMER', 'ORDER', 'AUDIT', 'Stable customer id', 'customer_id', 'places', 'reviews', 'belongs', 'records', 'delegates']) expect(rendered.svg).toContain(label)
   })
 
-  test('uses native placement across public surfaces and retains explicit ELK bytes', () => {
-    const options = { ...native, nodeSpacing: 51 }, stages: string[] = [], parsed = parseRegisteredMermaid(fixture)
+  test('uses ELK placement across public surfaces and retains default bytes', () => {
+    const options = { ...elkOptions, nodeSpacing: 51 }, stages: string[] = [], parsed = parseRegisteredMermaid(fixture)
     if (!parsed.ok) throw new Error('fixture must parse')
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(fixture, options))
-    expect(stages).toContain('agentic')
-    expect(stages).not.toContain('elk')
+    expect(stages).toContain('elk')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(rendered.svg)
     expect(layoutMermaidWithReceipt(fixture, options).receipt.layoutDecisions).toEqual(rendered.receipt.layoutDecisions)
     const png = renderMermaidPNGWithReceipt(fixture, options)
@@ -121,9 +119,9 @@ describe('ER layout backends', () => {
   test.each(['TB', 'BT', 'LR', 'RL'])('retains nested ER frames, local directions and frame/leaf endpoints in %s', direction => {
     const source = compoundFixture.replace('direction LR', `direction ${direction}`)
     const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
-    const placed = layoutErDiagram(model, native)
+    const placed = layoutErDiagram(model, elkOptions)
     expect(model).toEqual(original)
-    expect(layoutErDiagram(model, native)).toEqual(placed)
+    expect(layoutErDiagram(model, elkOptions)).toEqual(placed)
     expect(placed.entities).toHaveLength(4)
     expect(placed.groups.map(({ id, parentId, label }) => ({ id, parentId, label }))).toEqual(model.groups.map(({ id, parentId, label }) => ({ id, parentId, label })))
     expect(placed.relationships.map(({ entity1, entity2, cardinality1, cardinality2, identifying, label }) => ({ entity1, entity2, cardinality1, cardinality2, identifying, label }))).toEqual(model.relationships.map(({ entity1, entity2, cardinality1, cardinality2, identifying, label }) => ({ entity1, entity2, cardinality1, cardinality2, identifying, label })))
@@ -163,9 +161,9 @@ describe('ER layout backends', () => {
       expect(child.x + child.width).toBeLessThanOrEqual(parent.x + parent.width)
       expect(child.y + child.height).toBeLessThanOrEqual(parent.y + parent.height)
     }
-    const stages: string[] = [], options = { ...native, nodeSpacing: 53 }
+    const stages: string[] = [], options = { ...elkOptions, nodeSpacing: 53 }
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, options))
-    expect(stages).not.toContain('elk')
+    expect(stages).toContain('elk')
     const reference = renderMermaidSVGWithReceipt(source, { ...options, graphLayout: { backend: 'elk' } })
     const nativeProof = rendered.receipt.layoutCertification!, referenceProof = reference.receipt.layoutCertification!
     if (nativeProof.scope !== 'native-scene' || referenceProof.scope !== 'native-scene') throw new Error('SVG must retain native Scene evidence')
@@ -175,7 +173,7 @@ describe('ER layout backends', () => {
     expect(nativeProof.coverage.unmeasured).toBe(0)
     if (referenceProof.status === 'passed') expect(nativeProof.status).toBe('passed')
     for (const issue of nativeProof.issues) expect(referenceProof.issues).toContainEqual(expect.objectContaining({ code: issue.code, id: issue.id, by: issue.by }))
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error('compound fixture must parse')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(rendered.svg)
@@ -189,9 +187,9 @@ describe('ER layout backends', () => {
     const style = { roles: { relationship: { bendRadius } } }
     const reference = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' }, style })
     if (bendRadius === 0) expect(reference.receipt.layoutCertification?.status).toBe('passed')
-    const result = renderMermaidSVGWithReceipt(source, { ...native, style })
+    const result = renderMermaidSVGWithReceipt(source, { ...elkOptions, style })
     expect(result.receipt.layoutCertification?.status).toBe('passed')
-    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     if (bendRadius > 0) {
       expect(result.svg).toMatch(/<path\b[^>]*d="[^"]*Q/)
       // Read the actual emitted path, independently of the curve projector.
@@ -231,10 +229,10 @@ describe('ER layout backends', () => {
     }
   })
 
-  test('retains native empty frames and diagrams even when fallback is permitted', () => {
+  test('retains empty frames and diagrams with explicit ELK', () => {
     for (const source of ['erDiagram', 'erDiagram\nsubgraph Zone\n A\nend', 'erDiagram\nsubgraph Empty\nend', '---\ntitle: Empty ER title\n---\nerDiagram']) {
-      const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
-      expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+      const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' } })
+      expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
       if (source.includes('title:')) {
         expect(result.svg).toContain('Empty ER title')
         expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
@@ -259,7 +257,7 @@ const framedSelfRelationships = 'erDiagram\n  direction LR\n  EMPLOYEE ||--o{ EM
 // Inter-entity routes only; ELK's terminal legs barely hold the far glyphs.
 const wideConnectors = 'erDiagram\n  D ||--|| C : mentors\n  D }o--o{ A : is the deputy of\n  B {\n    string id PK\n    string name\n    int age "comment here"\n  }\n  D {\n    string id PK\n    string name\n    int age "comment here"\n  }'
 
-type RouteInkCase = { direction: string; backend: 'agentic' | 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: false | 'open' | 'framed'; source?: string; style?: { roles: { relationship: { lineWidth: number } } } }
+type RouteInkCase = { direction: string; backend: 'elk'; framesOnly: boolean; vocabulary: boolean; siblings: boolean; selfLoops: false | 'open' | 'framed'; source?: string; style?: { roles: { relationship: { lineWidth: number } } } }
 
 function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, siblings, selfLoops, source: generated, style }: RouteInkCase): void {
   const mixed = vocabulary ? mixedFrameNormals.replace('I1 ||--|| F1', 'I1 }|--o| F1').replace('I2 ||--|| F2 : links', 'I2 }o--|| F2').replace('A ||--|| TOP', 'A u--o{ TOP').replace('TOP ||--|| B', 'TOP |o--|{ B').replace('B1 ||--|| B2 : links', 'B1 }o--o{ B2') : mixedFrameNormals
@@ -414,9 +412,9 @@ function expectRetainedErRouteInk({ direction, backend, framesOnly, vocabulary, 
   }
 }
 
-test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false as RouteInkCase['selfLoops'] })).concat(...(['open', 'framed'] as const).flatMap(selfLoops => ['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops }))))).concat(
+test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['elk'].map(backend => ({ direction, backend: backend as 'elk', framesOnly: false, vocabulary: false }))), ...(['elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: true })))).map(entry => ({ ...entry, selfLoops: false as RouteInkCase['selfLoops'] })).concat(...(['open', 'framed'] as const).flatMap(selfLoops => ['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops }))))).concat(
   // A wider connector's corner stroke reaches back toward a producer leg's glyph.
-  ...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops: false as const, style: { roles: { relationship: { lineWidth: 1.45 } } }, source: wideConnectors.replace('erDiagram', `erDiagram\n  direction ${direction}`) })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops style=$style', expectRetainedErRouteInk)
+  ...['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['elk'] as const).map(backend => ({ direction, backend, framesOnly: false, vocabulary: false, siblings: false, selfLoops: false as const, style: { roles: { relationship: { lineWidth: 1.45 } } }, source: wideConnectors.replace('erDiagram', `erDiagram\n  direction ${direction}`) })))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings selfLoops=$selfLoops style=$style', expectRetainedErRouteInk)
 
 test('ER self-relationship arches stay distinct, attached and clear for generated entities', () => {
   const start = fc.constantFrom('||', '|o', '}o', '}|'), end = fc.constantFrom('||', 'o|', 'o{', '|{')
@@ -436,18 +434,18 @@ test('ER self-relationship arches stay distinct, attached and clear for generate
 describe('ER final candidate backend ownership', () => {
   test('rechecks moved cardinality ink before allocating the next automatic port', () => {
     const source = 'erDiagram\nA ||--|| B : ""\nA ||--|| B : ""\nA ||--|| B : ""'
-    const original = agenticProducer.layoutAgenticGraph
-    const producer = spyOn(agenticProducer, 'layoutAgenticGraph').mockImplementation(input => {
-      const placed = original(input), a = placed.nodes[0]!, b = placed.nodes[1]!, y = a.y + input.nodes[0]!.height / 2
+    const original = elkProducer.elkLayoutSync
+    const producer = spyOn(elkProducer, 'elkLayoutSync').mockImplementation(input => {
+      const placed = original(input), a = placed.children![0]!, b = placed.children![1]!, y = a.y! + a.height! / 2
       // A legal but crowded producer candidate makes successive final seats
       // depend on ink moved by the previous allocation, on both owned faces.
-      return { ...placed, edges: placed.edges.map(edge => ({ ...edge, points: [{ x: a.x + input.nodes[0]!.width, y }, { x: b.x, y }] })) }
+      return { ...placed, edges: placed.edges!.map(edge => ({ ...edge, sections: [{ id: 'section', startPoint: { x: a.x! + a.width!, y }, endPoint: { x: b.x!, y } }] })) }
     })
     try {
       let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
-      expect(() => { rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }) }).not.toThrow()
+      expect(() => { rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' } }) }).not.toThrow()
       expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-      const placed = layoutErDiagram(parseErDiagram(toMermaidLines(source)), native)
+      const placed = layoutErDiagram(parseErDiagram(toMermaidLines(source)), elkOptions)
       expect(placed.relationships).toHaveLength(3)
       for (const end of [false, true]) {
         const ports = placed.relationships.map(rel => (end ? rel.points.at(-1)! : rel.points[0]!).y).sort((a, b) => a - b)
@@ -457,51 +455,34 @@ describe('ER final candidate backend ownership', () => {
     } finally { producer.mockRestore() }
   })
 
-  test('rejects actual incomplete native geometry before selecting a requested ELK fallback, sharing final work', () => {
-    const source = 'erDiagram\nFALLBACK_OWNER_A ||--o{ FALLBACK_OWNER_B : late final geometry'
-    const model = parseErDiagram(toMermaidLines(source)), originalNative = agenticProducer.layoutAgenticGraph, originalFinalize = erLabels.finalizeErRelationshipLabels
-    const finalizations: Array<{ work: NonNullable<Parameters<typeof originalFinalize>[3]>; operations: number }> = []
-    const producer = spyOn(agenticProducer, 'layoutAgenticGraph').mockImplementation(input => {
-      const placed = originalNative(input)
-      // A finite but incomplete returned candidate reaches real ER final
-      // admission. The producer itself has not thrown a capability error.
-      return { ...placed, edges: placed.edges.map(edge => ({ ...edge, points: [{ ...edge.points[0]! }] })) }
+  test('completes missing raw routes before selecting the final ELK artifact', () => {
+    const model = parseErDiagram(toMermaidLines('erDiagram\nOWNER_A ||--o{ OWNER_B : late final geometry'))
+    const original = elkProducer.elkLayoutSync
+    const producer = spyOn(elkProducer, 'elkLayoutSync').mockImplementation(input => {
+      const placed = original(input)
+      return { ...placed, edges: placed.edges!.map(edge => ({ ...edge, sections: [] })) }
     })
-    const elk = spyOn(elkProducer, 'elkLayoutSync')
-    const finish = spyOn(erLabels, 'finalizeErRelationshipLabels').mockImplementation((diagram, style, face, work) => {
-      if (work) finalizations.push({ work, operations: work.operations })
-      return originalFinalize(diagram, style, face, work)
-    })
+    const decisions: GraphLayoutDecision[] = []
     try {
-      expect(() => layoutErDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'none' } })).toThrow(ErRouteGeometryError)
-      expect(elk).not.toHaveBeenCalled()
-      finalizations.length = 0
-      const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
-      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'elk', fallback: 'elk', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'candidate-rejected' }), { backend: 'elk', outcome: 'selected' }] })])
-      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-      expect(rendered.svg).toContain('data-from="FALLBACK_OWNER_A"')
-      expect(rendered.svg).toContain('data-to="FALLBACK_OWNER_B"')
-      expect(rendered.svg).toContain('late final geometry')
-      expect(producer).toHaveBeenCalledTimes(2)
-      expect(elk).toHaveBeenCalledTimes(1)
-      expect(finalizations.length).toBeGreaterThanOrEqual(2)
-      // One per-request debit object survives the fallback. ELK observes the
-      // operations already spent finishing the rejected Native candidate.
-      expect(finalizations.every(entry => entry.work === finalizations[0]!.work)).toBe(true)
-      expect(finalizations.at(-1)!.operations).toBeGreaterThan(finalizations[0]!.operations)
-    } finally { finish.mockRestore(); elk.mockRestore(); producer.mockRestore() }
+      const placed = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutErDiagram(model, { graphLayout: { backend: 'elk' } }))
+      expect(placed.relationships).toHaveLength(1)
+      expect(placed.relationships[0]!.points.length).toBeGreaterThanOrEqual(2)
+      expect([placed.relationships[0]!.entity1, placed.relationships[0]!.entity2, placed.relationships[0]!.label]).toEqual(['OWNER_A', 'OWNER_B', 'late final geometry'])
+      expect(producer).toHaveBeenCalledTimes(1)
+      expect(decisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
+    } finally { producer.mockRestore() }
   })
 
-  test('propagates an unexpected late finalizer error without invoking ELK', () => {
+  test('propagates an unexpected late finalizer error without selecting a completed artifact', () => {
     const model = parseErDiagram(toMermaidLines('erDiagram\nUNEXPECTED_OWNER_A ||--|| UNEXPECTED_OWNER_B : unexpected final error'))
     const unexpected = new Error('ER_ROUTE_BLOCKED: unexpected host failure is not a typed candidate refusal')
     const elk = spyOn(elkProducer, 'elkLayoutSync')
     const finish = spyOn(erLabels, 'finalizeErRelationshipLabels').mockImplementation(() => { throw unexpected })
     try {
       let caught: unknown
-      try { layoutErDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'elk' } }) } catch (error) { caught = error }
+      try { layoutErDiagram(model, { graphLayout: { backend: 'elk', fallback: 'none' } }) } catch (error) { caught = error }
       expect(caught).toBe(unexpected)
-      expect(elk).not.toHaveBeenCalled()
+      expect(elk).toHaveBeenCalledTimes(1)
     } finally { finish.mockRestore(); elk.mockRestore() }
   })
 })

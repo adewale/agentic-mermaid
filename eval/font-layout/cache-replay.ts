@@ -7,13 +7,14 @@ const args = process.argv.slice(2)
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback
 const root = resolve(value('--root', '.')), reference = resolve(value('--reference', '../measurements/quality'))
 const variant = args.includes('--variant') ? variants.find(v => v.id === value('--variant', '')) : undefined
+if (args.includes('--variant') && !variant) throw new RangeError('Unknown or retired current font-layout variant: ' + value('--variant', ''))
 if (!variant) {
   const out = resolve(value('--out', '../measurements/cache-replay.json'))
   if (existsSync(out)) throw Error('Refuse to overwrite cache replay')
   const rows = variants.map(v => {
     const result = spawnSync(process.execPath, [import.meta.path, '--root', root, '--reference', reference, '--variant', v.id], {
       encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
-      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,indexed-layout,position-cache', AGENTIC_MERMAID_LAYOUT_FEATURES: v.features.filter(f => f !== 'fonts').join(',') },
+      env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1', AGENTIC_MERMAID_EXPERIMENTS: 'text-spans,position-cache', AGENTIC_MERMAID_LAYOUT_FEATURES: v.features.filter(f => f !== 'fonts').join(',') },
     })
     return { variant: v.id, status: result.status, stderr: result.stderr, observations: result.status === 0 ? JSON.parse(result.stdout) : null }
   })
@@ -25,14 +26,14 @@ if (!variant) {
   const api = await import(pathToFileURL(join(root, 'dist/index.js')).href)
   const corpus = JSON.parse(readFileSync(join(reference, variant.id, 'corpus.json'), 'utf8')) as Array<{ id: string; family: string; source: string }>
   const rows = []
-  for (const item of corpus) for (const backend of ['elk', 'agentic'] as const) {
+  for (const item of corpus) {
+    const backend = 'elk'
     const graphFamily = ['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'].includes(item.family)
-    if (backend === 'agentic' && !graphFamily) continue
     // Identical request construction to the retained quality worker.
     const options = { security: 'strict', embedFontImport: false,
       ...(variant.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}),
-      ...(graphFamily ? { graphLayout: { backend, fallback: backend === 'agentic' ? 'elk' : 'none',
-        ...(variant.features.includes('elk-order') && backend === 'elk' || variant.features.includes('ports') && backend === 'agentic' ? { quality: 'balanced' } : {}),
+      ...(graphFamily ? { graphLayout: { backend, fallback: 'none',
+        ...(variant.features.includes('elk-order') ? { quality: 'balanced' } : {}),
         ...(variant.features.includes('wrap') && item.family === 'flowchart' ? { viewport: { width: 800, height: 600 } } : {}),
       } } : {}),
     }
