@@ -355,7 +355,7 @@ const cases = [
   },
 ]
 
-test('elk-instance matches the dev-only elkjs oracle exactly', () => {
+test('elk-instance matches supported elkjs layouts exactly and refuses unsupported algorithms', () => {
   // Isolate both solver module lifetimes from the rest of the unit suite.
   const source = `
     process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
@@ -372,6 +372,34 @@ test('elk-instance matches the dev-only elkjs oracle exactly', () => {
       const actual = elkLayoutSync(structuredClone(row.graph))
       deepStrictEqual(withoutGeneratedIdentity(actual, row.graph), withoutGeneratedIdentity(expected, row.graph), row.name)
     }
+    const rejections = [], expectedRejections = []
+    for (const scope of ['flat', 'compound root', 'compound child']) {
+      for (const algorithm of ['layered', 'org.eclipse.elk.layered', 'box', 'not-a-real-algorithm']) {
+        const unsupported = algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered'
+        for (const mixedStrategy of unsupported ? [false, true] : [false]) {
+          const options = { 'elk.algorithm': algorithm, ...(mixedStrategy ? { 'elk.layered.layering.strategy': 'LONGEST_PATH' } : {}) }
+          const children = [{ id: 'a', width: 30, height: 20 }, { id: 'b', width: 30, height: 20 }]
+          const edges = [{ id: 'ab', sources: ['a'], targets: ['b'] }]
+          const graph = scope === 'flat'
+            ? { id: 'root', layoutOptions: options, children, edges }
+            : { id: 'root', layoutOptions: { 'elk.hierarchyHandling': 'INCLUDE_CHILDREN', ...(scope === 'compound root' ? options : { 'elk.algorithm': 'layered' }) }, children: [{ id: 'group', ...(scope === 'compound child' ? { layoutOptions: options } : {}), children, edges }], edges: [] }
+          const name = scope + ': ' + algorithm + (mixedStrategy ? ' with unsupported layering' : '')
+          if (!unsupported) {
+            const expected = await oracle.layout(structuredClone(graph))
+            const actual = elkLayoutSync(structuredClone(graph))
+            deepStrictEqual(withoutGeneratedIdentity(actual, graph), withoutGeneratedIdentity(expected, graph), name)
+            continue
+          }
+          let outcome = 'returned a layout'
+          try { elkLayoutSync(graph) } catch (error) { outcome = error.message }
+          rejections.push([name, outcome])
+          expectedRejections.push([name, mixedStrategy ? 'ELK TypeScript port: layering strategy LONGEST_PATH is not implemented yet' : 'ELK TypeScript port: unsupported algorithm ' + algorithm])
+        }
+      }
+    }
+    // Non-Layered algorithms are outside this port, even when elkjs supports
+    // them. Every graph must explicitly refuse instead of approximating Layered.
+    deepStrictEqual(rejections, expectedRejections)
   `
   const child = Bun.spawnSync([process.execPath, '--eval', source], { cwd: new URL('../..', import.meta.url).pathname, stdout: 'pipe', stderr: 'pipe' })
   if (child.exitCode !== 0) throw new Error(child.stderr.toString() + child.stdout.toString())

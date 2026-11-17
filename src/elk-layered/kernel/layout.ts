@@ -52,8 +52,6 @@ function layoutGraph(graph: LayoutGraph): void {
   layoutIndependentDescendants(graph)
   checkSupportedStrategies(graph.options)
   if (graph.nodes.some(node => node.nestedGraph !== undefined)) { layoutCompound(graph); return }
-  const algorithm = stringOption(graph.options, 'algorithm', 'layered')
-  if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
   if (numberOption(graph.options, 'spacing.edgeEdge', 10) < 2) graph.options.set('spacing.edgeEdge', '2')
   if ((graph.layerlessNodes ?? graph.nodes).length > 0) {
     const compound = enumOption(graph.options, 'hierarchyHandling', ['INHERIT', 'INCLUDE_CHILDREN', 'SEPARATE_CHILDREN'] as const, 'INHERIT') === 'INCLUDE_CHILDREN'
@@ -147,6 +145,8 @@ function checkSupportedStrategies(options: Options): void {
   if (unzipping !== 'NONE') throw new Error('ELK TypeScript port: layer-unzipping strategy ' + unzipping + ' is not implemented yet')
   const wrapping = enumOption(options, 'layered.wrapping.strategy', ['OFF', 'SINGLE_EDGE', 'MULTI_EDGE'] as const, 'OFF')
   if (wrapping !== 'OFF') throw new Error('ELK TypeScript port: wrapping strategy ' + wrapping + ' is not implemented yet')
+  const algorithm = stringOption(options, 'algorithm', 'layered')
+  if (algorithm !== 'layered' && algorithm !== 'org.eclipse.elk.layered') throw new Error('ELK TypeScript port: unsupported algorithm ' + algorithm)
 }
 
 function minimumSize(options: Options): { x: number; y: number } {
