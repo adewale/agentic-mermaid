@@ -1,4 +1,4 @@
-import { estimateNodeSize, layoutNativeGraphPlacementSync, retainGraphText, translatePositionedGraph } from '../layout-engine.ts'
+import { estimateNodeSize, layoutElkGraphPlacementSync, retainGraphText, translatePositionedGraph } from '../layout-engine.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolver.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
@@ -24,9 +24,9 @@ import { swimlanePartitions } from './model.ts'
 export { swimlanePartitions } from './model.ts'
 
 /** Ordinary Flowchart prepares and measures each lane's compound contents.
- * Swimlane owns band placement and cross-lane routes; generic graph routing
- * is deliberately skipped rather than computed and discarded. */
-export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Parameters<typeof layoutNativeGraphPlacementSync>[1]> = {}, diagramTitle?: string): PositionedGraph {
+ * Swimlane owns band placement and all final routes; ELK supplies measured
+ * placement without generic Flowchart route completion. */
+export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Parameters<typeof layoutElkGraphPlacementSync>[1]> = {}, diagramTitle?: string): PositionedGraph {
   assertMermaidGraphWork(graph)
   const horizontal = graph.direction === 'LR' || graph.direction === 'RL'
   const padding = options.padding ?? 40, inset = 24, gap = Math.max(48, options.nodeSpacing ?? 32)
@@ -81,7 +81,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const stubGap = Math.max(12, clearance + 4)
   const nodeSizes = occurrences.size ? occurrenceNodeSizes(graph, occurrences, owners, horizontal, style, options.nodeSizes) : options.nodeSizes
   const measured = lanes.map((lane, index) => {
-    const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
+    const local = layoutElkGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
     // An isolated task is a complete component, not a new process row. Pack
     // independent components along the authored process direction inside the
     // lane so matching hand-offs retain separate, short crossing channels.

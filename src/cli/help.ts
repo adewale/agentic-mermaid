@@ -1,6 +1,6 @@
-import { WARNING_SEVERITY, type WarningSeverity, type WarningCode } from '../agent/types.ts'
-import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, cliRenderFormatHelpLines } from '../render-output-metadata.ts'
+import { WARNING_SEVERITY, type WarningCode, type WarningSeverity } from '../agent/types.ts'
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
+import { CLI_RENDER_FORMATS, cliRenderFormatHelpLines, DEFAULT_CLI_RENDER_FORMAT } from '../render-output-metadata.ts'
 import { FAMILY_NARROWING_NOTE } from '../shared/agent-workflow.ts'
 
 /** The default flip announced in CHANGELOG (Deprecated) for 0.6.0. */
@@ -81,8 +81,8 @@ ${cliRenderFormatHelpLines()}
                     projection. See: am styles
   --options <JSON|file> Shared advanced RenderOptions object; convenience
                     flags override its fields
-  --graph-layout <elk|agentic> Graph geometry producer (default: elk)
-  --graph-layout-fallback <none|elk> Explicit Agentic fallback (default: none)
+  --graph-layout <elk>        ELK graph placement (default)
+  --graph-layout-fallback <none> Compatibility spelling; no second graph engine
   --seed <N>        Re-roll ink wobble of styled looks; never moves layout
   --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
                     scripts the bundled Inter/DejaVu fonts don't cover (CJK,

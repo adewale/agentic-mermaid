@@ -33,7 +33,7 @@ describe('stable region tree MVP', () => {
     }
   })
 
-  for (const backend of ['elk', 'agentic'] as const) test.each([false, true])(`${backend} parallel edge identities remain distinct through regions and edits (named=%s)`, named => {
+  for (const backend of ['elk'] as const) test.each([false, true])(`${backend} parallel edge identities remain distinct through regions and edits (named=%s)`, named => {
     const source = `flowchart TD
       subgraph Frame
         A ${named ? 'first@' : ''}-->|one| B
@@ -70,7 +70,7 @@ describe('stable region tree MVP', () => {
     expect(layout.edges.map(edge => [edge.label?.text, edge.id])).toEqual([['second', 'A->B#1'], ['first', 'A->B']])
   })
 
-  for (const backend of ['elk', 'agentic'] as const) test.each([
+  for (const backend of ['elk'] as const) test.each([
     ['node identity', 'flowchart TD\n A A@-->|one| B\n A second@-->|two| B', 'A->B', 'second'],
     ['repeated authored identity', 'flowchart TD\n A same@-->|one| B\n A same@-->|two| B', 'same', 'A->B#1'],
   ])(`${backend} projected selectors remain editable with %s`, (_kind, source, firstId, secondId) => {

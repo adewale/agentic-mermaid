@@ -6,13 +6,11 @@ import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { layoutElkGraphPlacementSync } from '../layout-engine.ts'
+import { runElkGraphBackend } from '../layout/backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { improveArchitectureSiblingSlots } from '../layout/agentic-layered.ts'
-import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -159,10 +157,9 @@ export function layoutArchitectureDiagram(
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
   const junctionsById = new Map(diagram.junctions.map((junction) => [junction.id, junction]))
 
-  // Backend selection owns the completed family artifact. A raw placement
-  // cannot publish success before its actual alignments, contacts and headers
-  // have passed; fallback reuses this request's prepared graph and text.
-  const finish = (positioned: ReturnType<typeof layoutNativeGraphPlacementSync>, nativePlacement: boolean): PositionedArchitectureDiagram => {
+  // Selection owns the completed family artifact. A raw placement cannot
+  // publish success before its alignments, contacts and headers have passed.
+  const finish = (positioned: ReturnType<typeof layoutElkGraphPlacementSync>): PositionedArchitectureDiagram => {
     const services: PositionedArchitectureService[] = []
     const junctions: PositionedArchitectureJunction[] = []
     const serviceBounds = new Map<string, PositionedArchitectureService>()
@@ -219,7 +216,6 @@ export function layoutArchitectureDiagram(
       group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
     }
     expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0, reservedHeaderPadding)
-    let legalSlots: (() => boolean) | undefined
     const sideConstraintsChanged = applyArchitectureSideConstraints(
       diagram,
       services,
@@ -231,7 +227,6 @@ export function layoutArchitectureDiagram(
       junctionsById,
       serviceBounds,
       junctionBounds,
-      nativePlacement ? validate => { legalSlots = validate } : undefined,
       reservedHeaderPadding,
     )
     if (sideConstraintsChanged) {
@@ -267,13 +262,7 @@ export function layoutArchitectureDiagram(
         typography.edgeBendRadius,
       )
     )
-    let edges = routeEdges()
-    if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots, routes => {
-      // Private all-pair shaft grouping, with the public predicates' unchanged
-      // thresholds. Keep generic metric dependencies out of the optional solver.
-      const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
-      return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
-    })
+    const edges = routeEdges()
     edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
     separateEdgeLabels(edges, services, metrics)
 
@@ -369,10 +358,8 @@ export function layoutArchitectureDiagram(
       accessibilityDescription: diagram.accessibilityDescription,
     }
   }
-  return runMeasuredGraphBackend(options,
-    () => finish(layoutNativeGraphPlacementSync(graph, placementOptions), true),
-    () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true }), false),
-    true,
+  return runElkGraphBackend(options,
+    () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true })),
   )
 }
 
@@ -589,7 +576,6 @@ function applyArchitectureSideConstraints(
   junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
   positionedServices: Map<string, Bounds>,
   positionedJunctions: Map<string, Bounds>,
-  retainLegality?: (validate: () => boolean) => void,
   reservedHeaderPadding?: number,
 ): boolean {
   let changed = false
@@ -890,18 +876,6 @@ function applyArchitectureSideConstraints(
     }
     expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
-  // Native optional slot trials reuse exactly the authored constraints and
-  // sibling geometry already owned by this pass. No trial refits groups.
-  retainLegality?.(() => constraints.every(({ axis, before, after }) => {
-    const a = unitBounds(before)!, b = unitBounds(after)!
-    return a[axis] + (axis === 'x' ? a.width : a.height) + spacing <= b[axis] + ROUTE_EPSILON
-  }) && (reservedHeaderPadding === undefined || [...groups.values()].every(group => siblingRefs(group.id).every(ref => {
-    const child = unitBounds(unitKey(ref.kind, ref.id))
-    return child === undefined || child.y >= group.y + group.headerHeight! + reservedHeaderPadding
-  }))) && contexts.every(context => {
-    const bounds = siblingRefs(context.parentId).map(ref => unitBounds(unitKey(ref.kind, ref.id))).filter((bound): bound is Bounds => bound !== undefined)
-    return bounds.every((bound, index) => bounds.slice(index + 1).every(other => !overlaps(bound, other)))
-  }))
   return changed
 }
 

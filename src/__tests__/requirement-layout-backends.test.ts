@@ -9,7 +9,7 @@ import { parseRequirementDiagram } from '../requirement/parser.ts'
 import { segmentEntersLabelRect } from '../shared/edge-label-geometry.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 
-const native = { graphLayout: { backend: 'agentic' as const } }
+const elkOptions = { graphLayout: { backend: 'elk' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/requirement-backends.mmd', import.meta.url), 'utf8')
 const source = (direction: string) => fixture.replace('direction TB', `direction ${direction}`)
 
@@ -35,11 +35,11 @@ describe('Requirement layout backends', () => {
     }
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('retains measured cards, relationship labels and distinct routes natively in %s', direction => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('retains measured cards, relationship labels and distinct routes in %s', direction => {
     const model = parseRequirementDiagram(source(direction)), original = structuredClone(model)
-    const placed = layoutRequirementDiagram(model, native)
+    const placed = layoutRequirementDiagram(model, elkOptions)
     expect(model).toEqual(original)
-    expect(layoutRequirementDiagram(model, native)).toEqual(placed)
+    expect(layoutRequirementDiagram(model, elkOptions)).toEqual(placed)
     expect(placed.nodes).toHaveLength(3)
     expect(placed.edges.map(edge => [edge.src, edge.dst, edge.type])).toEqual(model.relations.map(edge => [edge.src, edge.dst, edge.type]))
     const rects = placed.edges.map(edge => ({ x: edge.labelPosition.x - edge.label.width / 2 - 6, y: edge.labelPosition.y - edge.label.height / 2 - 4, w: edge.label.width + 12, h: edge.label.height + 8 }))
@@ -53,13 +53,13 @@ describe('Requirement layout backends', () => {
         for (const [other, rect] of rects.entries()) if (other !== index) expect(segmentEntersLabelRect(a, b, rect)).toBe(false)
       }
     }
-    const rendered = renderMermaidSVGWithReceipt(source(direction), native)
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    const rendered = renderMermaidSVGWithReceipt(source(direction), elkOptions)
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', role: 'primary' })])
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     for (const text of ['performance-1', 'Respond quickly', 'bench suite', 'verifies', 'traces', 'refines']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend }))))('keeps emitted rounded self-loop contacts normal with fractional padding in $direction using $backend', ({ direction, backend }) => {
+  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => (['elk'] as const).map(backend => ({ direction, backend }))))('keeps emitted rounded self-loop contacts normal with fractional padding in $direction using $backend', ({ direction, backend }) => {
     const input = `requirementDiagram\ndirection ${direction}\nrequirement r {\ntext: Card\n}\nr - traces -> r`
     for (const bendRadius of [0, 12]) {
       const result = renderMermaidSVGWithReceipt(input, { padding: 32.123456789, graphLayout: { backend, fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
@@ -103,7 +103,7 @@ describe('Requirement layout backends', () => {
     }
   })
 
-  test.each(['agentic', 'elk'] as const)('paints authored dashed relationships and solid containment with %s', backend => {
+  test.each(['elk'] as const)('paints authored dashed relationships and solid containment with %s', backend => {
     for (const type of ['contains', 'copies', 'derives', 'satisfies', 'verifies', 'refines', 'traces']) for (const bendRadius of [0, 12]) {
       const input = `requirementDiagram\nrequirement r {\ntext: Card\n}\nelement proof {\ntype: evidence\n}\nproof - ${type} -> r`
       const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend, fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
@@ -127,13 +127,12 @@ describe('Requirement layout backends', () => {
     }
   })
 
-  test('uses the native producer across source, parsed, layout and PNG while preserving explicit ELK', () => {
+  test('uses ELK across source, parsed, layout and PNG while preserving default bytes', () => {
     const input = source('TB'), stages: string[] = [], parsed = parseRegisteredMermaid(input)
-    const options = { ...native, padding: 33 }
+    const options = { ...elkOptions, padding: 33 }
     if (!parsed.ok) throw new Error('fixture must parse')
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options))
-    expect(stages).toContain('agentic')
-    expect(stages).not.toContain('elk')
+    expect(stages).toContain('elk')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(rendered.svg)
     expect(layoutMermaidWithReceipt(input, options).receipt.layoutDecisions).toEqual(rendered.receipt.layoutDecisions)
     const png = renderMermaidPNGWithReceipt(input, options)
@@ -143,13 +142,13 @@ describe('Requirement layout backends', () => {
     expect(elk.svg).toBe(legacy.svg)
     expect(legacy.receipt.layoutDecisions).toBeUndefined()
     expect(elk.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
-    expect(renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    expect(renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'elk', fallback: 'none' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
     JSON.stringify(rendered.receipt)
     JSON.stringify(png.receipt)
   })
 
-  test('retains empty native canvases without starting ELK', () => {
-    const result = renderMermaidSVGWithReceipt('requirementDiagram', native)
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+  test('retains empty canvases', () => {
+    const result = renderMermaidSVGWithReceipt('requirementDiagram', elkOptions)
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
   })
 })

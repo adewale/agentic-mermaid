@@ -32,22 +32,21 @@ test('explicit adjacency remains authoritative and an already clear diagram avoi
   expect(clear.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
 
-test('port-aware placement rejects a bend win that loses canonical ports or symmetry', () => {
+test('a clear ELK fan avoids irrelevant ordering exploration', () => {
   const source = 'flowchart LR\nA((One)) --> T((Hub))\nB((Two)) --> T'
-  const before = layout(source, { graphLayout: { backend: 'agentic' } })
-  const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
-  expect(before.positioned.certification?.preference.selectedScore.totalBends).toBe(4)
+  const before = layout(source, { graphLayout: { backend: 'elk' } })
+  const after = layout(source, { graphLayout: { backend: 'elk', quality: 'balanced' } })
   expect(after.svg).toBe(before.svg)
   expect(after.positioned.certification?.hardViolations).toBe(0)
   expect(after.positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'T'], ['B', 'T']])
-  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
+  expect(after.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
   expect(after.receipt.layoutOptimization?.selected).toEqual([])
 })
 
 test('port-aware exploration skips a large graph with no rubric bends to improve', () => {
   const source = 'flowchart TD\n' + Array.from({ length: 64 }, (_, index) =>
     `N${index}[Step ${index}]${index ? `\nN${Math.floor((index - 1) / 2)} --> N${index}` : ''}`).join('\n')
-  const result = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
+  const result = layout(source, { graphLayout: { backend: 'elk', quality: 'balanced' } })
   expect(result.positioned.certification?.preference.selectedScore.totalBends).toBe(0)
   expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)
 })
@@ -56,8 +55,8 @@ test.each([
   'flowchart TD\nQ{Decision} -->|left| L[Left]\nQ -->|middle| M[Middle]\nQ -.->|right| R[Right]',
   'flowchart LR\nSrc[Source] -->|top*| Top[Top Target]\nSrc -->|mid*| Mid[Middle Target]\nSrc -->|bot*| Bot[Bottom Target]',
 ])('port-aware compaction retains label centring for %s', source => {
-  const before = layout(source, { graphLayout: { backend: 'agentic' } })
-  const after = layout(source, { graphLayout: { backend: 'agentic', quality: 'balanced' } })
+  const before = layout(source, { graphLayout: { backend: 'elk' } })
+  const after = layout(source, { graphLayout: { backend: 'elk', quality: 'balanced' } })
   expect(after.svg).toBe(before.svg)
   expect(after.receipt.layoutOptimization?.selected).toEqual([])
 })
@@ -94,7 +93,7 @@ test('nested renders own independent optional work and restore the outer ledger'
   const renderer = createMermaidRenderer({ textMeasurement: { id: 'test:nested-layout', version: '1.0.0', measure: input => {
     if (!nested) {
       nested = true
-      const child = withPerformanceExperiments(['text-spans', 'indexed-layout'], () => renderMermaidSVGWithReceipt(CROSSING, { graphLayout: { backend: 'elk', quality: 'balanced' } }))
+      const child = withPerformanceExperiments(['text-spans'], () => renderMermaidSVGWithReceipt(CROSSING, { graphLayout: { backend: 'elk', quality: 'balanced' } }))
       expect(child.receipt.layoutOptimization?.additionalProducerCalls).toBe(1)
     }
     return input.text.length * 8

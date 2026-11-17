@@ -317,7 +317,7 @@ ${body}`
     expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
   })
 
-  test.each(['elk', 'agentic'] as const)('official namespace fanout retains full paths and clears headers with sharp or rounded corners with %s', backend => {
+  test.each(['elk'] as const)('official namespace fanout retains full paths and clears headers with sharp or rounded corners with %s', backend => {
     // Rounded bypass corners need room before the arrowhead and before a
     // nested header that the same route crosses.
     for (const hierarchicalNamespaces of [false, true]) for (const bendRadius of [0, 8]) for (const direction of ['TB', 'BT', 'LR', 'RL']) {

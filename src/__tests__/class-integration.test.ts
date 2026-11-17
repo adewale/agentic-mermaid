@@ -182,7 +182,7 @@ describe('Class default paint cascade', () => {
     return { fill: attr(rect, 'fill'), stroke: attr(rect, 'stroke'), width: attr(rect, 'stroke-width'), text: texts.map(t => attr(t, 'fill')) }
   }
   const literal = 'classDiagram\nclass Animal:::pink\nclass Mineral\nclassDef default fill:#f96,color:red\nclassDef pink color:#f9f'
-  it.each(['agentic', 'elk'] as const)('retains the literal default fill and named text override with %s', backend => {
+  it.each(['elk'] as const)('retains the literal default fill and named text override with %s', backend => {
     const options = { graphLayout: { backend, fallback: 'none' as const } }, model = parseClassDiagram(literal.split('\n')), before = structuredClone(model)
     const positioned = layoutClassDiagram(model, options)
     expect(model).toEqual(before)
@@ -193,7 +193,7 @@ describe('Class default paint cascade', () => {
     expect(paint(svg, 'Mineral').fill).toBe('#f96')
     expect(paint(svg, 'Mineral').text).toEqual(['red'])
   })
-  it.each(['agentic', 'elk'] as const)('composes assigned classes then inline paint without losing defaults with %s', backend => {
+  it.each(['elk'] as const)('composes assigned classes then inline paint without losing defaults with %s', backend => {
     const source = `classDiagram
 class Animal {
  +String name
@@ -214,20 +214,11 @@ style Animal fill:#afa,stroke-width:2`
     expect(paint(svg, 'Animal')).toEqual({ fill: '#afa', stroke: '#330066', width: '2', text: ['blue', 'blue', 'blue'] })
     expect(paint(svg, 'Mineral')).toEqual({ fill: '#f96', stroke: '#111', width: '6', text: ['red'] })
   })
-  it('measures the same inherited border widths used by Native SVG paint', async () => {
-    const { spyOn } = await import('bun:test'), producer = await import('../layout/agentic-layered.ts'), original = producer.layoutAgenticGraph
-    const calls: Array<Array<[string, number | undefined]>> = []
-    const spy = spyOn(producer, 'layoutAgenticGraph').mockImplementation(input => {
-      calls.push(input.nodes.map(node => [node.id, node.paintStrokeWidth]))
-      return original(input)
-    })
+  it('retains the inherited border widths in Class SVG paint', () => {
     const source = 'classDiagram\nclass A:::thin\nclass B\nA --> B\nclassDef default fill:#f96,color:red,stroke-width:6\nclassDef thin stroke-width:2'
-    try {
-      const svg = renderMermaidSVG(source, { graphLayout: { backend: 'agentic', fallback: 'none' } })
-      expect(calls).toEqual([[['A', 2], ['B', 6]]])
-      expect(paint(svg, 'A').width).toBe('2')
-      expect(paint(svg, 'B').width).toBe('6')
-    } finally { spy.mockRestore() }
+    const svg = renderMermaidSVG(source, { graphLayout: { backend: 'elk', fallback: 'none' } })
+    expect(paint(svg, 'A').width).toBe('2')
+    expect(paint(svg, 'B').width).toBe('6')
   })
 })
 
@@ -237,7 +228,7 @@ describe('Class authored border dash paint', () => {
     if (!group) throw new Error('Missing Class card ' + id)
     return [...group[2]!.matchAll(/<(rect|path|line)\b([^>]*)>/g)].map(m => ({ kind: m[1]!, dash: /\bstroke-dasharray="([^"]*)"/.exec(m[2]!)?.[1] }))
   }
-  it.each(['agentic', 'elk'] as const)('paints the exact Mineral inline dash on every border part with %s', backend => {
+  it.each(['elk'] as const)('paints the exact Mineral inline dash on every border part with %s', backend => {
     const source = 'classDiagram\nclass Animal\nclass Mineral\nstyle Animal fill:#f9f,stroke:#333,stroke-width:4px\nstyle Mineral fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5'
     const model = parseClassDiagram(source.split('\n')), before = structuredClone(model), options = { graphLayout: { backend, fallback: 'none' as const } }
     const placed = layoutClassDiagram(model, options)
@@ -248,7 +239,7 @@ describe('Class authored border dash paint', () => {
     expect(shapePaints(svg, 'Mineral')).toEqual([{ kind: 'rect', dash: '5 5' }, { kind: 'path', dash: '5 5' }, { kind: 'line', dash: '5 5' }, { kind: 'line', dash: '5 5' }])
     expect(shapePaints(svg, 'Animal').map(s => s.dash)).toEqual([undefined, undefined, undefined, undefined])
   })
-  it.each(['agentic', 'elk'] as const)('paints inherited dash defaults, named overrides and inline overrides with %s', backend => {
+  it.each(['elk'] as const)('paints inherited dash defaults, named overrides and inline overrides with %s', backend => {
     const source = 'classDiagram\nclass BaseCard\nclass NamedCard:::custom\nclass InlineCard:::custom\nclassDef default stroke-dasharray:2 3\nclassDef custom stroke-dasharray:6 4\nstyle InlineCard stroke-dasharray:1 2'
     const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } }), svg = rendered.svg
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')

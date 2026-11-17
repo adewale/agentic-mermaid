@@ -37,8 +37,8 @@ const FLAG_SPEC_TABLE = {
   style: { arg: 'NAMES|file' },
   seed: { arg: 'N' },
   options: { arg: 'JSON|file' },
-  'graph-layout': { arg: 'elk|agentic' },
-  'graph-layout-fallback': { arg: 'none|elk' },
+  'graph-layout': { arg: 'elk' },
+  'graph-layout-fallback': { arg: 'none' },
   ops: { arg: 'JSON|file' },
   output: { arg: 'FILE' },
   format: { arg: 'fmt' },
@@ -177,7 +177,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
           i++
         }
       }
-    } else if (arg === '-v') record('version', true) // the only short alias
+    } else if (arg === '-v')
+      record('version', true) // the only short alias
     else if (!out.command) out.command = arg
     else out.positional.push(arg)
     i++

@@ -72,7 +72,7 @@ N2 --->|a longer label goes here| N4`)
   })
 
   test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: final closure repairs a late false bundle certificate before public output', direction => {
-    withPerformanceExperiments(['text-spans', 'indexed-layout'], () => {
+    withPerformanceExperiments(['text-spans'], () => {
       const source = `flowchart ${direction}\nA[Start] --> B[Done]`
       const baseline = renderMermaidSVG(source, { embedFontImport: false })
       // The injected route fault must originate at a route-writing owner.
@@ -111,7 +111,7 @@ N2 --->|a longer label goes here| N4`)
       edge.routeCertificate = { ...edge.routeCertificate! }
     }
     try {
-      expect(() => withPerformanceExperiments(['text-spans', 'indexed-layout'], () =>
+      expect(() => withPerformanceExperiments(['text-spans'], () =>
         renderMermaidSVG('flowchart LR\nA[Start] --> B[Done]', { embedFontImport: false }))).toThrow(/separateEdgeLabelPills.*rewrote edge geometry/)
     } finally { pass.run = run }
   })

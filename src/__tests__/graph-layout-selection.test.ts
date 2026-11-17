@@ -20,20 +20,20 @@ import { flowchartMultigraph, flowchartSubgraphs } from '../../eval/shared/graph
 import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
-const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
-const FALLBACK = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const } }
+const ELK = { graphLayout: { backend: 'elk' as const } }
+const FALLBACK = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
 // A sibling edge still materializes private ranks; ancestor prefixes do not.
 const RANK_CAP_SOURCE = `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B`
 
 describe('checked graph layout selection', () => {
   test('admits only closed, nonredundant selection objects and normalizes fallback', () => {
-    for (const graphLayout of [{}, { backend: 'other' }, { backend: 'elk', fallback: 'elk' }, { backend: 'agentic', fallback: 'other' }, { backend: 'agentic', hidden: true }]) {
+    for (const graphLayout of [{ backend: 'agentic' }, { backend: 'other' }, { backend: 'elk', fallback: 'elk' }, { backend: 'elk', fallback: 'other' }, { backend: 'elk', hidden: true }]) {
       expect(validateSerializableRenderOptions({ graphLayout }).length).toBeGreaterThan(0)
       expect(() => resolveRenderRequest(SOURCE, { graphLayout } as never)).toThrow()
     }
-    const omitted = resolveRenderRequest(SOURCE, AGENTIC)
-    const explicit = resolveRenderRequest(SOURCE, { graphLayout: { backend: 'agentic', fallback: 'none' } })
-    expect(omitted.renderOptions.graphLayout).toEqual({ backend: 'agentic', fallback: 'none' })
+    const omitted = resolveRenderRequest(SOURCE, ELK)
+    const explicit = resolveRenderRequest(SOURCE, { graphLayout: { backend: 'elk', fallback: 'none' } })
+    expect(omitted.renderOptions.graphLayout).toEqual({ backend: 'elk', fallback: 'none' })
     expect(omitted.sharedRequestDigest).toBe(explicit.sharedRequestDigest)
     expect(Object.isFrozen(omitted.renderOptions.graphLayout)).toBe(true)
   })
@@ -48,16 +48,15 @@ describe('checked graph layout selection', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error('fixture must parse')
     const stages: string[] = []
-    const source = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(SOURCE, AGENTIC))
-    const fromParsed = renderMermaidSVGWithReceipt(parsed.value, AGENTIC)
-    const layout = layoutMermaidWithReceipt(SOURCE, AGENTIC)
+    const source = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(SOURCE, ELK))
+    const fromParsed = renderMermaidSVGWithReceipt(parsed.value, ELK)
+    const layout = layoutMermaidWithReceipt(SOURCE, ELK)
     expect(source.svg).toBe(fromParsed.svg)
     expect(source.receipt.layoutDecisions).toEqual(layout.receipt.layoutDecisions)
-    expect(source.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', fallback: 'none', role: 'primary', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
-    expect(stages).not.toContain('elk')
+    expect(source.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'elk', selected: 'elk', fallback: 'none', role: 'primary', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
     expect(source.svg).toContain('Start')
     expect(source.svg).toContain('Finish')
-    const png = renderMermaidPNGWithReceipt(SOURCE, AGENTIC)
+    const png = renderMermaidPNGWithReceipt(SOURCE, ELK)
     expect(png.receipt.layoutDecisions).toEqual(source.receipt.layoutDecisions)
     expect(png.png.length).toBeGreaterThan(0)
   })
@@ -67,13 +66,13 @@ describe('checked graph layout selection', () => {
       const parent = Math.floor(index / 3)
       return `n${parent}[Node ${parent}] --> n${index + 1}[Node ${index + 1}]`
     }).join('\n')
-    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
     const quality = measureQuality(result.layout)
     expect(quality.nodeCount).toBe(300)
     expect(quality.edgeCount).toBe(299)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
     JSON.stringify(result.receipt)
   })
 
@@ -106,17 +105,16 @@ describe('checked graph layout selection', () => {
     { direction, links: 'A --> B & C', ids: ['A', 'B', 'C'], facts: ['A->B', 'A->C'] },
   ]))('routes a complete rectangular fan net $links without extra crossings in $direction', ({ direction, links, ids, facts }) => {
     const source = `---\ntitle: Complete fan\n---\nflowchart ${direction}\n${links}`
-    const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
-    const layout = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const svg = renderMermaidSVGWithReceipt(source, ELK)
+    const layout = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
     const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
     expect(layout.layout.nodes.map(node => node.id).sort()).toEqual(ids)
     expect(layout.layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(facts)
     const quality = measureQuality(layout.layout)
     expect(quality.edgeCrossings).toBe(0)
-    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
     expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
     expect(quality.labelConflicts?.total).toBe(0)
-    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     JSON.stringify(svg.receipt)
     JSON.stringify(layout.receipt)
   })
@@ -129,56 +127,54 @@ describe('checked graph layout selection', () => {
     { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
     { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
-  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
+  ])('retains authored cyclic $nodes-node labelled multigraph occurrences', ({ source, nodes, edges }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
-    const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
-    const native = layoutMermaidWithReceipt(titledSource, { ...AGENTIC, debug: true })
-    const elk = layoutMermaidWithReceipt(titledSource, { graphLayout: { backend: 'elk' }, debug: true })
+    const svg = renderMermaidSVGWithReceipt(titledSource, ELK)
+    const native = layoutMermaidWithReceipt(titledSource, { ...ELK, debug: true })
     const quality = measureQuality(native.layout)
     expect(quality.nodeCount).toBe(nodes)
     expect(quality.edgeCount).toBe(edges)
-    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(elk.layout).edgeCrossings)
-    expect(quality.labelConflicts?.total).toBe(0)
-    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
-    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    const model = parseFlowchart(source)
+    expect(native.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
+    expect(native.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]))
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     JSON.stringify(svg.receipt)
     JSON.stringify(native.receipt)
   })
 
-  test.each(['TD', 'BT', 'LR', 'RL'] as const)('reduces the nine-node crossing case without adding bends or losing native content in %s', direction => {
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('retains the nine-node labelled graph meaning in %s', direction => {
     const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8').replace(/^flowchart BT/, `flowchart ${direction}`)
-    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }), quality = measureQuality(result.layout)
-    expect(quality.nodeCount).toBe(9)
-    expect(quality.edgeCount).toBe(21)
-    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
-    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
-    const bends = (layout: typeof result.layout) => layout.edges.reduce((sum, edge) => sum + Math.max(0, edge.path.length - 2), 0)
-    expect(bends(result.layout)).toBeLessThanOrEqual(bends(reference.layout))
-    expect(quality.labelConflicts?.total).toBe(0)
-    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
-    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    const model = parseFlowchart(source)
+    const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
+    expect(result.layout.nodes).toHaveLength(9)
+    expect(result.layout.edges).toHaveLength(21)
+    expect(result.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
+    expect(result.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(
+      model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]),
+    )
+    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
   })
 
   test.each([
     ...[171, 217, 228, 296, 319].map(seed => ({ seed, generator: 'lcg-v1' as const })),
     { seed: 22, generator: 'sha256-counter-v1' as const },
-  ])('retains clear long-edge ordering for development $generator seed $seed', ({ seed, generator }) => {
+  ])('retains authored long-edge occurrences for development $generator seed $seed', ({ seed, generator }) => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 }, generator)[0]!.source
-    const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
-    const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
-    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    const rendered = renderMermaidSVGWithReceipt(source, ELK)
+    const native = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
     const quality = measureQuality(native.layout)
     expect(quality.nodeCount).toBe(8 + seed % 13)
     expect(quality.edgeCount).toBe(2 * quality.nodeCount + seed % 7)
-    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
-    expect(quality.labelConflicts?.total).toBe(0)
-    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
-    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    const model = parseFlowchart(source)
+    expect(native.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
+    expect(native.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]))
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     JSON.stringify(rendered.receipt)
     JSON.stringify(native.receipt)
   })
 
-  test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
+  test.each(['elk'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
     const source = await Bun.file(new URL('../../eval/layout-compare/fixtures/nested-wide-titles.mmd', import.meta.url)).text()
     const options = { graphLayout: { backend } }
     const rendered = renderMermaidSVGWithReceipt(source, options)
@@ -203,13 +199,13 @@ describe('checked graph layout selection', () => {
     JSON.stringify(receipt)
   })
 
-  test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
+  test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers in %s', direction => {
     const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
     const stages: string[] = []
-    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    expect(stages).not.toContain('elk')
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
-    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, ELK))
+
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
+    expect(layoutGraphSync(parseFlowchart(source), ELK).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
     for (const label of ['Start', 'Choose', 'Database', 'End', 'Audit', 'yes', 'no']) expect(result.svg).toContain(label)
     JSON.stringify(result.receipt)
   })
@@ -217,34 +213,33 @@ describe('checked graph layout selection', () => {
   test.each([
     { name: 'labelled reciprocal cycles and loops', source: 'flowchart LR\nA[Send] -->|request| B[Process]\nB -->|retry| A\nB --> C[Commit]\nC --> A\nA -->|repeat| A\nA --> A\nC -->|wait| C', nodes: 3, edges: 7, labels: ['Send', 'Process', 'Commit', 'request', 'retry', 'repeat', 'wait'] },
     { name: 'interacting loop and parallel corridors', source: flowchartMultigraph(24), nodes: 24, edges: 75, labels: ['Node 0', 'Node 23', 'transition 0', 'transition 68'] },
-  ])('renders $name without ELK and preserves graph certification', ({ source, nodes, edges, labels }) => {
+  ])('renders $name with ELK and preserves graph certification', ({ source, nodes, edges, labels }) => {
     const stages: string[] = []
-    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    expect(stages).not.toContain('elk')
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, ELK))
+
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
     for (const label of labels) expect(result.svg).toContain(label)
-    const native = measureQuality(layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }).layout)
-    const reference = measureQuality(layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true }).layout)
+    const positioned = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
+    const native = measureQuality(positioned.layout)
+    const model = parseFlowchart(source)
+    expect(positioned.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]))
     expect(native.nodeCount).toBe(nodes)
     expect(native.edgeCount).toBe(edges)
-    expect(native.edgeCrossings).toBeLessThanOrEqual(reference.edgeCrossings)
-    expect(native.labelConflicts?.total).toBe(0)
     expect(native.routeOverlaps?.opposing).toBe(0)
-    expect(native.routeOverlaps?.parallel).toBeLessThanOrEqual(reference.routeOverlaps!.parallel)
     JSON.stringify(result.receipt)
   }, 60000)
 
-  test.each(['TD', 'LR', 'BT', 'RL'])('retains State pseudostates, configured bars and notes without ELK in %s', direction => {
+  test.each(['TD', 'LR', 'BT', 'RL'])('retains State pseudostates, configured bars and notes with ELK in %s', direction => {
     const source = `stateDiagram-v2\ndirection ${direction}\nstate F <<fork>>\nstate J <<join>>\nstate C <<choice>>\n[*] --> F\nF --> A\nF --> B\nA --> J\nB --> J\nJ --> C\nC --> A: retry\nC --> [*]: done\nnote right of A : keep this note`
-    const options = { ...AGENTIC, mermaidConfig: { state: { forkWidth: 120, forkHeight: 24, fontSize: 22, noteMargin: 50 } } }
+    const options = { ...ELK, mermaidConfig: { state: { forkWidth: 120, forkHeight: 24, fontSize: 22, noteMargin: 50 } } }
     const stages: string[] = []
     const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, options))
     const rendered = layoutMermaidWithReceipt(source, { ...options, debug: true })
     const bars = rendered.layout.nodes.filter(node => node.id === 'F' || node.id === 'J')
     expect(bars).toHaveLength(2)
     for (const bar of bars) expect([Number(bar.w), Number(bar.h)]).toEqual(direction === 'LR' || direction === 'RL' ? [24, 120] : [120, 24])
-    expect(stages).not.toContain('elk')
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
     for (const text of ['keep this note', 'retry', 'done', 'font-size="22"']) expect(result.svg).toContain(text)
     const quality = measureQuality(rendered.layout)
     expect(quality.minimumNodeSpacing).toBeGreaterThanOrEqual(0)
@@ -260,7 +255,7 @@ describe('checked graph layout selection', () => {
   ])('retains separate label corridors beside $name', ({ source, nodes, edges, parallel }) => {
     // Reduced public counterexamples: a shared routing proposal must not
     // replace clear native corridors with crossings through a foreign pill.
-    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
     const quality = measureQuality(result.layout)
     expect(quality.nodeCount).toBe(nodes)
     expect(quality.edgeCount).toBe(edges)
@@ -278,11 +273,11 @@ describe('checked graph layout selection', () => {
     { name: 'nested frames and directions', source: 'flowchart LR\nsubgraph Outer[A wide outer title]\n direction TB\n subgraph Left[Stage One]\n  direction RL\n  A([Begin]) -->|within| B\n end\n subgraph Right[Stage Two]\n  direction BT\n  C --> D{Finish}\n end\n Left -->|handoff| Right\nend\nStart --> Outer --> Done', nodes: 6, groups: 3, edges: 5, frame: 'Outer' },
     { name: 'State composites and notes', source: 'stateDiagram-v2\ndirection LR\nstate Composite {\n direction BT\n [*] --> A\n A --> [*]: finish\n note right of A : inner note\n}\n[*] --> Composite\nComposite --> Done\nDone --> [*]', nodes: 6, groups: 1, edges: 5, frame: 'Composite' },
     { name: 'concurrent regions with reciprocal labels', source: 'stateDiagram-v2\n[*] --> Active\nstate Active {\n [*] --> NumLockOff\n NumLockOff --> NumLockOn : EvNumLockPressed\n NumLockOn --> NumLockOff : EvNumLockPressed\n note right of NumLockOff : inner note\n --\n [*] --> CapsLockOff\n CapsLockOff --> CapsLockOn : EvCapsLockPressed\n CapsLockOn --> CapsLockOff : EvCapsLockPressed\n --\n [*] --> ScrollLockOff\n ScrollLockOff --> ScrollLockOn : EvScrollLockPressed\n ScrollLockOn --> ScrollLockOff : EvScrollLockPressed\n}', nodes: 10, groups: 4, edges: 10, frame: 'Active' },
-  ])('retains $name natively without flattening frame endpoints', ({ source, nodes, groups, edges, frame: frameId }) => {
+  ])('retains $name without flattening frame endpoints', ({ source, nodes, groups, edges, frame: frameId }) => {
     const stages: string[] = []
-    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
-    expect(stages).not.toContain('elk')
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, ELK))
+    const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
+
     expect(result.layout.nodes).toHaveLength(nodes)
     expect(result.layout.groups).toHaveLength(groups)
     expect(result.layout.edges).toHaveLength(edges)
@@ -304,8 +299,8 @@ describe('checked graph layout selection', () => {
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps?.opposing).toBe(0)
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
-    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
+    expect(layoutGraphSync(parseFlowchart(source), ELK).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
     JSON.stringify(svg.receipt)
     JSON.stringify(result.receipt)
   })
@@ -317,53 +312,56 @@ describe('checked graph layout selection', () => {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error('cross-scope example must parse')
     const stages: string[] = []
-    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    const result = layoutMermaidWithReceipt(source, AGENTIC)
-    expect(stages).not.toContain('elk')
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, ELK))
+    const result = layoutMermaidWithReceipt(source, ELK)
+
     expect(result.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
     expect(result.layout.groups.map(group => [group.id, group.members])).toEqual([['One', ['A', 'B']], ['Two', ['C', 'D']]])
-    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['C', 'D'], ['B', 'C']])
+    expect(result.layout.edges.map(edge => [edge.from, edge.to]).sort()).toEqual([['A', 'B'], ['C', 'D'], ['B', 'C']].sort())
     expect(svg.svg).toContain('handoff')
     expect(svg.receipt.layoutCertification?.status).toBe('passed')
-    expect(renderMermaidSVGWithReceipt(parsed.value, AGENTIC).svg).toBe(svg.svg)
-    expect(renderMermaidPNGWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    expect(renderMermaidSVGWithReceipt(parsed.value, ELK).svg).toBe(svg.svg)
+    expect(renderMermaidPNGWithReceipt(source, ELK).receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
     expect(result.receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
-    expect(renderMermaidASCIIWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
+    expect(renderMermaidASCIIWithReceipt(source, ELK).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', role: 'companion' })])
     const quality = measureQuality(result.layout)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
   })
 
-  test('routes the large grouped workload without a dense visibility grid or ELK', () => {
+
+  test('retains large grouped graph meaning across ELK and terminal projections', () => {
     const source = flowchartSubgraphs(12, 8)
-    const model = parseFlowchart(source), stages: string[] = []
-    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    expect(stages).not.toContain('elk')
-    const result = layoutMermaidWithReceipt(source, AGENTIC)
+    const model = parseFlowchart(source)
+    const svg = renderMermaidSVGWithReceipt(source, ELK)
+    const result = layoutMermaidWithReceipt(source, ELK)
     expect(result.layout.nodes).toHaveLength(96)
+    expect(result.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
     expect(result.layout.groups).toHaveLength(12)
     expect(result.layout.groups.every(group => group.members.length === 8)).toBe(true)
-    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual(model.edges.map(edge => [edge.source, edge.target]))
-    expect(svg.receipt.layoutCertification?.status).toBe('passed')
-    const quality = measureQuality(result.layout)
-    expect(quality.edgeCrossings).toBe(0)
-    expect(quality.labelConflicts?.total).toBe(0)
-    expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
-    const terminal = renderMermaidASCIIWithReceipt(source, AGENTIC)
+    expect(result.layout.groups.map(group => [group.id, [...group.members].sort()]).sort()).toEqual(
+      model.subgraphs.map(group => [group.id, [...group.nodeIds].sort()]).sort(),
+    )
+    expect(result.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null]).sort()).toEqual(
+      model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]).sort(),
+    )
+    expect(svg.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', role: 'primary' })])
+    expect(result.receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    const terminal = renderMermaidASCIIWithReceipt(source, ELK)
     expect(terminal.text.length).toBeGreaterThan(0)
-    expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
+    expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', role: 'companion' })])
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'] as const)('routes to and from a nested frame in %s without substituting a child', direction => {
     for (const [from, to] of [['Outside', 'Inner'], ['Inner', 'Outside']]) {
       const source = `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} --> ${to}`
-      const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
-      const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+      const rendered = renderMermaidSVGWithReceipt(source, ELK)
+      const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
       expect(result.layout.edges).toHaveLength(2)
       expect(result.layout.edges.find(edge => edge.from === from && edge.to === to)).toBeDefined()
       expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
-      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
+      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none' })])
       expect(result.layout.paintCertification?.status).toBe('passed')
     }
   })
@@ -375,76 +373,55 @@ describe('checked graph layout selection', () => {
     const source = family === 'flowchart' ? `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} -->|${label}| ${to}`
       : `stateDiagram-v2\n direction ${direction === 'TD' ? 'TB' : direction}\nstate Outer {\n state Inner {\n  A --> B\n }\n}\n${from} --> ${to} : ${label}`
     const stages: string[] = []
-    const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
-    expect(stages).not.toContain('elk')
-    expect(rendered.receipt.layoutDecisions?.[0]).toMatchObject({ selected: 'agentic', fallback: 'none' })
+    const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, ELK))
+
+    expect(rendered.receipt.layoutDecisions?.[0]).toMatchObject({ selected: 'elk', fallback: 'none' })
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     expect(rendered.svg).toContain(label)
-    expect(renderMermaidSVGWithReceipt(source, AGENTIC).svg).toBe(rendered.svg)
-    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
-    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], [from, to]])
+    expect(renderMermaidSVGWithReceipt(source, ELK).svg).toBe(rendered.svg)
+    const result = layoutMermaidWithReceipt(source, { ...ELK, debug: true })
+    expect(result.layout.edges.map(edge => [edge.from, edge.to]).sort()).toEqual([['A', 'B'], [from, to]].sort())
     expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
     expect(result.layout.paintCertification?.status).toBe('passed')
   })
 
-  test('declines the explicit private-rank cap and attributes a requested ELK fallback consistently across cache states', () => {
-    const compound = RANK_CAP_SOURCE
-    expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
-    clearElkLayoutCache()
-    const diagnostics: unknown[] = []
-    const options = { ...FALLBACK, onConfigDiagnostic: (value: unknown) => diagnostics.push(value) }
-    const first = renderMermaidSVGWithReceipt(compound, options)
-    const again = renderMermaidSVGWithReceipt(compound, options)
-    expect(again.svg).toBe(first.svg)
-    expect(again.receipt).toEqual(first.receipt)
-    expect(first.receipt.layoutDecisions).toEqual([expect.objectContaining({
-      requested: 'agentic', selected: 'elk', fallback: 'elk', role: 'primary',
-      attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported', reason: 'agentic local rank-expansion limit' }), { backend: 'elk', outcome: 'selected' }],
-    })])
-    expect(first.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK' }))
-    expect(diagnostics).toHaveLength(2)
-    expect(diagnostics[0]).toMatchObject({ field: 'graphLayout.backend', code: 'INEFFECTIVE_CONFIG' })
-    const verified = verifyMermaid(compound, { renderOptions: AGENTIC })
-    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'config' }))
-    expect(verified.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
-  })
 
-  test.each([
-    ['flowchart', RANK_CAP_SOURCE],
-  ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
-    expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
-    const result = renderMermaidSVGWithReceipt(source, FALLBACK)
-    expect(result.receipt.layoutDecisions).toHaveLength(1)
-    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
-    expect(result.receipt.layoutDecisions?.[0]?.attempts[0]).toMatchObject({ reason: 'agentic local rank-expansion limit' })
+  test('rejects retired Native policies and retains the long-link source through ELK', () => {
+    for (const graphLayout of [{ backend: 'agentic' }, { backend: 'elk', fallback: 'elk' }]) {
+      expect(validateSerializableRenderOptions({ graphLayout }).length).toBeGreaterThan(0)
+      expect(() => renderMermaidSVGWithReceipt(SOURCE, { graphLayout } as never)).toThrow()
+    }
+    const result = layoutMermaidWithReceipt(RANK_CAP_SOURCE, ELK)
+    expect(result.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B']])
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'elk', selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
   })
 
   test('keeps terminal-cell layout independent and classifies optional companion execution', () => {
     const source = 'classDiagram\n class Duck'
     const stages: string[] = []
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => {
-      const value = renderMermaidASCIIWithReceipt(source, AGENTIC)
+      const value = renderMermaidASCIIWithReceipt(source, ELK)
       expect(value.text).toContain('Duck')
       JSON.stringify(value.receipt)
       return value
     })
-    expect(stages).not.toContain('elk')
-    expect(stages).toContain('agentic')
+
     expect(rendered.text).toBe(renderMermaidASCIIWithReceipt(source).text)
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'elk', selected: 'elk', role: 'companion' })])
     const fallback = renderMermaidASCIIWithReceipt(source, FALLBACK)
-    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
+    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'elk', selected: 'elk', role: 'companion' })])
     const architecture = 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g'
-    const projected = renderMermaidASCIIWithReceipt(architecture, AGENTIC)
+    const projected = renderMermaidASCIIWithReceipt(architecture, ELK)
     expect(projected.text).toContain('Group')
     expect(projected.receipt.layoutDecisions).toEqual([
-      expect.objectContaining({ selected: 'agentic', role: 'primary' }),
-      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+      expect.objectContaining({ selected: 'elk', role: 'primary' }),
+      expect.objectContaining({ selected: 'elk', role: 'companion' }),
     ])
   })
 
   test('diagnoses nonapplicable families without claiming graph execution', () => {
-    const rendered = renderMermaidSVGWithReceipt('sequenceDiagram\n A->>B: Hello', AGENTIC)
+    const rendered = renderMermaidSVGWithReceipt('sequenceDiagram\n A->>B: Hello', ELK)
     expect(rendered.receipt.layoutDecisions).toBeUndefined()
     expect(rendered.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'RENDER_OPTION_NOT_APPLICABLE', feature: 'render-option:graphLayout' }))
   })
@@ -454,9 +431,9 @@ describe('checked graph layout selection', () => {
     const path = join(dir, 'diagram.mmd')
     try {
       writeFileSync(path, SOURCE)
-      const result = captureCli(() => runCli(['render', path, '--graph-layout', 'agentic', '--json']))
+      const result = captureCli(() => runCli(['render', path, '--graph-layout', 'elk', '--json']))
       expect(result.code).toBe(0)
-      expect(JSON.parse(result.out).receipt.layoutDecisions[0]).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+      expect(JSON.parse(result.out).receipt.layoutDecisions[0]).toMatchObject({ requested: 'elk', selected: 'elk' })
       const invalid = captureCli(() => runCli(['render', path, '--graph-layout', 'elk', '--graph-layout-fallback', 'elk']))
       expect(invalid.code).toBe(2)
     } finally { rmSync(dir, { recursive: true, force: true }) }

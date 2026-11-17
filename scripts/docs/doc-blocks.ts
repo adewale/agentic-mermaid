@@ -19,15 +19,13 @@ import { HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../../src/m
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
 import { CLI_RENDER_FORMATS, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from '../../src/render-contract.ts'
 import { DIAGRAM_TERMINOLOGY, EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY, VERIFY_RESULT_MEANING } from '../../src/shared/agent-workflow.ts'
-import { AGENTIC_MAX_NODES, AGENTIC_MAX_EDGES, AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from '../../src/layout/agentic-limits.ts'
 import { DIAGRAM_WORK_LIMITS } from '../../src/shared/diagram-limits.ts'
 import { PACKAGE_VERSION } from '../../src/version.ts'
 
 const ticked = (values: readonly string[]): string => values.map(value => `\`${value}\``).join(', ')
 
 // Codes print in catalog order.
-const codesInTier = (tier: WarningTier): WarningCode[] =>
-  (Object.keys(WARNING_CATALOG) as WarningCode[]).filter(code => WARNING_TIER[code] === tier)
+const codesInTier = (tier: WarningTier): WarningCode[] => (Object.keys(WARNING_CATALOG) as WarningCode[]).filter(code => WARNING_TIER[code] === tier)
 
 const warningTier = (argument?: string): WarningTier => {
   if (argument === 'structural' || argument === 'geometric' || argument === 'lint') return argument
@@ -37,15 +35,11 @@ const warningTier = (argument?: string): WarningTier => {
 /** The tier's codes, then "`CODE` means …" for each code with a guide note. */
 const warningSummaries = (tier: WarningTier): string => {
   const codes = codesInTier(tier)
-  const notes = codes.flatMap(code => WARNING_CATALOG[code].guideNote ? [`\`${code}\` means ${WARNING_CATALOG[code].guideNote}.`] : [])
+  const notes = codes.flatMap(code => (WARNING_CATALOG[code].guideNote ? [`\`${code}\` means ${WARNING_CATALOG[code].guideNote}.`] : []))
   return [`${ticked(codes)}.`, ...notes].join(' ')
 }
 
-const warningTable = (tier: WarningTier): string => [
-  '| Code | Severity | Description |',
-  '|---|---|---|',
-  ...codesInTier(tier).map(code => `| \`${code}\` | ${WARNING_SEVERITY[code]} | ${WARNING_CATALOG[code].summary.replace(/\|/g, '\\|')} |`),
-].join('\n')
+const warningTable = (tier: WarningTier): string => ['| Code | Severity | Description |', '|---|---|---|', ...codesInTier(tier).map(code => `| \`${code}\` | ${WARNING_SEVERITY[code]} | ${WARNING_CATALOG[code].summary.replace(/\|/g, '\\|')} |`)].join('\n')
 
 const noopKeys = (family: string): string => {
   const keys = getFamily(family)?.config?.noopKeys
@@ -53,16 +47,17 @@ const noopKeys = (family: string): string => {
   return ticked(keys)
 }
 
-const renderOptionsTable = (): string => [
-  '| Option | Type | Default | Meaning and applicability |',
-  '|---|---|---|---|',
-  ...Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS).map(([name, field]) => {
-    const families = 'applicableBuiltinFamilies' in field ? field.applicableBuiltinFamilies : undefined
-    const applies = families ? ` Built-in families: ${families.length ? families.join(', ') : 'none; extension-defined'}.` : ''
-    const terminal = field.terminal === 'not-applicable' ? ' Not consumed by terminal output.' : ''
-    return `| \`${name}\` | \`${field.typeScript.replace(/\|/g, '\\|')}\` | ${field.defaultLabel} | ${field.description}${applies}${terminal} |`
-  }),
-].join('\n')
+const renderOptionsTable = (): string =>
+  [
+    '| Option | Type | Default | Meaning and applicability |',
+    '|---|---|---|---|',
+    ...Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS).map(([name, field]) => {
+      const families = 'applicableBuiltinFamilies' in field ? field.applicableBuiltinFamilies : undefined
+      const applies = families ? ` Built-in families: ${families.length ? families.join(', ') : 'none; extension-defined'}.` : ''
+      const terminal = field.terminal === 'not-applicable' ? ' Not consumed by terminal output.' : ''
+      return `| \`${name}\` | \`${field.typeScript.replace(/\|/g, '\\|')}\` | ${field.defaultLabel} | ${field.description}${applies}${terminal} |`
+    }),
+  ].join('\n')
 
 const apiVersions = (): string => {
   const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
@@ -71,18 +66,15 @@ const apiVersions = (): string => {
   return `This reference describes source version **${PACKAGE_VERSION}**. The latest release recorded in the [changelog](../CHANGELOG.md) is **${release[1]}** (${release[2]}). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v${release[1]}/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.`
 }
 
-const graphLayoutLimits = (): string => [
-  '| Scope | Limit |',
-  '| --- | --- |',
-  ...[
-    ['Host nodes, including group frames', DIAGRAM_WORK_LIMITS.nodes],
-    ['Host edges', DIAGRAM_WORK_LIMITS.edges],
-    ['Agentic measured nodes, including group frames', AGENTIC_MAX_NODES],
-    ['Agentic internal edges', AGENTIC_MAX_EDGES],
-    ['Agentic internal ranks', AGENTIC_MAX_RANKS],
-    ['Agentic expanded workspace vertices', AGENTIC_MAX_EXPANDED_VERTICES],
-  ].map(([scope, limit]) => `| ${scope} | ${Number(limit).toLocaleString('en-US')} |`),
-].join('\n')
+const graphLayoutLimits = (): string =>
+  [
+    '| Scope | Limit |',
+    '| --- | --- |',
+    ...[
+      ['Host nodes, including group frames', DIAGRAM_WORK_LIMITS.nodes],
+      ['Host edges', DIAGRAM_WORK_LIMITS.edges],
+    ].map(([scope, limit]) => `| ${scope} | ${Number(limit).toLocaleString('en-US')} |`),
+  ].join('\n')
 
 const familyDesignNotes = (): string => {
   const root = join(import.meta.dir, '../../docs/design/families')
@@ -100,9 +92,11 @@ const familyDesignNotes = (): string => {
 const familyDiscovery = (): string => {
   const guide = readFileSync(new URL('../../docs/diagram-families.md', import.meta.url), 'utf8')
   const html = Bun.markdown.html(guide, { headings: { ids: true } })
-  const headingKey = (value: string): string => decodeXML(value.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').toLowerCase()
-  const headings = new Map([...html.matchAll(/<h2\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)]
-    .map(match => [headingKey(match[2]!), match[1]!]))
+  const headingKey = (value: string): string =>
+    decodeXML(value.replace(/<[^>]*>/g, ''))
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+  const headings = new Map([...html.matchAll(/<h2\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)].map(match => [headingKey(match[2]!), match[1]!]))
   return [
     '| Family and example | What the editor example shows | Typed narrower |',
     '| --- | --- | --- |',
@@ -147,7 +141,11 @@ export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>>
 
 const BLOCK = /<!-- BEGIN GENERATED: ([a-z-]+)(?::([a-z0-9-]+))? -->([\s\S]*?)<!-- END GENERATED: \1(?::\2)? -->/g
 
-export interface DocBlockProblem { file: string; block: string; problem: 'stale' | 'unknown' }
+export interface DocBlockProblem {
+  file: string
+  block: string
+  problem: 'stale' | 'unknown'
+}
 
 /** The text with every generated block re-rendered, plus problems found. */
 export function renderDocBlocks(file: string, text: string): { text: string; problems: DocBlockProblem[] } {

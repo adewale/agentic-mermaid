@@ -861,7 +861,7 @@ describe('render receipt views', () => {
     expect(JSON.stringify(summary.receipt).length * 5).toBeLessThan(JSON.stringify(full.receipt).length)
   })
 
-  test('summary keeps unselected capabilities, layout fallbacks and uncertified geometry', () => {
+  test('summary keeps unselected capabilities, historical layout fallbacks and uncertified geometry', () => {
     const geometry = { status: 'uncertified', strategy: 'best-effort', attempts: 2, violations: [{ kind: 'edgeThroughNode', detail: 'A-B' }] }
     const fallback = { requested: 'agentic', fallback: 'elk', selected: 'elk', reason: 'unsupported', attempts: [], implementation: 'elk' }
     const summary = summarizeRenderReceipt({

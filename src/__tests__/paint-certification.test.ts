@@ -302,7 +302,7 @@ test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marke
   }
 })
 
-test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+test.each(['elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
     expect(result.receipt.layoutCertification?.status).toBe('passed')
@@ -1245,7 +1245,7 @@ test('a downscaled non-scaling two-point polyline still reports actual stroke/ca
 
 test('the retained Native Class clearance witness certifies without changing its layout backend', () => {
   const { source } = JSON.parse(readFileSync(new URL('./fixtures/class-native-clearance.json', import.meta.url), 'utf8')) as { source: string }
-  const rendered = renderMermaidSVGWithReceipt(source, { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'agentic' }, layoutSafety: 'strict', idPrefix: 'class-clearance-' })
+  const rendered = renderMermaidSVGWithReceipt(source, { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'elk' }, layoutSafety: 'strict', idPrefix: 'class-clearance-' })
   expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ requested: 'agentic', selected: 'agentic' }))
 })

@@ -2,10 +2,12 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } fr
 import { resolve, join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { observe } from './worker.ts'
+import { assertCurrentConfiguration } from './configs.ts'
 const args = process.argv.slice(2)
 const value = (flag: string, fallback: string) => args.includes(flag) ? args[args.indexOf(flag) + 1]! : fallback
 const root = resolve(value('--root', '.')), out = resolve(value('--out', '../measurements/quality'))
 const features = value('--features', '').split(',').filter(Boolean)
+assertCurrentConfiguration('elk', features)
 const corpusPath = resolve(value('--corpus', '../measurements/baseline-fixed/corpus.json'))
 const corpus = JSON.parse(readFileSync(corpusPath, 'utf8')) as Array<{ id: string; source: string; family: string }>
 const verify = args.includes('--verify') ? resolve(value('--verify', '')) : undefined
@@ -19,11 +21,11 @@ writeFileSync(join(out, 'protocol-0.json'), JSON.stringify({ version: 3, source,
   glyphContainment: 'Raster ink bounds versus owning node bounding boxes; not full curved-shape pixel containment',
 }, null, 2) + '\n')
 process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
-process.env.AGENTIC_MERMAID_EXPERIMENTS = 'text-spans,indexed-layout'
+process.env.AGENTIC_MERMAID_EXPERIMENTS = 'text-spans'
 process.env.AGENTIC_MERMAID_LAYOUT_FEATURES = features.filter(name => name !== 'fonts').join(',')
 let verified = 0, different = 0
-for (const item of corpus) for (const backend of ['elk', 'agentic'] as const) {
-  if (backend === 'agentic' && !['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'].includes(item.family)) continue
+for (const item of corpus) {
+  const backend = 'elk'
   let observation: unknown
   try { observation = await observe({ root, out: join(out, backend, 'artifacts'), features, backend, item, mode: 'quality', repetitions: 0 }) }
   catch (error) { observation = { id: item.id, backend, failure: String(error) } }

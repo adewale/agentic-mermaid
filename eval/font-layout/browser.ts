@@ -4,6 +4,7 @@ import { resolve, join, extname, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 import { assertLocalMeasurement } from '../trident/prepare.ts'
+import { assertCurrentConfiguration } from './configs.ts'
 
 assertLocalMeasurement()
 
@@ -12,6 +13,7 @@ const value = (flag: string, fallback: string) => args.includes(flag) ? args[arg
 const root = resolve(value('--root', join(import.meta.dir, '../..')))
 const out = resolve(value('--out', join(root, 'bench-report/font-layout/browser.json')))
 const features = value('--features', '').split(',').filter(Boolean)
+assertCurrentConfiguration('elk', features)
 const source = 'flowchart TD\nA[Authentication and authorization gateway] --> B[Validate incoming customer request]\nB --> C[Persist the final transaction result]\nA --> D[Record request tracing and audit information]\nD --> C'
 const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch(request) {
   const pathname = decodeURIComponent(new URL(request.url).pathname)
@@ -24,7 +26,8 @@ const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch(request) {
 const browser = await chromium.launch({ headless: true })
 const rows = []
 try {
-  for (const backend of ['elk', 'agentic'] as const) {
+  {
+    const backend = 'elk'
     const context = await browser.newContext({ viewport: { width: 800, height: 600 } })
     const page = await context.newPage()
     const errors: string[] = []
@@ -44,12 +47,10 @@ try {
       const initial = resourceRows()
       const options = { embedFontImport: false, security: 'strict',
         ...(features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}),
-        graphLayout: { backend, fallback: 'elk', ...(features.includes('elk-order') && backend === 'elk' || features.includes('ports') && backend === 'agentic' ? { quality: 'balanced' } : {}),
+        graphLayout: { backend, fallback: 'none', ...(features.includes('elk-order') ? { quality: 'balanced' } : {}),
           ...(features.includes('wrap') ? { viewport: { width: 800, height: 600 } } : {}),
         },
       }
-      // ELK rejects fallback=elk; preserve the same explicit policy as Node.
-      if (backend === 'elk') options.graphLayout.fallback = 'none'
       const first = await api.renderMermaidSVGWithReceiptAsync(source, options)
       const consumed = JSON.stringify(first)
       const firstMs = performance.now() - start

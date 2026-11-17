@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { snapshotSample, compareSample, compareSnapshots, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily, type SampleResult } from './run.ts'
+import { snapshotSample, compareSample, compareSnapshots, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily, type SampleResult, type Snapshot } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
@@ -104,6 +104,33 @@ test('backend reports require the same clean revision and authored inputs withou
   expect(buildReportHtml(before, after, 'backend')).toContain('Bends, route length and canvas area remain visible tradeoffs')
 })
 
+test('report admission preserves historical Native options while rejecting malformed policies and shared options', () => {
+  const record: Snapshot = { label: 'historical', rev: 'a'.repeat(40), dirty: false, createdAt: '2026-10-28T00:00:00Z',
+    samples: [{ id: 'declined', family: 'flowchart', source: 'flowchart TD\nA-->B', ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED', error: 'historical refusal' }] }
+  for (const fallback of ['none', 'elk'] as const) {
+    const historical = { ...record, renderOptions: { graphLayout: { backend: 'agentic' as const, fallback, quality: 'balanced' as const, viewport: { width: 800, height: 600 } }, nodeSpacing: 40 } }
+    const original = JSON.stringify(historical)
+    expect(compareSnapshots(historical, historical)[0]?.verdict).toBe('unchanged')
+    expect(JSON.stringify(historical)).toBe(original)
+  }
+  const policies = [
+    { backend: 'agentic', extra: true }, { backend: 'agentic', fallback: 'agentic' },
+    { backend: 'elk', fallback: 'elk' }, { backend: 'agentic', quality: 'fast' },
+    { backend: 'agentic', viewport: { width: 800 } }, { backend: 'agentic', viewport: { width: 0, height: 600 } },
+    { backend: 'agentic', viewport: { width: 800, height: 600, extra: true } },
+  ]
+  for (const renderOptions of [
+    ...policies.map(graphLayout => ({ graphLayout })),
+    { graphLayout: { backend: 'agentic' }, extra: true }, { graphLayout: { backend: 'agentic' }, nodeSpacing: -1 },
+    { graphLayout: { backend: 'agentic' }, bg: 'url(https://example.invalid/paint)' },
+    { graphLayout: { backend: 'agentic' }, padding: null },
+    JSON.parse('{"graphLayout":{"backend":"agentic","constructor":{}}}'),
+  ]) {
+    const invalid: Snapshot = JSON.parse(JSON.stringify({ ...record, renderOptions }))
+    expect(() => compareSnapshots(record, invalid)).toThrow('Invalid layout comparison render options')
+  }
+})
+
 test('report admission rejects malformed compared metrics before support or tradeoff verdicts', () => {
   const sample = snapshotSample({ id: 'admission', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'admission-', {}, { includeAscii: false })
   expect(sample.ok).toBe(true)
@@ -196,13 +223,13 @@ test('generated quality snapshots replay an explicit population and retain fully
   const range = { start: 66, count: 1 }
   expect(generatedFlowchartSamples(range)).toEqual(generatedFlowchartSamples(range))
   expect(generatedFlowchartSamples({ start: 67, count: 1 })[0]!.source).not.toBe(generatedFlowchartSamples(range)[0]!.source)
-  const snapshot = buildSnapshot('generated', { generated: range, renderOptions: { graphLayout: { backend: 'agentic' } } })
+  const snapshot = buildSnapshot('generated', { generated: range, renderOptions: { graphLayout: { backend: 'elk' } } })
   expect(snapshot.population).toEqual({ ...range, kind: 'generated-flowchart', terminal: 'not-requested' })
   expect(snapshot.samples).toHaveLength(1)
   const sample = snapshot.samples[0]!
   expect(sample).toMatchObject({ id: 'generated-cyclic:66', ok: true, family: 'flowchart', metrics: { nodeCount: 9, edgeCount: 21 } })
   expect(sample.ascii).toBeUndefined()
-  for (const receipt of [sample.svgReceipt, sample.layoutReceipt]) expect(receipt?.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+  for (const receipt of [sample.svgReceipt, sample.layoutReceipt]) expect(receipt?.layoutDecisions?.[0]).toMatchObject({ requested: 'elk', selected: 'elk' })
   expect(buildReportHtml(snapshot, snapshot)).toContain('not-requested')
 })
 
@@ -211,6 +238,16 @@ test('generated quality comparisons reject unbounded, empty or implicit-policy p
     expect(() => generatedFlowchartSamples(range)).toThrow(RangeError)
   }
   expect(() => buildSnapshot('implicit', { generated: { start: 0, count: 1 } })).toThrow('explicit graphLayout.backend')
+  expect(() => buildSnapshot('implicit', { generated: { start: 0, count: 1 }, renderOptions: { graphLayout: { quality: 'balanced' } } })).toThrow('explicit graphLayout.backend')
+  expect(() => buildSnapshot('retired', { generated: { start: 0, count: 1 }, renderOptions: JSON.parse('{"graphLayout":{"backend":"agentic"}}') })).toThrow('Invalid current capture render options')
+})
+
+test('snapshot CLI rejects retired Native capture before writing an artifact', () => {
+  const out = join(temporary.dir(), 'retired.json')
+  const child = Bun.spawnSync([process.execPath, new URL('./run.ts', import.meta.url).pathname, 'snapshot', '--graph-layout', 'agentic', '--generated-count', '1', '--out', out], { timeout: 10_000 })
+  expect(child.exitCode).not.toBe(0)
+  expect(new TextDecoder().decode(child.stderr)).toContain('Native (agentic) has been retired')
+  expect(existsSync(out)).toBe(false)
 })
 
 test('the independent generator preserves graph meaning and admits both source parities', () => {
@@ -239,26 +276,26 @@ test('the independent generator preserves graph meaning and admits both source p
 test('visual snapshots apply the same backend to source rendering and parsed quality, retaining both receipts', () => {
   const input = { id: 'labelled-branch', family: 'flowchart', source: 'flowchart TD\nA([Start]) -->|yes| B{Choose}\nB --> C\nB --> D' }
   const stages: string[] = []
-  const sample = withRenderStageObserver(value => stages.push(value.stage), () => snapshotSample(input, 'review-', { graphLayout: { backend: 'agentic' } }))
+  const sample = withRenderStageObserver(value => stages.push(value.stage), () => snapshotSample(input, 'review-', { graphLayout: { backend: 'elk' } }))
   expect(sample.ok).toBe(true)
   expect(sample.svg).toContain('Start')
   expect(sample.metrics).toMatchObject({ nodeCount: 4, edgeCount: 3 })
   for (const receipt of [sample.svgReceipt, sample.layoutReceipt]) expect(receipt?.layoutDecisions).toEqual([
-    expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'primary' }),
+    expect.objectContaining({ requested: 'elk', selected: 'elk', role: 'primary' }),
   ])
-  expect(stages).not.toContain('elk')
-  expect(JSON.stringify(sample)).toContain('agentic-layered@')
+  expect(stages).toContain('elk')
+  expect(JSON.stringify(sample)).toContain('elk-layered@')
 })
 
-test('visual snapshots preserve typed native declines and attribute requested fallback', () => {
-  // A sibling long link reaches the bounded private-rank refusal.
+test('visual snapshots retain long-link meaning after retiring the Native private-rank refusal', () => {
   const input = { id: 'local-rank-limit', family: 'flowchart', source: `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B` }
-  const declined = snapshotSample(input, 'review-', { graphLayout: { backend: 'agentic' } })
-  expect(declined).toMatchObject({ ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED' })
-  expect(declined.svg).toBeUndefined()
-  const fallback = snapshotSample(input, 'review-', { graphLayout: { backend: 'agentic', fallback: 'elk' }, onConfigDiagnostic: () => {} })
-  expect(fallback.ok).toBe(true)
-  for (const receipt of [fallback.svgReceipt, fallback.layoutReceipt]) expect(receipt?.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+  const current = snapshotSample(input, 'review-', { graphLayout: { backend: 'elk' }, onConfigDiagnostic: () => {} })
+  expect(current.ok).toBe(true)
+  expect(current.metrics).toMatchObject({ nodeCount: 2, edgeCount: 1 })
+  expect(current.layout?.nodes.map(node => node.id)).toEqual(['A', 'B'])
+  expect(current.svg).toContain('Source')
+  expect(current.svg).toContain('Target')
+  for (const receipt of [current.svgReceipt, current.layoutReceipt]) expect(receipt?.layoutDecisions?.[0]).toMatchObject({ requested: 'elk', selected: 'elk', fallback: 'none' })
 })
 
 test('a backend change remains reviewable when geometry bytes and metrics agree', () => {
@@ -274,6 +311,15 @@ test('a backend change remains reviewable when geometry bytes and metrics agree'
   const html = buildReportHtml({ ...common, samples: [sample] }, { ...common, samples: [after] })
   expect(html).toContain('Measured quality and backend receipts')
   expect(html).toContain('test-producer')
+  const fallback: SampleResult = { ...sample, svgReceipt: { ...sample.svgReceipt!, layoutDecisions: [{
+    requested: 'agentic', selected: 'elk', fallback: 'elk', reason: 'historical private-rank refusal',
+    attempts: [{ backend: 'agentic', outcome: 'unsupported', reason: 'historical private-rank refusal' }, { backend: 'elk', outcome: 'selected' }],
+    implementation: 'elk-layered@1',
+  }] } }
+  const frozen = JSON.stringify(fallback)
+  expect(compareSample(sample, fallback)).toMatchObject({ verdict: 'changed', notes: ['backend execution changed'] })
+  expect(buildReportHtml({ ...common, samples: [sample] }, { ...common, samples: [fallback] })).toContain('historical private-rank refusal')
+  expect(JSON.stringify(fallback)).toBe(frozen)
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1])
   expect(ids.length).toBeGreaterThan(0)
   expect(new Set(ids).size).toBe(ids.length)

@@ -650,7 +650,7 @@ for (const family of ['flowchart', 'state'] as const) {
         ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
         : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
       const options = { embedFontImport: false, seed: 7,
-        graphLayout: ${backend === 'fallback' ? "{ backend: 'agentic', fallback: 'elk' }" : `{ backend: ${JSON.stringify(backend)} }`},
+        graphLayout: ${backend === 'fallback' ? "{ backend: 'elk', fallback: 'none' }" : `{ backend: ${JSON.stringify(backend)} }`},
         onConfigDiagnostic: () => {} }
       const withoutPositionCache = callback => withPerformanceExperiments(
         PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)

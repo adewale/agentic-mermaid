@@ -5,12 +5,14 @@ import { pathToFileURL } from 'node:url'
 import type { RenderOptions } from '../../src/types.ts'
 import type { TextMeasurementProfile } from '../../src/text-measurement-profile.ts'
 import { assertLocalMeasurement } from '../trident/prepare.ts'
+import { assertCurrentConfiguration } from './configs.ts'
 
 export interface ObservationInput {
   root: string; mode: 'latency' | 'startup' | 'memory' | 'quality'; out: string; features: string[];
-  backend: 'elk' | 'agentic'; repetitions: number; item: { id: string; source: string; family: string };
+  backend: 'elk'; repetitions: number; item: { id: string; source: string; family: string };
 }
 export async function observe(input: ObservationInput) {
+assertCurrentConfiguration(input.backend, input.features)
 assertLocalMeasurement()
 const root = resolve(input.root)
 const load = (path: string) => import(pathToFileURL(join(root, path)).href)
@@ -26,8 +28,8 @@ const graphFamily = ['flowchart', 'state', 'class', 'er', 'requirement', 'archit
 const options: RenderOptions = {
   security: 'strict', embedFontImport: false,
   ...(input.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}),
-  ...(graphFamily ? { graphLayout: { backend: input.backend, fallback: input.backend === 'agentic' ? 'elk' : 'none',
-    ...(input.features.includes('elk-order') && input.backend === 'elk' || input.features.includes('ports') && input.backend === 'agentic' ? { quality: 'balanced' } : {}),
+  ...(graphFamily ? { graphLayout: { backend: input.backend, fallback: 'none',
+    ...(input.features.includes('elk-order') ? { quality: 'balanced' } : {}),
     ...(input.features.includes('wrap') && input.item.family === 'flowchart' ? { viewport: { width: 800, height: 600 } } : {}),
   } } : {}),
 }

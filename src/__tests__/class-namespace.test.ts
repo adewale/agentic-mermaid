@@ -164,7 +164,7 @@ describe('class namespaces — compound layout invariants', () => {
     expect(positioned.relationships[0]!.points).not.toEqual(positioned.relationships[1]!.points)
   })
 
-  it.each([undefined, 'elk', 'agentic'] as const)('places freestanding notes when there are no classes or namespaces (backend=%s)', backend => {
+  it.each([undefined, 'elk'] as const)('places freestanding notes when there are no classes or namespaces (backend=%s)', backend => {
     const source = 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"'
     const options = backend ? { graphLayout: { backend, fallback: 'none' as const } } : {}
     const positioned = layoutClassDiagram(parse(source), options)

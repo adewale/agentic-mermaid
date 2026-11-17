@@ -71,7 +71,7 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
     expect(er(serializeMermaid(diagram)).body.entities.find(item => item.id === 'ORDER')?.style?.['stroke-dasharray']).toBe('5 5')
     expect(diagram.body.entities.find(item => item.id === 'CUSTOMER')?.className).toBe('hot')
     expect(diagram.body.entities.find(item => item.id === 'ORDER')?.style?.['stroke-width']).toBe('4px')
-    for (const backend of ['agentic', 'elk'] as const) {
+    for (const backend of ['elk'] as const) {
       const svg = renderMermaidSVG(serializeMermaid(diagram), { graphLayout: { backend, fallback: 'none' } })
       expect(svg).toContain('class="entity hot"')
       expect(svg).toContain('fill="#ff0000"')

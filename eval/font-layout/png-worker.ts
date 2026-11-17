@@ -2,16 +2,18 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { assertLocalMeasurement } from '../trident/prepare.ts'
+import { assertCurrentConfiguration } from './configs.ts'
 
+const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; features: string[]; backend: 'elk'; mode: string; item: { id: string; source: string } }
+assertCurrentConfiguration(input.backend, input.features)
 assertLocalMeasurement()
-const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; features: string[]; backend: 'elk' | 'agentic'; mode: string; item: { id: string; source: string } }
 const beforeImport = process.memoryUsage(), start = performance.now()
 const api = await import(pathToFileURL(join(input.root, 'dist/agent.js')).href)
 const renderer = api.createMermaidPNGRenderer()
 const importMs = performance.now() - start, afterImport = process.memoryUsage()
 const options = { embedFontImport: false, security: 'strict', ...(input.features.includes('fonts') ? { fontMetrics: 'bundled-inter' } : {}), graphLayout: {
-  backend: input.backend, fallback: input.backend === 'elk' ? 'none' : 'elk',
-  ...(input.features.includes('elk-order') && input.backend === 'elk' || input.features.includes('ports') && input.backend === 'agentic' ? { quality: 'balanced' } : {}),
+  backend: input.backend, fallback: 'none',
+  ...(input.features.includes('elk-order') ? { quality: 'balanced' } : {}),
   ...(input.features.includes('wrap') ? { viewport: { width: 800, height: 600 } } : {}),
 } }
 let held: { png: Uint8Array; receipt: unknown } | undefined, sink = 0

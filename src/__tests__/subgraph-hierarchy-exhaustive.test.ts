@@ -204,7 +204,7 @@ describe('public hierarchy endpoints', () => {
       end
       ${from} -->|reply| ${to}`
     const positioned = assertCleanHierarchyCase(source, from, to)
-    for (const backend of ['elk', 'agentic'] as const) {
+    for (const backend of ['elk'] as const) {
       const options = { graphLayout: { backend, fallback: 'none' as const } }
       const layout = layoutMermaidWithReceipt(source, { ...options, debug: true }).layout
       expect(layout.nodes.map(node => node.id).sort()).toEqual(['Box_out_0', 'sign_in_worker'])

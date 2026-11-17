@@ -7,9 +7,6 @@ import { Resvg } from '@resvg/resvg-js'
 import { decodeXML } from 'entities'
 import { renderMermaidASCII, renderMermaidSVGWithReceipt } from '../../src/index.ts'
 import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments, type PerformanceExperiment } from '../../src/experimental-performance.ts'
-import { isIndexedForestGraph } from '../../src/experimental/indexed-forest.ts'
-import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
-import { parseMermaid } from '../../src/parser.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../../src/svg-structure.ts'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import { workingRevision } from './revision-tree.ts'
@@ -20,7 +17,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
   if (!['--features', '--out'].includes(key) || value === undefined || options.has(key)) throw Error(`Invalid option ${key}`)
   options.set(key, value)
 }
-const features = (options.get('--features') ?? 'indexed-layout').split(',') as PerformanceExperiment[]
+const features = (options.get('--features') ?? PERFORMANCE_EXPERIMENTS.join(',')).split(',') as PerformanceExperiment[]
 if (features.some(name => !PERFORMANCE_EXPERIMENTS.includes(name)) || new Set(features).size !== features.length) throw Error('Invalid profile')
 const out = resolve(options.get('--out') ?? 'bench-report/profile-qualification.json')
 const inventory = officialCorpusInventory()
@@ -47,20 +44,13 @@ function render(source: string, flags: readonly PerformanceExperiment[]) {
 const rows = []
 for (const [source, input] of inputs) {
   const before = render(source, []), after = render(source, features)
-  let eligible = false
-  if (features.includes('indexed-layout')) {
-    try {
-      const normalized = normalizeMermaidSource(source)
-      eligible = /^(?:graph|flowchart)\b/i.test(normalized.familyText) && isIndexedForestGraph(parseMermaid(normalized.familyText))
-    } catch { /* the public outcome below owns rejection */ }
-  }
   const failures: string[] = []
   if (before.ok && !after.ok) failures.push(`new rejection: ${after.error}`)
-  if (!before.ok && !after.ok && before.error !== after.error && !eligible) failures.push('changed rejection')
+  if (!before.ok && !after.ok && before.error !== after.error) failures.push('changed rejection')
   if (before.ok && after.ok) {
     if (JSON.stringify(texts(before.svg)) !== JSON.stringify(texts(after.svg))) failures.push('changed displayed text')
     if (JSON.stringify(identities(before.svg)) !== JSON.stringify(identities(after.svg))) failures.push('changed semantic identities or endpoints')
-    if (!eligible && (before.svg !== after.svg || before.receipt !== after.receipt)) failures.push('changed output outside the forest cohort')
+    if (before.svg !== after.svg || before.receipt !== after.receipt) failures.push('changed SVG or receipt')
     const again = render(source, features)
     if (!again.ok || again.svg !== after.svg || again.receipt !== after.receipt) failures.push('nondeterministic SVG or receipt')
     if (before.svg !== after.svg) {
@@ -73,13 +63,13 @@ for (const [source, input] of inputs) {
     catch (error) { return { ok: false, output: String(error) } }
   })
   if (JSON.stringify(terminal([])) !== JSON.stringify(terminal(features))) failures.push('changed terminal outcome')
-  rows.push({ ...input, eligible, before: before.ok, after: after.ok, changed: before.ok && after.ok && before.svg !== after.svg, failures,
+  rows.push({ ...input, before: before.ok, after: after.ok, changed: before.ok && after.ok && before.svg !== after.svg, failures,
     ...(!after.ok ? { error: after.error } : {}) })
   if (rows.length % 50 === 0) console.log(`${rows.length}/${inputs.size} distinct sources checked`)
 }
 const failures = rows.filter(row => row.failures.length)
 const report = { revision: workingRevision(), features, assertions: process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS,
-  occurrences: inventory.occurrenceCount, distinct: inputs.size, eligible: rows.filter(row => row.eligible).length,
+  occurrences: inventory.occurrenceCount, distinct: inputs.size,
   baselineAccepted: rows.filter(row => row.before).length, candidateAccepted: rows.filter(row => row.after).length,
   changed: rows.filter(row => row.changed).length, ok: failures.length === 0, rows }
 mkdirSync(dirname(out), { recursive: true })

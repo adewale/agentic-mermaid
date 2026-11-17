@@ -509,7 +509,7 @@ describe('layoutArchitectureDiagram', () => {
 
 
 // The literal band/contacts below are independent of the route-obstacle helper.
-it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
+it.each(['elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
   const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'
   const options = { graphLayout: { backend, fallback: 'none' as const } }
   const positioned = layoutArchitectureDiagram(parse(source), options)

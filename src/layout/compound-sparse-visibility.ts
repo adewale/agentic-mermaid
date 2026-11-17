@@ -1,5 +1,5 @@
 import type { Point } from '../types.ts'
-import type { ChannelWork } from './channel-tracks.ts'
+import type { ChannelWork } from './measured-graph.ts'
 import { segmentEntersMeasuredBox } from './measured-route-safety.ts'
 import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
 import { isCompoundObstacleIndexFor, type CompoundObstacleQueries, type CompoundProjection } from './compound-obstacle-index.ts'

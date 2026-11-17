@@ -11,14 +11,14 @@ import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 
-const native = { graphLayout: { backend: 'agentic' as const } }
+const elkOptions = { graphLayout: { backend: 'elk' as const } }
 const highContrastElk = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, style: ['accessible-high-contrast', 'catppuccin-latte'], bg: '#111827', transparent: false, seed: 19, security: 'default' as const, embedFontImport: false }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/architecture-backends.mmd', import.meta.url), 'utf8')
 const faces = 'architecture-beta\nservice left(disk)[Left]\nservice top(disk)[Top]\nservice bottom(disk)[Bottom]\nservice right(server)[Right]\njunction center\nleft:R --> L:center\ntop:B --> T:center\nbottom:T --> B:center\ncenter:R --> L:right'
 const literalIcons = 'architecture-beta\nservice a "<b>日本 API</b>\\nSecond line" [Backend]\nservice b(database)[Storage]\na:R-->L:b'
 
 describe('Architecture layout backends', () => {
-  test.each([['alignment', fixture, native, 'agentic'], ['four faces', faces, native, 'agentic'], ['literal icons', literalIcons, native, 'agentic'], ['high-contrast stock alignment', fixture, highContrastElk, 'elk']] as const)('retains authored ports, junctions, alignments and complete routes: %s', (_name, source, options, backend) => {
+  test.each([['alignment', fixture, elkOptions, 'elk'], ['four faces', faces, elkOptions, 'elk'], ['literal icons', literalIcons, elkOptions, 'elk'], ['high-contrast stock alignment', fixture, highContrastElk, 'elk']] as const)('retains authored ports, junctions, alignments and complete routes: %s', (_name, source, options, backend) => {
     const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
     const placed = layoutArchitectureDiagram(model, options)
     expect(model).toEqual(original)
@@ -39,8 +39,8 @@ describe('Architecture layout backends', () => {
     if (source === fixture) expect(new Set(placed.services.filter(service => service.id.startsWith('src')).map(service => service.y)).size).toBe(1)
     const rendered = renderMermaidSVGWithReceipt(source, options)
     // Curved marker/junction occupied envelopes may remain unverified. Keep
-    // the existing Native certification requirement explicit.
-    if (backend === 'agentic') expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    // the existing fixture certification requirements explicit.
+    if (_name !== 'high-contrast stock alignment') expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     else {
       const status = rendered.receipt.layoutCertification?.status
       expect(status === 'passed' || status === 'unverified').toBe(true)
@@ -52,7 +52,7 @@ describe('Architecture layout backends', () => {
       expect(rendered.svg).toContain('Second line')
       const parsed = parseRegisteredMermaid(source)
       if (!parsed.ok) throw new Error('literal icon fixture must parse')
-      const text = renderMermaidASCIIWithReceipt(parsed.value, { ...native, colorMode: 'none' })
+      const text = renderMermaidASCIIWithReceipt(parsed.value, { ...elkOptions, colorMode: 'none' })
       expect(text.text).toContain('Second line')
       // Architecture projects pixel placement into cells, then independently
       // builds graphical companion evidence. Attribute both real placements.
@@ -63,12 +63,11 @@ describe('Architecture layout backends', () => {
     }
   })
 
-  test('uses native placement across public surfaces and retains explicit ELK bytes', () => {
-    const options = { ...native, nodeSpacing: 51 }, stages: string[] = [], parsed = parseRegisteredMermaid(fixture)
+  test('uses ELK placement across public surfaces and retains default bytes', () => {
+    const options = { ...elkOptions, nodeSpacing: 51 }, stages: string[] = [], parsed = parseRegisteredMermaid(fixture)
     if (!parsed.ok) throw new Error('fixture must parse')
     const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(fixture, options))
-    expect(stages).toContain('agentic')
-    expect(stages).not.toContain('elk')
+    expect(stages).toContain('elk')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(result.svg)
     expect(layoutMermaidWithReceipt(fixture, options).receipt.layoutDecisions).toEqual(result.receipt.layoutDecisions)
     const png = renderMermaidPNGWithReceipt(fixture, options)
@@ -80,29 +79,29 @@ describe('Architecture layout backends', () => {
   const compounds = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
   test.each(compounds.filter(entry => entry.family === 'architecture'))('retains all authored Architecture relationships and certifies final compound paint: $index', ({ source }) => {
     const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
-    const placed = layoutArchitectureDiagram(model, native)
+    const placed = layoutArchitectureDiagram(model, elkOptions)
     expect(model).toEqual(original)
     expect(placed.edges.map(edge => [edge.source, edge.target])).toEqual(model.edges.map(edge => [edge.source, edge.target]))
     expect(placed.services.map(service => [service.id, service.parentId])).toEqual(model.services.map(service => [service.id, service.parentId]))
-    const rendered = withRenderStageObserver(sample => { expect(sample.stage).not.toBe('elk') }, () => renderMermaidSVGWithReceipt(source, native))
+    const rendered = renderMermaidSVGWithReceipt(source, elkOptions)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error('corpus input must parse')
-    expect(renderMermaidSVGWithReceipt(parsed.value, native).svg).toBe(rendered.svg)
+    expect(renderMermaidSVGWithReceipt(parsed.value, elkOptions).svg).toBe(rendered.svg)
   })
 
-  test('retains native empty frames and empty diagrams without fetching ELK', () => {
+  test('retains empty frames and empty diagrams', () => {
     const grouped = 'architecture-beta\ngroup g[Group]'
-    const framed = withRenderStageObserver(sample => { expect(sample.stage).not.toBe('elk') }, () => renderMermaidSVGWithReceipt(grouped, native))
+    const framed = renderMermaidSVGWithReceipt(grouped, elkOptions)
     expect(framed.svg).toContain('Group')
     expect(framed.receipt.layoutCertification?.status).toBe('passed')
-    expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
-    expect(renderMermaidSVGWithReceipt('architecture-beta', native).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'elk', fallback: 'none' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
+    expect(renderMermaidSVGWithReceipt('architecture-beta', elkOptions).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
   })
 // Row and column requests compose across groups; endpoint-side ordering must
 // not restore an obsolete rank for one member of a declared row.
-test.each(['elk', 'agentic'] as const)('composes row and column alignment before final %s routes', backend => {
+test.each(['elk'] as const)('composes row and column alignment before final %s routes', backend => {
   const source = compounds.find(entry => entry.family === 'architecture' && entry.index === 3)!.source
   const model = parseArchitectureDiagram(toMermaidLines(source))
   const positioned = layoutArchitectureDiagram(model, { graphLayout: { backend, fallback: 'none' } })
@@ -147,14 +146,14 @@ test.each(['elk', 'agentic'] as const)('composes row and column alignment before
 
 
 
-test.each(['elk', 'agentic'] as const)('rejects inconsistent row and column centers explicitly with %s', backend => {
+test.each(['elk'] as const)('rejects inconsistent row and column centers explicitly with %s', backend => {
   const source = 'architecture-beta\nservice z(server)[Z]\nservice a(server)[A]\nalign row z a\nalign column a z'
   const model = parseArchitectureDiagram(toMermaidLines(source))
   expect(() => layoutArchitectureDiagram(model, { graphLayout: { backend, fallback: 'none' } })).toThrow('incompatible row and column constraints')
 })
 
 
-test.each(['elk', 'agentic'] as const)('composes complete overlapping alignment components with %s', backend => {
+test.each(['elk'] as const)('composes complete overlapping alignment components with %s', backend => {
   for (const axis of ['row', 'column'] as const) for (const ids of [['z', 'a', 'm'], ['z', 'a', 'm', 'b']]) {
     const sides = axis === 'row' ? 'R --> L' : 'B --> T'
     const body = `architecture-beta\ngroup g(cloud)[Group]\n${ids.map(id => `service ${id}(server)[${id.toUpperCase()}] in g`).join('\n')}\nservice sink(database)[Sink]\n${ids.map(id => `${id}:${sides}:sink`).join('\n')}`
@@ -176,67 +175,51 @@ test.each(['elk', 'agentic'] as const)('composes complete overlapping alignment 
   }
 })
 
-test.each(['none', 'elk'] as const)('selects only a completed Architecture artifact with fallback=%s', fallback => {
+test('selects only a completed Architecture artifact', () => {
   const model = parseArchitectureDiagram(toMermaidLines('architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'))
-  const original = structuredClone(model), native = graphPlacement.layoutNativeGraphPlacementSync, elk = graphPlacement.layoutElkGraphPlacementSync
-  // Corrupt the raw placement, not the finisher: its actual header and route
-  // admission must reject the candidate before any selected decision escapes.
-  const nativeProducer = spyOn(graphPlacement, 'layoutNativeGraphPlacementSync').mockImplementation((graph, options) => {
-    const placed = native(graph, options), group = placed.groups.find(group => group.id === 'g')!
+  const original = structuredClone(model), elk = graphPlacement.layoutElkGraphPlacementSync
+  // Corrupt the raw placement: actual header and route admission must reject
+  // the candidate before any selected decision escapes.
+  const producer = spyOn(graphPlacement, 'layoutElkGraphPlacementSync').mockImplementation((graph, options) => {
+    const placed = elk(graph, options), group = placed.groups.find(group => group.id === 'g')!
     return { ...placed, nodes: placed.nodes.map(node => node.id === 'a' ? { ...node, y: group.y + 2 } : node) }
   })
-  const elkProducer = spyOn(graphPlacement, 'layoutElkGraphPlacementSync').mockImplementation((graph, options) => elk(graph, options))
   const decisions: GraphLayoutDecision[] = []
-  let failure: unknown, placed: ReturnType<typeof layoutArchitectureDiagram> | undefined
   try {
-    try { placed = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'agentic', fallback } })) } catch (error) { failure = error }
-    expect(nativeProducer).toHaveBeenCalledTimes(1)
-    if (fallback === 'none') {
-      expect(failure).toBeInstanceOf(LayoutCertificationError)
-      expect((failure as Error).message).toContain('architecture-final-headers')
-      expect(placed).toBeUndefined()
-      expect(decisions).toEqual([])
-      expect(elkProducer).not.toHaveBeenCalled()
-    } else {
-      expect(failure).toBeUndefined()
-      expect(placed!.edges).toHaveLength(1)
-      expect(placed!.edges[0]!.obstacleFree).toBe(true)
-      expect(elkProducer).toHaveBeenCalledTimes(1)
-      expect(decisions).toEqual([expect.objectContaining({ requested: 'agentic', fallback: 'elk', selected: 'elk', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'candidate-rejected' }), { backend: 'elk', outcome: 'selected' }] })])
-    }
+    expect(() => withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'elk' } }))).toThrow(LayoutCertificationError)
+    expect(producer).toHaveBeenCalledTimes(1)
+    expect(decisions).toEqual([])
     expect(model).toEqual(original)
-  } finally { nativeProducer.mockRestore(); elkProducer.mockRestore() }
+  } finally { producer.mockRestore() }
 })
 
 test('Architecture complete producer propagates unexpected defects without fallback', () => {
   const model = parseArchitectureDiagram(toMermaidLines('architecture-beta\nservice a(server)[A]'))
   const defect = new TypeError('controlled raw provider defect')
-  const native = spyOn(graphPlacement, 'layoutNativeGraphPlacementSync').mockImplementation(() => { throw defect })
-  const elk = spyOn(graphPlacement, 'layoutElkGraphPlacementSync')
+  const elk = spyOn(graphPlacement, 'layoutElkGraphPlacementSync').mockImplementation(() => { throw defect })
   const decisions: GraphLayoutDecision[] = []
   let caught: unknown
   try {
-    try { withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'elk' } })) } catch (error) { caught = error }
+    try { withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'elk', fallback: 'none' } })) } catch (error) { caught = error }
     expect(caught).toBe(defect)
-    expect(elk).not.toHaveBeenCalled()
-    expect(decisions).toEqual([])
-  } finally { native.mockRestore(); elk.mockRestore() }
-})
-
-test('Architecture rejects constraints that neither complete backend can satisfy', () => {
-  const model = parseArchitectureDiagram(toMermaidLines('architecture-beta\nservice z(server)[Z]\nservice a(server)[A]\nalign row z a\nalign column a z'))
-  const native = spyOn(graphPlacement, 'layoutNativeGraphPlacementSync'), elk = spyOn(graphPlacement, 'layoutElkGraphPlacementSync')
-  const decisions: GraphLayoutDecision[] = []
-  try {
-    expect(() => withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'elk' } }))).toThrow('incompatible row and column constraints')
-    expect(native).toHaveBeenCalledTimes(1)
     expect(elk).toHaveBeenCalledTimes(1)
     expect(decisions).toEqual([])
-  } finally { native.mockRestore(); elk.mockRestore() }
+  } finally { elk.mockRestore() }
+})
+
+test('Architecture rejects incompatible constraints without selecting an artifact', () => {
+  const model = parseArchitectureDiagram(toMermaidLines('architecture-beta\nservice z(server)[Z]\nservice a(server)[A]\nalign row z a\nalign column a z'))
+  const elk = spyOn(graphPlacement, 'layoutElkGraphPlacementSync')
+  const decisions: GraphLayoutDecision[] = []
+  try {
+    expect(() => withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => layoutArchitectureDiagram(model, { graphLayout: { backend: 'elk', fallback: 'none' } }))).toThrow('incompatible row and column constraints')
+    expect(elk).toHaveBeenCalledTimes(1)
+    expect(decisions).toEqual([])
+  } finally { elk.mockRestore() }
 })
 
 
-test.each(['elk', 'agentic'] as const)('reversed equivalent alignment membership stays feasible with %s', backend => {
+test.each(['elk'] as const)('reversed equivalent alignment membership stays feasible with %s', backend => {
   for (const axis of ['row', 'column'] as const) {
     const model = parseArchitectureDiagram(toMermaidLines(`architecture-beta\nservice z(server)[Z]\nservice a(server)[A]\nalign ${axis} z a\nalign ${axis} a z`))
     const original = structuredClone(model), placed = layoutArchitectureDiagram(model, { graphLayout: { backend, fallback: 'none' } })

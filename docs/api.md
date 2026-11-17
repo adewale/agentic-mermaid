@@ -176,11 +176,8 @@ Graph callers can opt into bounded quality exploration with
 `graphLayout: { backend: 'elk', quality: 'balanced' }`. ELK may prefer source
 order instead of fixing it when the original result has crossings or label
 conflicts. Explicit adjacency and family-owned child order remain authoritative.
-The Agentic graph producer can compare port-aware coordinate blocks on flat
-graphs with at most 64 nodes and 128 edges when the primary has rubric bends.
-The complete final geometry must pass certification and the non-regression
-comparison. ELK exploration runs after the complete existing recovery policy;
-it cannot displace a mandatory fallback.
+ELK exploration runs after the complete existing recovery policy; it cannot
+displace a mandatory fallback.
 
 For Flowchart, `graphLayout.viewport: { width: 800, height: 600 }` selects among
 the original layout and up to two measured wrapping widths using the complete
@@ -197,66 +194,47 @@ that execution. Cached positioned output can perform no new optional work.
 Nested public renders have separate allowances. All these choices are opt-in;
 omitting them preserves the existing layout policy.
 
-Omitting `graphLayout` retains the existing automatic policy, including the
-guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
-or opt into the owned producer:
+ELK.ts is the sole general graph-placement engine. Omitting `graphLayout`
+uses ELK, including the forest inputs that previously used Native. Existing
+specialized sequence, chart and terminal layouts remain in their family adapters.
+`backend: 'elk'` and `fallback: 'none'` are optional compatibility spellings;
+`backend: 'agentic'` and `fallback: 'elk'` are rejected instead of silently
+substituting a different engine.
 
 ```ts
 import { renderMermaidSVGWithReceipt } from 'agentic-mermaid'
 
 const source = 'flowchart LR; Idea --> Ship'
 const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
-  graphLayout: { backend: 'agentic', fallback: 'elk' },
+  graphLayout: { quality: 'balanced' },
 })
 console.log(receipt.layoutDecisions)
 ```
 
-Agentic currently supports measured Flowchart and State graphs, including directed
-cycles, self-loops, shapes and edge labels, fan-in, parallel edges, disconnected
-components and long links. Independent nested scopes retain frame endpoints,
-headers and local directions, including State composites and concurrent regions. State pseudostates, configured fork/join dimensions and notes
-use the shared family sizing and projection rules.
-The shared geometry pipeline clips ports to each actual shape outline.
-Bounded cross-hierarchy leaf and frame routes retain authored endpoints, and
-empty frames retain measured headers. Class cards/namespaces, ER frames and
-relations, Requirement cards, and Architecture compounds use the owned kernel
-with their specialized family geometry. Architecture applies final authored
-side constraints and routing after placement. Unsupported hints and constraints, overlapping
-node/frame identities, and exhausted bounded searches still decline explicitly. ELK support remains available for every existing
-ELK family. Omitting fallback makes an unsupported Agentic request throw
-`GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
-selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
-is not an Agentic completion. Unexpected engine defects and global work limits
-are not hidden by fallback.
+The same bounded ELK candidate and option-degradation policy remains, with
+shared shape, route, label, ownership and final certification checks. Removing
+Native does not turn unknown paint evidence into a passed certificate.
 
 <!-- BEGIN GENERATED: graph-layout-limits -->
 | Scope | Limit |
 | --- | --- |
 | Host nodes, including group frames | 5,000 |
 | Host edges | 5,000 |
-| Agentic measured nodes, including group frames | 4,096 |
-| Agentic internal edges | 16,384 |
-| Agentic internal ranks | 4,096 |
-| Agentic expanded workspace vertices | 32,768 |
 <!-- END GENERATED: graph-layout-limits -->
 
-Groups and self-loop helpers consume Agentic capacity. Separate expansion,
-routing and certification allowances can refuse smaller diagrams. Exceeding
-the Agentic ceiling raises `GraphLayoutUnsupportedError`; explicit ELK fallback
-retains the host limits above. These limits cannot be raised by source config.
+The host limits above apply to graph inputs. Independent routing and final
+certification budgets may reject smaller diagrams; source configuration cannot
+raise those limits.
 
-The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
-selected layout actually needs it. A successful strict Agentic render does not
-fetch ELK; requested fallback still loads it when native placement declines.
-ELK selection likewise leaves the native solver unfetched. Backend payload
-reports include the selected solver's dynamic dependencies.
+The async `agentic-mermaid/browser/lazy` entry downloads ELK.ts only when
+placement needs it. Payload reports include that selected solver and its dynamic
+dependencies; there is no secondary graph solver to load.
 The synchronous `agentic-mermaid/browser` entry remains an all-in-one bundle.
 
-The CLI accepts `am render diagram.mmd --graph-layout agentic
---graph-layout-fallback elk`. Mermaid source configuration is preserved and is
+The CLI accepts `am render diagram.mmd --graph-layout elk`. Mermaid source configuration is preserved and is
 not an alias for these options. Terminal-cell placement retains its family
 rules; optional graphical companions and Architecture's pixel placement honor
-the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-backends.md) for
+these preferences. See [graph placement](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-backends.md) for
 qualification and comparative measurement.
 
 ## Resolved paths and text
@@ -439,7 +417,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 |---|---|---|---|
 | `fontMetrics` | `'estimate' \| 'bundled-inter'` | `estimate` | Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates. Not consumed by terminal output. |
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state, usecase, swimlane, agentflow. Not consumed by terminal output. |
-| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
+| `graphLayout` | `{ backend?: 'elk'; fallback?: 'none'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | ELK graph placement and bounded quality preferences. Native selection and backend fallback have been removed. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |

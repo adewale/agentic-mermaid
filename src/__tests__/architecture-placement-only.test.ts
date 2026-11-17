@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { layoutNativeGraphPlacementSync } from '../layout-engine.ts'
-import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
-import { createMeasuredLayoutCache } from '../layout/agentic-producer-core.ts'
-import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { layoutElkGraphPlacementSync } from '../layout-engine.ts'
 import { parseArchitectureDiagram, architectureToMermaidGraph } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { architectureLayoutMetrics, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
@@ -16,7 +13,7 @@ describe('Architecture placement-only ownership', () => {
   test('returns only placement and preserves family-owned junction sizing', () => {
     const graph = architectureToMermaidGraph(parseArchitectureDiagram(toMermaidLines('architecture-beta\njunction j\nservice b(server)[B]\nj:R-->L:b')))
     const original = structuredClone(graph)
-    const placed = layoutNativeGraphPlacementSync(graph, { nodeSizes: new Map([['j', { width: 92, height: 92 }]]) })
+    const placed = layoutElkGraphPlacementSync(graph, { nodeSizes: new Map([['j', { width: 92, height: 92 }]]) })
     expect(Object.keys(placed).sort()).toEqual(['groups', 'height', 'nodes', 'width'])
     expect(placed.nodes.find(node => node.id === 'j')).toEqual(expect.objectContaining({ width: 92, height: 92 }))
     expect(graph).toEqual(original)
@@ -27,7 +24,7 @@ describe('Architecture placement-only ownership', () => {
     ['nested custom-font groups', 'architecture-beta\ngroup outer["Outer<br/>Header"]\ngroup inner["One<br/>Two<br/>Three<br/>Four"] in outer\nservice a(server)[A] in inner', { groupFontSize: 20, groupFontWeight: 700, groupLetterSpacing: 1 }],
   ] as const)('retains measured header bands and centers multiline titles: %s', (_name, source, overrides) => {
     const visual = { ...DEFAULT_ARCHITECTURE_VISUAL, ...overrides }
-    const options: RenderOptions = { graphLayout: { backend: 'agentic', fallback: 'none' }, architecture: { visual: overrides } }
+    const options: RenderOptions = { graphLayout: { backend: 'elk', fallback: 'none' }, architecture: { visual: overrides } }
     const model = parseArchitectureDiagram(toMermaidLines(source))
     const placed = layoutArchitectureDiagram(model, options, architectureLayoutMetrics(visual))
     const groups = placed.groups.flatMap(group => [group, ...group.children])
@@ -51,96 +48,23 @@ describe('Architecture placement-only ownership', () => {
       expect(group.label).toBe(model.groups.find(authored => authored.id === group.id)!.label)
     }
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
   })
 
-  test('keeps the placement-only flag in the measured cache key and clones returned geometry', () => {
-    let computations = 0
-    const cached = createMeasuredLayoutCache(input => {
-      computations++
-      return { topology: 'layered', width: 100, height: 100, nodes: [{ x: input.placementOnly ? 20 : 10, y: 10 }], edges: [] }
-    })
-    const input: MeasuredGraph = { nodes: [{ id: 'a', width: 10, height: 10 }], edges: [], direction: 'TB', padding: 10, nodeSpacing: 10, layerSpacing: 10 }
-    expect(cached(input).nodes[0]!.x).toBe(10)
-    const placement = cached({ ...input, placementOnly: true })
-    expect(placement.nodes[0]!.x).toBe(20)
-    placement.nodes[0]!.x = 999
-    expect(cached({ ...input, placementOnly: true }).nodes[0]!.x).toBe(20)
-    expect(computations).toBe(process.env.AGENTIC_MERMAID_ELK_CACHE === '0' ? 3 : 2)
-  })
-
-  test('omits acyclic route output without changing rank/channel placement', () => {
-    const input: MeasuredGraph = { nodes: ['a', 'b', 'c'].map(id => ({ id, width: 80, height: 40 })),
-      edges: [{ source: 0, target: 1, minSpan: 1, label: { width: 90, height: 25 } }, { source: 0, target: 2, minSpan: 2 }],
-      direction: 'TB', padding: 20, nodeSpacing: 35, layerSpacing: 50 }
-    const full = layoutAgenticGraph(input), placement = layoutAgenticGraph({ ...input, placementOnly: true })
-    expect(placement.nodes).toEqual(full.nodes)
-    expect([placement.width, placement.height]).toEqual([full.width, full.height])
-    expect(placement.edges).toEqual([{ points: [] }, { points: [] }])
-    expect(full.edges.every(edge => edge.points.length >= 2)).toBe(true)
-  })
-
-  test('retains every cross-scope rank constraint when full boundary routing has no clear corridor', () => {
-    const nodes = Array.from({ length: 18 }, (_, index) => ({ id: `n${index}`, width: 40, height: 30, parent: index < 9 ? 0 : 1 }))
-    const input: MeasuredGraph = { nodes, groups: ['first', 'second'].map(id => ({ id, minWidth: 100, padding: { top: 20, left: 10, right: 10, bottom: 10 } })),
-      edges: Array.from({ length: 18 }, (_, index) => ({ source: 9 + index % 9, target: index % 9, minSpan: index === 17 ? 3 : 1 })),
-      direction: 'TB', padding: 20, nodeSpacing: 35, layerSpacing: 50 }
-    const original = structuredClone(input)
-    let routingFailure: unknown
-    try { layoutAgenticGraph(input) } catch (error) { routingFailure = error }
-    expect(routingFailure).toBeInstanceOf(GraphLayoutUnsupportedError)
-    expect((routingFailure as GraphLayoutUnsupportedError).reason).toBe('cross-hierarchy route has no bounded clear corridor')
-    const placement = layoutAgenticGraph({ ...input, placementOnly: true })
-    const shortLinks = layoutAgenticGraph({ ...input, placementOnly: true, edges: input.edges.map(edge => ({ ...edge, minSpan: 1 })) })
-    expect(placement.groups![1]!.y + placement.groups![1]!.height).toBeLessThan(placement.groups![0]!.y)
-    // The last parallel occurrence carries the longer authored span. Keeping
-    // only one edge per scope pair would lose this additional rank separation.
-    expect(placement.groups![0]!.y).toBeGreaterThan(shortLinks.groups![0]!.y)
-    expect(placement.edges).toHaveLength(input.edges.length)
-    expect(placement.edges.every(edge => edge.points.length === 0)).toBe(true)
-    for (const [index, node] of placement.nodes.entries()) {
-      const group = placement.groups![nodes[index]!.parent]!
-      expect(node.x).toBeGreaterThanOrEqual(group.x + 10)
-      expect(node.y).toBeGreaterThanOrEqual(group.y + 20)
-      expect(node.x + nodes[index]!.width).toBeLessThanOrEqual(group.x + group.width - 10)
-      expect(node.y + nodes[index]!.height).toBeLessThanOrEqual(group.y + group.height - 10)
-    }
-    expect(input).toEqual(original)
-  })
-
-  test('keeps temporary cyclic and loop geometry when placement selection depends on it', () => {
-    const nodes = ['a', 'b', 'c'].map(id => ({ id, width: 80, height: 40 }))
-    for (const edges of [
-      [{ source: 0, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }, { source: 2, target: 0, minSpan: 1 }],
-      [{ source: 0, target: 0, minSpan: 1, label: { width: 70, height: 24 } }],
-    ]) {
-      const input: MeasuredGraph = { nodes, edges, direction: 'TB', padding: 20, nodeSpacing: 35, layerSpacing: 50 }
-      expect(layoutAgenticGraph({ ...input, placementOnly: true }).nodes).toEqual(layoutAgenticGraph(input).nodes)
-    }
-  })
-
-  test('applies internal rank hints and propagates invalid hints and endpoint defects', () => {
+  test('preserves placement ownership and propagates invalid hints and endpoint defects', () => {
     const graph = architectureToMermaidGraph(parseArchitectureDiagram(toMermaidLines('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R-->L:b')))
     const original = structuredClone(graph)
-    const plain = layoutNativeGraphPlacementSync(graph)
-    // Unlisted siblings default to partition zero, so a singleton zero hint
-    // retains placement while a positive partition places a after b in LR.
-    expect(layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { a: 0 } } })).toEqual(plain)
-    const ranked = layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { a: 1 } } })
-    const a = ranked.nodes.find(node => node.id === 'a')!, b = ranked.nodes.find(node => node.id === 'b')!
-    expect(b.x + b.width).toBeLessThan(a.x)
-    expect(ranked.nodes.map(node => node.id)).toEqual(plain.nodes.map(node => node.id))
+    const plain = layoutElkGraphPlacementSync(graph)
+    expect(layoutElkGraphPlacementSync(graph, { layoutHints: { ranks: { a: 0 } } })).toEqual(plain)
     expect(graph).toEqual(original)
-    expect(() => layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { absent: 1 } } })).toThrow('LAYOUT_HINT_INVALID: unknown node')
+    expect(() => layoutElkGraphPlacementSync(graph, { layoutHints: { ranks: { absent: 1 } } })).toThrow('LAYOUT_HINT_INVALID: unknown node')
     graph.edges[0]!.target = 'missing'
-    expect(() => layoutNativeGraphPlacementSync(graph)).toThrow('unknown endpoint')
+    expect(() => layoutElkGraphPlacementSync(graph)).toThrow('Referenced shape does not exist: missing')
   })
 })
 
 const backends: [string, RenderOptions][] = [
   ['default', {}], ['ELK', { graphLayout: { backend: 'elk' } }],
-  ['native', { graphLayout: { backend: 'agentic', fallback: 'none' } }],
-  ['native with explicit ELK fallback', { graphLayout: { backend: 'agentic', fallback: 'elk' } }],
 ]
 for (const [name, backend] of backends) for (const [from, to] of [['R', 'L'], ['L', 'R'], ['T', 'B'], ['B', 'T']]) {
   test(`custom Architecture rings reserve space, contact authored sides and retain family proof: ${name}/${from}`, () => {
@@ -169,7 +93,7 @@ for (const [name, backend] of backends) for (const [from, to] of [['R', 'L'], ['
 
 
 // Explicit height is a requested minimum; the omission path stays separate.
-for (const backend of ['elk', 'agentic'] as const) for (const fixture of [
+for (const backend of ['elk'] as const) for (const fixture of [
   { name: 'one-line band', minimum: 36, source: 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b' },
   { name: 'multiline measured minimum', minimum: 10, source: 'architecture-beta\ngroup g(cloud)["One<br/>Two<br/>Three<br/>Four"]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b' },
   { name: 'nested title and normal exit', minimum: 64, source: 'architecture-beta\ntitle Visible Architecture\ngroup outer(cloud)[Outer]\ngroup inner(server)[Inner] in outer\nservice a(server)[A] in inner\nservice b(server)[B]\na:T-->B:b' },
@@ -229,7 +153,7 @@ for (const backend of ['elk', 'agentic'] as const) for (const fixture of [
 }
 
 
-for (const backend of ['elk', 'agentic'] as const) {
+for (const backend of ['elk'] as const) {
   test(`explicit Architecture header minima stay isolated across repeated requests: ${backend}`, () => {
     const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b'
     const render = (minimum?: number) => renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' }, ...(minimum === undefined ? {} : { architecture: { visual: { groupHeaderHeight: minimum } } }) }).svg

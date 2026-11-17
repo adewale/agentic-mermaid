@@ -33,7 +33,7 @@ describe('renderResolvedScene', () => {
     { family: 'class', source: 'classDiagram\nclass A\nclass B\nA <|-- B : inherits\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'class:A', b: 'class:B', relationship: 'rel:A->B#0' },
     { family: 'er', source: 'erDiagram\nA ||--o{ B : links\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'entity:A', b: 'entity:B', relationship: 'rel:A-B#0' },
   ])('keeps $family authored paint and dashes identical to public SVG', ({ source, a, b, relationship }) => {
-    for (const backend of ['agentic', 'elk'] as const) {
+    for (const backend of ['elk'] as const) {
       const options = { graphLayout: { backend, fallback: 'none' as const }, bg: '#ffffff', fg: '#102030', seed: 7, compact: true, idPrefix: 'resolved-paint-', font: 'Inter' }
       const result = renderResolvedScene(source, options)
       expect(result.svg).toBe(renderMermaidSVG(source, options))

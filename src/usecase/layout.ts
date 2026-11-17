@@ -1,4 +1,3 @@
-import { nativeFamilyGraphLayout } from '../layout/native-family-policy.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -25,7 +24,7 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
       nodeSizes.set(node.id, { width: Math.max(80, block.width * 1.5 + style.nodePaddingX * 2), height: Math.max(48, block.height * 1.5 + style.nodePaddingY * 2) })
     }
   }
-  const { certification: _placementCertificate, ...positioned } = layoutGraphSync(graph, { ...options, styleFace, nodeSizes, graphLayout: nativeFamilyGraphLayout(graph, options), diagramTitle: body.title ?? title })
+  const { certification: _placementCertificate, ...positioned } = layoutGraphSync(graph, { ...options, styleFace, nodeSizes, diagramTitle: body.title ?? title })
   const ellipses = new Set(body.nodes.filter(node => node.kind === 'usecase' && node.shape === 'ellipse').map(node => node.id))
   const byId = new Map(positioned.nodes.map(node => [node.id, node]))
   const actors = new Map(body.nodes.filter(node => node.kind === 'actor').map(node => [node.id, usecaseActorGlyph(byId.get(node.id)!, style.nodePaddingY, style.nodeLineWidth)]))

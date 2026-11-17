@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { expect, test } from 'bun:test'
 import { borrowedPositioned, cachedPositioned, retainPositioned } from '../experimental/position-cache.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision } from '../layout/backend.ts'
@@ -25,14 +28,14 @@ const prelude = `
   const decision = (request, selected, role) => {
     const receipt = receiptOf(request)
     assert.equal(receipt.layoutDecisions.length, 1)
-    assert.equal(receipt.layoutDecisions[0].requested, 'agentic')
+    assert.equal(receipt.layoutDecisions[0].requested, 'elk')
     assert.equal(receipt.layoutDecisions[0].selected, selected)
     assert.equal(receipt.layoutDecisions[0].role, role)
     return receipt.layoutDecisions[0]
   }
 `
 
-for (const family of ['flowchart', 'state'] as const) test(`native ${family} snapshot hits retain producer decisions, replay current roles and isolate public mutation`, async () => {
+for (const family of ['flowchart', 'state'] as const) test(`ELK ${family} snapshot hits retain producer decisions, replay current roles and isolate public mutation`, async () => {
   const child = await runChild(process.execPath, ['-e', `${prelude}
     withPerformanceExperiments(['text-spans', 'position-cache'], () => {
       const family = ${JSON.stringify(family)}
@@ -41,19 +44,19 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
           ' NativeCacheA[Start] -->|kept label| NativeCacheB[Finish]', 'end']
         : ['stateDiagram-v2', 'state NativeCacheFrame {',
           ' NativeCacheA --> NativeCacheB: kept label', '}']).join(String.fromCharCode(10))
-      const options = { graphLayout: { backend: 'agentic' } }
+      const options = { graphLayout: { backend: 'elk' } }
       const request = output => resolveRenderRequestForExecution(source, options, output)
       const firstRequest = request('svg')
       const first = observe(() => positionFamilyForNativeRender(firstRequest))
-      assert.ok(first.stages.includes('agentic'))
-      decision(firstRequest, 'agentic', 'primary')
+      assert.ok(first.stages.includes('elk'))
+      decision(firstRequest, 'elk', 'primary')
 
       const hitRequest = request('svg')
       const hit = observe(() => positionFamilyForNativeRender(hitRequest))
       assert.deepEqual(hit.stages, [])
       assert.deepEqual(hit.value, first.value)
       assert.equal(graphLayoutDecisionsOf(hit.value).length, 1)
-      decision(hitRequest, 'agentic', 'primary')
+      decision(hitRequest, 'elk', 'primary')
       const again = observe(() => positionFamilyForNativeRender(request('svg')))
       assert.deepEqual(again.stages, [])
       assert.notStrictEqual(again.value, hit.value)
@@ -65,7 +68,7 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
       const companion = observe(() => positionResolvedFamily(family, companionRequest))
       assert.deepEqual(companion.stages, [])
       assert.notStrictEqual(companion.value, hit.value)
-      decision(companionRequest, 'agentic', 'companion')
+      decision(companionRequest, 'elk', 'companion')
       // The producer result is output-neutral; role belongs to this request.
       assert.equal(graphLayoutDecisionsOf(companion.value)[0].role, undefined)
 
@@ -74,7 +77,7 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
       assert.deepEqual(exposed.stages, [])
       assert.notStrictEqual(exposed.value.positioned, hit.value.positioned)
       assert.equal(graphLayoutDecisionsOf(exposed.value).length, 1)
-      decision(publicRequest, 'agentic', 'primary')
+      decision(publicRequest, 'elk', 'primary')
       const reference = renderMermaidSVGWithReceipt(source, options)
       exposed.value.positioned.nodes[0].label = 'poisoned public label'
       exposed.value.positioned.nodes[0].x = NaN
@@ -87,73 +90,11 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
       assert.equal(Object.isFrozen(graphLayoutDecisionsOf(exposed.value)), true)
       assert.equal(Object.isFrozen(graphLayoutDecisionsOf(exposed.value)[0].attempts[0]), true)
     })
-    console.log('native cache integration passed')
+    console.log('ELK cache integration passed')
   `], childOptions)
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
-  expect(child.stdout.trim()).toBe('native cache integration passed')
-}, 30_000)
-
-test('borrowed and public fallback hits notify each current request once and retain strict refusal', async () => {
-  const child = await runChild(process.execPath, ['-e', `${prelude}
-    withPerformanceExperiments(['text-spans', 'position-cache'], () => {
-      const source = ['flowchart LR', 'FallbackCacheA[Source]', 'FallbackCacheB[Target]',
-        'FallbackCacheA ' + '-'.repeat(2049) + '> FallbackCacheB'].join(String.fromCharCode(10))
-      const calls = { miss: [], borrowed: [], public: [], companion: [], rendered: [] }
-      const options = name => ({ graphLayout: { backend: 'agentic', fallback: 'elk' },
-        onConfigDiagnostic: value => calls[name].push(value) })
-      const request = (name, output = 'svg') => resolveRenderRequestForExecution(source, options(name), output)
-      const missRequest = request('miss')
-      const miss = observe(() => positionResolvedFamily('flowchart', missRequest))
-      assert.ok(miss.stages.includes('elk'))
-      decision(missRequest, 'elk', 'primary')
-      assert.equal(calls.miss.length, 1)
-
-      const borrowedRequest = request('borrowed')
-      const borrowed = observe(() => positionFamilyForNativeRender(borrowedRequest))
-      assert.deepEqual(borrowed.stages, [])
-      assert.notStrictEqual(borrowed.value, miss.value)
-      assert.equal(graphLayoutDecisionsOf(borrowed.value).length, 1)
-      const selected = decision(borrowedRequest, 'elk', 'primary')
-      assert.equal(selected.fallback, 'elk')
-      assert.deepEqual(selected.attempts.map(value => [value.backend, value.outcome]),
-        [['agentic', 'unsupported'], ['elk', 'selected']])
-      assert.equal(selected.attempts[0].reason, 'agentic local rank-expansion limit')
-      const repeated = observe(() => positionFamilyForNativeRender(borrowedRequest))
-      assert.deepEqual(repeated.stages, [])
-      assert.notStrictEqual(repeated.value, borrowed.value)
-      assert.strictEqual(repeated.value.positioned, borrowed.value.positioned)
-      assert.equal(calls.borrowed.length, 1)
-
-      const publicRequest = request('public')
-      const exposed = observe(() => positionResolvedFamily('flowchart', publicRequest))
-      assert.deepEqual(exposed.stages, [])
-      assert.notStrictEqual(exposed.value, borrowed.value)
-      decision(publicRequest, 'elk', 'primary')
-      assert.equal(calls.public.length, 1)
-      const companionRequest = request('companion', 'ascii')
-      const companion = observe(() => positionResolvedFamily('flowchart', companionRequest))
-      assert.deepEqual(companion.stages, [])
-      decision(companionRequest, 'elk', 'companion')
-      assert.equal(calls.companion.length, 1)
-      assert.equal(calls.miss.length, 1)
-      for (const values of Object.values(calls).filter(values => values.length)) {
-        assert.equal(values[0].code, 'INEFFECTIVE_CONFIG')
-        assert.equal(values[0].field, 'graphLayout.backend')
-      }
-      const rendered = renderMermaidSVGWithReceipt(source, options('rendered'))
-      assert.equal(calls.rendered.length, 1)
-      assert.equal(rendered.receipt.layoutDecisions[0].selected, 'elk')
-      assert.equal(rendered.receipt.layoutDecisions[0].role, 'primary')
-      assert.equal(rendered.receipt.diagnostics.filter(value => value.code === 'GRAPH_LAYOUT_FALLBACK').length, 1)
-      const strict = resolveRenderRequestForExecution(source, { graphLayout: { backend: 'agentic' } }, 'svg')
-      assert.throws(() => positionFamilyForNativeRender(strict), error => error.code === 'GRAPH_LAYOUT_UNSUPPORTED')
-    })
-    console.log('fallback cache integration passed')
-  `], childOptions)
-  expect(child.stderr).toBe('')
-  expect(child.status).toBe(0)
-  expect(child.stdout.trim()).toBe('fallback cache integration passed')
+  expect(child.stdout.trim()).toBe('ELK cache integration passed')
 }, 30_000)
 
 test('snapshot cloning preserves prepared-text Map keys and values alongside result-bound evidence', () => {
@@ -163,8 +104,8 @@ test('snapshot cloning preserves prepared-text Map keys and values alongside res
   const value = { positioned: { width: 20, height: 20 }, references: new Map([[key, { block, sameBlock: block }]]) }
   const family = {}
   const cacheKey = 'graph-layout-integration-prepared-map'
-  retainGraphLayoutDecision(value, { requested: 'agentic', fallback: 'none', selected: 'agentic',
-    attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'agentic-layered@28' })
+  retainGraphLayoutDecision(value, { requested: 'elk', fallback: 'none', selected: 'elk',
+    attempts: [{ backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' })
   retainPositioned(family, cacheKey, value)
   const borrowed = borrowedPositioned(family, cacheKey)!.result as typeof value
   expect(graphLayoutDecisionsOf(borrowed)).toEqual(graphLayoutDecisionsOf(value))
@@ -193,7 +134,6 @@ test('Class cached producer admission remains bound to the actually selected pai
     import './src/agent/families.ts'
     import './src/scene/builtin-backends.ts'
     import { spyOn } from 'bun:test'
-    import * as native from './src/layout/agentic-layered.ts'
     import * as elk from './src/elk-instance.ts'
     import { DefaultBackend, registerBackend } from './src/scene/backend.ts'
     import { LayoutCertificationError } from './src/layout/backend.ts'
@@ -201,36 +141,37 @@ test('Class cached producer admission remains bound to the actually selected pai
     const unregister = registerBackend({ ...DefaultBackend, id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) },
       { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
-    let nativeCalls = 0, elkCalls = 0, policyCalls = 0
+    let elkCalls = 0, policyCalls = 0
     const source = 'classDiagram\\nclass S\\nclass T\\nS o-- T\\nS <|-- T'
     const paths = [
       [{x:200,y:120},{x:180,y:120},{x:180,y:80},{x:580,y:80},{x:580,y:120},{x:600,y:120}],
       [{x:200,y:123.865},{x:170,y:123.865},{x:170,y:60},{x:560,y:60},{x:560,y:130},{x:600,y:130}],
     ]
-    const producer = spyOn(native, 'layoutAgenticGraph').mockImplementation(() => {
-      nativeCalls++
-      return {width:900,height:300,nodes:[{x:200,y:100},{x:600,y:100}],groups:[],edges:paths.map(points=>({points:points.map(p=>({...p}))}))}
+    const producer = spyOn(elk, 'elkLayoutSync').mockImplementation(graph => {
+      elkCalls++
+      return { ...graph, width: 900, height: 300,
+        children: graph.children.map((child, index) => ({ ...child, x: index ? 600 : 200, y: 100 })),
+        edges: graph.edges.map((edge, index) => ({ ...edge, sections: [{ id: 'section',
+          startPoint: paths[index][0], bendPoints: paths[index].slice(1, -1), endPoint: paths[index].at(-1) }] })) }
     })
-    const stock = spyOn(elk, 'elkLayoutSync').mockImplementation(() => { elkCalls++; throw Error('strict Native must not invoke ELK') })
     try { withPerformanceExperiments(['text-spans', 'position-cache'], () => {
-      const options = { graphLayout: { backend: 'agentic', fallback: 'none' } }
+      const options = { graphLayout: { backend: 'elk', fallback: 'none' } }
       const host = () => resolveRenderRequestForExecution(source, options, 'svg', undefined,
         { backendPolicy: { selectBackend: () => { policyCalls++; return id } } })
       const first = host(), firstResult = positionFamilyForNativeRender(first)
       assert.equal(firstResult.positioned.relationships.length, 2)
-      decision(first, 'agentic', 'primary')
-      assert.equal(nativeCalls, 1)
+      decision(first, 'elk', 'primary')
+      assert.equal(elkCalls, 1)
       const normal = resolveRenderRequestForExecution(source, options, 'svg')
       assert.throws(() => positionFamilyForNativeRender(normal), LayoutCertificationError)
-      assert.equal(nativeCalls, 2)
-      assert.equal(elkCalls, 0)
+      assert.equal(elkCalls, 2)
       assert.equal(receiptOf(normal).layoutDecisions?.length ?? 0, 0)
       const hit = host(), hitResult = positionFamilyForNativeRender(hit)
       assert.deepEqual(hitResult.positioned, firstResult.positioned)
-      assert.equal(nativeCalls, 2)
+      assert.equal(elkCalls, 2)
       assert.equal(policyCalls, 2)
-      decision(hit, 'agentic', 'primary')
-    }) } finally { producer.mockRestore(); stock.mockRestore(); unregister() }
+      decision(hit, 'elk', 'primary')
+    }) } finally { producer.mockRestore(); unregister() }
     console.log('Class backend-bound admission cache passed')
   `,
     ],
@@ -240,3 +181,44 @@ test('Class cached producer admission remains bound to the actually selected pai
   expect(child.status).toBe(0)
   expect(child.stdout.trim()).toBe('Class backend-bound admission cache passed')
 }, 30_000)
+
+
+test('ELK reuse preserves comment edits and rechecks current style maps and host metrics', () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8')
+  const options = { graphLayout: { backend: 'elk' as const }, nodeSpacing: 73 }
+  const render = (value: string) => withPerformanceExperiments(['text-spans', 'position-cache'], () => renderMermaidSVGWithReceipt(value, options))
+  const first = render(source), edited = render(source + '\n%% reviewed')
+  expect(edited.svg).toBe(first.svg)
+  expect(edited.receipt.layoutDecisions).toEqual(first.receipt.layoutDecisions)
+  expect(edited.receipt.layoutCertification).toEqual(first.receipt.layoutCertification)
+  expect(edited.receipt.requestDigest).not.toBe(first.receipt.requestDigest)
+  for (const style of ['style n0 stroke-width:4px', 'linkStyle default stroke-width:4px']) {
+    const changed = source + '\n' + style
+    const cold = withPerformanceExperiments([], () => renderMermaidSVGWithReceipt(changed, options))
+    expect(render(changed)).toEqual(cold)
+    expect(render(changed + '\n%% reviewed').svg).toBe(cold.svg)
+    expect(cold.svg).not.toBe(first.svg)
+  }
+  let measurements = 0, scale = .55
+  const host = createMermaidRenderer({ textMeasurement: { id: 'test:elk-reuse-current-metrics', version: '1.0.0',
+    measure: ({ text, fontSize }) => { measurements++; return text.length * fontSize * scale } } })
+  const hostFirst = host.renderMermaidSVGWithReceipt(source, options), firstCalls = measurements
+  expect(firstCalls).toBeGreaterThan(0)
+  expect(host.renderMermaidSVGWithReceipt(source + '\n%% profiled', options).svg).toBe(hostFirst.svg)
+  expect(measurements).toBeGreaterThan(firstCalls)
+  const repeatedCalls = measurements
+  scale = .7
+  expect(host.renderMermaidSVGWithReceipt(source, options).svg).not.toBe(hostFirst.svg)
+  expect(measurements).toBeGreaterThan(repeatedCalls)
+})
+
+test('ELK reuse reattaches current authored text and execution receipts after equal-size card edits', () => {
+  const options = { graphLayout: { backend: 'elk' as const } }
+  const first = renderMermaidSVGWithReceipt('flowchart TB\n A[Cat] --> B[Pet]', options)
+  const edited = renderMermaidSVGWithReceipt('flowchart TB\n A[Dog] --> B[Pet]', options)
+  expect(first.svg).toContain('Cat')
+  expect(edited.svg).toContain('Dog')
+  expect(edited.svg).not.toContain('Cat')
+  expect(edited.receipt.layoutDecisions).toEqual(first.receipt.layoutDecisions)
+  expect(edited.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
+})
