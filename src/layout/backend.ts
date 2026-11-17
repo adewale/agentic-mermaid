@@ -5,7 +5,7 @@ export { graphLayoutDecisionsOf, retainGraphLayoutDecision, transferGraphLayoutD
 import type { Direction, GraphLayoutOptions, RenderOptions } from '../types.ts'
 
 export { measureRenderStage, type RenderStage, type RenderStageSample, withRenderStageObserver } from '../render-stages.ts'
-export { DeferredDependencyError, type LayoutCertificationAttempt, LayoutCertificationError } from './certification-error.ts'
+export { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
 export interface GraphLayoutDecision {
   readonly requested: 'elk'
