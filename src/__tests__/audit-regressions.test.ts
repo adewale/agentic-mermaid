@@ -68,8 +68,9 @@ describe('reported contract regressions', () => {
   })
 
   test('opaque sequence semantics are explicit instead of silently absent from read-back', () => {
-    // Nested fragments are typed; an activation inside one keeps it opaque.
-    const source = 'sequenceDiagram\n  alt outer\n    loop retry\n      activate A\n      A->>B: hidden\n      deactivate A\n    end\n  end'
+    // Nested fragments and activation lines are typed; a rect whose color
+    // the renderer does not read keeps its block, and the alt around it, opaque.
+    const source = 'sequenceDiagram\n  alt outer\n    rect #ff0000\n      activate A\n      A->>B: hidden\n      deactivate A\n    end\n  end'
     const result = verifyMermaid(source)
     expect(result.layout.edges).toHaveLength(1)
     expect(result.warnings).toContainEqual(expect.objectContaining({

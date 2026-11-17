@@ -71,12 +71,13 @@ describe('deterministic Mermaid facts', () => {
   })
 
   test('recognized messages in preserved Sequence controls remain observable without claiming typed edit indexes', () => {
-    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n critical Connect\n A->>B: attempt\n activate B\n option timeout\n B-->>A: retry\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
+    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n rect #ff0000\n critical Connect\n A->>B: attempt\n activate B\n option timeout\n B-->>A: retry\n end\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
     const out = facts(source)
     for (const message of ['message A -> B : start', 'message A -> B : attempt', 'message B -> A : retry', 'message A -> B : <b>literal</b>']) expect(out).toContain(message)
     expect(out).toContain('title Checkout')
-    // The critical block holds an activation and stays preserved; the loop
-    // nested in the rect is typed, addressed through its path.
+    // The rect the renderer reads no color for stays preserved with the
+    // critical block in it; the loop nested in the other rect is typed,
+    // addressed through its path.
     expect(out.filter(fact => fact.startsWith('preserved-message#') && fact.includes(' -> '))).toHaveLength(2)
     expect(out.filter(fact => /^message#\d+ (?:top-level|fragment#)/.test(fact))).toEqual(['message#0 top-level A -> B : start', 'message#1 fragment#0.0.0 branch#0 A -> B : <b>literal</b>'])
     expect(out).toContain('message#1 op fragmentPath [{"fragmentIndex":0,"branchIndex":0}] fragmentIndex 0 branchIndex 0 index 0')
@@ -87,8 +88,8 @@ describe('deterministic Mermaid facts', () => {
   })
 
   test('Sequence notes are facts with their placement and participants, wherever they are preserved', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A,B: shared<br/>step\n  rect rgb(1, 2, 3)\n    loop again\n      Note left of A: "quoted"\n    end\n  end\n  alt ok\n    A->>B: yes\n    Note right of B: wrap: done\n  end\n  critical kept\n    activate A\n    Note over B: as written\n  end'
-    const expected = ['note over A,B : shared\\nstep', 'note left of A : quoted', 'note right of B : done', 'note over B : as written']
+    const source = 'sequenceDiagram\n  A->>B: hi\n  Note over A,B: shared<br/>step\n  rect rgb(1, 2, 3)\n    loop again\n      Note left of A: "quoted"\n    end\n  end\n  alt ok\n    A->>B: yes\n    Note right of B: wrap: done\n  end\n  critical kept\n    activate A\n    Note over B: as written\n  end\n  rect #ff0000\n    Note over A: verbatim\n  end'
+    const expected = ['note over A,B : shared\\nstep', 'note left of A : quoted', 'note right of B : done', 'note over B : as written', 'note over A : verbatim']
     const out = facts(source)
     expect(out.filter(fact => fact.startsWith('note '))).toEqual([...expected].sort())
     // Typed notes are numbered in drawing order with the address their ops
@@ -99,8 +100,11 @@ describe('deterministic Mermaid facts', () => {
     expect(out).toContain('note#1 op fragmentPath [{"fragmentIndex":0,"branchIndex":0}] fragmentIndex 0 branchIndex 0 index 0')
     expect(out).toContain('note#2 right of B : done')
     expect(out).toContain('note#2 op fragmentIndex 1 branchIndex 0 index 0')
-    // A fragment holding an activation stays preserved source.
-    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toEqual(['preserved-note#4.2 over B : as written'])
+    // An activation rides along verbatim in its branch.
+    expect(out).toContain('note#3 over B : as written')
+    expect(out).toContain('note#3 op fragmentIndex 2 branchIndex 0 index 0')
+    // A rect the renderer reads no color for stays preserved source.
+    expect(out.filter(fact => fact.startsWith('preserved-note#'))).toEqual(['preserved-note#5.1 over A : verbatim'])
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(facts(serializeMermaid(parsed.value))).toEqual(out)
@@ -279,8 +283,8 @@ describe('facts through Code Mode and CLI surfaces', () => {
   })
 
   test('am describe --json carries verify warnings in every format, as MCP describe does', () => {
-    const source = 'sequenceDiagram\n  A->>B: hi\n  activate A'
-    const file = temp.file('activation.mmd', source)
+    const source = 'sequenceDiagram\n  A->>B: hi\n  autonumber'
+    const file = temp.file('autonumber.mmd', source)
     for (const format of ['text', 'facts', 'json']) {
       const result = capture(() => runCli(['describe', file, '--format', format, '--json']))
       expect({ format, code: result.code, out: JSON.parse(result.out) }).toEqual({ format, code: 0, out: mcpDescribePayload(source, { format }) })

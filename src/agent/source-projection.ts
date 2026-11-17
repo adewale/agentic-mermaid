@@ -37,6 +37,36 @@
 // statement keeps its line, and the new statement names it bare. A brace
 // opener the parser does not accept empty (a namespace) is read as a block,
 // and a block written on one line is rewritten there as the edited block.
+//
+// A candidate that reads back as the edit is still rejected when it leaves a
+// statement the family applies only to an entity that already exists (a
+// flowchart `class B hot` or `click B`, a Class `style B`) before that
+// entity's first mention, where the authored source did not: our reader
+// applies it, Mermaid ignores it (FamilyOperations.existingTargets).
+//
+// A last pass keeps each kept line after the first mention it was written
+// after. When a closer candidate misreads a name, or leaves such a statement
+// before it, and the edit removed every earlier line naming it, the statement
+// on the first kept line naming it (`note right of S` once `[*] --> S` goes,
+// which would declare S where it stands) moves verbatim to just after the
+// next line naming it, with the kept lines between that apply to it only
+// where it exists. A line read as nothing alone (a flowchart `click B`) is
+// traced by its reading after the earlier lines that share a word with it.
+//
+// A placement pass then writes a new statement such a candidate leaves
+// before what it needs (`class D hot` beside a classDef above D, a Class
+// classDef before the `cssClass` giving a class its style class) after it,
+// and a kept classDef a new `cssClass` would leave before its class after
+// that `cssClass`, unless the `cssClass` can stand between them; no move
+// passes a statement sharing a word with the one moved.
+//
+// Every candidate is also checked for a statement whose paint Mermaid draws
+// over where ours does not (FamilyOperations.existingTargets' `follows`): a
+// Class `style B` left before the classDef of B's style class setting the
+// same property, which Mermaid draws in statement order. A candidate that
+// leaves one the authored source does not have, however it moved, kept or
+// rewrote its lines, is rejected; the placement pass then writes the new or
+// edited one of the two on the other side of the kept one.
 // The caller otherwise writes the canonical source and says why: the closest
 // candidate's misreading, or the statement that could not be placed.
 // ============================================================================
@@ -156,9 +186,26 @@ interface LineReader {
   /** The canonical statements an authored statement adds inside a block
    * (between its authored opener and closer), less the empty block's own. */
   within(opener: string, text: string, closer: string): Map<string, number> | undefined
+  /** The canonical statements a statement adds after earlier authored
+   * statements (`context`), less those of the context alone: a statement
+   * read as nothing alone, since it applies only to what an earlier line
+   * declares (a flowchart `click B` after `A --> B`). */
+  after(context: readonly string[], text: string): Map<string, number> | undefined
 }
 
 const closesBlock = (statement: string) => statement.trim() === 'end' || statement.trim() === '}'
+
+/** The statements `found` reads beyond those `base` reads. */
+function difference(found: ReadonlyMap<string, number> | undefined, base: ReadonlyMap<string, number> | undefined): Map<string, number> | undefined {
+  if (!found) return undefined
+  const result = new Map(found)
+  for (const [line, count] of base ?? []) {
+    const left = (result.get(line) ?? 0) - count
+    if (left > 0) result.set(line, left)
+    else result.delete(line)
+  }
+  return result
+}
 
 /** Isolated readings, cached by text: a fallback pass re-reads the same lines. */
 function lineReader(wrapper: string, header: string): LineReader {
@@ -199,15 +246,10 @@ function lineReader(wrapper: string, header: string): LineReader {
       return read(`${wrapper}${header}\n${text.trim()}`) !== undefined
     },
     within(opener, text, closer) {
-      const found = read(`${wrapper}${header}\n${opener}\n${text}\n${closer}`)
-      if (!found) return undefined
-      const result = new Map(found)
-      for (const [line, count] of read(`${wrapper}${header}\n${opener}\n${closer}`) ?? []) {
-        const left = (result.get(line) ?? 0) - count
-        if (left > 0) result.set(line, left)
-        else result.delete(line)
-      }
-      return result
+      return difference(read(`${wrapper}${header}\n${opener}\n${text}\n${closer}`), read(`${wrapper}${header}\n${opener}\n${closer}`))
+    },
+    after(context, text) {
+      return difference(read(`${wrapper}${header}\n${context.join('\n')}\n${text}`), read(`${wrapper}${header}\n${context.join('\n')}`))
     },
     opensBrace(text) {
       return /\{\s*$/.test(text) && read(`${wrapper}${header}\n${text}`) === undefined && read(`${wrapper}${header}\n${text}\n}`) === undefined
@@ -286,6 +328,16 @@ function traceOwners(wrapper: string, lines: readonly AuthoredLine[], c0: readon
     if (index === 0 || !trimmed || (inert(text) && !canonical.has(trimmed))) return new Map<string, number>()
     if (canonical.has(trimmed)) return new Map([[trimmed, 1]])
     return reader.isolated(trimmed) ?? new Map([[trimmed, 1]])
+  })
+  // A statement read as nothing alone applies only to what an earlier line
+  // declares (a flowchart `click B`): it is read after the earlier
+  // statements that share a word with it.
+  readings.forEach((reading, index) => {
+    if (reading.size || index === 0 || inert(lines[index]!.text)) return
+    const words = new Set(lines[index]!.text.match(WORDS) ?? [])
+    const context = lines.slice(1, index).flatMap(({ text }, offset) => readings[offset + 1]!.size && (text.match(WORDS) ?? []).some(word => words.has(word)) ? [text.trim()] : [])
+    const found = context.length ? reader.after(context, lines[index]!.text.trim()) : undefined
+    if (found?.size) readings[index] = found
   })
   const remaining = readings.map(reading => new Map(reading))
   let last = 0
@@ -702,7 +754,39 @@ interface Variant {
    * canonical statement is not in, and write the statements of a rewritten
    * line together in canonical order. */
   readonly residual?: boolean
+  /** First-mention pass: names a closer candidate misread. A kept line left
+   * as the first mention of such a name, whose earlier mentions the edit
+   * removed, moves after the next line that names it. */
+  readonly follow?: Follow
+  /** Placement pass: new statements written elsewhere than beside their
+   * canonical neighbour, and kept lines moved after a new statement. */
+  readonly place?: Place
 }
+
+/** Where the placement pass writes new statements (by their index in the
+ * edited canonical text) that Mermaid would ignore beside their canonical
+ * neighbour. Authored lines are those of the residual trace. */
+interface Place {
+  /** Written after this authored line, or after the authored block holding
+   * it within the block the statement was placed in. */
+  readonly after: ReadonlyMap<number, number>
+  /** Written just before this authored line. */
+  readonly before: ReadonlyMap<number, number>
+  /** The statement on this authored line (every line it is read from) moves
+   * verbatim to just after this new statement. */
+  readonly carry: ReadonlyMap<number, number>
+  /** The authored line a new statement is placed past because Mermaid
+   * reads their order (a `style` and the classDef that would draw over
+   * it); every candidate is checked for what Mermaid reads by order. */
+  readonly past: ReadonlyMap<number, number>
+}
+const NO_PLACE: Place = { after: new Map(), before: new Map(), carry: new Map(), past: new Map() }
+/** Rounds of the placement pass: each places what the last round's closest
+ * candidates still left before what it needs. */
+const MAX_PLACE_ROUNDS = 4
+/** Placements one round tries for one candidate. */
+const MAX_PLACE_ALTERNATIVES = 4
+
 const VARIANTS: readonly Variant[] = [
   ...[false, true].flatMap(loose => [true, false].flatMap(splice => [true, false].map(previous => ({ splice, loose, previous, move: false, pair: true })))),
   ...[false, true].flatMap(loose => [true, false].map(previous => ({ splice: true, loose, previous, move: true, pair: true }))),
@@ -718,6 +802,8 @@ interface Plan {
   readonly text: Map<number, string>
   readonly before: Map<number, string[]>
   readonly after: Map<number, string[]>
+  /** Where each new statement is written: before or after an authored line. */
+  readonly written: Map<number, readonly ['before' | 'after', number]>
 }
 
 /** The canonical line diff a variant reads: exact, or ignoring whitespace. */
@@ -728,7 +814,7 @@ function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: bool
 
 function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded, parts, implicit, readings, nesting }: Trace, variant: Variant, reader: LineReader): Plan | string {
   if (!ops) return 'the edit changes too many lines to compare'
-  const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
+  const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map(), written: new Map() }
   const partsOf = (index: number): readonly number[] => parts?.get(index) ?? (owner[index]! >= 0 ? [owner[index]!] : [])
   let stranded: string | undefined
   // The statements each authored line is read into.
@@ -1117,6 +1203,8 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       placed.after.delete(line)
     }
   }
+  const carried = variant.place && nesting ? placeStatements(lines, c0, c1, plan, { placed, roles, partsOf, gone, rewritten, nesting, openerOf, canonicalOf: index => keptAs.get(index) ?? pairOf.get(index) }, variant.place, reader) : undefined
+  if (typeof carried === 'string') return carried
   for (const where of ['before', 'after'] as const) for (const list of placed[where].values()) list.sort((a, b) => a[0] - b[0])
   // Mermaid reads some statements only after what they name (a `class`
   // line before its node is dropped), so new statements that share a word
@@ -1130,8 +1218,308 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       if ([...words(written[earlier]!)].some(word => shared.has(word))) return `the new statements ${quote(c1[written[earlier]!]!)} and ${quote(c1[written[at]!]!)} would be written out of canonical order`
     }
   }
-  for (const where of ['before', 'after'] as const) for (const [line, list] of placed[where]) plan[where].set(line, list.map(([, text]) => text))
+  for (const where of ['before', 'after'] as const) {
+    for (const [line, list] of placed[where]) {
+      plan[where].set(line, list.flatMap(([index, text]) => [text, ...carried?.get(index) ?? []]))
+      for (const [index] of list) plan.written.set(index, [where, line])
+    }
+  }
+  if (variant.follow && parts && nesting) followFirstMentions(lines, c0, c1, plan, { gone, rewritten, roles, partsOf, placed, nesting }, variant.follow, reader)
   return plan
+}
+
+/** Names that follow their first mention, for the first-mention pass, and
+ * the family's statements that apply to an entity only where it exists. */
+interface Follow {
+  readonly names: ReadonlySet<string>
+  readonly targets: (statement: string) => readonly string[]
+}
+
+/**
+ * First-mention pass: a line the author wrote after a name's first mention
+ * stays after it. When the edit removes every earlier line naming a name a
+ * closer candidate misread (`[*] --> S` before `note right of S`, `A --> B`
+ * before `class B hot`), the statement the first kept line naming it reads
+ * (the note, every line it is read from) moves verbatim to just after the
+ * next kept line naming it, past that line's authored block, within the same
+ * block, with the kept lines between that apply to it only where it exists
+ * (the family's existingTargets: `class B hot`, `click B …`). A note left
+ * first would declare its state there instead; Mermaid ignores a `class`
+ * left before its node.
+ */
+function followFirstMentions(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], plan: Plan, { gone, rewritten, roles, partsOf, placed, nesting }: {
+  gone: ReadonlySet<number>
+  rewritten: ReadonlySet<number>
+  roles: ReadonlyMap<number, readonly number[]>
+  partsOf: (index: number) => readonly number[]
+  placed: { readonly before: ReadonlyMap<number, ReadonlyArray<[number, string]>>; readonly after: ReadonlyMap<number, ReadonlyArray<[number, string]>> }
+  nesting: NonNullable<Trace['nesting']>
+}, { names, targets }: Follow, reader: LineReader): void {
+  const words = (statement: string) => new Set(statement.match(WORDS) ?? [])
+  const removedWords = new Set([...gone].flatMap(index => [...words(c0[index]!)]))
+  const lineWords = lines.map((_, line) => new Set((roles.get(line) ?? []).flatMap(index => [...words(c0[index]!)])))
+  const written = (line: number) => [...placed.before.get(line) ?? [], ...placed.after.get(line) ?? []]
+  const applies = (line: number, name: string) => (roles.get(line) ?? []).some(index => targets(c0[index]!).includes(name))
+  for (const name of names) {
+    if (!removedWords.has(name)) continue
+    const naming = lines.flatMap((_, line) => line > 0 && lineWords[line]!.has(name) ? [line] : [])
+    const first = naming.find(line => !plan.removed.has(line))
+    // The earliest mention is kept, or a new statement names it first.
+    if (first === undefined || first === naming[0] || lines.slice(0, first + 1).some((_, line) => written(line).some(([index]) => words(c1[index]!).has(name)))) continue
+    // The statement on the first kept line (every line it is read from),
+    // the next kept line naming it in no statement that applies to it only
+    // where it exists, and each kept line's between that applies to it so.
+    // Such a line is one statement; moving it later loses nothing, since
+    // whatever else it reads applies only to what exists too, or the next
+    // line reads it (the declaration of the class a Class `style B` names).
+    const head = applies(first, name) ? [first, first] as [number, number] : statementAt(lines, c0, first, { roles, partsOf, nesting }, reader)
+    if (!head) continue
+    const next = naming.find(line => line > head[1] && !plan.removed.has(line) && !applies(line, name)) ?? -1
+    if (next < 0) continue
+    const following = reader.isolated(lines[next]!.text.trim())
+    const alone = (line: number) => roles.get(line)!.every(index => targets(c0[index]!).length > 0 || following?.has(c0[index]!.trim()) || partsOf(index).some(part => part !== line && !plan.removed.has(part)))
+    const units: Array<[number, number]> = [head]
+    for (const line of naming) {
+      if (line < first || line >= next || plan.removed.has(line) || line <= units.at(-1)![1]) continue
+      if (nesting.enclosing[line] !== nesting.enclosing[first] || !alone(line)) { units.length = 0; break }
+      units.push([line, line])
+    }
+    if (applies(first, name) && !alone(first)) continue
+    if (!units.length) continue
+    const from = units[0]![0]
+    const moving = units.flatMap(([start, end]) => Array.from({ length: end - start + 1 }, (_, offset) => start + offset))
+    const statements = moving.flatMap(line => roles.get(line) ?? [])
+    if (statements.some(index => gone.has(index) || rewritten.has(index)) || moving.some(line => plan.removed.has(line) || plan.text.has(line) || written(line).length)) continue
+    // The authored block holding that line.
+    let block = next
+    while (block >= 0 && nesting.enclosing[block] !== nesting.enclosing[from]) block = nesting.enclosing[block]!
+    if (block < 0) continue
+    const anchor = nesting.closer.get(block) ?? block
+    if (plan.removed.has(anchor)) continue
+    for (const line of moving) plan.removed.add(line)
+    plan.after.set(anchor, [...moving.map(line => lines[line]!.text), ...plan.after.get(anchor) ?? []])
+  }
+}
+
+/**
+ * Placement pass: a new statement Mermaid would ignore beside its canonical
+ * neighbour (`class D hot` next to a classDef written above D) is written
+ * after the authored line it needs, past that line's authored block, or
+ * just before the kept line that needs it (a Class classDef that must follow
+ * a new `cssClass`), within the block it was placed in and indented like the
+ * line it now stands beside. A kept statement that needs a new one it
+ * cannot precede moves verbatim to just after it. No such move passes,
+ * against the canonical order, a statement sharing a word with the one
+ * moved, whose order ours may read where the read-back does not compare it
+ * (what Mermaid reads by order and ours does not, every candidate is checked
+ * for). Returns the lines carried after each new statement, or why the
+ * placement cannot be written.
+ */
+function placeStatements(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], plan: Plan, { placed, roles, partsOf, gone, rewritten, nesting, openerOf, canonicalOf }: {
+  placed: { readonly before: Map<number, Array<[number, string]>>; readonly after: Map<number, Array<[number, string]>> }
+  roles: ReadonlyMap<number, readonly number[]>
+  partsOf: (index: number) => readonly number[]
+  gone: ReadonlySet<number>
+  rewritten: ReadonlySet<number>
+  nesting: NonNullable<Trace['nesting']>
+  openerOf: ReadonlyMap<number, number>
+  /** The edited canonical statement a kept one continues. */
+  canonicalOf: (index: number) => number | undefined
+}, place: Place, reader: LineReader): Map<number, string[]> | string {
+  const find = (index: number): ['before' | 'after', number, number] | undefined => {
+    for (const where of ['before', 'after'] as const) for (const [line, list] of placed[where]) {
+      const at = list.findIndex(([entry]) => entry === index)
+      if (at >= 0) return [where, line, at]
+    }
+    return undefined
+  }
+  // Where a statement stands: an authored line, or a new statement beside
+  // one (in canonical order there).
+  const positionOf = (index: number): Position => {
+    const [where, line] = find(index)!
+    return [where === 'after' ? line + 0.5 : line - 0.5, index]
+  }
+  // The authored block a statement written there stands in.
+  const blockOf = (where: 'before' | 'after', line: number) => where === 'after' ? (nesting.closer.has(line) ? line : nesting.enclosing[line]!) : openerOf.get(line) ?? nesting.enclosing[line]!
+  const unplaced = (index: number) => `the new statement ${quote(c1[index]!)} cannot be written after what it needs in its authored block`
+  const moves: Array<{ index: number; from: Position; to: () => Position; past?: number }> = []
+  for (const [where, constraints] of [['after', place.after], ['before', place.before]] as const) {
+    for (const [index, target] of constraints) {
+      const found = find(index)
+      if (!found) return unplaced(index)
+      const [from, line, at] = found, block = blockOf(from, line), was = positionOf(index)
+      const [[, text]] = placed[from].get(line)!.splice(at, 1) as [[number, string]]
+      let anchor = target
+      while (anchor >= 0 && nesting.enclosing[anchor] !== block) anchor = nesting.enclosing[anchor]!
+      if (anchor < 0) return unplaced(index)
+      if (where === 'after') anchor = nesting.closer.get(anchor) ?? anchor
+      if (plan.removed.has(anchor)) return unplaced(index)
+      placed[where].set(anchor, [...placed[where].get(anchor) ?? [], [index, leading(lines[anchor]!.text) + text.trimStart()]])
+      moves.push({ index, from: was, to: () => positionOf(index), past: place.past.get(index) })
+    }
+  }
+  const carried = new Map<number, string[]>()
+  const written = (line: number) => (placed.before.get(line)?.length ?? 0) + (placed.after.get(line)?.length ?? 0)
+  for (const [line, index] of place.carry) {
+    const found = find(index), unit = statementAt(lines, c0, line, { roles, partsOf, nesting }, reader)
+    const refused = `the kept statement ${quote(lines[line]!.text)} cannot follow the new statement ${quote(c1[index]!)} it needs`
+    if (!found || !unit) return refused
+    const moving = Array.from({ length: unit[1] - unit[0] + 1 }, (_, offset) => unit[0] + offset)
+    const statements = moving.flatMap(at => roles.get(at) ?? [])
+    if (nesting.enclosing[unit[0]] !== blockOf(found[0], found[1]) || statements.some(at => gone.has(at) || rewritten.has(at) || canonicalOf(at) === undefined) || moving.some(at => plan.removed.has(at) || plan.text.has(at) || written(at))) return refused
+    for (const at of moving) plan.removed.add(at)
+    carried.set(index, [...carried.get(index) ?? [], ...moving.map(at => lines[at]!.text)])
+    for (const at of statements) moves.push({ index: canonicalOf(at)!, from: [unit[0], -1], to: () => [positionOf(index)[0], index + 0.5] })
+  }
+  // What Mermaid reads by where a statement stands and ours does not (an
+  // entity's first mention, a later statement's paint) every candidate is
+  // checked for (FamilyOperations.existingTargets). The read-back compares
+  // statements as a multiset, so a move also passes no statement sharing a
+  // word with the one moved, whose order ours may read (two `cssClass`
+  // lines giving one class its style classes).
+  const memo = new Map<number, Set<string>>()
+  const read = (index: number) => {
+    if (!memo.has(index)) memo.set(index, new Set(c1[index]!.match(WORDS) ?? []))
+    return memo.get(index)!
+  }
+  const ordered = (a: number, b: number) => [...read(a)].some(word => read(b).has(word))
+  for (const { index, from, to: final, past } of moves) {
+    const to = final(), forward = precedes(from, to), [low, high] = forward ? [from, to] : [to, from]
+    const between = (at: Position) => precedes(low, at) && precedes(at, high)
+    const passed = [
+      ...lines.flatMap((_, line) => line !== past && !plan.removed.has(line) && between([line, 0]) ? (roles.get(line) ?? []).flatMap(at => canonicalOf(at) ?? []) : []),
+      ...[...placed.before.values(), ...placed.after.values()].flatMap(list => list.flatMap(([other]) => other !== index && between(positionOf(other)) ? [other] : [])),
+    ]
+    const crossed = passed.find(other => (forward ? other > index : other < index) && ordered(index, other))
+    if (crossed !== undefined) return `moving ${quote(c1[index]!)} past ${quote(c1[crossed]!)} would reorder statements that share a word`
+  }
+  return carried
+}
+
+/** Where a statement stands for the placement pass: an authored line, or a
+ * new statement beside one (in canonical order there). */
+type Position = readonly [number, number]
+const precedes = (a: Position, b: Position) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])
+
+/**
+ * Placement pass, one round: where to write what a candidate that reads as
+ * the edit leaves before what it needs (FamilyOperations.existingTargets'
+ * premature statements, read from that candidate). A new statement left so
+ * is written after the next authored line naming the name: its entity's
+ * first mention, or for a Class classDef a line that may give the class its
+ * style class (a later round goes on to the next). A kept line left before
+ * the new statements naming the name (a classDef before a new `cssClass`)
+ * stays where each of them can stand before it, written just after the
+ * first mention of every entity it applies to (just before the kept line
+ * when it applies to none); else, or when that reorders what Mermaid reads
+ * in order (placeStatements), the kept line moves verbatim to just after the
+ * first of them, that one where it stands or else just after what it
+ * applies to; a later round carries it past the next when it still needs
+ * that one. Each alternative is a placement; none when nothing more is
+ * placed.
+ */
+function placeEarly(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], plan: Plan, { parts }: Trace, place: Place, premature: ReadonlyArray<{ statement: string; name: string; follows?: string }>, targets: (statement: string) => readonly string[]): Place[] {
+  const roles = new Map<number, number[]>()
+  for (const [index, list] of parts ?? []) for (const line of list) roles.set(line, [...roles.get(line) ?? [], index])
+  const words = (statement: string) => new Set(statement.match(WORDS) ?? [])
+  // A kept authored line naming `name`; for an entity, in a statement that
+  // does not apply to it only where it exists (which declares nothing).
+  const names = (line: number, name: string, entity: boolean) => line > 0 && !plan.removed.has(line) && (roles.get(line) ?? []).some(index => words(c0[index]!).has(name) && !(entity && targets(c0[index]!).includes(name)))
+  // Where a new statement stands; a carried line stands just after the
+  // statement carrying it.
+  const position = (index: number): Position => {
+    const [where, line] = plan.written.get(index)!
+    return [where === 'after' ? line + 0.5 : line - 0.5, index]
+  }
+  // The first authored line declaring every entity a new statement applies
+  // to (0 when it applies to none), or -1.
+  const needs = (index: number) => {
+    const mentions = targets(c1[index]!).map(target => lines.findIndex((_, line) => names(line, target, true)))
+    return mentions.some(mention => mention < 0) ? -1 : Math.max(0, ...mentions)
+  }
+  type Change = (next: { after: Map<number, number>; before: Map<number, number>; carry: Map<number, number>; past: Map<number, number> }) => void
+  const at = (index: number, where: 'after' | 'before', line: number): Change => next => {
+    next.after.delete(index)
+    next.before.delete(index)
+    next.past.delete(index)
+    next[where].set(index, line)
+  }
+  // The new statement, and the single kept authored line, read as `statement`.
+  const written = (statement: string) => [...plan.written.keys()].find(index => c1[index]!.trim() === statement)
+  const keptAt = (statement: string) => {
+    const kept = lines.flatMap((_, line) => line > 0 && !plan.removed.has(line) && (lines[line]!.text.trim() === statement || (roles.get(line) ?? []).some(index => c0[index]!.trim() === statement)) ? [line] : [])
+    return kept.length === 1 ? kept[0]! : -1
+  }
+  // Each premature statement's alternative changes, in preference order.
+  const options: Change[][] = []
+  for (const { statement, name, follows } of premature) {
+    // A statement whose paint Mermaid would draw over with a later one: the
+    // new one of the two is written on the other side of the kept one.
+    if (follows !== undefined) {
+      const [first, second] = [written(statement), written(follows)]
+      const line = first !== undefined ? keptAt(follows) : second !== undefined ? keptAt(statement) : -1
+      if ((first === undefined) === (second === undefined) || line < 0) return []
+      options.push([first !== undefined
+        ? next => { at(first, 'after', line)(next); next.past.set(first, line) }
+        : next => { at(second!, 'before', line)(next); next.past.set(second!, line) }])
+      continue
+    }
+    const entity = targets(statement).includes(name)
+    const left = [...plan.written.keys()].find(index => c1[index]!.trim() === statement)
+    if (left !== undefined) {
+      const next = lines.findIndex((_, line) => line > position(left)[0] && names(line, name, entity))
+      if (next < 0) return []
+      options.push([at(left, 'after', next)])
+      continue
+    }
+    const kept = lines.flatMap((_, line) => line > 0 && (!plan.removed.has(line) || place.carry.has(line)) && (lines[line]!.text.trim() === statement || (roles.get(line) ?? []).some(index => c0[index]!.trim() === statement)) ? [line] : [])
+    if (kept.length !== 1) return []
+    const line = kept[0]!, stands: Position = place.carry.has(line) ? [position(place.carry.get(line)!)[0], place.carry.get(line)! + 0.5] : [line, -1]
+    const needing = [...plan.written.keys()].filter(index => precedes(stands, position(index)) && words(c1[index]!).has(name)).sort((a, b) => precedes(position(a), position(b)) ? -1 : 1)
+    if (!needing.length) return []
+    const declared = needing.map(needs), [first] = needing as [number]
+    const carry: Change = next => { next.carry.set(line, first) }
+    const choices: Change[] = []
+    if (!place.carry.has(line) && declared.every(mention => mention >= 0 && mention < line)) choices.push(next => needing.forEach((index, offset) => at(index, declared[offset]! > 0 ? 'after' : 'before', declared[offset]! > 0 ? declared[offset]! : line)(next)))
+    choices.push(carry)
+    if (declared[0]! > 0) choices.push(next => { at(first, 'after', declared[0]!)(next); carry(next) })
+    options.push(choices)
+  }
+  const same = (a: ReadonlyMap<number, number>, b: ReadonlyMap<number, number>) => a.size === b.size && [...a].every(([key, value]) => b.get(key) === value)
+  let placements: Place[] = [place]
+  for (const choices of options) {
+    placements = placements.flatMap(base => choices.map(change => {
+      const next = { after: new Map(base.after), before: new Map(base.before), carry: new Map(base.carry), past: new Map(base.past) }
+      change(next)
+      return next
+    })).slice(0, MAX_PLACE_ALTERNATIVES)
+  }
+  return placements.filter(next => !same(next.after, place.after) || !same(next.before, place.before) || !same(next.carry, place.carry) || !same(next.past, place.past))
+}
+
+/** The authored lines [from, to] of the whole statement read from `line`:
+ * every line its statements are read from, the closers of blocks they open,
+ * and the lines after them until the run reads alone as exactly what its
+ * lines are read as (a block note's body lines and `end note`). */
+function statementAt(lines: readonly AuthoredLine[], c0: readonly string[], line: number, { roles, partsOf, nesting }: {
+  roles: ReadonlyMap<number, readonly number[]>
+  partsOf: (index: number) => readonly number[]
+  nesting: NonNullable<Trace['nesting']>
+}, reader: LineReader): [number, number] | undefined {
+  const parts = (roles.get(line) ?? []).flatMap(index => [...partsOf(index)])
+  if (!parts.length) return undefined
+  const from = Math.min(line, ...parts)
+  let to = Math.max(line, ...parts)
+  for (let step = 0; step <= MAX_SPLIT_LINES && to < lines.length; step++) {
+    const unit = Array.from({ length: to - from + 1 }, (_, offset) => from + offset)
+    const closer = Math.max(-1, ...unit.map(at => nesting.closer.get(at) ?? -1))
+    if (closer > to) { to = closer; continue }
+    const reading = reader.isolated(unit.map(at => lines[at]!.text).join('\n').trim())
+    const reads = (at: number) => (roles.get(at) ?? []).some(index => reading?.has(c0[index]!.trim()))
+    if (reading && unit.every(at => (roles.get(at) ?? []).every(index => reading.has(c0[index]!.trim()))) && !reads(to + 1)) return [from, to]
+    to++
+  }
+  return undefined
 }
 
 /** The authored step between nesting levels: a tab, or the smallest indent. */
@@ -1194,27 +1582,81 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     return diffs.get(loose)
   }
   let unplanned: string | undefined, closest: { size: number; reason: string } | undefined
-  const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[]): { source: string; diagram: ParsedDiagram } | undefined => {
+  // The names in statements a rejected candidate gains or lacks.
+  const misread = new Set<string>()
+  // Statements the family's Mermaid reads by where they stand and ours does
+  // not: one applied only to an entity that exists there, and (`follows`)
+  // one whose paint Mermaid draws over with a later statement. A candidate
+  // may leave no more of them than the authored source has (our reader reads
+  // them the same either way; Mermaid does not), however its lines were
+  // placed, kept, moved or rewritten.
+  const existing = getFamily(before.kind)?.existingTargets
+  // Each such statement once per name it is left before. A candidate may
+  // add one before an entity only where an authored one went (a rename of
+  // the name). One painted over is kept only as authored: the same
+  // statement, on the same name, before the same statement, so an edited or
+  // new statement is never painted over in Mermaid.
+  const prematureNames = (source: string) => existing!.premature(source).flatMap(({ statement, names, follows }) => names.map(name => ({ statement, name, follows, key: follows === undefined ? `early ${name}` : `over ${JSON.stringify([name, statement, follows])}` })))
+  let authoredPremature: Map<string, number> | undefined
+  const addedPremature = (diagram: ParsedDiagram): ReadonlyArray<{ statement: string; name: string; follows?: string }> => {
+    if (!existing) return []
+    authoredPremature ??= counts(prematureNames(before.canonicalSource).map(({ key }) => key))
+    const found = prematureNames(diagram.canonicalSource), left = new Map(authoredPremature)
+    const added = found.filter(({ key }) => {
+      const count = left.get(key) ?? 0
+      left.set(key, count - 1)
+      return count <= 0
+    })
+    const early = added.filter(({ follows }) => follows === undefined), over = added.filter(({ follows }) => follows !== undefined)
+    const gone = [...authoredPremature.keys()].filter(key => key.startsWith('early ') && !found.some(premature => premature.key === key)).reduce((sum, key) => sum + authoredPremature!.get(key)!, 0)
+    return [...over, ...(early.length > gone ? early : [])]
+  }
+  // Candidates that read as the edit but leave such statements before what
+  // they need, for the placement pass.
+  const leftEarly = new Map<string, ReadonlyArray<{ statement: string; name: string; follows?: string }>>()
+  const attempt = (authoredLines: readonly AuthoredLine[], trace: Trace, variants: readonly Variant[], early?: (variant: Variant, plan: Plan, premature: ReadonlyArray<{ statement: string; name: string; follows?: string }>) => void): { source: string; diagram: ParsedDiagram } | undefined => {
     unplanned = undefined
     // The candidate that rewrites the fewest authored lines is read first, so
     // a variant that respells untouched lines (a verbatim fragment the exact
     // diff sees as changed) never wins over one that keeps them; ties keep
     // the variant order.
-    const candidates: Array<{ source: string; cost: number }> = []
+    const candidates: Array<{ source: string; cost: number; plan: Plan; variant: Variant }> = []
     for (const variant of variants) {
       const plan = planEdit(authoredLines, c0, c1, diffFor(variant.loose), trace, variant, reader)
       if (typeof plan === 'string') { unplanned ??= plan; continue }
       const source = nextWrapper + renderPlan(authoredLines, plan, eol)
       const written = [...plan.before.values(), ...plan.after.values()].reduce((sum, list) => sum + list.length, 0)
-      candidates.push({ source, cost: plan.removed.size + plan.text.size + written })
+      candidates.push({ source, cost: plan.removed.size + plan.text.size + written, plan, variant })
     }
     candidates.sort((a, b) => a.cost - b.cost)
-    for (const { source } of candidates) {
-      if (tried.has(source)) continue
+    for (const { source, plan, variant } of candidates) {
+      if (tried.has(source)) {
+        const premature = leftEarly.get(source)
+        if (premature) early?.(variant, plan, premature)
+        continue
+      }
       tried.add(source)
       const parsed = parseRegisteredMermaid(source)
-      if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) return { source, diagram: parsed.value }
+      if (parsed.ok && sameProjectedDiagram(parsed.value, after, facts, c1)) {
+        const added = addedPremature(parsed.value)
+        if (!added.length) return { source, diagram: parsed.value }
+        // It reads as the edit, but Mermaid ignores a statement it leaves
+        // before the entity's first mention, or a Class classDef it leaves
+        // before the line that gives a class its style class, or draws over
+        // the paint of one it leaves before a later statement (`follows`).
+        for (const { name, follows } of added) if (follows === undefined) misread.add(name)
+        leftEarly.set(source, added)
+        early?.(variant, plan, added)
+        const [{ statement, name, follows }] = added as [typeof added[number]]
+        // A painted-over pair is named by keyword and target, not its paint.
+        const head = (text: string) => quote(text.split(/\s+/, 2).join(' '))
+        const reason = follows !== undefined ? `${head(statement)} before ${head(follows)}, which Mermaid 12.2.0 draws over it on ${name}`
+          : `before ${existing!.targets(statement).includes(name) ? `the first mention of ${name}` : `${name}'s style-class assignment`}, where Mermaid 12.2.0 ignores it`
+        if (!closest || closest.size > 0) closest = { size: 0, reason: `the closest local change leaves ${follows !== undefined ? reason : `${quote(statement)} ${reason}`}` }
+        continue
+      }
       const miss = misreading(parsed, c1, facts)
+      for (const name of miss.names) misread.add(name)
       if (!closest || miss.size < closest.size) closest = miss
     }
     return undefined
@@ -1224,10 +1666,38 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
     // removed as one authored line, and redeclared statements and blocks are
     // traced to every line they are read from.
     const joined = joinSplitValues(lines, c0, reader)
-    return attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
-      // Block members are traced to the lines inside their authored block,
-      // and new statements are placed by the authored block structure.
-      ?? attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true, true), RESIDUAL_VARIANTS)
+    const structural = attempt(joined, traceOwners(wrapper, joined, c0, before, reader, true), STRUCTURAL_VARIANTS)
+    if (structural) return structural
+    // Block members are traced to the lines inside their authored block,
+    // and new statements are placed by the authored block structure.
+    const residual = traceOwners(wrapper, joined, c0, before, reader, true, true)
+    const placed = attempt(joined, residual, RESIDUAL_VARIANTS)
+    if (placed || (!misread.size && !leftEarly.size)) return placed
+    // A kept line the edit leaves as the first mention of a misread name
+    // moves after the next line that names it.
+    const follow: Follow = { names: new Set(misread), targets: existing?.targets ?? (() => []) }
+    const followed = attempt(joined, residual, RESIDUAL_VARIANTS.map(variant => ({ ...variant, follow })))
+    if (followed || !existing || !leftEarly.size) return followed
+    // Placement pass: the closest candidates of the last pass, each with the
+    // new statements it leaves before what they need written after it, and
+    // a kept line it leaves before a new statement it needs written after
+    // that one, unless the new statement can stand before it.
+    let variants: readonly Variant[] = RESIDUAL_VARIANTS.map(variant => ({ ...variant, follow, place: NO_PLACE }))
+    const planned = new Set<string>()
+    for (let round = 0; round < MAX_PLACE_ROUNDS && variants.length; round++) {
+      const next: Variant[] = []
+      const placed = attempt(joined, residual, variants, (variant, plan, premature) => {
+        for (const place of placeEarly(joined, c0, c1, plan, residual, variant.place ?? NO_PLACE, premature, existing.targets)) {
+          const key = JSON.stringify([variant.splice, variant.loose, variant.previous, variant.move, variant.pair, variant.rewrite, [...place.after], [...place.before], [...place.carry], [...place.past]])
+          if (planned.has(key)) continue
+          planned.add(key)
+          next.push({ ...variant, place })
+        }
+      })
+      if (placed) return placed
+      variants = next
+    }
+    return undefined
   })()
   if (projected) return ok(projected)
   if (closest) return err(`no local change to the authored source reads back as the edited diagram: ${closest.reason}`)
@@ -1239,11 +1709,13 @@ const quote = (statement: string) => JSON.stringify(statement.trim().length > 60
 
 /** How a rejected candidate reads differently from the edit: a parse
  * failure, else the canonical statements it gains and lacks, saying when it
- * has the edit's facts (a kept line now declares something where it stands). */
-function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string } {
-  if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})` }
+ * has the edit's facts (a kept line now declares something where it stands),
+ * else the facts it reads otherwise (statements in another order); and the
+ * names in the statements it gains and lacks. */
+function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: string }>>, expected: readonly string[], facts: readonly string[]): { size: number; reason: string; names: readonly string[] } {
+  if (!parsed.ok) return { size: Infinity, reason: `the closest local change does not parse (${parsed.error[0]?.message ?? 'parse error'})`, names: [] }
   const found = statements(parsed.value)
-  if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram` }
+  if (!found) return { size: Infinity, reason: `the closest local change no longer reads as a structured ${parsed.value.kind} diagram`, names: [] }
   const spell = (line: string) => line.replace(/\s+/g, '')
   const tally = (values: readonly string[]) => {
     const result = new Map<string, { text: string; count: number }>()
@@ -1254,9 +1726,15 @@ function misreading(parsed: Result<ParsedDiagram, ReadonlyArray<{ message: strin
   const left = (a: typeof got, b: typeof got) => [...a].flatMap(([key, { text, count }]) => Array.from({ length: Math.max(0, count - (b.get(key)?.count ?? 0)) }, () => text))
   const extra = left(got, want), missing = left(want, got)
   const list = (values: readonly string[]) => `${quote(values[0]!)}${values.length > 1 ? ` and ${values.length - 1} more` : ''}`
-  if (!extra.length && !missing.length) return { size: 0, reason: 'the closest local change writes the edited statements, but they read with different order, metadata or facts' }
+  const foundFacts = describeMermaidFacts(parsed.value)
+  if (!extra.length && !missing.length) {
+    // The facts carry every ordered meaning: name the first that differs.
+    const gained = foundFacts.filter(fact => !facts.includes(fact)), lost = facts.filter(fact => !foundFacts.includes(fact))
+    const reason = gained.length && lost.length ? `the closest local change writes the edited statements, but reads ${list(gained)} where the edit has ${list(lost)}` : 'the closest local change writes the edited statements, but they read with different order, metadata or facts'
+    return { size: 0, reason, names: [] }
+  }
   const sorted = (values: readonly string[]) => [...values].sort()
-  const closest = sameSourceMeaning(sorted(describeMermaidFacts(parsed.value)), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
+  const closest = sameSourceMeaning(sorted(foundFacts), sorted(facts)) ? 'the closest local change has the edit\'s facts but' : 'the closest local change'
   const reason = !missing.length ? `${closest} also reads ${list(extra)}` : !extra.length ? `${closest} lacks ${list(missing)}` : `${closest} reads ${list(extra)} where the edit has ${list(missing)}`
-  return { size: extra.length + missing.length, reason }
+  return { size: extra.length + missing.length, reason, names: [...extra, ...missing].flatMap(line => line.match(WORDS) ?? []) }
 }

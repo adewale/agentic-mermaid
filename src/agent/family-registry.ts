@@ -290,6 +290,25 @@ export interface FamilyConfigContract {
   noopKeys?: readonly string[]
 }
 
+/** A statement written before what pinned Mermaid needs it after, which
+ * Mermaid therefore reads otherwise than ours (FamilyOperations.existingTargets):
+ * before the entity it applies to, where Mermaid ignores it, or before a
+ * statement Mermaid draws over it. */
+export interface PrematureStatement {
+  /** Its line in the source read. */
+  readonly line: number
+  /** The statement as written, trimmed. */
+  readonly statement: string
+  /** The entities it names before their first mention, or (with `follows`)
+   * whose paint Mermaid draws otherwise. */
+  readonly names: readonly string[]
+  /** The statement, as written and trimmed, it stands before whose paint
+   * Mermaid draws over its own on `names` where ours draws its own (a Class
+   * `style B` before the classDef of B's style class). Absent when it stands
+   * before an entity's first mention. */
+  readonly follows?: string
+}
+
 export interface FamilyOperations {
   /** Body-owned accessibility fields and their writer's text transport. The
    * shared envelope mirrors only bodies admitted by this family authority. */
@@ -344,6 +363,22 @@ export interface FamilyOperations {
   /** Grammar owned by the map producer for multiline authored statement spans. */
   sourceMapGrammar?: SourceSpanGrammar
   buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
+  /**
+   * Statements pinned Mermaid reads by where they stand while ours does not.
+   * Mermaid applies some only to an entity that already exists there,
+   * ignoring them before its first mention (a flowchart `class B hot`, a
+   * Class `style B …`); `targets` reads one canonical statement: the
+   * entities it applies to only so. Mermaid also draws a Class class's paint
+   * in statement order, where ours draws its own `style` over its style
+   * classes. `premature` reads a source (a diagram's canonicalSource): the
+   * statements written before their entity's first mention, and those whose
+   * paint a later statement replaces in Mermaid only (`follows`). Verify
+   * reports them; no source-preserving edit adds one (source-projection.ts).
+   */
+  existingTargets?: {
+    readonly targets: (statement: string) => readonly string[]
+    readonly premature: (canonicalSource: string) => readonly PrematureStatement[]
+  }
   /** Optional: family-specific serializer. Public save/edit callers pass the
    * wrapper metadata so body-owned overrides need not duplicate its fields. */
   serialize?: (body: FamilyParsedBody, meta?: Readonly<ValidDiagramMeta>) => string
@@ -1569,6 +1604,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'parse',
   'buildSourceMap',
   'sourceMapGrammar',
+  'existingTargets',
   'serialize',
   'mutate',
   'mutateSource',
@@ -1679,6 +1715,13 @@ function snapshotCapabilityCell(value: unknown, index: number): FamilyCapability
  * recursively snapshot every declarative nested value used by validation,
  * conformance, routing, discovery, and commit. Executable hooks are captured
  * as references once and thereafter execute from this frozen descriptor. */
+/** The two readers, read once (a getter cannot later swap them). */
+function snapshotExistingTargets(value: unknown): NonNullable<FamilyOperations['existingTargets']> {
+  const captured = captureFields(value, ['targets', 'premature'])
+  if (!captured || typeof captured.targets !== 'function' || typeof captured.premature !== 'function') throw new TypeError('Family existingTargets must hold targets and premature functions')
+  return Object.freeze({ targets: captured.targets as NonNullable<FamilyOperations['existingTargets']>['targets'], premature: captured.premature as NonNullable<FamilyOperations['existingTargets']>['premature'] })
+}
+
 function freezeDescriptor(untrusted: FamilyDescriptor): FamilyDescriptor {
   void ALL_FAMILY_DESCRIPTOR_FIELDS_CAPTURED
   const captured = captureFields(untrusted, FAMILY_DESCRIPTOR_FIELDS)
@@ -1698,6 +1741,7 @@ function freezeDescriptor(untrusted: FamilyDescriptor): FamilyDescriptor {
     scenePrimitiveEvidence: snapshotDescriptorArray<unknown, FamilyScenePrimitiveEvidence>(captured.scenePrimitiveEvidence, 'scenePrimitiveEvidence', snapshotScenePrimitiveCell),
     capabilityEvidence: snapshotDescriptorArray<unknown, FamilyCapabilityEvidence>(captured.capabilityEvidence, 'capabilityEvidence', snapshotCapabilityCell),
     ...(captured.config === undefined ? {} : { config: snapshotFamilyConfig(captured.config) }),
+    ...(captured.existingTargets === undefined ? {} : { existingTargets: snapshotExistingTargets(captured.existingTargets) }),
     ...(captured.applicableRenderOptions === undefined
       ? {}
       : {
