@@ -1243,11 +1243,11 @@ test('a downscaled non-scaling two-point polyline still reports actual stroke/ca
   expect(certifyScenePaint(scene([edge, card]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'scaled-polyline', by: 'C' })] })
 })
 
-test('the retained Native Class clearance witness certifies without changing its layout backend', () => {
+test('the retained Class clearance witness certifies with the sole ELK backend', () => {
   const { source } = JSON.parse(readFileSync(new URL('./fixtures/class-native-clearance.json', import.meta.url), 'utf8')) as { source: string }
   const rendered = renderMermaidSVGWithReceipt(source, { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'elk' }, layoutSafety: 'strict', idPrefix: 'class-clearance-' })
   expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-  expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ requested: 'agentic', selected: 'agentic' }))
+  expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ requested: 'elk', selected: 'elk' }))
 })
 
 const cylinderMarker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.5', strokeLinejoin: 'round' }, 'userSpaceOnUse')
