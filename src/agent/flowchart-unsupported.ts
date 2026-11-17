@@ -1,6 +1,8 @@
 import type { LayoutWarning } from './types.ts'
+import type { PrematureStatement } from './family-registry.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { emptyFlowchartGraph, flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
+import { emptyFlowchartGraph, flowchartInteractionTarget, flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
 import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_PREFIX_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, flowchartStyleValueCanSerialize, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -135,7 +137,69 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
   for (const line of openSubgraphs) {
     warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_unclosed_subgraph', message: 'A subgraph with no `end` holds everything after it, to the end of the diagram. Pinned Mermaid rejects this; close it with `end`.' })
   }
-  return [...warnings, ...entitySemicolonWarnings(source), ...linkStyleIndexWarnings(source, statements)]
+  return [...warnings, ...entitySemicolonWarnings(source), ...linkStyleIndexWarnings(source, statements), ...flowchartPrematureStatements(source).map(premature => statementBeforeEntityWarning(premature))]
+}
+
+function statementBeforeEntityWarning({ line, statement, names }: PrematureStatement): LayoutWarning {
+  const named = names.join(', ')
+  const message = /^click\s/i.test(statement)
+    ? `This \`click\` comes before the first mention of ${named}, and is read as linking it. Pinned Mermaid links only a node defined above the \`click\`, and ignores this one; move the line after the first mention of ${named}.`
+    : `This \`class\` comes before the first mention of ${named}, and is read as applying to it. Pinned Mermaid applies \`class\` only to a node, link or subgraph defined above the line (a subgraph at its \`end\`), and ignores this one; move the line after the first mention of ${named}.`
+  return { code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_statement_before_entity', message }
+}
+
+const FLOWCHART_CLASS_ASSIGNMENT_RE = /^class\s+(\S+)\s+[\w-]+\s*;?$/
+
+/** The ids a flowchart statement applies to only where they already exist:
+ * those of `class A,B c` (a node, link or subgraph) and of a `click` the
+ * parser applies. Pinned Mermaid's setClass, setLink and setClickEvent skip
+ * an id that names nothing yet. */
+export function flowchartExistingTargets(statement: string): string[] {
+  const text = statement.trim()
+  const assigned = FLOWCHART_CLASS_ASSIGNMENT_RE.exec(text)
+  if (assigned) return assigned[1]!.split(',').map(id => id.trim()).filter(Boolean)
+  const clicked = /^click\s/i.test(text) ? flowchartInteractionTarget(text) : null
+  return clicked ? [clicked.id] : []
+}
+
+/** The flowchart statements (flowchartExistingTargets) written before an
+ * entity they name is defined, with the ids they name so: pinned Mermaid
+ * defines a node at its first mention, a link with its statement and a
+ * subgraph at its `end`, and ignores the statement. Ours applies it where the
+ * entity is defined. One parse, observed in statement order. */
+export function flowchartPrematureStatements(source: string): PrematureStatement[] {
+  const defined = new Map<string, number>()
+  const naming: Array<{ at: number; statement: string; ids: string[] }> = []
+  let at = -1
+  try {
+    withParserObservation('flowchart', event => {
+      if (event.unit === 'statement') {
+        if (event.kind !== 'statement') return
+        at++
+        const ids = flowchartExistingTargets(event.text ?? '')
+        if (ids.length > 0) naming.push({ at, statement: event.text!.trim(), ids })
+        return
+      }
+      const id = (event.value as { id?: unknown } | null)?.id
+      if (typeof id === 'string' && !defined.has(id)) defined.set(id, at)
+    }, () => parseMermaid(source), { mutations: ['add-node', 'add-edge', 'close-group'] })
+  } catch {
+    return [] // A source ours cannot read fails the render; verify reports that.
+  }
+  const premature = naming.flatMap(({ at, statement, ids }) => {
+    const names = ids.filter(id => (defined.get(id) ?? -1) > at)
+    return names.length > 0 ? [{ statement, names }] : []
+  })
+  if (premature.length === 0) return []
+  // Each statement on its line, matched in order.
+  const statements = flowchartStatements(source)
+  let cursor = 0
+  return premature.flatMap(({ statement, names }) => {
+    const found = statements.findIndex((candidate, index) => index >= cursor && candidate.text === statement)
+    if (found < 0) return []
+    cursor = found + 1
+    return [{ line: statements[found]!.line, statement, names }]
+  })
 }
 
 /**

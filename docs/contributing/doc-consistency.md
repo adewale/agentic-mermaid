@@ -18,7 +18,7 @@ finished backlog entries and records its proof links.
 Wrap a fact in markers and `bun run doc-blocks` writes it from code:
 
 ```md
-Hosted tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->.
+Hosted tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`, and `preview`<!-- END GENERATED: hosted-mcp-tools -->.
 ```
 
 A block can sit inside a sentence or table cell, or span lines. The block

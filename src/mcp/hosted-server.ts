@@ -15,9 +15,15 @@ import { HOSTED_TOOL_CPU_MS, runHostedTool, type HostedPngProjectionPayload, typ
 import type { PngGraphicalProjection } from '../png-graphical.ts'
 import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
 import { codeModeScreen } from './facade.ts'
-import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { rpcError, toolResult, viewToolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { MCP_APP_RESOURCES, readMcpAppResource } from './resource-surface.ts'
+import { PREVIEW_VIEW_URI } from './apps/preview-view.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
+  PURE_COMPUTE_ANNOTATIONS,
+  mcpRenderToolInputSchema,
+  mcpToolValidationSchema,
+  registerAdvertisedMcpInputSchema,
   executeToolPayload,
   createDescribeTool,
   createExecuteTool,
@@ -31,6 +37,7 @@ import {
   validateMcpToolArguments,
   withClosedMcpInputSchema,
   type McpDispatchOptions,
+  type McpToolDefinition,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
@@ -108,7 +115,26 @@ const MAX_EXECUTE_TIMEOUT_MS = 30_000
 export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
 
-export const HOSTED_TOOLS = [
+/** preview accepts render_svg's arguments and validates them against the same
+ * canonical schema, but advertises `options` as a pointer: render_svg's full
+ * options schema is already in the same tools/list, and a second ~24 KB copy
+ * would load into every agent's context for a tool whose output the person,
+ * not the model, looks at. */
+function previewInputSchema(): Record<string, unknown> {
+  const advertised = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      source: { type: 'string', description: 'Mermaid source.' },
+      options: { type: 'object', description: 'The same RenderOptions object render_svg accepts (see its options schema, or describe_sdk capability=render-options).' },
+    },
+    required: ['source'],
+  }
+  registerAdvertisedMcpInputSchema(advertised, mcpToolValidationSchema({ inputSchema: mcpRenderToolInputSchema() } as McpToolDefinition))
+  return advertised
+}
+
+export const HOSTED_TOOLS: McpToolDefinition[] = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
   ...TEXT_RENDER_TOOLS,
@@ -116,9 +142,28 @@ export const HOSTED_TOOLS = [
   VERIFY_TOOL,
   createDescribeTool(),
   ...EDIT_TOOLS,
+  {
+    name: 'preview',
+    title: 'Preview Mermaid diagram',
+    description: `Render and verify a Mermaid diagram so the user can see it. Returns verify's
+facts { ok, family, summary, warnings, checks } (no layout) for a diagram that
+parses, and verify's failure payload ({ ok: false, errors, warnings }) when the
+source does not parse. \`ok\` is the verify verdict. Hosts that support MCP Apps
+show the rendered diagram in a read-only view. The SVG is returned only in
+structuredContent, for that view; call render_svg when you need the SVG itself.
+The hosted boundary forces security:'strict' and embedFontImport:false.`,
+    inputSchema: previewInputSchema(),
+    annotations: PURE_COMPUTE_ANNOTATIONS,
+    // MCP Apps: UI-capable hosts render this result with the read-only view.
+    // The tool is listed unconditionally: this stateless transport cannot
+    // gate tools/list on per-session client capabilities, and the result is
+    // complete without the view (the spec's text-only fallback). The local
+    // server publishes no resources, so it has no view to link.
+    _meta: { ui: { resourceUri: PREVIEW_VIEW_URI } },
+  },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls. A tool call that lays out a heavy diagram (those five, mutate and build; judged by a pre-layout cost estimate) runs with a ${HOSTED_TOOL_CPU_MS / 1000}s CPU budget and returns RENDER_TIMEOUT beyond it; calls in one batch share one CPU allowance. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/). ${MCP_COMPACT_RESULTS_NOTE}`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls; preview renders and verifies a diagram for the user to see, and hosts that support MCP Apps show it as a read-only diagram view. A tool call that lays out a heavy diagram (those six, mutate and build; judged by a pre-layout cost estimate) runs with a ${HOSTED_TOOL_CPU_MS / 1000}s CPU budget and returns RENDER_TIMEOUT beyond it; calls in one batch share one CPU allowance. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/). ${MCP_COMPACT_RESULTS_NOTE}`
 
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   // Historical fallback for callers that construct a surface without an
@@ -128,6 +173,8 @@ const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   serverName: HOSTED_MCP_SERVER_NAME,
   supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
+  resources: MCP_APP_RESOURCES,
+  readResource: readMcpAppResource,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }
@@ -181,6 +228,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     case 'render_ascii':
     case 'verify':
     case 'describe': return sourceTool(id, args, { name, args }, context)
+    case 'preview': return sourceTool(id, args, { name, args }, context, PREVIEW_VIEW_ONLY)
     case 'render_png': return handleRenderPng(id, args, context)
     case 'mutate':
     case 'build': {
@@ -299,6 +347,8 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     }
     case 'verify':
       return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
+    case 'preview':
+      return typeof args.source === 'string' ? { t: 'preview', source: args.source, ...effectiveSvgArgs(args) } : null
     case 'describe': {
       if (typeof args.source !== 'string') return null
       const format = args.format ?? 'text'
@@ -332,15 +382,19 @@ function runLayoutTool(context: HostedMcpContext, request: HostedToolRequest): P
   return context.runTool ? context.runTool(request, HOSTED_TOOL_CPU_MS) : Promise.resolve(runHostedTool(request))
 }
 
-/** Shared shape for the pure source→payload tools: validate, cap, run. */
-async function sourceTool(id: number | string | null, args: Record<string, unknown>, request: HostedToolRequest, context: HostedMcpContext): Promise<JsonRpcResponse> {
+/** Payload fields only the preview view needs; the model never reads them. */
+const PREVIEW_VIEW_ONLY = ['svg'] as const
+
+/** Shared shape for the pure source→payload tools: validate, cap, run.
+ *  `viewOnly` names fields that only a linked MCP Apps view reads. */
+async function sourceTool(id: number | string | null, args: Record<string, unknown>, request: HostedToolRequest, context: HostedMcpContext, viewOnly?: readonly string[]): Promise<JsonRpcResponse> {
   const source = args.source
   if (typeof source !== 'string') return rpcError(id, -32602, 'tool requires `source` (string)')
   if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
     return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
   }
   const payload = await runLayoutTool(context, request)
-  return toolResult(id, payload, !payload.ok)
+  return viewOnly ? viewToolResult(id, payload, viewOnly, !payload.ok) : toolResult(id, payload, !payload.ok)
 }
 
 /** A failed isolate layout step, carried through the PNG adapter unchanged. */

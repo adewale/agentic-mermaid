@@ -76,7 +76,7 @@ TreeView IDs are positional row addresses. After a structural edit, use the
 returned diagram's IDs: its canonical writer and reader may reassign positions
 while preserving the complete authored hierarchy, labels and metadata.
 
-Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` as typed fragments (with their own read-back and mutation ops, and their `create`/`destroy` lines, notes and nested fragments, which every fragment op reaches through an optional `fragmentPath` of `{ fragmentIndex, branchIndex }` steps) and top-level `create`/`destroy` and notes as typed statements while box/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices (facts state each message's op address as `message#N op [fragmentPath P] [fragmentIndex F branchIndex B] index K`); gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
+Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par`/`critical`/`break`/`rect` as typed fragments (with their own read-back and mutation ops, and their `create`/`destroy` lines, notes, activation lines and nested fragments, which every fragment op reaches through an optional `fragmentPath` of `{ fragmentIndex, branchIndex }` steps, and which `move_fragment` moves between branches and the top level with `toFragmentPath`) and top-level `create`/`destroy`, notes and `activate`/`deactivate` lines as typed statements (edited, with message `+`/`-` marks, by `add_activation`, `remove_activation` and `set_message_activation`) while box/autonumber/title and comments ride along verbatim (at top level, or inside a fragment branch beside its typed statements; a kept branch line never holds a message or note), and its top-level message indices stay separate from fragment-message indices (facts state each message's op address as `message#N op [fragmentPath P] [fragmentIndex F branchIndex B] index K`, and each activation line's address and each activation span by the messages around it); a typed edit that would leave a `create`/`destroy` apart from its message, or a deactivation of a participant that is not active, is refused rather than written or balanced by dropping authored lines; gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
 
 Opaque/source-level bodies:
 
@@ -162,7 +162,13 @@ family:
 3. The candidate is published only when the shared parser reads it back as the
    same diagram as the canonical edit: the same facts and the same canonical
    statements. Statement order the facts do not carry (declaration order, for
-   example) may follow the authored order.
+   example) may follow the authored order. It must also leave no statement
+   before the entity it applies to that the authored source did not have
+   there: Mermaid 12.2.0 applies a flowchart `class` or `click`, and a Class
+   `style`, `cssClass`, link or `classDef`, only to an entity (or style class
+   membership) that exists where the statement stands, though our reader
+   applies it anyway (the family's `existingTargets`, which `verify` also
+   reports).
 4. When no local change passes, the canonical source is returned with
    `preservation: { method: 'canonical', reason }`; otherwise the result
    carries `preservation: { method: 'local' }`. A diagram that was not parsed
@@ -200,9 +206,59 @@ as the edited block. A declaration whose label the writer would move onto a
 new statement that now mentions it first keeps its line, and the new statement
 names it bare (`n0[Zero]` stays and the edge is written `n0 --> n1`).
 
-Typical fallbacks: a kept line whose position changes what it declares (a
-state note left before the state's only remaining transition declares the
-state there; the receipt says the closest candidate has the edit's facts), an
+A kept line stays after the first mention it was written after. When the
+closest candidate still misreads a name and the edit removed every earlier
+line naming it, the statement on the first kept line naming it moves verbatim,
+with every line it is read from, to just after the next line naming it (past
+that line's authored block, within the same block). Removing `[*] --> S`
+before `note right of S` would otherwise leave the note to declare `S` where
+it stands, which our reader and Mermaid 12.2.0 both read differently from the
+canonical edit; the note instead follows `S --> T`, or the composite whose
+body now names `S` first. The kept lines between that apply to the name only
+where it exists move with it, in order: removing `A --> B` before
+`class B hot` and `click B "…"` moves both past `B --> C`, and removing
+`A <|-- B` moves `style B …` and `cssClass "B" hot` past `B --> C`. A line
+read as nothing alone (a flowchart `click B` with no `B` before it) is traced
+by its reading after the earlier lines that share a word with it.
+
+A new statement written beside its canonical neighbour can stand before what
+it needs, where Mermaid 12.2.0 ignores it: `class D hot` beside a classDef
+written above `D`, or a new Class classDef before the `cssClass "B" hot` that
+gives `B` its style class. When no other candidate reads back, a placement
+pass writes it at the earliest place after what it needs, within the block
+it was placed in and indented like the line it now follows: after the next
+line naming the entity (past that line's authored block), and for a classDef
+after the next line that gives the class its style class. A kept Class
+classDef that a new `cssClass` leaves before the class it styles stays when
+the `cssClass` can be written after the class and before it; otherwise the
+classDef moves verbatim to just after the `cssClass`. No such move passes a
+statement sharing a word with the one moved, whose order ours may read where
+the read-back compares statements as a multiset (two `cssClass` lines giving
+one class its style classes). Each round reads the closest candidates'
+premature statements (the family's `existingTargets`) and places them; it
+runs only after every other pass failed, at most four rounds.
+
+Mermaid 12.2.0 also draws a Class class's paint in statement order, the last
+`style` or classDef setting a property winning, where ours draws the class's
+own `style` over its style classes, and a style class given later over one
+given earlier, whatever the order. The family's `existingTargets` reports such
+a statement too (`follows`: the later statement Mermaid draws over it), and
+every candidate, however it kept, moved, rewrote or placed its lines, may
+leave one only exactly as authored (the same statement, on the same class,
+before the same statement). The placement pass writes the new one of the two
+on the other side of the kept one: a new or edited `style B` after the kept
+classDef of `B`'s style class, a new or edited classDef just before the kept
+`style B`; that move may pass the kept line. When both are kept (a new
+`cssClass` giving `B` the style class of a classDef below a kept `style B`),
+the edit falls back, naming the two lines by keyword and target, never their
+paint.
+
+Typical fallbacks: a move that would reorder kept statements (a note on `S`
+that would have to follow `S --> T` past a note that declares `T` there; the
+receipt names the facts the closest candidate reads otherwise), a classDef
+that would have to pass another classDef or a `style` to follow the new
+`cssClass` it needs (the receipt names the classDef and the class whose
+style-class assignment it would precede), an
 edit that empties a family below its grammar floor, a canonical difference
 beyond the diff budget, and edits to wrappers the canonical writer does not
 own. The receipt names the reason (the statement that could not be traced or

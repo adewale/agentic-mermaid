@@ -19,9 +19,9 @@ describe('am capabilities', () => {
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
     // Thirty-three native families publish their actual operation schemas,
     // nested record fields and examples, including the fragmentPath every
-    // sequence fragment op takes. Keep discovery below 140 KiB; imported
-    // corpora stay out.
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(140 * 1024)
+    // sequence fragment and activation op takes. Keep discovery below
+    // 144 KiB; imported corpora stay out.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(144 * 1024)
   })
 
   it('includes every registered family in the families list', () => {

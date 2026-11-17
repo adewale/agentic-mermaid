@@ -49,10 +49,9 @@ flowchart:official-syntax/flowchart.md#104 [ Opaque Unsupported ] # click hrefs 
 gantt:official-syntax/gantt.md#6 [ VerifyError ] # settings-only snippet renders an explicit empty state and remains diagnosed EMPTY_DIAGRAM
 gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inline task comments are diagnosed and canonicalized onto their own line; the undocumented workaround tag still becomes an invalid date
 # Sequence: structured bodies with source-preserved opaque segments.
-sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains source-preserved activate/deactivate controls
-sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate controls
+sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains a source-preserved 'autonumber'
+sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains a source-preserved 'autonumber'
 sequence:official-syntax/sequenceDiagram.md#16 [ Unsupported ] # 'box' participant groups
-sequence:official-syntax/sequenceDiagram.md#18 [ Unsupported ] # explicit 'activate' / 'deactivate'
 sequence:official-syntax/sequenceDiagram.md#35 [ Unsupported ] # 'autonumber' and notes
 `
 

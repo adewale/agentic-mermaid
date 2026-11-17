@@ -27,6 +27,19 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
+- The hosted MCP server has a new `preview` tool and its first MCP Apps view.
+  `preview` renders and verifies a diagram in one call. Its text result is
+  verify's facts `{ ok, family, summary, warnings, checks }` without the
+  layout, or verify's failure payload when the source does not parse; the SVG
+  goes only in `structuredContent`, which MCP Apps hosts keep out of the
+  model's context. Hosts that support MCP Apps show a read-only diagram view
+  (`ui://agentic-mermaid/preview`) with the family, the verify verdict and any
+  warnings; other hosts receive the text result. The view is one
+  self-contained page that loads nothing from the network, so its declared CSP
+  allows no external origin. The hosted server now advertises the `resources`
+  capability to serve it. A heavy diagram's preview runs under the same
+  CPU-bounded isolate as `render_svg` and `verify`. The local server is
+  unchanged and publishes no resources.
 - Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
   `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
   `mode: "source-preserving"` and `am mutate --preserve-source` now accept every
@@ -56,8 +69,31 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   several statements and `:::` classes edit locally. A new edge that is a
   node's first mention keeps the node's label on its declaration line. Nested
   namespaces and a class annotated on one line edit locally. A fallback whose
-  closest candidate has the edit's facts (a state note left before the state's
-  only transition) says so.
+  closest candidate has the edit's facts says so. A state note written after
+  its state's first mention, when the edit removes that mention (`[*] --> S`
+  before `note right of S`), moves verbatim past the line or composite that
+  now names the state first instead of falling back; left in place it would
+  declare the state there, which both our reader and Mermaid 12.2.0 read
+  differently. A fallback whose closest candidate writes the edited statements
+  in another order names the facts it reads otherwise. A statement Mermaid
+  applies only to an entity that already exists (a flowchart `class` or
+  `click`, a Class `style`, `cssClass` or link) is never left before the
+  entity's first remaining mention: removing `A --> B` moves `class B hot`
+  and `click B …` verbatim past `B --> C`, and removing `A <|-- B` moves
+  `style B …` past `B --> C`. Such edits used to stay local while
+  Mermaid 12.2.0 dropped the class, style or link, or fell back for a
+  `click`. A new statement that would stand there is written after what it
+  needs instead of falling back: `class D hot` added beside a classDef above D
+  follows D's first mention (past a subgraph's `end`), a new Class `style` or
+  `cssClass` follows its class, and a new Class classDef follows the
+  `cssClass` that gives a class its style class. A kept Class classDef that a
+  new `cssClass` would leave before the class it styles stays where the
+  `cssClass` can be written between the class and it; otherwise it moves
+  verbatim to just after the `cssClass`. Such a move never passes a statement
+  sharing a word with it (another classDef or a `style` the canonical edit
+  writes after it), which falls back. The fallback reason for a classDef
+  says it stands before the class's style-class assignment, not before its
+  first mention.
 
 - Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
   request digest, acceptance, unselected capabilities, layout fallbacks, the
@@ -132,8 +168,71 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   fragmentIndex 0 branchIndex 0 index 0`); top-level fragments gain a
   `fragment#F op fragmentIndex F` fact. An edited nested fragment is written
   one level deeper than the statements beside it, and source-preserving edits
-  splice it into the authored lines. A fragment holding a comment, an
-  activation or a `box` stays preserved source as before.
+  splice it into the authored lines.
+
+- Sequence fragments holding a comment, an `activate`/`deactivate`, a `box`
+  of participant declarations, `autonumber` or another line the typed body
+  does not model stay typed. Those lines used to make the whole fragment
+  preserved source; each now rides along verbatim in its branch, in source
+  order beside the branch's messages, notes and nested fragments, so the
+  fragment's messages appear in `describe`, facts and the `describe` tree and
+  fragment operations can edit them while the kept lines (comments included)
+  are written back as authored; when an edit rewrites the fragment, they move
+  to their branch's depth with their relative indentation, and a statement a
+  source-preserving edit adds beside them is indented like them. A preserved branch line never holds a message
+  or a note, so branch indexes count every message and note. Mermaid 12.2.0
+  reads a `box` inside a fragment as one at top level (it groups the
+  participants it declares), as ours draws it; `set_participant_label` edits
+  a boxed declaration in a branch in place. verify still names the kept
+  constructs (`sequence_opaque_segment`) and still reports a `deactivate`
+  inside a branch of a participant that is not active. A fragment stays
+  preserved source as a whole only when its kept lines would hide a message
+  or note (a nested `rect` the renderer reads no color for, a note the typed
+  writer cannot spell, a `box` holding more than declarations) or when it
+  nests past the host limit of 64, which the verify warning now says.
+- `add_fragment` takes `afterMessage` or `beforeMessage`, anchoring the new
+  fragment to a message as `add_note` anchors a note: a top-level message
+  index (`message#N op index K`), or with `fragmentPath` an index among that
+  branch's messages. The fragment goes right after the message and the notes
+  under it, or right above the message and the `create`/`destroy` lines bound
+  to it. New `move_fragment` moves a fragment, contents and all, to such an
+  anchor (appended without one): in its own scope, or with `toFragmentPath`
+  (steps to the destination branch, as the facts address it before the move;
+  `[]` is the top level) into another branch or out to the top level, its
+  anchors then counting that branch's messages. A fragment moved to another
+  scope keeps its authored lines, moved to that scope's depth. Giving both
+  anchors, an anchor with `index`, an anchor out of range, a destination path
+  step that names no fragment or branch, a move into the fragment itself or a
+  fragment nested in it, or one that would nest fragments past the host limit
+  of 64 is refused with `INVALID_OP`.
+- Sequence facts state each activation: `activation#K B start S end E` (or
+  `start S unclosed` for one left open), for `activate`/`deactivate` lines and
+  the `+`/`-` marks of messages, at top level and in fragment branches. `S`
+  and `E` are `message#N` for a mark on that message,
+  `preserved-message#S.I` for a mark on a message kept in preserved source,
+  and for a line the branch it is written in (`fragment#F branch#B`, when in
+  one) and `before message#N` (`at-end` after the last message). A
+  deactivation ends its participant's latest open activation, as Mermaid
+  pairs them.
+- Sequence `activate`/`deactivate` lines are typed statements, at top level
+  and in fragment branches, and new ops edit them and message marks:
+  `add_activation` (`actorId`, `activate`, anchored to a message as a note
+  is), `remove_activation` (`index`) and `set_message_activation` (`index`,
+  `mark`: `"+"`, `"-"` or null). Each addresses the top level, or a branch
+  with `fragmentIndex` (`branchIndex`, `fragmentPath`). Facts state each
+  line's address (`activation-line#N op … index K`). Every such edit goes
+  through the activation-balance check, so none writes a deactivation
+  Mermaid rejects, and the refusal of an edit that would now names the op
+  that removes that deactivation (`remove_activation`, or
+  `set_message_activation` with mark null). Activation lines are written back
+  as authored, in source order, so serializer, SVG, ASCII and Unicode output
+  of unedited diagrams is unchanged. The `sequence_opaque_segment` warning
+  no longer lists them; a diagram whose only preserved lines were
+  activations no longer warns (the official `sequenceDiagram.md`
+  explicit-activation example among them), and its wording names what preserved lines lack: describe leaves
+  them out and typed operations cannot add, move or remove them. Mermaid
+  writes no `+`/`-` on a message with a central connection `()`, so
+  `set_message_activation` refuses one there.
 
 - Sequence facts state the address each message op takes. `message#N`
   numbers every message in drawing order, fragment messages included, while
@@ -187,6 +286,58 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   are unchanged.
 
 ### Fixed
+
+- A typed sequence edit could write source Mermaid 12.2.0 rejects for
+  activation balance ("Trying to inactivate an inactive participant"):
+  removing `A->>+B` left the `deactivate B` (or `B-->>-A`) after it, and
+  moving a message or a fragment, removing a fragment or a participant could
+  do the same. Such an edit is now refused with `INVALID_OP` naming the line
+  that would deactivate an inactive participant, and what to do: keep an
+  activation before it, or remove that deactivation first. Authored lines are
+  never dropped to balance an edit. Source that already deactivates an
+  inactive participant still reads and verify still warns
+  (`sequence_inactive_deactivation`); an edit is refused only when it adds
+  such a deactivation.
+
+- A statement written before the entity it applies to is read as the author
+  meant, reported and written where Mermaid applies it. Mermaid 12.2.0
+  accepts these but ignores the statement: a flowchart `class` before its
+  node, link or subgraph (inside a subgraph before its `end`), a flowchart
+  `click` before its node, a Class `style` or link before its class, and a
+  Class `classDef` before the `cssClass` or `:::` that gives a class its
+  style class. `verify` reports `UNSUPPORTED_SYNTAX`
+  (`flowchart_statement_before_entity`, `class_statement_before_class`,
+  `class_classdef_before_style_class`; the cssClass case keeps
+  `class_css_class_before_class`), and the canonical writer, which already
+  writes them after their entity, gives Mermaid the author's meaning. A
+  flowchart `click` before its node, which ours ignored as Mermaid does (and
+  a canonical rewrite then deleted), now links the node.
+
+- A Class class's own `style` is drawn over its style classes, and a style
+  class given later over one given earlier, whatever the order of the lines,
+  as before; but Mermaid 12.2.0 draws a class's paint in statement order (the
+  last `style` or classDef setting a property wins, `classDef default`
+  included), and nothing said so. `verify` now reports `UNSUPPORTED_SYNTAX`
+  where the authored order makes Mermaid draw otherwise:
+  `class_style_before_classdef` on a `style` above the classDef of the
+  class's style class setting the same property, and `class_classdef_order`
+  on a classDef Mermaid draws over with a later one (two style classes
+  written against the order given, or `classDef default` below a style
+  class). The message names the classDefs, classes and properties, never a
+  value. The canonical writer, which already writes `style` after every
+  classDef, now also writes `classDef default` and each class's style classes
+  in the order ours draws them, so Mermaid draws the rewrite as ours.
+  Source-preserving edits checked only that a statement stood after the
+  entity it needs; one could leave a `style` above a classDef setting the same
+  property (editing `style B stroke:#333` to add `fill` above `classDef hot
+  fill:#f96`, or a new `style B` beside a `style A` above it) and stay local
+  while Mermaid drew the classDef's fill. Every candidate is now checked: the
+  new or edited line is written on the side of the kept one where Mermaid
+  draws ours, or the edit falls back, naming the two lines (`leaves "style B"
+  before "classDef hot", which Mermaid 12.2.0 draws over it on B`). An
+  authored pair is kept only exactly as authored. Paint the renderer refuses
+  (`INVALID_STYLE_COLOR`) is refused as before in either order and position,
+  and is not compared.
 
 - ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
   `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,

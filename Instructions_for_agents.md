@@ -26,7 +26,7 @@ CLI is convenient for one-shot work. In MCP, use the direct `verify`,
 `describe`, render, `mutate` or `build` tool when the connected server advertises
 it. Use `execute` for custom synchronous logic. The hosted and local tool lists
 differ: inspect the connected server instead of borrowing another channel's
-names. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->.
+names. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`, and `preview`<!-- END GENERATED: hosted-mcp-tools -->.
 
 Hosted MCP is stateless Streamable HTTP JSON-RPC, with no initialize handshake
 required. It has no REST render API. A raw verify request is

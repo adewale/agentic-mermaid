@@ -148,6 +148,40 @@ const NESTED_SEQUENCE = `sequenceDiagram
 \tend
 `
 
+// A comment, activations and a box of declarations kept verbatim in the
+// branches of a typed fragment.
+const PRESERVED_BRANCH_SEQUENCE = `sequenceDiagram
+	participant A
+	participant B
+	A ->> B: one
+	alt ok
+		%% why this branch
+		activate B
+		B ->> A: two
+		deactivate B
+	else no
+		box Aqua Group
+			participant C as Cee
+		end
+		A ->> C: three
+	end
+`
+
+// Branches whose only authored lines are kept lines: a new statement is
+// indented like them, not like the fragment's opener.
+const KEPT_ONLY_SEQUENCE = `sequenceDiagram
+    participant A
+    participant B
+    alt ok
+        activate A
+    else no
+        A->>B: go
+        loop retry
+            %% only a comment
+        end
+    end
+`
+
 // Values written over several physical lines: one statement, edited, kept or
 // removed as a whole.
 const SPLIT_FLOWCHART = `flowchart LR
@@ -291,6 +325,142 @@ const INLINE_ANNOTATION = `classDiagram
   class Shape <<interface>>
 `
 
+// Notes written after their state's first mention, which the edit removes:
+// a note left first would declare its state where it stands.
+const NOTED_STATE = `stateDiagram-v2
+  %% keep
+  [*] --> S
+  note right of S
+    noted
+  end note
+  S --> T
+`
+
+const NOTED_NEIGHBOUR = `stateDiagram-v2
+    X --> S
+    note left of S
+      waiting
+      here
+    end note
+  A --> B
+    S --> T
+`
+
+const NOTED_BEFORE_COMPOSITE = `stateDiagram-v2
+  [*] --> S
+  note right of S : noted
+  state C {
+    S --> T
+  }
+`
+
+// Statements Mermaid applies only to an entity that exists where they stand,
+// written after its first mention, which the edit removes: left in place,
+// Mermaid would ignore them (our reader would not), so they move past the
+// next line naming their entity.
+const CLASSED_NODE = `flowchart TD
+  A --> B
+  class B hot
+  B --> C
+  classDef hot fill:#f96
+`
+
+const LINKED_NODE = `flowchart TD
+  A --> B
+  click B "https://example.com"
+  B --> C
+`
+
+// `class B,C` already stands before C's first mention, which Mermaid ignores.
+const CLASSED_AND_LINKED = `flowchart LR
+    A --> B
+  class B,C hot
+    click B href "https://example.com"
+  B --> C
+  classDef hot fill:#f96
+`
+
+const STYLED_CLASS = `classDiagram
+  A <|-- B
+  style B fill:#f96
+  cssClass "B" hot
+  B --> C
+  classDef hot stroke:#333
+`
+
+const LINKED_CLASS = `classDiagram
+  A <|-- B
+  link B "https://example.com" "tip"
+  B --> C
+`
+
+// New statements whose canonical neighbour stands before what they need: a
+// classDef written above the node or class they style. Mermaid would ignore
+// them there, so they follow what they need, or the kept classDef follows
+// the new statement that gives a class its style class.
+const CLASSDEF_ABOVE_NODES = `flowchart LR
+  classDef hot fill:#f96
+  A --> B
+  B --> C
+  C --> D
+`
+
+const CLASSDEF_ABOVE_SUBGRAPH = 'flowchart TD\n\tclassDef hot fill:#f96\n\tsubgraph S\n\t\tA --> D\n\tend\n\tD --> E\n'
+
+const CLASSDEF_ABOVE_CLASS = `classDiagram
+  classDef hot fill:#f96
+  class B {
+    +int x
+  }
+  B --> C
+`
+
+// B is declared between two classDefs: a new cssClass can stand after B and
+// before the classDef it uses.
+const CLASSDEFS_AROUND_CLASS = `classDiagram
+  classDef cool fill:#0f0
+  class B
+  classDef hot fill:#f96
+  class C
+`
+
+const STYLE_CLASS_BEFORE_DEF = `classDiagram
+  classDef cool fill:#0f0
+  class B
+  cssClass "B" hot
+`
+
+const CLASSDEF_ABOVE_RELATION = `classDiagram
+  classDef hot fill:#f96
+  A <|-- B
+`
+
+// A Class `style` whose canonical neighbour stands above the classDef of its
+// class's style class, and a classDef above a `style` setting the same
+// property. Mermaid draws the later line's paint, so the new or edited line is
+// written on the side of the kept one where Mermaid draws ours; written beside
+// its neighbour, it would be drawn over.
+const STYLE_ABOVE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style A fill:#eee
+  classDef hot fill:#f96
+`
+
+const STROKE_ABOVE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style B stroke:#333
+  classDef hot fill:#f96
+`
+
+const STYLE_ABOVE_STROKE_CLASSDEF = `classDiagram
+  A <|-- B
+  cssClass "B" hot
+  style B fill:#000
+  classDef hot stroke:#333
+`
+
 // Enough messages that moving the first one last changes a canonical line
 // difference larger than the table the diff uses for small edits.
 const MANY_MESSAGES = `sequenceDiagram\n  participant A\n  participant B\n  A ->> B: first\n${Array.from({ length: 2100 }, (_, i) => `  B->>A: m${i}\n`).join('')}`
@@ -335,10 +505,20 @@ const CASES: Case[] = [
   { name: 'sequence set_fragment_message_text three fragments deep', source: NESTED_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\t\t\tA ->> B: three'], reference: [['B: three', 'B: again']] },
   { name: 'sequence add_fragment into a nested branch is indented like its siblings', source: NESTED_SEQUENCE, op: { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 1 }], fragmentKind: 'opt', label: 'maybe' }, reference: [['\t\t\tA ->> B: four\n', '\t\t\tA ->> B: four\n\t\t\topt maybe\n\t\t\tend\n']] },
   { name: 'sequence remove_fragment two fragments deep', source: NESTED_SEQUENCE, op: { kind: 'remove_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }, { fragmentIndex: 0, branchIndex: 0 }], index: 0 }, touched: ['\t\t\tloop retry', '\t\t\t\tA ->> B: three', '\t\t\tend'], reference: [['\t\t\tloop retry\n\t\t\t\tA ->> B: three\n\t\t\tend\n', '']] },
+  { name: 'sequence set_fragment_message_text between an activation and its deactivation', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'again' }, touched: ['\t\tB ->> A: two'], reference: [['A: two', 'A: again']] },
+  { name: 'sequence set_participant_label of a boxed declaration in a fragment branch', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_participant_label', id: 'C', label: 'Sea' }, touched: ['\t\t\tparticipant C as Cee'], reference: [['as Cee', 'as Sea']] },
+  { name: 'sequence add_fragment_message into a branch holding only an activation', source: KEPT_ONLY_SEQUENCE, op: { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'B', text: 'new' }, reference: [['        activate A\n', '        activate A\n        A->>B: new\n']] },
+  { name: 'sequence add_fragment_message into a nested branch holding only a comment', source: KEPT_ONLY_SEQUENCE, op: { kind: 'add_fragment_message', fragmentPath: [{ fragmentIndex: 0, branchIndex: 1 }], fragmentIndex: 0, from: 'A', to: 'B', text: 'new' }, reference: [['            %% only a comment\n', '            %% only a comment\n            A->>B: new\n']] },
+  { name: 'sequence add_fragment anchored after a top-level message', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'add_fragment', fragmentKind: 'opt', label: 'maybe', afterMessage: 0 }, reference: [['\tA ->> B: one\n', '\tA ->> B: one\n\topt maybe\n\tend\n']] },
+  { name: 'sequence move_fragment after a later top-level message', source: `${PRESERVED_BRANCH_SEQUENCE}\tA ->> B: four\n`, op: { kind: 'move_fragment', index: 0, afterMessage: 1 }, touched: ['\talt ok', '\t\t%% why this branch', '\t\tactivate B', '\t\tB ->> A: two', '\t\tdeactivate B', '\telse no', '\t\tbox Aqua Group', '\t\t\tparticipant C as Cee', '\t\tend', '\t\tA ->> C: three', '\tend'], reference: [['\talt ok\n\t\t%% why this branch\n\t\tactivate B\n\t\tB ->> A: two\n\t\tdeactivate B\n\telse no\n\t\tbox Aqua Group\n\t\t\tparticipant C as Cee\n\t\tend\n\t\tA ->> C: three\n\tend\n\tA ->> B: four\n', '\tA ->> B: four\n\talt ok\n\t\t%% why this branch\n\t\tactivate B\n\t\tB ->> A: two\n\t\tdeactivate B\n\telse no\n\t\tbox Aqua Group\n\t\t\tparticipant C as Cee\n\t\tend\n\t\tA ->> C: three\n\tend\n']] },
   { name: 'sequence add_note after a message', source: SEQUENCE, op: { kind: 'add_note', position: 'right', actorIds: ['C'], text: 'queued', afterMessage: 0 }, reference: [['\tK ->> C: event\n', '\tK ->> C: event\n\tNote right of C: queued\n']] },
   { name: 'sequence remove_note', source: SEQUENCE, op: { kind: 'remove_note', index: 0 }, touched: ['\tNote over K,C: done'], reference: [['\tNote over K,C: done\n', '']] },
   { name: 'sequence set_note_text', source: SEQUENCE, op: { kind: 'set_note_text', index: 0, text: 'all done' }, touched: ['\tNote over K,C: done'], reference: [['K,C: done', 'K,C: all done']] },
   { name: 'sequence move_note before a message', source: SEQUENCE, op: { kind: 'move_note', index: 0, beforeMessage: 0 }, touched: ['\tNote over K,C: done'], reference: [['\tNote over K,C: done\n', ''], ['\tK ->> C: event\n', '\tNote over K,C: done\n\tK ->> C: event\n']] },
+  { name: 'sequence add_activation after a top-level message', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'add_activation', actorId: 'A', activate: true, afterMessage: 0 }, reference: [['\tA ->> B: one\n', '\tA ->> B: one\n\tactivate A\n']] },
+  { name: 'sequence add_activation before a message in a verbatim alt branch', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'add_activation', fragmentIndex: 0, actorId: 'A', activate: true, beforeMessage: 0 }, reference: [['\t\tactivate B\n', '\t\tactivate B\n\t\tactivate A\n']] },
+  { name: 'sequence remove_activation in a verbatim alt branch', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'remove_activation', fragmentIndex: 0, index: 1 }, touched: ['\t\tdeactivate B'], reference: [['\t\tdeactivate B\n', '']] },
+  { name: 'sequence set_message_activation rewrites only its message', source: PRESERVED_BRANCH_SEQUENCE, op: { kind: 'set_message_activation', fragmentIndex: 0, branchIndex: 1, index: 0, mark: '+' }, touched: ['\t\tA ->> C: three'], reference: [['\t\tA ->> C: three', '\t\tA->>+C: three']] },
   { name: 'class add_class', source: CLASS, op: { kind: 'add_class', id: 'Bird' }, reference: [['    %% notes\n', '    %% notes\n    class Bird\n']] },
   { name: 'class add_member to a block', source: CLASS, op: { kind: 'add_member', class: 'Animal', text: '+int age' }, reference: [['        +eat() void\n', '        +eat() void\n        +int age\n']] },
   { name: 'class add_class with members opens a block indented like its siblings', source: CLASS, op: { kind: 'add_class', id: 'Bird', members: ['+fly() void'] }, reference: [['    %% notes\n', '    %% notes\n    class Bird {\n        +fly() void\n    }\n']] },
@@ -391,6 +571,23 @@ const CASES: Case[] = [
   { name: 'flowchart add_edge from a node declared on its own line keeps its label there', source: DECLARED_FIRST, op: { kind: 'add_edge', from: 'n0', to: 'n1' }, reference: [['  n2 --> n1\n', '  n2 --> n1\n  n0 --> n1\n']] },
   { name: 'class remove_class from a nested namespace', source: NESTED_NAMESPACES, op: { kind: 'remove_class', id: 'UserService' }, touched: ['        namespace Auth {', '            class UserService {', '                +login()', '            }', '        }', '    Gateway --> UserService : delegates'], reference: [['        namespace Auth {\n            class UserService {\n                +login()\n            }\n        }\n', ''], ['    Gateway --> UserService : delegates\n', '']] },
   { name: 'class add_member to a class written with its annotation on one line', source: INLINE_ANNOTATION, op: { kind: 'add_member', class: 'Shape', text: '+int added' }, touched: ['  class Shape <<interface>>'], reference: [['  class Shape <<interface>>\n', '  class Shape {\n    <<interface>>\n    +int added\n  }\n']] },
+  { name: 'state remove_transition moves a note past the line that now names its state first', source: NOTED_STATE, op: { kind: 'remove_transition', index: 0 }, touched: ['  [*] --> S', '  note right of S', '    noted', '  end note'], reference: [['  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n', '  S --> T\n  note right of S\n    noted\n  end note\n']] },
+  { name: 'state remove_state of a neighbour moves the note on the state it named past a transition between', source: NOTED_NEIGHBOUR, op: { kind: 'remove_state', id: 'X' }, touched: ['    X --> S', '    note left of S', '      waiting', '      here', '    end note'], reference: [['    X --> S\n    note left of S\n      waiting\n      here\n    end note\n', ''], ['    S --> T\n', '    S --> T\n    note left of S\n      waiting\n      here\n    end note\n']] },
+  { name: 'state remove_transition moves a note past the composite that now names its state first', source: NOTED_BEFORE_COMPOSITE, op: { kind: 'remove_transition', from: '[*]', to: 'S' }, touched: ['  [*] --> S', '  note right of S : noted'], reference: [['  [*] --> S\n  note right of S : noted\n', ''], ['    S --> T\n  }\n', '    S --> T\n  }\n  note right of S : noted\n']] },
+  { name: 'flowchart remove_edge moves a class past the line that now names its node first', source: CLASSED_NODE, op: { kind: 'remove_edge', id: 'A->B' }, touched: ['  A --> B', '  class B hot'], reference: [['  A --> B\n  class B hot\n  B --> C\n', '  B --> C\n  class B hot\n  A[A]\n']] },
+  { name: 'flowchart remove_node moves a click, read after the line before it, past the line that now names its node first', source: LINKED_NODE, op: { kind: 'remove_node', id: 'A' }, touched: ['  A --> B', '  click B "https://example.com"'], reference: [['  A --> B\n  click B "https://example.com"\n  B --> C\n', '  B --> C\n  click B "https://example.com"\n']] },
+  { name: 'flowchart remove_edge moves a class naming two nodes and a click, in order, past the next line naming the node', source: CLASSED_AND_LINKED, op: { kind: 'remove_edge', id: 'A->B' }, touched: ['    A --> B', '  class B,C hot', '    click B href "https://example.com"'], reference: [['    A --> B\n  class B,C hot\n    click B href "https://example.com"\n  B --> C\n', '  B --> C\n  class B,C hot\n    click B href "https://example.com"\n  A[A]\n']] },
+  { name: 'class remove_relation moves a style and cssClass, in order, past the line that now names their class first', source: STYLED_CLASS, op: { kind: 'remove_relation', index: 0 }, touched: ['  A <|-- B', '  style B fill:#f96', '  cssClass "B" hot'], reference: [['  A <|-- B\n  style B fill:#f96\n  cssClass "B" hot\n  B --> C\n', '  class A\n  B --> C\n  style B fill:#f96\n  cssClass "B" hot\n']] },
+  { name: 'class remove_class moves a link past the line that now names its class first', source: LINKED_CLASS, op: { kind: 'remove_class', id: 'A' }, touched: ['  A <|-- B', '  link B "https://example.com" "tip"'], reference: [['  A <|-- B\n  link B "https://example.com" "tip"\n  B --> C\n', '  B --> C\n  link B "https://example.com" "tip"\n']] },
+  { name: 'flowchart set_node_class beside a classDef above the node is written after the node\'s first mention', source: CLASSDEF_ABOVE_NODES, op: { kind: 'set_node_class', id: 'C', className: 'hot' }, reference: [['  B --> C\n', '  B --> C\n  class C hot\n']] },
+  { name: 'flowchart set_node_class of a node first named in a subgraph is written after its end, indented like it', source: CLASSDEF_ABOVE_SUBGRAPH, op: { kind: 'set_node_class', id: 'D', className: 'hot' }, reference: [['\tend\n', '\tend\n\tclass D hot\n']] },
+  { name: 'class set_css_class moves the classDef above the class verbatim after the new cssClass', source: CLASSDEF_ABOVE_CLASS, op: { kind: 'set_css_class', class: 'B', className: 'hot' }, touched: ['  classDef hot fill:#f96'], reference: [['  classDef hot fill:#f96\n', ''], ['  B --> C\n', '  B --> C\n  cssClass "B" hot\n  classDef hot fill:#f96\n']] },
+  { name: 'class set_css_class is written after its class and before the classDef it uses', source: CLASSDEFS_AROUND_CLASS, op: { kind: 'set_css_class', class: 'B', className: 'hot' }, reference: [['  class B\n', '  class B\n  cssClass "B" hot\n']] },
+  { name: 'class define_class is written after the cssClass that gives a class its style class', source: STYLE_CLASS_BEFORE_DEF, op: { kind: 'define_class', name: 'hot', style: 'fill:#f96' }, reference: [['  cssClass "B" hot\n', '  cssClass "B" hot\n  classDef hot fill:#f96\n']] },
+  { name: 'class set_class_style beside a classDef above the class is written after the class\'s first mention', source: CLASSDEF_ABOVE_RELATION, op: { kind: 'set_class_style', class: 'B', style: 'fill:#0f0' }, reference: [['  A <|-- B\n', '  A <|-- B\n  style B fill:#0f0\n']] },
+  { name: 'class set_class_style beside a style above the classDef of the class\'s style class is written after the classDef', source: STYLE_ABOVE_CLASSDEF, op: { kind: 'set_class_style', class: 'B', style: 'fill:#000' }, reference: [['  classDef hot fill:#f96\n', '  classDef hot fill:#f96\n  style B fill:#000\n']] },
+  { name: 'class set_class_style adding the property a later classDef sets moves the style after it', source: STROKE_ABOVE_CLASSDEF, op: { kind: 'set_class_style', class: 'B', style: 'fill:#000,stroke:#333' }, touched: ['  style B stroke:#333'], reference: [['  style B stroke:#333\n', ''], ['  classDef hot fill:#f96\n', '  classDef hot fill:#f96\n  style B fill:#000,stroke:#333\n']] },
+  { name: 'class define_class adding the property an earlier style sets moves the classDef above it', source: STYLE_ABOVE_STROKE_CLASSDEF, op: { kind: 'define_class', name: 'hot', style: 'fill:#f96,stroke:#333' }, touched: ['  classDef hot stroke:#333'], reference: [['  classDef hot stroke:#333\n', ''], ['  style B fill:#000\n', '  classDef hot fill:#f96,stroke:#333\n  style B fill:#000\n']] },
   { name: 'gantt add_section', source: GANTT, op: { kind: 'add_section', label: 'Support' }, reference: [['    Release     :milestone, rel, 2024-01-20, 0d\n', '    Release     :milestone, rel, 2024-01-20, 0d\n    section Support\n']] },
 ]
 
@@ -469,14 +666,38 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(read!.ok).toBe(true)
   }, 20_000)
 
-  // A kept line whose position changes what it declares: with `[*] --> S`
-  // gone, the note left before `S --> T` would declare S on its own, which
-  // Mermaid draws differently, so the edit falls back and the receipt says
-  // the closest candidate has the edit's facts.
-  test('a state note left before its state\'s only transition falls back with a named reason', () => {
-    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S\n    noted\n  end note\n  S --> T\n'
+  // A kept classDef that must follow a new cssClass, but would pass a
+  // statement Mermaid reads in order with it: another classDef or a `style`
+  // the canonical edit writes after it (the later one wins). Moving it would
+  // change what Mermaid draws while our reader sees the same diagram, so
+  // the edit falls back, naming the line that gives the class its style class.
+  test.each([
+    ['classDiagram\n  classDef hot fill:#f96\n  classDef cool fill:#0f0\n  class B\n', [{ kind: 'set_css_class', class: 'B', className: 'hot' }], 'B'],
+    ['classDiagram\n  classDef hot fill:#f96\n  class C\n  style C fill:#000\n  class B\n', [{ kind: 'set_css_class', class: 'B', className: 'hot' }, { kind: 'set_css_class', class: 'C', className: 'hot' }], 'C'],
+  ] as const)('a classDef that cannot follow the new cssClass it needs falls back: %j', (source, ops, name) => {
+    const result = applyOps({ source, ops: [...ops], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: `no local change to the authored source reads back as the edited diagram: the closest local change leaves "classDef hot fill:#f96" before ${name}'s style-class assignment, where Mermaid 12.2.0 ignores it` })
+  })
+
+  // An edit whose only local change leaves a Class `style` above the
+  // classDef that Mermaid then draws over it: the new `cssClass` gives B the
+  // style class of the kept classDef below the kept `style B`. Ours draws the
+  // style either way; the edit falls back, naming the two lines, not their
+  // paint.
+  test('a Class edit that would leave a style above a classDef drawn over it falls back', () => {
+    const result = applyOps({ source: 'classDiagram\n  A <|-- B\n  style B fill:#000\n  classDef hot fill:#f96\n', ops: [{ kind: 'set_css_class', class: 'B', className: 'hot' }], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change leaves "style B" before "classDef hot", which Mermaid 12.2.0 draws over it on B' })
+  })
+
+  // A note that must stay first (it declares T) and one that would have to
+  // move past it: no local change keeps the notes in order, and the receipt
+  // names the facts the closest candidate reads otherwise.
+  test('a state edit that would reorder notes falls back with a named reason', () => {
+    const source = 'stateDiagram-v2\n  %% keep\n  [*] --> S\n  note right of S : one\n  note left of T : two\n  S --> T\n'
     const result = applyOps({ source, ops: [{ kind: 'remove_transition', index: 0 }], mode: 'source-preserving' })
     if (!result.ok) throw new Error(JSON.stringify(result.error))
-    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change has the edit\'s facts but also reads "S"' })
+    expect(result.preservation).toEqual({ method: 'canonical', reason: 'no local change to the authored source reads back as the edited diagram: the closest local change writes the edited statements, but reads "note#0 left of T : two" and 1 more where the edit has "note#0 right of S : one" and 1 more' })
   })
 })

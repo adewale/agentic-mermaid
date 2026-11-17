@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
-import { buildMermaid, verifyMermaid } from '../agent/index.ts'
+import { buildMermaid, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
@@ -92,6 +92,43 @@ describe('authored style color admission (#303, source/typed slice)', () => {
       expect(result.ok, source).toBe(false)
       expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason?.includes(named)), source).toBe(true)
     }
+  })
+
+  // Mermaid draws a Class class's paint in statement order, and verify warns
+  // where that order makes it draw otherwise than ours; the writer orders
+  // classDefs before `style`. Neither admits paint: a refused value is refused
+  // by directive in either order and either position, the order warning
+  // compares only admitted paint and never names a value, and the writer
+  // only orders the lines it already writes, markup still entity-coded.
+  test('Class style and classDef order neither admits nor echoes refused paint', () => {
+    for (const value of ['notacolor', 'url(#a)', 'rgb(x)', '#f00</style><script>']) {
+      for (const [directive, lines] of [
+        ['style B', [`  style B fill:${value}`, '  classDef hot fill:#f96']],
+        ['style B', ['  classDef hot fill:#f96', `  style B fill:${value}`]],
+        ['classDef hot', ['  style B fill:#000', `  classDef hot fill:${value}`]],
+        ['classDef hot', [`  classDef hot fill:${value}`, '  style B fill:#000']],
+      ] as const) {
+        const source = ['classDiagram', '  class B:::hot', ...lines].join('\n')
+        const named = `${directive}: fill ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source), source).toThrow(named)
+        expect(() => renderMermaidASCII(source, { useAscii: true }), source).toThrow(named)
+        const { warnings } = verifyMermaid(source)
+        expect(warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' && (/^class_(style_before_classdef|classdef_order)$/.test(warning.syntax) || warning.message.includes(value)) ? [warning] : []), source).toEqual([])
+        expect(warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason?.includes(named)), source).toBe(true)
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok) throw new Error(source)
+        const written = serializeMermaid(parsed.value)
+        expect(written.split('\n').slice(1, 5).map(line => line.trim().split(/[\s:]+/, 2).join(' ')), source).toEqual(['class B', 'cssClass "B"', 'classDef hot', 'style B'])
+        expect(written, source).not.toContain('<')
+      }
+    }
+    // An admitted paint Mermaid draws over is reported by directive and
+    // property alone, beside a refused one on the same line.
+    const mixed = verifyMermaid('classDiagram\n  class B:::hot\n  style B fill:#000,stroke:url(#a)\n  classDef hot fill:#f96')
+    expect(mixed.warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? warning.message : warning.code === 'RENDER_FAILED' ? 'RENDER_FAILED' : warning.code)).toEqual([
+      'This `style` sets `fill` on B, which `classDef hot` below it also sets through that style class. Ours draws the style\'s (a class\'s own style overrides its style classes); pinned Mermaid draws the later line\'s. Move this line after that classDef.',
+      'RENDER_FAILED',
+    ])
   })
 
   test('async browser SVG refuses invalid paint in every affected family', async () => {

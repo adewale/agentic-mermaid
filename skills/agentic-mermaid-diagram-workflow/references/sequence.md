@@ -46,7 +46,15 @@ state the fields to pass, the path as JSON:
 `message#N op fragmentPath [{"fragmentIndex":0,"branchIndex":1}] fragmentIndex 0 branchIndex 0 index 0`,
 and likewise for `note#N op …` and `fragment#… op …`. `add_fragment` with a
 path appends the new fragment to that branch (or puts it before fragment
-`index` there). An edit inside a nested fragment rewrites it and the
+`index` there). `add_fragment` also takes `afterMessage` or `beforeMessage`,
+placed as a note's anchors place it: a top-level message index, or with
+`fragmentPath` an index among that branch's messages. `move_fragment`
+(`fragmentPath`, `index`, an anchor) moves a fragment and its contents within
+its own scope, or with `toFragmentPath` into another branch (the branch's
+`fragmentPath` plus `{ fragmentIndex, branchIndex }`, read before the move;
+`[]` is the top level), its anchors then counting that branch's messages. A
+move into the fragment itself or one nested in it, or past the nesting limit,
+is refused. An edit inside a nested fragment rewrites it and the
 fragments around it; nested fragments are written one level deeper than the
 statements beside them, and untouched ones keep their authored lines.
 
@@ -58,11 +66,33 @@ them. `create participant|actor` and `destroy` lines and `Note left of|right
 of|over …` lines are typed statements too, at top level and inside those
 fragments (facts: `create …`, `destroy …`, with `fragment#f branch#b` inside a
 fragment); an edit that would separate a directive from the message Mermaid
-requires right after it is refused. A fragment may hold further fragments
-(see Nested fragments above). Other constructs (box/activate/autonumber/title,
-a comment, and a fragment holding one of them) ride along VERBATIM as
-opaque-block segments while
-participant and top-level message ops remain live. Only an un-segmentable
+requires right after it is refused. `activate X`/`deactivate X` lines are
+typed statements too, at top level and in branches, written as authored
+(facts: `activation-line#N deactivate B`, `activation-line#N op [fragmentPath
+P fragmentIndex F branchIndex B] index K`, `activation-line#N before
+message#M`). Activations (those lines and message `+`/`-` marks) are also
+facts as spans:
+`activation#K B start message#0 end fragment#0 branch#1 before message#3`
+(a mark is `message#N`, a line `before message#N` or `at-end`, an open one
+ends `unclosed`). Edit them with `add_activation` (`actorId`, `activate`:
+true or false, `afterMessage`/`beforeMessage` as a note's, below the notes
+and activation lines already after its message), `remove_activation`
+(`index`) and `set_message_activation` (`index` of the message, `mark`:
+`"+"`, `"-"` or null; Mermaid has no mark on a `()` message). Each takes the
+top level, or a branch with `fragmentIndex` (`branchIndex`, `fragmentPath`)
+as the fragment message and note ops do. An edit that would leave a
+deactivation of a participant that is not active, which Mermaid rejects, is
+refused naming that line and the op that removes it: remove the deactivation
+first (`remove_activation`, or `set_message_activation` with mark null), then
+the activation. A fragment may hold further fragments
+(see Nested fragments above). Other constructs (box/autonumber/title,
+a comment) ride along VERBATIM as opaque-block segments, at top level and
+inside a fragment branch, in source order, while participant, message and
+fragment ops remain live; a kept branch line never holds a message or note,
+so branch indexes count them all. A fragment stays one opaque segment only
+when its kept lines would hide a message or note (a nested `rect` the
+renderer reads no color for, a box holding more than declarations, a note
+the writer cannot spell) or nests past 64 (verify says so). Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE
 body. Either way the parser never silently drops constructs.
 

@@ -101,8 +101,8 @@ function statementArb(depth: number): fc.Arbitrary<Statement> {
 }
 
 function blockArb(depth: number): fc.Arbitrary<Statement> {
-  // Message-only branches keep typed fragments common; mixed branches make
-  // the block preserved source.
+  // Message-only branches and mixed branches, whose declarations and links
+  // stay verbatim beside the typed statements.
   const branchArb = (label: fc.Arbitrary<string>) => fc.record({
     label,
     statements: fc.oneof(fc.array(messageStatementArb, { minLength: 1, maxLength: 3 }), fc.array(statementArb(depth), { minLength: 1, maxLength: 3 })),
@@ -144,11 +144,11 @@ function printSequence(statements: Statement[]): string {
   return lines.join('\n')
 }
 
-/** The typed model's rule: a block holding only messages, notes and typed
- * blocks is a typed fragment; every other block is preserved source. */
+/** The typed model's rule: a block is a typed fragment when the blocks it
+ * holds are; a declaration or a link in a branch stays verbatim there. */
 function isTypedFragment(statement: Extract<Statement, { kind: 'block' }>): boolean {
   return ['loop', 'opt', 'alt', 'par', 'critical', 'break', 'rect'].includes(statement.keyword)
-    && statement.branches.every(branch => branch.statements.every(inner => inner.kind === 'message' || inner.kind === 'note' || (inner.kind === 'block' && isTypedFragment(inner))))
+    && statement.branches.every(branch => branch.statements.every(inner => inner.kind !== 'block' || isTypedFragment(inner)))
 }
 
 /** Every generated message in source order, or only those our model types. */

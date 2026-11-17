@@ -94,11 +94,18 @@
       "expected": { "status": 200, "id": 111, "hasResult": true }
     },
     {
-      "name": "unadvertised-resource-templates",
+      "name": "unadvertised-resources-subscribe",
       "mutation": "Probe an optional method omitted from discovery capabilities",
-      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/templates/list" },
-      "body": { "jsonrpc": "2.0", "id": 112, "method": "resources/templates/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/subscribe" },
+      "body": { "jsonrpc": "2.0", "id": 112, "method": "resources/subscribe", "params": { "uri": "ui://agentic-mermaid/preview", "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
       "expected": { "status": 404, "id": 112, "errorCode": -32601 }
+    },
+    {
+      "name": "resources-read-preview-view",
+      "mutation": "Positive control: the MCP Apps view reads statelessly with no credentials",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/read", "mcp-name": "ui://agentic-mermaid/preview" },
+      "body": { "jsonrpc": "2.0", "id": 114, "method": "resources/read", "params": { "uri": "ui://agentic-mermaid/preview", "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 200, "id": 114, "hasResult": true }
     }
   ]
 }

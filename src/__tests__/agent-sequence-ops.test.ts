@@ -15,10 +15,11 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
-import type { SequenceBody, SequenceFragment, SequenceFragmentBranch, SequenceMessage, SequenceNoteStatement, SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
+import type { SequenceActivationStatement, SequenceBody, SequenceFragment, SequenceFragmentBranch, SequenceMessage, SequenceNoteStatement, SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { describeOps } from '../agent/op-schema.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
+import { sequenceTimeline } from '../agent/sequence-body.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
@@ -258,8 +259,8 @@ describe('sequence message style names the arrow Mermaid reads and ours draws', 
   test('every parsed arrow: typed style, facts, written arrow and drawn heads agree', () => {
     const lines = ARROW_CASES.map((c, i) => `A${c.arrow}B: m${i}`)
     for (const preserved of [false, true]) {
-      // An activation is outside the typed fragment model, so this rect stays preserved source.
-      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect rgb(1, 2, 3)', ...lines, 'activate A', 'end'] : lines)].join('\n'))
+      // The renderer reads no color from `#ff0000`, so this rect stays preserved source.
+      const d = sequence(['sequenceDiagram', ...(preserved ? ['rect #ff0000', ...lines, 'end'] : lines)].join('\n'))
       const facts = describeMermaidFacts(d)
       const subject = (i: number) => preserved ? `preserved-message#0.${i + 1}` : `message#${i}`
       ARROW_CASES.forEach((c, i) => {
@@ -519,7 +520,7 @@ describe('critical, break and rect fragments are typed like alt, opt, loop and p
 
   test.each([
     ['a rect whose argument is a # comment', 'rect #ff0000'],
-    ['a rect holding a fragment with an activation', 'rect rgb(1, 2, 3)\n    alt yes\n      activate A\n      A->>B: x\n    end'],
+    ['a rect holding a rect whose argument is a # comment', 'rect rgb(1, 2, 3)\n    alt yes\n      rect #ff0000\n        A->>B: x\n      end\n    end'],
   ])('%s stays preserved source', (_name, block) => {
     const source = `sequenceDiagram\n  A->>B: hi\n  ${block}\n  end\n`
     expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
@@ -616,16 +617,19 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   const LOOP = [...ALT, { fragmentIndex: 0, branchIndex: 0 }]
   const OPT = [...ALT, { fragmentIndex: 0, branchIndex: 1 }]
 
-  /** Messages, notes and fragment markers in order, as Mermaid's database holds them. */
+  /** Messages, notes, activations and fragment markers in order, as
+   * Mermaid's database holds them. */
   const mermaidStream = (source: string) => upstream.project(source, diagram => {
     const names = Object.fromEntries(Object.entries(diagram.db.LINETYPE as Record<string, number>).map(([name, type]) => [type, name]))
     return diagram.db.getMessages().map((m: { from?: string; to?: string; type: number; placement: number; message: unknown }) => m.type === diagram.db.LINETYPE.NOTE
       ? `note ${['left', 'right', 'over'][m.placement]} ${m.from === m.to ? m.from : `${m.from},${m.to}`}: ${m.message}`
-      : m.from === undefined ? `${names[m.type]} ${typeof m.message === 'string' ? m.message : ''}`.trim() : `${m.from}->${m.to}: ${m.message}`)
+      : m.from === undefined ? `${names[m.type]} ${typeof m.message === 'string' ? m.message : ''}`.trim()
+        : m.to === undefined ? `${names[m.type]} ${m.from}` : `${m.from}->${m.to}: ${m.message}`)
   })
 
   /** The same, read from the typed body: each fragment's markers around its
-   * branches' messages, notes and nested fragments. */
+   * branches' messages, notes, activation lines, nested fragments and the
+   * `autonumber` its preserved lines hold. */
   const MARKERS: Record<SequenceFragment['fragmentKind'], readonly [string, string, string]> = {
     alt: ['ALT_START', 'ALT_ELSE', 'ALT_END'], opt: ['OPT_START', '', 'OPT_END'], loop: ['LOOP_START', '', 'LOOP_END'], par: ['PAR_START', 'PAR_AND', 'PAR_END'],
     par_over: ['PAR_OVER_START', 'PAR_AND', 'PAR_END'], critical: ['CRITICAL_START', 'CRITICAL_OPTION', 'CRITICAL_END'], break: ['BREAK_START', '', 'BREAK_END'], rect: ['RECT_START', '', 'RECT_END'],
@@ -633,17 +637,20 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
   function typedStream(body: SequenceBody): string[] {
     const message = (m: SequenceMessage) => `${m.from}->${m.to}: ${m.text}`
     const note = (n: SequenceNoteStatement) => `note ${n.position} ${n.actorIds.join(',')}: ${n.text}`
+    const activation = (a: SequenceActivationStatement) => `${a.activate ? 'ACTIVE_START' : 'ACTIVE_END'} ${a.actorId}`
+    const preserved = (line: string): string[] => line.trim() === 'autonumber' ? ['AUTONUMBER'] : []
     const fragment = (f: SequenceFragment): string[] => {
       const [start, next, end] = MARKERS[f.fragmentKind]
       return [...f.branches.flatMap((branch, i) => [`${i === 0 ? start : next} ${(i === 0 ? f.label : branch.label) ?? ''}`.trim(), ...items(branch)]), end]
     }
     const items = (branch: SequenceFragmentBranch): string[] => {
       const at = (k: number) => (branch.statements ?? []).filter(entry => entry.before === k)
-        .flatMap(({ statement }) => statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
+        .flatMap(({ statement }) => statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment)
+          : statement.kind === 'activation' ? [activation(statement)] : statement.kind === 'opaque-block' ? statement.lines.flatMap(preserved) : [])
       return [...branch.messages.flatMap((m, k) => [...at(k), message(m)]), ...at(branch.messages.length)]
     }
     return body.statements.flatMap(statement => statement.kind === 'message' ? [message(body.messages[statement.ref]!)]
-      : statement.kind === 'note' ? [note(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
+      : statement.kind === 'note' ? [note(statement)] : statement.kind === 'activation' ? [activation(statement)] : statement.kind === 'fragment' ? fragment(statement.fragment) : [])
   }
 
   test('a rect around an alt holding a loop and an opt is typed to the bottom and written back unchanged', async () => {
@@ -670,12 +677,20 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['relabels a fragment two deep', { kind: 'set_fragment_label', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], index: 0, label: 'fine' }, '  rect rgb(200, 220, 255)\n  alt fine\n'],
     ['adds a branch two deep', { kind: 'add_fragment_branch', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentIndex: 0, label: 'later' }, '  else later\n  end\n  end\n'],
     ['relabels a branch three deep', { kind: 'set_fragment_branch_label', fragmentPath: LOOP.slice(0, 1).concat({ fragmentIndex: 0, branchIndex: 0 }), fragmentIndex: 0, branchIndex: 0, label: 'again' }, '    loop again\n'],
+    ['adds a fragment after a message three deep, below its note', { kind: 'add_fragment', fragmentPath: [...LOOP, { fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'opt', label: 'late', afterMessage: 0 }, '      A->>B: three\n      Note right of B: busy\n      opt late\n      end\n    end\n'],
+    ['adds a fragment after a branch message, above the fragment after it', { kind: 'add_fragment', fragmentPath: LOOP, fragmentKind: 'opt', label: 'late', afterMessage: 0 }, '    B->>A: two\n    opt late\n    end\n      loop retry\n'],
+    ['adds a fragment before a message three deep, above the destroy bound to it', { kind: 'add_fragment', fragmentPath: [...OPT, { fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'break', label: 'stop', beforeMessage: 0 }, '      Note over A: last try\n      break stop\n      end\n      destroy C\n'],
+    ['moves a nested fragment, contents and all, below the branch message after it', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, afterMessage: 1 }, '    B->>A: four\n      loop retry\n        A->>B: three\n        Note right of B: busy\n      end\n  else no\n'],
+    ['moves a nested fragment into the other branch, at that branch\'s depth', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: OPT, afterMessage: 0 }, '  alt ok\n    B->>A: two\n    B->>A: four\n  else no\n    create participant C\n    A->>C: five\n    loop retry\n      A->>B: three\n      Note right of B: busy\n    end\n      opt maybe\n'],
+    ['moves a nested fragment into a fragment nested in its sibling, above the destroy bound to a message', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: [...OPT, { fragmentIndex: 0, branchIndex: 0 }], beforeMessage: 0 }, '    opt maybe\n      Note over A: last try\n      loop retry\n        A->>B: three\n        Note right of B: busy\n      end\n      destroy C\n      C->>A: six\n'],
+    ['moves a nested fragment out to the branch around it', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: ALT }, '    A->>C: five\n  end\n  opt maybe\n    Note over A: last try\n    destroy C\n    C->>A: six\n  end\n  end\n  A->>B: seven\n'],
+    ['moves a nested fragment out to the top level', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: [], afterMessage: 1 }, '    A->>C: five\n  end\n  end\n  A->>B: seven\n  opt maybe\n    Note over A: last try\n    destroy C\n    C->>A: six\n  end\n'],
   ] as const)('an op that %s is written as Mermaid reads it', async (_name, op, written) => {
     const edited = apply(sequence(DEEP), op as SequenceMutationOp)
     const output = serializeMermaid(edited)
     expect(output).toContain(written)
     const reread = sequence(output)
-    expect(reread.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(reread.body.statements.map(statement => statement.kind)).toEqual(edited.body.statements.map(statement => statement.kind))
     expect(serializeMermaid(reread)).toBe(output)
     expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
     const read = await mermaidStream(output)
@@ -693,6 +708,13 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     ['a fragmentPath that is not a list', { kind: 'add_fragment', fragmentPath: { fragmentIndex: 0, branchIndex: 0 }, fragmentKind: 'opt' }, 'INVALID_OP'],
     ['a message missing from a nested branch', { kind: 'set_fragment_message_text', fragmentPath: LOOP, fragmentIndex: 0, index: 1, text: 'x' }, 'MESSAGE_NOT_FOUND'],
     ['a nested edit separating a destroy from its message', { kind: 'add_fragment_message', fragmentPath: OPT, fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'x' }, 'INVALID_OP'],
+    ['a fragment moved out of range', { kind: 'move_fragment', fragmentPath: OPT, index: 1 }, 'INVALID_OP'],
+    ['a fragment moved into its own branch', { kind: 'move_fragment', fragmentPath: ALT, index: 0, toFragmentPath: LOOP }, 'INVALID_OP'],
+    ['a fragment moved into a fragment nested in it', { kind: 'move_fragment', index: 0, toFragmentPath: [...LOOP, { fragmentIndex: 0, branchIndex: 0 }] }, 'INVALID_OP'],
+    ['a destination path step naming a missing branch', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: [...ALT, { fragmentIndex: 0, branchIndex: 2 }] }, 'INVALID_OP'],
+    ['a destination path that is not a list', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: { fragmentIndex: 0, branchIndex: 0 } }, 'INVALID_OP'],
+    ['a destination anchor past its branch\'s messages', { kind: 'move_fragment', fragmentPath: LOOP, index: 0, toFragmentPath: OPT, afterMessage: 1 }, 'INVALID_OP'],
+    ['a move to the top level that puts a destroy and its message above the create', { kind: 'move_fragment', fragmentPath: OPT, index: 0, toFragmentPath: [], beforeMessage: 0 }, 'INVALID_OP'],
   ] as const)('an op naming %s is refused and changes nothing', (_name, op, code) => {
     const parsed = sequence(DEEP)
     const result = mutate(parsed, op as unknown as SequenceMutationOp)
@@ -706,16 +728,367 @@ describe('fragments nested in fragments are typed and every fragment op reaches 
     const nested = (depth: number) => ['sequenceDiagram', ...Array.from({ length: depth }, (_, i) => `${'  '.repeat(i + 1)}loop l${i}`), `${'  '.repeat(depth + 1)}A->>B: deep`, ...Array.from({ length: depth }, (_, i) => `${'  '.repeat(depth - i)}end`)].join('\n')
     expect(sequence(nested(limit)).body.statements.map(statement => statement.kind)).toEqual(['fragment'])
     expect(sequence(nested(limit + 1)).body.statements.map(statement => statement.kind)).toEqual(['opaque-block'])
+    // verify says why the deeper block is not typed.
+    expect(verifyMermaid(nested(limit + 1)).warnings).toContainEqual(expect.objectContaining({
+      syntax: 'sequence_opaque_segment', message: expect.stringContaining(`fragments nested past the host limit of ${limit}`),
+    }))
+    expect(JSON.stringify(verifyMermaid(nested(limit)).warnings)).not.toContain('host limit')
     const path = Array.from({ length: limit }, () => ({ fragmentIndex: 0, branchIndex: 0 }))
     const refused = mutate(sequence(nested(limit)), { kind: 'add_fragment', fragmentPath: path, fragmentKind: 'opt' })
     expect(refused.ok ? 'accepted' : refused.error.code).toBe('INVALID_OP')
     expect(mutate(sequence(nested(limit)), { kind: 'add_fragment', fragmentPath: path.slice(1), fragmentKind: 'opt' }).ok).toBe(true)
+    // A moved fragment brings its own depth: an opt holding a loop fits one
+    // level above the deepest branch of a chain one short of the limit.
+    const pair = sequence(`${nested(limit - 1)}\n  opt pair\n    loop inner\n      A->>B: x\n    end\n  end`)
+    const tooDeep = mutate(pair, { kind: 'move_fragment', index: 1, toFragmentPath: path.slice(1) })
+    expect(tooDeep.ok ? 'accepted' : tooDeep.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(`would nest fragments ${limit + 1} deep`) })
+    const moved = mutate(pair, { kind: 'move_fragment', index: 1, toFragmentPath: path.slice(2) })
+    if (!moved.ok) throw new Error(moved.error.message)
+    expect(sequence(serializeMermaid(moved.value)).body.statements.map(statement => statement.kind)).toEqual(['fragment'])
   })
 
   test('describe lists nested fragments inside their branch', () => {
     expect(describeMermaid(sequence(DEEP))).toContain('fragment 0 (rect): branch 0 (rgb(200, 220, 255)): { fragment 0.0.0 (alt): branch 0 (ok): B -> A: two; { fragment 0.0.0.0.0 (loop): branch 0 (retry): A -> B: three; note right of B: busy }; B -> A: four | branch 1 (no): create participant C; A -> C: five; { fragment 0.0.0.1.0 (opt): branch 0 (maybe): note over A: last try; destroy C; C -> A: six } }')
   })
+
+  // A comment, an activation, a `box` of declarations, a `#` comment and
+  // `autonumber` in branches, at two depths.
+  const PRESERVED = `sequenceDiagram
+  participant A
+  participant B
+  A->>B: one
+  alt ok
+    %% why this branch
+    activate B
+    B->>A: two
+    deactivate B
+  else no
+    box Aqua Group
+      participant C as Cee
+    end
+    A->>C: three
+    loop again
+      # hash comment
+      C->>A: four
+      autonumber
+    end
+  end
+  A->>B: five
+`
+  const FIRST = [{ fragmentIndex: 0, branchIndex: 0 }]
+  const SECOND = [{ fragmentIndex: 0, branchIndex: 1 }]
+
+  /** Each participant's drawn name and the participants of its box, as Mermaid reads them. */
+  const mermaidActors = (source: string) => upstream.project(source, diagram => [...diagram.db.getActors().values()]
+    .map((a: { name: string; description: string; box?: { actorKeys: string[] } }) => `${a.name}: ${a.description}${a.box ? ` in ${a.box.actorKeys.join(',')}` : ''}`))
+  const ourActors = (source: string) => {
+    const diagram = parseSequenceDiagram(source.split('\n').map(line => line.trim()).filter(Boolean))
+    return diagram.actors.map(a => `${a.id}: ${a.label}${a.box !== undefined ? ` in ${diagram.boxes![a.box]!.actorIds.join(',')}` : ''}`)
+  }
+
+  test('unmodelled lines in a branch stay verbatim beside its typed statements, and Mermaid reads the fragment as typed', async () => {
+    const parsed = sequence(PRESERVED)
+    expect(parsed.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(serializeMermaid(parsed)).toBe(PRESERVED)
+    const alt = (parsed.body.statements[3] as { fragment: SequenceFragment }).fragment
+    expect(alt.branches[0]!.statements).toEqual([
+      { before: 0, statement: { kind: 'opaque-block', lines: ['    %% why this branch'] } },
+      { before: 0, statement: { kind: 'activation', actorId: 'B', activate: true, rawLine: '    activate B' } },
+      { before: 1, statement: { kind: 'activation', actorId: 'B', activate: false, rawLine: '    deactivate B' } },
+    ])
+    expect(factAddress(parsed, 'message#2')).toEqual({ fragmentIndex: 0, branchIndex: 1, index: 0 })
+    expect(describeMermaid(parsed)).toContain('fragment 0 (alt): branch 0 (ok): B -> A: two | branch 1 (no): A -> C: three; { fragment 0.1.0 (loop): branch 0 (again): C -> A: four }')
+    // The preserved constructs are named; the fragments around them are not.
+    expect(verifyMermaid(PRESERVED).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({
+      syntax: 'sequence_opaque_segment', message: expect.stringContaining('(box, autonumber)'),
+    })])
+    const read = await mermaidStream(PRESERVED)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(parsed.body))
+    const actors = await mermaidActors(PRESERVED)
+    if (!actors.ok) throw new Error(actors.error)
+    expect(actors.value).toEqual(['A: A', 'B: B', 'C: Cee in C'])
+    expect(ourActors(PRESERVED)).toEqual(actors.value)
+  })
+
+  test.each([
+    ['edits a message between an activation and its deactivation', { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'TWO' }, '  activate B\n  B->>A: TWO\n  deactivate B\n'],
+    ['adds a message below an activation', { kind: 'add_fragment_message', fragmentIndex: 0, index: 0, from: 'A', to: 'B', text: 'zero' }, '  activate B\n  A->>B: zero\n  B->>A: two\n'],
+    ['removes the message after a box', { kind: 'remove_fragment_message', fragmentIndex: 0, branchIndex: 1, index: 0 }, '  box Aqua Group\n    participant C as Cee\n  end\n    loop again\n'],
+    ['adds a note above a deactivation', { kind: 'add_fragment_note', fragmentIndex: 0, position: 'over', actorIds: ['B'], text: 'busy', afterMessage: 0 }, '  B->>A: two\n  Note over B: busy\n  deactivate B\n'],
+    ['relabels the participant a boxed declaration names', { kind: 'set_participant_label', id: 'C', label: 'Sea' }, '  box Aqua Group\n    participant C as Sea\n  end\n'],
+    ['adds a fragment after a branch message, above a deactivation', { kind: 'add_fragment', fragmentPath: FIRST, fragmentKind: 'break', label: 'b', afterMessage: 0 }, '  B->>A: two\n  break b\n  end\n  deactivate B\n'],
+    ['moves a nested fragment above the message after a box', { kind: 'move_fragment', fragmentPath: SECOND, index: 0, beforeMessage: 0 }, '  end\n    loop again\n      # hash comment\n      C->>A: four\n      autonumber\n    end\n  A->>C: three\n'],
+  ] as const)('an op that %s keeps the preserved lines and is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(PRESERVED), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    // Kept lines are written at their branch's depth; an untouched nested
+    // fragment keeps its authored lines.
+    for (const line of ['%% why this branch', 'activate B', 'deactivate B', 'box Aqua Group']) expect(output).toContain(`\n  ${line}\n`)
+    for (const line of ['# hash comment', 'autonumber']) expect(output).toContain(`\n      ${line}\n`)
+    const reread = sequence(output)
+    expect(reread.body.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'fragment', 'message'])
+    expect(serializeMermaid(reread)).toBe(output)
+    expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidStream(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(edited.body))
+    expect(read.value.filter((entry: string) => !/^[A-Z_]+(?: |$)/.test(entry))).toEqual(ourTimeline(output))
+    const actors = await mermaidActors(output)
+    if (!actors.ok) throw new Error(actors.error)
+    expect(ourActors(output)).toEqual(actors.value)
+  })
+
+  const TOP = 'sequenceDiagram\n  A->>B: one\n  Note over A: seen\n  create participant C\n  B->>C: two\n  alt ok\n    C->>A: three\n  end\n  A->>B: four\n'
+
+  test.each([
+    ['after a message, below its note', { kind: 'add_fragment', fragmentKind: 'opt', label: 'o', afterMessage: 0 }, '  Note over A: seen\n  opt o\n  end\n  create participant C\n'],
+    ['before a message, above the create bound to it', { kind: 'add_fragment', fragmentKind: 'par', label: 'p', beforeMessage: 1 }, '  Note over A: seen\n  par p\n  end\n  create participant C\n  B->>C: two\n'],
+    ['after a message, above the fragment after it', { kind: 'add_fragment', fragmentKind: 'loop', label: 'l', afterMessage: 1 }, '  B->>C: two\n  loop l\n  end\n  alt ok\n'],
+    ['moved, contents and all, after a later message', { kind: 'move_fragment', index: 0, afterMessage: 2 }, '  A->>B: four\n  alt ok\n    C->>A: three\n  end\n'],
+  ] as const)('a top-level fragment placed %s is written as Mermaid reads it', async (_name, op, written) => {
+    const edited = apply(sequence(TOP), op as SequenceMutationOp)
+    const output = serializeMermaid(edited)
+    expect(output).toContain(written)
+    expect(serializeMermaid(sequence(output))).toBe(output)
+    expect(describeMermaidFacts(sequence(output))).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidStream(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value.map((text: string) => projectEntityMarkers(text))).toEqual(typedStream(edited.body))
+  })
+
+  test.each([
+    ['both anchors', { kind: 'add_fragment', fragmentKind: 'opt', afterMessage: 0, beforeMessage: 1 }, 'Give a fragment afterMessage or beforeMessage, not both'],
+    ['an index and an anchor', { kind: 'add_fragment', fragmentKind: 'opt', index: 0, afterMessage: 0 }, 'Give a fragment index, afterMessage or beforeMessage, not more than one'],
+    ['an anchor past the top-level messages', { kind: 'add_fragment', fragmentKind: 'opt', afterMessage: 3 }, 'No top-level message at index 3 (0..2)'],
+    ['an anchor past the branch messages', { kind: 'add_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], fragmentKind: 'opt', beforeMessage: 1 }, 'No message at index 1 in this fragment branch (0..0)'],
+    ['a move both anchors', { kind: 'move_fragment', index: 0, afterMessage: 0, beforeMessage: 1 }, 'Give a fragment afterMessage or beforeMessage, not both'],
+    ['a move past the top-level messages', { kind: 'move_fragment', index: 0, beforeMessage: -1 }, 'No top-level message at index -1 (0..2)'],
+    ['a move above the create its fragment needs', { kind: 'move_fragment', index: 0, beforeMessage: 0 }, 'This edit would leave sequence source Mermaid rejects'],
+  ] as const)('a fragment op giving %s is refused with the valid range and changes nothing', (_name, op, message) => {
+    const parsed = sequence(TOP)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(message) })
+    expect(serializeMermaid(parsed)).toBe(TOP)
+  })
 })
+
+// ============================================================================
+// Activations: facts state each span; an edit may not leave a deactivation
+// Mermaid rejects
+// ============================================================================
+
+describe('sequence activations are facts, and an edit that would leave a participant deactivated while inactive is refused', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+  const INACTIVE = 'Trying to inactivate an inactive participant (B)'
+
+  // Marks and lines, at top level and in branches, nested activations of
+  // one participant, and activations left open.
+  const SPANS = `sequenceDiagram
+  A->>+B: one
+  alt ok
+    activate B
+    B->>A: two
+  else no
+    activate A
+    A->>B: three
+  end
+  deactivate B
+  B-->>-A: four
+  loop again
+    A->>+A: self
+    A->>-A: back
+  end
+  B->>A: five
+  activate B
+`
+
+  test('facts state each activation span by the messages around it, paired as Mermaid pairs them', async () => {
+    const parsed = sequence(SPANS)
+    const spans = describeMermaidFacts(parsed).filter(fact => fact.startsWith('activation#'))
+    expect(spans).toEqual([
+      'activation#0 B start message#0 end message#3',
+      'activation#1 B start fragment#0 branch#0 before message#1 end before message#3',
+      'activation#2 A start fragment#0 branch#1 before message#2 unclosed',
+      'activation#3 A start message#4 end message#5',
+      'activation#4 B start at-end unclosed',
+    ])
+    expect(describeMermaidFacts(sequence(serializeMermaid(parsed))).filter(fact => fact.startsWith('activation#'))).toEqual(spans)
+    // Mermaid's database: each span's participant and how many messages
+    // precede its start and end (a mark follows its message), a deactivation
+    // ending the participant's latest open activation.
+    const read = await upstream.project(SPANS, diagram => {
+      const type = diagram.db.LINETYPE
+      const out: Array<[string, number, number?]> = []
+      const open: Record<string, number[]> = {}
+      let seen = 0
+      for (const m of diagram.db.getMessages() as Array<{ from?: string; to?: string; type: number }>) {
+        if (m.type === type.ACTIVE_START) (open[m.from!] ??= []).push(out.push([m.from!, seen]) - 1)
+        else if (m.type === type.ACTIVE_END) out[open[m.from!]!.pop()!]!.push(seen)
+        else if (m.from !== undefined && m.to !== undefined && m.type !== type.NOTE) seen++
+      }
+      return out
+    })
+    if (!read.ok) throw new Error(read.error)
+    const total = describeMermaidFacts(parsed).filter(fact => /^message#\d+ op /.test(fact)).length
+    const seenAt = (where: string) => where === 'at-end' ? total : where.startsWith('message#') ? Number(where.slice(8)) + 1 : Number(where.slice(where.lastIndexOf('#') + 1))
+    expect(spans.map(fact => {
+      const [, id, start, end] = /^activation#\d+ (\S+) start (.+?) (?:end (.+)|unclosed)$/.exec(fact)!
+      return end === undefined ? [id, seenAt(start!)] : [id, seenAt(start!), seenAt(end)]
+    })).toEqual(read.value)
+    // A mark on a message kept in a preserved block is addressed by its
+    // preserved-message fact.
+    expect(describeMermaidFacts(sequence('sequenceDiagram\n  A->>B: one\n  rect #ff0000\n    A->>+B: kept\n  end\n  deactivate B\n')).filter(fact => fact.startsWith('activation#')))
+      .toEqual(['activation#0 B start preserved-message#1.1 end at-end'])
+  })
+
+  // Each source Mermaid accepts; the op would write the source after it,
+  // which Mermaid rejects, so the op is refused naming the line.
+  test.each([
+    ['removing the message whose "+" a later line closes', 'sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n', { kind: 'remove_message', index: 0 }, 'sequenceDiagram\n  B->>A: two\n  deactivate B\n', '"deactivate B"'],
+    ['removing the message whose "+" a later "-" closes', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'remove_message', index: 0 }, 'sequenceDiagram\n  B-->>-A: two\n', '"B-->>-A: two"'],
+    ['moving the activating message below its deactivation', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'move_message', from: 0, to: 1 }, 'sequenceDiagram\n  B-->>-A: two\n  A->>+B: one\n', '"B-->>-A: two"'],
+    ['removing a participant whose message activates another', 'sequenceDiagram\n  A->>+B: one\n  B->>-C: two\n', { kind: 'remove_participant', id: 'A' }, 'sequenceDiagram\n  B->>-C: two\n', '"B->>-C: two"'],
+    ['removing a branch message whose "+" a line in the branch closes', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    A->>+B: two\n    deactivate B\n  end\n', { kind: 'remove_fragment_message', fragmentIndex: 0, index: 0 }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  deactivate B\n  end\n', '"deactivate B"'],
+    ['removing a fragment holding the activation a later line closes', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    activate B\n    B->>A: two\n  end\n  deactivate B\n', { kind: 'remove_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n', '"deactivate B"'],
+    ['moving a fragment holding an activation below its deactivation', 'sequenceDiagram\n  opt busy\n    activate B\n    B->>A: two\n  end\n  A->>B: one\n  deactivate B\n', { kind: 'move_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
+    ['moving a fragment holding an activation out of its branch, past the deactivation', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    opt busy\n      activate B\n      B->>A: two\n    end\n    deactivate B\n  end\n', { kind: 'move_fragment', fragmentPath: [{ fragmentIndex: 0, branchIndex: 0 }], index: 0, toFragmentPath: [] }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  deactivate B\n  end\n  opt busy\n    activate B\n    B->>A: two\n  end\n', '"deactivate B"'],
+    ['removing an activation from source already deactivating B once too often', 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>+B: two\n  deactivate B\n', { kind: 'remove_message', index: 1 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  deactivate B\n', '"deactivate B"'],
+    ['adding a deactivation of a participant that is not active', 'sequenceDiagram\n  A->>B: one\n', { kind: 'add_activation', actorId: 'B', activate: false, afterMessage: 0 }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n', '"deactivate B"'],
+    ['removing the activation line a later line closes', 'sequenceDiagram\n  A->>B: one\n  activate B\n  B->>A: two\n  deactivate B\n', { kind: 'remove_activation', index: 0 }, 'sequenceDiagram\n  A->>B: one\n  B->>A: two\n  deactivate B\n', '"deactivate B"'],
+    ['removing a branch activation line a later line closes', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    activate B\n    B->>A: two\n  end\n  deactivate B\n', { kind: 'remove_activation', fragmentIndex: 0, index: 0 }, 'sequenceDiagram\n  A->>B: one\n  alt ok\n  B->>A: two\n  end\n  deactivate B\n', '"deactivate B"'],
+    ['clearing the "+" a later "-" closes', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', { kind: 'set_message_activation', index: 0, mark: null }, 'sequenceDiagram\n  A->>B: one\n  B-->>-A: two\n', '"B-->>-A: two"'],
+    ['marking "-" a branch message whose sender is not active', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    B->>A: two\n  end\n', { kind: 'set_message_activation', fragmentIndex: 0, index: 0, mark: '-' }, 'sequenceDiagram\n  A->>B: one\n  opt busy\n  B->>-A: two\n  end\n', '"B->>-A: two"'],
+  ] as const)('%s', async (_name, source, op, wouldWrite, line) => {
+    const parsed = sequence(source)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(`Mermaid rejects: ${line} would deactivate participant "B" while it is not active`) })
+    // The refusal names the op that removes the deactivation.
+    if (!result.ok) expect(result.error.message).toEndWith(line.startsWith('"deactivate') ? 'or remove that line (remove_activation).' : 'or clear that message\'s "-" (set_message_activation with mark null).')
+    expect(serializeMermaid(parsed)).toBe(source)
+    const rejected = await upstream.parse(wouldWrite)
+    expect(rejected.ok ? 'accepted' : rejected.error).toContain(INACTIVE)
+    // The op introduces the imbalance: Mermaid read the source before it,
+    // or rejected it for one deactivation fewer.
+    const authored = await upstream.parse(source)
+    if (!authored.ok) expect(sequenceUnsupportedWarnings(source)).toHaveLength(sequenceUnsupportedWarnings(wouldWrite).length - 1)
+  })
+
+  test.each([
+    ['an edit beside a deactivation the source already makes while inactive', 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>B: two\n', { kind: 'set_message_text', index: 1, text: 'TWO' }, 'sequenceDiagram\n  A->>B: one\n  deactivate B\n  A->>B: TWO\n'],
+    ['removing a fragment with both ends of an activation', 'sequenceDiagram\n  A->>B: one\n  opt busy\n    activate B\n    B->>A: two\n    deactivate B\n  end\n', { kind: 'remove_fragment', index: 0 }, 'sequenceDiagram\n  A->>B: one\n'],
+  ] as const)('%s is written', async (_name, source, op, written) => {
+    const output = serializeMermaid(apply(sequence(source), op as SequenceMutationOp))
+    expect(output).toBe(written)
+    // Mermaid reads it exactly when it read the authored source; verify
+    // still warns where it does not.
+    const [before, after] = [await upstream.parse(source), await upstream.parse(output)]
+    expect(after.ok).toBe(before.ok)
+    expect(sequenceUnsupportedWarnings(output)).toHaveLength(before.ok ? 0 : 1)
+  })
+})
+
+describe('activation lines and message marks are edited with typed ops, as Mermaid reads them', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  /** Messages and activations in order, as Mermaid's database holds them. */
+  const mermaidActivations = (source: string) => upstream.project(source, diagram => {
+    const type = diagram.db.LINETYPE
+    return (diagram.db.getMessages() as Array<{ from?: string; to?: string; type: number; message: unknown }>).flatMap(m => m.type === type.ACTIVE_START ? [`activate ${m.from}`]
+      : m.type === type.ACTIVE_END ? [`deactivate ${m.from}`] : m.from !== undefined && m.to !== undefined && m.type !== type.NOTE ? [`${m.from}->${m.to}: ${m.message}`] : [])
+  })
+  /** The same, as the typed body says: a mark activates or deactivates
+   * right after its message. */
+  const typedActivations = (body: SequenceBody): string[] => sequenceTimeline(body).flatMap(entry => entry.kind === 'activation' ? [`${entry.statement.activate ? 'activate' : 'deactivate'} ${entry.statement.actorId}`]
+    : entry.kind !== 'message' ? [] : [`${entry.message.from}->${entry.message.to}: ${entry.message.text}`, ...entry.message.activate ? [`activate ${entry.message.to}`] : entry.message.deactivate ? [`deactivate ${entry.message.from}`] : []])
+
+  const LOOP = [{ fragmentIndex: 0, branchIndex: 0 }]
+  test.each([
+    ['adds activation lines after messages', 'sequenceDiagram\n  A->>B: one\n  B->>A: two\n', [{ kind: 'add_activation', actorId: 'B', activate: true, afterMessage: 0 }, { kind: 'add_activation', actorId: 'B', activate: false, afterMessage: 1 }], 'sequenceDiagram\n  A->>B: one\n  activate B\n  B->>A: two\n  deactivate B\n'],
+    ['adds a line below the notes and activation lines already after its message', 'sequenceDiagram\n  A->>B: one\n  Note over B: n\n  activate B\n  B->>A: two\n', [{ kind: 'add_activation', actorId: 'A', activate: true, afterMessage: 0 }], 'sequenceDiagram\n  A->>B: one\n  Note over B: n\n  activate B\n  activate A\n  B->>A: two\n'],
+    ['adds a line before a message, above the create bound to it', 'sequenceDiagram\n  A->>B: one\n  create participant C\n  B->>C: two\n', [{ kind: 'add_activation', actorId: 'B', activate: true, beforeMessage: 1 }], 'sequenceDiagram\n  A->>B: one\n  activate B\n  create participant C\n  B->>C: two\n'],
+    ['adds lines in a nested branch, by fragmentPath', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    loop retry\n      B->>A: two\n      Note over A: busy\n    end\n  end\n', [{ kind: 'add_activation', fragmentPath: LOOP, fragmentIndex: 0, actorId: 'A', activate: true, beforeMessage: 0 }, { kind: 'add_activation', fragmentPath: LOOP, fragmentIndex: 0, actorId: 'A', activate: false }], 'sequenceDiagram\n  A->>B: one\n  alt ok\n  loop retry\n    activate A\n    B->>A: two\n    Note over A: busy\n    deactivate A\n  end\n  end\n'],
+    ['removes a deactivation, then the message whose "+" it closed', 'sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n', [{ kind: 'remove_activation', index: 0 }, { kind: 'remove_message', index: 0 }], 'sequenceDiagram\n  B->>A: two\n'],
+    ['clears a "-", then removes the message whose "+" it closed', 'sequenceDiagram\n  A->>+B: one\n  B-->>-A: two\n', [{ kind: 'set_message_activation', index: 1, mark: null }, { kind: 'remove_message', index: 0 }], 'sequenceDiagram\n  B-->>A: two\n'],
+    ['removes both lines of a span in a branch, keeping its other lines', 'sequenceDiagram\n  A->>B: one\n  alt ok\n    %% kept\n    activate B\n    B->>A: two\n    deactivate B\n  end\n', [{ kind: 'remove_activation', fragmentIndex: 0, index: 1 }, { kind: 'remove_activation', fragmentIndex: 0, index: 0 }], 'sequenceDiagram\n  A->>B: one\n  alt ok\n  %% kept\n  B->>A: two\n  end\n'],
+    ['marks messages "+" and "-", at top level and in a branch', 'sequenceDiagram\n  A->>B: one\n  opt again\n    A->>B: two\n  end\n  B-->>A: three\n', [{ kind: 'set_message_activation', index: 0, mark: '+' }, { kind: 'set_message_activation', fragmentIndex: 0, index: 0, mark: '+' }, { kind: 'set_message_activation', index: 1, mark: '-' }], 'sequenceDiagram\n  A->>+B: one\n  opt again\n  A->>+B: two\n  end\n  B-->>-A: three\n'],
+  ] as const)('an op that %s is written as Mermaid reads it', async (_name, source, ops, written) => {
+    const edited = (ops as readonly SequenceMutationOp[]).reduce(apply, sequence(source))
+    const output = serializeMermaid(edited)
+    expect(output).toBe(written)
+    const reread = sequence(output)
+    expect(serializeMermaid(reread)).toBe(output)
+    expect(describeMermaidFacts(reread)).toEqual(describeMermaidFacts(edited))
+    const read = await mermaidActivations(output)
+    if (!read.ok) throw new Error(read.error)
+    expect(read.value).toEqual(typedActivations(edited.body))
+  })
+
+  // Removing the message first stays refused (see the section above): the
+  // deactivation goes first.
+  test('removing the activating message before its deactivation is refused, naming remove_activation', () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>+B: one\n  B->>A: two\n  deactivate B\n'), { kind: 'remove_message', index: 0 })
+    expect(result.ok ? 'accepted' : result.error.message).toEndWith('or remove that line (remove_activation).')
+  })
+
+  test('facts state each activation line\'s address, and remove_activation removes exactly that line or is refused', async () => {
+    const source = 'sequenceDiagram\n  A->>+B: one\n  alt ok\n    activate B\n    B->>A: two\n  else no\n    activate A\n    A->>B: three\n  end\n  deactivate B\n  B-->>-A: four\n  activate B\n'
+    const parsed = sequence(source)
+    expect(describeMermaidFacts(parsed).filter(fact => fact.startsWith('activation-line#'))).toEqual([
+      'activation-line#0 activate B', 'activation-line#0 before message#1', 'activation-line#0 op fragmentIndex 0 branchIndex 0 index 0',
+      'activation-line#1 activate A', 'activation-line#1 before message#2', 'activation-line#1 op fragmentIndex 0 branchIndex 1 index 0',
+      'activation-line#2 before message#3', 'activation-line#2 deactivate B', 'activation-line#2 op index 0',
+      'activation-line#3 activate B', 'activation-line#3 op index 1',
+    ])
+    for (const [line, authored] of ['    activate B\n', '    activate A\n', '  deactivate B\n', '  activate B\n'].entries()) {
+      const result = mutate(parsed, { kind: 'remove_activation', ...factAddress(parsed, `activation-line#${line}`) } as SequenceMutationOp)
+      const without = source.replace(`\n${authored}`, '\n')
+      if (result.ok) expect(describeMermaidFacts(result.value)).toEqual(describeMermaidFacts(sequence(without)))
+      // Only removing the branch's `activate B` is refused: `B-->>-A` would
+      // then deactivate B while it is not active, which Mermaid rejects.
+      expect(result.ok).toBe(line !== 0)
+      expect((await upstream.parse(without)).ok).toBe(line !== 0)
+    }
+  })
+
+  test.each([
+    ['a participant that does not exist', { kind: 'add_activation', actorId: 'Z', activate: true }, 'PARTICIPANT_NOT_FOUND'],
+    ['an activate flag that is not a boolean', { kind: 'add_activation', actorId: 'A', activate: 'yes' }, 'INVALID_OP'],
+    ['an anchor past the top-level messages', { kind: 'add_activation', actorId: 'A', activate: true, afterMessage: 2 }, 'MESSAGE_NOT_FOUND'],
+    ['a branchIndex without its fragmentIndex', { kind: 'add_activation', actorId: 'A', activate: true, branchIndex: 0 }, 'INVALID_OP'],
+    ['a missing activation line', { kind: 'remove_activation', index: 1 }, 'INVALID_OP'],
+    ['a missing branch activation line', { kind: 'remove_activation', fragmentIndex: 0, index: 0 }, 'INVALID_OP'],
+    ['a missing message', { kind: 'set_message_activation', fragmentIndex: 0, index: 1, mark: '+' }, 'MESSAGE_NOT_FOUND'],
+    ['a mark that is not + or -', { kind: 'set_message_activation', index: 0, mark: '*' }, 'INVALID_OP'],
+  ] as const)('an activation op naming %s is refused and changes nothing', (_name, op, code) => {
+    const source = 'sequenceDiagram\n  A->>B: one\n  activate B\n  opt maybe\n    B->>A: two\n  end\n'
+    const parsed = sequence(source)
+    const result = mutate(parsed, op as unknown as SequenceMutationOp)
+    expect(result.ok ? 'accepted' : result.error.code).toBe(code)
+    expect(serializeMermaid(parsed)).toBe(source)
+  })
+
+  // Mermaid's grammar has no message with both a central connection and a
+  // mark.
+  test('a "+" on a message with a central connection is refused, as Mermaid rejects it', async () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>()B: one\n'), { kind: 'set_message_activation', index: 0, mark: '+' })
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining('central connection') })
+    expect((await upstream.parse('sequenceDiagram\n  A->>()B: one\n')).ok).toBe(true)
+    expect((await upstream.parse('sequenceDiagram\n  A->>()+B: one\n')).ok).toBe(false)
+  })
+
+  test('remove_participant names the activation line naming the participant', () => {
+    const result = mutate(sequence('sequenceDiagram\n  A->>B: one\n  alt ok\n    activate B\n    A->>A: two\n  end\n'), { kind: 'remove_participant', id: 'B' })
+    expect(result.ok ? 'accepted' : result.error).toEqual({ code: 'INVALID_OP', message: 'Participant "B" is named by activation-line#0; remove its activation lines (remove_activation) before removing the participant' })
+  })
+})
+
+const sequenceUnsupportedWarnings = (source: string) => verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sequence_inactive_deactivation')
 
 // ============================================================================
 // add_message index

@@ -60,6 +60,12 @@ synonym is still an invalid call.
 - `execute({ code, timeoutMs? })` runs synchronous JavaScript with the injected
   `mermaid.*` global. Reserve it for custom control flow that a direct tool or
   op list cannot express.
+- `preview({ source, options? })` renders and verifies a diagram for the user
+  to see. It returns verify's `{ ok, family, summary, warnings, checks }`
+  without the layout, or verify's failure payload when the source does not
+  parse. `options` takes the same object as `render_svg`. Hosts that support
+  MCP Apps show the diagram in a read-only view; its SVG is only in
+  `structuredContent`. Use `render_svg` when you need the SVG yourself.
 
 <!-- BEGIN GENERATED: verify-result -->
 `verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.

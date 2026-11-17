@@ -79,7 +79,7 @@ package. Read <run-dir>/requests/<case>.md and follow its "Task prompt under
 test". For ALL verification/mutation use ONLY the hosted MCP over HTTP:
 POST https://agentic-mermaid.dev/mcp with content-type: application/json and a
 JSON-RPC tools/call body (tools: execute, describe_sdk, render_svg, render_ascii,
-render_png, verify, describe, mutate, build). For an edit, send Code Mode JS to the `execute` tool
+render_png, verify, describe, mutate, build, preview). For an edit, send Code Mode JS to the `execute` tool
 (mermaid.parseRegisteredMermaid → asX → mutate → verifyMermaid → serializeMermaid). Do NOT
 read, import, or run any local agentic-mermaid checkout. Return ONLY the chat
 response (Updated Mermaid / Verification / Trace) to the orchestrator; name the

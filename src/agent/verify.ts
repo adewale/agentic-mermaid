@@ -64,7 +64,7 @@ import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
-import { sequenceMessages, sequenceNoteContexts, sequencePreservedConstructs, sequenceTimeline, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
+import { sequenceMessages, sequenceNoteContexts, sequencePreservedConstructs, sequencePreservedLines, sequenceTimeline, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
@@ -1377,7 +1377,9 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // BUILD-18: a segment-preserving body may carry content only in opaque-block
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
   // not an empty diagram — it just isn't structurally modeled.
-  const hasOpaqueContent = body.statements.some(s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0 && !isSequenceCommentLine(l)))
+  const preservedLines = sequencePreservedLines(body)
+  // Activation lines draw nothing without a participant, but are content.
+  const hasOpaqueContent = preservedLines.some(l => l.trim().length > 0 && !isSequenceCommentLine(l)) || sequenceTimeline(body).some(entry => entry.kind === 'activation')
   const allMessages = sequenceMessages(body)
   if (body.participants.length === 0 && allMessages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts, false)
@@ -1417,18 +1419,16 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
           if (w) warnings.push(w)
         }
     }
-  // BUILD-18: opaque-block segments (critical/rect/title lines…) still get
-  // universal LABEL_OVERFLOW via the family's label extractor, so the safety
-  // check survives the move from whole-body-opaque to structured-with-segments.
-  const opaqueLines = body.statements
-    .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
-    .flatMap(s => s.lines)
-    .filter(line => !isSequenceCommentLine(line))
+  // BUILD-18: opaque-block segments (critical/rect/title lines…), and the
+  // preserved lines of fragment branches, still get universal LABEL_OVERFLOW
+  // via the family's label extractor, so the safety check survives the move
+  // from whole-body-opaque to structured-with-segments.
+  const opaqueLines = preservedLines.filter(line => !isSequenceCommentLine(line))
   if (opaqueLines.length > 0) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'sequence_opaque_segment',
-      message: `This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations (${sequencePreservedConstructs(opaqueLines).join(', ')}). Inspect the source directly before relying on semantic read-back.`,
+      message: `This sequence keeps source lines verbatim that the typed body does not model (${sequencePreservedConstructs(opaqueLines).join(', ')}): describe leaves them out and typed operations cannot add, move or remove them. Inspect the source directly before relying on semantic read-back.`,
     })
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
