@@ -51,11 +51,17 @@ export function createDummy(type: LayoutNode['type'], rank = 0): LayoutNode {
 /** LongEdgeJoiner: surviving target insertion precedes removal of dropped edge. */
 export function joinLongEdges(layers: LayoutNode[][], options: Options): void {
   const unnecessary = booleanOption(options, 'layered.unnecessaryBendpoints', false)
-  for (const layer of layers) for (let index = 0; index < layer.length;) {
-    const dummy = layer[index]!
-    if (dummy.type !== 'LONG_EDGE') { index++; continue }
-    joinAt(dummy, unnecessary)
-    layer.splice(index, 1)
+  for (const layer of layers) {
+    let write = 0
+    for (let read = 0; read < layer.length; read++) {
+      const node = layer[read]!
+      if (node.type === 'LONG_EDGE') joinAt(node, unnecessary)
+      else {
+        if (write !== read) layer[write] = node
+        write++
+      }
+    }
+    if (write !== layer.length) layer.length = write
   }
 }
 

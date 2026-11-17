@@ -651,8 +651,8 @@ class ForsterConstraintResolver {
   private findViolatedConstraint(groups: ConstraintGroup[]): [ConstraintGroup, ConstraintGroup] | null {
     const active: ConstraintGroup[] = []
     for (const group of groups) { group.incoming = null; if ((group.outgoing?.length ?? 0) > 0 && group.incomingCount === 0) active.push(group) }
-    while (active.length > 0) {
-      const group = active.shift()!
+    for (let head = 0; head < active.length; head++) {
+      const group = active[head]!
       for (const predecessor of group.incoming ?? []) {
         if (this.barycenter(predecessor) === this.barycenter(group)) {
           if (groups.indexOf(predecessor) > groups.indexOf(group)) return [predecessor, group]
@@ -1202,7 +1202,8 @@ class HierarchicalLayerSweep {
   }
   process(): void {
     const sweepOn: GraphInfoHolder[] = []
-    for (const record of this.records) if (record.bottomUp) sweepOn.unshift(record)
+    for (const record of this.records) if (record.bottomUp) sweepOn.push(record)
+    sweepOn.reverse()
     for (const record of sweepOn) if (record.order.length > 0) {
       if (this.type === 'BARYCENTER') this.compareRandomizedLayouts(record)
       else this.minimizeWithoutCounter(record)

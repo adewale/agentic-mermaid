@@ -2,6 +2,33 @@ import { test } from 'bun:test'
 
 const cases = [
   {
+    name: 'interleaved long edges with parallel labels and surviving nodes',
+    graph: {
+      id: 'root', layoutOptions: { 'elk.algorithm': 'layered', 'elk.layered.mergeEdges': 'true' },
+      children: Array.from({ length: 7 }, (_, i) => ({ id: `n${i}`, width: 31.25 + i, height: 23.5 + i })),
+      edges: [
+        ...Array.from({ length: 6 }, (_, i) => ({ id: `chain${i}`, sources: [`n${i}`], targets: [`n${i + 1}`] })),
+        { id: 'long0', sources: ['n0'], targets: ['n6'], labels: [{ text: 'middle', width: 29.5, height: 13.25 }, { text: 'tail', width: 19.5, height: 8.25, layoutOptions: { 'elk.edgeLabels.placement': 'TAIL' } }] },
+        { id: 'long1', sources: ['n0'], targets: ['n6'], labels: [{ text: 'head', width: 22.25, height: 9.5, layoutOptions: { 'elk.edgeLabels.placement': 'HEAD' } }] },
+        { id: 'long2', sources: ['n1'], targets: ['n5'], labels: [{ text: 'inner', width: 24.25, height: 11.5 }] },
+        { id: 'long3', sources: ['n2'], targets: ['n6'] },
+      ],
+    },
+  },
+  {
+    name: 'empty set options and invalid later aliases retain authored semantics',
+    graph: {
+      id: 'root', layoutOptions: { 'elk.algorithm': 'layered', 'contentAlignment': 'H_RIGHT V_BOTTOM', 'elk.contentAlignment': 'invalid' },
+      children: [
+        { id: 'a', width: 12.5, height: 11.25, layoutOptions: { 'nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.constraints': 'invalid', 'elk.nodeSize.minimum': '(63.5, 47.25)' }, labels: [{ text: 'wide label', width: 88.5, height: 14.25 }] },
+        { id: 'b', width: 12.5, height: 11.25, layoutOptions: { 'nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.constraints': '[]', 'elk.nodeSize.minimum': '(63.5, 47.25)' }, labels: [{ text: 'empty constraints', width: 88.5, height: 14.25 }] },
+        { id: 'c', width: 12.5, height: 11.25, layoutOptions: { 'elk.nodeSize.constraints': '' }, labels: [{ text: 'explicit empty', width: 88.5, height: 14.25 }] },
+        { id: 'd', width: 12.5, height: 11.25, labels: [{ text: 'default constraints', width: 88.5, height: 14.25 }] },
+      ],
+      edges: [{ id: 'ab', sources: ['a'], targets: ['b'] }, { id: 'bc', sources: ['b'], targets: ['c'] }, { id: 'cd', sources: ['c'], targets: ['d'] }],
+    },
+  },
+  {
     name: 'labels and authored identity-like data',
     graph: {
       id: 'root', $H: 47, layoutOptions: { 'elk.algorithm': 'layered' },

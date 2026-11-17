@@ -51,7 +51,7 @@ export function booleanOption(options: Options, key: string, fallback: boolean):
 export function optionalEnumOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices): Choices[number] | undefined { return resolveOption<Choices[number] | undefined>(options, key, undefined, value => parseEnum(value, choices)) }
 export function enumOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices, fallback: NoInfer<Choices[number]>): Choices[number] { return resolveOption(options, key, fallback, value => parseEnum(value, choices)) }
 export function setOption<const Choices extends readonly string[]>(options: Options, key: string, choices: Choices, fallback: readonly NoInfer<Choices[number]>[]): Set<Choices[number]> {
-  return resolveOption(options, key, new Set(fallback), value => {
+  return resolveOption<Set<Choices[number]> | undefined>(options, key, undefined, value => {
     const result = new Set<Choices[number]>()
     for (const token of value.split(/[\[\]\s,]+/)) {
       if (token.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').length === 0) continue
@@ -60,7 +60,7 @@ export function setOption<const Choices extends readonly string[]>(options: Opti
       result.add(selected)
     }
     return result
-  }, true)
+  }, true) ?? new Set(fallback)
 }
 export function paddingOption(options: Options, fallback: Insets, key = 'padding'): Insets {
   return resolveOption(options, key, { ...fallback }, value => {

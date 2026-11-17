@@ -103,8 +103,9 @@ function layoutCompound(root: LayoutGraph): void {
   const compound = preprocessCompound(root), graphs = [root], search = [root]
   while (search.length > 0) {
     const graph = search.pop()!
-    for (const node of graph.layerlessNodes!) if (node.nestedGraph !== undefined) { graphs.unshift(node.nestedGraph); search.push(node.nestedGraph) }
+    for (const node of graph.layerlessNodes!) if (node.nestedGraph !== undefined) { graphs.push(node.nestedGraph); search.push(node.nestedGraph) }
   }
+  graphs.reverse()
   const crossing = enumOption(root.options, 'layered.crossingMinimization.strategy', ['LAYER_SWEEP', 'MEDIAN_LAYER_SWEEP', 'INTERACTIVE', 'NONE'] as const, 'LAYER_SWEEP')
   const greedy = enumOption(root.options, 'layered.crossingMinimization.greedySwitchHierarchical.type', ['ONE_SIDED', 'TWO_SIDED', 'OFF'] as const, 'OFF')
   const streams = new Map<LayoutGraph, Random>()

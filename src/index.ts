@@ -249,8 +249,7 @@ export type {
 /**
  * Render Mermaid diagram text to an SVG string — synchronously.
  *
- * Uses elk.bundled.js with a direct FakeWorker bypass (no setTimeout(0) delay).
- * The ELK singleton is created lazily on first use and cached forever.
+ * General graph placement uses the TypeScript ELK Layered solver.
  *
  * Use this in React components with useMemo() to avoid flash:
  *   const svg = useMemo(() => renderMermaidSVG(code, opts), [code])
