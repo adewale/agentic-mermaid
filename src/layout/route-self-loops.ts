@@ -3,7 +3,9 @@ import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, 
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension, labelRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap } from './route-geometry.ts'
+import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
+import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
+import { measureLabelConflicts } from './label-conflicts.ts'
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
@@ -271,17 +273,41 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
       .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
       .map(entry => entry.side)
+    // Capacity and marker admission establish feasibility, not readability.
+    // Rank the existing side proposals by the same visible crossings and pill
+    // conflicts as final certification; keep allocation order on an exact tie.
+    const compare = ctx.nodes.length + groupMap.size <= MAX_PREFERENCE_NODES && ctx.edges.length <= MAX_PREFERENCE_EDGES
+    let bestCrossings = Infinity, bestConflicts = Infinity
     for (const side of allocatedOrder) {
       if (!sideHasSlot(side)) continue
       const g = pickGeometry(side)
       if (g.clear < Math.min(g.desired, 14)) continue
       const candidate = candidateFor(side, g)
       if (!candidate) continue
+      let crossings = 0, conflicts = 0
+      if (compare) {
+        if (edge.style !== 'invisible') for (const other of ctx.edges) {
+          if (other !== edge && other.style !== 'invisible') crossings += countPointPairCrossings(candidate.points, other.points)
+        }
+        if (crossings > bestCrossings) continue
+        const positions = new Map(candidate.labels.map(update => [update.edge, update.position]))
+        const involved = new Set<number>()
+        const edges = ctx.edges.map((other, index) => {
+          const labelPosition = positions.get(other)
+          if (other !== edge && !labelPosition) return other
+          involved.add(index)
+          return { ...other, ...(other === edge ? { points: candidate.points } : {}), ...(labelPosition ? { labelPosition } : {}) }
+        })
+        conflicts = measureLabelConflicts({ nodes: ctx.nodes, edges }, style, involved).total
+        if (crossings === bestCrossings && conflicts >= bestConflicts) continue
+      }
       chosen = side
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
-      break
+      bestCrossings = crossings
+      bestConflicts = conflicts
+      if (!compare || (crossings === 0 && conflicts === 0)) break
     }
     if (!chosen || !geo || !clipped) {
       // Preserve the existing widest-side fallback, requiring the same full

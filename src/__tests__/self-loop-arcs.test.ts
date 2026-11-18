@@ -19,6 +19,7 @@ import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedEdge, PositionedGroup, PositionedNode, Point } from '../types.ts'
 
 const STATE_SRC = `stateDiagram-v2
@@ -86,6 +87,29 @@ function expectSeparatedMarkers(edges: PositionedEdge[]): void {
 }
 
 describe('self-loops are real arcs (typed route class, not a stub)', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'])('loops beside reciprocal returns use clear channels (%s)', direction => {
+    const source = `flowchart ${direction}
+A[Send] -->|request| B[Process]
+B -->|retry| A
+B --> C[Commit]
+C --> A
+A -->|repeat| A
+A --> A
+C -->|wait| C`
+    const graph = parseLegacy(source)
+    const positioned = layoutGraphSync(graph)
+    const assessment = assessLayout(graph, positioned)
+    expect(assessment.violations).toEqual([])
+    expect(assessment.metrics.edgeCrossings).toBe(0)
+    expect(assessment.metrics.labelConflicts).toBe(0)
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]))
+      .toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]))
+    expect(positioned.edges.filter(edge => edge.source === edge.target)
+      .every(edge => edge.routeCertificate?.invariant === 'self-loop')).toBe(true)
+    const product = renderMermaidSVGWithReceipt(source)
+    expect(product.receipt.layoutCertification).toMatchObject({ status: 'passed', unit: 'px', checks: { markers: 7 } })
+  })
+
   for (const c of CASES) {
     test(`${c.name}: leaves and re-enters the boundary at distinct points, with real clearance`, () => {
       const { edge, node } = loopOf(c.src, c.loopId)
