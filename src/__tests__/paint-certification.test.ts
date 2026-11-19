@@ -1320,6 +1320,29 @@ test.each(['butt', 'round', 'square'] as const)('%s line-child stroke through ma
   expect(proof.status).toBe('unverified')
 })
 
+test.each((['top', 'bottom', 'left', 'right'] as const).flatMap(side =>
+  (['clear', 'crossing', 'thick', 'unknown-width'] as const).map(mode => ({ side, mode }))))('marker beside a compound divider retains its actual ink separation ($side, $mode)', ({ side, mode }) => {
+  const point = (x: number, y: number) => side === 'top' ? { x, y } : side === 'bottom' ? { x, y: 100 - y }
+    : side === 'left' ? { x: y, y: x } : { x: 100 - y, y: x }
+  const first = point(20, 30), last = point(80, 70)
+  const a = point(mode === 'crossing' ? 73 : 70.3, mode === 'crossing' ? 22 : 30)
+  const b = point(mode === 'crossing' ? 73 : 70.3, 70)
+  const marker = tipAnchoredArrow('divider-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  const from = point(73, 10), to = point(73, 30)
+  const edge = marks.connector({ id: 'divider-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: from.x, y1: from.y, x2: to.x, y2: to.y },
+    paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'card', role: 'node', geometry: { kind: 'compound', children: [
+    { kind: 'rect', x: Math.min(first.x, last.x), y: Math.min(first.y, last.y), width: Math.abs(last.x - first.x), height: Math.abs(last.y - first.y) },
+    { kind: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y },
+  ] }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints: [
+    { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+    { stroke: '#111', strokeWidth: mode === 'thick' ? '8' : mode === 'unknown-width' ? '1em' : '0.75', strokeLinecap: 'square' },
+  ] })
+  const proof = certifyScenePaint(scene([edge, card]))
+  if (mode === 'clear') expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
 test('a downscaled non-scaling square-capped line retains its world-space stroke', () => {
   const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 350, y1: 150, x2: 430, y2: 150 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10', strokeLinecap: 'square', vectorEffect: 'non-scaling-stroke' } }, 0.1)
   expect(proof.status).toBe('unverified')
