@@ -32,7 +32,7 @@ import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from './layout-rubric.ts'
 import { measureRenderStage } from './render-stages.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { anticipateCrossingCounts } from './shared/edge-crossings.ts'
@@ -1545,9 +1545,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
-    id: 'separateEdgeLabelPills', doc: 'slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)',
-    after: ['repairLabelsOffOwnRoute'], mutates: ['labels'],
-    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, undefined) },
+    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
+    after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
+    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',

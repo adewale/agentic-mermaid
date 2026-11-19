@@ -1,6 +1,6 @@
 /** Shared sufficient written paint supports. This is optional placement
  * admission, never a paint certificate or a new geometric exception. */
-import type { Point, PositionedEdge } from '../types.ts'
+import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import type { Geometry, MarkPaint } from '../scene/ir.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
@@ -119,7 +119,6 @@ export function edgeInk(edge: PositionedEdge, style: GraphPaintStyle, work: () =
 }
 
 
-import type { PositionedNode, PositionedGroup } from '../types.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { STROKE_WIDTHS } from '../styles.ts'
@@ -147,9 +146,8 @@ export function labelPaintInputsStable(nodes: readonly PositionedNode[], edges: 
   return true
 }
 
-/** One synchronous label-only proposal owns this snapshot. No route/node/style
- * writes or host measurement callbacks occur before publication. Labels stay
- * live: each query receives the complete staged positions of its transaction. */
+/** A settled graph proposal owns this snapshot. Labels stay live; the route
+ * owner refreshes its changed shaft and markers before publishing a channel. */
 export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean, measuredShafts?: ReturnType<typeof labelShafts>) {
   if (!pay(16) || !labelPaintInputsStable(nodes, edges, groups, style, pay)) return undefined
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
@@ -205,21 +203,25 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     return true
   }
   if (!visit(groups)) return undefined
-  for (const edge of edges) {
-    if (edge.label && !edge.labelPosition) return undefined
+  const refreshRoute = (owner: PositionedEdge, points = owner.points): boolean => {
+    const edge = points === owner.points ? owner : { ...owner, points }
+    if (edge.label && !edge.labelPosition) return false
     const width = edge.inlineStyle?.['stroke-width'] ?? ''
     const fields = edge.curve || (style.edgeBendRadius ?? 0) > 0 ? 18 : 4
     const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? ''
     // Both shaft projection and markerView/factory traverse the route. Reserve
     // their independent numeric writes, contour/model slots and bounded resource
     // construction, including actual source/target/color suffix scans.
-    if (!pay(2048 + edge.points.length * (fields * 384 + 32) + width.length * 8 + (edge.label?.length ?? 0) * 12 + (color.length + edge.source.length + edge.target.length + (edge.id?.length ?? 0)) * 8)) return undefined
-    const shafts = measuredShafts?.(edge)
-    if (shafts) orthogonal.add(edge)
+    if (!pay(2048 + edge.points.length * (fields * 384 + 32) + width.length * 8 + (edge.label?.length ?? 0) * 12 + (color.length + edge.source.length + edge.target.length + (edge.id?.length ?? 0)) * 8)) return false
+    const shafts = measuredShafts?.(owner, points)
     const ink = edgeInk(edge, style, () => pay(1), shafts)
-    if (!ink) return undefined
-    routes.set(edge, ink)
+    if (!ink) return false
+    if (shafts) orthogonal.add(owner)
+    else orthogonal.delete(owner)
+    routes.set(owner, ink)
+    return true
   }
+  for (const edge of edges) if (!refreshRoute(edge)) return undefined
   const label = (edge: PositionedEdge, point: Point): AxisAlignedBox | undefined => {
     if (!pay(4)) return undefined
     const prior = labels.get(edge)
@@ -233,6 +235,26 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     labels.set(edge, { x: point.x, y: point.y, box })
     return box
   }
+  const protectedHalos = (owner: PositionedEdge, blocker: PositionedEdge): { x: number; y: number; w: number; h: number }[] | undefined => {
+    if (!orthogonal.has(blocker)) return undefined
+    const shafts = routes.get(blocker)!.shafts, result = []
+    for (const peer of edges) {
+      if (!pay(1)) return undefined
+      if (!peer.label) continue
+      const box = label(peer, peer.labelPosition!)
+      if (!box) return undefined
+      const halo = { x: box.x0, y: box.y0, w: box.x1 - box.x0, h: box.y1 - box.y0 }
+      if (peer === owner || !shafts.some(shaft => labelHaloMeetsShaft(halo, shaft))) result.push(halo)
+    }
+    return result
+  }
+  const hitsMarker = (box: AxisAlignedBox, ink: NonNullable<ReturnType<typeof edgeInk>>): boolean =>
+    ink.markers.some(marker => !pay(1) || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))
+  const markerContact = (rect: { x: number; y: number; w: number; h: number }): boolean => {
+    const box = { x0: rect.x, y0: rect.y, x1: rect.x + rect.w, y1: rect.y + rect.h }
+    for (const ink of routes.values()) if (!pay(1) || hitsMarker(box, ink)) return true
+    return false
+  }
   const clear = (edge: PositionedEdge, point: Point, positions: ReadonlyMap<PositionedEdge, Point>, blocked?: Set<PositionedEdge>, ignoredLabel?: PositionedEdge | ReadonlySet<PositionedEdge>): boolean => {
     const box = label(edge, point)
     if (!box) return false
@@ -243,7 +265,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     for (const other of edges) {
       if (!pay(1)) return false
       const ink = routes.get(other)!
-      for (const marker of ink.markers) if (!pay(1) || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds)) return false
+      if (hitsMarker(box, ink)) return false
       if (other === edge) continue
       for (const shaft of ink.shafts) if (!pay(1) || (orthogonal.has(other) ? labelHaloMeetsShaft(halo, shaft) : boxesMeet(box, shaft))) return false
       if (ignoredLabel instanceof Set ? ignoredLabel.has(other) : other === ignoredLabel) continue
@@ -258,5 +280,5 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return labelsClear
   }
-  return { clear, label }
+  return { clear, label, refreshRoute, markerContact, protectedHalos }
 }

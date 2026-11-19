@@ -26,7 +26,7 @@ import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
-import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
+import { labelSeatPaintContext, labelShafts } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
@@ -3299,6 +3299,22 @@ describe('unresolved marker-label seats', () => {
     expect(first.labelPosition).toEqual({ x: 150, y: 100 })
     expect(second.labelPosition).toEqual({ x: 150, y: 300 })
     expect(rail.points[0]!.x).toBe(500)
+  })
+  it.each([0, 1])('protects a caption on an invisible %i-point carrier when its neighbour reroutes', length => {
+    const owner: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      label: 'owner', points: [{ x: 150, y: 50 }, { x: 150, y: 150 }], labelPosition: { x: 150, y: 100 } }
+    const blocker: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      points: [{ x: 150, y: 0 }, { x: 150, y: 200 }] }
+    const hidden: PositionedEdge = { ...owner, label: 'protected', style: 'invisible', labelPosition: { x: 230, y: 100 },
+      points: [{ x: 230, y: 0 }].slice(0, length) }
+    const edges = [owner, blocker, hidden]
+    const paint = labelSeatPaintContext([], edges, [], style, () => true, labelShafts(edges, style))!
+    const halo = paint.label(hidden, hidden.labelPosition!)!
+    expect(paint.protectedHalos(owner, blocker)).toContainEqual({ x: halo.x0, y: halo.y0, w: halo.x1 - halo.x0, h: halo.y1 - halo.y0 })
+    const next = [{ x: 230, y: 0 }, { x: 230, y: 200 }]
+    expect(paint.clear(hidden, hidden.labelPosition!, new Map())).toBe(true)
+    expect(paint.refreshRoute(blocker, next)).toBe(true)
+    expect(paint.clear(hidden, hidden.labelPosition!, new Map())).toBe(false)
   })
   it.each([
     ['shallow side', 150, 81.25, 1, true],
