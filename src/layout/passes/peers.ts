@@ -1,16 +1,120 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
-import { onShapeOutline } from '../../layout-rubric.ts'
+import { countEdgeCrossings, onShapeOutline } from '../../layout-rubric.ts'
 import { labelRect, PORT_EXACT, shapePorts } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
 import { isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../../shape-clipping.ts'
-import type { ResolvedRenderStyle } from '../../styles.ts'
+import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../../styles.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
-import { graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossStart, nodeMainStart } from '../geometry.ts'
+import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossStart, nodeMainStart } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
+import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { nodePaintBounds } from '../../scene/bounds.ts'
+import { formatSvgNumericAttribute } from '../../shared/svg-number.ts'
+import { shapeOutline } from '../../shape-outline.ts'
+import { withinLayoutPreferenceBudget, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../route-geometry.ts'
+
+/** Make room for a parent without changing any disconnected tree internally.
+ * This is a bounded cross-axis packing proposal over complete painted supports;
+ * unknown paint, containment, cycles or a negative position keep the old layout. */
+function makeRoomForPeerCenter(
+  hub: PositionedNode, delta: number, nodes: PositionedNode[], edges: PositionedEdge[],
+  groups: PositionedGroup[], graph: MermaidGraph, style: GraphPaintStyle, beforeMove?: () => void,
+): boolean {
+  if (groups.length || graph.stateNotes?.length || graph.floatingStateNotes?.length || !withinLayoutPreferenceBudget(graph)
+    || nodes.some(n => n.shape !== 'rectangle' || n.icon || n.image || n.semanticShape) || edges.some(e => e.label)) return false
+  const adjacent = new Map(nodes.map(n => [n.id, [] as string[]]))
+  const incoming = new Map<string, number>()
+  for (const edge of edges) {
+    if (edge.source === edge.target || !adjacent.has(edge.source) || !adjacent.has(edge.target)) return false
+    const count = (incoming.get(edge.target) ?? 0) + 1
+    if (count > 1) return false
+    incoming.set(edge.target, count)
+    adjacent.get(edge.source)!.push(edge.target)
+    adjacent.get(edge.target)!.push(edge.source)
+  }
+  const components: Array<{ ids: Set<string>; supports: AxisAlignedBox[]; offset: number }> = []
+  const componentOf = new Map<string, number>()
+  for (const node of nodes) {
+    if (componentOf.has(node.id)) continue
+    const ids = new Set([node.id]), queue = [node.id]
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      const id = queue[cursor]!
+      componentOf.set(id, components.length)
+      for (const neighbor of adjacent.get(id)!) if (!ids.has(neighbor)) { ids.add(neighbor); queue.push(neighbor) }
+    }
+    // A weak component with one parent per node is a tree only at V-1 edges.
+    if (edges.filter(e => ids.has(e.source)).length !== ids.size - 1) return false
+    components.push({ ids, supports: [], offset: 0 })
+  }
+  if (components.length < 2) return false
+  let remaining = MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES
+  const work = (units = 1) => (remaining -= units) >= 0
+  if (edges.some(edge => !work(edge.points.length))) return false
+  const stagedNodes = nodes.map(n => ({ ...n }))
+  const stagedEdges = edges.map(e => ({ ...e, points: e.points.map(p => ({ ...p })), ...(e.labelPosition ? { labelPosition: { ...e.labelPosition } } : {}) }))
+  const movedIds = new Set([hub.id])
+  shiftNodeSetCross(movedIds, stagedNodes, stagedEdges, graph.direction, delta)
+  try {
+    for (const node of stagedNodes) {
+      const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
+        stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
+        strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
+      const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+      if (!finiteBox(bounds)) return false
+      components[componentOf.get(node.id)!]!.supports.push(bounds)
+    }
+    for (const edge of stagedEdges) {
+      const ink = edgeInk(edge, style, work)
+      if (!ink) return false
+      components[componentOf.get(edge.source)!]!.supports.push(...ink.shafts, ...ink.markers.map(m => m.bounds!), ...(ink.label ? [ink.label] : []))
+    }
+  } catch {
+    // Unsupported written paint cannot justify an optional displacement.
+    return false
+  }
+  const f = layoutFlow(graph.direction)
+  const gap = DEFAULTS.nodeSpacing
+  const lo = (b: AxisAlignedBox) => f.isHorizontal ? b.y0 : b.x0
+  const hi = (b: AxisAlignedBox) => f.isHorizontal ? b.y1 : b.x1
+  const mainLo = (b: AxisAlignedBox) => f.isHorizontal ? b.x0 : b.y0
+  const mainHi = (b: AxisAlignedBox) => f.isHorizontal ? b.x1 : b.y1
+  const anchor = components[componentOf.get(hub.id)!]!
+  const settled = [anchor]
+  const origin = nodeCrossCenter(hub, graph.direction)
+  const start = (c: typeof anchor) => Math.min(...nodes.filter(n => c.ids.has(n.id)).map(n => nodeCrossCenter(n, graph.direction)))
+  // Nearest components settle first; their whole trees move together and can
+  // displace the next component, rather than severing its connecting routes.
+  const pending = components.filter(c => c !== anchor).map(c => ({ c, position: start(c) }))
+    .sort((a, b) => Math.abs(a.position - origin) - Math.abs(b.position - origin))
+  for (const { c, position } of pending) {
+    const sign = position < origin ? -1 : 1
+    let clear = false
+    while (!clear) {
+      clear = true
+      for (const prior of settled) for (const a of prior.supports) for (const b of c.supports) {
+        if (!work()) return false
+        if (mainHi(a) + gap <= mainLo(b) || mainHi(b) + gap <= mainLo(a)) continue
+        if (hi(a) + prior.offset + gap <= lo(b) + c.offset || hi(b) + c.offset + gap <= lo(a) + prior.offset) continue
+        c.offset = sign > 0 ? hi(a) + prior.offset + gap - lo(b) : lo(a) + prior.offset - gap - hi(b)
+        clear = false
+      }
+    }
+    if (c.offset) shiftNodeSetCross(c.ids, stagedNodes, stagedEdges, graph.direction, c.offset)
+    settled.push(c)
+  }
+  if (stagedNodes.some(n => n.x < 0 || n.y < 0)) return false
+  const beforeHub = stagedNodes.map(n => n.id === hub.id ? hub : n)
+  if (!crossShiftSafe(movedIds, beforeHub, stagedEdges, graph.direction, delta, style)
+    || countEdgeCrossings(stagedEdges) > countEdgeCrossings(edges)) return false
+  beforeMove?.()
+  for (let i = 0; i < nodes.length; i++) { nodes[i]!.x = stagedNodes[i]!.x; nodes[i]!.y = stagedNodes[i]!.y }
+  for (let i = 0; i < edges.length; i++) { edges[i]!.points = stagedEdges[i]!.points; edges[i]!.labelPosition = stagedEdges[i]!.labelPosition }
+  return true
+}
 
 /** Preserve existing paint witnesses; resizing is not a new label-placement pass. */
 function peerPaintRemainsClear(before: PositionedNode[], nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {
@@ -349,7 +453,10 @@ export function centerPeerBarycenters(
       const delta = target - nodeCrossCenter(hub, graph.direction)
       if (Math.abs(delta) <= 0.5) return
       const movedIds = new Set([hub.id])
-      if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) return
+      if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) {
+        if (makeRoomForPeerCenter(hub, delta, nodes, edges, groups, graph, style, beforeMove)) moved = true
+        return
+      }
       layoutDebug('[peer-barycenter] center', hub.id, 'by', delta.toFixed(1), anchored.length === 2 ? '(mixed)' : '')
       beforeMove?.()
       shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
