@@ -9,7 +9,7 @@ import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { runCli } from '../cli/index.ts'
 import { measureQuality } from '../agent/quality.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseFlowchart } from '../parser.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
@@ -24,8 +24,39 @@ const ELK = { graphLayout: { backend: 'elk' as const } }
 const FALLBACK = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
 // A sibling edge still materializes private ranks; ancestor prefixes do not.
 const RANK_CAP_SOURCE = `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B`
+const GROUP_PATHS = ['A0 --> B4', 'A1 --> B2', 'A2 --> B0', 'A3 --> B3', 'A4 --> B1',
+  'B0 --> C1', 'B1 --> C3', 'B2 --> C0', 'B3 --> C4', 'B4 --> C2']
+const groupPaths = (direction: string, edited = false) => `flowchart ${direction}\n` + ['A', 'B', 'C'].map(group =>
+  `subgraph Group${group}[Group ${group}]\n` + Array.from({ length: 5 }, (_, i) => `${group}${i}[${edited && group === 'A' && i === 0 ? 'Edited A0' : group + i}]`).join('\n') + '\nend').join('\n') + '\n' + GROUP_PATHS.join('\n')
 
 describe('checked graph layout selection', () => {
+  test.each(['LR', 'RL'].flatMap(direction => [false, true].map(edited => ({ direction, edited }))))('aligns complete paths across flat groups in $direction (edited=$edited)', ({ direction, edited }) => {
+    const source = groupPaths(direction, edited)
+    const result = layoutMermaidWithReceipt(source, ELK)
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeGeometry?.bends).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(result.layout.nodes).toHaveLength(15)
+    expect(result.layout.edges.map(edge => `${edge.from} --> ${edge.to}`)).toEqual(GROUP_PATHS)
+    for (const group of ['A', 'B', 'C']) expect(result.layout.groups.find(scope => scope.id === `Group${group}`)!.members.slice().sort()).toEqual(Array.from({ length: 5 }, (_, i) => group + i))
+    expect(renderMermaidSVGWithReceipt(source, ELK).receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each(['preserve-order', 'hints', 'local-direction', 'partial', 'labelled', 'cycle', 'scope-cycle'] as const)('retains scoped ordering constraints for %s', mode => {
+    let source = groupPaths('LR')
+    if (mode === 'local-direction') source = source.replace('subgraph GroupB[Group B]', 'subgraph GroupB[Group B]\ndirection TB')
+    if (mode === 'partial') source = source.replace('A0 --> B4', '')
+    if (mode === 'labelled') source = source.replace('A0 --> B4', 'A0 -->|keep caption| B4')
+    if (mode === 'cycle') source += '\nC0 --> A1'
+    if (mode === 'scope-cycle') source = source.replace('A0 --> B4', 'B4 --> A0').replace('B4 --> C2', 'A0 --> C2')
+    const graph = parseFlowchart(source), before = structuredClone(graph)
+    const options = mode === 'preserve-order' ? { preserveSubgraphChildOrder: true } : mode === 'hints' ? { layoutHints: { adjacent: [['B3', 'B2']] } } : {}
+    const result = convertToElkFormat(graph, options)
+    expect(result.children!.find(node => node.id === 'GroupB')!.children!.map(node => node.id)).toEqual(mode === 'hints' ? ['B0', 'B1', 'B3', 'B2', 'B4'] : ['B0', 'B1', 'B2', 'B3', 'B4'])
+    expect(graph).toEqual(before)
+  })
+
   test('admits only closed, nonredundant selection objects and normalizes fallback', () => {
     for (const graphLayout of [{ backend: 'agentic' }, { backend: 'other' }, { backend: 'elk', fallback: 'elk' }, { backend: 'elk', fallback: 'other' }, { backend: 'elk', hidden: true }]) {
       expect(validateSerializableRenderOptions({ graphLayout }).length).toBeGreaterThan(0)

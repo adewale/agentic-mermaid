@@ -677,9 +677,54 @@ function mermaidToElk(
     elkGraph.edges!.push(edge)
   }
 
+  if (useSourceAwareChildOrder && !opts.layoutHints && !opts.stateVisual && withinLayoutPreferenceBudget(graph)) orderCompleteGroupPaths(elkGraph, graph)
   applyLayoutHints(elkGraph, graph, opts.layoutHints)
   if (separateHierarchy && subgraphPorts.size > 0) preserveHierarchyPortConstraints(elkGraph, subgraphPorts)
   return elkGraph
+}
+
+/** Independent paths through the same flat groups share one row order. Local
+ * source ordering cannot see these cross-scope relationships. Only the private
+ * ELK children are reordered, after every path and scope has been checked. */
+function orderCompleteGroupPaths(root: ElkNode, graph: MermaidGraph): void {
+  const groups = graph.subgraphs, count = graph.nodes.size
+  if ((graph.direction !== 'LR' && graph.direction !== 'RL') || groups.length < 2
+    || count !== groups.length * (count - graph.edges.length)
+    || groups.some(group => group.children.length > 0 || group.nodeIds.length === 0 || group.direction !== undefined && group.direction !== graph.direction)) return
+  const owners = new Map<string, string>(), scopes = new Map(root.children?.map(node => [node.id, node]))
+  for (const group of groups) {
+    if (scopes.get(group.id)?.children?.length !== group.nodeIds.length) return
+    for (const id of group.nodeIds) {
+      if (!graph.nodes.has(id) || owners.has(id)) return
+      owners.set(id, group.id)
+    }
+  }
+  if (owners.size !== count) return
+  const incoming = new Set<string>(), outgoing = new Map<string, string>()
+  for (const edge of graph.edges) {
+    if (edge.label || edge.style === 'invisible' || (edge.length ?? 1) !== 1 || !owners.has(edge.source) || !owners.has(edge.target)
+      || incoming.has(edge.target) || outgoing.has(edge.source)) return
+    incoming.add(edge.target); outgoing.set(edge.source, edge.target)
+  }
+  const order = new Map(groups.map(group => [group.id, [] as string[]]))
+  let groupOrder: string[] | undefined
+  let visited = 0
+  for (const id of graph.nodes.keys()) {
+    if (incoming.has(id)) continue
+    const seen = new Set<string>()
+    for (let node: string | undefined = id; node !== undefined; node = outgoing.get(node)) {
+      const owner = owners.get(node)!
+      if (seen.has(owner) || groupOrder !== undefined && groupOrder[seen.size] !== owner) return
+      seen.add(owner); order.get(owner)!.push(node); visited++
+    }
+    if (seen.size !== groups.length) return
+    groupOrder ??= [...seen]
+  }
+  if (visited !== count) return
+  for (const group of groups) {
+    const scope = scopes.get(group.id)!, children = new Map(scope.children!.map(node => [node.id, node]))
+    scope.children = order.get(group.id)!.map(id => children.get(id)!)
+  }
 }
 
 function endpointKey(edgeIndex: number, endpoint: 'source' | 'target'): string {
