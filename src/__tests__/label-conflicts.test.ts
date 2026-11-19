@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { measureLabelConflicts, measureRenderedLabelConflicts } from '../layout/label-conflicts.ts'
+import { labelShafts } from '../layout/graph-paint-support.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
@@ -31,6 +32,20 @@ function node(overrides: Partial<PositionedNode> = {}): PositionedNode {
 }
 
 describe('rendered edge label conflicts', () => {
+  it('reads caller-owned shaft coordinates and CSS at each placement query', () => {
+    let y = 10, width = '2px'
+    const peer = edge({ points: [{ x: 10, get y() { return y } }, { x: 30, get y() { return y } }],
+      inlineStyle: { get 'stroke-width'() { return width } } })
+    const ink = labelShafts([peer], style)
+    expect(ink(peer)).toEqual([{ x0: 10, x1: 30, y0: 9, y1: 11 }])
+    y = 30
+    width = '6px'
+    expect(ink(peer)).toEqual([{ x0: 10, x1: 30, y0: 27, y1: 33 }])
+    width = 'var(--foreign-width)'
+    expect(ink(peer)).toBeUndefined()
+    peer.inlineStyle!.stroke = 'transparent'
+    expect(ink(peer)).toEqual([])
+  })
   it('counts another collision even when an existing collision already has zero clearance', () => {
     const first = edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 200 }] })
     const second = edge({ points: [{ x: 110, y: 0 }, { x: 110, y: 200 }] })

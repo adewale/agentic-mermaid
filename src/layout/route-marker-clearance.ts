@@ -1,6 +1,7 @@
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { createInkIndex, type InkBounds } from '../shared/ink-index.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 
@@ -129,7 +130,7 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
 type MarkerView = ReturnType<typeof markerView>
 interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
 interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
-interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[] }
+interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[]; layoutStyle?: LabelMetricsStyle }
 let markerExecutions: WeakMap<readonly PositionedEdge[], MarkerPeers> | undefined
 
 /** Geometry reuse belongs to one synchronous layout, never to caller identity.
@@ -138,6 +139,21 @@ export function withRouteMarkerCache<T>(run: () => T): T {
   const previous = markerExecutions
   markerExecutions = new WeakMap()
   try { return run() } finally { markerExecutions = previous }
+}
+
+/** ELK extraction fills this fresh array with positioned edges, copied paint
+ * and route points. Caller-provided rosters always use the live validator. */
+export function createLayoutRouteEdges(style: LabelMetricsStyle): PositionedEdge[] {
+  const edges: PositionedEdge[] = []
+  markerExecutions?.set(edges, { entries: [], uncertain: [], layoutStyle: style })
+  return edges
+}
+
+/** Geometry consumers can reuse reads only inside their own write-free
+ * interval on this roster and style. Host measurements keep live geometry. */
+export function ownsLayoutRouteInputs(peers: readonly PositionedEdge[], style: LabelMetricsStyle): boolean {
+  const ownedStyle = markerExecutions?.get(peers)?.layoutStyle
+  return ownedStyle !== undefined && ownedStyle === style && !customTextMeasurementActive()
 }
 
 // The broad phase must include the arithmetic uncertainty used by separated().

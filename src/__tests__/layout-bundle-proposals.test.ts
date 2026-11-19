@@ -51,6 +51,48 @@ describe('bundle complete foreign ink admission', () => {
     })
   }
 
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction =>
+    (['plain', 'caption', 'colour', 'width', 'classes', 'marker', 'no-heads'] as const).map(paint => ({ direction, paint }))))('preserves duplicate occurrence lanes beside shared fan trunks: $direction $paint', ({ direction, paint }) => {
+    const project = (x: number, y: number) => direction === 'LR' ? { x: y, y: x }
+      : direction === 'RL' ? { x: 400 - y, y: x }
+        : direction === 'BT' ? { x, y: 400 - y } : { x, y }
+    for (const fanIn of [false, true]) {
+      const nodes: PositionedNode[] = [
+        { id: 'A', label: 'A', shape: 'rectangle', x: 100, y: fanIn ? 160 : 0, width: 40, height: 40 },
+        ...['B', 'C', 'D'].map((id, i): PositionedNode => ({ id, label: id, shape: 'rectangle', x: i * 100, y: fanIn ? 0 : 160, width: 40, height: 40 })),
+      ]
+      const edges: PositionedEdge[] = ['B', 'B', 'C', 'D'].map((id, i) => {
+        const a = nodes[0]!, b = nodes.find(node => node.id === id)!
+        const top = fanIn ? b : a, bottom = fanIn ? a : b
+        const sx = top.x + (i === 0 ? 10 : 30), tx = bottom.x + (i === 0 ? 10 : 30)
+        return { source: top.id, target: bottom.id, edgeIndex: i,
+          points: [{ x: sx, y: top.y + 40 }, { x: sx, y: 75 + i * 10 }, { x: tx, y: 75 + i * 10 }, { x: tx, y: bottom.y }].map(p => project(p.x, p.y)),
+          style: 'solid', hasArrowStart: false, hasArrowEnd: true }
+      })
+      if (paint === 'caption') edges[0]!.label = 'private caption'
+      if (paint === 'colour') { edges[2]!.inlineStyle = { stroke: '#f00' }; edges[3]!.inlineStyle = { stroke: '#00f' } }
+      if (paint === 'width') { edges[2]!.inlineStyle = { 'stroke-width': 'var(--first)' }; edges[3]!.inlineStyle = { 'stroke-width': 'var(--second)' } }
+      if (paint === 'classes') { edges[2]!.classNames = ['first']; edges[3]!.classNames = ['second'] }
+      if (paint === 'marker') {
+        if (fanIn) edges[2]!.endMarker = 'circle'
+        else edges[2]!.hasArrowStart = true
+      }
+      if (paint === 'no-heads') for (const edge of edges) edge.hasArrowEnd = false
+      for (const node of nodes) {
+        const a = project(node.x, node.y), b = project(node.x + 40, node.y + 40)
+        node.x = Math.min(a.x, b.x); node.y = Math.min(a.y, b.y)
+      }
+      const duplicatePaths = edges.slice(0, 2).map(edge => edge.points)
+      const bundled = bundleEdgePaths(edges, nodes, [], direction, resolveRenderStyle())
+      expect(edges[0]!.points).toBe(duplicatePaths[0]!)
+      expect(edges[1]!.points).toBe(duplicatePaths[1]!)
+      expect(edges[0]!.points).not.toEqual(edges[1]!.points)
+      expect([...bundled]).toEqual(paint === 'plain' || paint === 'no-heads' ? edges.slice(2) : [])
+      expect(edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
+        ['B', 'B', 'C', 'D'].map((id, i) => [i, fanIn ? id : 'A', fanIn ? 'A' : id]))
+    }
+  })
+
   test.each([true, false])('a bundle marker cannot paint a foreign tiny card (marked=%s)', marked => {
     const nodes: PositionedNode[] = [
       { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 0, width: 40, height: 40 },

@@ -6,7 +6,7 @@ import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt } from './layout/layout-cost.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
-import { withRouteMarkerCache } from './layout/route-marker-clearance.ts'
+import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -1709,7 +1709,7 @@ function elkToPositioned(
   stateNoteMargin: number = 18,
 ): LayoutRouteProposal {
   const nodes: PositionedNode[] = []
-  const edges: PositionedEdge[] = []
+  const edges = createLayoutRouteEdges(style)
   const groups: PositionedGroup[] = []
 
   // Build set of subgraph IDs for distinguishing compound nodes from leaf nodes

@@ -18,6 +18,7 @@ import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedEdge, PositionedGroup, PositionedNode, Point } from '../types.ts'
@@ -329,7 +330,7 @@ test('a marker-safe nested state loop also keeps its prepared label clear of for
 })
 
 
-for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card', 'header', 'label', 'marker'] as const) {
+for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card', 'header', 'label', 'marker', 'shaft'] as const) {
   test(`a ${side} self-loop admits its complete pill before choosing a side (${obstacle})`, () => {
     const point = (x: number, y: number): Point => side === 'E' ? { x, y } : side === 'W' ? { x: 80 - x, y } : side === 'N' ? { x: y, y: 80 - x } : { x: y, y: x }
     const rect = (x: number, y: number, w: number, h: number) => {
@@ -348,13 +349,42 @@ for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card'
     }
     if (obstacle === 'label') edges.push({ source: 'C', target: 'D', label: 'foreign label', labelPosition: point(155, 40), points: [], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
     if (obstacle === 'marker') edges.push({ source: 'C', target: 'D', points: [point(135, 20), point(135, 40)], style: 'solid', hasArrowStart: false, hasArrowEnd: true })
-    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(groups.map(g => [g.id, g])), { nodes, edges, style: resolveRenderStyle({}) })
+    if (obstacle === 'shaft') edges.push({ source: 'C', target: 'D', points: [point(104.25, 37), point(104.25, 43)], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    const style = resolveRenderStyle({})
+    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(groups.map(g => [g.id, g])), { nodes, edges, style })
     const selected = route(loop)
     expect(selected).not.toBeNull()
-    expect(selected).not.toBe(side)
+    if (obstacle === 'shaft') {
+      // The loop and caption can move independently. A clear alternative
+      // must preserve the entire foreign 1px shaft on its original route.
+      const ink = rect(103.75, 37, 1, 6), m = measureMultilineText('loop', style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const p = loop.labelPosition!, w = m.width / 2 + 12, h = m.height / 2 + 12
+      expect(p.x - w >= ink.x + ink.width || p.x + w <= ink.x || p.y - h >= ink.y + ink.height || p.y + h <= ink.y).toBe(true)
+    } else expect(selected).not.toBe(side)
     expect(loop.labelPosition).toBeDefined()
   })
 }
+
+test('sliding a loop caption cannot bury a clear shaft to remove two shallow grazes', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99), node('south', -1, 81, 82, 99)]
+  const style = resolveRenderStyle()
+  const loop: PositionedEdge = { source: 'B', target: 'B', label: 'loop', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    labelBlock: { ...graphEdgeTextBlock('loop', style), width: 24, height: 14 },
+    points: [{ x: 80, y: 30 }, { x: 90, y: 30 }, { x: 90, y: 50 }, { x: 80, y: 50 }] }
+  const rails = [22, 23, 62].map((y, index): PositionedEdge => {
+    const source = `s${index}`, target = `t${index}`
+    nodes.push(node(source, 84, y - 0.25, 8, 0.5), node(target, 180, y - 0.25, 8, 0.5))
+    return { source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: 92, y }, { x: 180, y }] }
+  })
+  const edges = [loop, ...rails]
+  expect(createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })(loop)).toBe('E')
+  const center = loop.labelPosition!
+  // None of these 1px rails was covered by the 40×30 inner pill. The
+  // lower rail also cleared the entire 48×38 halo before the slide.
+  for (const rail of rails) expect(Math.abs(center.y - rail.points[0]!.y)).toBeGreaterThanOrEqual(15.5)
+  expect(Math.abs(center.y - 62)).toBeGreaterThanOrEqual(19.5)
+})
 
 test('a rejected nested loop leaves every earlier label seat and route unchanged', () => {
   const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }

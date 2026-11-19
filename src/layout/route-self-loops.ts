@@ -2,15 +2,17 @@ import { resolveLabelContent } from '../shared/display-text.ts'
 import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
-import { LABEL_PILL_PADDING, labelHaloExtension, labelRect } from '../shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
 import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { measureLabelConflicts } from './label-conflicts.ts'
-import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
+import { ownsLayoutRouteInputs, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { segmentThroughShape } from '../layout-rubric.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
+import { labelPaintInputsStable, labelShafts } from './graph-paint-support.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
@@ -114,7 +116,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       return { d, desired, clear: clearDepth(side, d) }
     }
     type LabelUpdate = { edge: PositionedEdge; position: Point; rectIndex?: number }
-    const labelPlanFor = (side: PortSide, depth: number, points: Point[]): LabelUpdate[] | null => {
+    const labelPlanFor = (side: PortSide, depth: number, points: Point[], alternate?: Point): LabelUpdate[] | null => {
       if (!edge.label || !pill) return []
       // Center the pill normally just beyond its outer segment. If a blocker
       // capped two same-side depths close together, shift the later pill only
@@ -128,12 +130,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const crossPitch = (vertical ? pill.width : pill.height) + 2 * LABEL_PILL_PADDING + 2
       const rank = sideRank(side)
       let position = vertical ? { x: cx, y: outer } : { x: outer, y: cy }
-      const rectAt = (p: Point): { x: number; y: number; w: number; h: number } => ({
-        x: p.x - pill.width / 2 - LABEL_PILL_PADDING,
-        y: p.y - pill.height / 2 - LABEL_PILL_PADDING,
-        w: pill.width + 2 * LABEL_PILL_PADDING,
-        h: pill.height + 2 * LABEL_PILL_PADDING,
-      })
+      const rectAt = (p: Point) => pillRect(p.x, p.y, pill)
       // Once a side gains a nested route, move its earlier centered pill to
       // one tangent and start the later pill on the other. Both remain close
       // to their outer segments, while the wider nested route can pass through
@@ -162,7 +159,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
           }
         }
       }
-      updates.push({ edge, position })
+      updates.push({ edge, position: alternate ?? position })
       // Prove the COMPLETE prepared pill and halo, including earlier labels a
       // nested loop would shift. No live seat or occupancy is changed here.
       const positions = new Map(updates.map(update => [update.edge, update.position]))
@@ -170,7 +167,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
         const rect = labelRect({ ...owner, labelPosition: position }, style)
         if (!rect) return null
         const halo = labelHaloExtension(owner, style.lineWidth ?? 1)
-        return { x: rect.x - halo, y: rect.y - halo, w: rect.w + 2 * halo, h: rect.h + 2 * halo }
+        return labelHaloRect(rect, halo)
       }
       const bodyStyle = style as Partial<ResolvedRenderStyle>
       for (const update of updates) {
@@ -277,29 +274,60 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     // Rank the existing side proposals by the same visible crossings and pill
     // conflicts as final certification; keep allocation order on an exact tie.
     const compare = ctx.nodes.length + groupMap.size <= MAX_PREFERENCE_NODES && ctx.edges.length <= MAX_PREFERENCE_EDGES
-    let bestCrossings = Infinity, bestConflicts = Infinity
+    const compareMasks = compare && !customTextMeasurementActive() && (ownsLayoutRouteInputs(ctx.edges, style)
+      || labelPaintInputsStable(ctx.nodes, ctx.edges, [...groupMap.values()], style))
+    const peerShafts = labelShafts(ctx.edges, style)
+    const conflictsFor = (updates: LabelUpdate[], points: Point[]): number => {
+      const positions = new Map(updates.map(update => [update.edge, update.position]))
+      const involved = new Set<number>()
+      const edges = ctx.edges.map((other, index) => {
+        const labelPosition = positions.get(other)
+        if (other !== edge && !labelPosition) return other
+        involved.add(index)
+        return { ...other, ...(other === edge ? { points } : {}), ...(labelPosition ? { labelPosition } : {}) }
+      })
+      return measureLabelConflicts({ nodes: ctx.nodes, edges }, style, involved).total
+    }
+    type Masks = Map<PositionedEdge, Set<PositionedEdge>>
+    const masks = (updates: LabelUpdate[], points: Point[], allowed?: Masks) => {
+      let pairs = 0
+      const owners: Masks = new Map()
+      if (!compareMasks) return undefined
+      for (const update of updates) {
+        const rect = labelRect({ ...update.edge, labelPosition: update.position }, style)!
+        const halo = labelHaloRect(rect, labelHaloExtension(update.edge, style.lineWidth ?? 1))
+        for (const peer of ctx.edges) {
+          if (peer === update.edge) continue
+          const shafts = peerShafts(peer, peer === edge ? points : peer.points)
+          if (!shafts) return undefined
+          if (shafts.some(shaft => labelHaloMeetsShaft(halo, shaft))) {
+            if (allowed && !allowed.get(update.edge)?.has(peer)) return undefined
+            let peers = owners.get(update.edge)
+            if (!peers) owners.set(update.edge, peers = new Set())
+            peers.add(peer)
+            pairs++
+          }
+        }
+      }
+      return { pairs, owners }
+    }
+    let bestCrossings = Infinity, bestConflicts = Infinity, bestMasks: ReturnType<typeof masks>
     for (const side of allocatedOrder) {
       if (!sideHasSlot(side)) continue
       const g = pickGeometry(side)
       if (g.clear < Math.min(g.desired, 14)) continue
       const candidate = candidateFor(side, g)
       if (!candidate) continue
-      let crossings = 0, conflicts = 0
+      let crossings = 0, conflicts = 0, masked: ReturnType<typeof masks>
       if (compare) {
         if (edge.style !== 'invisible') for (const other of ctx.edges) {
           if (other !== edge && other.style !== 'invisible') crossings += countPointPairCrossings(candidate.points, other.points)
         }
         if (crossings > bestCrossings) continue
-        const positions = new Map(candidate.labels.map(update => [update.edge, update.position]))
-        const involved = new Set<number>()
-        const edges = ctx.edges.map((other, index) => {
-          const labelPosition = positions.get(other)
-          if (other !== edge && !labelPosition) return other
-          involved.add(index)
-          return { ...other, ...(other === edge ? { points: candidate.points } : {}), ...(labelPosition ? { labelPosition } : {}) }
-        })
-        conflicts = measureLabelConflicts({ nodes: ctx.nodes, edges }, style, involved).total
-        if (crossings === bestCrossings && conflicts >= bestConflicts) continue
+        conflicts = conflictsFor(candidate.labels, candidate.points)
+        if (crossings === bestCrossings && conflicts > bestConflicts) continue
+        masked = masks(candidate.labels, candidate.points)
+        if (crossings === bestCrossings && conflicts === bestConflicts && (masked?.pairs ?? Infinity) >= (bestMasks?.pairs ?? Infinity)) continue
       }
       chosen = side
       geo = g
@@ -307,7 +335,8 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       labelUpdates = candidate.labels
       bestCrossings = crossings
       bestConflicts = conflicts
-      if (!compare || (crossings === 0 && conflicts === 0)) break
+      bestMasks = masked
+      if (!compare || (crossings === 0 && conflicts === 0 && !masked?.pairs)) break
     }
     if (!chosen || !geo || !clipped) {
       // Preserve the existing widest-side fallback, requiring the same full
@@ -322,6 +351,28 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
+    }
+    // A loop's outer segment also owns the space beside either end. A
+    // tangent slide can clear a shaft alongside the caption without changing
+    // any crossings, endpoint contacts or marker poses.
+    if (compare && pill && bestMasks?.pairs && labelUpdates.length) {
+      const update = labelUpdates.at(-1)!
+      const vertical = chosen === 'N' || chosen === 'S'
+      const cross = vertical ? 'x' : 'y'
+      const half = (vertical ? pill.width : pill.height) / 2 + LABEL_PILL_PADDING
+      for (const distance of [geo.d, -geo.d, geo.d + half, -(geo.d + half)]) {
+        const position = { ...update.position, [cross]: update.position[cross] + distance }
+        const plan = labelPlanFor(chosen, Math.max(Math.min(geo.desired, geo.clear), 8), clipped, position)
+        if (!plan) continue
+        const measured = masks(plan, clipped, bestMasks.owners)
+        if (!measured) continue
+        const conflicts = conflictsFor(plan, clipped)
+        if (conflicts > bestConflicts || conflicts === bestConflicts && measured.pairs >= bestMasks.pairs) continue
+        labelUpdates = plan
+        bestMasks = measured
+        bestConflicts = conflicts
+        if (!measured.pairs) break
+      }
     }
     reserved.add(edge)
     selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)

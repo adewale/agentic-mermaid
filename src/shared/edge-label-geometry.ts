@@ -2,9 +2,11 @@ import type { Point, PositionedEdge } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveLabelContent } from './display-text.ts'
 import { ARROW_HEAD } from '../styles.ts'
+import type { AxisAlignedBox } from './transformed-bounds.ts'
 
 /** Padding between retained text bounds and the painted graph-label pill. */
 export const LABEL_PILL_PADDING = 8
+export const LABEL_HALO_RADIUS = 4
 
 /** Opaque paint outside the pill, shared by placement and drawing. */
 export function labelHaloExtension(edge: Pick<PositionedEdge, 'style'>, lineWidth: number): number {
@@ -34,6 +36,20 @@ export function pillRect(cx: number, cy: number, metrics: { width: number; heigh
   const w = metrics.width + 2 * LABEL_PILL_PADDING
   const h = metrics.height + 2 * LABEL_PILL_PADDING
   return { x: cx - w / 2, y: cy - h / 2, w, h }
+}
+
+/** The knockout painted above graph connectors. Its SVG corners are circular. */
+export function labelHaloRect(pill: ReturnType<typeof pillRect>, extension: number): ReturnType<typeof pillRect> {
+  return { x: pill.x - extension, y: pill.y - extension, w: pill.w + 2 * extension, h: pill.h + 2 * extension }
+}
+
+/** A round rectangle is its inset core swept by a disk. The two painted
+ * interiors intersect exactly when the stroke box comes within one radius. */
+export function labelHaloMeetsShaft(halo: ReturnType<typeof pillRect>, shaft: AxisAlignedBox): boolean {
+  const r = LABEL_HALO_RADIUS
+  const dx = Math.max(halo.x + r - shaft.x1, shaft.x0 - (halo.x + halo.w - r), 0)
+  const dy = Math.max(halo.y + r - shaft.y1, shaft.y0 - (halo.y + halo.h - r), 0)
+  return dx * dx + dy * dy < r * r
 }
 
 export function labelRect(edge: PositionedEdge, style: Parameters<typeof graphEdgeTextBlock>[1]): ReturnType<typeof pillRect> | null {

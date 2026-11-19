@@ -187,6 +187,13 @@ describe('checked graph layout selection', () => {
     expect(result.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(
       model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]),
     )
+    if (direction === 'BT') {
+      // The narrower five-crossing route needs a clear channel beside the
+      // wide n6→n3 caption. Both relationships must remain traceable.
+      const quality = measureQuality(result.layout)
+      expect(quality.edgeCrossings).toBeLessThanOrEqual(5)
+      expect(quality.labelConflicts?.labelEdge).toBe(0)
+    }
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
   })
 

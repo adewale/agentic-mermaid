@@ -8,6 +8,7 @@ import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import { graphGeometryWarnings } from '../agent/verify.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -3274,6 +3275,53 @@ it('a crossing container Z cannot borrow a bbox-gap proof for a diamond facet in
 describe('unresolved marker-label seats', () => {
   const style = { ...resolveRenderStyle(), edgeLabelFontSize: 11 }
   const graph = () => parseMermaid('flowchart TD\nA-->B\nC-->D')
+  it('withholds optional halo moves when a caller can move a shaft from a label setter', () => {
+    const route = (source: string, target: string, points: Point[]): PositionedEdge => ({
+      source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    })
+    const label = (source: string, target: string, y: number): PositionedEdge => ({
+      ...route(source, target, [{ x: 0, y }, { x: 300, y }]),
+      label: source, labelPosition: { x: 150, y },
+      labelBlock: { ...graphEdgeTextBlock(source, style), width: 24, height: 14 },
+    })
+    const first = label('A', 'B', 100), second = label('C', 'D', 300)
+    const rail = route('I', 'J', [{ x: 500, y: 273 }, { x: 500, y: 309 }])
+    const firstTip = route('E', 'F', [{ x: 150, y: 10 }, { x: 150, y: 81.25 }])
+    const secondTip = route('G', 'H', [{ x: 150, y: 210 }, { x: 150, y: 281.25 }])
+    const center = first.labelPosition!
+    let writes = 0
+    Object.defineProperty(first, 'labelPosition', { enumerable: true, get: () => center, set() {
+      writes++
+      for (const point of rail.points) point.x = 174.51
+    } })
+    separateEdgeLabelPills({ nodes: [], groups: [], edges: [first, second, firstTip, secondTip, rail] }, graph(), style)
+    expect(writes).toBe(0)
+    expect(first.labelPosition).toEqual({ x: 150, y: 100 })
+    expect(second.labelPosition).toEqual({ x: 150, y: 300 })
+    expect(rail.points[0]!.x).toBe(500)
+  })
+  it.each([
+    ['shallow side', 150, 81.25, 1, true],
+    ['stroke beside the halo', 150, 80.75, 1, true],
+    ['rounded corner gap', 126.75, 82, 0.5, false],
+  ] as const)('re-seats a label only for painted foreign ink: %s', (_case, x, endY, stroke, masked) => {
+    // The 24×14 text box yields a 48×38 halo with a 4px corner radius.
+    // A vertical butt-ended shaft stops just above or just inside that halo.
+    const edge: PositionedEdge = {
+      source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false, label: 'label',
+      points: [{ x: 0, y: 100 }, { x: 300, y: 100 }], labelPosition: { x: 150, y: 100 },
+      labelBlock: { ...graphEdgeTextBlock('label', style), width: 24, height: 14 },
+    }
+    const peer: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      points: _case === 'stroke beside the halo' ? [{ x: 140, y: endY }, { x: 160, y: endY }] : [{ x, y: 0 }, { x, y: endY }],
+      inlineStyle: { 'stroke-width': String(stroke) },
+    }
+    separateEdgeLabelPills({ nodes: [], groups: [], edges: [edge, peer] }, graph(), style)
+    if (masked) {
+      expect(Math.abs(edge.labelPosition!.x - 150)).toBeGreaterThan(24)
+      expect(edge.labelPosition!.y).toBe(100)
+    } else expect(edge.labelPosition).toEqual({ x: 150, y: 100 })
+  })
   const clear = (edge: PositionedEdge, edges: PositionedEdge[]): boolean => {
     const pill = labelRect(edge, style)!, halo = 4
     return edges.every(peer => graphEdgeMarkerPaintRegions(peer, style).every(marker => {
