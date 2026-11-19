@@ -2067,9 +2067,9 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
   const compareRoutes = options.compareRoutePreferences !== false
   const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
-  // Keep parallel pairs with their specialized route owners: fewer proper
-  // crossings can still collapse duplicate endpoint lanes into ambiguous ink.
-  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && !contraction && withinLayoutPreferenceBudget(graph) && !hasParallelPair(graph.edges)
+  // Only generic fan bundling is disabled in the alternative. Parallel and
+  // duplicate lane owners still run before the completed route is certified.
+  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && !contraction && withinLayoutPreferenceBudget(graph)
     ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
     : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)

@@ -110,8 +110,9 @@ pipeline, with at most 16 ELK attempts; routing alternatives are not multiplied
 across placement strategies. The receipt retains bundled placement scores in
 `preference.compared`, the actual final route score in `preference.selectedScore`,
 and the selected placement's route comparison in `preference.routing`.
-Parallel-edge graphs retain their specialized route owners and skip this generic
-proposal: endpoint contacts and lane ambiguity are not proper crossings.
+Parallel-edge graphs retain their specialized route owners in both proposals;
+only generic fan bundling is disabled. Endpoint contacts and lane ambiguity are
+not proper crossings.
 
 ## 3. Harness
 

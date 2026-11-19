@@ -119,21 +119,24 @@ describe('checked graph layout selection', () => {
     JSON.stringify(layout.receipt)
   })
 
-  test.each([
-    { nodes: 11, edges: 24, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
+  test.each<{ nodes: number; edges: number; source: string; crossings?: number }>([
+    { nodes: 11, edges: 24, crossings: 3, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
     { nodes: 10, edges: 20, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
-    { nodes: 19, edges: 44, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
-    { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
+    { nodes: 19, edges: 44, crossings: 37, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
+    { nodes: 13, edges: 31, crossings: 7, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
     { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
-  ])('retains authored cyclic $nodes-node labelled multigraph occurrences', ({ source, nodes, edges }) => {
+  ])('retains authored cyclic $nodes-node labelled multigraph occurrences', ({ source, nodes, edges, crossings }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
     const svg = renderMermaidSVGWithReceipt(titledSource, ELK)
     const native = layoutMermaidWithReceipt(titledSource, { ...ELK, debug: true })
     const quality = measureQuality(native.layout)
     expect(quality.nodeCount).toBe(nodes)
     expect(quality.edgeCount).toBe(edges)
+    if (crossings !== undefined) expect(quality.edgeCrossings).toBeLessThanOrEqual(crossings)
+    expect(quality.routeOverlaps?.opposing).toBe(0)
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
     const model = parseFlowchart(source)
     expect(native.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
     expect(native.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]))
