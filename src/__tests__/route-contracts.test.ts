@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
-import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
+import { createLayoutRouteEdges, routeCandidateMarkerBlocker, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
@@ -1717,7 +1717,19 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
       expect(onShapeOutline(positioned.nodes.find(node => node.id === from)!, edge.points[0]!)).toBe(true)
       expect(onShapeOutline(positioned.nodes.find(node => node.id === to)!, edge.points.at(-1)!)).toBe(true)
     }
-    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
+    const named = dups.find(edge => edge.label)!
+    // A direct separated lane needs no bundle exemption; a detour still does.
+    if (named.points.length === 2) {
+      const [start, end] = named.points
+      expect(start!.x === end!.x || start!.y === end!.y).toBe(true)
+      expect(Math.hypot(end!.x - start!.x, end!.y - start!.y)).toBeGreaterThan(0)
+      expect(named.routeCertificate?.invariant).toBe('straight')
+      expect(named.routeCertificate?.bendCount).toBe(0)
+      expect(named.routeCertificate?.directLaneClear).toBe(true)
+    } else {
+      expect(named.routeCertificate?.invariant).toBe('bundle')
+      expect(hasBundleRouteExemption(named)).toBe(true)
+    }
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
     expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
     const tags = scanSvgStartTags(renderMermaidSVG(source.replace('flowchart TD', `flowchart ${direction}`), { embedFontImport: false }))
@@ -2929,6 +2941,21 @@ describe('port-lane reserved-header admission', () => {
   const e = (source: string, target: string, points: Point[]): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
   const g = (x: number, y: number, width: number, height: number, headerHeight = height): PositionedGroup => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
   const stairs = () => ({ nodes: [n('S', 0, 100), n('T', 100, 0)], edges: [e('S', 'T', [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }])] })
+
+  it('keeps an owned port alignment from dragging its incident shaft across a clear rail', () => {
+    const { nodes, edges: initial } = stairs(), style = resolveRenderStyle()
+    nodes.push(n('P', 82, 80, 6, 10), n('Q', 82, 144, 6, 10))
+    initial.push(e('P', 'Q', [{ x: 85, y: 90 }, { x: 85, y: 144 }]))
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...initial)
+      const before = structuredClone({ nodes, edges })
+      expect(countEdgeCrossings(edges)).toBe(0)
+      alignPortLanes(nodes, edges, [], 'LR', style)
+      expect(countEdgeCrossings(edges)).toBe(0)
+      expect({ nodes, edges }).toEqual(before)
+    })
+  })
 
   for (const width of ['20', '20px', '1em', 'var(--edge-width)']) it(`does not slide a card into an unchanged foreign ${width} shaft`, () => {
     const { nodes, edges } = stairs()

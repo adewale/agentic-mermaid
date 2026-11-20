@@ -1,5 +1,5 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
-import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
+import { countEdgeCrossings, portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geometry.ts'
@@ -8,6 +8,7 @@ import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
 import { tryStraighten } from '../route-lanes.ts'
+import { ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
@@ -467,6 +468,16 @@ export function alignPortLanes(
   // Centering is preparatory, but may not silently break more canonical
   // contacts than it establishes. Keep the prior layout when it does.
   if (portEndpointRate({ nodes: candidateNodes, edges: candidateEdges }, true) + 1e-6 < portEndpointRate({ nodes, edges }, true)) return
+  if (ownsLayoutRouteInputs(edges, style)) {
+    let moved: Set<number> | undefined
+    candidateEdges.forEach((edge, index) => {
+      if (edge.style !== 'invisible' && routeChanged(edge, edges[index]!)) (moved ??= new Set()).add(index)
+    })
+    if (moved) {
+      const after = countEdgeCrossings(candidateEdges, moved)
+      if (after > 0 && after > countEdgeCrossings(edges, moved)) return
+    }
+  }
   publishPortLaneCandidate(nodes, edges, candidateNodes, candidateEdges)
 }
 
