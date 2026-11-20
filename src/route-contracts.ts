@@ -1429,12 +1429,46 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
       return clear
     }
   }
-  const stable = !!masking || ownsLayoutRouteInputs(positioned.edges, style)
+  const owned = ownsLayoutRouteInputs(positioned.edges, style)
+  const stable = !!masking || owned
   const headSpurs = stable ? endpointSpurs(start, from, 'start') : undefined
   const tailSpurs = stable ? endpointSpurs(end, to, 'end') : undefined
   const retainedSegment = (spur: Point[], a: Point, b: Point): boolean => {
     const index = spur.indexOf(a)
     return index >= 0 && (spur[index - 1] === b || spur[index + 1] === b)
+  }
+  // Only the common interior can reject a whole lane. Test its existence
+  // before checking canonicality; overlapping tip ranges prove nothing.
+  const commonInterior = (heads: Point[][], tails: Point[][], lane: number): Point[] | undefined => {
+    if (!heads.length || !tails.length) return undefined
+    let headMin = Infinity, headMax = -Infinity, tailMin = Infinity, tailMax = -Infinity
+    for (const spur of heads) {
+      const tip = spur.at(-1)
+      if (!tip) return undefined
+      headMin = Math.min(headMin, tip[main]); headMax = Math.max(headMax, tip[main])
+    }
+    for (const spur of tails) {
+      const tip = spur.at(-1)
+      if (!tip) return undefined
+      tailMin = Math.min(tailMin, tip[main]); tailMax = Math.max(tailMax, tip[main])
+    }
+    const forward = headMax + EPS < tailMin, backward = tailMax + EPS < headMin
+    if (!forward && !backward) return undefined
+    for (let side = 0; side < 2; side++) for (const spur of side === 0 ? heads : tails) {
+      if (spur.length < 2 || spur.at(-1)![fixed] !== lane || spur.at(-2)![main] !== spur.at(-1)![main]) return undefined
+      let previousAxis: 'x' | 'y' | undefined
+      for (let i = 0; i < spur.length; i++) {
+        const point = spur[i]!
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined
+        if (!i) continue
+        const before = spur[i - 1]!
+        const axis = before.x === point.x ? 'y' : before.y === point.y ? 'x' : undefined
+        if (!axis || axis === previousAxis || Math.abs(point[axis] - before[axis]) <= EPS) return undefined
+        previousAxis = axis
+      }
+    }
+    const lo = forward ? headMax : tailMax, hi = forward ? tailMin : headMin
+    return main === 'x' ? [{ x: lo, y: lane }, { x: hi, y: lane }] : [{ x: lane, y: lo }, { x: lane, y: hi }]
   }
   const beforeCrossings = countRouteCrossings(points, edge, ctx)
   const peers = positioned.edges.filter(other => other !== edge && other.style !== 'invisible')
@@ -1456,6 +1490,10 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
     const heads = (headSpurs ?? endpointSpurs(start, from, 'start'))(lane)
     if (stable && !heads.length) continue
     const tails = (tailSpurs ?? endpointSpurs(end, to, 'end'))(lane)
+    if (owned && masking) {
+      const interior = commonInterior(heads, tails, lane)
+      if (interior && positioned.nodes.some(node => routeEntersNodeBox(interior, node))) continue
+    }
     for (const head of heads) for (const tail of tails) {
       const a = head.at(-1)!, b = tail.at(-1)!
       const route = simplifyPolyline([...head, ...tail.toReversed()])

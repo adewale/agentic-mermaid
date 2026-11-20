@@ -15,6 +15,9 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { createLayoutRouteEdges, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { orthogonalShaftInk } from '../layout/graph-paint-support.ts'
+import { labelRect, labelHaloRect, labelHaloExtension, labelHaloMeetsShaft } from '../shared/edge-label-geometry.ts'
 import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -364,6 +367,58 @@ for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card'
     expect(loop.labelPosition).toBeDefined()
   })
 }
+
+test('choosing an owned loop side keeps a previously clear foreign shaft visible', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99)]
+  const style = resolveRenderStyle()
+  const loop: PositionedEdge = { source: 'B', target: 'B', label: 'loop', labelPosition: { x: 128, y: 40 }, style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    points: [{ x: 80, y: 30 }, { x: 92, y: 30 }, { x: 92, y: 50 }, { x: 80, y: 50 }] }
+  const rail = (id: string, from: Point, to: Point): PositionedEdge => {
+    const source = `${id}-from`, target = `${id}-to`
+    nodes.push(node(source, from.x - 1, from.y - 1, 2, 2), node(target, to.x - 1, to.y - 1, 2, 2))
+    return { source, target, points: [from, to], style: 'solid', hasArrowStart: false, hasArrowEnd: false }
+  }
+  // The east arc crosses the first rail. Its caption already masks the second.
+  // A south arc avoids the crossing but would mask the third for the first time.
+  const crossing = rail('crossing', { x: 92, y: -100 }, { x: 92, y: 180 })
+  const existing = rail('existing', { x: 128, y: -100 }, { x: 128, y: 180 })
+  const clear = rail('clear', { x: -80, y: 123 }, { x: 200, y: 123 })
+  const contacts = () => {
+    const halo = labelHaloRect(labelRect(loop, style)!, labelHaloExtension(loop, style.lineWidth))
+    return [crossing, existing, clear].filter(edge => orthogonalShaftInk(edge, style)!.some(shaft => labelHaloMeetsShaft(halo, shaft)))
+  }
+  withRouteMarkerCache(() => {
+    const edges = createLayoutRouteEdges(style)
+    edges.push(loop, crossing, existing, clear)
+    expect(contacts()).toEqual([existing])
+    expect(createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })(loop)).toBe('E')
+    expect(contacts()).toEqual([existing])
+  })
+})
+
+test('an unknown nested-loop contact leaves a measurable side eligible', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99)]
+  const loop = (): PositionedEdge => ({ source: 'B', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    points: [{ x: 80, y: 30 }, { x: 90, y: 30 }, { x: 90, y: 50 }, { x: 80, y: 50 }] })
+  const first = { ...loop(), label: 'first', labelPosition: { x: 128, y: 40 } }
+  const second = loop()
+  const third: PositionedEdge = { ...loop(), label: 'third', style: 'dotted', labelPosition: { x: -600, y: -600 } }
+  const style = resolveRenderStyle()
+  withRouteMarkerCache(() => {
+    const edges = createLayoutRouteEdges(style)
+    edges.push(first, second, third)
+    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })
+    expect(route(first)).toBe('E')
+    expect(route(second)).toBe('S')
+    const initial = { ...first.labelPosition }
+    // East would move the first caption across a dotted shaft whose occupied
+    // runs are unknown. South updates only the dotted loop's own caption.
+    expect(route(third)).toBe('S')
+    expect(first.labelPosition).toEqual(initial)
+  })
+})
 
 test('sliding a loop caption cannot bury a clear shaft to remove two shallow grazes', () => {
   const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
