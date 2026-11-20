@@ -150,15 +150,15 @@ describe('checked graph layout selection', () => {
     JSON.stringify(layout.receipt)
   })
 
-  test.each<{ nodes: number; edges: number; source: string; crossings?: number }>([
+  test.each<{ nodes: number; edges: number; source: string; crossings?: number; reducedRoute?: { from: string; to: string; label: string } }>([
     { nodes: 11, edges: 24, crossings: 3, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
     { nodes: 10, edges: 20, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
     { nodes: 19, edges: 44, crossings: 37, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
     { nodes: 13, edges: 31, crossings: 7, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
     { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
-    { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
-  ])('retains authored cyclic $nodes-node labelled multigraph occurrences', ({ source, nodes, edges, crossings }) => {
+    { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8'), reducedRoute: { from: 'n1', to: 'n8', label: 'edge 0 xxx' } },
+  ])('retains authored cyclic $nodes-node labelled multigraph occurrences', ({ source, nodes, edges, crossings, reducedRoute }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
     const svg = renderMermaidSVGWithReceipt(titledSource, ELK)
     const native = layoutMermaidWithReceipt(titledSource, { ...ELK, debug: true })
@@ -171,6 +171,19 @@ describe('checked graph layout selection', () => {
     const model = parseFlowchart(source)
     expect(native.layout.nodes.map(node => node.id).sort()).toEqual([...model.nodes.keys()].sort())
     expect(native.layout.edges.map(edge => [edge.from, edge.to, edge.label?.text ?? null])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.label ?? null]))
+    if (reducedRoute) {
+      const edge = native.layout.edges.find(edge => edge.from === reducedRoute.from && edge.to === reducedRoute.to && edge.label?.text === reducedRoute.label)!
+      const target = native.layout.nodes.find(node => node.id === edge.to)!
+      // The label helper's offset needs no extra return step: keep the exact
+      // allocated diamond contact and carry the caption on a three-leg route.
+      expect(edge.path).toHaveLength(4)
+      expect(edge.path.at(-1)![0]).toBeCloseTo(target.x + target.w * 3 / 4, 8)
+      expect(edge.path.at(-1)![1]).toBeCloseTo(target.y + target.h / 4, 8)
+      expect(edge.route).toMatchObject({ targetPortAssignment: { side: 'E', slotIndex: 0, slotCount: 3, port: 'NE' } })
+      expect(Math.abs(edge.label!.y - edge.path.at(-1)![1])).toBeLessThan(edge.label!.bounds!.h / 2)
+      const sibling = native.layout.edges.find(peer => peer.from === edge.from && peer.to === edge.to && peer !== edge)!
+      expect(edge.path.at(-1)).not.toEqual(sibling.path.at(-1))
+    }
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
     JSON.stringify(svg.receipt)
     JSON.stringify(native.receipt)

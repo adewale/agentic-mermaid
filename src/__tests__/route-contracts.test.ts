@@ -3454,6 +3454,118 @@ it('a hidden carrier still reserves its visible caption during marker-label resc
  expect(paint.clear(edge,{x:0,y:50},new Map())).toBe(true)
 })
 
+describe('settled orthogonal excursions', () => {
+  it('preserves the closed route set when a shortcut would expose another unresolved hitch', () => {
+    const graph = parseMermaid('flowchart LR\nA ---|W| B\nX --- Y'), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, 55, 20, 10], B: [820, 35, 20, 10], X: [-132, -2, 12, 4], Y: [1000, -2, 12, 4] }
+    const nodes = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    const paths = [
+      [[0, 60], [100, 60], [100, 0], [700, 0], [700, 40], [820, 40]],
+      [[-120, 0], [-70, 0], [-70, -80], [900, -80], [900, 0], [1000, 0]],
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...graph.edges.map((edge, edgeIndex): PositionedEdge => ({ ...edge, edgeIndex,
+        points: paths[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })),
+        ...(edgeIndex === 0 ? { labelPosition: { x: 400, y: 0 } } : {}),
+        routeCertificate: { edgeIndex, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 },
+      })))
+      const positioned = { nodes, edges, groups: [] }, before = structuredClone(edges)
+      expect(findRouteHitches(positioned, graph, style)).toEqual([])
+      closeRouteContracts(positioned, graph, style)
+      expect(edges).toEqual(before)
+      expect(findRouteHitches(positioned, graph, style)).toEqual([])
+    })
+  })
+
+  it('does not sweep another shaft of the same edge through its retained start arrow', () => {
+    const graph = parseMermaid('flowchart LR\nA <--> B'), style = { ...resolveRenderStyle(), lineWidth: 3 }
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: -10, y: 49, width: 10, height: 2 },
+      { ...graph.nodes.get('B')!, x: 999, y: 42, width: 10, height: 2 },
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style), points = [[0, 50], [6, 50], [6, -80], [900, -80], [900, 43], [999, 43]].map(([x, y]) => ({ x: x!, y: y! }))
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points,
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } })
+      closeRouteContracts({ nodes, edges, groups: [] }, graph, style)
+      expect(edges[0]!.points).toEqual(points)
+      expect(edges[0]!.hasArrowStart).toBe(true)
+      expect(edges[0]!.hasArrowEnd).toBe(true)
+    })
+  })
+
+  it('keeps a required route outside an unrelated container frame', () => {
+    const graph = parseMermaid('flowchart LR\nS --- T\nsubgraph G [Foreign group]\nC\nend'), style = resolveRenderStyle()
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('S')!, x: -20, y: 99, width: 20, height: 2 },
+      { ...graph.nodes.get('T')!, x: 180, y: 104, width: 20, height: 2 },
+      { ...graph.nodes.get('C')!, x: 90, y: 40, width: 20, height: 10 },
+    ]
+    const groups: PositionedGroup[] = [{ id: 'G', label: 'Foreign group', x: 70, y: 20, width: 60, height: 87, headerHeight: 10, children: [] }]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style), points = [[0, 100], [40, 100], [40, 110], [150, 110], [150, 105], [180, 105]].map(([x, y]) => ({ x: x!, y: y! }))
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points,
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } })
+      closeRouteContracts({ nodes, edges, groups }, graph, style)
+      expect(edges[0]!.points).toEqual(points)
+    })
+  })
+
+  it.each([0, 1, 2, 3])('contracts an excursion with its caption while preserving both contacts at rotation %s', turns => {
+    const direction = (['RL', 'BT', 'LR', 'TD'] as const)[turns]!
+    const graph = parseMermaid(`flowchart ${direction}\nA -->|caption| B`), style = resolveRenderStyle()
+    const rotate = (point: Point): Point => {
+      let { x, y } = point
+      for (let turn = 0; turn < turns; turn++) [x, y] = [-y, x]
+      return { x, y }
+    }
+    const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => {
+      const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+      return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    const nodes = [node('A', 300, 150, 60, 40), node('B', 0, 100, 40, 40)]
+    const before = [[300, 170], [260, 170], [260, 108], [100, 108], [100, 120], [40, 120]].map(([x, y]) => rotate({ x: x!, y: y! }))
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: before, labelPosition: rotate({ x: 180, y: 108 }),
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } }
+      edges.push(edge)
+      const positioned = { nodes, edges, groups: [] }
+      closeRouteContracts(positioned, graph, style)
+      expect(edge.points).toEqual([[300, 170], [260, 170], [260, 120], [40, 120]].map(([x, y]) => rotate({ x: x!, y: y! })))
+      expect(edge.labelPosition).toEqual(rotate({ x: 180, y: 120 }))
+      expect([edge.source, edge.target, edge.label, edge.hasArrowEnd, edge.edgeIndex]).toEqual(['A', 'B', 'caption', true, 0])
+      expect(edge.routeCertificate?.bendCount).toBe(2)
+      expect(auditRouteContracts(positioned, graph, style)).toEqual([])
+      const settled = structuredClone(edge)
+      closeRouteContracts(positioned, graph, style)
+      expect(edge).toEqual(settled)
+    })
+  })
+
+  it.each(['caption halo', 'thick parallel shaft'] as const)('rejects a shortcut that introduces contact with a foreign %s', obstacle => {
+    const style = { ...resolveRenderStyle(), lineWidth: 2 }
+    const before = [[0, 40], [20, 40], [20, 20], [80, 20], [80, 30], [100, 30]].map(([x, y]) => ({ x: x!, y: y! }))
+    const route = [[0, 40], [20, 40], [20, 30], [100, 30]].map(([x, y]) => ({ x: x!, y: y! }))
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: before,
+      ...(obstacle === 'thick parallel shaft' ? { inlineStyle: { 'stroke-width': '8' } } : {}) }
+    const peer: PositionedEdge = obstacle === 'caption halo'
+      ? { source: 'C', target: 'D', style: 'thick', hasArrowStart: false, hasArrowEnd: false, label: 'X', labelPosition: { x: 50, y: 51.15 }, points: [{ x: -200, y: 51.15 }, { x: 200, y: 51.15 }] }
+      : { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false, inlineStyle: { 'stroke-width': '8' }, points: [{ x: 30, y: 35 }, { x: 70, y: 35 }] }
+    const edges = [edge, peer], paint = labelSeatPaintContext([], edges, [], style, () => true, labelShafts(edges, style))!
+    expect(countEdgeCrossings(edges)).toBe(0)
+    expect(countEdgeCrossings([{ ...edge, points: route }, peer])).toBe(0)
+    expect(paint.clearRoute(edge, before)).toBe(true)
+    expect(paint.refreshRoute(edge, route)).toBe(true)
+    expect(paint.clearRoute(edge, route)).toBe(false)
+    expect(edge.points).toEqual(before)
+  })
+})
+
 
 it('withholds the new overhang rescue for a rounded subject without changing its legacy seat',()=>{
  const edge:PositionedEdge={source:'A',target:'A',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'repeat seal',points:[{x:130,y:100},{x:130,y:90},{x:170,y:90},{x:170,y:100}],labelPosition:{x:150,y:77.85}}

@@ -280,5 +280,40 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return labelsClear
   }
-  return { clear, label, refreshRoute, markerContact, protectedHalos }
+  // A staged solid orthogonal route has one shaft per segment, interleaved
+  // with its written right-angle miter supports. Only its own contact segment
+  // may touch an endpoint body; stationary foreign captions and glyphs remain
+  // obstacles even when the endpoint resources themselves did not move.
+  const clearRoute = (edge: PositionedEdge, points: readonly Point[]): boolean => {
+    const ink = routes.get(edge)
+    if (!ink || !orthogonal.has(edge) || ink.shafts.length !== 2 * points.length - 3) return false
+    for (let index = 0; index < ink.shafts.length; index++) {
+      const shaft = ink.shafts[index]!
+      for (const marker of ink.markers) {
+        if (marker.position === 'start' && index === 0 || marker.position === 'end' && index === ink.shafts.length - 1) continue
+        if (!pay(1) || !finiteBox(marker.bounds) || boxesMeet(shaft, marker.bounds)) return false
+      }
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+        const node = nodes[nodeIndex]!
+        if (node.id === edge.source && index === 0 || node.id === edge.target && index === ink.shafts.length - 1) continue
+        if (!pay(1) || boxesMeet(shaft, bodies[nodeIndex]!)) return false
+      }
+      for (const header of headers) if (!pay(1) || boxesMeet(shaft, header)) return false
+      for (const peer of edges) {
+        if (peer === edge) continue
+        const other = routes.get(peer)!
+        if (!pay(1) || hitsMarker(shaft, other)) return false
+        // Aesthetic contraction requires complete separation. This also
+        // protects thick parallel shafts, whose paint can overlap while
+        // their distinct centerlines have no proper crossing.
+        for (const support of other.shafts) if (!pay(1) || boxesMeet(shaft, support)) return false
+        if (peer.label) {
+          const box = label(peer, peer.labelPosition!)
+          if (!box || !pay(1) || labelHaloMeetsShaft({ x: box.x0, y: box.y0, w: box.x1 - box.x0, h: box.y1 - box.y0 }, shaft)) return false
+        }
+      }
+    }
+    return true
+  }
+  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos }
 }

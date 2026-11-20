@@ -1337,6 +1337,7 @@ export function repairLabelsOnSharedTrunks(
 }
 
 const PRIVATE_CHANNEL_LANES = 128
+const LABEL_ROUTE_WORK = 1_000_000
 
 /** A fully shared label-bearing run has no label-only solution. Keep both
  * owned endpoint normals and propose a private orthogonal channel; admit the
@@ -1672,7 +1673,7 @@ export function settleGraphEdgeLabels(positioned: { nodes: PositionedNode[]; edg
 }
 
 function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, options?: { preserveRouteClearance?: boolean; seats?: LabelSeatSearch }, privateChannel?: typeof repairSharedLabelChannel): void {
-  let routeWork = 1_000_000
+  let routeWork = LABEL_ROUTE_WORK
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   if (labeled.length === 0) return
   const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
@@ -2033,6 +2034,72 @@ export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edg
   }
 }
 
+/** Remove a single orthogonal excursion after captions have settled. The
+ * inner run can move to the nearest endpoint lane without moving either
+ * contact or rotating its ray. No distance threshold makes a bend optional:
+ * the replacement and its translated caption must clear the actual paint. */
+function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
+  if (!ownsLayoutRouteInputs(positioned.edges, style) || positioned.groups.length || graph.subgraphs.length || !withinLayoutPreferenceBudget(graph)) return
+  const { ctx, axis } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
+  ctx.fixedLabels = true
+  ctx.finalLabelClearance = true
+  let nodes: Map<string, PositionedNode> | undefined
+  let remaining = LABEL_ROUTE_WORK
+  const pay = (units: number): boolean => { remaining -= units; return remaining >= 0 }
+  let paint: ReturnType<typeof labelSeatPaintContext>
+  let positions: Map<PositionedEdge, Point> | undefined
+  for (const edge of positioned.edges) {
+    const saved = edge.routeCertificate, points = edge.points
+    if (!saved || saved.routeClass !== 'primary-forward' || points.length !== 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
+    const [start, a, b, c, d, end] = points as [Point, Point, Point, Point, Point, Point]
+    const main = axis.main, cross = axis.cross
+    const lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
+    if (start[cross] !== a[cross] || a[main] !== b[main] || b[cross] !== c[cross]
+      || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross]
+      || !simpleOrthogonal(points) || (a[main] - start[main]) * axis.sign <= 0
+      || (c[main] - b[main]) * axis.sign <= 0 || (end[main] - d[main]) * axis.sign <= 0) continue
+    const oldInk = orthogonalShaftInk(edge, style)
+    if (!oldInk?.length) continue
+    const jog = lane === end[cross] ? a[main] : d[main]
+    const route = [{ ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
+    if (!simpleOrthogonal(route)) continue
+    nodes ??= indexRouteNodes(positioned.nodes)
+    const source = nodes.get(edge.source), target = nodes.get(edge.target)
+    if (!source || !target || invalidEndpointApproaches({ ...edge, points: route }, source, target) || routeAddsCrossings(route, edge, ctx)) continue
+    if (route.slice(1).some((point, i) => {
+      const before = route[i]!, segmentAxis = axisFor(before.x === point.x ? 'TB' : 'LR')
+      return hasDirectLaneBlocker(edge, before[segmentAxis.cross], Math.min(before[segmentAxis.main], point[segmentAxis.main]), Math.max(before[segmentAxis.main], point[segmentAxis.main]), ctx, segmentAxis, false)
+    }) || !routeCandidateMarkersClear(edge, route, positioned.edges, style)) continue
+    let label = edge.labelPosition
+    if (edge.label) {
+      const rect = labelRect(edge, style)
+      if (!label || !rect || rect[main] < Math.min(b[main], c[main])
+        || rect[main] + (main === 'x' ? rect.w : rect.h) > Math.max(b[main], c[main])
+        || Math.abs(label[cross] - b[cross]) > (cross === 'x' ? rect.w : rect.h) / 2) continue
+      label = { ...label, [cross]: label[cross] + lane - b[cross] }
+    }
+    paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay))
+    if (!paint) return
+    if (!paint.refreshRoute(edge, route)) return
+    const clear = paint.clearRoute(edge, route) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
+    if (!clear) { if (!paint.refreshRoute(edge)) return; continue }
+    const oldLabel = edge.labelPosition
+    setRoutePoints(ctx, edge, route)
+    if (edge.label) edge.labelPosition = label
+    recertifyReroutedEdge(edge, saved, source, target)
+    // An optional local change must not leave another edge needing a new
+    // whole-route repair. The legacy closer has already reached its fixed
+    // point; preserve it rather than silently invoking a different proposal.
+    if (scanRouteHitches(positioned, graph, style, false).length) {
+      setRoutePoints(ctx, edge, points)
+      if (edge.label) edge.labelPosition = oldLabel
+      edge.routeCertificate = saved
+      if (!paint.refreshRoute(edge)) return
+      continue
+    }
+  }
+}
+
 /** Close the route contract over settled label geometry. Each scan changes
  * only routes accepted by the final hitch proof, so the closer and auditor
  * cannot disagree about lane occupancy. A successful change removes one bent
@@ -2042,6 +2109,7 @@ export function closeRouteContracts(positioned: { nodes: PositionedNode[]; edges
   for (let round = 0; round < positioned.edges.length; round++) {
     if (scanRouteHitches(positioned, graph, style, true).length === 0) break
   }
+  shortenRouteExcursions(positioned, graph, style)
   collapseTinyEndpointSegments(positioned.nodes, positioned.edges, style)
   return positioned.edges.flatMap(edge => (edge.routeCertificate ? [edge.routeCertificate] : []))
 }
