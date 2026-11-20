@@ -319,10 +319,9 @@ function corankFanInBalancingLabels(
     let width = 0
     let height = 0
     for (const i of labeled) {
-      const metrics = graphTextBlock(resolveLabelContent(graph.edges[i]!.label!, graph.edges[i]!.labelContent), style, 'edge')
-      const label = metrics.text
-      width = Math.max(width, metrics.width + 8)
-      height = Math.max(height, metrics.height + 6)
+      const dims = elkLabelDimensions(graph.edges[i]!, style)
+      width = Math.max(width, dims.width)
+      height = Math.max(height, dims.height)
     }
     for (const i of unlabeled) balancing.set(i, { width, height })
   }
@@ -513,7 +512,7 @@ function mermaidToElk(
       : routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target
     let order = 0
     const segment = (scope: string | undefined, from: string, to: string, central = false): void => {
-      const base = central ? crossHierarchyElkEdge(index, edge, from, to, style, balancingLabels)
+      const base = central ? centeredElkEdge(index, edge, from, to, style, balancingLabels)
         : { id: `e${index}_internal_${order}`, sources: [from], targets: [to] }
       const elkEdge: ElkHierarchySegment = { ...base, id: allocateId(base.id), hierarchySegment: { edgeIndex: index, order: order++ } }
       const edges = crossEdgesByHost.get(scope ?? null) ?? []
@@ -649,26 +648,10 @@ function mermaidToElk(
 
   // Add root-level edges
   for (const { index, edge } of edgesBySubgraph.get(null)!) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
-      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
-    }
-    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-      const label = metrics.text
-      elkEdge.labels = [{
-        text: label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    } else if (!edge.label && balancingLabels.has(index)) {
-      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
-    }
+    const elkEdge = centeredElkEdge(index, edge,
+      routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source,
+      routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target,
+      style, balancingLabels)
     elkGraph.edges!.push(elkEdge)
   }
 
@@ -959,7 +942,13 @@ function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle
   return elkNode
 }
 
-function crossHierarchyElkEdge(
+/** Real labels and mixed-fan balancing cells reserve the same measured box. */
+function elkLabelDimensions(edge: MermaidEdge, style: ResolvedRenderStyle): { text: string; width: number; height: number } {
+  const metrics = graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
+  return { text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }
+}
+
+function centeredElkEdge(
   index: number,
   edge: MermaidEdge,
   source: string,
@@ -973,17 +962,12 @@ function crossHierarchyElkEdge(
     targets: [target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-    const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-    const label = metrics.text
-    elkEdge.labels = [{
-      text: label,
-      width: metrics.width + 8,
-      height: metrics.height + 6,
-      layoutOptions: {
-        'elk.edgeLabels.inline': 'true',
-        'elk.edgeLabels.placement': 'CENTER',
-      },
-    }]
+    const label: NonNullable<ElkExtendedEdge['labels']>[number] = elkLabelDimensions(edge, style)
+    label.layoutOptions = {
+      'elk.edgeLabels.inline': 'true',
+      'elk.edgeLabels.placement': 'CENTER',
+    }
+    elkEdge.labels = [label]
   } else if (!edge.label && balancingLabels?.has(index)) {
     elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
   }
@@ -1153,26 +1137,10 @@ function subgraphToElk(
   // Add internal edges (edges where both endpoints are in this subgraph)
   const internalEdges = edgesBySubgraph.get(sg.id) ?? []
   for (const { index, edge } of internalEdges) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
-      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
-    }
-    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-      const label = metrics.text
-      elkEdge.labels = [{
-        text: label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    } else if (!edge.label && balancingLabels.has(index)) {
-      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
-    }
+    const elkEdge = centeredElkEdge(index, edge,
+      routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source,
+      routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target,
+      style, balancingLabels)
     elkNode.edges!.push(elkEdge)
   }
 
