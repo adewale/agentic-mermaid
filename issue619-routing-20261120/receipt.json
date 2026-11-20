@@ -1,0 +1,102 @@
+{
+  "claim": "The labelled connector into Node 131-8 loses its 2.363px return without moving either endpoint or its parallel occurrence.",
+  "beforeSource": "cdaf3cc8054a6395864664f65cbf935b8a525971",
+  "afterSource": "c790c8adb918dd0f437488327c250d7841b060b0",
+  "prBase": "17c400a942d05090679ef7cb07588fd5ee763382",
+  "input": {
+    "source": "---\ntitle: Cyclic routes\n---\nflowchart RL\nn0[(Node 131-0)]\nn1[Node 131-1]\nn2{Node 131-2}\nn3(Node 131-3)\nn4((Node 131-4))\nn5[[Node 131-5]]\nn6[(Node 131-6)]\nn7[Node 131-7]\nn8{Node 131-8}\nn1 -->|edge 0 xxx| n8\nn0 --> n1\nn3 --> n6\nn5 --> n1\nn7 -->|edge 4 xxxxxxx| n5\nn2 --> n3\nn3 --> n6\nn4 --> n0\nn1 -->|edge 8 xxxxxxxxxxx| n8\nn7 --> n8\nn6 --> n0\nn5 --> n1\nn6 -->|edge 12 xxxxxxxxxxxxxxx| n4\nn8 --> n0\nn6 --> n0\nn7 --> n3\nn2 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n0\nn5 --> n6\nn7 --> n1\nn2 --> n7\nn5 -->|edge 20 xxxxxx| n3\nn3 --> n4\nn6 --> n0\n",
+    "options": {
+      "graphLayout": {
+        "backend": "elk"
+      }
+    },
+    "sha256": "58bb7cfa62ddc860913515f6859025d49d0a2b049412016579c3ae23c46f6d4f"
+  },
+  "versions": {
+    "node": "24.19.0",
+    "bun": "1.4.4",
+    "browser": "Chromium156.0.8078.79",
+    "font": "Inter via retained local fontconfig"
+  },
+  "before": {
+    "crossings": 3,
+    "bends": 54,
+    "wire": 11585.584646775698,
+    "area": 738682.825229643,
+    "parallel": 0,
+    "opposing": 0,
+    "labelConflicts": 0
+  },
+  "after": {
+    "crossings": 3,
+    "bends": 50,
+    "wire": 11568.066789632841,
+    "area": 738682.825229643,
+    "parallel": 0,
+    "opposing": 0,
+    "labelConflicts": 0
+  },
+  "proof": {
+    "before": "passed",
+    "after": "passed",
+    "warningCodesBefore": [
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DECISION_BRANCH_UNLABELED",
+      "DECISION_BRANCH_UNLABELED"
+    ],
+    "warningCodesAfter": [
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DUPLICATE_EDGE",
+      "DECISION_BRANCH_UNLABELED",
+      "DECISION_BRANCH_UNLABELED"
+    ]
+  },
+  "namedEdge": {
+    "from": "n1",
+    "to": "n8",
+    "label": "edge 0 xxx",
+    "returnPx": 2.363,
+    "wireSavedPx": 4.726,
+    "bends": [
+      4,
+      2
+    ],
+    "target": "same diamond NE contact, E slot0of3"
+  },
+  "allChangedEdges": {
+    "count": 2,
+    "bends": [
+      54,
+      50
+    ],
+    "wireSavedPx": 17.517857142856883
+  },
+  "files": {
+    "before.svg": {
+      "bytes": 22735,
+      "sha256": "258789c1ff9459523614c53e46aaa6d990cb248e128bdf4ddc45ed5a1eee43af"
+    },
+    "after.svg": {
+      "bytes": 22647,
+      "sha256": "1250e81c8856f0f5972df8fada1c7347aa4956a23ff63dbd333cc6d5ab42bd5a"
+    },
+    "detail.png": {
+      "bytes": 31378,
+      "sha256": "e5b072aec887fdb59f64f720a949e3a859253271ac4c8aa8563c19f76a3b0900"
+    },
+    "before.receipt.json": {
+      "bytes": 11806,
+      "sha256": "f68ede70e09af2e0ab36fab8f4f6a9dc47504c4e5ae8fa0f40da55389a48f1e0"
+    },
+    "after.receipt.json": {
+      "bytes": 11806,
+      "sha256": "78cd75a17e351144a56508962b41d0c396470fdc4e80ccea056c63ab79cdd093"
+    }
+  },
+  "limits": "The image compares the last repair to the intervening cdaf checkpoint, not the entire cumulative branch to main. Viewport-only magnification; same authored source/options, exact endpoints retained. Scoped paint checks do not prove exhaustive aesthetic optimality."
+}
