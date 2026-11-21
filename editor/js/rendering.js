@@ -107,7 +107,7 @@ export function chromeThemeColors() {
 }
 
 
-export function applyThemeToPage(themeKey) {
+export function applyPageColorMode() {
   var root = document.documentElement;
   var chrome = chromeThemeColors();
   root.style.setProperty("--t-bg", chrome.bg);
@@ -132,7 +132,9 @@ export function applyThemeToPage(themeKey) {
     root.style.setProperty("--shadow-border-opacity", dark ? "0.15" : "0.08");
     root.style.setProperty("--shadow-blur-opacity", dark ? "0.12" : "0.06");
   }
+}
 
+export function applyThemeToPage(themeKey) {
   // Patch the live preview SVG's CSS variables immediately. The SVG carries
   // the previous theme's --bg baked into its inline style, and the scheduled
   // re-render is async – without this, the diagram flashes the old theme

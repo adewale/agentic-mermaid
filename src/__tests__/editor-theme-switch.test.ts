@@ -158,6 +158,29 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
     await page.close()
   }, 60_000)
 
+  test('changing page colour mode preserves the verified Blueprint SVG and export', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await pickTheme(page, '')
+    await page.click('#style-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-style="blueprint"]')
+    await page.waitForFunction(() => !document.querySelector<HTMLButtonElement>('#export-svg-btn')!.disabled)
+    const immediate = await page.evaluate(() => {
+      const preview = document.getElementById('preview-inner')!
+      const digest = preview.dataset.sharedRequestDigest
+      const artwork = preview.querySelector('svg')!.outerHTML
+      document.getElementById('dark-light-btn')!.click()
+      return {
+        scheme: document.documentElement.dataset.scheme,
+        sameVerifiedRequest: !!digest && preview.dataset.sharedRequestDigest === digest,
+        exportEnabled: !document.querySelector<HTMLButtonElement>('#export-svg-btn')!.disabled,
+        sameArtwork: preview.querySelector('svg')!.outerHTML === artwork,
+      }
+    })
+    expect(immediate).toEqual({ scheme: 'dark', sameVerifiedRequest: true, exportEnabled: true, sameArtwork: true })
+    await page.close()
+  }, 60_000)
+
   test('verification is the authority gate for export, copy, and share links', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
