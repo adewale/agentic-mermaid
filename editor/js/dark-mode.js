@@ -1,7 +1,6 @@
 import { ui } from './context.js';
 import { safeLocalStorageGet, safeLocalStorageSet } from './sharing.js';
-import { applyThemeToPage, scheduleRender } from './rendering.js';
-import { state } from './state.js';
+import { applyPageColorMode } from './rendering.js';
 import { updateThemeButton } from './init.js';
 import { refreshAllColorUIs } from './config-panel.js';
 export var darkSchemeQuery, storedColorMode, isDark;
@@ -21,11 +20,10 @@ export function applyColorMode(dark, force) {
   // Page chrome follows the Kiln brand (Stone/Charcoal + Pine). The diagram theme
   // is controlled separately by the dropdown so color mode does not silently
   // rewrite diagrams.
-  applyThemeToPage(state.palette);
+  applyPageColorMode();
   // These may not exist yet during initial load – guarded calls
   if (typeof updateThemeButton === "function") updateThemeButton();
   if (typeof refreshAllColorUIs === "function") refreshAllColorUIs();
-  if (typeof scheduleRender === "function") scheduleRender(0);
 }
 
 export function initialize() {
