@@ -1,0 +1,18 @@
+{
+  "zombie": {
+    "laterBoxes": 50,
+    "centersInLaterBoundingBoxes": []
+  },
+  "pele": {
+    "laterBoxes": 37,
+    "centersInLaterBoundingBoxes": []
+  },
+  "f491-elkjs": {
+    "laterBoxes": 61,
+    "centersInLaterBoundingBoxes": []
+  },
+  "native": {
+    "laterBoxes": 61,
+    "centersInLaterBoundingBoxes": []
+  }
+}

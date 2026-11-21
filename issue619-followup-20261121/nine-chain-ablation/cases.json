@@ -1,0 +1,16 @@
+[
+  {
+    "id": "cyclic-labelled-9-chains",
+    "family": "flowchart",
+    "source": "---\ntitle: Cyclic routes\n---\nflowchart RL\nn0[(Node 131-0)]\nn1[Node 131-1]\nn2{Node 131-2}\nn3(Node 131-3)\nn4((Node 131-4))\nn5[[Node 131-5]]\nn6[(Node 131-6)]\nn7[Node 131-7]\nn8{Node 131-8}\nn1 -->|edge 0 xxx| n8\nn0 --> n1\nn3 --> n6\nn5 --> n1\nn7 -->|edge 4 xxxxxxx| n5\nn2 --> n3\nn3 --> n6\nn4 --> n0\nn1 -->|edge 8 xxxxxxxxxxx| n8\nn7 --> n8\nn6 --> n0\nn5 --> n1\nn6 -->|edge 12 xxxxxxxxxxxxxxx| n4\nn8 --> n0\nn6 --> n0\nn7 --> n3\nn2 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n0\nn5 --> n6\nn7 --> n1\nn2 --> n7\nn5 -->|edge 20 xxxxxx| n3\nn3 --> n4\nn6 --> n0\n",
+    "renderOptions": {
+      "graphLayout": {
+        "backend": "elk"
+      }
+    },
+    "edit": {
+      "source": "---\ntitle: Cyclic routes\n---\nflowchart RL\nn0[(Edited node)]\nn1[Node 131-1]\nn2{Node 131-2}\nn3(Node 131-3)\nn4((Node 131-4))\nn5[[Node 131-5]]\nn6[(Node 131-6)]\nn7[Node 131-7]\nn8{Node 131-8}\nn1 -->|edge 0 xxx| n8\nn0 --> n1\nn3 --> n6\nn5 --> n1\nn7 -->|edge 4 xxxxxxx| n5\nn2 --> n3\nn3 --> n6\nn4 --> n0\nn1 -->|edge 8 xxxxxxxxxxx| n8\nn7 --> n8\nn6 --> n0\nn5 --> n1\nn6 -->|edge 12 xxxxxxxxxxxxxxx| n4\nn8 --> n0\nn6 --> n0\nn7 --> n3\nn2 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n0\nn5 --> n6\nn7 --> n1\nn2 --> n7\nn5 -->|edge 20 xxxxxx| n3\nn3 --> n4\nn6 --> n0\n"
+    },
+    "measurementOrigin": "Existing exact retained nine-chain qualification source; real node-label edit"
+  }
+]

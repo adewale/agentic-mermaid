@@ -1,0 +1,115 @@
+{
+  "capturedAtUTC": "2026-11-21T03:31:42.018Z",
+  "hostedURL": "https://pele.run/playground",
+  "reportedVersion": "1.13.0",
+  "browser": "156.0.8078.79",
+  "sourceAndEditorSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "renderSourceBytes": 1052,
+  "sourceMatchesNpmJobAndHistoricalSource": true,
+  "captureMetadataSHA256": "937ff9868200978df9dbc6b1633591e26799b9fd561442d3c6580447f6665a2f",
+  "capturedScriptResponses": 63,
+  "npmSVG": "/tmp/issue619-implementation-20261120/memory-svg/results/cache0-pele-public-cyclic-labelled-19-0/warmup.svg.gz",
+  "hostedSVG": "/tmp/issue619-followup-20261121/pele-live-cyclic19.svg",
+  "npmSHA256": "c8e72574d72acd64dcd437baa779770440647acfe71e587264448c1d03c1364a",
+  "hostedSHA256": "033034f50ad62688dc6accbf7acc1313a26516d658fa4b84d79d2af7939f5223",
+  "npmViewBox": "0 0 1857 1471",
+  "hostedViewBox": "0 0 1821 1400",
+  "authoredEdges": 44,
+  "authoredCaptions": 11,
+  "edgesWithMatchingShaftGeometry": 0,
+  "edgesWithMatchingMarkerPath": 0,
+  "labelsWithMatchingRect": 0,
+  "labelsWithMatchingTextAnchor": 0,
+  "labelsWithMatchingLiteralTextContent": 10,
+  "captionsWithDifferentWrapping": [
+    {
+      "id": "L_n0_n4_2",
+      "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+      "npm": {
+        "id": "L_n0_n4_2",
+        "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+        "rawText": "edge 16 xxxxxxxxxxxxxxxxxxx",
+        "lines": [
+          "edge 16 xxxxxxxxxxxxxxxxxxx"
+        ],
+        "rect": {
+          "x": "1568.2",
+          "y": "162",
+          "width": "195.49",
+          "height": "21"
+        },
+        "textAnchor": {
+          "anchor": "middle",
+          "positions": [
+            {
+              "x": "1665.94",
+              "y": "177.4"
+            }
+          ]
+        }
+      },
+      "hosted": {
+        "id": "L_n0_n4_2",
+        "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+        "rawText": "edge 16xxxxxxxxxxxxxxxxxxx",
+        "lines": [
+          "edge 16",
+          "xxxxxxxxxxxxxxxxxxx"
+        ],
+        "rect": {
+          "x": "1554.86",
+          "y": "162",
+          "width": "153.21",
+          "height": "36"
+        },
+        "textAnchor": {
+          "anchor": "middle",
+          "positions": [
+            {
+              "x": "1631.47",
+              "y": "175.9"
+            },
+            {
+              "x": "1631.47",
+              "y": "193.9"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "npmIncidences": 38,
+  "npmPairs": 37,
+  "hostedIncidences": 40,
+  "hostedPairs": 38,
+  "commonPairIncidenceMultiplicity": 38,
+  "hostedOnlyMultiplicity": [
+    {
+      "edges": [
+        "n17->n10",
+        "n1->n17"
+      ],
+      "incidences": 2
+    }
+  ],
+  "npmOnlyMultiplicity": [],
+  "hostedUnresolved": [],
+  "hostedCoincidentSpans": [],
+  "hostedLaterShapeBounds": {
+    "laterBoxes": 37,
+    "centersInLaterBoundingBoxes": []
+  },
+  "independentNumericCheck": {
+    "sha256": "033034f50ad62688dc6accbf7acc1313a26516d658fa4b84d79d2af7939f5223",
+    "incidences": 40,
+    "pairs": 38,
+    "maximumCoordinateDisagreement": 2.6359905903504558e-11,
+    "maximumPointResidual": 2.5421149729252077e-13,
+    "rawSubdivisionSeeds": 52,
+    "maximumRawResidual": 4.368322805235447e-06,
+    "shaftEndpointToSeparateMarkerFirstVertexRange": [
+      7.0,
+      7.000007142853499
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="979.649" height="365.5" viewBox="0 0 979.649 365.5" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0of819001335yj">
+<style>
+  svg.am-0of819001335yj { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0of819001335yj {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="eventmodeling-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#939395" />
+  </marker></defs>
+<g data-id="lane:0" data-role="group">
+  <rect x="24" y="52" width="931.649" height="96.75" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="36" y="100.375" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="132.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Command / Read Model</text>
+</g>
+<g data-id="lane:1" data-role="group">
+  <rect x="24" y="196.75" width="931.649" height="96.75" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="36" y="245.125" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="83.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UI / Automation</text>
+</g>
+<polyline points="397.142,100.375 425.213,100.375 425.213,28 689.931,28 689.931,100.375 713.556,100.375" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="explicit" data-direction="forward" data-id="relation:01:03" data-role="edge" data-from="01" data-to="03" role="graphics-symbol" aria-roledescription="relation" aria-label="01 to 03" />
+<g data-parent="lane:0" data-id="01" data-role="node">
+  <rect x="184.495" y="68.375" width="212.272" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="290.631" y="100.375" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="290.631" y="96.475"><tspan x="290.631" text-anchor="middle" data-text-fragment="true">01 · command · reset</tspan></tspan><tspan x="290.631" y="113.375">Save</tspan></text>
+</g>
+<g data-parent="lane:1" data-id="02" data-role="node">
+  <rect x="449.213" y="213.125" width="162.508" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="530.467" y="245.125" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="530.467" y="241.225"><tspan x="530.467" text-anchor="middle" data-text-fragment="true">02 · ui · reset</tspan></tspan><tspan x="530.467" y="258.125">Screen</tspan></text>
+</g>
+<g data-parent="lane:0" data-id="03" data-role="node">
+  <rect x="713.931" y="68.375" width="216.718" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="822.29" y="100.375" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="822.29" y="96.475"><tspan x="822.29" text-anchor="middle" data-text-fragment="true">03 · command · reset</tspan></tspan><tspan x="822.29" y="113.375">Again</tspan></text>
+</g>
+</svg>

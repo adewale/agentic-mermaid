@@ -1,0 +1,54 @@
+{
+  "base": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "comparison": "Same c18 compiled bundle; ts-control disables only the producer prepare argument, ts-final leaves preparation enabled",
+  "processes": 6,
+  "proofCounts": {
+    "passed": 72
+  },
+  "proofByArm": {
+    "ts-control": {
+      "passed": 36
+    },
+    "ts-final": {
+      "passed": 36
+    }
+  },
+  "errors": [],
+  "method": "Three balanced fresh processes per arm/case/cache. Median per-process means for seven warm repeats and three repeats of one edited source; first edit, cold and import separate. Entire SVG and receipt serialized within each clock. Compression, GC and evidence writes outside clocks. RSS/heap include harness, retained products and prior compression. Exploratory, not formal calibration or full Trident scores.",
+  "summary": [
+    {
+      "id": "cyclic-labelled-9-chains",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 175.68050499999998,
+      "coldMs": 311.3555160000001,
+      "warmMs": 116.7538504285714,
+      "firstEditMs": 93.4608209999999,
+      "editedWarmMs": 95.16686933333335,
+      "warmRssMiB": 146.13169642857142,
+      "warmHeapMiB": 36.524387904575896,
+      "warmHeapTotalMiB": 66.35993303571429,
+      "peakRssMiB": 176.703125,
+      "coldRssMiB": 124.2734375,
+      "firstEditRssMiB": 171.828125
+    },
+    {
+      "id": "cyclic-labelled-9-chains",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 186.448125,
+      "coldMs": 339.13111,
+      "warmMs": 102.3975227142857,
+      "firstEditMs": 137.63299499999994,
+      "editedWarmMs": 96.0277963333333,
+      "warmRssMiB": 146.27622767857142,
+      "warmHeapMiB": 31.615562438964844,
+      "warmHeapTotalMiB": 63.06138392857143,
+      "peakRssMiB": 176.22265625,
+      "coldRssMiB": 120.63671875,
+      "firstEditRssMiB": 170.84765625
+    }
+  ]
+}

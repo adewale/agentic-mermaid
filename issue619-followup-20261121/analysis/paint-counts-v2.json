@@ -1,0 +1,344 @@
+{
+  "method": "Three complete source public SVG-with-receipt calls with counting-only Bun loader substitutions. No clock samples. Old full SVG byte equality required per returned case. Phase initialization counts count each actual reused or recomputed edge once per admitted projection.",
+  "files": {
+    "src/route-contracts.ts": "62c86f77d0f34afac55d976a366fc0cb5797ca73a1000816bbfeec224fc033bc",
+    "src/layout/graph-paint-support.ts": "d63e3c51a19f2d71f8b787878724455c5dc9f5f93768961c19626b923eef0777",
+    "src/layout-engine.ts": "564830708d1eae55aebeec27a45a3daba5138ebff03c7a491508ec85feb1443d"
+  },
+  "result": [
+    {
+      "id": "cyclic-labelled-19",
+      "projections": [
+        {
+          "ordinal": 1,
+          "merge": true,
+          "audits": 5,
+          "closes": 1
+        },
+        {
+          "ordinal": 2,
+          "merge": false,
+          "audits": 5,
+          "closes": 1
+        }
+      ],
+      "contexts": [
+        {
+          "projection": 1,
+          "mode": "prepare",
+          "edges": 44,
+          "nodes": 19,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 44,
+          "initRebuilt": 44,
+          "initReused": 0,
+          "postCalls": 0,
+          "postRebuilt": 0,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 44,
+          "initialChanged": []
+        },
+        {
+          "projection": 1,
+          "mode": "consume",
+          "edges": 44,
+          "nodes": 19,
+          "prior": true,
+          "bodyRowsReused": 19,
+          "initial": false,
+          "initCalls": 44,
+          "initRebuilt": 1,
+          "initReused": 43,
+          "postCalls": 3,
+          "postRebuilt": 3,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            4
+          ]
+        },
+        {
+          "projection": 2,
+          "mode": "prepare",
+          "edges": 44,
+          "nodes": 19,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 44,
+          "initRebuilt": 44,
+          "initReused": 0,
+          "postCalls": 0,
+          "postRebuilt": 0,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 44,
+          "initialChanged": []
+        },
+        {
+          "projection": 2,
+          "mode": "consume",
+          "edges": 44,
+          "nodes": 19,
+          "prior": true,
+          "bodyRowsReused": 19,
+          "initial": false,
+          "initCalls": 44,
+          "initRebuilt": 1,
+          "initReused": 43,
+          "postCalls": 3,
+          "postRebuilt": 3,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            4
+          ]
+        }
+      ],
+      "probes": [],
+      "completeReceiptEqual": true,
+      "source": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "svg": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "oldSvgEqual": true,
+      "receiptPaint": "passed"
+    },
+    {
+      "id": "cyclic-labelled-9-chains",
+      "projections": [
+        {
+          "ordinal": 1,
+          "merge": true,
+          "audits": 6,
+          "closes": 1
+        },
+        {
+          "ordinal": 2,
+          "merge": true,
+          "audits": 5,
+          "closes": 1
+        }
+      ],
+      "contexts": [
+        {
+          "projection": 1,
+          "mode": "prepare",
+          "edges": 23,
+          "nodes": 9,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 23,
+          "initRebuilt": 23,
+          "initReused": 0,
+          "postCalls": 0,
+          "postRebuilt": 0,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 23,
+          "initialChanged": []
+        },
+        {
+          "projection": 1,
+          "mode": "consume",
+          "edges": 23,
+          "nodes": 9,
+          "prior": true,
+          "bodyRowsReused": 9,
+          "initial": false,
+          "initCalls": 23,
+          "initRebuilt": 2,
+          "initReused": 21,
+          "postCalls": 4,
+          "postRebuilt": 4,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            12,
+            20
+          ]
+        },
+        {
+          "projection": 2,
+          "mode": "prepare",
+          "edges": 23,
+          "nodes": 9,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 23,
+          "initRebuilt": 23,
+          "initReused": 0,
+          "postCalls": 0,
+          "postRebuilt": 0,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 23,
+          "initialChanged": []
+        },
+        {
+          "projection": 2,
+          "mode": "consume",
+          "edges": 23,
+          "nodes": 9,
+          "prior": true,
+          "bodyRowsReused": 9,
+          "initial": false,
+          "initCalls": 23,
+          "initRebuilt": 2,
+          "initReused": 21,
+          "postCalls": 1,
+          "postRebuilt": 1,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            12,
+            20
+          ]
+        }
+      ],
+      "probes": [],
+      "completeReceiptEqual": true,
+      "source": "58bb7cfa62ddc860913515f6859025d49d0a2b049412016579c3ae23c46f6d4f",
+      "svg": "1250e81c8856f0f5972df8fada1c7347aa4956a23ff63dbd333cc6d5ab42bd5a",
+      "oldSvgEqual": true,
+      "receiptPaint": "passed"
+    },
+    {
+      "id": "flowchart-multigraph24",
+      "projections": [
+        {
+          "ordinal": 1,
+          "merge": true,
+          "audits": 4,
+          "closes": 1
+        },
+        {
+          "ordinal": 2,
+          "merge": true,
+          "audits": 4,
+          "closes": 1
+        },
+        {
+          "ordinal": 3,
+          "merge": false,
+          "audits": 4,
+          "closes": 1
+        }
+      ],
+      "contexts": [
+        {
+          "projection": 1,
+          "mode": "prepare",
+          "edges": 75,
+          "nodes": 24,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 75,
+          "initRebuilt": 75,
+          "initReused": 0,
+          "postCalls": 4,
+          "postRebuilt": 4,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 75,
+          "initialChanged": []
+        },
+        {
+          "projection": 2,
+          "mode": "prepare",
+          "edges": 75,
+          "nodes": 24,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 75,
+          "initRebuilt": 75,
+          "initReused": 0,
+          "postCalls": 4,
+          "postRebuilt": 4,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 75,
+          "initialChanged": []
+        },
+        {
+          "projection": 2,
+          "mode": "consume",
+          "edges": 75,
+          "nodes": 24,
+          "prior": true,
+          "bodyRowsReused": 24,
+          "initial": false,
+          "initCalls": 75,
+          "initRebuilt": 5,
+          "initReused": 70,
+          "postCalls": 4,
+          "postRebuilt": 4,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            15,
+            44,
+            57,
+            69,
+            74
+          ]
+        },
+        {
+          "projection": 3,
+          "mode": "prepare",
+          "edges": 75,
+          "nodes": 24,
+          "prior": false,
+          "bodyRowsReused": 0,
+          "initial": false,
+          "initCalls": 75,
+          "initRebuilt": 75,
+          "initReused": 0,
+          "postCalls": 1,
+          "postRebuilt": 1,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 75,
+          "initialChanged": []
+        },
+        {
+          "projection": 3,
+          "mode": "consume",
+          "edges": 75,
+          "nodes": 24,
+          "prior": true,
+          "bodyRowsReused": 24,
+          "initial": false,
+          "initCalls": 75,
+          "initRebuilt": 2,
+          "initReused": 73,
+          "postCalls": 6,
+          "postRebuilt": 6,
+          "postReused": 0,
+          "completed": true,
+          "outputRows": 0,
+          "initialChanged": [
+            44,
+            57
+          ]
+        }
+      ],
+      "probes": [],
+      "completeReceiptEqual": true,
+      "source": "32ba8886335b99d3d4db41328c208634057da13a22d00b46349651ca9c82bb52",
+      "svg": "0b87486073ef2c0d9ed2225695cebd9b2cff46a38fd1c980514dcedf1b52a115",
+      "oldSvgEqual": true,
+      "receiptPaint": "passed"
+    }
+  ]
+}

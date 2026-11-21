@@ -1,0 +1,537 @@
+{
+  "overlap": {
+    "f491-elkts": {
+      "samePairIncidencesWithCurrent": 37,
+      "currentOnly": 0,
+      "otherOnly": 0
+    },
+    "native": {
+      "samePairIncidencesWithCurrent": 6,
+      "currentOnly": 31,
+      "otherOnly": 17
+    },
+    "zombie": {
+      "samePairIncidencesWithCurrent": 5,
+      "currentOnly": 32,
+      "otherOnly": 26
+    },
+    "pele": {
+      "samePairIncidencesWithCurrent": 4,
+      "currentOnly": 33,
+      "otherOnly": 34
+    }
+  },
+  "currentFeedbackEdges": [
+    12,
+    28,
+    30,
+    32,
+    35
+  ],
+  "currentOnlyComparedToNative": [
+    [
+      2,
+      32
+    ],
+    [
+      3,
+      12
+    ],
+    [
+      3,
+      30
+    ],
+    [
+      3,
+      32
+    ],
+    [
+      6,
+      32
+    ],
+    [
+      8,
+      18
+    ],
+    [
+      8,
+      39
+    ],
+    [
+      8,
+      40
+    ],
+    [
+      9,
+      12
+    ],
+    [
+      10,
+      12
+    ],
+    [
+      10,
+      29
+    ],
+    [
+      10,
+      40
+    ],
+    [
+      11,
+      19
+    ],
+    [
+      11,
+      28
+    ],
+    [
+      12,
+      30
+    ],
+    [
+      13,
+      27
+    ],
+    [
+      13,
+      37
+    ],
+    [
+      13,
+      40
+    ],
+    [
+      14,
+      35
+    ],
+    [
+      15,
+      25
+    ],
+    [
+      18,
+      31
+    ],
+    [
+      19,
+      40
+    ],
+    [
+      20,
+      26
+    ],
+    [
+      21,
+      31
+    ],
+    [
+      24,
+      32
+    ],
+    [
+      24,
+      36
+    ],
+    [
+      25,
+      35
+    ],
+    [
+      25,
+      38
+    ],
+    [
+      31,
+      39
+    ],
+    [
+      32,
+      36
+    ],
+    [
+      39,
+      41
+    ]
+  ],
+  "nativeOnlyComparedToCurrent": [
+    [
+      0,
+      13
+    ],
+    [
+      5,
+      8
+    ],
+    [
+      8,
+      30
+    ],
+    [
+      11,
+      40
+    ],
+    [
+      12,
+      24
+    ],
+    [
+      13,
+      25
+    ],
+    [
+      17,
+      40
+    ],
+    [
+      18,
+      26
+    ],
+    [
+      18,
+      32
+    ],
+    [
+      18,
+      36
+    ],
+    [
+      19,
+      26
+    ],
+    [
+      21,
+      26
+    ],
+    [
+      21,
+      33
+    ],
+    [
+      24,
+      30
+    ],
+    [
+      26,
+      36
+    ],
+    [
+      33,
+      36
+    ],
+    [
+      36,
+      41
+    ]
+  ],
+  "authoredEdgeContributions": [
+    {
+      "index": 0,
+      "id": "n14->n11",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 1
+    },
+    {
+      "index": 1,
+      "id": "n0->n4",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 2,
+      "id": "n9->n13",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 3,
+      "id": "n10->n14",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 0
+    },
+    {
+      "index": 4,
+      "id": "n18->n5",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 5,
+      "id": "n15->n8",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 1
+    },
+    {
+      "index": 6,
+      "id": "n9->n13#1",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 7,
+      "id": "n4->n18",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 8,
+      "id": "n11->n17",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 2
+    },
+    {
+      "index": 9,
+      "id": "n7->n15",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 10,
+      "id": "n14->n1",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 0
+    },
+    {
+      "index": 11,
+      "id": "n0->n14",
+      "routeClass": "primary-forward",
+      "currentOnly": 2,
+      "nativeOnly": 1
+    },
+    {
+      "index": 12,
+      "id": "n11->n10",
+      "routeClass": "feedback",
+      "currentOnly": 4,
+      "nativeOnly": 1
+    },
+    {
+      "index": 13,
+      "id": "n2->n18",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 2
+    },
+    {
+      "index": 14,
+      "id": "n16->n3",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 15,
+      "id": "n18->n13",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 16,
+      "id": "n0->n4#1",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 17,
+      "id": "n3->n0",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 1
+    },
+    {
+      "index": 18,
+      "id": "n8->n5",
+      "routeClass": "primary-forward",
+      "currentOnly": 2,
+      "nativeOnly": 3
+    },
+    {
+      "index": 19,
+      "id": "n3->n5",
+      "routeClass": "primary-forward",
+      "currentOnly": 2,
+      "nativeOnly": 1
+    },
+    {
+      "index": 20,
+      "id": "n5->n13",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 21,
+      "id": "n1->n9",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 2
+    },
+    {
+      "index": 22,
+      "id": "n6->n3",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 23,
+      "id": "n2->n14",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 24,
+      "id": "n2->n8",
+      "routeClass": "primary-forward",
+      "currentOnly": 2,
+      "nativeOnly": 2
+    },
+    {
+      "index": 25,
+      "id": "n3->n5#1",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 1
+    },
+    {
+      "index": 26,
+      "id": "n18->n17",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 4
+    },
+    {
+      "index": 27,
+      "id": "n4->n12",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 28,
+      "id": "n14->n3",
+      "routeClass": "feedback",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 29,
+      "id": "n11->n15",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 30,
+      "id": "n15->n10",
+      "routeClass": "feedback",
+      "currentOnly": 2,
+      "nativeOnly": 2
+    },
+    {
+      "index": 31,
+      "id": "n15->n17",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 0
+    },
+    {
+      "index": 32,
+      "id": "n17->n10",
+      "routeClass": "feedback",
+      "currentOnly": 5,
+      "nativeOnly": 1
+    },
+    {
+      "index": 33,
+      "id": "n5->n17",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 2
+    },
+    {
+      "index": 34,
+      "id": "n0->n4#2",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 35,
+      "id": "n4->n6",
+      "routeClass": "feedback",
+      "currentOnly": 2,
+      "nativeOnly": 0
+    },
+    {
+      "index": 36,
+      "id": "n10->n9",
+      "routeClass": "primary-forward",
+      "currentOnly": 2,
+      "nativeOnly": 4
+    },
+    {
+      "index": 37,
+      "id": "n3->n11",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 38,
+      "id": "n16->n18",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 0
+    },
+    {
+      "index": 39,
+      "id": "n5->n9",
+      "routeClass": "primary-forward",
+      "currentOnly": 3,
+      "nativeOnly": 0
+    },
+    {
+      "index": 40,
+      "id": "n15->n4",
+      "routeClass": "primary-forward",
+      "currentOnly": 4,
+      "nativeOnly": 2
+    },
+    {
+      "index": 41,
+      "id": "n1->n17",
+      "routeClass": "primary-forward",
+      "currentOnly": 1,
+      "nativeOnly": 1
+    },
+    {
+      "index": 42,
+      "id": "n6->n3#1",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    },
+    {
+      "index": 43,
+      "id": "n2->n10",
+      "routeClass": "primary-forward",
+      "currentOnly": 0,
+      "nativeOnly": 0
+    }
+  ]
+}

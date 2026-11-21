@@ -1,0 +1,513 @@
+{
+  "method": "Recorded first-edit CPU profiles only. Exclusive categories follow leaf-to-root ownership, and labeled inclusive categories overlap. Source positions come from byte-matched compiled script and source maps. Time delta weights include inspector startup and bookkeeping. Worker-thread CPU and event-level JIT/GC attribution are unavailable.",
+  "control": {
+    "sourceSHA": "0c33710f13e2de4e8f6bcfec2241f8eec317fa9612a85070f5b4210a261a4184",
+    "productBytes": 76771,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1802.07405357,
+        "height": 1301.525
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 177,
+        "unmeasured": 0,
+        "preparedText": 42,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 180,
+        "labels": 24,
+        "occlusionPairs": 2706,
+        "maxOcclusionPairs": 100000,
+        "operations": 104519,
+        "maxOperations": 400000,
+        "markers": 75
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:3e7f5543eac15eb7"
+    },
+    "wallMs": 607.5947609999998,
+    "processCpuMs": 1221.461,
+    "profileLengthMs": 643.063,
+    "weightedDurationMs": 642.912,
+    "samples": 2107,
+    "categories": {
+      "inspector": 34.967,
+      "other": 14.239000000000003,
+      "otherPublicDispatch": 0.268,
+      "otherGraphLayout": 365.6429999999997,
+      "ELK": 71.1620000000001,
+      "gc": 17.299000000000003,
+      "settlementOther": 100.47900000000023,
+      "settlementProtectedPaint": 7.54,
+      "closureOther": 2.197,
+      "closureProtectedPaint": 1.918,
+      "otherScene": 19.175,
+      "finalSceneProof": 8.025
+    },
+    "overlappingInclusiveCategories": {
+      "anyGraphPaintSupportAncestry": 20.215999999999998,
+      "setup": 4.93,
+      "perRoute": 5.213,
+      "allOptionalClosure": 4.114999999999999
+    },
+    "topSelf": [
+      [
+        "file:///tmp/issue619-kink-20261120/package/package/dist/elk-solver.cjs:5 ",
+        68.6530000000001
+      ],
+      [
+        "../src/layout/route-lanes.ts:215 function collectLaneBlockers(",
+        51.478000000000016
+      ],
+      [
+        "../src/scene/bounds.ts:279 const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {",
+        35.391999999999996
+      ],
+      [
+        "node:inspector:115 ",
+        34.967
+      ],
+      [
+        "../src/shared/edge-crossing-pair.ts:16 export function countPointPairCrossings(first: readonly CrossingPoint[], second: readonly CrossingPoint[]): number {",
+        26.481999999999992
+      ],
+      [
+        "../src/scene/connector-geometry.ts:376 export function connectorContourSemantics(",
+        26.207
+      ],
+      [
+        "(garbage collector):0 ",
+        17.299000000000003
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:167 function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): MarkerPeers | undefined {",
+        12.278999999999998
+      ],
+      [
+        "../src/shared/svg-number.ts:17 export function formatSvgNumber(value: number): string {",
+        9.353
+      ],
+      [
+        "../src/shared/edge-crossings-indexed.ts:77 export function countIndexedCrossings(",
+        8.995999999999999
+      ],
+      [
+        "../src/shared/edge-crossings.ts:75 export function crossingPoint(a: RouteSegment, b: RouteSegment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {",
+        8.528
+      ],
+      [
+        "../src/layout/route-lanes.ts:793 export function routeEntersNodeBox(points: readonly Point[], node: PositionedNode): boolean {",
+        7.0550000000000015
+      ],
+      [
+        "../src/route-contracts.ts:1345 function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, paint: ReturnT",
+        7.033
+      ],
+      [
+        "../src/route-contracts.ts:1384 const segmentClear = (p: Point, q: Point): boolean => {",
+        6.677
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:11 const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))",
+        6.485999999999999
+      ],
+      [
+        "../src/route-contracts.ts:171 const attemptStraighten = (edge: PositionedEdge, cert: DraftRouteCertificate): { applied: boolean; mutated: boolean; upgradeable?: boolean } => {",
+        6.380000000000001
+      ],
+      [
+        "../src/shared/edge-crossings-indexed.ts:255 function sharedGeometryGroups(fast: ReadonlySet<IndexedSegment>, routePoints: (edge: number) => readonly Point[], margin: number): Map<IndexedSegment, IndexedSegment[]> {",
+        6.147000000000001
+      ],
+      [
+        "../src/shared/ink-index.ts:5 export function chargeInkSort<T>(items: T[], compare: (a: T, b: T) => number, charge: (count?: number) => void): void {",
+        5.942
+      ],
+      [
+        "../src/shared/ink-index.ts:23 const build = (rows: T[], sortedAxis?: 'x0' | 'y0'): InkTree<T> => {",
+        5.770000000000001
+      ],
+      [
+        "../src/graph-connectors.ts:145 export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineWidth?: number; edgeStrokeColor?: string; edgeBendRadius?: number }, includeHull = true): ConnectorMarkerPaintRegion[] {",
+        5.618
+      ],
+      [
+        "../src/shared/color-math.ts:160 export function tryParseCssColor(color: string): RgbaColor | null {",
+        5.606000000000001
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:10 function markerView(edge: PositionedEdge, style: LabelMetricsStyle, includeHull = true): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {",
+        5.403999999999999
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:220 export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge): RouteBlocker | undefined {",
+        5.2250000000000005
+      ],
+      [
+        "../src/scene/bounds.ts:9 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {",
+        5.133000000000001
+      ],
+      [
+        "../src/scene/bounds.ts:269 export function connectorMarkerPaintRegions(node: {",
+        4.9590000000000005
+      ]
+    ],
+    "protectedPaintSelf": {
+      "settlementProtectedPaint": [
+        [
+          "../src/layout/graph-paint-support.ts:258 const clear = (edge: PositionedEdge, point: Point, positions: ReadonlyMap<PositionedEdge, Point>, blocked?: Set<PositionedEdge>, ignoredLabel?: PositionedEdge | ReadonlySet<PositionedEdge>): boolean => {",
+          0.921
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:206 const refreshRoute = (owner: PositionedEdge, points = owner.points): boolean => {",
+          0.8210000000000001
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:252 ink.markers.some(marker => !pay(1) || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))",
+          0.8160000000000001
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:39 export function orthogonalShaftInk(edge: PositionedEdge, style: GraphPaintStyle): AxisAlignedBox[] | undefined {",
+          0.593
+        ],
+        [
+          "../src/scene/bounds.ts:174 export function markerBoundsAt(",
+          0.546
+        ],
+        [
+          "../src/shared/color-math.ts:160 export function tryParseCssColor(color: string): RgbaColor | null {",
+          0.545
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:251 const hitsMarker = (box: AxisAlignedBox, ink: NonNullable<ReturnType<typeof edgeInk>>): boolean =>",
+          0.284
+        ],
+        [
+          "../src/scene/bounds.ts:269 export function connectorMarkerPaintRegions(node: {",
+          0.283
+        ],
+        [
+          "../src/scene/marker-resources.ts:87 export function assertRenderableMarker(marker: MarkerDescriptor): asserts marker is RenderableMarkerDescriptor {",
+          0.282
+        ],
+        [
+          "../src/shared/svg-number.ts:17 export function formatSvgNumber(value: number): string {",
+          0.277
+        ]
+      ],
+      "closureProtectedPaint": [
+        [
+          "../src/scene/bounds.ts:279 const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {",
+          0.551
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:83 export function edgeInk(edge: PositionedEdge, style: GraphPaintStyle, work: () => boolean, writtenShafts?: AxisAlignedBox[]): { shafts: AxisAlignedBox[]; markers: NonNullable<ReturnType<typeof routeMarkerPaintR",
+          0.279
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:24 export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1",
+          0.279
+        ],
+        [
+          "../src/scene/bounds.ts:418 export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransform): AxisAlignedBox | undefined {",
+          0.271
+        ],
+        [
+          "../src/layout/route-marker-clearance.ts:11 const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))",
+          0.27
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:206 const refreshRoute = (owner: PositionedEdge, points = owner.points): boolean => {",
+          0.268
+        ]
+      ]
+    },
+    "bindings": {
+      "chunk-BLLILH5T.js": {
+        "sha256": "83e7806412ab984e08a576f85f7fd8ff8d494aacea7ddb200b82d7ea454321f8",
+        "map": "/tmp/issue619-followup-20261121/builder-prior-dist/chunk-BLLILH5T.js.map",
+        "mapSha256": "0f9d819768d15763a515ca1d5143526b4948cbca2c985b878926233f2931b981"
+      },
+      "chunk-3R2MSPHD.js": {
+        "sha256": "0a820ec4aa36836676ea9466f0312a2e34a065f8cf4a716f5f63460c802c37bf",
+        "map": "/tmp/issue619-followup-20261121/builder-prior-dist/chunk-3R2MSPHD.js.map",
+        "mapSha256": "212908397177915f970664fc29a6707c862903e013194cce19c8f0c41314dce5"
+      },
+      "chunk-BUH5MW7M.js": {
+        "sha256": "541065940fbfb57232b987c7fb07233c89346d75a629ce996badc8714448a0d4",
+        "map": "/tmp/issue619-followup-20261121/builder-prior-dist/chunk-BUH5MW7M.js.map",
+        "mapSha256": "45bd1804fb3212a48778c214c3dea76e255447053265cf575fa56c5b61502cbb"
+      },
+      "chunk-PDWXWE4Q.js": {
+        "sha256": "b9a8c78347ddd06f65c406c4b2afcc943483b519c43e55921430a219994ca5c1",
+        "map": "/tmp/issue619-followup-20261121/builder-prior-dist/chunk-PDWXWE4Q.js.map",
+        "mapSha256": "95201286a99e06eba02fe40cff7c2e314be81564c9b237c1b1c909e0d34a3027"
+      },
+      "elk-solver.cjs": {
+        "sha256": "fe4fd96eed9499d4c0f6a21343fc0514e8827f5f0867e32edd9e539faf8521af",
+        "map": null
+      }
+    }
+  },
+  "candidate": {
+    "sourceSHA": "0c33710f13e2de4e8f6bcfec2241f8eec317fa9612a85070f5b4210a261a4184",
+    "productBytes": 76771,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1802.07405357,
+        "height": 1301.525
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 177,
+        "unmeasured": 0,
+        "preparedText": 42,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 180,
+        "labels": 24,
+        "occlusionPairs": 2706,
+        "maxOcclusionPairs": 100000,
+        "operations": 104519,
+        "maxOperations": 400000,
+        "markers": 75
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:3e7f5543eac15eb7"
+    },
+    "wallMs": 586.864487,
+    "processCpuMs": 1154.674,
+    "profileLengthMs": 620.052,
+    "weightedDurationMs": 619.993,
+    "samples": 2017,
+    "categories": {
+      "inspector": 32.992,
+      "other": 12.617999999999997,
+      "otherPublicDispatch": 0.5609999999999999,
+      "otherGraphLayout": 346.2770000000001,
+      "ELK": 71.91100000000002,
+      "gc": 17.383,
+      "settlementOther": 95.83000000000011,
+      "settlementProtectedPaint": 5.922000000000001,
+      "closureOther": 2.2760000000000002,
+      "closureProtectedPaint": 0.585,
+      "otherScene": 24.406000000000006,
+      "finalSceneProof": 9.232
+    },
+    "overlappingInclusiveCategories": {
+      "anyGraphPaintSupportAncestry": 16.973,
+      "setup": 3.4029999999999996,
+      "perRoute": 3.1249999999999996,
+      "allOptionalClosure": 2.8609999999999998
+    },
+    "topSelf": [
+      [
+        "file:///tmp/issue619-followup-20261121/package/package/dist/elk-solver.cjs:5 ",
+        67.87300000000005
+      ],
+      [
+        "../src/layout/route-lanes.ts:215 function collectLaneBlockers(",
+        43.646000000000015
+      ],
+      [
+        "../src/scene/bounds.ts:279 const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {",
+        41.76400000000002
+      ],
+      [
+        "node:inspector:115 ",
+        32.583
+      ],
+      [
+        "../src/shared/edge-crossing-pair.ts:16 export function countPointPairCrossings(first: readonly CrossingPoint[], second: readonly CrossingPoint[]): number {",
+        28.070999999999994
+      ],
+      [
+        "(garbage collector):0 ",
+        17.383
+      ],
+      [
+        "../src/shared/edge-crossings.ts:75 export function crossingPoint(a: RouteSegment, b: RouteSegment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {",
+        11.382999999999997
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:167 function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): MarkerPeers | undefined {",
+        9.728000000000002
+      ],
+      [
+        "../src/shared/ink-index.ts:5 export function chargeInkSort<T>(items: T[], compare: (a: T, b: T) => number, charge: (count?: number) => void): void {",
+        9.18
+      ],
+      [
+        "../src/shared/edge-crossings-indexed.ts:77 export function countIndexedCrossings(",
+        8.374000000000002
+      ],
+      [
+        "../src/shared/svg-number.ts:17 export function formatSvgNumber(value: number): string {",
+        7.4990000000000006
+      ],
+      [
+        "../src/scene/bounds.ts:269 export function connectorMarkerPaintRegions(node: {",
+        7.222999999999999
+      ],
+      [
+        "../src/layout/route-lanes.ts:793 export function routeEntersNodeBox(points: readonly Point[], node: PositionedNode): boolean {",
+        6.989000000000001
+      ],
+      [
+        "../src/shared/color-math.ts:160 export function tryParseCssColor(color: string): RgbaColor | null {",
+        6.972000000000001
+      ],
+      [
+        "../src/scene/connector-geometry.ts:376 export function connectorContourSemantics(",
+        6.730000000000002
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:11 const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))",
+        6.715
+      ],
+      [
+        "../src/route-contracts.ts:1384 const segmentClear = (p: Point, q: Point): boolean => {",
+        6.323
+      ],
+      [
+        "../src/shared/edge-crossings-indexed.ts:255 function sharedGeometryGroups(fast: ReadonlySet<IndexedSegment>, routePoints: (edge: number) => readonly Point[], margin: number): Map<IndexedSegment, IndexedSegment[]> {",
+        6.301
+      ],
+      [
+        "../src/scene/bounds.ts:456 export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {",
+        5.3580000000000005
+      ],
+      [
+        "../src/route-contracts.ts:171 const attemptStraighten = (edge: PositionedEdge, cert: DraftRouteCertificate): { applied: boolean; mutated: boolean; upgradeable?: boolean } => {",
+        5.355
+      ],
+      [
+        "../src/route-contracts.ts:1400 if (markers.some(marker => {",
+        5.297
+      ],
+      [
+        "../src/shared/ink-index.ts:23 const build = (rows: T[], sortedAxis?: 'x0' | 'y0'): InkTree<T> => {",
+        5.281000000000001
+      ],
+      [
+        "../src/layout/route-marker-clearance.ts:10 function markerView(edge: PositionedEdge, style: LabelMetricsStyle, includeHull = true): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {",
+        5.092999999999999
+      ],
+      [
+        "../src/scene/marker-resources.ts:87 export function assertRenderableMarker(marker: MarkerDescriptor): asserts marker is RenderableMarkerDescriptor {",
+        4.305
+      ],
+      [
+        "../src/route-contracts.ts:357 function tryZRoute(",
+        4.229
+      ]
+    ],
+    "protectedPaintSelf": {
+      "settlementProtectedPaint": [
+        [
+          "../src/scene/bounds.ts:279 const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {",
+          1.3960000000000001
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:275 ink.markers.some(marker => !pay(1) || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))",
+          0.863
+        ],
+        [
+          "../src/shared/edge-label-geometry.ts:48 export function labelHaloMeetsShaft(halo: ReturnType<typeof pillRect>, shaft: AxisAlignedBox): boolean {",
+          0.8430000000000001
+        ],
+        [
+          "../src/shared/written-paint.ts:14 export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1",
+          0.542
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:276 const markerContact = (rect: { x: number; y: number; w: number; h: number }): boolean => {",
+          0.294
+        ],
+        [
+          "../src/scene/bounds.ts:456 export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {",
+          0.29
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:220 const refreshRoute = (owner: PositionedEdge, points = owner.points): boolean => {",
+          0.286
+        ],
+        [
+          "../src/layout/route-marker-clearance.ts:11 const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))",
+          0.284
+        ],
+        [
+          "../src/scene/connector-geometry.ts:18 export function connectorUnitTangent(from: ScenePoint, to: ScenePoint): ScenePoint | undefined {",
+          0.283
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:248 const label = (edge: PositionedEdge, point: Point): AxisAlignedBox | undefined => {",
+          0.282
+        ]
+      ],
+      "closureProtectedPaint": [
+        [
+          "../src/layout/graph-paint-support.ts:142 const routePaintWork = (edge: PositionedEdge, points: readonly Point[], style: GraphPaintStyle): number => {",
+          0.307
+        ],
+        [
+          "../src/layout/graph-paint-support.ts:135 const paintStyleInputs = (style: GraphPaintStyle): unknown[] => [style.lineWidth, style.nodeLineWidth, style.cornerRadius, style.nodeFillColor, style.nodeBorderColor, style.edgeBendRadius, style.edgeStrokeColor",
+          0.278
+        ]
+      ]
+    },
+    "bindings": {
+      "chunk-KLNBEKEU.js": {
+        "sha256": "e1e312072347bae68e40d08935ea410c2e74f64baf85ba6b8d15f300456c07d9",
+        "map": "/tmp/issue619-implementation-20261120/build/dist/chunk-KLNBEKEU.js.map",
+        "mapSha256": "0f9d819768d15763a515ca1d5143526b4948cbca2c985b878926233f2931b981"
+      },
+      "chunk-N5DAYXEN.js": {
+        "sha256": "fc6919ef22756876433595e36448237cad380692daa36e940b2ca717a060bf23",
+        "map": "/tmp/issue619-implementation-20261120/build/dist/chunk-N5DAYXEN.js.map",
+        "mapSha256": "8c62fe89cd86ae4337059656ffe2191a32443acc6d26356f4b92565e06c600ec"
+      },
+      "chunk-BUH5MW7M.js": {
+        "sha256": "541065940fbfb57232b987c7fb07233c89346d75a629ce996badc8714448a0d4",
+        "map": "/tmp/issue619-implementation-20261120/build/dist/chunk-BUH5MW7M.js.map",
+        "mapSha256": "45bd1804fb3212a48778c214c3dea76e255447053265cf575fa56c5b61502cbb"
+      },
+      "chunk-PDWXWE4Q.js": {
+        "sha256": "b9a8c78347ddd06f65c406c4b2afcc943483b519c43e55921430a219994ca5c1",
+        "map": "/tmp/issue619-implementation-20261120/build/dist/chunk-PDWXWE4Q.js.map",
+        "mapSha256": "95201286a99e06eba02fe40cff7c2e314be81564c9b237c1b1c909e0d34a3027"
+      },
+      "elk-solver.cjs": {
+        "sha256": "fe4fd96eed9499d4c0f6a21343fc0514e8827f5f0867e32edd9e539faf8521af",
+        "map": null
+      }
+    }
+  }
+}

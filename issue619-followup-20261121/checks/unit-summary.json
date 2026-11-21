@@ -1,0 +1,6 @@
+{
+  "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "uniquePass": 17053,
+  "skip": 78,
+  "method": "All current c18 unit cases covered:17053pass78skip. Initial parallel shard1:6497pass15skip1timeout, shard2:4360pass28skip0fail, shard3OOM137. Serial timed-out file10pass0fail at30s; entire killed shard3 --smol6195pass35skip0fail. Same tests/assertions, no caps/timeouts edits. Initial adverse runs retained. Memory events confirm1OOMkill under16GiB."
+}

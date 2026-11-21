@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "kind": "eventmodeling",
+  "nodes": [
+    {
+      "id": "01",
+      "x": 184,
+      "y": 68,
+      "w": 212,
+      "h": 64,
+      "shape": "rectangle",
+      "label": "Save",
+      "parentId": "lane:0",
+      "labelBounds": {
+        "x": 204.86999999999998,
+        "y": 83.475,
+        "w": 171.522,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 184.495,
+        "y": 68.375,
+        "w": 212.272,
+        "h": 64
+      }
+    },
+    {
+      "id": "02",
+      "x": 445,
+      "y": 213,
+      "w": 163,
+      "h": 64,
+      "shape": "rectangle",
+      "label": "Screen",
+      "parentId": "lane:1",
+      "labelBounds": {
+        "x": 465.14199999999994,
+        "y": 228.225,
+        "w": 121.75800000000001,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 444.767,
+        "y": 213.125,
+        "w": 162.508,
+        "h": 64
+      }
+    },
+    {
+      "id": "03",
+      "x": 705,
+      "y": 358,
+      "w": 191,
+      "h": 64,
+      "shape": "rectangle",
+      "label": "Saved",
+      "parentId": "lane:2",
+      "labelBounds": {
+        "x": 725.414,
+        "y": 372.975,
+        "w": 149.83800000000002,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 705.039,
+        "y": 357.875,
+        "w": 190.58800000000002,
+        "h": 64
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "relation:01:03",
+      "from": "01",
+      "to": "03",
+      "path": [
+        [
+          397,
+          100
+        ],
+        [
+          421,
+          100
+        ],
+        [
+          421,
+          390
+        ],
+        [
+          705,
+          390
+        ]
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "lane:0",
+      "label": "Command / Read Model",
+      "x": 24,
+      "y": 52,
+      "w": 918,
+      "h": 97,
+      "members": [
+        "01"
+      ]
+    },
+    {
+      "id": "lane:1",
+      "label": "UI / Automation",
+      "x": 24,
+      "y": 197,
+      "w": 918,
+      "h": 97,
+      "members": [
+        "02"
+      ]
+    },
+    {
+      "id": "lane:2",
+      "label": "Events",
+      "x": 24,
+      "y": 342,
+      "w": 918,
+      "h": 97,
+      "members": [
+        "03"
+      ]
+    }
+  ],
+  "bounds": {
+    "w": 966,
+    "h": 510
+  },
+  "labels": [],
+  "paintCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 966.311,
+      "height": 510.25
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 13,
+      "unmeasured": 0,
+      "preparedText": 6,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 16,
+      "labels": 3,
+      "occlusionPairs": 18,
+      "maxOcclusionPairs": 100000,
+      "operations": 17572,
+      "maxOperations": 400000,
+      "markers": 1
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ]
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 966,
+        "h": 510
+      }
+    },
+    {
+      "id": "group:lane:0",
+      "kind": "group",
+      "elementId": "lane:0",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 24,
+        "y": 52,
+        "w": 918,
+        "h": 97
+      }
+    },
+    {
+      "id": "group:lane:1",
+      "kind": "group",
+      "elementId": "lane:1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 24,
+        "y": 197,
+        "w": 918,
+        "h": 97
+      }
+    },
+    {
+      "id": "group:lane:2",
+      "kind": "group",
+      "elementId": "lane:2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 24,
+        "y": 342,
+        "w": 918,
+        "h": 97
+      }
+    },
+    {
+      "id": "node:01",
+      "kind": "node",
+      "elementId": "01",
+      "parentId": "group:lane:0",
+      "bounds": {
+        "x": 184,
+        "y": 68,
+        "w": 212,
+        "h": 64
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:02",
+      "kind": "node",
+      "elementId": "02",
+      "parentId": "group:lane:1",
+      "bounds": {
+        "x": 445,
+        "y": 213,
+        "w": 163,
+        "h": 64
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:03",
+      "kind": "node",
+      "elementId": "03",
+      "parentId": "group:lane:2",
+      "bounds": {
+        "x": 705,
+        "y": 358,
+        "w": 191,
+        "h": 64
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "edge:relation:01:03",
+      "kind": "edge",
+      "elementId": "relation:01:03",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 397,
+        "y": 100,
+        "w": 308,
+        "h": 290
+      }
+    }
+  ],
+  "actions": []
+}

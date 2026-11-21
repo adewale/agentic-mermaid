@@ -1,0 +1,25 @@
+{
+  "zombie": {
+    "sha256": "bfa77b0f9f34024eb2fa6efc7138ababa1bb4d4371acb74c272ec60a1c8bd320",
+    "incidences": 31,
+    "pairs": 31,
+    "maximumCoordinateDisagreement": 2.2737367544323206e-13,
+    "maximumPointResidual": 2.2737367544323206e-13,
+    "rawSubdivisionSeeds": 31,
+    "maximumRawResidual": 9.094947017729282e-13
+  },
+  "pele": {
+    "sha256": "c8e72574d72acd64dcd437baa779770440647acfe71e587264448c1d03c1364a",
+    "incidences": 38,
+    "pairs": 37,
+    "maximumCoordinateDisagreement": 1.4029619085934129e-11,
+    "maximumPointResidual": 2.5421149729252077e-13,
+    "rawSubdivisionSeeds": 55,
+    "maximumRawResidual": 2.3220373870877274e-06,
+    "shaftEndpointToSeparateMarkerFirstVertexRange": [
+      7.0,
+      7.0
+    ]
+  },
+  "libraryVersion": "1.7.2"
+}

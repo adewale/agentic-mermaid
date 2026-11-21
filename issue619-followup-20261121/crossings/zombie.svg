@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -54 1896.26 2439.34" width="1896.26" height="2439.34" role="img" style="--bg:#FFFFFF;--fg:#27272A;--muted:#71717A;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+  @media (prefers-contrast: more) {
+    svg { --_node-stroke: var(--fg); --_inner-stroke: var(--fg); --_line: var(--fg); --_arrow: var(--fg); --_text-sec: var(--fg); --_text-muted: var(--fg); --_text-faint: var(--fg); }
+  }
+  @media (forced-colors: active) {
+    svg { --_node-stroke: CanvasText; --_inner-stroke: CanvasText; --_line: CanvasText; --_arrow: CanvasText; --_text-sec: CanvasText; --_text-muted: CanvasText; --_text-faint: CanvasText; }
+  }
+</style>
+<defs>
+  <marker id="zmkfgxw6-arrowhead" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="zmkfgxw6-arrowhead-start" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<path class="edge" data-from="n14" data-to="n11" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 0 xxx" d="M 496.22 1017.24 L 496.22 1198.27 Q 496.22 1205.34, 503.29 1205.34 L 717.77 1205.34 Q 724.84 1205.34, 724.84 1212.41 L 724.84 1234.78" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n0" data-to="n4" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1435.72 2297.34 L 1435.72 1882.41 Q 1435.72 1875.34, 1442.79 1875.34 L 1610.2 1875.34 Q 1617.28 1875.34, 1617.28 1868.27 L 1617.28 1835.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n9" data-to="n13" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1107.15 1379.78 L 1107.15 1432.27 Q 1107.15 1439.34, 1114.22 1439.34 L 1170.77 1439.34 Q 1177.84 1439.34, 1177.84 1446.41 L 1177.84 1479.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n10" data-to="n14" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 565.34 889.24 L 565.34 942.17 Q 565.34 949.24, 558.27 949.24 L 513.42 949.24 Q 506.35 949.24, 506.35 956.31 L 506.35 969.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n18" data-to="n5" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 4 xxxxxxx" d="M 1195.98 222 L 1195.98 234.93 Q 1195.98 242, 1188.91 242 L 957.75 242 Q 950.68 242, 950.68 249.07 L 950.68 342.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n15" data-to="n8" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 587.31 1624.34 L 587.31 1666.27 Q 587.31 1673.34, 580.24 1673.34 L 215.25 1673.34 Q 208.18 1673.34, 208.18 1680.41 L 208.18 1693.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n9" data-to="n13" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1165.15 1379.78 L 1165.15 1413.7 Q 1165.15 1420.78, 1172.22 1420.78 L 1199.57 1420.78 Q 1206.64 1420.78, 1206.64 1427.85 L 1206.64 1479.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n4" data-to="n18" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1667.28 1781.34 L 1667.28 1767.52 Q 1667.28 1761.34, 1673.46 1761.34 L 1673.46 1761.34 Q 1679.65 1761.34, 1679.65 1755.15 L 1679.65 249.07 Q 1679.65 242, 1672.58 242 L 1301.45 242 Q 1294.38 242, 1294.38 234.93 L 1294.38 222" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n11" data-to="n17" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 8 xxxxxxxxxxx" d="M 788.24 1234.78 L 788.24 1192.41 Q 788.24 1185.34, 795.31 1185.34 L 811.03 1185.34 Q 818.1 1185.34, 818.1 1178.27 L 818.1 741.75 Q 818.1 734.94, 811.29 734.94 L 811.29 734.94 Q 804.48 734.94, 804.48 728.13 L 804.48 714.94" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n7" data-to="n15" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 581.14 1399.34 L 581.14 1412.27 Q 581.14 1419.34, 588.21 1419.34 L 591.84 1419.34 Q 598.91 1419.34, 598.91 1426.41 L 598.91 1496.74" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n14" data-to="n1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 526.62 1017.24 L 526.62 1030.17 Q 526.62 1037.24, 533.69 1037.24 L 1003.43 1037.24 Q 1010.5 1037.24, 1010.5 1044.31 L 1010.5 1077.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n0" data-to="n14" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1381.05 2297.34 L 1381.05 2284.41 Q 1381.05 2277.34, 1373.98 2277.34 L 79.49 2277.34 Q 72.42 2277.34, 72.42 2270.27 L 72.42 1044.31 Q 72.42 1037.24, 79.49 1037.24 L 428.35 1037.24 Q 435.42 1037.24, 435.42 1030.17 L 435.42 1017.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n11" data-to="n10" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 12 xxxxxxxxxxxxxxx" d="M 756.54 1234.78 L 756.54 1192.41 Q 756.54 1185.34, 749.47 1185.34 L 700.46 1185.34 Q 693.39 1185.34, 693.39 1178.27 L 693.39 936.31 Q 693.39 929.24, 686.32 929.24 L 602.42 929.24 Q 595.34 929.24, 595.34 922.17 L 595.34 889.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n2" data-to="n18" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 679.63 91 L 679.63 106.93 Q 679.63 114, 686.7 114 L 1210.78 114 Q 1217.85 114, 1217.85 121.07 L 1217.85 174" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n16" data-to="n3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1343.84 97 L 1343.84 106.93 Q 1343.84 114, 1350.91 114 L 1384.1 114 Q 1391.17 114, 1391.17 121.07 L 1391.17 2036.27 Q 1391.17 2043.34, 1384.1 2043.34 L 1116.74 2043.34 Q 1109.67 2043.34, 1109.67 2050.41 L 1109.67 2128.59" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n18" data-to="n13" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1261.58 222 L 1261.58 254.93 Q 1261.58 262, 1268.65 262 L 1315.05 262 Q 1322.12 262, 1322.12 269.07 L 1322.12 1432.27 Q 1322.12 1439.34, 1315.05 1439.34 L 1271.31 1439.34 Q 1264.24 1439.34, 1264.24 1446.41 L 1264.24 1479.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n0" data-to="n4" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 16 xxxxxxxxxxxxxxxxxxx" d="M 1463.05 2297.34 L 1463.05 2264.41 Q 1463.05 2257.34, 1470.12 2257.34 L 1533.65 2257.34 Q 1540.72 2257.34, 1540.72 2250.27 L 1540.72 1902.41 Q 1540.72 1895.34, 1547.79 1895.34 L 1635.2 1895.34 Q 1642.28 1895.34, 1642.28 1888.27 L 1642.28 1835.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n3" data-to="n0" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1044.42 2237.34 L 1044.42 2250.27 Q 1044.42 2257.34, 1051.49 2257.34 L 1401.31 2257.34 Q 1408.38 2257.34, 1408.38 2264.41 L 1408.38 2297.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n8" data-to="n5" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 170.18 1693.34 L 170.18 1676.26 Q 170.18 1673.34, 173.1 1673.34 L 173.1 1673.34 Q 176.02 1673.34, 176.02 1670.42 L 176.02 492.59 Q 176.02 485.52, 183.09 485.52 L 899.6 485.52 Q 906.67 485.52, 906.67 478.45 L 906.67 465.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n3" data-to="n5" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 979.17 2128.59 L 979.17 2030.41 Q 979.17 2023.34, 972.1 2023.34 L 273.25 2023.34 Q 266.18 2023.34, 266.18 2016.27 L 266.18 512.59 Q 266.18 505.52, 273.25 505.52 L 917.2 505.52 Q 924.27 505.52, 924.27 498.45 L 924.27 465.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n5" data-to="n13" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 20 xxxxxx" d="M 994.69 465.52 L 994.69 478.45 Q 994.69 485.52, 1001.76 485.52 L 1249.22 485.52 Q 1256.29 485.52, 1256.29 492.59 L 1256.29 1412.27 Q 1256.29 1419.34, 1249.22 1419.34 L 1242.51 1419.34 Q 1235.44 1419.34, 1235.44 1426.41 L 1235.44 1479.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n1" data-to="n9" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1034.5 1165.34 L 1034.5 1178.27 Q 1034.5 1185.34, 1041.57 1185.34 L 1085.58 1185.34 Q 1092.65 1185.34, 1092.65 1192.41 L 1092.65 1278.28" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n6" data-to="n3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1261.84 1963.34 L 1261.84 1996.27 Q 1261.84 2003.34, 1254.77 2003.34 L 1073.24 2003.34 Q 1066.17 2003.34, 1066.17 2010.41 L 1066.17 2085.09" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n2" data-to="n14" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 618.83 91 L 618.83 126.93 Q 618.83 134, 611.76 134 L 389.08 134 Q 382.01 134, 382.01 141.07 L 382.01 902.17 Q 382.01 909.24, 389.08 909.24 L 448.61 909.24 Q 455.68 909.24, 455.68 916.31 L 455.68 969.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n2" data-to="n8" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 24 xxxxxxxxxx" d="M 588.43 91 L 588.43 106.93 Q 588.43 114, 581.36 114 L 105.57 114 Q 98.5 114, 98.5 121.07 L 98.5 1666.27 Q 98.5 1673.34, 105.57 1673.34 L 125.1 1673.34 Q 132.18 1673.34, 132.18 1680.41 L 132.18 1693.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n3" data-to="n5" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1022.67 2085.09 L 1022.67 1990.41 Q 1022.67 1983.34, 1015.6 1983.34 L 948.57 1983.34 Q 941.5 1983.34, 941.5 1976.27 L 941.5 572.59 Q 941.5 565.52, 948.57 565.52 L 952.41 565.52 Q 959.48 565.52, 959.48 558.45 L 959.48 465.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n18" data-to="n17" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1228.78 222 L 1228.78 254.93 Q 1228.78 262, 1221.71 262 L 1039.36 262 Q 1032.29 262, 1032.29 269.07 L 1032.29 538.45 Q 1032.29 545.52, 1025.22 545.52 L 846.06 545.52 Q 838.99 545.52, 838.99 552.59 L 838.99 585.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n4" data-to="n12" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1667.28 1835.34 L 1667.28 1868.27 Q 1667.28 1875.34, 1674.35 1875.34 L 1739.19 1875.34 Q 1746.26 1875.34, 1746.26 1882.41 L 1746.26 1915.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n14" data-to="n3" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 28 xxxxxxxxxxxxxx" d="M 465.82 1017.24 L 465.82 1050.17 Q 465.82 1057.24, 458.75 1057.24 L 364.25 1057.24 Q 357.18 1057.24, 357.18 1064.31 L 357.18 1996.27 Q 357.18 2003.34, 364.25 2003.34 L 993.85 2003.34 Q 1000.92 2003.34, 1000.92 2010.41 L 1000.92 2106.84" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n11" data-to="n15" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 735.4 1361.58 L 735.4 1412.27 Q 735.4 1419.34, 728.33 1419.34 L 640.78 1419.34 Q 633.71 1419.34, 633.71 1426.41 L 633.71 1496.74" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n15" data-to="n10" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 564.11 1531.54 L 564.11 1426.41 Q 564.11 1419.34, 557.04 1419.34 L 391.09 1419.34 Q 384.02 1419.34, 384.02 1412.27 L 384.02 936.31 Q 384.02 929.24, 391.09 929.24 L 528.27 929.24 Q 535.34 929.24, 535.34 922.17 L 535.34 889.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n15" data-to="n17" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 668.51 1531.54 L 668.51 1446.41 Q 668.51 1439.34, 675.58 1439.34 L 888.05 1439.34 Q 895.12 1439.34, 895.12 1432.27 L 895.12 762.01 Q 895.12 754.94, 888.05 754.94 L 837.44 754.94 Q 830.36 754.94, 830.36 747.87 L 830.36 714.94" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n17" data-to="n10" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 32 xxxxxxxxxxxxxxxxxx" d="M 778.6 714.94 L 778.6 727.87 Q 778.6 734.94, 771.53 734.94 L 612.42 734.94 Q 605.34 734.94, 605.34 742.01 L 605.34 835.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n5" data-to="n17" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 941.88 465.52 L 941.88 518.45 Q 941.88 525.52, 934.81 525.52 L 802.92 525.52 Q 795.85 525.52, 795.85 532.59 L 795.85 585.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n0" data-to="n4" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1490.38 2297.34 L 1490.38 2284.41 Q 1490.38 2277.34, 1497.45 2277.34 L 1841.19 2277.34 Q 1848.26 2277.34, 1848.26 2270.27 L 1848.26 1862.41 Q 1848.26 1855.34, 1841.19 1855.34 L 1699.35 1855.34 Q 1692.28 1855.34, 1692.28 1848.27 L 1692.28 1835.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n4" data-to="n6" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1592.28 1835.34 L 1592.28 1848.27 Q 1592.28 1855.34, 1585.2 1855.34 L 1296.25 1855.34 Q 1289.17 1855.34, 1289.17 1862.41 L 1289.17 1915.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n10" data-to="n9" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 36 xxxxx" d="M 625.34 889.24 L 625.34 902.17 Q 625.34 909.24, 632.42 909.24 L 1119.43 909.24 Q 1126.5 909.24, 1126.5 916.31 L 1126.5 1180.51 Q 1126.5 1185.34, 1131.32 1185.34 L 1131.32 1185.34 Q 1136.15 1185.34, 1136.15 1190.16 L 1136.15 1234.78" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n3" data-to="n11" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1044.42 2063.34 L 1044.42 1990.41 Q 1044.42 1983.34, 1051.49 1983.34 L 1120.97 1983.34 Q 1128.04 1983.34, 1128.04 1976.27 L 1128.04 1466.41 Q 1128.04 1459.34, 1120.97 1459.34 L 784.75 1459.34 Q 777.67 1459.34, 777.67 1452.27 L 777.67 1361.58" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n16" data-to="n18" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1293.84 97 L 1293.84 106.93 Q 1293.84 114, 1286.77 114 L 1279.58 114 Q 1272.51 114, 1272.51 121.07 L 1272.51 174" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n5" data-to="n9" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 977.08 465.52 L 977.08 558.45 Q 977.08 565.52, 984.15 565.52 L 1182.22 565.52 Q 1189.29 565.52, 1189.29 572.59 L 1189.29 1180.51 Q 1189.29 1185.34, 1184.47 1185.34 L 1184.47 1185.34 Q 1179.65 1185.34, 1179.65 1190.16 L 1179.65 1278.28" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n15" data-to="n4" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="edge 40 xxxxxxxxx" d="M 645.31 1624.34 L 645.31 1666.27 Q 645.31 1673.34, 652.38 1673.34 L 1597.83 1673.34 Q 1604.9 1673.34, 1604.9 1680.41 L 1604.9 1755.15 Q 1604.9 1761.34, 1611.09 1761.34 L 1611.09 1761.34 Q 1617.28 1761.34, 1617.28 1767.52 L 1617.28 1781.34" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n1" data-to="n17" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1058.5 1077.24 L 1058.5 742.01 Q 1058.5 734.94, 1051.43 734.94 L 863.32 734.94 Q 856.25 734.94, 856.25 727.87 L 856.25 714.94" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n6" data-to="n3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 1316.51 1963.34 L 1316.51 2016.27 Q 1316.51 2023.34, 1309.44 2023.34 L 1094.99 2023.34 Q 1087.92 2023.34, 1087.92 2030.41 L 1087.92 2106.84" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<path class="edge" data-from="n2" data-to="n10" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 649.23 91 L 649.23 146.93 Q 649.23 154, 642.16 154 L 509.42 154 Q 502.34 154, 502.34 161.07 L 502.34 808.17 Q 502.34 815.24, 509.42 815.24 L 548.27 815.24 Q 555.34 815.24, 555.34 822.31 L 555.34 835.24" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmkfgxw6-arrowhead)" />
+<g class="edge-label" data-from="n14" data-to="n11" data-label="edge 0 xxx">
+  <rect x="466.22" y="1114.14" width="59.11" height="14.3" fill="var(--bg)" />
+  <text x="495.77" y="1121.29" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 0 xxx</text>
+</g>
+<g class="edge-label" data-from="n18" data-to="n5" data-label="edge 4 xxxxxxx">
+  <rect x="908.68" y="285" width="83.3" height="14.3" fill="var(--bg)" />
+  <text x="950.33" y="292.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 4 xxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n11" data-to="n17" data-label="edge 8 xxxxxxxxxxx">
+  <rect x="764.1" y="855.09" width="107.02" height="14.3" fill="var(--bg)" />
+  <text x="817.61" y="862.24" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 8 xxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n11" data-to="n10" data-label="edge 12 xxxxxxxxxxxxxxx">
+  <rect x="625.39" y="986.09" width="135.41" height="14.3" fill="var(--bg)" />
+  <text x="693.1" y="993.24" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 12 xxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n0" data-to="n4" data-label="edge 16 xxxxxxxxxxxxxxxxxxx">
+  <rect x="1460.72" y="1932.19" width="159.55" height="14.3" fill="var(--bg)" />
+  <text x="1540.49" y="1939.34" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 16 xxxxxxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n5" data-to="n13" data-label="edge 20 xxxxxx">
+  <rect x="1214.29" y="855.09" width="83.83" height="14.3" fill="var(--bg)" />
+  <text x="1256.21" y="862.24" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 20 xxxxxx</text>
+</g>
+<g class="edge-label" data-from="n2" data-to="n8" data-label="edge 24 xxxxxxxxxx">
+  <rect x="44" y="777.94" width="108.02" height="14.3" fill="var(--bg)" />
+  <text x="98.01" y="785.09" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 24 xxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n14" data-to="n3" data-label="edge 28 xxxxxxxxxxxxxx">
+  <rect x="291.18" y="1559.19" width="131.74" height="14.3" fill="var(--bg)" />
+  <text x="357.05" y="1566.34" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 28 xxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n17" data-to="n10" data-label="edge 32 xxxxxxxxxxxxxxxxxx">
+  <rect x="527.34" y="777.94" width="155.75" height="14.3" fill="var(--bg)" />
+  <text x="605.22" y="785.09" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 32 xxxxxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n10" data-to="n9" data-label="edge 36 xxxxx">
+  <rect x="1087.5" y="986.09" width="77.79" height="14.3" fill="var(--bg)" />
+  <text x="1126.4" y="993.24" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 36 xxxxx</text>
+</g>
+<g class="edge-label" data-from="n15" data-to="n4" data-label="edge 40 xxxxxxxxx">
+  <rect x="1553.4" y="1710.19" width="102.24" height="14.3" fill="var(--bg)" />
+  <text x="1604.53" y="1717.34" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">edge 40 xxxxxxxxx</text>
+</g>
+<g class="node" data-id="n0" data-label="Node 76-0" data-shape="subroutine">
+  <rect x="1353.72" y="2297.34" width="164" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1361.72" y1="2297.34" x2="1361.72" y2="2345.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1509.72" y1="2297.34" x2="1509.72" y2="2345.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1435.72" y="2321.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-0</text>
+</g>
+<g class="node" data-id="n1" data-label="Node 76-1" data-shape="cylinder">
+  <rect x="962.5" y="1084.24" width="144" height="74.1" fill="var(--_node-fill)" stroke="none" />
+  <line x1="962.5" y1="1084.24" x2="962.5" y2="1158.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1106.5" y1="1084.24" x2="1106.5" y2="1158.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1034.5" cy="1158.34" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1034.5" cy="1084.24" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1034.5" y="1121.29" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-1</text>
+</g>
+<g class="node" data-id="n2" data-label="Node 76-2" data-shape="rectangle">
+  <rect x="558.03" y="43" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="634.03" y="67" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-2</text>
+</g>
+<g class="node" data-id="n3" data-label="Node 76-3" data-shape="diamond">
+  <polygon points="1044.42,2063.34 1131.42,2150.34 1044.42,2237.34 957.42,2150.34" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1044.42" y="2150.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-3</text>
+</g>
+<g class="node" data-id="n4" data-label="Node 76-4" data-shape="rounded">
+  <rect x="1567.28" y="1781.34" width="150" height="54" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1642.28" y="1808.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-4</text>
+</g>
+<g class="node" data-id="n5" data-label="Node 76-5" data-shape="circle">
+  <circle cx="950.68" cy="403.91" r="61.61" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="950.68" y="403.91" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-5</text>
+</g>
+<g class="node" data-id="n6" data-label="Node 76-6" data-shape="subroutine">
+  <rect x="1207.17" y="1915.34" width="164" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1215.17" y1="1915.34" x2="1215.17" y2="1963.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1363.17" y1="1915.34" x2="1363.17" y2="1963.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1289.17" y="1939.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-6</text>
+</g>
+<g class="node" data-id="n7" data-label="Node 76-7" data-shape="cylinder">
+  <rect x="509.14" y="1318.24" width="144" height="74.1" fill="var(--_node-fill)" stroke="none" />
+  <line x1="509.14" y1="1318.24" x2="509.14" y2="1392.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="653.14" y1="1318.24" x2="653.14" y2="1392.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="581.14" cy="1392.34" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="581.14" cy="1318.24" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="581.14" y="1355.29" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-7</text>
+</g>
+<g class="node" data-id="n8" data-label="Node 76-8" data-shape="rectangle">
+  <rect x="94.18" y="1693.34" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="170.18" y="1717.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-8</text>
+</g>
+<g class="node" data-id="n9" data-label="Node 76-9" data-shape="diamond">
+  <polygon points="1136.15,1234.78 1223.15,1321.78 1136.15,1408.78 1049.15,1321.78" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1136.15" y="1321.78" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-9</text>
+</g>
+<g class="node" data-id="n10" data-label="Node 76-10" data-shape="rounded">
+  <rect x="505.34" y="835.24" width="150" height="54" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="580.34" y="862.24" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-10</text>
+</g>
+<g class="node" data-id="n11" data-label="Node 76-11" data-shape="circle">
+  <circle cx="756.54" cy="1298.18" r="63.4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="756.54" y="1298.18" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-11</text>
+</g>
+<g class="node" data-id="n12" data-label="Node 76-12" data-shape="subroutine">
+  <rect x="1664.26" y="1915.34" width="164" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1672.26" y1="1915.34" x2="1672.26" y2="1963.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1820.26" y1="1915.34" x2="1820.26" y2="1963.34" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1746.26" y="1939.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-12</text>
+</g>
+<g class="node" data-id="n13" data-label="Node 76-13" data-shape="cylinder">
+  <rect x="1149.04" y="1486.34" width="144" height="74.1" fill="var(--_node-fill)" stroke="none" />
+  <line x1="1149.04" y1="1486.34" x2="1149.04" y2="1560.44" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1293.04" y1="1486.34" x2="1293.04" y2="1560.44" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1221.04" cy="1560.44" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1221.04" cy="1486.34" rx="72" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1221.04" y="1523.39" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-13</text>
+</g>
+<g class="node" data-id="n14" data-label="Node 76-14" data-shape="rectangle">
+  <rect x="405.02" y="969.24" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="481.02" y="993.24" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-14</text>
+</g>
+<g class="node" data-id="n15" data-label="Node 76-15" data-shape="diamond">
+  <polygon points="616.31,1479.34 703.31,1566.34 616.31,1653.34 529.31,1566.34" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="616.31" y="1566.34" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-15</text>
+</g>
+<g class="node" data-id="n16" data-label="Node 76-16" data-shape="rounded">
+  <rect x="1243.84" y="43" width="150" height="54" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1318.84" y="70" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-16</text>
+</g>
+<g class="node" data-id="n17" data-label="Node 76-17" data-shape="circle">
+  <circle cx="817.42" cy="650.23" r="64.71" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="817.42" y="650.23" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-17</text>
+</g>
+<g class="node" data-id="n18" data-label="Node 76-18" data-shape="subroutine">
+  <rect x="1163.18" y="174" width="164" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1171.18" y1="174" x2="1171.18" y2="222" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1319.18" y1="174" x2="1319.18" y2="222" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1245.18" y="198" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Node 76-18</text>
+</g>
+<text x="948.13" y="-25" text-anchor="middle" font-size="18" fill="var(--_text)" class="front-matter-title">Cyclic routes</text>
+</svg>

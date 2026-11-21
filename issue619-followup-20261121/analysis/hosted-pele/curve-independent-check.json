@@ -1,0 +1,16 @@
+{
+  "pele": {
+    "sha256": "033034f50ad62688dc6accbf7acc1313a26516d658fa4b84d79d2af7939f5223",
+    "incidences": 40,
+    "pairs": 38,
+    "maximumCoordinateDisagreement": 2.6359905903504558e-11,
+    "maximumPointResidual": 2.5421149729252077e-13,
+    "rawSubdivisionSeeds": 52,
+    "maximumRawResidual": 4.368322805235447e-06,
+    "shaftEndpointToSeparateMarkerFirstVertexRange": [
+      7.0,
+      7.000007142853499
+    ]
+  },
+  "libraryVersion": "1.7.2"
+}

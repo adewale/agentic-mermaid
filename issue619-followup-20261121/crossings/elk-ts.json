@@ -1,0 +1,29 @@
+{
+  "arm": "ts",
+  "root": "/tmp/issue619-kink-20261120/package/package",
+  "sourceHash": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "sourceTree": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004 (tree identical to c790c8adb918dd0f437488327c250d7841b060b0)",
+  "options": {
+    "graphLayout": {
+      "backend": "elk",
+      "fallback": "none"
+    }
+  },
+  "module": "/tmp/issue619-kink-20261120/package/package/dist/elk-solver.node.cjs",
+  "shippedProviderSHA256": "5b64a6c95398c615cba099d59fdfb334f9812a2428a96e8ef9d0521009de0aac",
+  "shippedKernelSHA256": "fe4fd96eed9499d4c0f6a21343fc0514e8827f5f0867e32edd9e539faf8521af",
+  "originalWorkerSHA256": "c93ae799ceb15b94b19272307b5bfde46e7dde6f274a2fb78afeba2ac0393f77",
+  "sourceRevisionCohortScope": "c790/f491 public baseline only",
+  "svgSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+  "receiptSHA256": "e05a1944223c9fa4ffa22b3a802c0c4d2d3981c45709854aa170088b0f6ddbc7",
+  "svgAndReceiptByteEqualToRetainedTS": true,
+  "certification": "passed",
+  "calls": [
+    {
+      "source": "ts",
+      "rawInputExactToOrdinal10": true,
+      "rawOutputExactToCapturedTS": true
+    }
+  ],
+  "method": "Current shipped public provider, observed exact boundary."
+}

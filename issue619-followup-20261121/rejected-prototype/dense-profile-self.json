@@ -1,0 +1,228 @@
+[
+  {
+    "arm": "control",
+    "top": [
+      {
+        "function": "GI",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 51.478
+      },
+      {
+        "function": "",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 40.415
+      },
+      {
+        "function": "c",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 16,
+        "selfMs": 35.392
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "selfMs": 34.967
+      },
+      {
+        "function": "Ca",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 26.482
+      },
+      {
+        "function": "mr",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 16,
+        "selfMs": 26.207
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "selfMs": 17.299
+      },
+      {
+        "function": "update",
+        "file": "elk-solver.cjs",
+        "line": 5,
+        "selfMs": 12.887
+      },
+      {
+        "function": "YX",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 12.279
+      },
+      {
+        "function": "K",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 1,
+        "selfMs": 9.353
+      },
+      {
+        "function": "MI",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 8.996
+      },
+      {
+        "function": "dd",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 8.528
+      },
+      {
+        "function": "B",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 7.174
+      },
+      {
+        "function": "Ra",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 7.055
+      },
+      {
+        "function": "Yk",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 7.033
+      },
+      {
+        "function": "w",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 6.38
+      },
+      {
+        "function": "compare",
+        "file": "elk-solver.cjs",
+        "line": 5,
+        "selfMs": 6.305
+      },
+      {
+        "function": "BX",
+        "file": "chunk-3R2MSPHD.js",
+        "line": 10,
+        "selfMs": 6.147
+      }
+    ]
+  },
+  {
+    "arm": "candidate",
+    "top": [
+      {
+        "function": "UI",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 43.646
+      },
+      {
+        "function": "c",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 16,
+        "selfMs": 41.764
+      },
+      {
+        "function": "",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 39.291
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "selfMs": 32.583
+      },
+      {
+        "function": "Ea",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 28.071
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "selfMs": 17.383
+      },
+      {
+        "function": "update",
+        "file": "elk-solver.cjs",
+        "line": 5,
+        "selfMs": 14.126
+      },
+      {
+        "function": "ud",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 11.383
+      },
+      {
+        "function": "KX",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 9.728
+      },
+      {
+        "function": "xp",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 1,
+        "selfMs": 9.18
+      },
+      {
+        "function": "PI",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 8.374
+      },
+      {
+        "function": "K",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 1,
+        "selfMs": 7.499
+      },
+      {
+        "function": "Sg",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 16,
+        "selfMs": 7.223
+      },
+      {
+        "function": "va",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 6.989
+      },
+      {
+        "function": "Z",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 1,
+        "selfMs": 6.972
+      },
+      {
+        "function": "mr",
+        "file": "chunk-BUH5MW7M.js",
+        "line": 16,
+        "selfMs": 6.73
+      },
+      {
+        "function": "D",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 6.627
+      },
+      {
+        "function": "jX",
+        "file": "chunk-N5DAYXEN.js",
+        "line": 10,
+        "selfMs": 6.301
+      }
+    ]
+  }
+]

@@ -1,0 +1,86 @@
+{
+  "baseline": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+  "candidate": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "initial": {
+    "before": {
+      "requests": 5,
+      "raw": 16288,
+      "gzip": 6248,
+      "brotli": 5543
+    },
+    "after": {
+      "requests": 5,
+      "raw": 16288,
+      "gzip": 6249,
+      "brotli": 5543
+    }
+  },
+  "flow": {
+    "before": {
+      "requests": 25,
+      "elk": true,
+      "raw": 1092245,
+      "gzip": 351135,
+      "brotli": 298509,
+      "static": {
+        "requests": 24,
+        "raw": 872455,
+        "gzip": 288603,
+        "brotli": 246685
+      }
+    },
+    "after": {
+      "requests": 26,
+      "elk": true,
+      "raw": 1095085,
+      "gzip": 352365,
+      "brotli": 299728,
+      "static": {
+        "requests": 25,
+        "raw": 875295,
+        "gzip": 289833,
+        "brotli": 247904
+      }
+    }
+  },
+  "budgetedFlow": {
+    "before": {
+      "requests": 26,
+      "elk": true,
+      "raw": 1192353,
+      "gzip": 382384,
+      "brotli": 326348
+    },
+    "after": {
+      "requests": 27,
+      "elk": true,
+      "raw": 1195193,
+      "gzip": 383614,
+      "brotli": 327567
+    }
+  },
+  "elkTransfer": {
+    "before": {
+      "raw": 219984,
+      "gzip": 62699,
+      "brotli": 51951
+    },
+    "after": {
+      "raw": 219984,
+      "gzip": 62699,
+      "brotli": 51951
+    }
+  },
+  "npm": {
+    "before": {
+      "archive": 7096884,
+      "unpacked": 21003201,
+      "files": 269
+    },
+    "after": {
+      "archive": 7103321,
+      "unpacked": 21016825,
+      "files": 270
+    }
+  }
+}

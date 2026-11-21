@@ -1,0 +1,16 @@
+[
+  {
+    "label": "ts-control",
+    "backend": "elk",
+    "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+    "root": "/tmp/issue619-followup-20261121/package-c18f6073/package",
+    "prepareHandoff": false
+  },
+  {
+    "label": "ts-final",
+    "backend": "elk",
+    "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+    "root": "/tmp/issue619-followup-20261121/package-c18f6073/package",
+    "prepareHandoff": true
+  }
+]

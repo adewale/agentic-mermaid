@@ -1,0 +1,32 @@
+{
+  "arms": [
+    {
+      "label": "ts-control",
+      "backend": "elk",
+      "source": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004; tree identical to c790c8a",
+      "root": "/tmp/issue619-kink-20261120/package/package"
+    },
+    {
+      "label": "ts-final",
+      "backend": "elk",
+      "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+      "root": "/tmp/issue619-followup-20261121/package-c18f6073/package"
+    }
+  ],
+  "protocolOrigin": "/workspace/elk-layered-tools/current-main-2c689f-comparison/final96-render-protocol",
+  "workerSha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd",
+  "scope": "Full SVG+entire receipt serialization+UTF8 inside API clocks; import/cold/cache/edit separate, compression and explicit GC outside; RSS includes whole harness",
+  "sampling": "Three balanced fresh processes per configuration/cache/case; seven warm repeats; one actual source edit followed by three repeat renders of that edit; exploratory, not formal calibration",
+  "casesSha256": "34feff97920e8d0416af1d8174fdd880454638d00069c2b4164af610e08a4570",
+  "cases": 6,
+  "launcherSha256": "248d2e6b688d23a9dacb9dc2b93ea80a6c06ef83850c2ecd1ca0d1d24aeff8cf",
+  "nodeVersion": "v24.19.0",
+  "nodeBinary": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+  "candidateRoot": "/tmp/issue619-followup-20261121/package-c18f6073/package",
+  "candidateRevision": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "start": "2026-11-21T04:52:44.668Z",
+  "timingStatus": "COMPLETED",
+  "end": "2026-11-21T04:54:39.994Z",
+  "completed": 72,
+  "lifecycleErrors": 0
+}
