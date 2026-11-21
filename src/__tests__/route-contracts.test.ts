@@ -3343,6 +3343,43 @@ describe('unresolved marker-label seats', () => {
     expect(paint.refreshRoute(blocker, next)).toBe(true)
     expect(paint.clear(hidden, hidden.labelPosition!, new Map())).toBe(false)
   })
+  it.each(['unchanged', 'route replaced', 'route mutated', 'card moved', 'card stroke widened', 'stroke widened', 'label moved', 'label widened', 'marker changed'] as const)('refreshes owned paint across a fresh admission: %s', change => {
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style), groups: PositionedGroup[] = []
+      const label: PositionedEdge = { source: 'A', target: 'B', points: [{ x: 0, y: 100 }, { x: 300, y: 100 }], style: 'solid', hasArrowStart: false, hasArrowEnd: false, label: 'kept', labelPosition: { x: 150, y: 100 }, labelBlock: { ...graphEdgeTextBlock('kept', style), width: 24, height: 14 } }
+      const peer: PositionedEdge = { source: 'C', target: 'D', points: [{ x: 500, y: 50 }, { x: 500, y: 150 }], style: 'solid', hasArrowStart: false, hasArrowEnd: true }
+      const card: PositionedNode = { id: 'card', label: 'card', shape: 'rectangle', x: 450, y: 90, width: 40, height: 20 }
+      const nodes = [card]
+      edges.push(label, peer)
+      let oldRemaining = 1_000_000
+      const old = labelSeatPaintContext(nodes, edges, groups, style, units => (oldRemaining -= units) >= 0, labelShafts(edges, style), 'prepare')!
+      expect(old.clear(label, label.labelPosition!, new Map())).toBe(true)
+      if (change === 'route replaced') peer.points = [{ x: 150, y: 50 }, { x: 150, y: 150 }]
+      if (change === 'route mutated') for (const point of peer.points) point.x = 150
+      if (change === 'card moved') card.x = 130
+      if (change === 'card stroke widened') card.inlineStyle = { stroke: 'black', 'stroke-width': '700' }
+      if (change === 'marker changed') peer.endMarker = 'cross'
+      if (change === 'label widened') label.labelBlock = { ...label.labelBlock!, width: 720 }
+      if (change === 'stroke widened') peer.inlineStyle = { stroke: 'black', 'stroke-width': '700' }
+      if (change === 'label moved') label.labelPosition = { x: 500, y: 100 }
+      oldRemaining = 0
+      let freshRemaining = 1_000_000, reusedRemaining = 1_000_000
+      const coldPay = (units: number) => (freshRemaining -= units) >= 0
+      const nextPay = (units: number) => (reusedRemaining -= units) >= 0
+      const cold = labelSeatPaintContext(nodes, edges, groups, style, coldPay, labelShafts(edges, style, coldPay))!
+      const next = labelSeatPaintContext(nodes, edges, groups, style, nextPay, labelShafts(edges, style, nextPay), old.supports)!
+      expect(next).toBeDefined()
+      expect(reusedRemaining).toBe(freshRemaining)
+      expect(next.clear(label, label.labelPosition!, new Map())).toBe(change === 'unchanged' || change === 'marker changed')
+      expect(cold.clear(label, label.labelPosition!, new Map())).toBe(change === 'unchanged' || change === 'marker changed')
+      expect(reusedRemaining).toBe(freshRemaining)
+      expect(oldRemaining).toBe(0)
+      expect(next.refreshRoute(peer)).toBe(true)
+      expect(cold.refreshRoute(peer)).toBe(true)
+      expect(reusedRemaining).toBe(freshRemaining)
+      if (change === 'unchanged' || change === 'marker changed') expect(next.markerContact({ x: 504, y: 144, w: 0.5, h: 1 })).toBe(change === 'marker changed')
+    })
+  })
   it.each([
     ['shallow side', 150, 81.25, 1, true],
     ['stroke beside the halo', 150, 80.75, 1, true],

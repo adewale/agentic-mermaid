@@ -222,3 +222,46 @@ test('ELK reuse reattaches current authored text and execution receipts after eq
   expect(edited.receipt.layoutDecisions).toEqual(first.receipt.layoutDecisions)
   expect(edited.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
 })
+
+
+test('Event Modeling cached gutter admission follows the selected paint backend', async () => {
+  const child = await runChild(process.execPath, ['-e', `${prelude}
+    import './src/agent/families.ts'
+    import { getFamily, renderMermaidASCIIWithReceipt } from './src/agent/core.ts'
+    import { resolvedFamilyRenderContextOf } from './src/render-contract.ts'
+    import './src/scene/builtin-backends.ts'
+    import { DefaultBackend, registerBackend } from './src/scene/backend.ts'
+    const id = 'backend:test/event-gutter-admission-cache'
+    const unregister = registerBackend({ ...DefaultBackend, id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) },
+      { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
+    try { withPerformanceExperiments(['text-spans', 'position-cache'], () => {
+      const source = 'eventmodeling\\nrf 01 cmd Save\\nrf 02 ui Screen\\nrf 03 evt Saved ->> 01'
+      const styled = resolveRenderRequestForExecution(source, { style: 'hand-drawn' }, 'svg')
+      const resolved = resolvedFamilyRenderContextOf(styled)
+      const raw = getFamily('eventmodeling').layout({ source: styled.source,
+        renderOptions: resolved.renderOptions, styleFace: resolved.styleFace })
+      assert.equal(raw.positioned.edges[0].points.length, 6)
+      for (const backend of [undefined, id, undefined, id]) {
+        const request = resolveRenderRequestForExecution(source, {}, 'svg', undefined,
+          backend ? { backendPolicy: { selectBackend: () => backend } } : undefined)
+        const result = positionFamilyForNativeRender(request)
+        assert.equal(result.positioned.edges[0].points.length, backend ? 6 : 4)
+      }
+      for (const outputs of [['svg', 'ascii', 'svg'], ['ascii', 'svg', 'ascii']]) {
+        const orderedSource = source.replace('Save', outputs[0] === 'svg' ? 'SaveSvgFirst' : 'SaveAsciiFirst')
+        for (const output of outputs) {
+          if (output === 'ascii') renderMermaidASCIIWithReceipt(orderedSource, { useAscii: true, onProjectionDiagnostic() {} })
+          else renderMermaidSVGWithReceipt(orderedSource)
+          const request = resolveRenderRequestForExecution(orderedSource, {}, output)
+          const result = positionResolvedFamily('eventmodeling', request)
+          assert.equal(result.positioned.edges[0].points.length, output === 'svg' ? 4 : 6)
+        }
+      }
+    }) } finally { unregister() }
+    console.log('Event backend-bound gutter cache passed')
+  `], childOptions)
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+  expect(child.stdout.trim()).toBe('Event backend-bound gutter cache passed')
+})

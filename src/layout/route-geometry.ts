@@ -11,8 +11,8 @@ import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
-export const MAX_PREFERENCE_NODES = 64
-export const MAX_PREFERENCE_EDGES = 128
+export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../shared/layout-preference-budget.ts'
+import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../shared/layout-preference-budget.ts'
 
 export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
   let nodes = graph.nodes.size

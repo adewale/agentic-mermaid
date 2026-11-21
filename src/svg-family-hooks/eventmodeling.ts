@@ -15,7 +15,7 @@ export const EVENTMODELING_SVG_HOOKS = {
   layout: ctx => {
     const body = parseEventModeling(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
     if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
-    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace, ctx.familyConfig?.rowHeight as number | undefined, ctx.familyAppearance?.palette as DiagramColors | undefined))
+    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace, ctx.familyConfig?.rowHeight as number | undefined, ctx.familyAppearance?.palette as DiagramColors | undefined, ctx.paintBackendId ?? null))
   },
   projectPositioned: positionedView<ReturnType<typeof layoutEventModeling>>(({ positioned: p }) => ({
     version: 1,

@@ -5,6 +5,7 @@ import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedEventModeling } from './layout.ts'
+import { eventFrameSurface } from './layout.ts'
 import { eventModelingArrow as arrow } from './markers.ts'
 function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: diagram, colors, resolved }: RenderContext<PositionedEventModeling>): DrawingDocument<T> {
   const style = diagram.style
@@ -68,8 +69,7 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
               role: 'node',
               identity: false,
               owner,
-              geometry: { kind: 'rect', x: node.x, y: node.y, width: node.width, height: node.height, rx: style.cornerRadius ?? 5 },
-              paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) },
+              ...eventFrameSurface(node, style),
             }),
             indent: 2,
           },

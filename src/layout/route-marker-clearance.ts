@@ -127,6 +127,18 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
   return true
 }
 
+/** Opposing shared shafts must not suggest relationships absent from the
+ * authored graph. A complete, identically painted bipartite join can share
+ * the ink; endpoint identity or a bundle flag alone cannot authorize it. */
+export function opposingRoutesMislead(member: PositionedEdge, other: PositionedEdge, edges: readonly PositionedEdge[]): boolean {
+  const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
+    && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
+    && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
+    && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
+  return !edgesMayShareTerminal(member, other)
+    || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
+}
+
 type MarkerView = ReturnType<typeof markerView>
 interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
 interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
