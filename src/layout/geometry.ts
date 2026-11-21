@@ -8,6 +8,13 @@
 import type { Direction, MermaidSubgraph, Point, PositionedGroup, PositionedNode } from '../types.ts'
 import { DEFAULT_LAYER_SPACING } from './link-rank-gap.ts'
 
+/** Whether peers occupy one approach rank, with the caller's existing tolerance. */
+export function sameFlowLayer(group: readonly PositionedNode[], direction: Direction, tolerance = 18): boolean {
+  if (group.length < 2) return false
+  const values = group.map(node => nodeMainStart(node, direction))
+  return Math.max(...values) - Math.min(...values) <= tolerance
+}
+
 export const DEFAULTS = {
   font: 'Inter',
   padding: 40,

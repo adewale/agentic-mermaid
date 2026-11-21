@@ -289,12 +289,12 @@ export function applyRouteContracts(
   /** Another terminal this route may not share already ends on `lane`. */
   const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
     peer !== edge && peer.target === edge.target && peer.points.length > 1
-    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
+    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets))
 
   /** A peer this route may not share a terminal with ends on the target's
    * port lane, or emits on it and so can enter it straight. */
   const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
-    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
     const emitter = sourceOf(peer)
     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
   })
@@ -391,7 +391,7 @@ export function applyRouteContracts(
       // port goes to it and this route keeps its own entry first.
       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
       const peerOwnsPort = someIncoming(edge, peer => {
-        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
         const emitter = sourceOf(peer)
         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
       })
@@ -756,7 +756,7 @@ export function applyRouteContracts(
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
     const mergeAvailable = someIncoming(edge,
-      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
+      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other, ctx.distinctArrivalTargets) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
     )
     if (mergeAvailable) return false
     const portMain = shapePorts(target)[entrySide][axis.main]

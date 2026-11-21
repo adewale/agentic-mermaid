@@ -115,7 +115,8 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
  * merged into it. That ink stands for each member only when the members paint
  * identically and at most one of them is named: a different dash, width or
  * colour would be painted over, and two labels cannot both own one arrowhead. */
-export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
+export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge, distinctArrivalTargets?: ReadonlySet<string>): boolean {
+  if (a.target === b.target && a.source !== b.source && distinctArrivalTargets?.has(a.target)) return false
   if (a.label && b.label) return false
   if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
   const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}

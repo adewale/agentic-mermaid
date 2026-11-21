@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { edgesMayShareTerminal, opposingRoutesMislead, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
-import { terminalHookLength } from '../route-geometry.ts'
+import { distinctArrivalTargets, terminalHookLength } from '../route-geometry.ts'
 import { hookedElbow } from './shared.ts'
 
 /**
@@ -154,6 +154,7 @@ export function bundleEdgePaths(
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
+  const independentArrivals = distinctArrivalTargets(nodes, edges, direction)
   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
     for (const [edge, points] of candidates) {
       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
@@ -216,7 +217,7 @@ export function bundleEdgePaths(
 
     // Only bundle edges going in the forward direction
     const forward = group.filter(e => {
-      if (duplicateEdges.has(e)) return false
+      if (duplicateEdges.has(e) || independentArrivals.has(e.target)) return false
       const t = nodeMap.get(e.target)
       if (!t) return false
       if (isLR) return t.x > source.x + source.width
@@ -300,6 +301,7 @@ export function bundleEdgePaths(
 
   for (const [targetId, group] of fanInGroups) {
     if (group.length < 2) continue
+    if (independentArrivals.has(targetId)) continue
 
     if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'end'))) continue
 

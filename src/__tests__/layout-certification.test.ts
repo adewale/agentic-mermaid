@@ -283,17 +283,30 @@ describe('bounded final layout certification', () => {
     return { graph, positioned }
   }
 
-  test('a soft label-conflict reduction cannot buy another crossing', () => {
+  test('clearing a label conflict can buy one crossing between otherwise feasible routes', () => {
     const { graph, positioned: occluded } = labelledWitness(false, true)
     const { positioned: clear } = labelledWitness(true)
     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
       { strategy: 'occluded-without-crossings', produce: () => occluded },
       { strategy: 'readable-with-crossing', produce: () => clear },
     ])
-    expect(selected).toBe(occluded)
-    expect(selected.certification?.preference).toMatchObject({ reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } })
-    expect(selected.certification!.preference.selectedScore.labelConflicts).toBeGreaterThan(0)
+    expect(selected).toBe(clear)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'readabilityCost', selectedScore: { edgeCrossings: 1, labelConflicts: 0 } })
     expect(selected.certification!.preference.compared[1]!.score).toMatchObject({ labelConflicts: 0, edgeCrossings: 1 })
+  })
+
+  test('clearing one padded label conflict cannot buy two crossings', () => {
+    const { graph, positioned: occluded } = labelledWitness(false, true)
+    const { positioned: clear } = labelledWitness(true)
+    clear.edges[1]!.points = [
+      { x: 160, y: 60 }, { x: 160, y: 160 }, { x: 220, y: 160 },
+      { x: 220, y: 40 }, { x: 300, y: 40 }, { x: 300, y: 240 }, { x: 180, y: 240 },
+    ]
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'one-conflict', produce: () => occluded }, { strategy: 'two-crossings', produce: () => clear },
+    ])
+    expect(selected).toBe(occluded)
+    expect(selected.certification?.preference.compared[1]?.score).toMatchObject({ edgeCrossings: 2, labelConflicts: 0 })
   })
 
   test('zero crossings do not suppress a bounded label-conflict comparison', () => {

@@ -8,6 +8,7 @@ import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../sh
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
+import { sameFlowLayer } from './geometry.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -421,6 +422,8 @@ export function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 
 // ============================================================================
 
 export interface LaneContext {
+  /** Forward fan-in hubs whose senders have different visible destinations. */
+  distinctArrivalTargets?: ReadonlySet<string>
   /** Caller-owned live frames; every lane proof reads current nested headers. */
   groups?: readonly PositionedGroup[]
   nodes: PositionedNode[]
@@ -439,6 +442,44 @@ export interface LaneContext {
   nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
   /** Owner invalidation follows every route write; labels remain live. */
   routeChannelGeometry?: RouteChannelGeometry
+}
+
+/** A shared arrival conceals which branch belongs to which sender when their
+ * forward destinations differ (BM #52). Uniform joins may retain their trunk.
+ * Invisible rank hints, self-loops and returns do not change that reading. */
+export function distinctArrivalTargets(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], direction: Direction): ReadonlySet<string> {
+  if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return new Set()
+  const axis = axisFor(direction), byId = new Map(nodes.map(node => [node.id, node]))
+  const outgoing = new Map<string, Set<string>>(), incoming = new Map<string, Set<string>>()
+  for (const edge of edges) {
+    if (edge.style === 'invisible' || edge.source === edge.target) continue
+    const source = byId.get(edge.source), target = byId.get(edge.target)
+    if (!source || !target) continue
+    // A state terminator deliberately collects alternative transitions;
+    // it is not an entity whose individual incoming transfers must be counted.
+    if (target.shape === 'state-end' || target.shape === 'state-start') continue
+    const size = axis.main === 'x' ? 'width' : 'height'
+    if (axis.sign > 0 ? target[axis.main] <= source[axis.main] + source[size]
+      : source[axis.main] <= target[axis.main] + target[size]) continue
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, new Set())
+    outgoing.get(edge.source)!.add(edge.target)
+    if (!incoming.has(edge.target)) incoming.set(edge.target, new Set())
+    incoming.get(edge.target)!.add(edge.source)
+  }
+  const distinct = new Set<string>()
+  for (const [target, sources] of incoming) {
+    if (sources.size < 2) continue
+    // Match the existing peer-convergence owner: branches from different
+    // ranks are not interchangeable paths through a single apparent bus.
+    if (!sameFlowLayer([...sources].map(source => byId.get(source)!), direction, 28)) continue
+    const first = outgoing.get(sources.values().next().value!)!
+    if (![...sources].some(source => {
+      const targets = outgoing.get(source)!
+      return targets.size !== first.size || [...targets].some(id => !first.has(id))
+    })) continue
+    distinct.add(target)
+  }
+  return distinct
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -545,6 +586,7 @@ export function buildRouteLaneContext(
   return {
     axis,
     ctx: { nodes: positioned.nodes, edges: positioned.edges, groups: positioned.groups, axis, style, classes, sideUse, finalLabelClearance,
+      distinctArrivalTargets: distinctArrivalTargets(positioned.nodes, positioned.edges, graph.direction),
       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
       routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
   }

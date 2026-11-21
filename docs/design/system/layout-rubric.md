@@ -78,7 +78,7 @@ and ≤ 2 bends/edge for the whole simple battery):
 | Metric | Definition | Grounding |
 |---|---|---|
 | `edgeCrossings` | visible proper incidences per logical edge pair/location; subdivision, shared nodes and hidden shafts use the shared production predicate | Purchase 1997 (strongest factor) |
-| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; breaks crossing ties before bend and port preferences |
+| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; ordinary selection minimizes 4×crossings + 5×conflicts before bends and ports |
 | `totalBends`, `maxBendsPerEdge` | visible interior vertices excluding declared bundle-owned convergence | Purchase 1997 |
 | `portEndpointRate` | fraction of edge ends exactly on a canonical port | yFiles port candidates |
 | `portAnchoredEdgeRate` | fraction of edges with ≥ 1 port end | static-glue policy |
