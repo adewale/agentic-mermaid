@@ -5,7 +5,7 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { edgesMayShareTerminal, opposingRoutesMislead, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
 import { terminalHookLength } from '../route-geometry.ts'
@@ -164,16 +164,10 @@ export function bundleEdgePaths(
     // reach the other's target. A trunk may run back along another edge only
     // where both readings are real edges painted alike (a complete bipartite
     // join), never along e.g. the reverse route leaving the same port.
-    const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
-      && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
-      && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
-      && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
-    const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
-      || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
       const before = new Set(opposingRoutePartners(member, others))
-      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && misleads(member, other))
+      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && opposingRoutesMislead(member, other, edges))
     }
     return members.filter(member => {
       const points = candidates.get(member.edge)!

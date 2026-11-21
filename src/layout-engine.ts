@@ -7,6 +7,7 @@ import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt } from './layout/layout-cost.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
+import { orderAlternativeInkClear } from './layout/order-alternative-admission.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
@@ -2121,12 +2122,13 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
-    && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
+    && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length) {
     const result = certifyCandidate(graph, style, { strategy: 'prefer-model-order',
       produce: () => optimization.optionalLayout(() => produceCandidate({ ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
       preferNext: preferReadableTitles,
     })
-    if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)) {
+    if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)
+      && (!hasParallelPair(graph.edges) || orderAlternativeInkClear(selected, result.certified.positioned, style, result.certified.score.labelConflicts))) {
       optimization.selectedLayoutOptimization('prefer-model-order')
       return withLayoutCost(retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
         attempts: certification.attempts + 1,
