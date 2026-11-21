@@ -614,7 +614,12 @@ S1["same word ok"] --> D`],
     const graph = parseMermaid('flowchart BT\nN0-->N3\nN3~~~N2\nN0-->N2\nN1-->N3\nN0-.-N2')
     const positioned = layoutGraphSync(graph)
     expect(positioned.certification?.status).toBe('passed')
-    expect(positioned.edges.find(edge => edge.style === 'invisible')?.points).toHaveLength(2)
+    // Invisible rank constraints may take a dogleg as visible arrival slots
+    // separate. Their point count is not a property of the drawn diagram.
+    const assessment = assessLayout(graph, positioned)
+    expect(hardViolations(assessment)).toEqual([])
+    expect(assessment.metrics).toMatchObject({ edgeCrossings: 0, labelConflicts: 0 })
+    expect(positioned.edges.filter(edge => edge.style !== 'invisible')).toHaveLength(4)
   })
 
   test('canonical contacts may yield to separating actual opposing shared ink', () => {
