@@ -1,0 +1,34 @@
+duplicate pele-hosted 0 None
+duplicate pele-npm 0 None
+duplicate am 0 None
+duplicate zm 0 None
+seed135 pele-hosted None AssertionError(('caption associations', Counter({('n1', 'n12', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n1', 'n12', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))
+seed135 pele-npm 10 None
+seed135 am 8 None
+seed135 zm 4 None
+seed139 pele-hosted None AssertionError(('caption associations', Counter({('n7', 'n5', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n7', 'n5', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))
+seed139 pele-npm 21 None
+seed139 am 24 None
+seed139 zm 17 None
+nineteen pele-hosted None AssertionError(('caption associations', Counter({('n0', 'n4', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n0', 'n4', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))
+nineteen pele-npm 38 None
+nineteen am 37 None
+nineteen zm 31 None
+bm52-wallet pele-hosted None AssertionError(('node labels', [('TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK', '📍 Current Ξ TPRPxm...avvK', '📍 CurrentΞ TPRPxm...avvK'), ('TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf', 'Ξ TL8TBp...SwEf <b>HuionePay</b>', 'Ξ TL8TBp...SwEfHuionePay'), ('TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c', 'Ξ TUaZjK...tZ8c <b>HuionePay</b>', 'Ξ TUaZjK...tZ8cHuionePay'), ('TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu', 'Ξ TQBftm...FRTu <b>HuionePay</b>', 'Ξ TQBftm...FRTuHuionePay'), ('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8', 'Ξ TNVaKW...4Ug8 <b>HuionePay</b>', 'Ξ TNVaKW...4Ug8HuionePay')]))
+bm52-wallet pele-npm None AssertionError(('node labels', [('TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK', '📍 Current Ξ TPRPxm...avvK', '📍 CurrentΞ TPRPxm...avvK'), ('TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf', 'Ξ TL8TBp...SwEf <b>HuionePay</b>', 'Ξ TL8TBp...SwEfHuionePay'), ('TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c', 'Ξ TUaZjK...tZ8c <b>HuionePay</b>', 'Ξ TUaZjK...tZ8cHuionePay'), ('TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu', 'Ξ TQBftm...FRTu <b>HuionePay</b>', 'Ξ TQBftm...FRTuHuionePay'), ('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8', 'Ξ TNVaKW...4Ug8 <b>HuionePay</b>', 'Ξ TNVaKW...4Ug8HuionePay')]))
+bm52-wallet am 0 None
+bm52-wallet zm 0 None
+bm83-workflow pele-hosted 0 None
+bm83-workflow pele-npm 0 None
+bm83-workflow am 0 None
+bm83-workflow zm 0 None
+nineteen-body pele-hosted None AssertionError(('caption associations', Counter({('n0', 'n4', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n0', 'n4', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))
+nineteen-body pele-npm 38 None
+nineteen-body am 37 None
+nineteen-body zm 31 None
+bm111-labelled-fan pele-hosted 0 None
+bm111-labelled-fan pele-npm 0 None
+bm111-labelled-fan am 0 None
+zm629-round-trip pele-hosted 0 None
+zm629-round-trip pele-npm 0 None
+zm629-round-trip am 0 None

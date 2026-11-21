@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1037.94 521" width="1037.94" height="521" role="img" style="--bg:#FFFFFF;--fg:#27272A;--muted:#71717A;background:var(--bg)">
+<style>
+  text { font-family: 'trebuchet ms', 'verdana', 'arial', sans-serif, system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+  @media (prefers-contrast: more) {
+    svg { --_node-stroke: var(--fg); --_inner-stroke: var(--fg); --_line: var(--fg); --_arrow: var(--fg); --_text-sec: var(--fg); --_text-muted: var(--fg); --_text-faint: var(--fg); }
+  }
+  @media (forced-colors: active) {
+    svg { --_node-stroke: CanvasText; --_inner-stroke: CanvasText; --_line: CanvasText; --_arrow: CanvasText; --_text-sec: CanvasText; --_text-muted: CanvasText; --_text-faint: CanvasText; }
+  }
+</style>
+<defs>
+  <marker id="zm9orw8u-arrowhead" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="zm9orw8u-arrowhead-start" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<path class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 211.94 204.42 L 224.87 204.42 Q 231.94 204.42, 231.94 197.35 L 231.94 86.07 Q 231.94 79, 239.01 79 L 271.94 79" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 421.94 79 L 434.87 79 Q 441.94 79, 441.94 86.07 L 441.94 171.93 Q 441.94 179, 449.01 179 L 461.94 179" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 211.94 238.81 L 244.87 238.81 Q 251.94 238.81, 251.94 231.73 L 251.94 204.07 Q 251.94 197, 259.01 197 L 271.94 197" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 421.94 197 L 461.94 197" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 211.94 273.19 L 244.87 273.19 Q 251.94 273.19, 251.94 280.27 L 251.94 307.93 Q 251.94 315, 259.01 315 L 271.94 315" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 421.94 302 L 434.87 302 Q 441.94 302, 441.94 294.93 L 441.94 222.07 Q 441.94 215, 449.01 215 L 461.94 215" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 421.94 328 L 461.94 328" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 211.94 307.58 L 224.87 307.58 Q 231.94 307.58, 231.94 314.65 L 231.94 425.93 Q 231.94 433, 239.01 433 L 271.94 433" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-to="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 421.94 433 L 462.94 433" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-to="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 612.94 433 L 653.94 433" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<path class="edge" data-from="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-to="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 805.94 433 L 845.94 433" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zm9orw8u-arrowhead)" />
+<g class="node highRiskNode" data-id="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-label="📍 Current
+Ξ TPRPxm...avvK" data-shape="circle">
+  <circle cx="125.97" cy="256" r="85.97" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="125.97" y="256" text-anchor="middle" font-size="16" font-weight="500" fill="#cc0000"><tspan x="125.97" dy="-15.2">📍 Current</tspan><tspan x="125.97" dy="20.8">Ξ</tspan><tspan x="125.97" dy="20.8">TPRPxm...avvK</tspan></text>
+</g>
+<g class="node" data-id="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-label="Ξ TWnK4k...fBaW" data-shape="rounded">
+  <rect x="271.94" y="40" width="150" height="78" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="346.94" y="79" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)"><tspan x="346.94" dy="-4.8">Ξ</tspan><tspan x="346.94" dy="20.8">TWnK4k...fBaW</tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-label="Ξ TL8TBp...SwEf
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="461.94" y="161" width="152" height="72" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="537.94" y="197" text-anchor="middle" font-size="16" font-weight="500" fill="#cc0000"><tspan x="537.94" dy="-4.8">Ξ TL8TBp...SwEf</tspan><tspan x="537.94" dy="20.8"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-label="Ξ TQBb8D...Xotb" data-shape="rounded">
+  <rect x="271.94" y="158" width="150" height="78" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="346.94" y="197" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)"><tspan x="346.94" dy="-4.8">Ξ</tspan><tspan x="346.94" dy="20.8">TQBb8D...Xotb</tspan></text>
+</g>
+<g class="node" data-id="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-label="Ξ TUaYgu...RLVy" data-shape="rounded">
+  <rect x="271.94" y="276" width="150" height="78" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="346.94" y="315" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)"><tspan x="346.94" dy="-4.8">Ξ</tspan><tspan x="346.94" dy="20.8">TUaYgu...RLVy</tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-label="Ξ TUaZjK...tZ8c
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="461.94" y="292" width="152" height="72" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="537.94" y="328" text-anchor="middle" font-size="16" font-weight="500" fill="#cc0000"><tspan x="537.94" dy="-4.8">Ξ TUaZjK...tZ8c</tspan><tspan x="537.94" dy="20.8"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-label="Ξ TUciXW...zDbP" data-shape="rounded">
+  <rect x="271.94" y="394" width="150" height="78" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="346.94" y="433" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)"><tspan x="346.94" dy="-4.8">Ξ</tspan><tspan x="346.94" dy="20.8">TUciXW...zDbP</tspan></text>
+</g>
+<g class="node" data-id="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-label="Ξ TXTaap...fvGZ" data-shape="rounded">
+  <rect x="462.94" y="406" width="150" height="54" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="537.94" y="433" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Ξ TXTaap...fvGZ</text>
+</g>
+<g class="node" data-id="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-label="Ξ TQBftm...FRTu
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="653.94" y="385" width="152" height="96" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="729.94" y="433" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)"><tspan x="729.94" dy="-15.2">Ξ</tspan><tspan x="729.94" dy="20.8">TQBftm...FRTu</tspan><tspan x="729.94" dy="20.8"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-label="Ξ TNVaKW...4Ug8
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="845.94" y="385" width="152" height="96" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="921.94" y="433" text-anchor="middle" font-size="16" font-weight="500" fill="#cc0000"><tspan x="921.94" dy="-15.2">Ξ</tspan><tspan x="921.94" dy="20.8">TNVaKW...4Ug8</tspan><tspan x="921.94" dy="20.8"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+</svg>

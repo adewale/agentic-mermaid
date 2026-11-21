@@ -1,0 +1,444 @@
+{
+  "arm": "zm",
+  "id": "nineteen",
+  "sourceSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "zombie-mermaid",
+  "version": "5.18.0",
+  "elk": "0.12.1",
+  "parsed": {
+    "direction": "TD",
+    "nodes": {
+      "n0": {
+        "id": "n0",
+        "label": "Node 76-0",
+        "shape": "subroutine"
+      },
+      "n1": {
+        "id": "n1",
+        "label": "Node 76-1",
+        "shape": "cylinder"
+      },
+      "n2": {
+        "id": "n2",
+        "label": "Node 76-2",
+        "shape": "rectangle"
+      },
+      "n3": {
+        "id": "n3",
+        "label": "Node 76-3",
+        "shape": "diamond"
+      },
+      "n4": {
+        "id": "n4",
+        "label": "Node 76-4",
+        "shape": "rounded"
+      },
+      "n5": {
+        "id": "n5",
+        "label": "Node 76-5",
+        "shape": "circle"
+      },
+      "n6": {
+        "id": "n6",
+        "label": "Node 76-6",
+        "shape": "subroutine"
+      },
+      "n7": {
+        "id": "n7",
+        "label": "Node 76-7",
+        "shape": "cylinder"
+      },
+      "n8": {
+        "id": "n8",
+        "label": "Node 76-8",
+        "shape": "rectangle"
+      },
+      "n9": {
+        "id": "n9",
+        "label": "Node 76-9",
+        "shape": "diamond"
+      },
+      "n10": {
+        "id": "n10",
+        "label": "Node 76-10",
+        "shape": "rounded"
+      },
+      "n11": {
+        "id": "n11",
+        "label": "Node 76-11",
+        "shape": "circle"
+      },
+      "n12": {
+        "id": "n12",
+        "label": "Node 76-12",
+        "shape": "subroutine"
+      },
+      "n13": {
+        "id": "n13",
+        "label": "Node 76-13",
+        "shape": "cylinder"
+      },
+      "n14": {
+        "id": "n14",
+        "label": "Node 76-14",
+        "shape": "rectangle"
+      },
+      "n15": {
+        "id": "n15",
+        "label": "Node 76-15",
+        "shape": "diamond"
+      },
+      "n16": {
+        "id": "n16",
+        "label": "Node 76-16",
+        "shape": "rounded"
+      },
+      "n17": {
+        "id": "n17",
+        "label": "Node 76-17",
+        "shape": "circle"
+      },
+      "n18": {
+        "id": "n18",
+        "label": "Node 76-18",
+        "shape": "subroutine"
+      }
+    },
+    "edges": [
+      {
+        "source": "n14",
+        "target": "n11",
+        "label": "edge 0 xxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n0",
+        "target": "n4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n9",
+        "target": "n13",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n10",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n18",
+        "target": "n5",
+        "label": "edge 4 xxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n8",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n9",
+        "target": "n13",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n4",
+        "target": "n18",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n17",
+        "label": "edge 8 xxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n15",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n14",
+        "target": "n1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n0",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n10",
+        "label": "edge 12 xxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n18",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n16",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n18",
+        "target": "n13",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n0",
+        "target": "n4",
+        "label": "edge 16 xxxxxxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n0",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n8",
+        "target": "n5",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n5",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n5",
+        "target": "n13",
+        "label": "edge 20 xxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n1",
+        "target": "n9",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n6",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n8",
+        "label": "edge 24 xxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n5",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n18",
+        "target": "n17",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n4",
+        "target": "n12",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n14",
+        "target": "n3",
+        "label": "edge 28 xxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n15",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n10",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n17",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n17",
+        "target": "n10",
+        "label": "edge 32 xxxxxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n5",
+        "target": "n17",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n0",
+        "target": "n4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n4",
+        "target": "n6",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n10",
+        "target": "n9",
+        "label": "edge 36 xxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n11",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n16",
+        "target": "n18",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n5",
+        "target": "n9",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n4",
+        "label": "edge 40 xxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n1",
+        "target": "n17",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n6",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n10",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {},
+    "classAssignments": {},
+    "nodeStyles": {},
+    "linkStyles": {},
+    "interactions": {},
+    "initConfig": {
+      "ignored": []
+    }
+  },
+  "ok": true,
+  "svgSHA256": "34f518d4a2709b938a68f3c38a1ab6b9d4203f862a1b2542c9f53fd9fb3a3f6f",
+  "svgBytes": 32239,
+  "viewBox": "0 -54 1830.28 2431.07"
+}

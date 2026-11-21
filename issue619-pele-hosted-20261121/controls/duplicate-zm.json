@@ -1,0 +1,78 @@
+{
+  "arm": "zm",
+  "id": "duplicate",
+  "sourceSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "zombie-mermaid",
+  "version": "5.18.0",
+  "elk": "0.12.1",
+  "parsed": {
+    "direction": "TD",
+    "nodes": {
+      "A": {
+        "id": "A",
+        "label": "One",
+        "shape": "rectangle"
+      },
+      "B": {
+        "id": "B",
+        "label": "Two",
+        "shape": "rectangle"
+      },
+      "C": {
+        "id": "C",
+        "label": "Three",
+        "shape": "rectangle"
+      },
+      "D": {
+        "id": "D",
+        "label": "Four",
+        "shape": "rectangle"
+      }
+    },
+    "edges": [
+      {
+        "source": "A",
+        "target": "D",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "A",
+        "target": "D",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D",
+        "target": "A",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {},
+    "classAssignments": {},
+    "nodeStyles": {},
+    "linkStyles": {},
+    "interactions": {},
+    "initConfig": {
+      "ignored": []
+    }
+  },
+  "ok": true,
+  "svgSHA256": "6635cf4d39a6327792ecc75f3ebca39d6320ca1e7a673594bf5672389d03fcc1",
+  "svgBytes": 4496,
+  "viewBox": "0 0 424 216"
+}

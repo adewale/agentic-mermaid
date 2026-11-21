@@ -1,0 +1,5412 @@
+[
+  {
+    "id": "duplicate",
+    "arm": "pele-hosted",
+    "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+    "svgSHA256": "0db8770b59cd5095fd920de0ad5df3b88585579a0954faada428ddde2059e0ad",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 4,
+    "captions": 0,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 207 160",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "duplicate",
+    "arm": "pele-npm",
+    "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+    "svgSHA256": "883d331e9f8b64db5d7d09deeeb7e0358e1d34a72c31de67aa872db845dbe8b4",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 4,
+    "captions": 0,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 203 160",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "duplicate",
+    "arm": "am",
+    "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+    "svgSHA256": "806b6c2266ff171fa53a105065cdeeb6f02c4e84d6057789de682d8729e58a54",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 4,
+    "captions": 0,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 258.59 201.8",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "duplicate",
+    "arm": "zm",
+    "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+    "svgSHA256": "6635cf4d39a6327792ecc75f3ebca39d6320ca1e7a673594bf5672389d03fcc1",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 4,
+    "captions": 0,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 424 216",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "seed135",
+    "arm": "pele-hosted",
+    "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+    "svgSHA256": "5fd6eace4e6a814ddd91295d6dbd6daa25e8811f4d458e0930bef83f17f81a9a",
+    "ok": false,
+    "error": "AssertionError(('caption associations', Counter({('n1', 'n12', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n1', 'n12', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))"
+  },
+  {
+    "id": "seed135",
+    "arm": "pele-npm",
+    "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+    "svgSHA256": "840e5d89c0067fd5b0d80921b4f526c6a30b9e7a97c02ebd6c20c42f1e24a139",
+    "ok": true,
+    "properCrossings": 10,
+    "unknown": [],
+    "overlappingSegmentEvents": 7,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 28,
+    "captions": 7,
+    "nodes": 13,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 2324 570",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "L_n11_n5_0",
+          "L_n0_n1_0"
+        ],
+        "point": [
+          [
+            1401.0898766689315,
+            1401.0898766689315
+          ],
+          [
+            148.79,
+            148.79
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n8_0",
+          "L_n3_n1_0"
+        ],
+        "point": [
+          [
+            1174.0830006561803,
+            1174.0830006561803
+          ],
+          [
+            376.75,
+            376.75
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n1_0",
+          "L_n12_n6_0"
+        ],
+        "point": [
+          [
+            481.03050318061776,
+            481.03050318061776
+          ],
+          [
+            348.37,
+            348.37
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n1_0",
+          "L_n6_n11_0"
+        ],
+        "point": [
+          [
+            284.71734583399234,
+            284.71734583399234
+          ],
+          [
+            355.83024535786126,
+            355.83024535786126
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n6_n9_0",
+          "L_n4_n9_0"
+        ],
+        "point": [
+          [
+            164.8576301765218,
+            164.8576301765218
+          ],
+          [
+            493.61,
+            493.61
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n6_n9_0",
+          "L_n4_n9_0"
+        ],
+        "point": [
+          [
+            156.67570593661554,
+            156.67570593661554
+          ],
+          [
+            481.3951108620705,
+            481.3951108620705
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n5_0",
+          "L_n0_n1_0"
+        ],
+        "point": [
+          [
+            1396.620740913572,
+            1396.620740913572
+          ],
+          [
+            148.79,
+            148.79
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n6_n0_0",
+          "L_n0_n7_2"
+        ],
+        "point": [
+          [
+            2001.5407902966983,
+            2001.5407902966983
+          ],
+          [
+            401.6580354468354,
+            401.6580354468354
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n6_n0_0",
+          "L_n0_n7_2"
+        ],
+        "point": [
+          [
+            1982.8368286556981,
+            1982.8368286556981
+          ],
+          [
+            469.52,
+            469.52
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n6_n0_0",
+          "L_n4_n7_0"
+        ],
+        "point": [
+          [
+            1978.106614845604,
+            1978.106614845604
+          ],
+          [
+            490.02,
+            490.02
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seed135",
+    "arm": "am",
+    "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+    "svgSHA256": "6a3540f7920b3f1eb145e03d3a02269bc03ae5ecfc874b7630fd038c5ed66b81",
+    "ok": true,
+    "properCrossings": 8,
+    "unknown": [],
+    "overlappingSegmentEvents": 4,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 28,
+    "captions": 7,
+    "nodes": 13,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1601.718 563.370833333",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "edge:n12->n2#0",
+          "edge:n1->n6#0"
+        ],
+        "point": [
+          [
+            1391.718,
+            1391.718
+          ],
+          [
+            122.545666667,
+            122.545666667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n8#0",
+          "edge:n7->n8#0"
+        ],
+        "point": [
+          [
+            631.576,
+            631.576
+          ],
+          [
+            267.621166667,
+            267.621166667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n8#0",
+          "edge:n7->n8#0"
+        ],
+        "point": [
+          [
+            616.478,
+            616.478
+          ],
+          [
+            360.4905,
+            360.4905
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n8#0",
+          "edge:n7->n3#0"
+        ],
+        "point": [
+          [
+            631.576,
+            631.576
+          ],
+          [
+            267.621166667,
+            267.621166667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n6->n9#0",
+          "edge:n4->n0#0"
+        ],
+        "point": [
+          [
+            1224.718,
+            1224.718
+          ],
+          [
+            398.075333333,
+            398.075333333
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n6->n9#0",
+          "edge:n4->n7#0"
+        ],
+        "point": [
+          [
+            1224.718,
+            1224.718
+          ],
+          [
+            430.123833333,
+            430.123833333
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n2#0",
+          "edge:n1->n6#0"
+        ],
+        "point": [
+          [
+            1391.718,
+            1391.718
+          ],
+          [
+            114.062333333,
+            114.062333333
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n1#0",
+          "edge:n4->n7#0"
+        ],
+        "point": [
+          [
+            936.714,
+            936.714
+          ],
+          [
+            430.123833333,
+            430.123833333
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seed135",
+    "arm": "zm",
+    "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+    "svgSHA256": "bbacc0e58b2a099710c4cc57b1c8e47a9cb2721e1d247b8ff494ce41d54173d4",
+    "ok": true,
+    "properCrossings": 4,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 28,
+    "captions": 7,
+    "nodes": 13,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 2876.1 658.83",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "n9->n1#5",
+          "n6->n0#22"
+        ],
+        "point": [
+          [
+            1054.52,
+            1054.52
+          ],
+          [
+            554.81,
+            554.81
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n8#9",
+          "n5->n3#12"
+        ],
+        "point": [
+          [
+            1866.99,
+            1866.99
+          ],
+          [
+            398.46,
+            398.46
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n1#21",
+          "n4->n7#26"
+        ],
+        "point": [
+          [
+            2445.91,
+            2445.91
+          ],
+          [
+            471.21,
+            471.21
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n6->n0#22",
+          "n4->n7#26"
+        ],
+        "point": [
+          [
+            2465.91,
+            2465.91
+          ],
+          [
+            471.21,
+            471.21
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seed139",
+    "arm": "pele-hosted",
+    "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+    "svgSHA256": "40dd79bc58253cdb21c6364fbad312fe6cdd1195b5579308604995e2027ce764",
+    "ok": false,
+    "error": "AssertionError(('caption associations', Counter({('n7', 'n5', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n7', 'n5', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))"
+  },
+  {
+    "id": "seed139",
+    "arm": "pele-npm",
+    "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+    "svgSHA256": "cca0d7c1eeb03a14c18cfb0e920ad4a0876edafa618b891f4f123ef87098722f",
+    "ok": true,
+    "properCrossings": 21,
+    "unknown": [],
+    "overlappingSegmentEvents": 3,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 40,
+    "captions": 10,
+    "nodes": 17,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 2691 758",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "L_n10_n13_0",
+          "L_n15_n3_0"
+        ],
+        "point": [
+          [
+            970.2967021264401,
+            970.2967021264401
+          ],
+          [
+            275.3,
+            275.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n13_0",
+          "L_n15_n9_0"
+        ],
+        "point": [
+          [
+            1548.2443603481368,
+            1548.2443603481368
+          ],
+          [
+            240.08,
+            240.08
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n13_0",
+          "L_n1_n4_0"
+        ],
+        "point": [
+          [
+            2163.308996063787,
+            2163.308996063787
+          ],
+          [
+            287.75,
+            287.75
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n13_0",
+          "L_n15_n7_0"
+        ],
+        "point": [
+          [
+            959.7026659229875,
+            959.7026659229875
+          ],
+          [
+            387.3,
+            387.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n13_0",
+          "L_n11_n3_0"
+        ],
+        "point": [
+          [
+            960.8656559678675,
+            960.8656559678675
+          ],
+          [
+            403.3,
+            403.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n13_0",
+          "L_n3_n12_0"
+        ],
+        "point": [
+          [
+            963.1563577519148,
+            963.1563577519148
+          ],
+          [
+            439.05,
+            439.05
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n14_0",
+          "L_n5_n8_0"
+        ],
+        "point": [
+          [
+            358.2125769724471,
+            358.2125769724471
+          ],
+          [
+            527.8,
+            527.8
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n15_n7_0",
+          "L_n11_n3_0"
+        ],
+        "point": [
+          [
+            795.2927107902493,
+            795.2927107902493
+          ],
+          [
+            403.3,
+            403.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n15_n7_0",
+          "L_n3_n12_0"
+        ],
+        "point": [
+          [
+            784.7368053519081,
+            784.7368053519081
+          ],
+          [
+            439.05,
+            439.05
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n13_n7_0",
+          "L_n11_n3_0"
+        ],
+        "point": [
+          [
+            784.934267572165,
+            784.934267572165
+          ],
+          [
+            403.3,
+            403.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n13_n7_0",
+          "L_n3_n12_0"
+        ],
+        "point": [
+          [
+            778.8001297406428,
+            778.8001297406428
+          ],
+          [
+            439.05,
+            439.05
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n15_n3_0",
+          "L_n9_n5_0"
+        ],
+        "point": [
+          [
+            457.6726357842454,
+            457.6726357842454
+          ],
+          [
+            299.29637740951864,
+            299.29637740951864
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n11_n1_0",
+          "L_n1_n16_0"
+        ],
+        "point": [
+          [
+            1671.4407894356286,
+            1671.4407894356286
+          ],
+          [
+            683.74,
+            683.74
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n5_0",
+          "L_n7_n3_0"
+        ],
+        "point": [
+          [
+            373.7927326652655,
+            373.7927326652655
+          ],
+          [
+            383.2472898631695,
+            383.2472898631695
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n5_0",
+          "L_n11_n3_0"
+        ],
+        "point": [
+          [
+            434.8719422821389,
+            434.8719422821389
+          ],
+          [
+            332.19277221136025,
+            332.19277221136025
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n5_0",
+          "L_n13_n3_0"
+        ],
+        "point": [
+          [
+            448.59878882698075,
+            448.59878882698075
+          ],
+          [
+            313.1629606539222,
+            313.1629606539222
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n9_n5_0",
+          "L_n3_n12_0"
+        ],
+        "point": [
+          [
+            427.065856669731,
+            427.065856669731
+          ],
+          [
+            341.7935634945849,
+            341.7935634945849
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n11_0",
+          "L_n3_n12_0"
+        ],
+        "point": [
+          [
+            1132.5819964188915,
+            1132.5819964188915
+          ],
+          [
+            517.7507788830413,
+            517.7507788830413
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n12_0",
+          "L_n5_n8_0"
+        ],
+        "point": [
+          [
+            770.551364633103,
+            770.551364633103
+          ],
+          [
+            573.55,
+            573.55
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n1_0",
+          "L_n9_n14_0"
+        ],
+        "point": [
+          [
+            495.37172991198804,
+            495.37172991198804
+          ],
+          [
+            131.73,
+            131.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n8_0",
+          "L_n5_n8_0"
+        ],
+        "point": [
+          [
+            791.4576408405242,
+            791.4576408405242
+          ],
+          [
+            573.55,
+            573.55
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seed139",
+    "arm": "am",
+    "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+    "svgSHA256": "0da06245b0a3ceb4b8dfb12cb7b973b0b3107dbea3319b5f4f34b14e5da5ff5c",
+    "ok": true,
+    "properCrossings": 24,
+    "unknown": [],
+    "overlappingSegmentEvents": 11,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 40,
+    "captions": 10,
+    "nodes": 17,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1724.498 803.3585",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "edge:n14->n12#0",
+          "edge:n1->n10#0"
+        ],
+        "point": [
+          [
+            281.392,
+            281.392
+          ],
+          [
+            514.119466667,
+            514.119466667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n11#0",
+          "edge:n1->n4#0"
+        ],
+        "point": [
+          [
+            1464.868,
+            1464.868
+          ],
+          [
+            130.020966667,
+            130.020966667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n13#0",
+          "edge:n15->n11#0"
+        ],
+        "point": [
+          [
+            1268.863,
+            1268.863
+          ],
+          [
+            326.8365,
+            326.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n13#0",
+          "edge:n15->n3#0"
+        ],
+        "point": [
+          [
+            1228.342,
+            1228.342
+          ],
+          [
+            326.8365,
+            326.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n13#0",
+          "edge:n4->n15#0"
+        ],
+        "point": [
+          [
+            1400.396,
+            1400.396
+          ],
+          [
+            326.8365,
+            326.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n13#0",
+          "edge:n8->n11#0"
+        ],
+        "point": [
+          [
+            1060.4805,
+            1060.4805
+          ],
+          [
+            326.8365,
+            326.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n13#0",
+          "edge:n7->n8#0"
+        ],
+        "point": [
+          [
+            1216.342,
+            1216.342
+          ],
+          [
+            326.8365,
+            326.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n7#0",
+          "edge:n5->n8#0"
+        ],
+        "point": [
+          [
+            1232.488,
+            1232.488
+          ],
+          [
+            519.8615,
+            519.8615
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n7#0",
+          "edge:n12->n8#0"
+        ],
+        "point": [
+          [
+            1244.488,
+            1244.488
+          ],
+          [
+            450.3615,
+            450.3615
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n13#0",
+          "edge:n8->n11#0"
+        ],
+        "point": [
+          [
+            1060.4805,
+            1060.4805
+          ],
+          [
+            363.3623,
+            363.3623
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n13#0",
+          "edge:n7->n8#0"
+        ],
+        "point": [
+          [
+            1216.342,
+            1216.342
+          ],
+          [
+            373.4748,
+            373.4748
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n12#0",
+          "edge:n1->n4#0"
+        ],
+        "point": [
+          [
+            207.908,
+            207.908
+          ],
+          [
+            55.73,
+            55.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n3#0",
+          "edge:n8->n11#0"
+        ],
+        "point": [
+          [
+            1060.4805,
+            1060.4805
+          ],
+          [
+            301.8365,
+            301.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n3#0",
+          "edge:n13->n3#0"
+        ],
+        "point": [
+          [
+            903.778,
+            903.778
+          ],
+          [
+            301.8365,
+            301.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n1#0",
+          "edge:n1->n16#0"
+        ],
+        "point": [
+          [
+            776.474,
+            776.474
+          ],
+          [
+            126.330966667,
+            126.330966667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n5#0",
+          "edge:n9->n14#0"
+        ],
+        "point": [
+          [
+            603.586,
+            603.586
+          ],
+          [
+            514.119466667,
+            514.119466667
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n8->n11#0",
+          "edge:n7->n8#0"
+        ],
+        "point": [
+          [
+            1060.4805,
+            1060.4805
+          ],
+          [
+            314.8365,
+            314.8365
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n12#0",
+          "edge:n1->n10#0"
+        ],
+        "point": [
+          [
+            281.392,
+            281.392
+          ],
+          [
+            432.0498,
+            432.0498
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n12#0",
+          "edge:n3->n14#0"
+        ],
+        "point": [
+          [
+            451.392,
+            451.392
+          ],
+          [
+            432.0498,
+            432.0498
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n1->n10#0",
+          "edge:n3->n12#0"
+        ],
+        "point": [
+          [
+            281.392,
+            281.392
+          ],
+          [
+            297.224,
+            297.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n1->n10#0",
+          "edge:n12->n8#0"
+        ],
+        "point": [
+          [
+            1256.488,
+            1256.488
+          ],
+          [
+            742.3585,
+            742.3585
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n9#0",
+          "edge:n5->n8#0"
+        ],
+        "point": [
+          [
+            1232.488,
+            1232.488
+          ],
+          [
+            537.5115,
+            537.5115
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n9#0",
+          "edge:n12->n8#0"
+        ],
+        "point": [
+          [
+            1256.488,
+            1256.488
+          ],
+          [
+            537.5115,
+            537.5115
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n8#0",
+          "edge:n13->n3#0"
+        ],
+        "point": [
+          [
+            903.778,
+            903.778
+          ],
+          [
+            314.8365,
+            314.8365
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seed139",
+    "arm": "zm",
+    "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+    "svgSHA256": "5ff6c15886fd180f14e78e240357534ee9de9373a138634a2ba5f7eb7d59539f",
+    "ok": true,
+    "properCrossings": 17,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 40,
+    "captions": 10,
+    "nodes": 17,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 4014.11 645.81",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "n10->n13#2",
+          "n15->n3#11"
+        ],
+        "point": [
+          [
+            1621.93,
+            1621.93
+          ],
+          [
+            308.23,
+            308.23
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n10->n13#2",
+          "n7->n12#19"
+        ],
+        "point": [
+          [
+            2075.93,
+            2075.93
+          ],
+          [
+            306.46,
+            306.46
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n10->n13#2",
+          "n7->n3#23"
+        ],
+        "point": [
+          [
+            1825.93,
+            1825.93
+          ],
+          [
+            308.23,
+            308.23
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n10->n13#2",
+          "n1->n4#26"
+        ],
+        "point": [
+          [
+            1287.01,
+            1287.01
+          ],
+          [
+            308.23,
+            308.23
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n14#4",
+          "n15->n13#8"
+        ],
+        "point": [
+          [
+            2115.93,
+            2115.93
+          ],
+          [
+            164.97,
+            164.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n14#4",
+          "n8->n11#18"
+        ],
+        "point": [
+          [
+            2345.93,
+            2345.93
+          ],
+          [
+            153.3,
+            153.3
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n14#4",
+          "n5->n8#34"
+        ],
+        "point": [
+          [
+            2836.7,
+            2836.7
+          ],
+          [
+            243.17,
+            243.17
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n13#8",
+          "n7->n5#16"
+        ],
+        "point": [
+          [
+            2095.93,
+            2095.93
+          ],
+          [
+            125.97,
+            125.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n13#8",
+          "n7->n8#33"
+        ],
+        "point": [
+          [
+            2115.93,
+            2115.93
+          ],
+          [
+            173.97,
+            173.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n12#9",
+          "n0->n1#17"
+        ],
+        "point": [
+          [
+            1287.01,
+            1287.01
+          ],
+          [
+            504.48,
+            504.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n12#9",
+          "n1->n16#32"
+        ],
+        "point": [
+          [
+            1267.01,
+            1267.01
+          ],
+          [
+            504.48,
+            504.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n12#9",
+          "n3->n14#38"
+        ],
+        "point": [
+          [
+            2502.12,
+            2502.12
+          ],
+          [
+            473.48,
+            473.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n5#16",
+          "n8->n11#18"
+        ],
+        "point": [
+          [
+            2345.93,
+            2345.93
+          ],
+          [
+            112.0,
+            112.0
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n1#17",
+          "n11->n3#29"
+        ],
+        "point": [
+          [
+            1287.01,
+            1287.01
+          ],
+          [
+            463.35,
+            463.35
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n8->n11#18",
+          "n15->n9#22"
+        ],
+        "point": [
+          [
+            2345.93,
+            2345.93
+          ],
+          [
+            65.0,
+            65.0
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n7->n12#19",
+          "n13->n3#36"
+        ],
+        "point": [
+          [
+            2135.93,
+            2135.93
+          ],
+          [
+            349.08,
+            349.08
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n3#29",
+          "n1->n16#32"
+        ],
+        "point": [
+          [
+            1267.01,
+            1267.01
+          ],
+          [
+            463.35,
+            463.35
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nineteen",
+    "arm": "pele-hosted",
+    "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+    "svgSHA256": "033034f50ad62688dc6accbf7acc1313a26516d658fa4b84d79d2af7939f5223",
+    "ok": false,
+    "error": "AssertionError(('caption associations', Counter({('n0', 'n4', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n0', 'n4', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))"
+  },
+  {
+    "id": "nineteen",
+    "arm": "pele-npm",
+    "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+    "svgSHA256": "c8e72574d72acd64dcd437baa779770440647acfe71e587264448c1d03c1364a",
+    "ok": true,
+    "properCrossings": 38,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 1857 1471",
+    "titlePresent": true,
+    "locations": [
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n0_n14_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            290.9307209135217,
+            290.9307209135217
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n16_n3_0"
+        ],
+        "point": [
+          [
+            1288.2894481416297,
+            1288.2894481416297
+          ],
+          [
+            286.33288435866655,
+            286.33288435866655
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n3_n0_0"
+        ],
+        "point": [
+          [
+            1474.55,
+            1474.55
+          ],
+          [
+            281.0244495677684,
+            281.0244495677684
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n11_n17_0",
+          "L_n14_n3_0"
+        ],
+        "point": [
+          [
+            1230.06,
+            1230.06
+          ],
+          [
+            905.5367342217017,
+            905.5367342217017
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n15_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            749.3919367830322,
+            749.3919367830322
+          ],
+          [
+            1223.5487153849422,
+            1223.5487153849422
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n15_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            847.8685416583907,
+            847.8685416583907
+          ],
+          [
+            1233.888273679323,
+            1233.888273679323
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n11_n10_0"
+        ],
+        "point": [
+          [
+            784.7,
+            784.7
+          ],
+          [
+            922.9319313480361,
+            922.9319313480361
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            690.95,
+            690.95
+          ],
+          [
+            929.60062687695,
+            929.60062687695
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            943.1738834496217,
+            943.1738834496217
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n16_n3_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            276.15117458235653,
+            276.15117458235653
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n3_n5_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            546.2638638850987,
+            546.2638638850987
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n3_n5_2"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            541.649991225159,
+            541.649991225159
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            369.3853802283234,
+            369.3853802283234
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n17_n10_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            686.6135925397651,
+            686.6135925397651
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n5_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            548.331396014101,
+            548.331396014101
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            685.7404129480204,
+            685.7404129480204
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n16_n3_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1458.55,
+            1458.55
+          ],
+          [
+            714.9806745611776,
+            714.9806745611776
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n8_n5_0"
+        ],
+        "point": [
+          [
+            176.49,
+            176.49
+          ],
+          [
+            569.0452944640019,
+            569.0452944640019
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            360.9211825512364,
+            360.9211825512364
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            367.672936199347,
+            367.672936199347
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n0_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1474.55,
+            1474.55
+          ],
+          [
+            716.2918352570683,
+            716.2918352570683
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n5_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            534.1423070299619,
+            534.1423070299619
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n5_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            545.5352676383268,
+            545.5352676383268
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_0",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1232.06,
+            1232.06
+          ],
+          [
+            552.4150376730719,
+            552.4150376730719
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1418.55,
+            1418.55
+          ],
+          [
+            711.6982731801345,
+            711.6982731801345
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n13_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            540.3571418896861,
+            540.3571418896861
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n13_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            550.6086024846809,
+            550.6086024846809
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n17_n10_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            690.8318500047233,
+            690.8318500047233
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            545.5780309249408,
+            545.5780309249408
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            689.9049183408097,
+            689.9049183408097
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_2",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1232.06,
+            1232.06
+          ],
+          [
+            548.4061043343511,
+            548.4061043343511
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_2",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1434.55,
+            1434.55
+          ],
+          [
+            713.0208944440197,
+            713.0208944440197
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n15_n17_0",
+          "L_n4_n6_0"
+        ],
+        "point": [
+          [
+            1565.9,
+            1565.9
+          ],
+          [
+            724.7282777050871,
+            724.7282777050871
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n9_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            826.4330413468814,
+            826.4330413468814
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n9_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            435.07,
+            435.07
+          ],
+          [
+            832.6233670067261,
+            832.6233670067261
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n9_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            698.0144025865278,
+            698.0144025865278
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n9_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            558.8309875165334,
+            558.8309875165334
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n1_n17_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            694.6025662223251,
+            694.6025662223251
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nineteen",
+    "arm": "am",
+    "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+    "svgSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+    "ok": true,
+    "properCrossings": 37,
+    "unknown": [],
+    "overlappingSegmentEvents": 7,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1473.00115 1602.229",
+    "titlePresent": true,
+    "locations": [
+      {
+        "edges": [
+          "edge:n9->n13#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1498.954,
+            1498.954
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            341.012333333,
+            341.012333333
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n15->n10#0"
+        ],
+        "point": [
+          [
+            417.902333333,
+            417.902333333
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            262.512333333,
+            262.512333333
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n9->n13#1",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1476.04525,
+            1476.04525
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n8->n5#0"
+        ],
+        "point": [
+          [
+            761.6224,
+            761.6224
+          ],
+          [
+            1160.224,
+            1160.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n5->n9#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1300.974,
+            1300.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            761.6224,
+            761.6224
+          ],
+          [
+            921.374,
+            921.374
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n15#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            479.517333333,
+            479.517333333
+          ],
+          [
+            688.13,
+            688.13
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            688.13,
+            688.13
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n8->n5#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            1160.224,
+            1160.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n11->n15#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            700.13,
+            700.13
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            921.374,
+            921.374
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n2->n18#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n3->n5#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n14->n3#0"
+        ],
+        "point": [
+          [
+            902.8764,
+            902.8764
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n3->n11#0"
+        ],
+        "point": [
+          [
+            978.3904,
+            978.3904
+          ],
+          [
+            395.18,
+            395.18
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n10#0",
+          "edge:n15->n10#0"
+        ],
+        "point": [
+          [
+            417.902333333,
+            417.902333333
+          ],
+          [
+            688.13,
+            688.13
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n3->n5#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            1007.024,
+            1007.024
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n4->n12#0"
+        ],
+        "point": [
+          [
+            1107.30169167,
+            1107.30169167
+          ],
+          [
+            1007.024,
+            1007.024
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n14->n3#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            468.08,
+            468.08
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n3->n11#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            548.38,
+            548.38
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            921.374,
+            921.374
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n16->n3#0",
+          "edge:n4->n6#0"
+        ],
+        "point": [
+          [
+            1318.80715,
+            1318.80715
+          ],
+          [
+            154.4875,
+            154.4875
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n18->n13#0",
+          "edge:n3->n5#1"
+        ],
+        "point": [
+          [
+            1281.20965,
+            1281.20965
+          ],
+          [
+            1160.224,
+            1160.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n8->n5#0",
+          "edge:n15->n17#0"
+        ],
+        "point": [
+          [
+            520.560066667,
+            520.560066667
+          ],
+          [
+            1160.224,
+            1160.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            921.374,
+            921.374
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n13#0",
+          "edge:n18->n17#0"
+        ],
+        "point": [
+          [
+            1113.61098333,
+            1113.61098333
+          ],
+          [
+            1334.464,
+            1334.464
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n1->n9#0",
+          "edge:n15->n17#0"
+        ],
+        "point": [
+          [
+            595.80415,
+            595.80415
+          ],
+          [
+            1324.974,
+            1324.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n8#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            262.512333333,
+            262.512333333
+          ],
+          [
+            1098.574,
+            1098.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n8#0",
+          "edge:n10->n9#0"
+        ],
+        "point": [
+          [
+            158.254,
+            158.254
+          ],
+          [
+            1098.574,
+            1098.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n18->n17#0"
+        ],
+        "point": [
+          [
+            1192.7044,
+            1192.7044
+          ],
+          [
+            1160.224,
+            1160.224
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n4->n6#0"
+        ],
+        "point": [
+          [
+            1305.80715,
+            1305.80715
+          ],
+          [
+            952.199,
+            952.199
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n16->n18#0"
+        ],
+        "point": [
+          [
+            1305.80715,
+            1305.80715
+          ],
+          [
+            1007.024,
+            1007.024
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n17#0",
+          "edge:n5->n9#0"
+        ],
+        "point": [
+          [
+            627.11165,
+            627.11165
+          ],
+          [
+            1324.974,
+            1324.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n17->n10#0",
+          "edge:n10->n9#0"
+        ],
+        "point": [
+          [
+            220.940733333,
+            220.940733333
+          ],
+          [
+            1336.974,
+            1336.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n9#0",
+          "edge:n1->n17#0"
+        ],
+        "point": [
+          [
+            660.004733333,
+            660.004733333
+          ],
+          [
+            1300.974,
+            1300.974
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nineteen",
+    "arm": "zm",
+    "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+    "svgSHA256": "34f518d4a2709b938a68f3c38a1ab6b9d4203f862a1b2542c9f53fd9fb3a3f6f",
+    "ok": true,
+    "properCrossings": 31,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 -54 1830.28 2431.07",
+    "titlePresent": true,
+    "locations": [
+      {
+        "edges": [
+          "n15->n8#5",
+          "n3->n5#19"
+        ],
+        "point": [
+          [
+            260.63,
+            260.63
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n8#5",
+          "n14->n3#28"
+        ],
+        "point": [
+          [
+            345.13,
+            345.13
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n4->n18#7",
+          "n16->n3#14"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            242.0,
+            242.0
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n17#8",
+          "n14->n1#10"
+        ],
+        "point": [
+          [
+            788.28,
+            788.28
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n17#8",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            788.28,
+            788.28
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n11->n10#12"
+        ],
+        "point": [
+          [
+            669.04,
+            669.04
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n3->n5#25"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n15->n17#31"
+        ],
+        "point": [
+          [
+            860.44,
+            860.44
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n8->n5#18"
+        ],
+        "point": [
+          [
+            166.71,
+            166.71
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n3->n5#19"
+        ],
+        "point": [
+          [
+            260.63,
+            260.63
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n2->n8#24"
+        ],
+        "point": [
+          [
+            92.5,
+            92.5
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            368.21,
+            368.21
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n16->n3#14",
+          "n4->n6#35"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            1847.07,
+            1847.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n16->n3#14",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n8->n5#18",
+          "n2->n14#23"
+        ],
+        "point": [
+          [
+            361.93,
+            361.93
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n8->n5#18",
+          "n2->n10#43"
+        ],
+        "point": [
+          [
+            483.77,
+            483.77
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#19",
+          "n2->n14#23"
+        ],
+        "point": [
+          [
+            361.93,
+            361.93
+          ],
+          [
+            490.48,
+            490.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#19",
+          "n2->n10#43"
+        ],
+        "point": [
+          [
+            483.77,
+            483.77
+          ],
+          [
+            490.48,
+            490.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n5->n13#20",
+          "n18->n17#26"
+        ],
+        "point": [
+          [
+            994.67,
+            994.67
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n2->n14#23",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            439.88,
+            439.88
+          ],
+          [
+            920.97,
+            920.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n18->n17#26"
+        ],
+        "point": [
+          [
+            928.31,
+            928.31
+          ],
+          [
+            530.48,
+            530.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n3->n11#37"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1451.07,
+            1451.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n1->n17#41"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            706.67,
+            706.67
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n18->n17#26",
+          "n5->n9#39"
+        ],
+        "point": [
+          [
+            943.76,
+            943.76
+          ],
+          [
+            530.48,
+            530.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n3#28",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            368.21,
+            368.21
+          ],
+          [
+            1048.97,
+            1048.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n17#31",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            860.44,
+            860.44
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n17#31",
+          "n3->n11#37"
+        ],
+        "point": [
+          [
+            750.13,
+            750.13
+          ],
+          [
+            1431.07,
+            1431.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n10->n9#36",
+          "n1->n17#41"
+        ],
+        "point": [
+          [
+            1021.18,
+            1021.18
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n11#37",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            1076.16,
+            1076.16
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "bm52-wallet",
+    "arm": "pele-hosted",
+    "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+    "svgSHA256": "113552d4751208dd9bf2ea627012d1a89d95ab5bb97088c075e6e1d42c7101ec",
+    "ok": false,
+    "error": "AssertionError(('node labels', [('TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK', '\ud83d\udccd Current \u039e TPRPxm...avvK', '\ud83d\udccd Current\u039e TPRPxm...avvK'), ('TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf', '\u039e TL8TBp...SwEf <b>HuionePay</b>', '\u039e TL8TBp...SwEfHuionePay'), ('TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c', '\u039e TUaZjK...tZ8c <b>HuionePay</b>', '\u039e TUaZjK...tZ8cHuionePay'), ('TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu', '\u039e TQBftm...FRTu <b>HuionePay</b>', '\u039e TQBftm...FRTuHuionePay'), ('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8', '\u039e TNVaKW...4Ug8 <b>HuionePay</b>', '\u039e TNVaKW...4Ug8HuionePay')]))"
+  },
+  {
+    "id": "bm52-wallet",
+    "arm": "pele-npm",
+    "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+    "svgSHA256": "68152f4db91fe49b4b2dea2df8eab9d5ac73fd13f447a96339bef37986ab56fe",
+    "ok": false,
+    "error": "AssertionError(('node labels', [('TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK', '\ud83d\udccd Current \u039e TPRPxm...avvK', '\ud83d\udccd Current\u039e TPRPxm...avvK'), ('TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf', '\u039e TL8TBp...SwEf <b>HuionePay</b>', '\u039e TL8TBp...SwEfHuionePay'), ('TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c', '\u039e TUaZjK...tZ8c <b>HuionePay</b>', '\u039e TUaZjK...tZ8cHuionePay'), ('TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu', '\u039e TQBftm...FRTu <b>HuionePay</b>', '\u039e TQBftm...FRTuHuionePay'), ('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8', '\u039e TNVaKW...4Ug8 <b>HuionePay</b>', '\u039e TNVaKW...4Ug8HuionePay')]))"
+  },
+  {
+    "id": "bm52-wallet",
+    "arm": "am",
+    "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+    "svgSHA256": "e90921bc294cbebcdbc63d64795140fed16ec5cbeb1f87824b7c9dc6d7cfbe2d",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 8,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 11,
+    "captions": 0,
+    "nodes": 10,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1165.877 340.025",
+    "titlePresent": null,
+    "locations": [],
+    "upperArrivals": [
+      {
+        "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+        "end": [
+          595.881,
+          98.2416666667
+        ]
+      },
+      {
+        "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+        "end": [
+          508.8595,
+          125.141666667
+        ]
+      },
+      {
+        "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "end": [
+          508.8595,
+          138.591666667
+        ]
+      }
+    ],
+    "distinctUpperArrivals": 3,
+    "lowerPayers": [
+      "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+    ]
+  },
+  {
+    "id": "bm52-wallet",
+    "arm": "zm",
+    "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+    "svgSHA256": "ed267ae06e0e03832c216529b1d152754c3573ded36fcc86409330cd8d6db1b6",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 11,
+    "captions": 0,
+    "nodes": 10,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1037.94 521",
+    "titlePresent": null,
+    "locations": [],
+    "upperArrivals": [
+      {
+        "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+        "end": [
+          461.94,
+          179.0
+        ]
+      },
+      {
+        "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+        "end": [
+          461.94,
+          197.0
+        ]
+      },
+      {
+        "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "end": [
+          461.94,
+          215.0
+        ]
+      }
+    ],
+    "distinctUpperArrivals": 3,
+    "lowerPayers": [
+      "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+    ]
+  },
+  {
+    "id": "bm83-workflow",
+    "arm": "pele-hosted",
+    "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+    "svgSHA256": "3fc1488d651ad9cae3415a72b8e33f2edd5cfa8fc208c9a93172b207d78c9f84",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 18,
+    "nodes": 34,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 779 3497",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "bm83-workflow",
+    "arm": "pele-npm",
+    "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+    "svgSHA256": "7ffc163c7767bc57ff3bb201a822831351fa8372e217bd4191ec2729851528ad",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 18,
+    "nodes": 34,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 806 3911",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "bm83-workflow",
+    "arm": "am",
+    "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+    "svgSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 18,
+    "nodes": 34,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1074.186 3899.55",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "bm83-workflow",
+    "arm": "zm",
+    "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+    "svgSHA256": "d33e37ccbaf30055f7d04864198443fbd496189be9b7789d4bf46dfdd53230ca",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 18,
+    "nodes": 34,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1153.35 3494.1",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "nineteen-body",
+    "arm": "pele-hosted",
+    "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+    "svgSHA256": "1d70fcac9632dd9c271268175d8951b5d3f87a4fadf61e1dbd04ffb8a24f949b",
+    "ok": false,
+    "error": "AssertionError(('caption associations', Counter({('n0', 'n4', 'edge 16 xxxxxxxxxxxxxxxxxxx'): 1}), Counter({('n0', 'n4', 'edge 16xxxxxxxxxxxxxxxxxxx'): 1})))"
+  },
+  {
+    "id": "nineteen-body",
+    "arm": "pele-npm",
+    "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+    "svgSHA256": "f878c9a1d8391af82045fd358bf6d4d5ce982ef1d97e5e080866965bc9ca1962",
+    "ok": true,
+    "properCrossings": 38,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 1857 1435",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n0_n14_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            254.93072091352172,
+            254.93072091352172
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n16_n3_0"
+        ],
+        "point": [
+          [
+            1288.2894481416297,
+            1288.2894481416297
+          ],
+          [
+            250.33288435866655,
+            250.33288435866655
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n4_n18_0",
+          "L_n3_n0_0"
+        ],
+        "point": [
+          [
+            1474.55,
+            1474.55
+          ],
+          [
+            245.02444956776841,
+            245.02444956776841
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n11_n17_0",
+          "L_n14_n3_0"
+        ],
+        "point": [
+          [
+            1230.06,
+            1230.06
+          ],
+          [
+            869.5367342217017,
+            869.5367342217017
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n15_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            749.3919367830322,
+            749.3919367830322
+          ],
+          [
+            1187.5487153849422,
+            1187.5487153849422
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n7_n15_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            847.8685416583907,
+            847.8685416583907
+          ],
+          [
+            1197.888273679323,
+            1197.888273679323
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n11_n10_0"
+        ],
+        "point": [
+          [
+            784.7,
+            784.7
+          ],
+          [
+            886.9319313480361,
+            886.9319313480361
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n15_n10_0"
+        ],
+        "point": [
+          [
+            690.95,
+            690.95
+          ],
+          [
+            893.60062687695,
+            893.60062687695
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n14_n1_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            907.1738834496217,
+            907.1738834496217
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n16_n3_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            240.15117458235653,
+            240.15117458235653
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n3_n5_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            510.2638638850986,
+            510.2638638850986
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n3_n5_2"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            505.64999122515906,
+            505.64999122515906
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            333.3853802283234,
+            333.3853802283234
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n17_n10_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            650.6135925397651,
+            650.6135925397651
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n5_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            512.331396014101,
+            512.331396014101
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n0_n14_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            1139.57,
+            1139.57
+          ],
+          [
+            649.7404129480204,
+            649.7404129480204
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n16_n3_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1458.55,
+            1458.55
+          ],
+          [
+            678.9806745611776,
+            678.9806745611776
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n8_n5_0"
+        ],
+        "point": [
+          [
+            176.49,
+            176.49
+          ],
+          [
+            533.0452944640019,
+            533.0452944640019
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            324.9211825512364,
+            324.9211825512364
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n18_n13_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            331.672936199347,
+            331.672936199347
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n0_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1474.55,
+            1474.55
+          ],
+          [
+            680.2918352570683,
+            680.2918352570683
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n5_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            498.14230702996184,
+            498.14230702996184
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n8_n5_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            509.53526763832673,
+            509.53526763832673
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_0",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1232.06,
+            1232.06
+          ],
+          [
+            516.4150376730719,
+            516.4150376730719
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_0",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1418.55,
+            1418.55
+          ],
+          [
+            675.6982731801345,
+            675.6982731801345
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n13_0",
+          "L_n2_n14_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            504.3571418896861,
+            504.3571418896861
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n13_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            514.6086024846809,
+            514.6086024846809
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n17_n10_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            654.8318500047233,
+            654.8318500047233
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            509.5780309249407,
+            509.5780309249407
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n2_n14_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            947.97,
+            947.97
+          ],
+          [
+            653.9049183408097,
+            653.9049183408097
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_2",
+          "L_n18_n17_0"
+        ],
+        "point": [
+          [
+            1232.06,
+            1232.06
+          ],
+          [
+            512.4061043343511,
+            512.4061043343511
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n3_n5_2",
+          "L_n15_n17_0"
+        ],
+        "point": [
+          [
+            1434.55,
+            1434.55
+          ],
+          [
+            677.0208944440197,
+            677.0208944440197
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n15_n17_0",
+          "L_n4_n6_0"
+        ],
+        "point": [
+          [
+            1565.9,
+            1565.9
+          ],
+          [
+            688.7282777050871,
+            688.7282777050871
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n9_0",
+          "L_n5_n9_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            790.4330413468814,
+            790.4330413468814
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n10_n9_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            435.07,
+            435.07
+          ],
+          [
+            796.6233670067261,
+            796.6233670067261
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n9_0",
+          "L_n1_n17_0"
+        ],
+        "point": [
+          [
+            530.22,
+            530.22
+          ],
+          [
+            662.0144025865278,
+            662.0144025865278
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n5_n9_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            522.8309875165334,
+            522.8309875165334
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "L_n1_n17_0",
+          "L_n2_n10_0"
+        ],
+        "point": [
+          [
+            695.13,
+            695.13
+          ],
+          [
+            658.6025662223251,
+            658.6025662223251
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nineteen-body",
+    "arm": "am",
+    "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+    "svgSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+    "ok": true,
+    "properCrossings": 37,
+    "unknown": [],
+    "overlappingSegmentEvents": 7,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1473.00115 1566.829",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "edge:n9->n13#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1463.554,
+            1463.554
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            341.012333333,
+            341.012333333
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n15->n10#0"
+        ],
+        "point": [
+          [
+            417.902333333,
+            417.902333333
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n10->n14#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            262.512333333,
+            262.512333333
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n9->n13#1",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1440.64525,
+            1440.64525
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n8->n5#0"
+        ],
+        "point": [
+          [
+            761.6224,
+            761.6224
+          ],
+          [
+            1124.824,
+            1124.824
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n5->n9#0"
+        ],
+        "point": [
+          [
+            777.68355,
+            777.68355
+          ],
+          [
+            1265.574,
+            1265.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n17#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            761.6224,
+            761.6224
+          ],
+          [
+            885.974,
+            885.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n7->n15#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            479.517333333,
+            479.517333333
+          ],
+          [
+            652.73,
+            652.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n11->n10#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            652.73,
+            652.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n8->n5#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            1124.824,
+            1124.824
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n11->n15#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            664.73,
+            664.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n14->n1#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            643.874066667,
+            643.874066667
+          ],
+          [
+            885.974,
+            885.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n2->n18#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n3->n5#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n14->n3#0"
+        ],
+        "point": [
+          [
+            902.8764,
+            902.8764
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n0->n14#0",
+          "edge:n3->n11#0"
+        ],
+        "point": [
+          [
+            978.3904,
+            978.3904
+          ],
+          [
+            359.78,
+            359.78
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n11->n10#0",
+          "edge:n15->n10#0"
+        ],
+        "point": [
+          [
+            417.902333333,
+            417.902333333
+          ],
+          [
+            652.73,
+            652.73
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n3->n5#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            971.624,
+            971.624
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n4->n12#0"
+        ],
+        "point": [
+          [
+            1107.30169167,
+            1107.30169167
+          ],
+          [
+            971.624,
+            971.624
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n14->n3#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            432.68,
+            432.68
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n3->n11#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            512.98,
+            512.98
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n18#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            825.3764,
+            825.3764
+          ],
+          [
+            885.974,
+            885.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n16->n3#0",
+          "edge:n4->n6#0"
+        ],
+        "point": [
+          [
+            1318.80715,
+            1318.80715
+          ],
+          [
+            119.0875,
+            119.0875
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n18->n13#0",
+          "edge:n3->n5#1"
+        ],
+        "point": [
+          [
+            1281.20965,
+            1281.20965
+          ],
+          [
+            1124.824,
+            1124.824
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n8->n5#0",
+          "edge:n15->n17#0"
+        ],
+        "point": [
+          [
+            520.560066667,
+            520.560066667
+          ],
+          [
+            1124.824,
+            1124.824
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#0",
+          "edge:n15->n4#0"
+        ],
+        "point": [
+          [
+            997.4134,
+            997.4134
+          ],
+          [
+            885.974,
+            885.974
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n13#0",
+          "edge:n18->n17#0"
+        ],
+        "point": [
+          [
+            1113.61098333,
+            1113.61098333
+          ],
+          [
+            1299.064,
+            1299.064
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n1->n9#0",
+          "edge:n15->n17#0"
+        ],
+        "point": [
+          [
+            595.80415,
+            595.80415
+          ],
+          [
+            1289.574,
+            1289.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n8#0",
+          "edge:n17->n10#0"
+        ],
+        "point": [
+          [
+            262.512333333,
+            262.512333333
+          ],
+          [
+            1063.174,
+            1063.174
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n2->n8#0",
+          "edge:n10->n9#0"
+        ],
+        "point": [
+          [
+            158.254,
+            158.254
+          ],
+          [
+            1063.174,
+            1063.174
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n18->n17#0"
+        ],
+        "point": [
+          [
+            1192.7044,
+            1192.7044
+          ],
+          [
+            1124.824,
+            1124.824
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n4->n6#0"
+        ],
+        "point": [
+          [
+            1305.80715,
+            1305.80715
+          ],
+          [
+            916.799,
+            916.799
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n3->n5#1",
+          "edge:n16->n18#0"
+        ],
+        "point": [
+          [
+            1305.80715,
+            1305.80715
+          ],
+          [
+            971.624,
+            971.624
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n15->n17#0",
+          "edge:n5->n9#0"
+        ],
+        "point": [
+          [
+            627.11165,
+            627.11165
+          ],
+          [
+            1289.574,
+            1289.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n17->n10#0",
+          "edge:n10->n9#0"
+        ],
+        "point": [
+          [
+            220.940733333,
+            220.940733333
+          ],
+          [
+            1301.574,
+            1301.574
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "edge:n5->n9#0",
+          "edge:n1->n17#0"
+        ],
+        "point": [
+          [
+            660.004733333,
+            660.004733333
+          ],
+          [
+            1265.574,
+            1265.574
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nineteen-body",
+    "arm": "zm",
+    "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+    "svgSHA256": "a47e8fe22e7738d47d106e7c48b91aeee36c53afd00edf572a6b1bceaa6869e3",
+    "ok": true,
+    "properCrossings": 31,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 44,
+    "captions": 11,
+    "nodes": 19,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 1830.28 2377.07",
+    "titlePresent": null,
+    "locations": [
+      {
+        "edges": [
+          "n15->n8#5",
+          "n3->n5#19"
+        ],
+        "point": [
+          [
+            260.63,
+            260.63
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n8#5",
+          "n14->n3#28"
+        ],
+        "point": [
+          [
+            345.13,
+            345.13
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n4->n18#7",
+          "n16->n3#14"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            242.0,
+            242.0
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n17#8",
+          "n14->n1#10"
+        ],
+        "point": [
+          [
+            788.28,
+            788.28
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n11->n17#8",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            788.28,
+            788.28
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n11->n10#12"
+        ],
+        "point": [
+          [
+            669.04,
+            669.04
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n3->n5#25"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n1#10",
+          "n15->n17#31"
+        ],
+        "point": [
+          [
+            860.44,
+            860.44
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n8->n5#18"
+        ],
+        "point": [
+          [
+            166.71,
+            166.71
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n3->n5#19"
+        ],
+        "point": [
+          [
+            260.63,
+            260.63
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n2->n8#24"
+        ],
+        "point": [
+          [
+            92.5,
+            92.5
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n0->n14#11",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            368.21,
+            368.21
+          ],
+          [
+            1028.97,
+            1028.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n16->n3#14",
+          "n4->n6#35"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            1847.07,
+            1847.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n16->n3#14",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            1338.22,
+            1338.22
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n8->n5#18",
+          "n2->n14#23"
+        ],
+        "point": [
+          [
+            361.93,
+            361.93
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n8->n5#18",
+          "n2->n10#43"
+        ],
+        "point": [
+          [
+            483.77,
+            483.77
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#19",
+          "n2->n14#23"
+        ],
+        "point": [
+          [
+            361.93,
+            361.93
+          ],
+          [
+            490.48,
+            490.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#19",
+          "n2->n10#43"
+        ],
+        "point": [
+          [
+            483.77,
+            483.77
+          ],
+          [
+            490.48,
+            490.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n5->n13#20",
+          "n18->n17#26"
+        ],
+        "point": [
+          [
+            994.67,
+            994.67
+          ],
+          [
+            470.48,
+            470.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n2->n14#23",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            439.88,
+            439.88
+          ],
+          [
+            920.97,
+            920.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n18->n17#26"
+        ],
+        "point": [
+          [
+            928.31,
+            928.31
+          ],
+          [
+            530.48,
+            530.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n3->n11#37"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1451.07,
+            1451.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n5#25",
+          "n1->n17#41"
+        ],
+        "point": [
+          [
+            904.18,
+            904.18
+          ],
+          [
+            706.67,
+            706.67
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n18->n17#26",
+          "n5->n9#39"
+        ],
+        "point": [
+          [
+            943.76,
+            943.76
+          ],
+          [
+            530.48,
+            530.48
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n14->n3#28",
+          "n15->n10#30"
+        ],
+        "point": [
+          [
+            368.21,
+            368.21
+          ],
+          [
+            1048.97,
+            1048.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n17#31",
+          "n10->n9#36"
+        ],
+        "point": [
+          [
+            860.44,
+            860.44
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n15->n17#31",
+          "n3->n11#37"
+        ],
+        "point": [
+          [
+            750.13,
+            750.13
+          ],
+          [
+            1431.07,
+            1431.07
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n10->n9#36",
+          "n1->n17#41"
+        ],
+        "point": [
+          [
+            1021.18,
+            1021.18
+          ],
+          [
+            900.97,
+            900.97
+          ]
+        ]
+      },
+      {
+        "edges": [
+          "n3->n11#37",
+          "n15->n4#40"
+        ],
+        "point": [
+          [
+            1076.16,
+            1076.16
+          ],
+          [
+            1665.07,
+            1665.07
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "bm111-labelled-fan",
+    "arm": "pele-hosted",
+    "inputSHA256": "60069d012d0711cda2532f4886135609d5b7c7fc1ceb15d743b230eac56fd344",
+    "svgSHA256": "7bd6c53761dc7ff60b150bd1a7f30a2694140a2de9ccbba629e464bf97a26345",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 3,
+    "captions": 3,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 481 185",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "bm111-labelled-fan",
+    "arm": "pele-npm",
+    "inputSHA256": "60069d012d0711cda2532f4886135609d5b7c7fc1ceb15d743b230eac56fd344",
+    "svgSHA256": "1ceceaadd94ca0725eaa2d6255def9ac188b371305e48766a6ff23adb289ee4a",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 3,
+    "captions": 3,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 469 185",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "bm111-labelled-fan",
+    "arm": "am",
+    "inputSHA256": "60069d012d0711cda2532f4886135609d5b7c7fc1ceb15d743b230eac56fd344",
+    "svgSHA256": "7b6cfa6c51d1796d2bc77ce2fb1fed33edfa21b7bbf2609b2674f9f36b83d7d2",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 3,
+    "captions": 3,
+    "nodes": 4,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 490.819 313.1",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "zm629-round-trip",
+    "arm": "pele-hosted",
+    "inputSHA256": "6866342d61b448c2a36a28584a2d0d30618bdd1a1ceed19132dd12d117317491",
+    "svgSHA256": "109a29936ff3cf603f7b0114256c3f8b814f7c3533b668ee57f3b691a5bdd1fa",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 2,
+    "captions": 2,
+    "nodes": 2,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 322 82",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "zm629-round-trip",
+    "arm": "pele-npm",
+    "inputSHA256": "6866342d61b448c2a36a28584a2d0d30618bdd1a1ceed19132dd12d117317491",
+    "svgSHA256": "39701b8b038097fa454c744fffda44ccecce1685dfb8411f8161d4d715150402",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 2,
+    "captions": 2,
+    "nodes": 2,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "pass",
+    "markerForwardDirection": "all end arrows face forward",
+    "viewBox": "0 0 312 82",
+    "titlePresent": null,
+    "locations": []
+  },
+  {
+    "id": "zm629-round-trip",
+    "arm": "am",
+    "inputSHA256": "6866342d61b448c2a36a28584a2d0d30618bdd1a1ceed19132dd12d117317491",
+    "svgSHA256": "b6c5bd294e8cf3e4d936c3e09796e84ac2e0e4fa092c34071c87f6c020833829",
+    "ok": true,
+    "properCrossings": 0,
+    "unknown": [],
+    "overlappingSegmentEvents": 0,
+    "fullyCoincidentDirectedShaftPairs": [],
+    "edgeOccurrences": 2,
+    "captions": 2,
+    "nodes": 2,
+    "sourceTargetOccurrenceCaptionCorrespondence": "pass",
+    "nodeDisplayCorrespondence": "existing AM metadata; ZM node display not recertified",
+    "markerForwardDirection": "not newly assessed",
+    "viewBox": "0 0 435.48 169.9",
+    "titlePresent": null,
+    "locations": []
+  }
+]

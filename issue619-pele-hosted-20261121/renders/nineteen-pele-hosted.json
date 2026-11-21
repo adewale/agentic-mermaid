@@ -1,0 +1,759 @@
+{
+  "id": "nineteen",
+  "url": "https://pele.run/playground",
+  "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "sourceOrigin": "Exact1052-byte titled19-node witness",
+  "startedAt": "2026-11-21T23:42:30.470Z",
+  "browser": "156.0.8078.79",
+  "authorization": "Owner explicitly requested hosted Pele tests after being told the hosted upload was previously blocked; only these saved public/generated fixtures are submitted.",
+  "options": "Untouched fresh playground defaults; source editor only. No timing/heap claim.",
+  "initialBody": "Pele\nPlayground\n1.13.0\nSettings\nSearch\n⌘K\nSource\nMermaid\nCSS\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\nflowchart TD\n  A([Mermaid text]) --> B{Supported?}\n  B -- Yes --> C[Parse]\n  B -- No --> H[Fall back]\n\n\n  subgraph Pele\n    C --> D[Layout]\n    D --> E[Render]\n  end\n\n\n  E --> F[(SVG)]\n  F -.-> G[Theme with CSS]\n\n\nValid flowchart\nOutput\nPele\nMermaid\nSVG\nCompare\nPele\nYes\nNo\nMermaid text\nSupported?\nParse\nFall back\nLayout\nRender\nSVG\nTheme with CSS\nPele 1.2 ms",
+  "title": "Playground · Pele",
+  "editorSource": "---\ntitle: Cyclic routes\n---\nflowchart TD\nn0[[Node 76-0]]\nn1[(Node 76-1)]\nn2[Node 76-2]\nn3{Node 76-3}\nn4(Node 76-4)\nn5((Node 76-5))\nn6[[Node 76-6]]\nn7[(Node 76-7)]\nn8[Node 76-8]\nn9{Node 76-9}\nn10(Node 76-10)\nn11((Node 76-11))\nn12[[Node 76-12]]\nn13[(Node 76-13)]\nn14[Node 76-14]\nn15{Node 76-15}\nn16(Node 76-16)\nn17((Node 76-17))\nn18[[Node 76-18]]\nn14 -->|edge 0 xxx| n11\nn0 --> n4\nn9 --> n13\nn10 --> n14\nn18 -->|edge 4 xxxxxxx| n5\nn15 --> n8\nn9 --> n13\nn4 --> n18\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn7 --> n15\nn14 --> n1\nn0 --> n14\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n10\nn2 --> n18\nn16 --> n3\nn18 --> n13\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n0\nn8 --> n5\nn3 --> n5\nn5 -->|edge 20 xxxxxx| n13\nn1 --> n9\nn6 --> n3\nn2 --> n14\nn2 -->|edge 24 xxxxxxxxxx| n8\nn3 --> n5\nn18 --> n17\nn4 --> n12\nn14 -->|edge 28 xxxxxxxxxxxxxx| n3\nn11 --> n15\nn15 --> n10\nn15 --> n17\nn17 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10\nn5 --> n17\nn0 --> n4\nn4 --> n6\nn10 -->|edge 36 xxxxx| n9\nn3 --> n11\nn16 --> n18\nn5 --> n9\nn15 -->|edge 40 xxxxxxxxx| n4\nn1 --> n17\nn6 --> n3\nn2 --> n10\n",
+  "bodyText": "Pele\nPlayground\n1.13.0\nSettings\nSearch\n⌘K\nSource\nMermaid\nCSS\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n---\ntitle: Cyclic routes\n---\nflowchart TD\nn0[[Node 76-0]]\nn1[(Node 76-1)]\nn2[Node 76-2]\nn3{Node 76-3}\nn4(Node 76-4)\nn5((Node 76-5))\nn6[[Node 76-6]]\nn7[(Node 76-7)]\nn8[Node 76-8]\nn9{Node 76-9}\nn10(Node 76-10)\nn11((Node 76-11))\nn12[[Node 76-12]]\nn13[(Node 76-13)]\nn14[Node 76-14]\nn15{Node 76-15}\nn16(Node 76-16)\nn17((Node 76-17))\nn18[[Node 76-18]]\nn14 -->|edge 0 xxx| n11\nn0 --> n4\nn9 --> n13\nn10 --> n14\nn18 -->|edge 4 xxxxxxx| n5\nn15 --> n8\nn9 --> n13\nn4 --> n18\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn7 --> n15\nn14 --> n1\nn0 --> n14\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n10\nn2 --> n18\nn16 --> n3\nn18 --> n13\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n0\nn8 --> n5\nn3 --> n5\nn5 -->|edge 20 xxxxxx| n13\nn1 --> n9\nn6 --> n3\nn2 --> n14\nn2 -->|edge 24 xxxxxxxxxx| n8\nn3 --> n5\nn18 --> n17\nn4 --> n12\nn14 -->|edge 28 xxxxxxxxxxxxxx| n3\nn11 --> n15\nn15 --> n10\nn15 --> n17\nn17 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10\nn5 --> n17\nn0 --> n4\nn4 --> n6\nn10 -->|edge 36 xxxxx| n9\nn3 --> n11\nn16 --> n18\nn5 --> n9\nn15 -->|edge 40 xxxxxxxxx| n4\nn1 --> n17\nn6 --> n3\nn2 --> n10\n\n\nValid flowchart\nOutput\nPele\nMermaid\nSVG\nCompare\nCyclic routes\nedge 0 xxx\nedge 4 xxxxxxx\nedge 8 xxxxxxxxxxx\nedge 12 xxxxxxxxxxxxxxx\nedge 16xxxxxxxxxxxxxxxxxxx\nedge 20 xxxxxx\nedge 24 xxxxxxxxxx\nedge 28 xxxxxxxxxxxxxx\nedge 32 xxxxxxxxxxxxxxxxxx\nedge 36 xxxxx\nedge 40 xxxxxxxxx\nNode 76-0\nNode 76-1\nNode 76-2\nNode 76-3\nNode 76-4\nNode 76-5\nNode 76-6\nNode 76-7\nNode 76-8\nNode 76-9\nNode 76-10\nNode 76-11\nNode 76-12\nNode 76-13\nNode 76-14\nNode 76-15\nNode 76-16\nNode 76-17\nNode 76-18\nPele 7.2 ms",
+  "computedFont": {
+    "fontFamily": "-apple-system, BlinkMacSystemFont, \"Inter Variable\", Inter, \"Segoe UI\", Helvetica, Arial, sans-serif",
+    "fontSize": "16px",
+    "fontWeight": "400"
+  },
+  "nodeCount": 19,
+  "edgeCount": 44,
+  "ok": true,
+  "svgSHA256": "033034f50ad62688dc6accbf7acc1313a26516d658fa4b84d79d2af7939f5223",
+  "editorSourceSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "observedVersion": "1.13.0",
+  "assets": [
+    {
+      "url": "https://pele.run/_astro/BaseLayout.astro_astro_type_script_index_0_lang.7FimT-OZ.js",
+      "status": 200,
+      "bytes": 11343,
+      "sha256": "518c77bbff610c2252750165577b6e171d1e4a1d8f5d7c1e6f147ffe51609421"
+    },
+    {
+      "url": "https://pele.run/_astro/playground.astro_astro_type_script_index_0_lang.y62gwsnj.js",
+      "status": 200,
+      "bytes": 360763,
+      "sha256": "2ff7509c449292f00bd493c2ee8e97af4b585db8fc3e4db4952eb5eec5103a5d"
+    },
+    {
+      "url": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+      "status": 200,
+      "bytes": 31853,
+      "sha256": "637381256384554e1cc3309a62fb238a51b83e7f10b2a56d8ba15dbc73ca762e"
+    },
+    {
+      "url": "https://pele.run/_astro/preload-helper.oCYlU9a4.js",
+      "status": 200,
+      "bytes": 1529,
+      "sha256": "de5c467ce89321f64c1e0bcecb7bf7075c7d0186d3a48b01b9f3a0ccb7a53145"
+    },
+    {
+      "url": "https://pele.run/_astro/src.CSvbK_V2.js",
+      "status": 200,
+      "bytes": 1483,
+      "sha256": "54e7b7c7199091a8eb151e2975b1ff7afa3c36f6fddda598d63be6f306af707d"
+    },
+    {
+      "url": "https://pele.run/_astro/zoom.x9P8qq85.js",
+      "status": 200,
+      "bytes": 8075,
+      "sha256": "fd71a8fac72a52d03417724e207117fd6a25426cbeb20d6e802c59b6b8dea3b2"
+    },
+    {
+      "url": "https://pele.run/_astro/timing.BXbhYk8t.js",
+      "status": 200,
+      "bytes": 15650,
+      "sha256": "4def3c2f5b4921d1d7cb0143aa5e3290b8c71fd8e1c2a9cf01df5caab70a3378"
+    },
+    {
+      "url": "https://pele.run/_astro/highlight.BDgzjF2X.js",
+      "status": 200,
+      "bytes": 41493,
+      "sha256": "236af6044640167366d964628dd1bcb1c209ed78eb403edd45a3d1333f41b3da"
+    },
+    {
+      "url": "https://pele.run/_astro/playground-mermaid.CxUPyJiv.js",
+      "status": 200,
+      "bytes": 1251,
+      "sha256": "9514423e0a589dff4f6b50a8b3a9732a8f45196b4b66e59fcb224836f4949c86"
+    },
+    {
+      "url": "https://pele.run/_astro/architecture.f27W7m4T.js",
+      "status": 200,
+      "bytes": 20861,
+      "sha256": "ad21d9f64996a49518e16dfd44abaeee6ff0008cdc362c848fe60b5fde3fbe38"
+    },
+    {
+      "url": "https://pele.run/_astro/er.qOFUIy7h.js",
+      "status": 200,
+      "bytes": 26656,
+      "sha256": "c41b696c5e73b498fa39ea3cf35cf5e0217b52880cb213c478cd50c913144058"
+    },
+    {
+      "url": "https://pele.run/_astro/agentflow.bHLYAVze.js",
+      "status": 200,
+      "bytes": 46725,
+      "sha256": "b7818304ecd16bb26ee4db593bf03957423a0dcd47bdf283fcd6b85ad55448ba"
+    },
+    {
+      "url": "https://pele.run/_astro/class.DCugVXU1.js",
+      "status": 200,
+      "bytes": 35318,
+      "sha256": "1bbd22b21f22a95f06f4a4e08079cfac97c9256adb3b26b2f53279e97a41fd43"
+    },
+    {
+      "url": "https://pele.run/_astro/c4.B-Rp1jX8.js",
+      "status": 200,
+      "bytes": 31039,
+      "sha256": "edfa93750de01993d1b18cd6588705b0344ab50183ecd89a260a484a779bd4b7"
+    },
+    {
+      "url": "https://pele.run/_astro/cynefin.BHAyjZIS.js",
+      "status": 200,
+      "bytes": 9343,
+      "sha256": "cc3223306d0159c37e75bfb806ec37c20213a1f17ce3346e54a91ea21d6f3edc"
+    },
+    {
+      "url": "https://pele.run/_astro/eventmodeling.CzZ-yOKX.js",
+      "status": 200,
+      "bytes": 15308,
+      "sha256": "9e3a95bca8b3f5e6157ab3d3ea7cf1881b8f49a15b65487c86e834a320f3435b"
+    },
+    {
+      "url": "https://pele.run/_astro/block.B77VG6HA.js",
+      "status": 200,
+      "bytes": 29788,
+      "sha256": "e4fa9c7384ffa4e846400f73361572de74f739f2bdc60e8fc987765b21d2f11a"
+    },
+    {
+      "url": "https://pele.run/_astro/gantt.BHJ1rKbU.js",
+      "status": 200,
+      "bytes": 32465,
+      "sha256": "c2bb9d68da193dbbb62cbbe7bc0ab6cfa6d00a0d26b7829353752f1a3e642267"
+    },
+    {
+      "url": "https://pele.run/_astro/flowchart.DvHsHz8m.js",
+      "status": 200,
+      "bytes": 39153,
+      "sha256": "55839098ae6719fdb206cfd20c6cc222e97dbcfeaed5e891b43ca4f6f4eeaa42"
+    },
+    {
+      "url": "https://pele.run/_astro/ishikawa.DJiKyi7b.js",
+      "status": 200,
+      "bytes": 7484,
+      "sha256": "0c27fe3740c1dff764045dfa2e0ebbbc9850686459e2be1b7914fc0df7038860"
+    },
+    {
+      "url": "https://pele.run/_astro/git.Bdb2kqC6.js",
+      "status": 200,
+      "bytes": 13553,
+      "sha256": "f055945393c200d307a93f8ee903499233f4c6fa6f40e6ccd3cbfd8f583f96ec"
+    },
+    {
+      "url": "https://pele.run/_astro/info.CmfNLq_U.js",
+      "status": 200,
+      "bytes": 1475,
+      "sha256": "7e092eae1c79e445c3ba462e7790fc6c0b542bb32837b31ab94cb1d071e3f5fd"
+    },
+    {
+      "url": "https://pele.run/_astro/journey.BDFqL2uS.js",
+      "status": 200,
+      "bytes": 9026,
+      "sha256": "540607c01b410d45ded864210c28750567193e023585a003227417c4e929e468"
+    },
+    {
+      "url": "https://pele.run/_astro/kanban.DCpFqNiv.js",
+      "status": 200,
+      "bytes": 6497,
+      "sha256": "d8d32e209e0e995ebabbf2f9e77cc47ac75bd3877e7e6d3cf16b99971a1aebe7"
+    },
+    {
+      "url": "https://pele.run/_astro/sequence.CCzNCc6m.js",
+      "status": 200,
+      "bytes": 50265,
+      "sha256": "173b8b2ec727e02d25b9db24c6f3eb2d389531428f2d858d54002a81a01f8d27"
+    },
+    {
+      "url": "https://pele.run/_astro/quadrant.3gPTBtN-.js",
+      "status": 200,
+      "bytes": 13681,
+      "sha256": "6595608e0dc264174a85a8533b9663b2c654306274919ddcde0b18767f7bb9be"
+    },
+    {
+      "url": "https://pele.run/_astro/packet.MutX1Aie.js",
+      "status": 200,
+      "bytes": 5203,
+      "sha256": "c4c99092cb7fb473150cefbd475d8f5a16a21d5b8b0d52e6d1a63f92155c3414"
+    },
+    {
+      "url": "https://pele.run/_astro/sankey.CIEecEPm.js",
+      "status": 200,
+      "bytes": 12523,
+      "sha256": "7f6864d2055e055c7aa826c0b8e453e5f71a82e0e8d7815f451338267c93b221"
+    },
+    {
+      "url": "https://pele.run/_astro/requirement.CxBk3D9v.js",
+      "status": 200,
+      "bytes": 20035,
+      "sha256": "a77d4ec1a61bd0b915ef8cea95284fb7f20171821371350f419fe3dced249c9e"
+    },
+    {
+      "url": "https://pele.run/_astro/radar.Qq6J6u_O.js",
+      "status": 200,
+      "bytes": 7655,
+      "sha256": "a35ae4748d44374217400a96178e904271bf12fded3b4aaadbd2abbbd4149950"
+    },
+    {
+      "url": "https://pele.run/_astro/pie.CPyMF-4V.js",
+      "status": 200,
+      "bytes": 5397,
+      "sha256": "8e9d9e29c549388333d1c1df66f7e1ceedb0d028d96540a11cb15b9578de43a9"
+    },
+    {
+      "url": "https://pele.run/_astro/mindmap.c-qRonJV.js",
+      "status": 200,
+      "bytes": 5793,
+      "sha256": "e0a883a3dd609214852b07ef226ece9d7b1e6daa8464bba71298b934f1e902a3"
+    },
+    {
+      "url": "https://pele.run/_astro/railroad.C03ReVME.js",
+      "status": 200,
+      "bytes": 20667,
+      "sha256": "37e4ce347ec8bd4e462b00e1fb2a9a09f29631b2205de117ded72d6d37dd40b5"
+    },
+    {
+      "url": "https://pele.run/_astro/timeline.BJQHxmid.js",
+      "status": 200,
+      "bytes": 8125,
+      "sha256": "4cc2ce803666d103f39ae9f3fb73f6e72d242d4efde7cf4844b5c6a8d51f9ee1"
+    },
+    {
+      "url": "https://pele.run/_astro/fit-width.CdyD9Uzg.js",
+      "status": 200,
+      "bytes": 829,
+      "sha256": "1d4cfbe4ad4d8ca983f868e29a826dd8993af3ee938b416fd063f616e433c072"
+    },
+    {
+      "url": "https://pele.run/_astro/state.BMbofFug.js",
+      "status": 200,
+      "bytes": 31256,
+      "sha256": "fb9f59b795aa45bd98f07a22e07d30e0cfbde9d394a2396d359f87be81f7a4a4"
+    },
+    {
+      "url": "https://pele.run/_astro/src.5JmET6yv.js",
+      "status": 200,
+      "bytes": 46749,
+      "sha256": "a0675c1b854c52d3fe1fdad323bdecda934cc1c95cbdd8224e687eb0063c0f24"
+    },
+    {
+      "url": "https://pele.run/_astro/treemap.Cx2bO-UK.js",
+      "status": 200,
+      "bytes": 9067,
+      "sha256": "543bc38d74e25730688981159eb8ea3bad4112615e224100198417c0242fe69a"
+    },
+    {
+      "url": "https://pele.run/_astro/tokens.Dzd--6cR.js",
+      "status": 200,
+      "bytes": 3714,
+      "sha256": "4c03958ff8ec7e968f42d49e53f35fc8dc1b3b3892ce288e5cefa498154dfdea"
+    },
+    {
+      "url": "https://pele.run/_astro/cluster.BotoOv8E.js",
+      "status": 200,
+      "bytes": 973,
+      "sha256": "d6b978d67beb6aa55797694b5788ad8fdce0d6bf62bdb8b9a50f912757568a94"
+    },
+    {
+      "url": "https://pele.run/_astro/treeview.DPE7A0f6.js",
+      "status": 200,
+      "bytes": 11250,
+      "sha256": "d84db723c2e9e66f66ba2b96ccf29c5a98fe2d437f77d0c06a2f99ac00f7bfa3"
+    },
+    {
+      "url": "https://pele.run/_astro/swimlane.D3TEUVyP.js",
+      "status": 200,
+      "bytes": 12252,
+      "sha256": "374c09135d76b97025446644a53b5a8e036aabcdae0eb8c99f34560831aba102"
+    },
+    {
+      "url": "https://pele.run/_astro/edges.ByDd4TCF.js",
+      "status": 200,
+      "bytes": 37433,
+      "sha256": "2d8230842d08ca9809c688eb6addf5acd58471368de420a6916b4f1452db69a9"
+    },
+    {
+      "url": "https://pele.run/_astro/wardley.BAM63Xd4.js",
+      "status": 200,
+      "bytes": 19135,
+      "sha256": "24df57230880ce3a3056c4332d94691407917b9bc982694f6a5a341d8e73ead1"
+    },
+    {
+      "url": "https://pele.run/_astro/label.JMTrn7VF.js",
+      "status": 200,
+      "bytes": 10120,
+      "sha256": "ea4f00a43be541566c9e18bbc51c957cf7e7b07371713e7a2507bf6682a23d5b"
+    },
+    {
+      "url": "https://pele.run/_astro/xychart.BRlckafn.js",
+      "status": 200,
+      "bytes": 16356,
+      "sha256": "3781b57b363172e4bb449d72ce7e50607a40633e66170c207c2fb6fe15967a70"
+    },
+    {
+      "url": "https://pele.run/_astro/compound.Bn3XvsMM.js",
+      "status": 200,
+      "bytes": 13489,
+      "sha256": "5ebc33e774805ff2855f8317a038670c5fee6cac1472d8c8141dcc47f8e2b618"
+    },
+    {
+      "url": "https://pele.run/_astro/venn.Baq-1lYb.js",
+      "status": 200,
+      "bytes": 15604,
+      "sha256": "0e7bc218a592485074ff3c98b98a70007e540d7d1f4bca2aa5fcc432acd84027"
+    },
+    {
+      "url": "https://pele.run/_astro/generics.BZmnMkFw.js",
+      "status": 200,
+      "bytes": 558,
+      "sha256": "747827799bd16dd50dfb55a7190a7aefa4c7cc70062b924eec205b7a64426a66"
+    },
+    {
+      "url": "https://pele.run/_astro/url.BjrTyvra.js",
+      "status": 200,
+      "bytes": 1954,
+      "sha256": "9109e1a0707d28b520e7589a9fd44f11157a32c0f4c569d6601bc1c97b21bf3f"
+    },
+    {
+      "url": "https://pele.run/_astro/usecase.ZTeCua-n.js",
+      "status": 200,
+      "bytes": 49374,
+      "sha256": "0a8535d6d141230b52c3d199bd0631143930e8f101b558ee52089ebc6eb91f0b"
+    },
+    {
+      "url": "https://pele.run/_astro/literal-label.DIw6c1-A.js",
+      "status": 200,
+      "bytes": 2174,
+      "sha256": "a913d9d0ac9ba9afee5c42a7fb52b222b560bfc82001a8be1ad33c1491464647"
+    },
+    {
+      "url": "https://pele.run/_astro/shapes.CV23I5Qr.js",
+      "status": 200,
+      "bytes": 12180,
+      "sha256": "ab74e5f1bcef68940d0106a65616d6952ae6a37cefc50fd4a4b4a6105734ee70"
+    },
+    {
+      "url": "https://pele.run/_astro/unicode.D6QVYUu9.js",
+      "status": 200,
+      "bytes": 1947,
+      "sha256": "3ce0f6150a5b565b3fab9828ea92d4e009354750eb46ab70e86162cc71af74e6"
+    },
+    {
+      "url": "https://pele.run/_astro/icon.80wFuGnx.js",
+      "status": 200,
+      "bytes": 4101,
+      "sha256": "cb76fa779962cf4cc94237628daa06488c53f92188410e5fa25942fef074ab40"
+    },
+    {
+      "url": "https://pele.run/_astro/title.CZUw-CUj.js",
+      "status": 200,
+      "bytes": 507,
+      "sha256": "bf18749a89413a3829a49fe00b373186f3f0f4f24c874595c699e86acda127ca"
+    },
+    {
+      "url": "https://pele.run/_astro/shapes.CiSQ2Dy5.js",
+      "status": 200,
+      "bytes": 2540,
+      "sha256": "1bb412f8444d9a3376daba2757470d2d3fff611deb2eb494e85bd576b3b7eab9"
+    },
+    {
+      "url": "https://pele.run/_astro/fit.B48Jmc4N.js",
+      "status": 200,
+      "bytes": 597,
+      "sha256": "68a495f0260348cde5e2956c874e50d588b258c4e2d01d1e2dc487d447a74856"
+    },
+    {
+      "url": "https://pele.run/_astro/accDescr.C59jsNq3.js",
+      "status": 200,
+      "bytes": 375,
+      "sha256": "cd82dc91f164b378d043913046bf52195a72e80c81b4503d4f3af0d5b52c4a22"
+    },
+    {
+      "url": "https://pele.run/_astro/fit-text.Ce_hS451.js",
+      "status": 200,
+      "bytes": 477,
+      "sha256": "9ec1c469f815a6cdb0e6a0776c7da123780ef1d4d7198a6158f7d148f8445cd4"
+    },
+    {
+      "url": "https://pele.run/_astro/chunk-Y2CYZVJY.DsF7k-Jl.js",
+      "status": 200,
+      "bytes": 155,
+      "sha256": "a74e3669f356ad0d67cc5232f1e0f62ff4544fdb8e7057cf9a5001a0ea6fc2cc"
+    },
+    {
+      "url": "https://pele.run/_astro/caseless.CgA1WoRv.js",
+      "status": 200,
+      "bytes": 158,
+      "sha256": "1e6d7eb8fb1654a38be8ce26f66038cdad63bf0d925fff4e52fa675bcdb1c1e5"
+    },
+    {
+      "url": "https://pele.run/_astro/scan.BNAV1Awt.js",
+      "status": 200,
+      "bytes": 958,
+      "sha256": "d78b98663819b8b72dc758bcbda7d6f478f756c120e40b2d50fda786a5725762"
+    }
+  ],
+  "pageErrors": [],
+  "requests": [
+    {
+      "url": "https://pele.run/playground",
+      "method": "GET",
+      "type": "document"
+    },
+    {
+      "url": "https://pele.run/_astro/Temml-Local.B_oCSScJ.css",
+      "method": "GET",
+      "type": "stylesheet"
+    },
+    {
+      "url": "https://pele.run/_astro/MobileDocsMenu.CplT2KIy.css",
+      "method": "GET",
+      "type": "stylesheet"
+    },
+    {
+      "url": "https://pele.run/_astro/playground.v-H-lLdO.css",
+      "method": "GET",
+      "type": "stylesheet"
+    },
+    {
+      "url": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/BaseLayout.astro_astro_type_script_index_0_lang.7FimT-OZ.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/playground.astro_astro_type_script_index_0_lang.y62gwsnj.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/highlight.BDgzjF2X.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/zoom.x9P8qq85.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/src.CSvbK_V2.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/preload-helper.oCYlU9a4.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/playground-mermaid.CxUPyJiv.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/timing.BXbhYk8t.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/inter-latin-wght-normal.Dx4kXJAl.woff2",
+      "method": "GET",
+      "type": "font"
+    },
+    {
+      "url": "https://pele.run/_astro/agentflow.bHLYAVze.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/architecture.f27W7m4T.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/block.B77VG6HA.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/c4.B-Rp1jX8.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/class.DCugVXU1.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/cynefin.BHAyjZIS.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/er.qOFUIy7h.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/eventmodeling.CzZ-yOKX.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/flowchart.DvHsHz8m.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/gantt.BHJ1rKbU.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/git.Bdb2kqC6.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/info.CmfNLq_U.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/ishikawa.DJiKyi7b.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/journey.BDFqL2uS.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/kanban.DCpFqNiv.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/mindmap.c-qRonJV.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/packet.MutX1Aie.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/pie.CPyMF-4V.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/quadrant.3gPTBtN-.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/radar.Qq6J6u_O.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/railroad.C03ReVME.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/requirement.CxBk3D9v.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/sankey.CIEecEPm.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/sequence.CCzNCc6m.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/state.BMbofFug.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/swimlane.D3TEUVyP.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/timeline.BJQHxmid.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/treeview.DPE7A0f6.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/treemap.Cx2bO-UK.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/usecase.ZTeCua-n.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/venn.Baq-1lYb.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/wardley.BAM63Xd4.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/xychart.BRlckafn.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/src.5JmET6yv.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/edges.ByDd4TCF.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/label.JMTrn7VF.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/fit-width.CdyD9Uzg.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/tokens.Dzd--6cR.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/url.BjrTyvra.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/compound.Bn3XvsMM.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/cluster.BotoOv8E.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/title.CZUw-CUj.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/generics.BZmnMkFw.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/shapes.CiSQ2Dy5.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/unicode.D6QVYUu9.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/shapes.CV23I5Qr.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/literal-label.DIw6c1-A.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/accDescr.C59jsNq3.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/fit.B48Jmc4N.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/scan.BNAV1Awt.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/icon.80wFuGnx.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/caseless.CgA1WoRv.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/fit-text.Ce_hS451.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/_astro/chunk-Y2CYZVJY.DsF7k-Jl.js",
+      "method": "GET",
+      "type": "script"
+    },
+    {
+      "url": "https://pele.run/cdn-cgi/rum?",
+      "method": "POST",
+      "type": "xhr"
+    },
+    {
+      "url": "https://pele.run/pele.svg",
+      "method": "GET",
+      "type": "other"
+    }
+  ],
+  "finishedAt": "2026-11-21T23:42:33.308Z"
+}

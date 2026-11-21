@@ -1,0 +1,286 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1153.35 3494.1" width="1153.35" height="3494.1" role="img" style="--bg:#FFFFFF;--fg:#27272A;--muted:#71717A;background:var(--bg)">
+<style>
+  text { font-family: 'trebuchet ms', 'verdana', 'arial', sans-serif, system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+  @media (prefers-contrast: more) {
+    svg { --_node-stroke: var(--fg); --_inner-stroke: var(--fg); --_line: var(--fg); --_arrow: var(--fg); --_text-sec: var(--fg); --_text-muted: var(--fg); --_text-faint: var(--fg); }
+  }
+  @media (forced-colors: active) {
+    svg { --_node-stroke: CanvasText; --_inner-stroke: CanvasText; --_line: CanvasText; --_arrow: CanvasText; --_text-sec: CanvasText; --_text-muted: CanvasText; --_text-faint: CanvasText; }
+  }
+</style>
+<defs>
+  <marker id="zmjuwsq6-arrowhead" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="zmjuwsq6-arrowhead-start" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<path class="edge" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 887.59 88 L 887.59 128" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 887.59 176 L 887.59 216" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="C" data-to="C1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 844.38 264 L 844.38 276.93 Q 844.38 284, 837.3 284 L 770.05 284 Q 762.97 284, 762.97 291.07 L 762.97 304" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="C1" data-to="C2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 686.57 352 L 686.57 364.93 Q 686.57 372, 679.49 372 L 674.89 372 Q 667.81 372, 667.81 379.07 L 667.81 392" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="C2" data-to="C3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 667.81 440 L 667.81 452.93 Q 667.81 460, 674.89 460 L 711.05 460 Q 718.12 460, 718.12 467.07 L 718.12 480" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="C3" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 762.97 528 L 762.97 628.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="C3" data-to="C1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 807.83 480 L 807.83 467.07 Q 807.83 460, 814.9 460 L 851.06 460 Q 858.13 460, 858.13 452.93 L 858.13 379.07 Q 858.13 372, 851.06 372 L 846.45 372 Q 839.38 372, 839.38 364.93 L 839.38 352" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="D" data-to="D1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 723.61 676.3 L 723.61 689.23 Q 723.61 696.3, 716.54 696.3 L 682.13 696.3 Q 675.05 696.3, 675.05 703.37 L 675.05 716.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="D1" data-to="D2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 627.16 764.3 L 627.16 777.23 Q 627.16 784.3, 620.09 784.3 L 560.82 784.3 Q 553.75 784.3, 553.75 791.37 L 553.75 804.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="D2" data-to="D3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 553.75 852.3 L 553.75 865.23 Q 553.75 872.3, 560.82 872.3 L 614.01 872.3 Q 621.08 872.3, 621.08 879.37 L 621.08 892.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="D3" data-to="E" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 675.05 940.3 L 675.05 1040.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="D3" data-to="D1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 729.03 892.3 L 729.03 879.37 Q 729.03 872.3, 736.1 872.3 L 789.29 872.3 Q 796.36 872.3, 796.36 865.23 L 796.36 791.37 Q 796.36 784.3, 789.29 784.3 L 730.02 784.3 Q 722.95 784.3, 722.95 777.23 L 722.95 764.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E" data-to="E1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 631.84 1088.6 L 631.84 1101.53 Q 631.84 1108.6, 624.77 1108.6 L 569.95 1108.6 Q 562.88 1108.6, 562.88 1115.67 L 562.88 1128.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E1" data-to="E2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 494.76 1176.6 L 494.76 1189.53 Q 494.76 1196.6, 487.68 1196.6 L 442.87 1196.6 Q 435.8 1196.6, 435.8 1203.67 L 435.8 1216.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E2" data-to="E3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 435.8 1264.6 L 435.8 1304.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E3" data-to="E4" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 435.8 1352.6 L 435.8 1365.53 Q 435.8 1372.6, 442.87 1372.6 L 493.52 1372.6 Q 500.59 1372.6, 500.59 1379.67 L 500.59 1392.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E4" data-to="F" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 562.88 1440.6 L 562.88 1540.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="E4" data-to="E1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 625.16 1392.6 L 625.16 1379.67 Q 625.16 1372.6, 632.23 1372.6 L 682.88 1372.6 Q 689.96 1372.6, 689.96 1365.53 L 689.96 1203.67 Q 689.96 1196.6, 682.88 1196.6 L 638.07 1196.6 Q 630.99 1196.6, 630.99 1189.53 L 630.99 1176.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F" data-to="F1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 519.66 1588.9 L 519.66 1601.83 Q 519.66 1608.9, 512.59 1608.9 L 480.51 1608.9 Q 473.44 1608.9, 473.44 1615.97 L 473.44 1628.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F1" data-to="F2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 428.58 1676.9 L 428.58 1689.83 Q 428.58 1696.9, 421.51 1696.9 L 351.85 1696.9 Q 344.78 1696.9, 344.78 1703.97 L 344.78 1716.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F2" data-to="F3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 344.78 1764.9 L 344.78 1804.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F3" data-to="F4" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 344.78 1852.9 L 344.78 1865.83 Q 344.78 1872.9, 351.85 1872.9 L 409.35 1872.9 Q 416.42 1872.9, 416.42 1879.97 L 416.42 1892.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F4" data-to="G" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 473.44 1940.9 L 473.44 2041.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="F4" data-to="F1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 530.45 1892.9 L 530.45 1879.97 Q 530.45 1872.9, 537.52 1872.9 L 595.02 1872.9 Q 602.09 1872.9, 602.09 1865.83 L 602.09 1703.97 Q 602.09 1696.9, 595.02 1696.9 L 525.36 1696.9 Q 518.29 1696.9, 518.29 1689.83 L 518.29 1676.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G" data-to="G1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 427.18 2089.2 L 427.18 2102.13 Q 427.18 2109.2, 420.11 2109.2 L 340.56 2109.2 Q 333.49 2109.2, 333.49 2116.27 L 333.49 2129.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G1" data-to="G2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 264.31 2177.2 L 264.31 2190.13 Q 264.31 2197.2, 257.24 2197.2 L 219.77 2197.2 Q 212.69 2197.2, 212.69 2204.27 L 212.69 2217.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G2" data-to="G3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 212.69 2265.2 L 212.69 2305.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G3" data-to="G4" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 212.69 2353.2 L 212.69 2366.13 Q 212.69 2373.2, 219.77 2373.2 L 258.05 2373.2 Q 265.12 2373.2, 265.12 2380.27 L 265.12 2393.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G4" data-to="H" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 333.49 2441.2 L 333.49 2541.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="G4" data-to="G1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 401.85 2393.2 L 401.85 2380.27 Q 401.85 2373.2, 408.92 2373.2 L 447.21 2373.2 Q 454.28 2373.2, 454.28 2366.13 L 454.28 2204.27 Q 454.28 2197.2, 447.21 2197.2 L 409.73 2197.2 Q 402.66 2197.2, 402.66 2190.13 L 402.66 2177.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H" data-to="H1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 333.49 2589.5 L 333.49 2629.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H1" data-to="H2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 333.49 2677.5 L 333.49 2717.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H2" data-to="H3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 333.49 2765.5 L 333.49 2818.43 Q 333.49 2825.5, 340.56 2825.5 L 701.43 2825.5 Q 708.5 2825.5, 708.5 2832.57 L 708.5 2845.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="I" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="修改闭环" d="M 791.59 2893.5 L 791.59 2993.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 874.67 2845.5 L 874.67 2812.57 Q 874.67 2805.5, 881.74 2805.5 L 1034.06 2805.5 Q 1041.13 2805.5, 1041.13 2798.43 L 1041.13 291.07 Q 1041.13 284, 1034.06 284 L 937.87 284 Q 930.8 284, 930.8 276.93 L 930.8 264" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 841.44 2845.5 L 841.44 2792.57 Q 841.44 2785.5, 848.51 2785.5 L 917.41 2785.5 Q 924.48 2785.5, 924.48 2778.43 L 924.48 703.37 Q 924.48 696.3, 917.41 696.3 L 809.41 696.3 Q 802.34 696.3, 802.34 689.23 L 802.34 676.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="E" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 808.2 2845.5 L 808.2 2792.57 Q 808.2 2785.5, 815.28 2785.5 L 820.55 2785.5 Q 827.62 2785.5, 827.62 2778.43 L 827.62 1115.67 Q 827.62 1108.6, 820.55 1108.6 L 725.34 1108.6 Q 718.27 1108.6, 718.27 1101.53 L 718.27 1088.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="F" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 774.97 2845.5 L 774.97 2792.57 Q 774.97 2785.5, 767.9 2785.5 L 719.54 2785.5 Q 712.47 2785.5, 712.47 2778.43 L 712.47 1615.97 Q 712.47 1608.9, 705.4 1608.9 L 613.16 1608.9 Q 606.09 1608.9, 606.09 1601.83 L 606.09 1588.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="H3" data-to="G" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 741.74 2845.5 L 741.74 2812.57 Q 741.74 2805.5, 734.67 2805.5 L 619.64 2805.5 Q 612.57 2805.5, 612.57 2798.43 L 612.57 2116.27 Q 612.57 2109.2, 605.5 2109.2 L 526.76 2109.2 Q 519.69 2109.2, 519.69 2102.13 L 519.69 2089.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="I" data-to="I1" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 791.59 3041.8 L 791.59 3081.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="I1" data-to="I2" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 740.65 3129.8 L 740.65 3142.73 Q 740.65 3149.8, 733.58 3149.8 L 679.46 3149.8 Q 672.39 3149.8, 672.39 3156.87 L 672.39 3169.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="I2" data-to="I3" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 672.39 3217.8 L 672.39 3230.73 Q 672.39 3237.8, 679.46 3237.8 L 730.54 3237.8 Q 737.61 3237.8, 737.61 3244.87 L 737.61 3257.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="I3" data-to="J" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验通过" d="M 791.59 3305.8 L 791.59 3406.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<path class="edge" data-from="I3" data-to="I1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="校验不通过" d="M 845.56 3257.8 L 845.56 3244.87 Q 845.56 3237.8, 852.63 3237.8 L 903.71 3237.8 Q 910.78 3237.8, 910.78 3230.73 L 910.78 3156.87 Q 910.78 3149.8, 903.71 3149.8 L 849.59 3149.8 Q 842.52 3149.8, 842.52 3142.73 L 842.52 3129.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmjuwsq6-arrowhead)" />
+<g class="edge-label" data-from="C3" data-to="D" data-label="校验通过">
+  <rect x="738.97" y="571" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="762.73" y="578.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="C3" data-to="C1" data-label="校验不通过">
+  <rect x="828.13" y="408.85" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="857.83" y="416" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="D3" data-to="E" data-label="校验通过">
+  <rect x="651.05" y="983.3" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="674.81" y="990.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="D3" data-to="D1" data-label="校验不通过">
+  <rect x="766.36" y="821.15" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="796.06" y="828.3" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="E4" data-to="F" data-label="校验通过">
+  <rect x="538.88" y="1483.6" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="562.64" y="1490.75" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="E4" data-to="E1" data-label="校验不通过">
+  <rect x="659.96" y="1233.45" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="689.66" y="1240.6" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="F4" data-to="G" data-label="校验通过">
+  <rect x="449.44" y="1983.9" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="473.2" y="1991.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="F4" data-to="F1" data-label="校验不通过">
+  <rect x="572.09" y="1733.75" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="601.79" y="1740.9" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="G4" data-to="H" data-label="校验通过">
+  <rect x="309.49" y="2484.2" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="333.25" y="2491.35" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="G4" data-to="G1" data-label="校验不通过">
+  <rect x="424.28" y="2234.05" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="453.98" y="2241.2" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="I" data-label="修改闭环">
+  <rect x="767.59" y="2936.5" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="791.35" y="2943.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">修改闭环</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="C" data-label="校验不通过">
+  <rect x="1011.13" y="1483.6" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="1040.83" y="1490.75" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="D" data-label="校验不通过">
+  <rect x="894.48" y="1733.75" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="924.18" y="1740.9" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="E" data-label="校验不通过">
+  <rect x="797.62" y="1909.75" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="827.32" y="1916.9" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="F" data-label="校验不通过">
+  <rect x="682.47" y="2146.05" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="712.17" y="2153.2" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="H3" data-to="G" data-label="校验不通过">
+  <rect x="582.57" y="2410.05" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="612.27" y="2417.2" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="edge-label" data-from="I3" data-to="J" data-label="校验通过">
+  <rect x="767.59" y="3348.8" width="47.52" height="14.3" fill="var(--bg)" />
+  <text x="791.35" y="3355.95" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验通过</text>
+</g>
+<g class="edge-label" data-from="I3" data-to="I1" data-label="校验不通过">
+  <rect x="880.78" y="3186.65" width="59.4" height="14.3" fill="var(--bg)" />
+  <text x="910.48" y="3193.8" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.85">校验不通过</text>
+</g>
+<g class="node" data-id="A" data-label="用户输入任务指令" data-shape="rectangle">
+  <rect x="798.63" y="40" width="177.92" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="887.59" y="64" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">用户输入任务指令</text>
+</g>
+<g class="node" data-id="B" data-label="目标深度解构：穿透商业本质，拆解可量化核心指标" data-shape="rectangle">
+  <rect x="661.83" y="128" width="451.52" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="887.59" y="152" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">目标深度解构：穿透商业本质，拆解可量化核心指标</text>
+</g>
+<g class="node" data-id="C" data-label="模块1：前置市场与用户洞察" data-shape="rectangle">
+  <rect x="757.95" y="216" width="259.27" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="887.59" y="240" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块1：前置市场与用户洞察</text>
+</g>
+<g class="node" data-id="C1" data-label="自主细化调研维度：商圈/客群/竞品/商户全维度调研" data-shape="rectangle">
+  <rect x="533.75" y="304" width="458.45" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="762.97" y="328" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">自主细化调研维度：商圈/客群/竞品/商户全维度调研</text>
+</g>
+<g class="node" data-id="C2" data-label="数据填充与洞察结论输出" data-shape="rectangle">
+  <rect x="551.49" y="392" width="232.64" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="667.81" y="416" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">数据填充与洞察结论输出</text>
+</g>
+<g class="node" data-id="C3" data-label="洞察报告合规性与有效性校验" data-shape="rectangle">
+  <rect x="628.41" y="480" width="269.12" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="762.97" y="504" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">洞察报告合规性与有效性校验</text>
+</g>
+<g class="node" data-id="D" data-label="模块2：非遗IP与内容策划" data-shape="rectangle">
+  <rect x="644.89" y="628.3" width="236.17" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="762.97" y="652.3" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块2：非遗IP与内容策划</text>
+</g>
+<g class="node" data-id="D1" data-label="基于洞察结论筛选适配非遗项目" data-shape="rectangle">
+  <rect x="531.37" y="716.3" width="287.36" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="675.05" y="740.3" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">基于洞察结论筛选适配非遗项目</text>
+</g>
+<g class="node" data-id="D2" data-label="IP打造、年轻化表达与商业化路径设计" data-shape="rectangle">
+  <rect x="385.14" y="804.3" width="337.22" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="553.75" y="828.3" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">IP打造、年轻化表达与商业化路径设计</text>
+</g>
+<g class="node" data-id="D3" data-label="非遗内容合规性校验与授权规范确认" data-shape="rectangle">
+  <rect x="513.13" y="892.3" width="323.84" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="675.05" y="916.3" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">非遗内容合规性校验与授权规范确认</text>
+</g>
+<g class="node" data-id="E" data-label="模块3：全案活动策划与执行" data-shape="rectangle">
+  <rect x="545.42" y="1040.6" width="259.27" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="675.05" y="1064.6" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块3：全案活动策划与执行</text>
+</g>
+<g class="node" data-id="E1" data-label="基于IP内容与客群洞察，拆分8周4阶段执行节奏" data-shape="rectangle">
+  <rect x="358.52" y="1128.6" width="408.72" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="562.88" y="1152.6" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">基于IP内容与客群洞察，拆分8周4阶段执行节奏</text>
+</g>
+<g class="node" data-id="E2" data-label="线下场景、线上玩法、分层客群活动细化" data-shape="rectangle">
+  <rect x="255.64" y="1216.6" width="360.32" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="435.8" y="1240.6" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">线下场景、线上玩法、分层客群活动细化</text>
+</g>
+<g class="node" data-id="E3" data-label="执行节点、落地标准与人员架构明确" data-shape="rectangle">
+  <rect x="273.88" y="1304.6" width="323.84" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="435.8" y="1328.6" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">执行节点、落地标准与人员架构明确</text>
+</g>
+<g class="node" data-id="E4" data-label="活动方案与IP内容、预算约束交叉适配校验" data-shape="rectangle">
+  <rect x="376.03" y="1392.6" width="373.7" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="562.88" y="1416.6" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">活动方案与IP内容、预算约束交叉适配校验</text>
+</g>
+<g class="node" data-id="F" data-label="模块4：商业运营与成本管控" data-shape="rectangle">
+  <rect x="433.24" y="1540.9" width="259.27" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="562.88" y="1564.9" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块4：商业运营与成本管控</text>
+</g>
+<g class="node" data-id="F1" data-label="商户合作体系、招商方案设计" data-shape="rectangle">
+  <rect x="338.88" y="1628.9" width="269.12" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="473.44" y="1652.9" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">商户合作体系、招商方案设计</text>
+</g>
+<g class="node" data-id="F2" data-label="全周期成本明细拆分、营收预估与ROI测算" data-shape="rectangle">
+  <rect x="161.47" y="1716.9" width="366.63" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="344.78" y="1740.9" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全周期成本明细拆分、营收预估与ROI测算</text>
+</g>
+<g class="node" data-id="F3" data-label="预算管控机制设计，总预算锁定780万内" data-shape="rectangle">
+  <rect x="170.27" y="1804.9" width="349.01" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="344.78" y="1828.9" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">预算管控机制设计，总预算锁定780万内</text>
+</g>
+<g class="node" data-id="F4" data-label="成本方案与活动策划方案双向适配校验" data-shape="rectangle">
+  <rect x="302.4" y="1892.9" width="342.08" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="473.44" y="1916.9" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">成本方案与活动策划方案双向适配校验</text>
+</g>
+<g class="node" data-id="G" data-label="模块5：全渠道传播与舆情管理" data-shape="rectangle">
+  <rect x="334.68" y="2041.2" width="277.51" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="473.44" y="2065.2" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块5：全渠道传播与舆情管理</text>
+</g>
+<g class="node" data-id="G1" data-label="匹配活动节奏，制定全周期传播策略与话题矩阵" data-shape="rectangle">
+  <rect x="125.97" y="2129.2" width="415.04" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.49" y="2153.2" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">匹配活动节奏，制定全周期传播策略与话题矩阵</text>
+</g>
+<g class="node" data-id="G2" data-label="分层KOL/KOC投放矩阵设计与效果管控" data-shape="rectangle">
+  <rect x="45.11" y="2217.2" width="335.17" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="212.69" y="2241.2" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">分层KOL/KOC投放矩阵设计与效果管控</text>
+</g>
+<g class="node" data-id="G3" data-label="7*24h舆情监测体系与三级危机预案制定" data-shape="rectangle">
+  <rect x="40" y="2305.2" width="345.39" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="212.69" y="2329.2" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">7*24h舆情监测体系与三级危机预案制定</text>
+</g>
+<g class="node" data-id="G4" data-label="传播方案与IP合规要求、活动节点双向对齐校验" data-shape="rectangle">
+  <rect x="128.4" y="2393.2" width="410.18" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.49" y="2417.2" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">传播方案与IP合规要求、活动节点双向对齐校验</text>
+</g>
+<g class="node" data-id="H" data-label="模块6：全案合规与风险防控" data-shape="rectangle">
+  <rect x="203.85" y="2541.5" width="259.27" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.49" y="2565.5" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块6：全案合规与风险防控</text>
+</g>
+<g class="node" data-id="H1" data-label="全案全模块合规性终审，设置一票否决权" data-shape="rectangle">
+  <rect x="153.33" y="2629.5" width="360.32" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.49" y="2653.5" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全案全模块合规性终审，设置一票否决权</text>
+</g>
+<g class="node" data-id="H2" data-label="全场景风险点识别、分级与应对预案制定" data-shape="rectangle">
+  <rect x="153.33" y="2717.5" width="360.32" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.49" y="2741.5" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全场景风险点识别、分级与应对预案制定</text>
+</g>
+<g class="node" data-id="H3" data-label="问题内容识别与退回修改" data-shape="rectangle">
+  <rect x="675.27" y="2845.5" width="232.64" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="791.59" y="2869.5" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">问题内容识别与退回修改</text>
+</g>
+<g class="node" data-id="I" data-label="模块7：全案整合与定稿" data-shape="rectangle">
+  <rect x="680.19" y="2993.8" width="222.79" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="791.59" y="3017.8" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">模块7：全案整合与定稿</text>
+</g>
+<g class="node" data-id="I1" data-label="全模块内容整合，解决冲突与矛盾" data-shape="rectangle">
+  <rect x="638.79" y="3081.8" width="305.6" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="791.59" y="3105.8" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全模块内容整合，解决冲突与矛盾</text>
+</g>
+<g class="node" data-id="I2" data-label="全周期执行timeline与落地标准表制定" data-shape="rectangle">
+  <rect x="508" y="3169.8" width="328.78" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="672.39" y="3193.8" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全周期执行timeline与落地标准表制定</text>
+</g>
+<g class="node" data-id="I3" data-label="全案与核心目标、硬性约束最终校验" data-shape="rectangle">
+  <rect x="629.67" y="3257.8" width="323.84" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="791.59" y="3281.8" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">全案与核心目标、硬性约束最终校验</text>
+</g>
+<g class="node" data-id="J" data-label="最终可落地完整全案交付" data-shape="rectangle">
+  <rect x="675.27" y="3406.1" width="232.64" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="791.59" y="3430.1" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">最终可落地完整全案交付</text>
+</g>
+</svg>

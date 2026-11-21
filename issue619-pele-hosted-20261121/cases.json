@@ -1,0 +1,47 @@
+[
+  {
+    "id": "duplicate",
+    "source": "flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C\nA --> D\nD --> A",
+    "origin": "Prior matched source, source32b/c18 qualification"
+  },
+  {
+    "id": "seed135",
+    "source": "flowchart RL\nn0((Node 135-0))\nn1[[Node 135-1]]\nn2[(Node 135-2)]\nn3[Node 135-3]\nn4{Node 135-4}\nn5(Node 135-5)\nn6((Node 135-6))\nn7[[Node 135-7]]\nn8[(Node 135-8)]\nn9[Node 135-9]\nn10{Node 135-10}\nn11(Node 135-11)\nn12((Node 135-12))\nn11 -->|edge 0 xxx| n5\nn2 --> n11\nn12 --> n2\nn0 --> n5\nn5 -->|edge 4 xxxxxxx| n8\nn9 --> n1\nn7 --> n5\nn3 --> n8\nn6 -->|edge 8 xxxxxxxxxxx| n9\nn7 --> n8\nn2 --> n5\nn5 --> n1\nn5 -->|edge 12 xxxxxxxxxxxxxxx| n3\nn4 --> n0\nn12 --> n6\nn10 --> n2\nn1 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12\nn1 --> n6\nn0 --> n7\nn7 --> n3\nn3 -->|edge 20 xxxxxx| n1\nn0 --> n1\nn6 --> n0\nn5 --> n1\nn0 -->|edge 24 xxxxxxxxxx| n7\nn4 --> n9\nn4 --> n7\nn6 --> n11",
+    "origin": "Prior matched source, source32b/c18 qualification"
+  },
+  {
+    "id": "seed139",
+    "source": "flowchart RL\nn0{Node 139-0}\nn1(Node 139-1)\nn2((Node 139-2))\nn3[[Node 139-3]]\nn4[(Node 139-4)]\nn5[Node 139-5]\nn6{Node 139-6}\nn7(Node 139-7)\nn8((Node 139-8))\nn9[[Node 139-9]]\nn10[(Node 139-10)]\nn11[Node 139-11]\nn12{Node 139-12}\nn13(Node 139-13)\nn14((Node 139-14))\nn15[[Node 139-15]]\nn16[(Node 139-16)]\nn14 -->|edge 0 xxx| n12\nn10 --> n11\nn10 --> n13\nn8 --> n13\nn7 -->|edge 4 xxxxxxx| n14\nn15 --> n7\nn13 --> n7\nn15 --> n11\nn15 -->|edge 8 xxxxxxxxxxx| n13\nn11 --> n12\nn6 --> n9\nn15 --> n3\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n1\nn5 --> n14\nn4 --> n15\nn9 --> n5\nn7 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n5\nn0 --> n1\nn8 --> n11\nn7 --> n12\nn2 -->|edge 20 xxxxxx| n9\nn1 --> n10\nn15 --> n9\nn7 --> n3\nn3 -->|edge 24 xxxxxxxxxx| n1\nn16 --> n0\nn1 --> n4\nn9 --> n14\nn2 -->|edge 28 xxxxxxxxxxxxxx| n9\nn11 --> n3\nn10 --> n4\nn6 --> n2\nn1 -->|edge 32 xxxxxxxxxxxxxxxxxx| n16\nn7 --> n8\nn5 --> n8\nn11 --> n16\nn13 -->|edge 36 xxxxx| n3\nn3 --> n12\nn3 --> n14\nn12 --> n8",
+    "origin": "Prior matched source, source32b/c18 qualification"
+  },
+  {
+    "id": "nineteen",
+    "source": "---\ntitle: Cyclic routes\n---\nflowchart TD\nn0[[Node 76-0]]\nn1[(Node 76-1)]\nn2[Node 76-2]\nn3{Node 76-3}\nn4(Node 76-4)\nn5((Node 76-5))\nn6[[Node 76-6]]\nn7[(Node 76-7)]\nn8[Node 76-8]\nn9{Node 76-9}\nn10(Node 76-10)\nn11((Node 76-11))\nn12[[Node 76-12]]\nn13[(Node 76-13)]\nn14[Node 76-14]\nn15{Node 76-15}\nn16(Node 76-16)\nn17((Node 76-17))\nn18[[Node 76-18]]\nn14 -->|edge 0 xxx| n11\nn0 --> n4\nn9 --> n13\nn10 --> n14\nn18 -->|edge 4 xxxxxxx| n5\nn15 --> n8\nn9 --> n13\nn4 --> n18\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn7 --> n15\nn14 --> n1\nn0 --> n14\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n10\nn2 --> n18\nn16 --> n3\nn18 --> n13\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n0\nn8 --> n5\nn3 --> n5\nn5 -->|edge 20 xxxxxx| n13\nn1 --> n9\nn6 --> n3\nn2 --> n14\nn2 -->|edge 24 xxxxxxxxxx| n8\nn3 --> n5\nn18 --> n17\nn4 --> n12\nn14 -->|edge 28 xxxxxxxxxxxxxx| n3\nn11 --> n15\nn15 --> n10\nn15 --> n17\nn17 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10\nn5 --> n17\nn0 --> n4\nn4 --> n6\nn10 -->|edge 36 xxxxx| n9\nn3 --> n11\nn16 --> n18\nn5 --> n9\nn15 -->|edge 40 xxxxxxxxx| n4\nn1 --> n17\nn6 --> n3\nn2 --> n10\n",
+    "origin": "Exact1052-byte titled19-node witness"
+  },
+  {
+    "id": "bm52-wallet",
+    "source": "graph LR\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK((\"📍 Current<br>Ξ TPRPxm...avvK\")) --> TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW(\"Ξ TWnK4k...fBaW\")\n  TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf[\"Ξ TL8TBp...SwEf<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb(\"Ξ TQBb8D...Xotb\")\n  TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy(\"Ξ TUaYgu...RLVy\")\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c[\"Ξ TUaZjK...tZ8c<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP(\"Ξ TUciXW...zDbP\")\n  TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP --> TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ(\"Ξ TXTaap...fvGZ\")\n  TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ --> TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu[\"Ξ TQBftm...FRTu<br><b>HuionePay</b>\"]\n  TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu --> TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8[\"Ξ TNVaKW...4Ug8<br><b>HuionePay</b>\"]\n  %% click TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 \"copyAddress('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8')\"\n  classDef highRiskNode stroke:#ff0000,stroke-width:2px,color:#cc0000\n  classDef currentNode stroke:#6366f1,stroke-width:2px,color:#6366f1\n  class TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK,TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf,TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c,TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 highRiskNode\n",
+    "origin": "Exact public BM issue source; cited in astra/sources/SOURCES.tsv"
+  },
+  {
+    "id": "bm83-workflow",
+    "source": "flowchart TD\n    A[用户输入任务指令] --> B[目标深度解构：穿透商业本质，拆解可量化核心指标]\n    B --> C[模块1：前置市场与用户洞察]\n    C --> C1[自主细化调研维度：商圈/客群/竞品/商户全维度调研]\n    C1 --> C2[数据填充与洞察结论输出]\n    C2 --> C3[洞察报告合规性与有效性校验]\n    C3 -->|校验通过| D[模块2：非遗IP与内容策划]\n    C3 -->|校验不通过| C1\n    D --> D1[基于洞察结论筛选适配非遗项目]\n    D1 --> D2[IP打造、年轻化表达与商业化路径设计]\n    D2 --> D3[非遗内容合规性校验与授权规范确认]\n    D3 -->|校验通过| E[模块3：全案活动策划与执行]\n    D3 -->|校验不通过| D1\n    E --> E1[基于IP内容与客群洞察，拆分8周4阶段执行节奏]\n    E1 --> E2[线下场景、线上玩法、分层客群活动细化]\n    E2 --> E3[执行节点、落地标准与人员架构明确]\n    E3 --> E4[活动方案与IP内容、预算约束交叉适配校验]\n    E4 -->|校验通过| F[模块4：商业运营与成本管控]\n    E4 -->|校验不通过| E1\n    F --> F1[商户合作体系、招商方案设计]\n    F1 --> F2[全周期成本明细拆分、营收预估与ROI测算]\n    F2 --> F3[预算管控机制设计，总预算锁定780万内]\n    F3 --> F4[成本方案与活动策划方案双向适配校验]\n    F4 -->|校验通过| G[模块5：全渠道传播与舆情管理]\n    F4 -->|校验不通过| F1\n    G --> G1[匹配活动节奏，制定全周期传播策略与话题矩阵]\n    G1 --> G2[分层KOL/KOC投放矩阵设计与效果管控]\n    G2 --> G3[7*24h舆情监测体系与三级危机预案制定]\n    G3 --> G4[传播方案与IP合规要求、活动节点双向对齐校验]\n    G4 -->|校验通过| H[模块6：全案合规与风险防控]\n    G4 -->|校验不通过| G1\n    H --> H1[全案全模块合规性终审，设置一票否决权]\n    H1 --> H2[全场景风险点识别、分级与应对预案制定]\n    H2 --> H3[问题内容识别与退回修改]\n    H3 -->|修改闭环| I[模块7：全案整合与定稿]\n    H3 -->|校验不通过| C & D & E & F & G\n    I --> I1[全模块内容整合，解决冲突与矛盾]\n    I1 --> I2[全周期执行timeline与落地标准表制定]\n    I2 --> I3[全案与核心目标、硬性约束最终校验]\n    I3 -->|校验通过| J[最终可落地完整全案交付]\n    I3 -->|校验不通过| I1\n",
+    "origin": "Exact public BM issue source; cited in astra/sources/SOURCES.tsv"
+  },
+  {
+    "id": "nineteen-body",
+    "source": "flowchart TD\nn0[[Node 76-0]]\nn1[(Node 76-1)]\nn2[Node 76-2]\nn3{Node 76-3}\nn4(Node 76-4)\nn5((Node 76-5))\nn6[[Node 76-6]]\nn7[(Node 76-7)]\nn8[Node 76-8]\nn9{Node 76-9}\nn10(Node 76-10)\nn11((Node 76-11))\nn12[[Node 76-12]]\nn13[(Node 76-13)]\nn14[Node 76-14]\nn15{Node 76-15}\nn16(Node 76-16)\nn17((Node 76-17))\nn18[[Node 76-18]]\nn14 -->|edge 0 xxx| n11\nn0 --> n4\nn9 --> n13\nn10 --> n14\nn18 -->|edge 4 xxxxxxx| n5\nn15 --> n8\nn9 --> n13\nn4 --> n18\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn7 --> n15\nn14 --> n1\nn0 --> n14\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n10\nn2 --> n18\nn16 --> n3\nn18 --> n13\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n0\nn8 --> n5\nn3 --> n5\nn5 -->|edge 20 xxxxxx| n13\nn1 --> n9\nn6 --> n3\nn2 --> n14\nn2 -->|edge 24 xxxxxxxxxx| n8\nn3 --> n5\nn18 --> n17\nn4 --> n12\nn14 -->|edge 28 xxxxxxxxxxxxxx| n3\nn11 --> n15\nn15 --> n10\nn15 --> n17\nn17 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10\nn5 --> n17\nn0 --> n4\nn4 --> n6\nn10 -->|edge 36 xxxxx| n9\nn3 --> n11\nn16 --> n18\nn5 --> n9\nn15 -->|edge 40 xxxxxxxxx| n4\nn1 --> n17\nn6 --> n3\nn2 --> n10\n",
+    "origin": "Explicitly body-only comparison for all products; BM1.1.3 rejects original title frontmatter; original refusal preserved"
+  },
+  {
+    "id": "bm111-labelled-fan",
+    "source": "flowchart TB\n    Src[\"Source\"]\n    Left[\"Left Target\"]\n    Center[\"Center Target\"]\n    Right[\"Right Target\"]\n    Src -->|left*| Left\n    Src -->|center*| Center\n    Src -->|right*| Right\n",
+    "origin": "https://github.com/lukilabs/beautiful-mermaid/issues/111"
+  },
+  {
+    "id": "zm629-round-trip",
+    "source": "graph LR\n  Browser -- request --> Server\n  Server -- response --> Browser\n",
+    "origin": "https://github.com/dfadler/zombie-mermaid/issues/629"
+  }
+]

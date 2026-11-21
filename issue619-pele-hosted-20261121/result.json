@@ -1,0 +1,14 @@
+{
+  "sourceHead": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "productionChanges": false,
+  "fixtures": 9,
+  "hostedReturns": 9,
+  "hostedVersion": "1.13.0",
+  "allEditorHashesMatch": true,
+  "assessmentRows": 34,
+  "allAssessmentsReturned": true,
+  "unresolvedCrossings": 0,
+  "fullTridentScores": "not rerun; scoped complete SVG observer reused",
+  "commonPeerPaint": "unassessed",
+  "report": "README.md"
+}
