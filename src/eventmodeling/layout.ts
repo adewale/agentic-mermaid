@@ -26,7 +26,8 @@ export function eventFrameSurface(node: { x: number; y: number; width: number; h
   return { geometry: { kind: 'rect' as const, x: node.x, y: node.y, width: node.width, height: node.height, rx: style.cornerRadius ?? 5 },
     paint: { fill: style.nodeFillColor ?? 'var(--_node-fill)', stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) } }
 }
-export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>, rowHeight = 0, palette?: Readonly<DiagramColors>, paintBackendId?: string) {
+/** Standalone layout models canonical paint; null retains unknown-producer routes. */
+export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>, rowHeight = 0, palette?: Readonly<DiagramColors>, paintBackendId: string | null = 'backend:default') {
   const style = resolveRenderStyle(options, undefined, styleFace),
     pad = options.padding ?? 24
   // Admission retains the canonical palette; reuse drawing's cached tone
@@ -96,7 +97,7 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     return { ...edge, points: projection?.geometry.points ?? points, projection, index }
   })
   // Rough/hybrid paint can extend beyond the canonical shaft and card bounds.
-  if (paintBackendId === undefined || paintBackendId === 'backend:default') shortenChronologicalRoutes(nodes, byId, edges, style)
+  if (paintBackendId === 'backend:default') shortenChronologicalRoutes(nodes, byId, edges, style)
   return { style, laneWidth, width, height: Math.max(y + pad, 2 * pad + 40), lanes, nodes, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }
 }
 

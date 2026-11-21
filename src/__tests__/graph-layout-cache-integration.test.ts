@@ -227,6 +227,8 @@ test('ELK reuse reattaches current authored text and execution receipts after eq
 test('Event Modeling cached gutter admission follows the selected paint backend', async () => {
   const child = await runChild(process.execPath, ['-e', `${prelude}
     import './src/agent/families.ts'
+    import { getFamily } from './src/agent/core.ts'
+    import { resolvedFamilyRenderContextOf } from './src/render-contract.ts'
     import './src/scene/builtin-backends.ts'
     import { DefaultBackend, registerBackend } from './src/scene/backend.ts'
     const id = 'backend:test/event-gutter-admission-cache'
@@ -235,6 +237,11 @@ test('Event Modeling cached gutter admission follows the selected paint backend'
       { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
     try { withPerformanceExperiments(['text-spans', 'position-cache'], () => {
       const source = 'eventmodeling\\nrf 01 cmd Save\\nrf 02 ui Screen\\nrf 03 evt Saved ->> 01'
+      const styled = resolveRenderRequestForExecution(source, { style: 'hand-drawn' }, 'svg')
+      const resolved = resolvedFamilyRenderContextOf(styled)
+      const raw = getFamily('eventmodeling').layout({ source: styled.source,
+        renderOptions: resolved.renderOptions, styleFace: resolved.styleFace })
+      assert.equal(raw.positioned.edges[0].points.length, 6)
       for (const backend of [undefined, id, undefined, id]) {
         const request = resolveRenderRequestForExecution(source, {}, 'svg', undefined,
           backend ? { backendPolicy: { selectBackend: () => backend } } : undefined)
