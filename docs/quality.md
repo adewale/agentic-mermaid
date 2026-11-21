@@ -130,9 +130,9 @@ certification score, including the final comparison: unchanged selected geometry
 is not certified a second time. It does not explore an unbundled version of
 every placement strategy.
 Symmetric fan-in/fan-out routing remains enabled.
-Graphs containing parallel edges keep their specialized route owners and skip
-the generic unbundled proposal. A smaller proper-crossing count alone does not
-prove that duplicate endpoint lanes remain visibly distinct.
+Graphs containing parallel edges keep their specialized route owners in both
+proposals; only generic fan bundling is disabled. A smaller proper-crossing
+count alone does not prove that duplicate endpoint lanes remain visibly distinct.
 
 The receipt's `preference.compared` entries retain the certified bundled
 placement scores. `preference.selectedScore` describes the actual final routes,

@@ -350,10 +350,35 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
       if (extent === undefined) return false
       if (extent === 0) return true
       const radius = extent * (paint.vectorEffect === 'non-scaling-stroke' ? inverseNorm : 1)
-      return samples.every(p => work() && p.x + sampleMargin <= Math.min(g.x1, g.x2) - radius + lineTolerance)
+      if (samples.every(p => work() && p.x + sampleMargin <= Math.min(g.x1, g.x2) - radius + lineTolerance)
         || samples.every(p => work() && p.x - sampleMargin >= Math.max(g.x1, g.x2) + radius - lineTolerance)
         || samples.every(p => work() && p.y + sampleMargin <= Math.min(g.y1, g.y2) - radius + lineTolerance)
-        || samples.every(p => work() && p.y - sampleMargin >= Math.max(g.y1, g.y2) + radius - lineTolerance)
+        || samples.every(p => work() && p.y - sampleMargin >= Math.max(g.y1, g.y2) + radius - lineTolerance)) return true
+      // A divider can overlap the arrow's AABB while clearing its sloping
+      // sides. Separate the whole padded hull from a conservative line box;
+      // include both raw and written coordinates, without a contact allowance.
+      if (!witness && hull && !shape.transform && scenePrimitiveUntransformed(surface.primitive)
+        && inverse.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])) {
+        const writtenExtent = paintedStrokeExtent({ ...paint, strokeWidth: formatSvgNumericAttribute('stroke-width', paint.strokeWidth ?? '1') }, false)
+        if (writtenExtent === undefined) return false
+        const extent = Math.max(radius, writtenExtent)
+        const x0 = Math.min(g.x1, g.x2, Number(formatSvgNumber(g.x1)), Number(formatSvgNumber(g.x2))) - extent
+        const x1 = Math.max(g.x1, g.x2, Number(formatSvgNumber(g.x1)), Number(formatSvgNumber(g.x2))) + extent
+        const y0 = Math.min(g.y1, g.y2, Number(formatSvgNumber(g.y1)), Number(formatSvgNumber(g.y2))) - extent
+        const y1 = Math.max(g.y1, g.y2, Number(formatSvgNumber(g.y1)), Number(formatSvgNumber(g.y2))) + extent
+        for (let index = 0; index < corners.length; index++) {
+          if (!work()) return false
+          const a = corners[index]!, b = corners[(index + 1) % corners.length]!
+          const length = Math.hypot(b.x - a.x, b.y - a.y)
+          if (!(length > 0) || !Number.isFinite(length)) continue
+          const nx = (a.y - b.y) / length, ny = (b.x - a.x) / length
+          const low = nx * ((nx < 0 ? x1 : x0) - a.x) + ny * ((ny < 0 ? y1 : y0) - a.y)
+          const high = nx * ((nx < 0 ? x0 : x1) - a.x) + ny * ((ny < 0 ? y0 : y1) - a.y)
+          if (corners.every(p => work() && nx * (p.x - a.x) + ny * (p.y - a.y) - margin > high)
+            || corners.every(p => work() && nx * (p.x - a.x) + ny * (p.y - a.y) + margin < low)) return true
+        }
+      }
+      return false
     }
     // A fill separator does not bound a stroke outside that geometry. Retain
     // uncertainty there unless the existing owned opaque border-band contact

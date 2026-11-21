@@ -9,6 +9,30 @@ import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { equalizePeerNodeDimensions } from '../layout/passes/peers.ts'
 import { alignPortLaneCandidate } from '../layout/passes/port-lanes.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+
+test.each(['TD', 'BT'])('%s centers a tree without letting disconnected components obstruct its parent', direction => {
+  const source = `flowchart ${direction}
+A[A wider root label] --> B[B]
+A --> C[Wide child label]
+C --> D[D]
+C --> E[Another long descendant]
+F[Disconnected]
+G --> H`
+  const graph = parseMermaid(source)
+  const positioned = layoutGraphSync(graph)
+  const center = (id: string) => { const n = node(positioned, id); return n.x + n.width / 2 }
+  expect(Math.abs(center('A') - (center('B') + center('C')) / 2)).toBeLessThan(0.01)
+  expect(assessLayout(graph, positioned).violations).toEqual([])
+  expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+  expect(positioned.nodes.map(n => n.id)).toEqual([...graph.nodes.keys()])
+  expect(positioned.edges.map(e => [e.source, e.target])).toEqual(graph.edges.map(e => [e.source, e.target]))
+  expect(center('G')).toBe(center('H'))
+  const root = node(positioned, 'A'), isolated = node(positioned, 'F'), otherRoot = node(positioned, 'G')
+  expect(isolated.x - root.x - root.width).toBeGreaterThanOrEqual(28)
+  expect(otherRoot.x - isolated.x - isolated.width).toBeGreaterThanOrEqual(28)
+  expect(renderMermaidSVGWithReceipt(source).receipt.layoutCertification?.status).toBe('passed')
+})
 
 const C_FIVE_WAY_FAN_IN = `flowchart TD
   Web[Web App] --> Gateway

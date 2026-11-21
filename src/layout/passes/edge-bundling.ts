@@ -119,6 +119,16 @@ function adjustJunctionForGroups(
   return crossingGroup.y - GAP // TD
 }
 
+/** A shared trunk also shares its endpoint glyph. A start marker on one
+ * fan-out member cannot stand for an unmarked sibling (and vice versa at a
+ * fan-in target); markers at the independent ends may still differ. */
+function sharesBundleTerminal(a: PositionedEdge, b: PositionedEdge, end: 'start' | 'end'): boolean {
+  if (!edgesMayShareTerminal(a, b)) return false
+  return end === 'start'
+    ? a.hasArrowStart === b.hasArrowStart && (!a.hasArrowStart || (a.startMarker ?? 'arrow') === (b.startMarker ?? 'arrow'))
+    : a.hasArrowEnd === b.hasArrowEnd && (!a.hasArrowEnd || (a.endMarker ?? 'arrow') === (b.endMarker ?? 'arrow'))
+}
+
 /**
  * Bundle fan-out and fan-in edge paths so they share a common trunk segment.
  *
@@ -188,18 +198,31 @@ export function bundleEdgePaths(
     if (!fanOutGroups.has(edge.source)) fanOutGroups.set(edge.source, [])
     fanOutGroups.get(edge.source)!.push(edge)
   }
+  // A fan shares only part of a relationship. Repeated endpoint pairs need
+  // their own lanes: rebuilding their complete paths would hide multiplicity.
+  // Reuse the source buckets; a chain needs no per-source target map.
+  const duplicateEdges = new Set<PositionedEdge>()
+  for (const group of fanOutGroups.values()) {
+    if (group.length < 2) continue
+    const targets = new Map<string, PositionedEdge>()
+    for (const edge of group) {
+      const prior = targets.get(edge.target)
+      if (prior) { duplicateEdges.add(prior); duplicateEdges.add(edge) }
+      else targets.set(edge.target, edge)
+    }
+  }
 
   for (const [sourceId, group] of fanOutGroups) {
     if (group.length < 2) continue
 
-    const style = group[0]!.style
-    if (group.some(e => e.label || e.style !== style)) continue
+    if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'start'))) continue
 
     const source = nodeMap.get(sourceId)
     if (!source) continue
 
     // Only bundle edges going in the forward direction
     const forward = group.filter(e => {
+      if (duplicateEdges.has(e)) return false
       const t = nodeMap.get(e.target)
       if (!t) return false
       if (isLR) return t.x > source.x + source.width
@@ -208,9 +231,6 @@ export function bundleEdgePaths(
       return t.y > source.y + source.height // TD/TB
     })
     if (forward.length < 2) continue
-    // A fan needs >= 2 distinct targets: duplicate edges to one target would
-    // bundle onto byte-identical overlapping paths, hiding one of them.
-    if (new Set(forward.map(e => e.target)).size < 2) continue
 
     const srcCX = source.x + source.width / 2
     const srcCY = source.y + source.height / 2
@@ -273,7 +293,6 @@ export function bundleEdgePaths(
         break
       }
       members = clear
-      if (new Set(members.map(m => m.edge.target)).size < 2) break
     }
   }
 
@@ -288,13 +307,13 @@ export function bundleEdgePaths(
   for (const [targetId, group] of fanInGroups) {
     if (group.length < 2) continue
 
-    const style = group[0]!.style
-    if (group.some(e => e.label || e.style !== style)) continue
+    if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'end'))) continue
 
     const target = nodeMap.get(targetId)
     if (!target) continue
 
     const forward = group.filter(e => {
+      if (duplicateEdges.has(e)) return false
       const s = nodeMap.get(e.source)
       if (!s) return false
       if (isLR) return s.x + s.width < target.x
@@ -303,8 +322,6 @@ export function bundleEdgePaths(
       return s.y + s.height < target.y // TD/TB
     })
     if (forward.length < 2) continue
-    // Same distinctness rule as fan-out, for duplicate edges from one source.
-    if (new Set(forward.map(e => e.source)).size < 2) continue
 
     const tgtCX = target.x + target.width / 2
     const tgtCY = target.y + target.height / 2
@@ -365,7 +382,6 @@ export function bundleEdgePaths(
         break
       }
       members = clear
-      if (new Set(members.map(m => m.edge.source)).size < 2) break
     }
   }
 

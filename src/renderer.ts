@@ -20,7 +20,7 @@ import { serializeMarkerResources } from './scene/marker-resources.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
-import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
+import { LABEL_HALO_RADIUS, labelHaloExtension, labelHaloRect, pillRect } from './shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './layout/geometry.ts'
 import { arrowheadDirection } from './shared/relation-direction.ts'
 
@@ -489,31 +489,22 @@ function renderEdgeLabel<T>(marks: DrawingFactory<T>, edge: PositionedEdge, font
   const mid = edge.labelPosition ?? calculatePathMidpoint(edge.points)
   const block = edge.labelBlock ?? graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
   const label = block.text
-  const padding = LABEL_PILL_PADDING
-  const haloPadding = padding + labelHaloExtension(edge, style.lineWidth)
-
-  // Measure text (works for both single and multi-line)
-  const metrics = block
-  const haloWidth = metrics.width + haloPadding * 2
-  const haloHeight = metrics.height + haloPadding * 2
-  const haloX = mid.x - haloWidth / 2
-  const haloY = mid.y - haloHeight / 2
+  const inner = pillRect(mid.x, mid.y, block)
+  const outer = labelHaloRect(inner, labelHaloExtension(edge, style.lineWidth))
   const halo = marks.shape({
     id: `${sceneId}:halo`,
     role: 'chrome',
-    geometry: { kind: 'rect', x: haloX, y: haloY, width: haloWidth, height: haloHeight, rx: 4, ry: 4 },
+    geometry: { kind: 'rect', x: outer.x, y: outer.y, width: outer.w, height: outer.h, rx: LABEL_HALO_RADIUS, ry: LABEL_HALO_RADIUS },
     paint: { fill: 'var(--bg)', stroke: 'none' },
     attributes: { className: 'edge-label-halo' },
   })
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
   // The label's pill: the text's own band plus padding.
-  const pillWidth = metrics.width + padding * 2
-  const pillHeight = metrics.height + padding * 2
   const pill = marks.shape({
     id: `${sceneId}:pill`,
     role: 'chrome',
-    geometry: { kind: 'rect', x: mid.x - pillWidth / 2, y: mid.y - pillHeight / 2, width: pillWidth, height: pillHeight, rx: 2, ry: 2 },
+    geometry: { kind: 'rect', x: inner.x, y: inner.y, width: inner.w, height: inner.h, rx: 2, ry: 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' },
   })
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'

@@ -199,21 +199,21 @@ export function directLaneBlockers(
   ctx: LaneContext,
   axis: Axis = ctx.axis,
 ): RouteBlocker[] {
-  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false)
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false, true)
 }
 
 /** Repair candidates only need an existence proof. Stop at the first blocker;
  * certificate-producing callers still collect the complete ordered evidence. */
 export function hasDirectLaneBlocker(
-  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, carriesLabel = true,
 ): boolean {
-  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true)
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true, carriesLabel)
 }
 
-function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: true): boolean
-function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: false): RouteBlocker[]
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: true, carriesLabel: boolean): boolean
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: false, carriesLabel: boolean): RouteBlocker[]
 function collectLaneBlockers(
-  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean, carriesLabel: boolean,
 ): RouteBlocker[] | boolean {
   const blockers: RouteBlocker[] | undefined = firstOnly ? undefined : []
 
@@ -304,7 +304,7 @@ function collectLaneBlockers(
     }
   }
 
-  if (edge.label) {
+  if (edge.label && carriesLabel) {
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {

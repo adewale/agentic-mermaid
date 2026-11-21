@@ -3,7 +3,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, rectInsideGroup, expandGroupsForMainShift, moveKeepsGroupContainment, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
 import { terminalLabelRunLength, terminalLabelCorridorLength, assignBundledFanoutLabels } from './bundled-labels.ts'
-import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { hasConstructedBundleRoute, retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
 import { terminalHookLength } from '../route-geometry.ts'
 import { laneContextFor, straightLaneFor } from '../route-lanes.ts'
@@ -261,11 +261,25 @@ export function applySymmetricFanoutEmissions(
     const elbow = ((capacityElbow - midpointElbow) * f.sign < 0) ? capacityElbow : midpointElbow
     // Unmoved targets must still leave the source its own hook before the elbow.
     if (routeOnly && (elbow - sourceEdge) * f.sign < Math.max(...sorted.map(edge => terminalHookLength(style, edge, 'start'))) - 0.001) continue
+    // Continue a centred approach through an internal rectangular fork only
+    // where the bundler already admitted its outgoing trunk to this elbow.
+    const centrePort = sourceEmissionPort(source, graph.direction, 0, 1)
+    const keepTrunk = source.shape === 'rectangle' && (elbow - centrePort[f.main]) * f.sign > 0 && sorted.every(edge => {
+      const [start, next] = edge.points
+      return !edge.label && bundled.has(edge) && !!start && !!next && start.x === centrePort.x && start.y === centrePort.y
+        && next[f.cross] === centrePort[f.cross] && (next[f.main] - elbow) * f.sign >= 0 && hasConstructedBundleRoute(edge)
+    }) && edges.some(edge => {
+      if (edge.target !== source.id || edge.style === 'invisible') return false
+      const entry = edge.points.at(-1), previous = edge.points.at(-2)
+      const facing = targetFlowPort(source, graph.direction)
+      return !!entry && !!previous && entry.x === facing.x && entry.y === facing.y && previous[f.cross] === facing[f.cross]
+        && (entry[f.main] - previous[f.main]) * f.sign > 0
+    })
     const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
     for (let i = 0; i < sorted.length; i++) {
       const edge = sorted[i]!
       const target = nodeMap.get(edge.target)!
-      const points = doglegBetween(sourceEmissionPort(source, graph.direction, i, sorted.length), targetFlowPort(target, graph.direction), graph.direction, elbow)
+      const points = doglegBetween(keepTrunk ? { ...centrePort } : sourceEmissionPort(source, graph.direction, i, sorted.length), targetFlowPort(target, graph.direction), graph.direction, elbow)
       if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) { clear = false; break }
       proposed.push({ edge, points })
     }

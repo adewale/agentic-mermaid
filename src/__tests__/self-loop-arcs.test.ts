@@ -15,10 +15,15 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { createLayoutRouteEdges, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { orthogonalShaftInk } from '../layout/graph-paint-support.ts'
+import { labelRect, labelHaloRect, labelHaloExtension, labelHaloMeetsShaft } from '../shared/edge-label-geometry.ts'
 import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedEdge, PositionedGroup, PositionedNode, Point } from '../types.ts'
 
 const STATE_SRC = `stateDiagram-v2
@@ -86,6 +91,29 @@ function expectSeparatedMarkers(edges: PositionedEdge[]): void {
 }
 
 describe('self-loops are real arcs (typed route class, not a stub)', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'])('loops beside reciprocal returns use clear channels (%s)', direction => {
+    const source = `flowchart ${direction}
+A[Send] -->|request| B[Process]
+B -->|retry| A
+B --> C[Commit]
+C --> A
+A -->|repeat| A
+A --> A
+C -->|wait| C`
+    const graph = parseLegacy(source)
+    const positioned = layoutGraphSync(graph)
+    const assessment = assessLayout(graph, positioned)
+    expect(assessment.violations).toEqual([])
+    expect(assessment.metrics.edgeCrossings).toBe(0)
+    expect(assessment.metrics.labelConflicts).toBe(0)
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]))
+      .toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]))
+    expect(positioned.edges.filter(edge => edge.source === edge.target)
+      .every(edge => edge.routeCertificate?.invariant === 'self-loop')).toBe(true)
+    const product = renderMermaidSVGWithReceipt(source)
+    expect(product.receipt.layoutCertification).toMatchObject({ status: 'passed', unit: 'px', checks: { markers: 7 } })
+  })
+
   for (const c of CASES) {
     test(`${c.name}: leaves and re-enters the boundary at distinct points, with real clearance`, () => {
       const { edge, node } = loopOf(c.src, c.loopId)
@@ -305,7 +333,7 @@ test('a marker-safe nested state loop also keeps its prepared label clear of for
 })
 
 
-for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card', 'header', 'label', 'marker'] as const) {
+for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card', 'header', 'label', 'marker', 'shaft'] as const) {
   test(`a ${side} self-loop admits its complete pill before choosing a side (${obstacle})`, () => {
     const point = (x: number, y: number): Point => side === 'E' ? { x, y } : side === 'W' ? { x: 80 - x, y } : side === 'N' ? { x: y, y: 80 - x } : { x: y, y: x }
     const rect = (x: number, y: number, w: number, h: number) => {
@@ -324,13 +352,94 @@ for (const side of ['E', 'W', 'N', 'S'] as const) for (const obstacle of ['card'
     }
     if (obstacle === 'label') edges.push({ source: 'C', target: 'D', label: 'foreign label', labelPosition: point(155, 40), points: [], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
     if (obstacle === 'marker') edges.push({ source: 'C', target: 'D', points: [point(135, 20), point(135, 40)], style: 'solid', hasArrowStart: false, hasArrowEnd: true })
-    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(groups.map(g => [g.id, g])), { nodes, edges, style: resolveRenderStyle({}) })
+    if (obstacle === 'shaft') edges.push({ source: 'C', target: 'D', points: [point(104.25, 37), point(104.25, 43)], style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    const style = resolveRenderStyle({})
+    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(groups.map(g => [g.id, g])), { nodes, edges, style })
     const selected = route(loop)
     expect(selected).not.toBeNull()
-    expect(selected).not.toBe(side)
+    if (obstacle === 'shaft') {
+      // The loop and caption can move independently. A clear alternative
+      // must preserve the entire foreign 1px shaft on its original route.
+      const ink = rect(103.75, 37, 1, 6), m = measureMultilineText('loop', style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const p = loop.labelPosition!, w = m.width / 2 + 12, h = m.height / 2 + 12
+      expect(p.x - w >= ink.x + ink.width || p.x + w <= ink.x || p.y - h >= ink.y + ink.height || p.y + h <= ink.y).toBe(true)
+    } else expect(selected).not.toBe(side)
     expect(loop.labelPosition).toBeDefined()
   })
 }
+
+test('choosing an owned loop side keeps a previously clear foreign shaft visible', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99)]
+  const style = resolveRenderStyle()
+  const loop: PositionedEdge = { source: 'B', target: 'B', label: 'loop', labelPosition: { x: 128, y: 40 }, style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    points: [{ x: 80, y: 30 }, { x: 92, y: 30 }, { x: 92, y: 50 }, { x: 80, y: 50 }] }
+  const rail = (id: string, from: Point, to: Point): PositionedEdge => {
+    const source = `${id}-from`, target = `${id}-to`
+    nodes.push(node(source, from.x - 1, from.y - 1, 2, 2), node(target, to.x - 1, to.y - 1, 2, 2))
+    return { source, target, points: [from, to], style: 'solid', hasArrowStart: false, hasArrowEnd: false }
+  }
+  // The east arc crosses the first rail. Its caption already masks the second.
+  // A south arc avoids the crossing but would mask the third for the first time.
+  const crossing = rail('crossing', { x: 92, y: -100 }, { x: 92, y: 180 })
+  const existing = rail('existing', { x: 128, y: -100 }, { x: 128, y: 180 })
+  const clear = rail('clear', { x: -80, y: 123 }, { x: 200, y: 123 })
+  const contacts = () => {
+    const halo = labelHaloRect(labelRect(loop, style)!, labelHaloExtension(loop, style.lineWidth))
+    return [crossing, existing, clear].filter(edge => orthogonalShaftInk(edge, style)!.some(shaft => labelHaloMeetsShaft(halo, shaft)))
+  }
+  withRouteMarkerCache(() => {
+    const edges = createLayoutRouteEdges(style)
+    edges.push(loop, crossing, existing, clear)
+    expect(contacts()).toEqual([existing])
+    expect(createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })(loop)).toBe('E')
+    expect(contacts()).toEqual([existing])
+  })
+})
+
+test('an unknown nested-loop contact leaves a measurable side eligible', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99)]
+  const loop = (): PositionedEdge => ({ source: 'B', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    points: [{ x: 80, y: 30 }, { x: 90, y: 30 }, { x: 90, y: 50 }, { x: 80, y: 50 }] })
+  const first = { ...loop(), label: 'first', labelPosition: { x: 128, y: 40 } }
+  const second = loop()
+  const third: PositionedEdge = { ...loop(), label: 'third', style: 'dotted', labelPosition: { x: -600, y: -600 } }
+  const style = resolveRenderStyle()
+  withRouteMarkerCache(() => {
+    const edges = createLayoutRouteEdges(style)
+    edges.push(first, second, third)
+    const route = createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })
+    expect(route(first)).toBe('E')
+    expect(route(second)).toBe('S')
+    const initial = { ...first.labelPosition }
+    // East would move the first caption across a dotted shaft whose occupied
+    // runs are unknown. South updates only the dotted loop's own caption.
+    expect(route(third)).toBe('S')
+    expect(first.labelPosition).toEqual(initial)
+  })
+})
+
+test('sliding a loop caption cannot bury a clear shaft to remove two shallow grazes', () => {
+  const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const nodes = [node('B', 0, 0, 80, 80), node('west', -100, 0, 99, 80), node('north', -1, -100, 82, 99), node('south', -1, 81, 82, 99)]
+  const style = resolveRenderStyle()
+  const loop: PositionedEdge = { source: 'B', target: 'B', label: 'loop', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    labelBlock: { ...graphEdgeTextBlock('loop', style), width: 24, height: 14 },
+    points: [{ x: 80, y: 30 }, { x: 90, y: 30 }, { x: 90, y: 50 }, { x: 80, y: 50 }] }
+  const rails = [22, 23, 62].map((y, index): PositionedEdge => {
+    const source = `s${index}`, target = `t${index}`
+    nodes.push(node(source, 84, y - 0.25, 8, 0.5), node(target, 180, y - 0.25, 8, 0.5))
+    return { source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: 92, y }, { x: 180, y }] }
+  })
+  const edges = [loop, ...rails]
+  expect(createSelfLoopRouter(new Map(nodes.map(n => [n.id, n])), new Map(), { nodes, edges, style })(loop)).toBe('E')
+  const center = loop.labelPosition!
+  // None of these 1px rails was covered by the 40×30 inner pill. The
+  // lower rail also cleared the entire 48×38 halo before the slide.
+  for (const rail of rails) expect(Math.abs(center.y - rail.points[0]!.y)).toBeGreaterThanOrEqual(15.5)
+  expect(Math.abs(center.y - 62)).toBeGreaterThanOrEqual(19.5)
+})
 
 test('a rejected nested loop leaves every earlier label seat and route unchanged', () => {
   const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }

@@ -297,7 +297,7 @@ class BinaryIndexedTree {
   private binarySums: number[]
   private numsPerIndex: number[]
   size = 0
-  constructor(private maxNum: number) { this.binarySums = new Array(maxNum + 1).fill(0); this.numsPerIndex = new Array(maxNum).fill(0) }
+  constructor(maxNum: number) { this.binarySums = new Array(maxNum + 1).fill(0); this.numsPerIndex = new Array(maxNum).fill(0) }
   add(index: number): void { this.size++; this.numsPerIndex[index]!++; for (let i = index + 1; i < this.binarySums.length; i += i & -i) this.binarySums[i]!++ }
   rank(index: number): number { let sum = 0; for (let i = index; i > 0; i -= i & -i) sum += this.binarySums[i]!; return sum }
   removeAll(index: number): void {
@@ -306,7 +306,12 @@ class BinaryIndexedTree {
     this.numsPerIndex[index] = 0; this.size -= numEntries
     for (let i = index + 1; i < this.binarySums.length; i += i & -i) this.binarySums[i]! -= numEntries
   }
-  clear(): void { this.binarySums = new Array(this.maxNum + 1).fill(0); this.numsPerIndex = new Array(this.maxNum).fill(0); this.size = 0 }
+  clear(): void {
+    this.binarySums.fill(0)
+    this.numsPerIndex.length = this.binarySums.length - 1
+    this.numsPerIndex.fill(0)
+    this.size = 0
+  }
 }
 
 class CrossingsCounter {
@@ -1209,7 +1214,7 @@ class HierarchicalLayerSweep {
       else this.minimizeWithoutCounter(record)
       const best = record.getBestSweep()
       if (record.parent !== undefined && record.graph.hasExternalPorts === true && best !== null) {
-        this.sortParentPorts(best.nodes, record.parent, true); this.sortParentPorts(best.nodes, record.parent, false)
+        this.sortParentPorts(best.lastLayer, record.parent, true); this.sortParentPorts(best.firstLayer, record.parent, false)
         record.parent.portConstraints = 'FIXED_ORDER'
       }
     }
@@ -1297,12 +1302,11 @@ class HierarchicalLayerSweep {
       // Nested graphs read their own FIRST/SECOND_TRY property; the root's
       // initial-order flag is not propagated down the inclusion tree.
       improved = this.sweep(record, forward, first, record.initialOrder) || improved
-      this.sortParentPorts(record.order, record.parent!, forward)
+      this.sortParentPorts(record.order[forward ? record.order.length - 1 : 0]!, record.parent!, forward)
     }
     return improved
   }
-  private sortParentPorts(order: Order, parent: Node, rightmost: boolean): void {
-    const layer = order[rightmost ? order.length - 1 : 0]!
+  private sortParentPorts(layer: readonly Node[], parent: Node, rightmost: boolean): void {
     let index = rightmost ? 0 : layer.length - 1
     if (layer[index]!.type !== 'EXTERNAL_PORT') return
     for (let i = 0; i < parent.ports.length; i++) {
@@ -1348,31 +1352,117 @@ export function minimizeHierarchicalGreedySwitch(root: LayoutGraph): void {
   new HierarchicalLayerSweep(root, 'TWO_SIDED_GREEDY_SWITCH').process()
 }
 
+type SavedSweepRow =
+  | readonly Node[]
+  | { readonly runs: readonly (Node | number)[] }
+
+// These ordinary split dummies never enter the hierarchical parent-port sorter,
+// and both port distributors leave FIXED_POS untouched. Capturing any other
+// port order still requires its own snapshot.
+function canonicalLongEdgePorts(node: Node): boolean {
+  return node.type === 'LONG_EDGE' && node.layoutGraph === undefined &&
+    node.portConstraints === 'FIXED_POS' && node.ports.length === 2 &&
+    node.ports[0]!.side === 'EAST' && node.ports[1]!.side === 'WEST'
+}
+
+// The splitter creates one outgoing segment per ordinary long-edge dummy.
+// The inverted-port processor also uses LONG_EDGE but attaches its layoutGraph.
+// During crossing minimization, ordinary dummy endpoints and ranks stay fixed.
+function longEdgeContinuations(previous: readonly Node[]): () => Node | undefined {
+  let index = 0
+  return () => {
+    while (index < previous.length) {
+      const node = previous[index++]!
+      if (node.type !== 'LONG_EDGE' || node.layoutGraph !== undefined || node.ports.length !== 2) continue
+      const first = node.ports[0]!, east = first.side === 'EAST' ? first : node.ports[1]!
+      if (east.side !== 'EAST' || east.outgoing.length !== 1) continue
+      const target = east.outgoing[0]!.target.node
+      if (target.type === 'LONG_EDGE' && target.layoutGraph === undefined && target.rank === node.rank + 1) return target
+    }
+    return undefined
+  }
+}
+
+// Store consecutive matching inner segments as a length. ELK decides the
+// order, including every random draw. A reordered continuation retains the
+// complete row. Endpoint and label nodes always retain their own identities.
+function saveSweepRow(layer: readonly Node[], previous: readonly Node[]): SavedSweepRow {
+  if (layer.length > 1) {
+    const take = longEdgeContinuations(previous)
+    let next = take()
+    if (next !== undefined) {
+      const runs: (Node | number)[] = []
+      let length = 0
+      for (const node of layer) {
+        if (node === next) {
+          length++
+          next = take()
+        } else {
+          if (length > 0) { runs.push(length); length = 0 }
+          runs.push(node)
+        }
+      }
+      if (length > 0) runs.push(length)
+      if (next === undefined && runs.length < layer.length) return { runs }
+    }
+  }
+  return layer.slice()
+}
+
 class SweepCopy {
-  readonly nodes: Order
+  readonly firstLayer: readonly Node[]
+  readonly lastLayer: readonly Node[]
+  private readonly rows: readonly SavedSweepRow[]
   private ports = new Map<Node, Port[]>()
   constructor(order: Order | SweepCopy) {
     if (order instanceof SweepCopy) {
-      this.nodes = order.nodes.map(layer => layer.slice())
+      this.firstLayer = order.firstLayer; this.lastLayer = order.lastLayer
+      this.rows = order.rows
       this.ports = new Map(order.ports)
     } else {
-      this.nodes = order.map(layer => layer.slice())
-      for (const layer of order) for (const node of layer) this.ports.set(node, node.ports.slice())
+      this.firstLayer = order[0]?.slice() ?? []
+      this.lastLayer = order.length > 1 ? order[order.length - 1]!.slice() : this.firstLayer
+      this.rows = order.map((layer, index) => {
+        if (index === 0) return this.firstLayer
+        if (index + 1 === order.length) return this.lastLayer
+        if (layer.length <= 1) return layer.slice()
+        return saveSweepRow(layer, order[index - 1]!)
+      })
+      for (const layer of order) for (const node of layer) if (!canonicalLongEdgePorts(node)) this.ports.set(node, node.ports.slice())
     }
   }
   transfer(order: Order): void {
     const update = new Set<Node>()
     for (let l = 0; l < order.length; l++) {
-      const layer = order[l]!, positions = new Map<Node, number>(), northSouth: Node[] = []
+      const layer = order[l]!, saved = this.rows[l]!, northSouth: Node[] = []
+      if ('runs' in saved) {
+        const take = longEdgeContinuations(order[l - 1]!)
+        let write = 0
+        for (const item of saved.runs) {
+          if (typeof item === 'number') for (let count = 0; count < item; count++) layer[write++] = take()!
+          else layer[write++] = item
+        }
+      }
+      const nodes = 'runs' in saved ? layer : saved
       for (let i = 0; i < layer.length; i++) {
-        const node = this.nodes[l]![i]!
-        positions.set(node, i)
+        const node = nodes[i]!
         if (node.type === 'NORTH_SOUTH_PORT') northSouth.push(node)
         layer[i] = node
-        node.ports.length = 0
-        for (const port of this.ports.get(node)!) node.ports.push(port)
+        const ports = this.ports.get(node)
+        if (ports !== undefined) {
+          node.ports.length = 0
+          for (const port of ports) node.ports.push(port)
+        } else {
+          const first = node.ports[0]!, second = node.ports[1]!
+          node.ports.length = 0
+          if (first.side === 'EAST') node.ports.push(first, second)
+          else node.ports.push(second, first)
+        }
         if (!isOrderFixed(node)) node.portConstraints = 'FIXED_ORDER'
       }
+      if (northSouth.length === 0) continue
+      const positions = new Map<Node, number>()
+      for (let i = 0; i < layer.length; i++) positions.set(layer[i]!, i)
       for (const dummy of northSouth) {
         const origin = dummy.inLayerLayoutUnit!, port = origin.ports.find(port => port === dummy.ports[0]!.originPort)
         if (port !== undefined) {

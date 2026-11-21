@@ -2,12 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
-import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
+import { createLayoutRouteEdges, routeCandidateMarkerBlocker, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import { graphGeometryWarnings } from '../agent/verify.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -25,7 +26,7 @@ import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
-import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
+import { labelSeatPaintContext, labelShafts } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
@@ -1716,7 +1717,19 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
       expect(onShapeOutline(positioned.nodes.find(node => node.id === from)!, edge.points[0]!)).toBe(true)
       expect(onShapeOutline(positioned.nodes.find(node => node.id === to)!, edge.points.at(-1)!)).toBe(true)
     }
-    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
+    const named = dups.find(edge => edge.label)!
+    // A direct separated lane needs no bundle exemption; a detour still does.
+    if (named.points.length === 2) {
+      const [start, end] = named.points
+      expect(start!.x === end!.x || start!.y === end!.y).toBe(true)
+      expect(Math.hypot(end!.x - start!.x, end!.y - start!.y)).toBeGreaterThan(0)
+      expect(named.routeCertificate?.invariant).toBe('straight')
+      expect(named.routeCertificate?.bendCount).toBe(0)
+      expect(named.routeCertificate?.directLaneClear).toBe(true)
+    } else {
+      expect(named.routeCertificate?.invariant).toBe('bundle')
+      expect(hasBundleRouteExemption(named)).toBe(true)
+    }
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
     expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
     const tags = scanSvgStartTags(renderMermaidSVG(source.replace('flowchart TD', `flowchart ${direction}`), { embedFontImport: false }))
@@ -2929,6 +2942,21 @@ describe('port-lane reserved-header admission', () => {
   const g = (x: number, y: number, width: number, height: number, headerHeight = height): PositionedGroup => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
   const stairs = () => ({ nodes: [n('S', 0, 100), n('T', 100, 0)], edges: [e('S', 'T', [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }])] })
 
+  it('keeps an owned port alignment from dragging its incident shaft across a clear rail', () => {
+    const { nodes, edges: initial } = stairs(), style = resolveRenderStyle()
+    nodes.push(n('P', 82, 80, 6, 10), n('Q', 82, 144, 6, 10))
+    initial.push(e('P', 'Q', [{ x: 85, y: 90 }, { x: 85, y: 144 }]))
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...initial)
+      const before = structuredClone({ nodes, edges })
+      expect(countEdgeCrossings(edges)).toBe(0)
+      alignPortLanes(nodes, edges, [], 'LR', style)
+      expect(countEdgeCrossings(edges)).toBe(0)
+      expect({ nodes, edges }).toEqual(before)
+    })
+  })
+
   for (const width of ['20', '20px', '1em', 'var(--edge-width)']) it(`does not slide a card into an unchanged foreign ${width} shaft`, () => {
     const { nodes, edges } = stairs()
     nodes.push(n('U', 134, 40, 30, 20), n('V', 134, 170, 30, 20))
@@ -3274,6 +3302,69 @@ it('a crossing container Z cannot borrow a bbox-gap proof for a diamond facet in
 describe('unresolved marker-label seats', () => {
   const style = { ...resolveRenderStyle(), edgeLabelFontSize: 11 }
   const graph = () => parseMermaid('flowchart TD\nA-->B\nC-->D')
+  it('withholds optional halo moves when a caller can move a shaft from a label setter', () => {
+    const route = (source: string, target: string, points: Point[]): PositionedEdge => ({
+      source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    })
+    const label = (source: string, target: string, y: number): PositionedEdge => ({
+      ...route(source, target, [{ x: 0, y }, { x: 300, y }]),
+      label: source, labelPosition: { x: 150, y },
+      labelBlock: { ...graphEdgeTextBlock(source, style), width: 24, height: 14 },
+    })
+    const first = label('A', 'B', 100), second = label('C', 'D', 300)
+    const rail = route('I', 'J', [{ x: 500, y: 273 }, { x: 500, y: 309 }])
+    const firstTip = route('E', 'F', [{ x: 150, y: 10 }, { x: 150, y: 81.25 }])
+    const secondTip = route('G', 'H', [{ x: 150, y: 210 }, { x: 150, y: 281.25 }])
+    const center = first.labelPosition!
+    let writes = 0
+    Object.defineProperty(first, 'labelPosition', { enumerable: true, get: () => center, set() {
+      writes++
+      for (const point of rail.points) point.x = 174.51
+    } })
+    separateEdgeLabelPills({ nodes: [], groups: [], edges: [first, second, firstTip, secondTip, rail] }, graph(), style)
+    expect(writes).toBe(0)
+    expect(first.labelPosition).toEqual({ x: 150, y: 100 })
+    expect(second.labelPosition).toEqual({ x: 150, y: 300 })
+    expect(rail.points[0]!.x).toBe(500)
+  })
+  it.each([0, 1])('protects a caption on an invisible %i-point carrier when its neighbour reroutes', length => {
+    const owner: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      label: 'owner', points: [{ x: 150, y: 50 }, { x: 150, y: 150 }], labelPosition: { x: 150, y: 100 } }
+    const blocker: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      points: [{ x: 150, y: 0 }, { x: 150, y: 200 }] }
+    const hidden: PositionedEdge = { ...owner, label: 'protected', style: 'invisible', labelPosition: { x: 230, y: 100 },
+      points: [{ x: 230, y: 0 }].slice(0, length) }
+    const edges = [owner, blocker, hidden]
+    const paint = labelSeatPaintContext([], edges, [], style, () => true, labelShafts(edges, style))!
+    const halo = paint.label(hidden, hidden.labelPosition!)!
+    expect(paint.protectedHalos(owner, blocker)).toContainEqual({ x: halo.x0, y: halo.y0, w: halo.x1 - halo.x0, h: halo.y1 - halo.y0 })
+    const next = [{ x: 230, y: 0 }, { x: 230, y: 200 }]
+    expect(paint.clear(hidden, hidden.labelPosition!, new Map())).toBe(true)
+    expect(paint.refreshRoute(blocker, next)).toBe(true)
+    expect(paint.clear(hidden, hidden.labelPosition!, new Map())).toBe(false)
+  })
+  it.each([
+    ['shallow side', 150, 81.25, 1, true],
+    ['stroke beside the halo', 150, 80.75, 1, true],
+    ['rounded corner gap', 126.75, 82, 0.5, false],
+  ] as const)('re-seats a label only for painted foreign ink: %s', (_case, x, endY, stroke, masked) => {
+    // The 24×14 text box yields a 48×38 halo with a 4px corner radius.
+    // A vertical butt-ended shaft stops just above or just inside that halo.
+    const edge: PositionedEdge = {
+      source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false, label: 'label',
+      points: [{ x: 0, y: 100 }, { x: 300, y: 100 }], labelPosition: { x: 150, y: 100 },
+      labelBlock: { ...graphEdgeTextBlock('label', style), width: 24, height: 14 },
+    }
+    const peer: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      points: _case === 'stroke beside the halo' ? [{ x: 140, y: endY }, { x: 160, y: endY }] : [{ x, y: 0 }, { x, y: endY }],
+      inlineStyle: { 'stroke-width': String(stroke) },
+    }
+    separateEdgeLabelPills({ nodes: [], groups: [], edges: [edge, peer] }, graph(), style)
+    if (masked) {
+      expect(Math.abs(edge.labelPosition!.x - 150)).toBeGreaterThan(24)
+      expect(edge.labelPosition!.y).toBe(100)
+    } else expect(edge.labelPosition).toEqual({ x: 150, y: 100 })
+  })
   const clear = (edge: PositionedEdge, edges: PositionedEdge[]): boolean => {
     const pill = labelRect(edge, style)!, halo = 4
     return edges.every(peer => graphEdgeMarkerPaintRegions(peer, style).every(marker => {
@@ -3361,6 +3452,118 @@ it('a hidden carrier still reserves its visible caption during marker-label resc
  const paint=labelSeatPaintContext([], [edge,peer], [],style,()=>true)!
  expect(paint.clear(edge,{x:0,y:100},new Map())).toBe(false)
  expect(paint.clear(edge,{x:0,y:50},new Map())).toBe(true)
+})
+
+describe('settled orthogonal excursions', () => {
+  it('preserves the closed route set when a shortcut would expose another unresolved hitch', () => {
+    const graph = parseMermaid('flowchart LR\nA ---|W| B\nX --- Y'), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, 55, 20, 10], B: [820, 35, 20, 10], X: [-132, -2, 12, 4], Y: [1000, -2, 12, 4] }
+    const nodes = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    const paths = [
+      [[0, 60], [100, 60], [100, 0], [700, 0], [700, 40], [820, 40]],
+      [[-120, 0], [-70, 0], [-70, -80], [900, -80], [900, 0], [1000, 0]],
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...graph.edges.map((edge, edgeIndex): PositionedEdge => ({ ...edge, edgeIndex,
+        points: paths[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })),
+        ...(edgeIndex === 0 ? { labelPosition: { x: 400, y: 0 } } : {}),
+        routeCertificate: { edgeIndex, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 },
+      })))
+      const positioned = { nodes, edges, groups: [] }, before = structuredClone(edges)
+      expect(findRouteHitches(positioned, graph, style)).toEqual([])
+      closeRouteContracts(positioned, graph, style)
+      expect(edges).toEqual(before)
+      expect(findRouteHitches(positioned, graph, style)).toEqual([])
+    })
+  })
+
+  it('does not sweep another shaft of the same edge through its retained start arrow', () => {
+    const graph = parseMermaid('flowchart LR\nA <--> B'), style = { ...resolveRenderStyle(), lineWidth: 3 }
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: -10, y: 49, width: 10, height: 2 },
+      { ...graph.nodes.get('B')!, x: 999, y: 42, width: 10, height: 2 },
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style), points = [[0, 50], [6, 50], [6, -80], [900, -80], [900, 43], [999, 43]].map(([x, y]) => ({ x: x!, y: y! }))
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points,
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } })
+      closeRouteContracts({ nodes, edges, groups: [] }, graph, style)
+      expect(edges[0]!.points).toEqual(points)
+      expect(edges[0]!.hasArrowStart).toBe(true)
+      expect(edges[0]!.hasArrowEnd).toBe(true)
+    })
+  })
+
+  it('keeps a required route outside an unrelated container frame', () => {
+    const graph = parseMermaid('flowchart LR\nS --- T\nsubgraph G [Foreign group]\nC\nend'), style = resolveRenderStyle()
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('S')!, x: -20, y: 99, width: 20, height: 2 },
+      { ...graph.nodes.get('T')!, x: 180, y: 104, width: 20, height: 2 },
+      { ...graph.nodes.get('C')!, x: 90, y: 40, width: 20, height: 10 },
+    ]
+    const groups: PositionedGroup[] = [{ id: 'G', label: 'Foreign group', x: 70, y: 20, width: 60, height: 87, headerHeight: 10, children: [] }]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style), points = [[0, 100], [40, 100], [40, 110], [150, 110], [150, 105], [180, 105]].map(([x, y]) => ({ x: x!, y: y! }))
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points,
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } })
+      closeRouteContracts({ nodes, edges, groups }, graph, style)
+      expect(edges[0]!.points).toEqual(points)
+    })
+  })
+
+  it.each([0, 1, 2, 3])('contracts an excursion with its caption while preserving both contacts at rotation %s', turns => {
+    const direction = (['RL', 'BT', 'LR', 'TD'] as const)[turns]!
+    const graph = parseMermaid(`flowchart ${direction}\nA -->|caption| B`), style = resolveRenderStyle()
+    const rotate = (point: Point): Point => {
+      let { x, y } = point
+      for (let turn = 0; turn < turns; turn++) [x, y] = [-y, x]
+      return { x, y }
+    }
+    const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode => {
+      const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+      return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    const nodes = [node('A', 300, 150, 60, 40), node('B', 0, 100, 40, 40)]
+    const before = [[300, 170], [260, 170], [260, 108], [100, 108], [100, 120], [40, 120]].map(([x, y]) => rotate({ x: x!, y: y! }))
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: before, labelPosition: rotate({ x: 180, y: 108 }),
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4 } }
+      edges.push(edge)
+      const positioned = { nodes, edges, groups: [] }
+      closeRouteContracts(positioned, graph, style)
+      expect(edge.points).toEqual([[300, 170], [260, 170], [260, 120], [40, 120]].map(([x, y]) => rotate({ x: x!, y: y! })))
+      expect(edge.labelPosition).toEqual(rotate({ x: 180, y: 120 }))
+      expect([edge.source, edge.target, edge.label, edge.hasArrowEnd, edge.edgeIndex]).toEqual(['A', 'B', 'caption', true, 0])
+      expect(edge.routeCertificate?.bendCount).toBe(2)
+      expect(auditRouteContracts(positioned, graph, style)).toEqual([])
+      const settled = structuredClone(edge)
+      closeRouteContracts(positioned, graph, style)
+      expect(edge).toEqual(settled)
+    })
+  })
+
+  it.each(['caption halo', 'thick parallel shaft'] as const)('rejects a shortcut that introduces contact with a foreign %s', obstacle => {
+    const style = { ...resolveRenderStyle(), lineWidth: 2 }
+    const before = [[0, 40], [20, 40], [20, 20], [80, 20], [80, 30], [100, 30]].map(([x, y]) => ({ x: x!, y: y! }))
+    const route = [[0, 40], [20, 40], [20, 30], [100, 30]].map(([x, y]) => ({ x: x!, y: y! }))
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: before,
+      ...(obstacle === 'thick parallel shaft' ? { inlineStyle: { 'stroke-width': '8' } } : {}) }
+    const peer: PositionedEdge = obstacle === 'caption halo'
+      ? { source: 'C', target: 'D', style: 'thick', hasArrowStart: false, hasArrowEnd: false, label: 'X', labelPosition: { x: 50, y: 51.15 }, points: [{ x: -200, y: 51.15 }, { x: 200, y: 51.15 }] }
+      : { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false, inlineStyle: { 'stroke-width': '8' }, points: [{ x: 30, y: 35 }, { x: 70, y: 35 }] }
+    const edges = [edge, peer], paint = labelSeatPaintContext([], edges, [], style, () => true, labelShafts(edges, style))!
+    expect(countEdgeCrossings(edges)).toBe(0)
+    expect(countEdgeCrossings([{ ...edge, points: route }, peer])).toBe(0)
+    expect(paint.clearRoute(edge, before)).toBe(true)
+    expect(paint.refreshRoute(edge, route)).toBe(true)
+    expect(paint.clearRoute(edge, route)).toBe(false)
+    expect(edge.points).toEqual(before)
+  })
 })
 
 

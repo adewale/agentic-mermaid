@@ -6,7 +6,7 @@ import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt } from './layout/layout-cost.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
-import { withRouteMarkerCache } from './layout/route-marker-clearance.ts'
+import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -32,7 +32,7 @@ import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from './layout-rubric.ts'
 import { measureRenderStage } from './render-stages.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { anticipateCrossingCounts } from './shared/edge-crossings.ts'
@@ -319,10 +319,9 @@ function corankFanInBalancingLabels(
     let width = 0
     let height = 0
     for (const i of labeled) {
-      const metrics = graphTextBlock(resolveLabelContent(graph.edges[i]!.label!, graph.edges[i]!.labelContent), style, 'edge')
-      const label = metrics.text
-      width = Math.max(width, metrics.width + 8)
-      height = Math.max(height, metrics.height + 6)
+      const dims = elkLabelDimensions(graph.edges[i]!, style)
+      width = Math.max(width, dims.width)
+      height = Math.max(height, dims.height)
     }
     for (const i of unlabeled) balancing.set(i, { width, height })
   }
@@ -513,7 +512,7 @@ function mermaidToElk(
       : routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target
     let order = 0
     const segment = (scope: string | undefined, from: string, to: string, central = false): void => {
-      const base = central ? crossHierarchyElkEdge(index, edge, from, to, style, balancingLabels)
+      const base = central ? centeredElkEdge(index, edge, from, to, style, balancingLabels)
         : { id: `e${index}_internal_${order}`, sources: [from], targets: [to] }
       const elkEdge: ElkHierarchySegment = { ...base, id: allocateId(base.id), hierarchySegment: { edgeIndex: index, order: order++ } }
       const edges = crossEdgesByHost.get(scope ?? null) ?? []
@@ -649,26 +648,10 @@ function mermaidToElk(
 
   // Add root-level edges
   for (const { index, edge } of edgesBySubgraph.get(null)!) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
-      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
-    }
-    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-      const label = metrics.text
-      elkEdge.labels = [{
-        text: label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    } else if (!edge.label && balancingLabels.has(index)) {
-      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
-    }
+    const elkEdge = centeredElkEdge(index, edge,
+      routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source,
+      routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target,
+      style, balancingLabels)
     elkGraph.edges!.push(elkEdge)
   }
 
@@ -677,9 +660,54 @@ function mermaidToElk(
     elkGraph.edges!.push(edge)
   }
 
+  if (useSourceAwareChildOrder && !opts.layoutHints && !opts.stateVisual && withinLayoutPreferenceBudget(graph)) orderCompleteGroupPaths(elkGraph, graph)
   applyLayoutHints(elkGraph, graph, opts.layoutHints)
   if (separateHierarchy && subgraphPorts.size > 0) preserveHierarchyPortConstraints(elkGraph, subgraphPorts)
   return elkGraph
+}
+
+/** Independent paths through the same flat groups share one row order. Local
+ * source ordering cannot see these cross-scope relationships. Only the private
+ * ELK children are reordered, after every path and scope has been checked. */
+function orderCompleteGroupPaths(root: ElkNode, graph: MermaidGraph): void {
+  const groups = graph.subgraphs, count = graph.nodes.size
+  if ((graph.direction !== 'LR' && graph.direction !== 'RL') || groups.length < 2
+    || count !== groups.length * (count - graph.edges.length)
+    || groups.some(group => group.children.length > 0 || group.nodeIds.length === 0 || group.direction !== undefined && group.direction !== graph.direction)) return
+  const owners = new Map<string, string>(), scopes = new Map(root.children?.map(node => [node.id, node]))
+  for (const group of groups) {
+    if (scopes.get(group.id)?.children?.length !== group.nodeIds.length) return
+    for (const id of group.nodeIds) {
+      if (!graph.nodes.has(id) || owners.has(id)) return
+      owners.set(id, group.id)
+    }
+  }
+  if (owners.size !== count) return
+  const incoming = new Set<string>(), outgoing = new Map<string, string>()
+  for (const edge of graph.edges) {
+    if (edge.label || edge.style === 'invisible' || (edge.length ?? 1) !== 1 || !owners.has(edge.source) || !owners.has(edge.target)
+      || incoming.has(edge.target) || outgoing.has(edge.source)) return
+    incoming.add(edge.target); outgoing.set(edge.source, edge.target)
+  }
+  const order = new Map(groups.map(group => [group.id, [] as string[]]))
+  let groupOrder: string[] | undefined
+  let visited = 0
+  for (const id of graph.nodes.keys()) {
+    if (incoming.has(id)) continue
+    const seen = new Set<string>()
+    for (let node: string | undefined = id; node !== undefined; node = outgoing.get(node)) {
+      const owner = owners.get(node)!
+      if (seen.has(owner) || groupOrder !== undefined && groupOrder[seen.size] !== owner) return
+      seen.add(owner); order.get(owner)!.push(node); visited++
+    }
+    if (seen.size !== groups.length) return
+    groupOrder ??= [...seen]
+  }
+  if (visited !== count) return
+  for (const group of groups) {
+    const scope = scopes.get(group.id)!, children = new Map(scope.children!.map(node => [node.id, node]))
+    scope.children = order.get(group.id)!.map(id => children.get(id)!)
+  }
 }
 
 function endpointKey(edgeIndex: number, endpoint: 'source' | 'target'): string {
@@ -914,7 +942,13 @@ function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle
   return elkNode
 }
 
-function crossHierarchyElkEdge(
+/** Real labels and mixed-fan balancing cells reserve the same measured box. */
+function elkLabelDimensions(edge: MermaidEdge, style: ResolvedRenderStyle): { text: string; width: number; height: number } {
+  const metrics = graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
+  return { text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }
+}
+
+function centeredElkEdge(
   index: number,
   edge: MermaidEdge,
   source: string,
@@ -928,17 +962,12 @@ function crossHierarchyElkEdge(
     targets: [target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-    const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-    const label = metrics.text
-    elkEdge.labels = [{
-      text: label,
-      width: metrics.width + 8,
-      height: metrics.height + 6,
-      layoutOptions: {
-        'elk.edgeLabels.inline': 'true',
-        'elk.edgeLabels.placement': 'CENTER',
-      },
-    }]
+    const label: NonNullable<ElkExtendedEdge['labels']>[number] = elkLabelDimensions(edge, style)
+    label.layoutOptions = {
+      'elk.edgeLabels.inline': 'true',
+      'elk.edgeLabels.placement': 'CENTER',
+    }
+    elkEdge.labels = [label]
   } else if (!edge.label && balancingLabels?.has(index)) {
     elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
   }
@@ -1108,26 +1137,10 @@ function subgraphToElk(
   // Add internal edges (edges where both endpoints are in this subgraph)
   const internalEdges = edgesBySubgraph.get(sg.id) ?? []
   for (const { index, edge } of internalEdges) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
-      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
-    }
-    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
-      const label = metrics.text
-      elkEdge.labels = [{
-        text: label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    } else if (!edge.label && balancingLabels.has(index)) {
-      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
-    }
+    const elkEdge = centeredElkEdge(index, edge,
+      routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source,
+      routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target,
+      style, balancingLabels)
     elkNode.edges!.push(elkEdge)
   }
 
@@ -1500,9 +1513,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
-    id: 'separateEdgeLabelPills', doc: 'slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)',
-    after: ['repairLabelsOffOwnRoute'], mutates: ['labels'],
-    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, undefined) },
+    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
+    after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
+    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
@@ -1664,7 +1677,7 @@ function elkToPositioned(
   stateNoteMargin: number = 18,
 ): LayoutRouteProposal {
   const nodes: PositionedNode[] = []
-  const edges: PositionedEdge[] = []
+  const edges = createLayoutRouteEdges(style)
   const groups: PositionedGroup[] = []
 
   // Build set of subgraph IDs for distinguishing compound nodes from leaf nodes
@@ -2067,9 +2080,9 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
   const compareRoutes = options.compareRoutePreferences !== false
   const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
-  // Keep parallel pairs with their specialized route owners: fewer proper
-  // crossings can still collapse duplicate endpoint lanes into ambiguous ink.
-  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && !contraction && withinLayoutPreferenceBudget(graph) && !hasParallelPair(graph.edges)
+  // Only generic fan bundling is disabled in the alternative. Parallel and
+  // duplicate lane owners still run before the completed route is certified.
+  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && !contraction && withinLayoutPreferenceBudget(graph)
     ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
     : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
