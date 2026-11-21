@@ -1,3 +1,4 @@
+import type { LabelSeatPaintSupports } from './layout/graph-paint-support.ts'
 import { estimateNodeSize, groupHeaderHeight, groupTitleWidth, retainGraphText } from './layout/graph-measurement.ts'
 export { estimateNodeSize, retainGraphText } from './layout/graph-measurement.ts'
 import { graphTextBlock } from './graph-text.ts'
@@ -6,6 +7,7 @@ import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt } from './layout/layout-cost.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
+import { orderAlternativeInkClear } from './layout/order-alternative-admission.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
@@ -1310,6 +1312,7 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
+  settledPaintSupports?: LabelSeatPaintSupports
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1515,13 +1518,17 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
     after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
-    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { c.settledPaintSupports = settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
     after: ['separateEdgeLabelPills'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
-    run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => {
+      const supports = c.settledPaintSupports
+      c.settledPaintSupports = undefined
+      closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, supports)
+    },
   },
   {
     id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
@@ -2115,12 +2122,13 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
-    && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
+    && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length) {
     const result = certifyCandidate(graph, style, { strategy: 'prefer-model-order',
       produce: () => optimization.optionalLayout(() => produceCandidate({ ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
       preferNext: preferReadableTitles,
     })
-    if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)) {
+    if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)
+      && (!hasParallelPair(graph.edges) || orderAlternativeInkClear(selected, result.certified.positioned, style, result.certified.score.labelConflicts))) {
       optimization.selectedLayoutOptimization('prefer-model-order')
       return withLayoutCost(retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
         attempts: certification.attempts + 1,

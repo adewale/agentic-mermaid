@@ -11,7 +11,7 @@ import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, Position
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
 import { extendTerminalRuns, terminalRunLength } from './layout/terminal-clearance.ts'
-import { labelPaintInputsStable, labelSeatPaintContext, labelShafts, orthogonalShaftInk } from './layout/graph-paint-support.ts'
+import { labelPaintInputsStable, labelSeatPaintContext, labelShafts, orthogonalShaftInk, type LabelSeatPaintSupports } from './layout/graph-paint-support.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
@@ -289,12 +289,12 @@ export function applyRouteContracts(
   /** Another terminal this route may not share already ends on `lane`. */
   const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
     peer !== edge && peer.target === edge.target && peer.points.length > 1
-    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
+    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets))
 
   /** A peer this route may not share a terminal with ends on the target's
    * port lane, or emits on it and so can enter it straight. */
   const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
-    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
     const emitter = sourceOf(peer)
     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
   })
@@ -391,7 +391,7 @@ export function applyRouteContracts(
       // port goes to it and this route keeps its own entry first.
       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
       const peerOwnsPort = someIncoming(edge, peer => {
-        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
         const emitter = sourceOf(peer)
         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
       })
@@ -756,7 +756,7 @@ export function applyRouteContracts(
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
     const mergeAvailable = someIncoming(edge,
-      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
+      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other, ctx.distinctArrivalTargets) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
     )
     if (mergeAvailable) return false
     const portMain = shapePorts(target)[entrySide][axis.main]
@@ -1668,11 +1668,12 @@ export function separateEdgeLabelPills(
 
 /** Only the settled graph pipeline can give a foreign shaft a private channel.
  * The label-only entry point also serves C4 and retains its fixed routes. */
-export function settleGraphEdgeLabels(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  settleEdgeLabelPills(positioned, graph, style, undefined, repairSharedLabelChannel)
+export function settleGraphEdgeLabels(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): LabelSeatPaintSupports | undefined {
+  return settleEdgeLabelPills(positioned, graph, style, undefined, repairSharedLabelChannel)
 }
 
-function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, options?: { preserveRouteClearance?: boolean; seats?: LabelSeatSearch }, privateChannel?: typeof repairSharedLabelChannel): void {
+function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, options?: { preserveRouteClearance?: boolean; seats?: LabelSeatSearch }, privateChannel?: typeof repairSharedLabelChannel): LabelSeatPaintSupports | undefined {
+  let supports: LabelSeatPaintSupports | undefined
   let routeWork = LABEL_ROUTE_WORK
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   if (labeled.length === 0) return
@@ -1854,8 +1855,9 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
       if (!contact) continue
       if (!pay(edge.points.length + 2)) return
       if (edge.curve || (style.edgeBendRadius ?? 0) !== 0 || edge.points.some((p, i) => i > 0 && p.x !== edge.points[i - 1]!.x && p.y !== edge.points[i - 1]!.y)) continue
-      paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, shafts)
+      paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, shafts, privateChannel ? 'prepare' : undefined)
       if (!paint || !pay(8)) return
+      supports = paint.supports
       if (typeof contact === 'object' && slideBeside(edge, rect, contact.box, paint)) continue
       const blockers = new Set<PositionedEdge>(), single = new Map<PositionedEdge, Point>()
       const seat = paint
@@ -1978,6 +1980,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
     if (conflicts === 0) { rescuePaintSeats(); break }
     if (sweep === 2) rescuePaintSeats()
   }
+  return supports
 }
 
 /** Remove a sub-pixel terminal run along an open rectangle face. The preceding
@@ -2038,7 +2041,7 @@ export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edg
  * inner run can move to the nearest endpoint lane without moving either
  * contact or rotating its ray. No distance threshold makes a bend optional:
  * the replacement and its translated caption must clear the actual paint. */
-function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
+function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, supports?: LabelSeatPaintSupports): void {
   if (!ownsLayoutRouteInputs(positioned.edges, style) || positioned.groups.length || graph.subgraphs.length || !withinLayoutPreferenceBudget(graph)) return
   const { ctx, axis } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
   ctx.fixedLabels = true
@@ -2078,8 +2081,9 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
         || Math.abs(label[cross] - b[cross]) > (cross === 'x' ? rect.w : rect.h) / 2) continue
       label = { ...label, [cross]: label[cross] + lane - b[cross] }
     }
-    paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay))
+    paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay), supports)
     if (!paint) return
+    supports = undefined
     if (!paint.refreshRoute(edge, route)) return
     const clear = paint.clearRoute(edge, route) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
     if (!clear) { if (!paint.refreshRoute(edge)) return; continue }
@@ -2105,11 +2109,11 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
  * cannot disagree about lane occupancy. A successful change removes one bent
  * edge and never introduces a bend; at most `edges.length` scans are needed.
  * Then remove proven sub-pixel rectangle-face tails and recertify contacts. */
-export function closeRouteContracts(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): RouteCertificate[] {
+export function closeRouteContracts(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, supports?: LabelSeatPaintSupports): RouteCertificate[] {
   for (let round = 0; round < positioned.edges.length; round++) {
     if (scanRouteHitches(positioned, graph, style, true).length === 0) break
   }
-  shortenRouteExcursions(positioned, graph, style)
+  shortenRouteExcursions(positioned, graph, style, supports)
   collapseTinyEndpointSegments(positioned.nodes, positioned.edges, style)
   return positioned.edges.flatMap(edge => (edge.routeCertificate ? [edge.routeCertificate] : []))
 }

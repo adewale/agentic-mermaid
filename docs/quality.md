@@ -26,7 +26,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    | `labelLegibility` | fraction of measured visible labels whose retained text bounds fit their actual containing region | ≥ 85% |
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
-   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
+   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | weighted with crossings in candidate selection; no default quality bound |
    | `routeOverlaps` | Flowchart/State edge pairs sharing opposing-direction ink or same-endpoint parallel ink (parallel excludes self-loops) | reported separately from crossings; no default quality bound |
    | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; authored coincident Quadrant points and XY/Radar data overlays are excluded | ≥ 8 px |
    | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
@@ -64,11 +64,12 @@ For automatic graph layout, apply the following order:
    non-overlapping graph nodes, endpoints on the rendered outline, routes that
    avoid unrelated nodes, and labels associated with their own route. Among
    feasible candidates, prefer readable group titles.
-2. **Crossings, then soft label conflicts:** reduce crossings within the feasible
-   set. When crossing counts tie, prefer fewer padded label-conflict pairs.
-   These counts keep distinguishing layouts after minimum clearance reaches zero,
-   but reducing a soft overlap count cannot buy additional crossings. Hard
-   node-avoidance and own-label-association requirements still apply first.
+2. **Crossings and soft label conflicts:** minimize `4 × edgeCrossings +
+   5 × labelConflicts` within the feasible set. Clearing one padded conflict can
+   pay for one additional crossing, but not two. Equal weighted costs prefer
+   fewer crossings, then fewer conflicts. These are product policy weights,
+   not coefficients established by a user study. Hard node avoidance and
+   own-label association still apply first; a soft score cannot excuse them.
 3. **Continuity and unnecessary bends:** prefer clear direct lanes; distinguish
    unexplained detours from declared symmetric convergence.
 4. **Canonical ports:** prefer side midpoints or declared slots. An endpoint on
@@ -119,8 +120,10 @@ content, throws `LAYOUT_CERTIFICATION_FAILED` ([details](api-advanced.md)). This
 hard graph geometry, not minimum crossings or universal aesthetic quality.
 Within 64 nodes/groups and 128 edges, a certified graph with crossings or label
 conflicts may try one additional distinct strategy. Feasible candidates compare
-readable group titles, crossings, label-conflict pairs, avoidable bends,
-canonical endpoints, symmetry and area in that order.
+readable group titles, weighted crossing/label cost, avoidable bends,
+canonical endpoints, symmetry and area in that order. Receipts keep both raw
+counts and name a joint change in those counts `readabilityCost`. Balanced's
+extra ordering candidate still requires non-regression on every tracked axis.
 
 The engine first chooses a certified bundled placement using those existing
 strategies. Only the selected placement may then compare one completed generic
@@ -130,6 +133,13 @@ certification score, including the final comparison: unchanged selected geometry
 is not certified a second time. It does not explore an unbundled version of
 every placement strategy.
 Symmetric fan-in/fan-out routing remains enabled.
+For bounded, forward fan-ins whose peer senders share an approach rank and have different visible
+destinations, generic reconstruction and lane proofs retain independent arrival
+channels. A common arrowhead can obscure which sender owns a competing branch,
+even with zero crossings ([BM #52](https://github.com/lukilabs/beautiful-mermaid/issues/52)).
+Uniform joins, state terminators, invisible rank hints and self-loops retain their
+existing policy. Arrivals from different ranks keep their existing route owner;
+this local rule makes no traceability claim for them.
 Graphs containing parallel edges keep their specialized route owners in both
 proposals; only generic fan bundling is disabled. A smaller proper-crossing
 count alone does not prove that duplicate endpoint lanes remain visibly distinct.

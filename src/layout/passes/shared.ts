@@ -14,11 +14,7 @@ export function positionedEdgeForwardish(edge: PositionedEdge, nodeMap: Map<stri
   return ((f.isHorizontal ? t.x - s.x : t.y - s.y) * f.sign) > 8
 }
 
-export function sameFlowLayer(group: PositionedNode[], direction: Direction, tolerance = 18): boolean {
-  if (group.length < 2) return false
-  const values = group.map(n => nodeMainStart(n, direction))
-  return Math.max(...values) - Math.min(...values) <= tolerance
-}
+export { sameFlowLayer } from '../geometry.ts'
 
 export function packFlowLayerCrossAxis(nodes: PositionedNode[], direction: Direction): void {
   const f = layoutFlow(direction)

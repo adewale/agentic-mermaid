@@ -40,7 +40,7 @@ export interface LayoutPreferenceEvidence {
   /** Score of the returned geometry, including the optional final route choice. */
   selectedScore: LayoutPreferenceScore
   /** Placement-strategy decision, before the optional final route comparison. */
-  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
+  reason: PreferenceCriterion | 'readabilityCost' | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
   /** Certified placement scores before the optional final route comparison. */
   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
   /** Final bundled/unbundled decision using the selected placement's ELK result.
@@ -410,6 +410,18 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
   reason: LayoutPreferenceEvidence['reason']
 } {
   for (const criterion of PREFERENCE_ORDER) {
+    if (criterion === 'edgeCrossings') {
+      // A crowded caption can conceal which relationship it names. Crossings
+      // remain expensive, but no longer veto every label-clearance repair.
+      // These are product policy weights, not coefficients fitted by Purchase.
+      const cost = (score: LayoutPreferenceScore) => 4 * score.edgeCrossings + 5 * score.labelConflicts
+      const delta = cost(alternative.score) - cost(first.score)
+      if (delta !== 0) return { selected: delta < 0 ? alternative : first,
+        reason: first.score.labelConflicts !== alternative.score.labelConflicts
+          ? first.score.edgeCrossings !== alternative.score.edgeCrossings ? 'readabilityCost' : 'labelConflicts'
+          : 'edgeCrossings' }
+      // Equal weighted costs retain the former crossing-first tie rule.
+    }
     if (alternative.score[criterion] < first.score[criterion]) return { selected: alternative, reason: criterion }
     if (alternative.score[criterion] > first.score[criterion]) return { selected: first, reason: criterion }
   }

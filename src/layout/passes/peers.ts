@@ -15,7 +15,7 @@ import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../gr
 import { nodePaintBounds } from '../../scene/bounds.ts'
 import { formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { shapeOutline } from '../../shape-outline.ts'
-import { withinLayoutPreferenceBudget, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../route-geometry.ts'
+import { distinctArrivalTargets, withinLayoutPreferenceBudget, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../route-geometry.ts'
 
 /** Make room for a parent without changing any disconnected tree internally.
  * This is a bounded cross-axis packing proposal over complete painted supports;
@@ -599,6 +599,7 @@ export function markCorankFanInBundles(
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
+  let independentArrivals: ReadonlySet<string> | undefined
   for (const [hubId, spokes] of corankFanInSpokes(nodes, edges, groups, graph)) {
     const hub = nodeMap.get(hubId)!
     // Order spokes by source cross position so the rebuilt doglegs nest without
@@ -626,7 +627,12 @@ export function markCorankFanInBundles(
     const entryAt = (offset: number): Point => f.isHorizontal
       ? { x: entryMid.x, y: entryMid.y + offset }
       : { x: entryMid.x + offset, y: entryMid.y }
-    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) offsets = offsets.map(() => 0)
+    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) {
+      // Retain the already distinct native docks when a shared vertex would
+      // erase which peer sender owns a competing branch (BM #52).
+      if ((independentArrivals ??= distinctArrivalTargets(nodes, edges, graph.direction)).has(hubId)) continue
+      offsets = offsets.map(() => 0)
+    }
 
     // Shared elbow on the main axis, midway between the rank of the (co-ranked)
     // sources' forward edge and the hub's entry edge — the converging junction.

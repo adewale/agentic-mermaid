@@ -17,6 +17,8 @@
 // ============================================================================
 
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { detectSvg, parseSvg, type Finding, type Rendered } from '../../eval/ugly-detector/detect.ts'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, type QualityMetrics } from '../agent/index.ts'
@@ -122,6 +124,71 @@ function expectLabelBoxesSeparated(labels: EdgeLabel[]): void {
 }
 
 describe('layout-aesthetic regression fixtures (issue-keyed)', () => {
+  // Exact reporter inputs, including styling and return edges. These protect
+  // authored relationships as well as appearance; zero crossings is insufficient.
+  test.each([
+    ...(['LR', 'RL', 'TB', 'BT'] as const).map(direction => ({ file: 'bm52-wallet', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/52', nodes: 10, edges: 11, captions: 0, direction })),
+    { file: 'bm83-approval-loops', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/83', nodes: 34, edges: 44, captions: 18 },
+    { file: 'bm111-labelled-fan', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/111', nodes: 4, edges: 3, captions: 3 },
+    { file: 'zm629-round-trip', url: 'https://github.com/dfadler/zombie-mermaid/issues/629', nodes: 2, edges: 2, captions: 2 },
+  ])('$url preserves the complete richer diagram and readable relationships', fixture => {
+    const original = readFileSync(new URL(`./fixtures/aesthetic-intent/${fixture.file}.mmd`, import.meta.url), 'utf8')
+    const src = 'direction' in fixture ? original.replace('graph LR', `graph ${fixture.direction}`) : original
+    const svg = renderedSvg(src), r = parseSvg(svg)
+    expect(scanSvgStartTags(svg).filter(tag => tag.name === 'g' && tag.attributes.some(a => a.name === 'data-role' && a.value === 'node'))).toHaveLength(fixture.nodes)
+    expect(r.edges).toHaveLength(fixture.edges)
+    expect(edgeLabels(src)).toHaveLength(fixture.captions)
+    expect(detectSvg(svg).filter(f => f.severity === 'hard')).toEqual([])
+    if (fixture.file === 'bm52-wallet') {
+      const upper = 'TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf'
+      const lower = 'TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c'
+      const senders = ['TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW', 'TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb', 'TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy']
+      const incoming = r.edges.filter(edge => edge.to === upper)
+      expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
+      expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
+      // Three incoming relationships need three visible arrival positions;
+      // merging them hides the distinction requested by the wallet analyst.
+      expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
+      for (let i = 0; i < incoming.length; i++) for (let j = i + 1; j < incoming.length; j++) {
+        const a = incoming[i]!.pts.at(-1)!, b = incoming[j]!.pts.at(-1)!
+        // The default 8×5 arrow resource needs more than a subpixel offset.
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(5)
+      }
+    } else if (fixture.file === 'bm83-approval-loops') {
+      const centers = new Map(r.nodes.map(node => [node.id, node.y + node.h / 2]))
+      expect(r.edges.filter(edge => centers.get(edge.from)! < centers.get(edge.to)!).length).toBe(33)
+      expect(r.edges.filter(edge => centers.get(edge.from)! > centers.get(edge.to)!).length).toBe(11)
+    } else if (fixture.file === 'bm111-labelled-fan') {
+      expect(edgeLabels(src).map(edge => [edge.from, edge.to, edge.label])).toEqual([
+        ['Src', 'Left', 'left*'], ['Src', 'Center', 'center*'], ['Src', 'Right', 'right*'],
+      ])
+    } else if (fixture.file === 'zm629-round-trip') {
+      const labels = edgeLabels(src)
+      expect(labels.map(edge => [edge.from, edge.to, edge.label])).toEqual([
+        ['Browser', 'Server', 'request'], ['Server', 'Browser', 'response'],
+      ])
+      expectLabelBoxesSeparated(labels)
+    }
+  })
+
+  test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
+    // Same failure class as BM #52, with both senders choosing a private branch.
+    const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
+    const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
+    const arrivals = r.edges.filter(edge => edge.to === 'H')
+    expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+    expect(hardFindings(src)).toEqual([])
+  })
+
+  test.each(['LR', 'RL', 'TB', 'BT'])('a mixed-label convergence keeps independent diamond contacts in %s', direction => {
+    const src = `flowchart ${direction}\nA -->|alpha| H{Hub}\nB --> H\nB --> Y`
+    const r = assertRendered(src, ['A', 'B', 'H', 'Y'], [['A', 'H'], ['B', 'H'], ['B', 'Y']])
+    const arrivals = r.edges.filter(edge => edge.to === 'H')
+    expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+    expectEdgeLabels(src, [['A', 'H', 'alpha']])
+    expect(hardFindings(src)).toEqual([])
+  })
+
   // upstream: mermaid-js/mermaid#6476 — "Unnecessary crossing of edges between
   // nodes": dagre crosses two edges that could be uncrossed by swapping
   // endpoints. K2,2 is planar, so a faithful layout has zero crossings.

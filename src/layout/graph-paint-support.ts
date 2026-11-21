@@ -3,31 +3,18 @@
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import type { Geometry, MarkPaint } from '../scene/ir.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { graphEdgePathProjection } from '../graph-connectors.ts'
 import { expandSceneBounds, paintedStrokeExtent, visitTypedPathSegments } from '../scene/bounds.ts'
 import { ownsLayoutRouteInputs, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { labelRect, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect } from '../shared/edge-label-geometry.ts'
 import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, type LabelMetricsStyle } from './route-geometry.ts'
+import { writtenGeometry, writtenPoint, finiteBox, boxesMeet, orthogonalStrokeInk } from '../shared/written-paint.ts'
+export { writtenGeometry, finiteBox, boxesMeet } from '../shared/written-paint.ts'
 export type GraphPaintStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
 // Shape arithmetic precedes numeric emission in the renderer. Normalize the
 // resulting geometry, not the input node, before asking the shared ink owner.
-export function writtenGeometry(geometry: Geometry): Geometry {
-  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
-  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
-  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
-  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
-}
-
-const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
-export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
-export const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
-  // Preserve the incoming conservative arithmetic/serialization separator.
-  const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
-  return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
-}
-
 function shaftPaint(edge: PositionedEdge, style: GraphPaintStyle): MarkPaint {
   return { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
     strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
@@ -41,41 +28,24 @@ export function orthogonalShaftInk(edge: PositionedEdge, style: GraphPaintStyle)
   if (edge.curve || style.edgeBendRadius || edge.animate || edge.style === 'dotted') return undefined
   const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
   if (color && color !== 'none' && color !== 'transparent' && !tryParseCssColor(color)) return undefined
-  const half = paintedStrokeExtent(shaftPaint(edge, style), false)
-  if (half === undefined) return undefined
-  const boxes: AxisAlignedBox[] = []
-  if (half === 0 || edge.points.length < 2) return boxes
-  let a = writtenPoint(edge.points[0]!), previousVertical: boolean | undefined
-  if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return undefined
-  for (let i = 1; i < edge.points.length; i++) {
-    const b = writtenPoint(edge.points[i]!)
-    if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) return undefined
-    if (a.x === b.x && a.y === b.y) continue
-    const vertical = a.x === b.x
-    if (!vertical && a.y !== b.y) return undefined
-    if (previousVertical !== undefined && previousVertical !== vertical) {
-      boxes.push({ x0: a.x - half, y0: a.y - half, x1: a.x + half, y1: a.y + half })
-    }
-    boxes.push(vertical ? { x0: a.x - half, y0: Math.min(a.y, b.y), x1: a.x + half, y1: Math.max(a.y, b.y) }
-      : { x0: Math.min(a.x, b.x), y0: a.y - half, x1: Math.max(a.x, b.x), y1: a.y + half })
-    a = b
-    previousVertical = vertical
-  }
-  return boxes
+  return orthogonalStrokeInk(edge.points, shaftPaint(edge, style))
 }
+
+const shaftWork = (edge: PositionedEdge, points: readonly Point[]) => 16 + 16 * points.length + 4 * (edge.inlineStyle?.['stroke-width']?.length ?? 0)
 
 /** Within an owned pass the stroke style is fixed. A reroute publishes a
  * replacement points array; its new ink immediately replaces the old view. */
 export function labelShafts(edges: readonly PositionedEdge[], style: GraphPaintStyle, pay?: (units: number) => boolean) {
   const retained = ownsLayoutRouteInputs(edges, style) ? new Map<PositionedEdge, { points: Point[]; ink?: AxisAlignedBox[] }>() : undefined
-  return (edge: PositionedEdge, points = edge.points): AxisAlignedBox[] | undefined => {
+  const measure = (edge: PositionedEdge, points = edge.points): AxisAlignedBox[] | undefined => {
     const prior = retained?.get(edge)
     if (prior?.points === points) return prior.ink
-    if (pay && !pay(16 + 16 * points.length + 4 * (edge.inlineStyle?.['stroke-width']?.length ?? 0))) return undefined
+    if (pay && !pay(shaftWork(edge, points))) return undefined
     const ink = orthogonalShaftInk(points === edge.points ? edge : { ...edge, points }, style)
     retained?.set(edge, { points, ink })
     return ink
   }
+  return Object.assign(measure, { retain: (edge: PositionedEdge, points: Point[], ink: AxisAlignedBox[]): void => { retained?.set(edge, { points, ink }) } })
 }
 /** Optional movement needs a sufficient separator, not another collision
  * certifier. Unknown paint/geometry or overlapping conservative supports keep
@@ -146,34 +116,108 @@ export function labelPaintInputsStable(nodes: readonly PositionedNode[], edges: 
   return true
 }
 
+type RouteInk = NonNullable<ReturnType<typeof edgeInk>>
+type PreparedRoute = { points: Point[]; values: unknown[]; ink: RouteInk; coldWork: number }
+/** Data carried only between the two adjacent, frozen graph passes. Each new
+ * admission retains its own work ledger and label/shaft memoization. */
+interface PreparedPaintSupports {
+  readonly nodes: readonly PositionedNode[]
+  readonly edges: readonly PositionedEdge[]
+  readonly groups: readonly PositionedGroup[]
+  readonly style: GraphPaintStyle
+  readonly styleValues: unknown[]
+  readonly nodeValues: unknown[][]
+  readonly bodies: AxisAlignedBox[]
+  readonly bodyWork: number[]
+  readonly routes: ReadonlyMap<PositionedEdge, PreparedRoute>
+}
+/** Consuming the handoff releases its data even while an outer closing frame
+ * still holds the handle. It never carries the previous admission's callbacks. */
+export class LabelSeatPaintSupports {
+  #value: PreparedPaintSupports | undefined
+  constructor(value: PreparedPaintSupports) { this.#value = value }
+  take(): PreparedPaintSupports | undefined {
+    const value = this.#value
+    this.#value = undefined
+    return value
+  }
+}
+const bodyPaintFields = ['id', 'x', 'y', 'width', 'height', 'shape', 'semanticShape', 'borders'] as const
+const bodyInputs = (node: PositionedNode): unknown[] => [node, ...bodyPaintFields.map(field => node[field]), node.inlineStyle?.fill, node.inlineStyle?.stroke, node.inlineStyle?.['stroke-width']]
+const sameBodyInputs = (values: readonly unknown[], node: PositionedNode): boolean => {
+  if (values[0] !== node) return false
+  let index = 1
+  for (const field of bodyPaintFields) if (!Object.is(values[index++], node[field])) return false
+  return Object.is(values[index++], node.inlineStyle?.fill) && Object.is(values[index++], node.inlineStyle?.stroke) && Object.is(values[index], node.inlineStyle?.['stroke-width'])
+}
+const paintStyleInputs = (style: GraphPaintStyle): unknown[] => [style.lineWidth, style.nodeLineWidth, style.cornerRadius, style.nodeFillColor, style.nodeBorderColor, style.edgeBendRadius, style.edgeStrokeColor, style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeTextTransform, style.edgeLetterSpacing]
+const routePaintFields = ['source', 'target', 'id', 'style', 'curve', 'animate', 'hasArrowStart', 'hasArrowEnd', 'startMarker', 'endMarker', 'label', 'labelContent', 'labelBlock'] as const
+const routeInputs = (edge: PositionedEdge, points: readonly Point[]): unknown[] => {
+  const values: unknown[] = routePaintFields.map(field => edge[field])
+  values.push(edge.inlineStyle?.stroke, edge.inlineStyle?.['stroke-width'], edge.labelBlock?.width, edge.labelBlock?.height, edge.labelPosition?.x, edge.labelPosition?.y)
+  for (const point of points) values.push(point.x, point.y)
+  return values
+}
+const sameRouteInputs = (values: readonly unknown[], edge: PositionedEdge, points: readonly Point[]): boolean => {
+  let index = 0
+  for (const field of routePaintFields) if (!Object.is(values[index++], edge[field])) return false
+  if (!Object.is(values[index++], edge.inlineStyle?.stroke) || !Object.is(values[index++], edge.inlineStyle?.['stroke-width'])
+    || !Object.is(values[index++], edge.labelBlock?.width) || !Object.is(values[index++], edge.labelBlock?.height)
+    || !Object.is(values[index++], edge.labelPosition?.x) || !Object.is(values[index++], edge.labelPosition?.y)) return false
+  for (const point of points) if (!Object.is(values[index++], point.x) || !Object.is(values[index++], point.y)) return false
+  return index === values.length
+}
+const sameInputs = (before: readonly unknown[], after: readonly unknown[]): boolean => before.length === after.length && before.every((value, index) => Object.is(value, after[index]))
+const routePaintWork = (edge: PositionedEdge, points: readonly Point[], style: GraphPaintStyle): number => {
+  const width = edge.inlineStyle?.['stroke-width'] ?? ''
+  const fields = edge.curve || (style.edgeBendRadius ?? 0) > 0 ? 18 : 4
+  const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? ''
+  return 2048 + points.length * (fields * 384 + 32) + width.length * 8 + (edge.label?.length ?? 0) * 12 + (color.length + edge.source.length + edge.target.length + (edge.id?.length ?? 0)) * 8
+}
+
 /** A settled graph proposal owns this snapshot. Labels stay live; the route
  * owner refreshes its changed shaft and markers before publishing a channel. */
-export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean, measuredShafts?: ReturnType<typeof labelShafts>) {
+export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean, measuredShafts?: ReturnType<typeof labelShafts>, handoff?: 'prepare' | LabelSeatPaintSupports) {
   if (!pay(16) || !labelPaintInputsStable(nodes, edges, groups, style, pay)) return undefined
+  const retain = handoff !== undefined && ownsLayoutRouteInputs(edges, style) && !groups.length && nodes.length <= MAX_PREFERENCE_NODES && edges.length <= MAX_PREFERENCE_EDGES
+  const previous = retain && handoff instanceof LabelSeatPaintSupports ? handoff.take() : undefined
+  const styleValues = retain ? paintStyleInputs(style) : []
+  let prior = previous?.nodes === nodes && previous.edges === edges && previous.groups === groups && previous.style === style && sameInputs(previous.styleValues, styleValues) ? previous : undefined
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
+  const nodeValues: unknown[][] = [], bodyWork: number[] = []
+  const capture = retain && handoff === 'prepare'
+  const prepared = capture ? new Map<PositionedEdge, PreparedRoute>() : undefined
   const routes = new Map<PositionedEdge, NonNullable<ReturnType<typeof edgeInk>>>()
   const orthogonal = new Set<PositionedEdge>()
   const labels = new Map<PositionedEdge, { x: number; y: number; box: AxisAlignedBox }>()
+  let geometryUnits = 0
+  const geometryPay = capture ? (units: number): boolean => { geometryUnits += units; return pay(units) } : pay
   const geometryWork = (g: Geometry): boolean => {
-    if (!pay(32)) return false
-    if (g.kind === 'compound') return pay(g.children.length + 1) && g.children.every(geometryWork)
-    if (g.kind === 'path') return pay(6 * g.d.length + 16)
-    if (g.kind === 'polygon' || g.kind === 'polyline') return pay(g.points.length * (2 * 384 + 4) + 4)
+    if (!geometryPay(32)) return false
+    if (g.kind === 'compound') return geometryPay(g.children.length + 1) && g.children.every(geometryWork)
+    if (g.kind === 'path') return geometryPay(6 * g.d.length + 16)
+    if (g.kind === 'polygon' || g.kind === 'polyline') return geometryPay(g.points.length * (2 * 384 + 4) + 4)
     // The scalar shape vocabulary has at most eight numeric fields. Each
     // finite Number spelling is at most 324 characters; reserve formatting,
     // record slots and the shared bounds owner's fixed scalar visits first.
-    return pay(8 * 384 + 32)
+    return geometryPay(8 * 384 + 32)
   }
-  for (const node of nodes) {
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index]!
     const width = node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
-    // Canonical shape construction has a fixed finite vocabulary; its
-    // constructed fields/path are charged separately before numeric/bounds work.
     if (!pay(512 + width.length * 6 + node.id.length)) return undefined
+    if (prior?.nodeValues[index] && sameBodyInputs(prior.nodeValues[index]!, node)) {
+      if (!pay(prior.bodyWork[index]!)) return undefined
+      bodies.push(prior.bodies[index]!)
+      continue
+    }
     const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
+    geometryUnits = 0
     if (!geometryWork(piece.geometry)) return undefined
     const box = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
     if (!finiteBox(box)) return undefined
     bodies.push(box)
+    if (capture) { nodeValues.push(bodyInputs(node)); bodyWork.push(geometryUnits) }
   }
   const visit = (items: readonly PositionedGroup[], depth = 0): boolean => {
     if (depth > 64 || !pay(items.length + 1)) return false
@@ -203,25 +247,37 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     return true
   }
   if (!visit(groups)) return undefined
+  let initializing = true
   const refreshRoute = (owner: PositionedEdge, points = owner.points): boolean => {
     const edge = points === owner.points ? owner : { ...owner, points }
     if (edge.label && !edge.labelPosition) return false
-    const width = edge.inlineStyle?.['stroke-width'] ?? ''
-    const fields = edge.curve || (style.edgeBendRadius ?? 0) > 0 ? 18 : 4
-    const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? ''
-    // Both shaft projection and markerView/factory traverse the route. Reserve
-    // their independent numeric writes, contour/model slots and bounded resource
-    // construction, including actual source/target/color suffix scans.
-    if (!pay(2048 + edge.points.length * (fields * 384 + 32) + width.length * 8 + (edge.label?.length ?? 0) * 12 + (color.length + edge.source.length + edge.target.length + (edge.id?.length ?? 0)) * 8)) return false
+    // Charge the same cold projection allowance even when its already-proved
+    // supports survive this phase boundary. Changed routes are rebuilt below.
+    const reservation = routePaintWork(edge, points, style)
+    if (!pay(reservation)) return false
+    const saved = initializing ? prior?.routes.get(owner) : undefined
+    if (saved?.points === points && measuredShafts && sameRouteInputs(saved.values, edge, points)) {
+      if (!pay(saved.coldWork - reservation)) return false
+      measuredShafts.retain(owner, points, saved.ink.shafts)
+      orthogonal.add(owner)
+      routes.set(owner, saved.ink)
+      return true
+    }
     const shafts = measuredShafts?.(owner, points)
     const ink = edgeInk(edge, style, () => pay(1), shafts)
     if (!ink) return false
     if (shafts) orthogonal.add(owner)
     else orthogonal.delete(owner)
     routes.set(owner, ink)
+    // Orthogonal supports bypass path traversal. edgeInk then charges one work
+    // visit per endpoint marker; the shaft's full cold charge is independent
+    // of whether the preceding label search had already measured it.
+    if (initializing && prepared && shafts) prepared.set(owner, { points, values: routeInputs(edge, points), ink, coldWork: reservation + shaftWork(edge, points) + ink.markers.length })
     return true
   }
   for (const edge of edges) if (!refreshRoute(edge)) return undefined
+  initializing = false
+  prior = undefined
   const label = (edge: PositionedEdge, point: Point): AxisAlignedBox | undefined => {
     if (!pay(4)) return undefined
     const prior = labels.get(edge)
@@ -315,5 +371,6 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return true
   }
-  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos }
+  const supports = prepared ? new LabelSeatPaintSupports({ nodes, edges, groups, style, styleValues, nodeValues, bodies, bodyWork, routes: prepared }) : undefined
+  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos, supports }
 }

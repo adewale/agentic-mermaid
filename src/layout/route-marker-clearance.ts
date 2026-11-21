@@ -115,7 +115,8 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
  * merged into it. That ink stands for each member only when the members paint
  * identically and at most one of them is named: a different dash, width or
  * colour would be painted over, and two labels cannot both own one arrowhead. */
-export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
+export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge, distinctArrivalTargets?: ReadonlySet<string>): boolean {
+  if (a.target === b.target && a.source !== b.source && distinctArrivalTargets?.has(a.target)) return false
   if (a.label && b.label) return false
   if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
   const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
@@ -125,6 +126,18 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
   if (classesA.length !== classesB.length) return false
   for (let index = 0; index < classesA.length; index++) if (classesA[index] !== classesB[index]) return false
   return true
+}
+
+/** Opposing shared shafts must not suggest relationships absent from the
+ * authored graph. A complete, identically painted bipartite join can share
+ * the ink; endpoint identity or a bundle flag alone cannot authorize it. */
+export function opposingRoutesMislead(member: PositionedEdge, other: PositionedEdge, edges: readonly PositionedEdge[]): boolean {
+  const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
+    && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
+    && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
+    && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
+  return !edgesMayShareTerminal(member, other)
+    || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
 }
 
 type MarkerView = ReturnType<typeof markerView>

@@ -5,10 +5,10 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { edgesMayShareTerminal, opposingRoutesMislead, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
-import { terminalHookLength } from '../route-geometry.ts'
+import { distinctArrivalTargets, terminalHookLength } from '../route-geometry.ts'
 import { hookedElbow } from './shared.ts'
 
 /**
@@ -154,6 +154,7 @@ export function bundleEdgePaths(
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
+  const independentArrivals = distinctArrivalTargets(nodes, edges, direction)
   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
     for (const [edge, points] of candidates) {
       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
@@ -164,16 +165,10 @@ export function bundleEdgePaths(
     // reach the other's target. A trunk may run back along another edge only
     // where both readings are real edges painted alike (a complete bipartite
     // join), never along e.g. the reverse route leaving the same port.
-    const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
-      && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
-      && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
-      && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
-    const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
-      || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
       const before = new Set(opposingRoutePartners(member, others))
-      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && misleads(member, other))
+      return opposingRoutePartners(candidate, others).some(other => !before.has(other) && opposingRoutesMislead(member, other, edges))
     }
     return members.filter(member => {
       const points = candidates.get(member.edge)!
@@ -222,7 +217,7 @@ export function bundleEdgePaths(
 
     // Only bundle edges going in the forward direction
     const forward = group.filter(e => {
-      if (duplicateEdges.has(e)) return false
+      if (duplicateEdges.has(e) || independentArrivals.has(e.target)) return false
       const t = nodeMap.get(e.target)
       if (!t) return false
       if (isLR) return t.x > source.x + source.width
@@ -306,6 +301,7 @@ export function bundleEdgePaths(
 
   for (const [targetId, group] of fanInGroups) {
     if (group.length < 2) continue
+    if (independentArrivals.has(targetId)) continue
 
     if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'end'))) continue
 
