@@ -1,7 +1,7 @@
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
-import { asEventModeling, buildMermaid, createMermaid, describeMermaidTree, layoutMermaidWithReceipt, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { asEventModeling, buildMermaid, createMermaid, describeMermaidTree, layoutMermaidWithReceipt, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { eventRelations, parseEventModeling } from '../eventmodeling/parser.ts'
 import { layoutEventModeling } from '../eventmodeling/layout.ts'
 import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
@@ -128,6 +128,27 @@ test('namespace re-entry owns one lane, non-overlapping chronological columns an
   for (const label of ['CartUI', 'AddItem', 'ItemAdded']) expect(terminal).toContain(label)
   expect(terminal).toContain('>')
   expect(verifyMermaid(minimal).ok).toBe(true)
+})
+
+test.each([
+  { name: 'straight across an empty lane column', source: 'rf 01 cmd Save\nrf 02 ui Screen\nrf 03 cmd Again ->> 01', points: 2 },
+  { name: 'clear intermediate column', source: 'rf 01 cmd Save\nrf 02 ui Screen\nrf 03 evt Saved ->> 01', points: 4 },
+  { name: 'clear intermediate column with a later relationship', source: 'rf 01 cmd Save\nrf 02 ui Screen\nrf 03 evt Saved ->> 01\nrf 04 evt Sent ->> 03', points: 4 },
+  { name: 'cards in both shorter gutters', source: 'rf 01 cmd Save\nrf 02 evt Progressed\nrf 03 cmd Retry\nrf 04 evt Saved ->> 01', points: 6 },
+  { name: 'another relationship in the shorter gutters', source: 'rf 01 cmd Save\nrf 02 ui Screen\nrf 03 evt Saved ->> 01 ->> 02', points: 6 },
+])('skipped chronological columns retain clear painted gutters: $name', ({ source, points }) => {
+  const input = `eventmodeling\n${source}`, body = parseEventModeling(input), positioned = layoutEventModeling(body)
+  const edge = positioned.edges.find(edge => edge.from === '01')!
+  const from = positioned.nodes.find(node => node.id === edge.from)!, to = positioned.nodes.find(node => node.id === edge.to)!
+  expect(edge.points).toHaveLength(points)
+  expect(edge.points[0]).toEqual({ x: from.x + from.width + positioned.style.nodeLineWidth / 2, y: from.y + from.height / 2 })
+  expect(edge.points.at(-1)!.x).toBe(to.x - positioned.style.nodeLineWidth / 2)
+  expect(edge.points[1]!.x).toBeGreaterThan(edge.points[0]!.x)
+  expect(edge.points.at(-2)!.x).toBeLessThan(edge.points.at(-1)!.x)
+  expect(positioned.edges.map(edge => [edge.id, edge.from, edge.to, edge.explicit])).toEqual(eventRelations(body).map(edge => [edge.id, edge.from, edge.to, edge.explicit]))
+  const svg = renderMermaidSVGWithReceipt(input)
+  expect(svg.receipt.layoutCertification?.status).toBe('passed')
+  expect(verifyMermaid(input).ok).toBe(true)
 })
 
 test('multiple explicit inputs retain separate painted arrowheads through backward and rounded routes', () => {

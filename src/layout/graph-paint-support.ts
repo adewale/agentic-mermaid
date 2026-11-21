@@ -3,31 +3,18 @@
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import type { Geometry, MarkPaint } from '../scene/ir.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { graphEdgePathProjection } from '../graph-connectors.ts'
 import { expandSceneBounds, paintedStrokeExtent, visitTypedPathSegments } from '../scene/bounds.ts'
 import { ownsLayoutRouteInputs, routeMarkerPaintRegions } from './route-marker-clearance.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { labelRect, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect } from '../shared/edge-label-geometry.ts'
 import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, type LabelMetricsStyle } from './route-geometry.ts'
+import { writtenGeometry, writtenPoint, finiteBox, boxesMeet, orthogonalStrokeInk } from '../shared/written-paint.ts'
+export { writtenGeometry, finiteBox, boxesMeet } from '../shared/written-paint.ts'
 export type GraphPaintStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
 // Shape arithmetic precedes numeric emission in the renderer. Normalize the
 // resulting geometry, not the input node, before asking the shared ink owner.
-export function writtenGeometry(geometry: Geometry): Geometry {
-  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
-  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
-  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
-  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
-}
-
-const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
-export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
-export const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
-  // Preserve the incoming conservative arithmetic/serialization separator.
-  const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
-  return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
-}
-
 function shaftPaint(edge: PositionedEdge, style: GraphPaintStyle): MarkPaint {
   return { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
     strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
@@ -41,27 +28,7 @@ export function orthogonalShaftInk(edge: PositionedEdge, style: GraphPaintStyle)
   if (edge.curve || style.edgeBendRadius || edge.animate || edge.style === 'dotted') return undefined
   const color = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
   if (color && color !== 'none' && color !== 'transparent' && !tryParseCssColor(color)) return undefined
-  const half = paintedStrokeExtent(shaftPaint(edge, style), false)
-  if (half === undefined) return undefined
-  const boxes: AxisAlignedBox[] = []
-  if (half === 0 || edge.points.length < 2) return boxes
-  let a = writtenPoint(edge.points[0]!), previousVertical: boolean | undefined
-  if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return undefined
-  for (let i = 1; i < edge.points.length; i++) {
-    const b = writtenPoint(edge.points[i]!)
-    if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) return undefined
-    if (a.x === b.x && a.y === b.y) continue
-    const vertical = a.x === b.x
-    if (!vertical && a.y !== b.y) return undefined
-    if (previousVertical !== undefined && previousVertical !== vertical) {
-      boxes.push({ x0: a.x - half, y0: a.y - half, x1: a.x + half, y1: a.y + half })
-    }
-    boxes.push(vertical ? { x0: a.x - half, y0: Math.min(a.y, b.y), x1: a.x + half, y1: Math.max(a.y, b.y) }
-      : { x0: Math.min(a.x, b.x), y0: a.y - half, x1: Math.max(a.x, b.x), y1: a.y + half })
-    a = b
-    previousVertical = vertical
-  }
-  return boxes
+  return orthogonalStrokeInk(edge.points, shaftPaint(edge, style))
 }
 
 /** Within an owned pass the stroke style is fixed. A reroute publishes a

@@ -1,0 +1,2 @@
+export const MAX_PREFERENCE_NODES = 64
+export const MAX_PREFERENCE_EDGES = 128
