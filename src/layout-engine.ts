@@ -1,3 +1,4 @@
+import type { LabelSeatPaintSupports } from './layout/graph-paint-support.ts'
 import { estimateNodeSize, groupHeaderHeight, groupTitleWidth, retainGraphText } from './layout/graph-measurement.ts'
 export { estimateNodeSize, retainGraphText } from './layout/graph-measurement.ts'
 import { graphTextBlock } from './graph-text.ts'
@@ -1310,6 +1311,7 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
+  settledPaintSupports?: LabelSeatPaintSupports
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1515,13 +1517,17 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
     after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
-    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { c.settledPaintSupports = settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
     after: ['separateEdgeLabelPills'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
-    run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => {
+      const supports = c.settledPaintSupports
+      c.settledPaintSupports = undefined
+      closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, supports)
+    },
   },
   {
     id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
