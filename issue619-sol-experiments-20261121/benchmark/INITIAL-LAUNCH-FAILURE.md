@@ -1,0 +1,3 @@
+The initial sandboxed invocation of the unchanged controller failed before creating its output directory or starting any receipt worker. Pinned Node v24.19.0's `spawnSync git rev-parse HEAD` returned the correct candidate SHA on stdout but raised `Error: spawnSync git EPERM` from the sandbox subprocess boundary. No measurements were produced or counted.
+
+Root authorized retrying the same command with sandbox escalation. Automatic review accepted it. The unchanged controller then completed all84 fresh workers serially, with0 worker lifecycle errors. This preparation failure is separate from the complete measured process denominator.

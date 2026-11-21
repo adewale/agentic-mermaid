@@ -1,0 +1,14 @@
+{
+  "elk-solver.cjs": {
+    "sha256": "fe4fd96eed9499d4c0f6a21343fc0514e8827f5f0867e32edd9e539faf8521af",
+    "byteEqualControl": true
+  },
+  "elk-solver.node.cjs": {
+    "sha256": "5b64a6c95398c615cba099d59fdfb334f9812a2428a96e8ef9d0521009de0aac",
+    "byteEqualControl": true
+  },
+  "layout-optimization.cjs": {
+    "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce",
+    "byteEqualControl": true
+  }
+}

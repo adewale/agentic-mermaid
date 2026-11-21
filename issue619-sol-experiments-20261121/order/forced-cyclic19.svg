@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1473.00115" height="1602.229" viewBox="0 0 1473.00115 1602.229" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-19q6oa01cqrvwm">
+<style>
+  svg.am-19q6oa01cqrvwm { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-19q6oa01cqrvwm {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="order-arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="order-arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<text x="736.500575" y="51.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#27272A" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="116.1" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Cyclic routes</text>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 0 xxx" points="683.69615,444.455 683.69615,502.605 732.8724,502.605 732.8724,560.755" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n14-&gt;n11#0" data-role="edge" data-from="n14" data-to="n11" role="graphics-symbol" aria-roledescription="relation" aria-label="n14 to n11: edge 0 xxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1163.34015,382.805 1163.34015,853.074 1094.01115,853.074 1094.01115,909.374 1142.48798333,909.374 1142.48798333,933.749" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n0-&gt;n4#0" data-role="edge" data-from="n0" data-to="n4" role="graphics-symbol" aria-roledescription="relation" aria-label="n0 to n4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="574.932483333,1451.19733333 574.932483333,1498.954 848.319766667,1498.954 848.319766667,1512.729" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n9-&gt;n13#0" data-role="edge" data-from="n9" data-to="n13" role="graphics-symbol" aria-roledescription="relation" aria-label="n9 to n13" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="175.619666667,382.805 175.619666667,395.18 683.69615,395.18 683.69615,407.555" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n10-&gt;n14#0" data-role="edge" data-from="n10" data-to="n14" role="graphics-symbol" aria-roledescription="relation" aria-label="n10 to n14" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 4 xxxxxxx" points="1166.6559,1056.299 1166.6559,1114.449 1084.61098333,1114.449 1084.61098333,1172.599" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n18-&gt;n5#0" data-role="edge" data-from="n18" data-to="n5" role="graphics-symbol" aria-roledescription="relation" aria-label="n18 to n5: edge 4 xxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="500.883,840.699 500.883,1098.574 394.422766667,1098.574 394.422766667,1110.949" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n15-&gt;n8#0" data-role="edge" data-from="n15" data-to="n8" role="graphics-symbol" aria-roledescription="relation" aria-label="n15 to n8" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="627.11165,1440.7615 627.11165,1476.04525 879.577966667,1476.04525 879.577966667,1511.329" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n9-&gt;n13#1" data-role="edge" data-from="n9" data-to="n13" role="graphics-symbol" aria-roledescription="relation" aria-label="n9 to n13" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1192.7044,970.649 1192.7044,1019.399" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n4-&gt;n18#0" data-role="edge" data-from="n4" data-to="n18" role="graphics-symbol" aria-roledescription="relation" aria-label="n4 to n18" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 8 xxxxxxxxxxx" points="761.6224,668.051460718 761.6224,1288.974 777.68355,1288.974 777.68355,1346.839" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n11-&gt;n17#0" data-role="edge" data-from="n11" data-to="n17" role="graphics-symbol" aria-roledescription="relation" aria-label="n11 to n17: edge 8 xxxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="479.517333333,664.505 479.517333333,733.870666667" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n7-&gt;n15#0" data-role="edge" data-from="n7" data-to="n15" role="graphics-symbol" aria-roledescription="relation" aria-label="n7 to n15" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="643.874066667,444.455 643.874066667,1225.699" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n14-&gt;n1#0" data-role="edge" data-from="n14" data-to="n1" role="graphics-symbol" aria-roledescription="relation" aria-label="n14 to n1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1143.09415,382.805 1143.09415,395.18 683.69615,395.18 683.69615,407.555" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n0-&gt;n14#0" data-role="edge" data-from="n0" data-to="n14" role="graphics-symbol" aria-roledescription="relation" aria-label="n0 to n14" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 12 xxxxxxxxxxxxxxx" points="704.1224,668.051460718 704.1224,688.13 341.012333333,688.13 341.012333333,321.53 186.039066667,321.53 186.039066667,345.905" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n11-&gt;n10#0" data-role="edge" data-from="n11" data-to="n10" role="graphics-symbol" aria-roledescription="relation" aria-label="n11 to n10: edge 12 xxxxxxxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="557.917833333,273.155 557.917833333,350.13 825.3764,350.13 825.3764,1007.024 1166.6559,1007.024 1166.6559,1019.399" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n2-&gt;n18#0" data-role="edge" data-from="n2" data-to="n18" role="graphics-symbol" aria-roledescription="relation" aria-label="n2 to n18" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1380.90415,136.3 1380.90415,154.4875 1141.2733,154.4875 1141.2733,186.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n16-&gt;n3#0" data-role="edge" data-from="n16" data-to="n3" role="graphics-symbol" aria-roledescription="relation" aria-label="n16 to n3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1218.7529,1056.299 1218.7529,1148.224 1281.20965,1148.224 1281.20965,1498.954 910.836166667,1498.954 910.836166667,1512.729" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n18-&gt;n13#0" data-role="edge" data-from="n18" data-to="n13" role="graphics-symbol" aria-roledescription="relation" aria-label="n18 to n13" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 16 xxxxxxxxxxxxxxxxxxx" points="1183.58615,382.805 1183.58615,909.374 1162.73398333,909.374 1162.73398333,933.749" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n0-&gt;n4#1" data-role="edge" data-from="n0" data-to="n4" role="graphics-symbol" aria-roledescription="relation" aria-label="n0 to n4: edge 16 xxxxxxxxxxxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1127.2733,297.905 1127.2733,345.905" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n3-&gt;n0#0" data-role="edge" data-from="n3" data-to="n0" role="graphics-symbol" aria-roledescription="relation" aria-label="n3 to n0" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="394.422766667,1147.849 394.422766667,1160.224 1049.81098333,1160.224 1049.81098333,1184.199" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n8-&gt;n5#0" data-role="edge" data-from="n8" data-to="n5" role="graphics-symbol" aria-roledescription="relation" aria-label="n8 to n5" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1114.7503,285.382 1114.7503,383.18 997.4134,383.18 997.4134,1148.224 1073.01098333,1148.224 1073.01098333,1173.77083797" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n3-&gt;n5#0" data-role="edge" data-from="n3" data-to="n5" role="graphics-symbol" aria-roledescription="relation" aria-label="n3 to n5" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 20 xxxxxx" points="1113.61098333,1280.82847342 1113.61098333,1441.904 1095.8589,1441.904 1095.8589,1486.954 889.997366667,1486.954 889.997366667,1511.47042872" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n5-&gt;n13#0" data-role="edge" data-from="n5" data-to="n13" role="graphics-symbol" aria-roledescription="relation" aria-label="n5 to n13: edge 20 xxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="643.874066667,1276.599 643.874066667,1288.599 595.80415,1288.599 595.80415,1346.839" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n1-&gt;n9#0" data-role="edge" data-from="n1" data-to="n9" role="graphics-symbol" aria-roledescription="relation" aria-label="n1 to n9" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1115.92463333,136.3 1115.92463333,152.3 1113.2733,152.3 1113.2733,186.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n6-&gt;n3#0" data-role="edge" data-from="n6" data-to="n3" role="graphics-symbol" aria-roledescription="relation" aria-label="n6 to n3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="537.671833333,273.155 537.671833333,383.18 683.69615,383.18 683.69615,407.555" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n2-&gt;n14#0" data-role="edge" data-from="n2" data-to="n14" role="graphics-symbol" aria-roledescription="relation" aria-label="n2 to n14" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 24 xxxxxxxxxx" points="497.179833333,273.155 497.179833333,285.53 94.5,285.53 94.5,1098.574 377.5511,1098.574 377.5511,1110.949" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n2-&gt;n8#0" data-role="edge" data-from="n2" data-to="n8" role="graphics-symbol" aria-roledescription="relation" aria-label="n2 to n8: edge 24 xxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1164.8423,260.336 1164.8423,321.53 1305.80715,321.53 1305.80715,1160.224 1119.41098333,1160.224 1119.41098333,1184.199" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n3-&gt;n5#1" data-role="edge" data-from="n3" data-to="n5" role="graphics-symbol" aria-roledescription="relation" aria-label="n3 to n5" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1192.7044,1056.299 1192.7044,1334.464 777.68355,1334.464 777.68355,1346.839" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n18-&gt;n17#0" data-role="edge" data-from="n18" data-to="n17" role="graphics-symbol" aria-roledescription="relation" aria-label="n18 to n17" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1107.30169167,970.649 1107.30169167,1019.399" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n4-&gt;n12#0" data-role="edge" data-from="n4" data-to="n12" role="graphics-symbol" aria-roledescription="relation" aria-label="n4 to n12" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 28 xxxxxxxxxxxxxx" points="709.74465,444.455 709.74465,468.08 902.8764,468.08 902.8764,160.3 1089.7043,160.3 1089.7043,210.244" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n14-&gt;n3#0" data-role="edge" data-from="n14" data-to="n3" role="graphics-symbol" aria-roledescription="relation" aria-label="n14 to n3: edge 28 xxxxxxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="732.8724,675.755 732.8724,700.13 500.883,700.13 500.883,712.505" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n11-&gt;n15#0" data-role="edge" data-from="n11" data-to="n15" role="graphics-symbol" aria-roledescription="relation" aria-label="n11 to n15" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="462.4248,802.2408 462.4248,1086.574 417.902333333,1086.574 417.902333333,309.53 165.200266667,309.53 165.200266667,345.905" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n15-&gt;n10#0" data-role="edge" data-from="n15" data-to="n10" role="graphics-symbol" aria-roledescription="relation" aria-label="n15 to n10" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="513.7024,827.8796 513.7024,1148.224 520.560066667,1148.224 520.560066667,1324.974 738.016883333,1324.974 738.016883333,1361.99031845" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n15-&gt;n17#0" data-role="edge" data-from="n15" data-to="n17" role="graphics-symbol" aria-roledescription="relation" aria-label="n15 to n17" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 32 xxxxxxxxxxxxxxxxxx" points="777.68355,1465.839 777.68355,1510.954 220.940733333,1510.954 220.940733333,1291.924 262.512333333,1291.924 262.512333333,333.53 206.877866667,333.53 206.877866667,345.905" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n17-&gt;n10#0" data-role="edge" data-from="n17" data-to="n10" role="graphics-symbol" aria-roledescription="relation" aria-label="n17 to n10: edge 32 xxxxxxxxxxxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1084.61098333,1288.599 1084.61098333,1317.719 777.68355,1317.719 777.68355,1346.839" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n5-&gt;n17#0" data-role="edge" data-from="n5" data-to="n17" role="graphics-symbol" aria-roledescription="relation" aria-label="n5 to n17" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1203.83215,382.805 1203.83215,853.074 1273.16115,853.074 1273.16115,921.374 1182.97998333,921.374 1182.97998333,933.749" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n0-&gt;n4#2" data-role="edge" data-from="n0" data-to="n4" role="graphics-symbol" aria-roledescription="relation" aria-label="n0 to n4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1203.22598333,952.199 1318.80715,952.199 1318.80715,117.85 1173.53963333,117.85" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n4-&gt;n6#0" data-role="edge" data-from="n4" data-to="n6" role="graphics-symbol" aria-roledescription="relation" aria-label="n4 to n6" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 36 xxxxx" points="158.254,382.805 158.254,1291.924 91.8867333333,1291.924 91.8867333333,1336.974 564.49665,1336.974 564.49665,1378.1465" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n10-&gt;n9#0" data-role="edge" data-from="n10" data-to="n9" role="graphics-symbol" aria-roledescription="relation" aria-label="n10 to n9: edge 36 xxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1089.7043,260.336 1089.7043,350.13 978.3904,350.13 978.3904,548.38 752.039066667,548.38 752.039066667,564.043480109" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n3-&gt;n11#0" data-role="edge" data-from="n3" data-to="n11" role="graphics-symbol" aria-roledescription="relation" aria-label="n3 to n11" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1398.26981667,136.3 1398.26981667,1007.024 1192.7044,1007.024 1192.7044,1019.399" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n16-&gt;n18#0" data-role="edge" data-from="n16" data-to="n18" role="graphics-symbol" aria-roledescription="relation" aria-label="n16 to n18" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1055.61098333,1280.82847342 1055.61098333,1300.974 627.11165,1300.974 627.11165,1378.1465" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n5-&gt;n9#0" data-role="edge" data-from="n5" data-to="n9" role="graphics-symbol" aria-roledescription="relation" aria-label="n5 to n9" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="edge 40 xxxxxxxxx" points="539.3412,802.2408 539.3412,876.324 583.060066667,876.324 583.060066667,921.374 1122.24198333,921.374 1122.24198333,933.749" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n15-&gt;n4#0" data-role="edge" data-from="n15" data-to="n4" role="graphics-symbol" aria-roledescription="relation" aria-label="n15 to n4: edge 40 xxxxxxxxx" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="660.004733333,1276.19866329 660.004733333,1312.974 757.850216667,1312.974 757.850216667,1350.24186203" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n1-&gt;n17#0" data-role="edge" data-from="n1" data-to="n17" role="graphics-symbol" aria-roledescription="relation" aria-label="n1 to n17" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1129.92463333,136.3 1129.92463333,160.3 1127.2733,160.3 1127.2733,172.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n6-&gt;n3#1" data-role="edge" data-from="n6" data-to="n3" role="graphics-symbol" aria-roledescription="relation" aria-label="n6 to n3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="517.425833333,273.155 517.425833333,297.53 144.361466667,297.53 144.361466667,345.905" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#order-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:n2-&gt;n10#0" data-role="edge" data-from="n2" data-to="n10" role="graphics-symbol" aria-roledescription="relation" aria-label="n2 to n10" />
+<g class="edge-label" data-from="n14" data-to="n11" data-label="edge 0 xxx">
+  <rect class="edge-label-halo" x="694.5054" y="502.838333333" width="76.734" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="698.5054" y="506.838333333" width="68.734" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="732.8724" y="521.988333333" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="52.734" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 0 xxx</text>
+</g>
+<g class="edge-label" data-from="n18" data-to="n5" data-label="edge 4 xxxxxxx">
+  <rect class="edge-label-halo" x="1073.02098333" y="1109.8365" width="100.494" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="1077.02098333" y="1113.8365" width="92.494" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="1123.26798333" y="1128.9865" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="76.494" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 4 xxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n11" data-to="n17" data-label="edge 8 xxxxxxxxxxx">
+  <rect class="edge-label-halo" x="699.1224" y="965.349" width="124.254" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="703.1224" y="969.349" width="116.254" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="761.2494" y="984.499" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="100.254" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 8 xxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n11" data-to="n10" data-label="edge 12 xxxxxxxxxxxxxxx">
+  <rect class="edge-label-halo" x="265.512333333" y="646.455" width="150.39" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="269.512333333" y="650.455" width="142.39" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="340.707333333" y="665.605" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="126.39" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 12 xxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n0" data-to="n4" data-label="edge 16 xxxxxxxxxxxxxxxxxxx">
+  <rect class="edge-label-halo" x="1096.08615" y="856.449" width="174.15" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="1100.08615" y="860.449" width="166.15" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="1183.16115" y="875.599" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="150.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 16 xxxxxxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n5" data-to="n13" data-label="edge 20 xxxxxx">
+  <rect class="edge-label-halo" x="1045.3589" y="1445.279" width="100.494" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="1049.3589" y="1449.279" width="92.494" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="1095.6059" y="1464.429" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="76.494" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 20 xxxxxx</text>
+</g>
+<g class="edge-label" data-from="n2" data-to="n8" data-label="edge 24 xxxxxxxxxx">
+  <rect class="edge-label-halo" x="32" y="1056.899" width="124.254" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="36" y="1060.899" width="116.254" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="94.127" y="1076.049" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="100.254" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 24 xxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n14" data-to="n3" data-label="edge 28 xxxxxxxxxxxxxx">
+  <rect class="edge-label-halo" x="828.3764" y="353.505" width="148.014" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="832.3764" y="357.505" width="140.014" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="902.3834" y="372.655" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="124.014" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 28 xxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n17" data-to="n10" data-label="edge 32 xxxxxxxxxxxxxxxxxx">
+  <rect class="edge-label-halo" x="134.940733333" y="1295.299" width="171.774" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="138.940733333" y="1299.299" width="163.774" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="220.827733333" y="1314.449" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="147.774" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 32 xxxxxxxxxxxxxxxxxx</text>
+</g>
+<g class="edge-label" data-from="n10" data-to="n9" data-label="edge 36 xxxxx">
+  <rect class="edge-label-halo" x="110.977" y="818.2145" width="94.554" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="114.977" y="822.2145" width="86.554" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="158.254" y="837.3645" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="70.554" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 36 xxxxx</text>
+</g>
+<g class="edge-label" data-from="n15" data-to="n4" data-label="edge 40 xxxxxxxxx">
+  <rect class="edge-label-halo" x="523.560066667" y="879.699" width="118.314" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="527.560066667" y="883.699" width="110.314" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="582.717066667" y="898.849" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="94.314" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">edge 40 xxxxxxxxx</text>
+</g>
+<g class="node" data-id="n2" data-label="Node 76-2" data-shape="rectangle" data-role="node">
+  <rect x="476.933833333" y="236.255" width="101.23" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n2" data-role="node" />
+  <text x="527.548833333" y="254.705" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-2</text>
+</g>
+<g class="node" data-id="n6" data-label="Node 76-6" data-shape="subroutine" data-role="node">
+  <rect x="1072.30963333" y="99.4" width="101.23" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n6" data-role="node" />
+  <line x1="1080.30963333" y1="99.4" x2="1080.30963333" y2="136.3" stroke="#949495" stroke-width="0.75" />
+  <line x1="1165.53963333" y1="99.4" x2="1165.53963333" y2="136.3" stroke="#949495" stroke-width="0.75" />
+  <text x="1122.92463333" y="117.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-6</text>
+</g>
+<g class="node" data-id="n7" data-label="Node 76-7" data-shape="cylinder" data-role="node">
+  <rect x="428.902333333" y="620.605" width="101.23" height="36.9" fill="#f9f9f9" stroke="none" data-id="node-shape:n7" data-role="node" />
+  <line x1="428.902333333" y1="620.605" x2="428.902333333" y2="657.505" stroke="#949495" stroke-width="0.75" />
+  <line x1="530.132333333" y1="620.605" x2="530.132333333" y2="657.505" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="479.517333333" cy="657.505" rx="50.615" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="479.517333333" cy="620.605" rx="50.615" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="479.517333333" y="639.055" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-7</text>
+</g>
+<g class="node" data-id="n10" data-label="Node 76-10" data-shape="rounded" data-role="node">
+  <rect x="123.522666667" y="345.905" width="104.194" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n10" data-role="node" />
+  <text x="175.619666667" y="364.355" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-10</text>
+</g>
+<g class="node" data-id="n16" data-label="Node 76-16" data-shape="rounded" data-role="node">
+  <rect x="1328.80715" y="99.4" width="104.194" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n16" data-role="node" />
+  <text x="1380.90415" y="117.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-16</text>
+</g>
+<g class="node" data-id="n3" data-label="Node 76-3" data-shape="diamond" data-role="node">
+  <polygon points="1127.2733,172.675 1189.8883,235.29 1127.2733,297.905 1064.6583,235.29" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n3" data-role="node" />
+  <text x="1127.2733" y="235.29" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-3</text>
+</g>
+<g class="node" data-id="n0" data-label="Node 76-0" data-shape="subroutine" data-role="node">
+  <rect x="1122.84815" y="345.905" width="101.23" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n0" data-role="node" />
+  <line x1="1130.84815" y1="345.905" x2="1130.84815" y2="382.805" stroke="#949495" stroke-width="0.75" />
+  <line x1="1216.07815" y1="345.905" x2="1216.07815" y2="382.805" stroke="#949495" stroke-width="0.75" />
+  <text x="1173.46315" y="364.355" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-0</text>
+</g>
+<g class="node" data-id="n14" data-label="Node 76-14" data-shape="rectangle" data-role="node">
+  <rect x="631.59915" y="407.555" width="104.194" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n14" data-role="node" />
+  <text x="683.69615" y="426.005" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-14</text>
+</g>
+<g class="node" data-id="n1" data-label="Node 76-1" data-shape="cylinder" data-role="node">
+  <rect x="595.482066667" y="1232.699" width="96.784" height="36.9" fill="#f9f9f9" stroke="none" data-id="node-shape:n1" data-role="node" />
+  <line x1="595.482066667" y1="1232.699" x2="595.482066667" y2="1269.599" stroke="#949495" stroke-width="0.75" />
+  <line x1="692.266066667" y1="1232.699" x2="692.266066667" y2="1269.599" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="643.874066667" cy="1269.599" rx="48.392" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="643.874066667" cy="1232.699" rx="48.392" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="643.874066667" y="1251.149" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="56.784" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-1</text>
+</g>
+<g class="node" data-id="n11" data-label="Node 76-11" data-shape="circle" data-role="node">
+  <circle cx="732.8724" cy="618.255" r="57.5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n11" data-role="node" />
+  <text x="732.8724" y="618.255" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="59.748" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-11</text>
+</g>
+<g class="node" data-id="n15" data-label="Node 76-15" data-shape="diamond" data-role="node">
+  <polygon points="500.883,712.505 564.98,776.602 500.883,840.699 436.786,776.602" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n15" data-role="node" />
+  <text x="500.883" y="776.602" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-15</text>
+</g>
+<g class="node" data-id="n4" data-label="Node 76-4" data-shape="rounded" data-role="node">
+  <rect x="1101.99598333" y="933.749" width="101.23" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n4" data-role="node" />
+  <text x="1152.61098333" y="952.199" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-4</text>
+</g>
+<g class="node" data-id="n8" data-label="Node 76-8" data-shape="rectangle" data-role="node">
+  <rect x="343.807766667" y="1110.949" width="101.23" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n8" data-role="node" />
+  <text x="394.422766667" y="1129.399" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-8</text>
+</g>
+<g class="node" data-id="n12" data-label="Node 76-12" data-shape="subroutine" data-role="node">
+  <rect x="1008.4134" y="1019.399" width="104.194" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n12" data-role="node" />
+  <line x1="1016.4134" y1="1019.399" x2="1016.4134" y2="1056.299" stroke="#949495" stroke-width="0.75" />
+  <line x1="1104.6074" y1="1019.399" x2="1104.6074" y2="1056.299" stroke="#949495" stroke-width="0.75" />
+  <text x="1060.5104" y="1037.849" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-12</text>
+</g>
+<g class="node" data-id="n18" data-label="Node 76-18" data-shape="subroutine" data-role="node">
+  <rect x="1140.6074" y="1019.399" width="104.194" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n18" data-role="node" />
+  <line x1="1148.6074" y1="1019.399" x2="1148.6074" y2="1056.299" stroke="#949495" stroke-width="0.75" />
+  <line x1="1236.8014" y1="1019.399" x2="1236.8014" y2="1056.299" stroke="#949495" stroke-width="0.75" />
+  <text x="1192.7044" y="1037.849" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-18</text>
+</g>
+<g class="node" data-id="n5" data-label="Node 76-5" data-shape="circle" data-role="node">
+  <circle cx="1084.61098333" cy="1230.599" r="58" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n5" data-role="node" />
+  <text x="1084.61098333" y="1230.599" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-5</text>
+</g>
+<g class="node" data-id="n9" data-label="Node 76-9" data-shape="diamond" data-role="node">
+  <polygon points="595.80415,1346.839 658.41915,1409.454 595.80415,1472.069 533.18915,1409.454" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n9" data-role="node" />
+  <text x="595.80415" y="1409.454" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-9</text>
+</g>
+<g class="node" data-id="n13" data-label="Node 76-13" data-shape="cylinder" data-role="node">
+  <rect x="827.480966667" y="1518.329" width="104.194" height="36.9" fill="#f9f9f9" stroke="none" data-id="node-shape:n13" data-role="node" />
+  <line x1="827.480966667" y1="1518.329" x2="827.480966667" y2="1555.229" stroke="#949495" stroke-width="0.75" />
+  <line x1="931.674966667" y1="1518.329" x2="931.674966667" y2="1555.229" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="879.577966667" cy="1555.229" rx="52.097" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <ellipse cx="879.577966667" cy="1518.329" rx="52.097" ry="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="879.577966667" y="1536.779" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-13</text>
+</g>
+<g class="node" data-id="n17" data-label="Node 76-17" data-shape="circle" data-role="node">
+  <circle cx="777.68355" cy="1406.339" r="59.5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:n17" data-role="node" />
+  <text x="777.68355" y="1406.339" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="64.194" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Node 76-17</text>
+</g>
+</svg>

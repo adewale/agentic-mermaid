@@ -1,0 +1,3970 @@
+{
+  "id": "unicode-edit",
+  "family": "flowchart",
+  "source": "flowchart TD\nA[登录 Ω]\nB[Two]\nC[Three]\nD[保存 é]\nA --> D\nB --> C\nA --> D\nD --> A",
+  "ok": true,
+  "layout": {
+    "version": 1,
+    "kind": "flowchart",
+    "nodes": [
+      {
+        "id": "A",
+        "x": 42.808,
+        "y": 40,
+        "w": 90.973,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "登录 Ω",
+        "labelBounds": {
+          "x": 62.808,
+          "y": 50,
+          "w": 50.973,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 42.808,
+          "y": 40,
+          "w": 90.973,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "B",
+        "x": 161.78099999999998,
+        "y": 40,
+        "w": 67.14399999999999,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Two",
+        "labelBounds": {
+          "x": 181.78099999999998,
+          "y": 50,
+          "w": 27.143999999999995,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 161.78099999999998,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "C",
+        "x": 40,
+        "y": 137.65,
+        "w": 79,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Three",
+        "labelBounds": {
+          "x": 60,
+          "y": 147.65000000000003,
+          "w": 39,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 40,
+          "y": 137.65,
+          "w": 79,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "D",
+        "x": 147,
+        "y": 137.65000000000003,
+        "w": 84.733,
+        "h": 44.7,
+        "shape": "rectangle",
+        "label": "保存 é",
+        "labelBounds": {
+          "x": 167,
+          "y": 147.65000000000003,
+          "w": 44.733,
+          "h": 24.7
+        },
+        "labelContainer": {
+          "x": 147,
+          "y": 137.65000000000003,
+          "w": 84.733,
+          "h": 44.7
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "A->D",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            81.2945,
+            76.9
+          ],
+          [
+            81.2945,
+            106.9
+          ],
+          [
+            182.3665,
+            106.9
+          ],
+          [
+            182.3665,
+            137.65000000000003
+          ]
+        ],
+        "route": {
+          "edgeIndex": 0,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      },
+      {
+        "id": "B->C",
+        "from": "B",
+        "to": "C",
+        "path": [
+          [
+            195.35299999999998,
+            76.9
+          ],
+          [
+            195.35299999999998,
+            101.275
+          ],
+          [
+            79.5,
+            101.275
+          ],
+          [
+            79.5,
+            137.65
+          ]
+        ],
+        "route": {
+          "edgeIndex": 1,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "directLaneClear": false,
+          "directLaneBlockedBy": [
+            {
+              "kind": "span",
+              "id": "B->C"
+            }
+          ],
+          "sourcePort": "S",
+          "targetPort": "N",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-target",
+            "port": "N"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "id": "A->D#1",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            95.2945,
+            76.9
+          ],
+          [
+            95.2945,
+            92.9
+          ],
+          [
+            196.3665,
+            92.9
+          ],
+          [
+            196.3665,
+            137.65000000000003
+          ]
+        ],
+        "route": {
+          "edgeIndex": 2,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      },
+      {
+        "id": "D->A",
+        "from": "D",
+        "to": "A",
+        "path": [
+          [
+            210.54975,
+            137.65000000000003
+          ],
+          [
+            210.54975,
+            89.275
+          ],
+          [
+            111.03774999999999,
+            89.275
+          ],
+          [
+            111.03774999999999,
+            76.9
+          ]
+        ],
+        "route": {
+          "edgeIndex": 3,
+          "routeClass": "feedback",
+          "bendCount": 2,
+          "directLaneClear": false,
+          "directLaneBlockedBy": [
+            {
+              "kind": "span",
+              "id": "D->A"
+            }
+          ],
+          "sourcePortAssignment": {
+            "side": "N",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "feedback-source"
+          },
+          "targetPortAssignment": {
+            "side": "S",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "feedback-target"
+          },
+          "invariant": "feedback-detour"
+        }
+      }
+    ],
+    "groups": [],
+    "bounds": {
+      "w": 271.733,
+      "h": 222.35000000000002
+    },
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.733,
+        "height": 222.35
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22409,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "regions": [
+      {
+        "id": "canvas",
+        "kind": "canvas",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "w": 271.733,
+          "h": 222.35000000000002
+        }
+      },
+      {
+        "id": "node:A",
+        "kind": "node",
+        "elementId": "A",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 42.808,
+          "y": 40,
+          "w": 90.973,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 2
+      },
+      {
+        "id": "node:B",
+        "kind": "node",
+        "elementId": "B",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 161.78099999999998,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 3
+      },
+      {
+        "id": "node:C",
+        "kind": "node",
+        "elementId": "C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 40,
+          "y": 137.65,
+          "w": 79,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 4
+      },
+      {
+        "id": "node:D",
+        "kind": "node",
+        "elementId": "D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 147,
+          "y": 137.65000000000003,
+          "w": 84.733,
+          "h": 44.7
+        },
+        "sourceLine": 5
+      },
+      {
+        "id": "edge:A->D",
+        "kind": "edge",
+        "elementId": "A->D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 81.2945,
+          "y": 76.9,
+          "w": 101.072,
+          "h": 60.75000000000003
+        }
+      },
+      {
+        "id": "edge:B->C",
+        "kind": "edge",
+        "elementId": "B->C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 79.5,
+          "y": 76.9,
+          "w": 115.85299999999998,
+          "h": 60.75
+        }
+      },
+      {
+        "id": "edge:A->D#1",
+        "kind": "edge",
+        "elementId": "A->D#1",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 95.2945,
+          "y": 76.9,
+          "w": 101.072,
+          "h": 60.75000000000003
+        }
+      },
+      {
+        "id": "edge:D->A",
+        "kind": "edge",
+        "elementId": "D->A",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 111.03774999999999,
+          "y": 76.9,
+          "w": 99.512,
+          "h": 60.75000000000003
+        }
+      }
+    ],
+    "actions": []
+  },
+  "layoutReceipt": {
+    "version": 2,
+    "output": "layout",
+    "sharedRequestDigest": "fnv1a64:88f6920767ef058c",
+    "requestDigest": "fnv1a64:d04149a372359f60",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:project-positioned",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 1,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 1,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.733,
+        "height": 222.35
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22409,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "metrics": {
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.733,
+        "height": 222.35
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22409,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "edgeCrossings": 3,
+    "labelLegibility": 1,
+    "labelMeasurement": {
+      "measuredNodes": 4,
+      "unmeasuredNodes": 0,
+      "hiddenNodes": 0,
+      "semanticNodes": 0,
+      "measuredEdges": 0,
+      "unmeasuredEdges": 0,
+      "measuredLabels": 0,
+      "unmeasuredLabels": 0,
+      "hiddenLabels": 0,
+      "semanticLabels": 0
+    },
+    "whitespaceBalance": 0.20750111132176582,
+    "labelEdgeProximity": null,
+    "labelConflicts": {
+      "total": 0,
+      "labelLabel": 0,
+      "labelNode": 0,
+      "labelEdge": 0
+    },
+    "routeOverlaps": {
+      "parallel": 0,
+      "opposing": 0
+    },
+    "routeGeometry": {
+      "bends": 8,
+      "length": 660.509,
+      "area": 60419.83255000001
+    },
+    "minimumNodeSpacing": 27.99999999999997,
+    "elementDensity": 1.3240685487467474,
+    "minimumTextContrast": 14.894588477600598,
+    "aspectRatio": 1.222095794917922,
+    "nodeCount": 4,
+    "edgeCount": 4
+  },
+  "svgReceipt": {
+    "version": 2,
+    "output": "svg",
+    "sharedRequestDigest": "fnv1a64:b4d5673bc97cdf61",
+    "requestDigest": "fnv1a64:77ae54accae882df",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:lower-scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "backend:scene-renderer",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/resources/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/interaction/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/transform/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/topology/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/subpaths/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/closedness/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/bend-radius/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-opacity/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-cap/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-join/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-miter/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-array/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-offset/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-restart/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/path-length/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/paint-order/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/compositing/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/non-scaling-stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-orientation/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-overflow/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/endpoints/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/direction/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/markers/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/relation/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/interaction/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/hit-geometry/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:svg",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "executionDecision": {
+      "family": {
+        "id": "family:flowchart",
+        "version": "1.0.0"
+      },
+      "backend": {
+        "mode": "scene",
+        "requestedId": "default",
+        "selectedId": "backend:default",
+        "version": "1.0.0",
+        "hostPolicy": false
+      },
+      "digest": "fnv1a64:086cc5e1e80cddcb"
+    },
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 1,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 1,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "graphicalProjectionDigest": "fnv1a64:475a220b8ce4c9a9",
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.733,
+        "height": 222.35
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22409,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:475a220b8ce4c9a9"
+    }
+  },
+  "verify": {
+    "ok": true,
+    "warnings": [
+      {
+        "code": "DUPLICATE_EDGE",
+        "edge": "A->D#1",
+        "duplicateOf": "A->D#0",
+        "from": "A",
+        "to": "D"
+      }
+    ],
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "A",
+          "x": 42.808,
+          "y": 40,
+          "w": 90.973,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "登录 Ω",
+          "labelBounds": {
+            "x": 62.808,
+            "y": 50,
+            "w": 50.973,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 42.808,
+            "y": 40,
+            "w": 90.973,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "B",
+          "x": 161.78099999999998,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Two",
+          "labelBounds": {
+            "x": 181.78099999999998,
+            "y": 50,
+            "w": 27.143999999999995,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 161.78099999999998,
+            "y": 40,
+            "w": 67.14399999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "C",
+          "x": 40,
+          "y": 137.65,
+          "w": 79,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Three",
+          "labelBounds": {
+            "x": 60,
+            "y": 147.65000000000003,
+            "w": 39,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 40,
+            "y": 137.65,
+            "w": 79,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "D",
+          "x": 147,
+          "y": 137.65000000000003,
+          "w": 84.733,
+          "h": 44.7,
+          "shape": "rectangle",
+          "label": "保存 é",
+          "labelBounds": {
+            "x": 167,
+            "y": 147.65000000000003,
+            "w": 44.733,
+            "h": 24.7
+          },
+          "labelContainer": {
+            "x": 147,
+            "y": 137.65000000000003,
+            "w": 84.733,
+            "h": 44.7
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->D",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              81.2945,
+              76.9
+            ],
+            [
+              81.2945,
+              106.9
+            ],
+            [
+              182.3665,
+              106.9
+            ],
+            [
+              182.3665,
+              137.65000000000003
+            ]
+          ]
+        },
+        {
+          "id": "B->C",
+          "from": "B",
+          "to": "C",
+          "path": [
+            [
+              195.35299999999998,
+              76.9
+            ],
+            [
+              195.35299999999998,
+              101.275
+            ],
+            [
+              79.5,
+              101.275
+            ],
+            [
+              79.5,
+              137.65
+            ]
+          ]
+        },
+        {
+          "id": "A->D#1",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              95.2945,
+              76.9
+            ],
+            [
+              95.2945,
+              92.9
+            ],
+            [
+              196.3665,
+              92.9
+            ],
+            [
+              196.3665,
+              137.65000000000003
+            ]
+          ]
+        },
+        {
+          "id": "D->A",
+          "from": "D",
+          "to": "A",
+          "path": [
+            [
+              210.54975,
+              137.65000000000003
+            ],
+            [
+              210.54975,
+              89.275
+            ],
+            [
+              111.03774999999999,
+              89.275
+            ],
+            [
+              111.03774999999999,
+              76.9
+            ]
+          ]
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 271.733,
+        "h": 222.35000000000002
+      }
+    },
+    "checks": {
+      "renderability": "passed",
+      "sourceLoss": "not-detected",
+      "taskCorrectness": "not-checked"
+    },
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.733,
+        "height": 222.35000000000002
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 853,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "trace": [
+    {
+      "before": [
+        0,
+        3,
+        0,
+        4,
+        2,
+        -0.25,
+        -0.25,
+        0,
+        0,
+        271.733,
+        222.35000000000002,
+        60419.83255000001,
+        660.5090000000001,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.5,
+        -0.5,
+        0,
+        0,
+        273.293,
+        209.60000000000002,
+        57282.21280000001,
+        192,
+        0
+      ],
+      "rejectedBy": [
+        9
+      ],
+      "beforeGraph": {
+        "width": 271.733,
+        "height": 222.35000000000002,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "登录 Ω",
+            "shape": "rectangle",
+            "x": 42.808,
+            "y": 40,
+            "width": 90.973,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "登录 Ω",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "登录 Ω",
+              "lines": [
+                "登录 Ω"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "登录 Ω",
+                  "width": 50.973,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 50.973,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 161.78099999999998,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 137.65,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "保存 é",
+            "shape": "rectangle",
+            "x": 147,
+            "y": 137.65000000000003,
+            "width": 84.733,
+            "height": 44.7,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "保存 é",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "保存 é",
+              "lines": [
+                "保存 é"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "保存 é",
+                  "width": 44.733,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 44.733,
+              "height": 24.7,
+              "lineHeight": 24.7,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 81.2945,
+                "y": 76.9
+              },
+              {
+                "x": 81.2945,
+                "y": 106.9
+              },
+              {
+                "x": 182.3665,
+                "y": 106.9
+              },
+              {
+                "x": 182.3665,
+                "y": 137.65000000000003
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 195.35299999999998,
+                "y": 76.9
+              },
+              {
+                "x": 195.35299999999998,
+                "y": 101.275
+              },
+              {
+                "x": 79.5,
+                "y": 101.275
+              },
+              {
+                "x": 79.5,
+                "y": 137.65
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "B->C"
+                }
+              ],
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "explained-detour"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 95.2945,
+                "y": 76.9
+              },
+              {
+                "x": 95.2945,
+                "y": 92.9
+              },
+              {
+                "x": 196.3665,
+                "y": 92.9
+              },
+              {
+                "x": 196.3665,
+                "y": 137.65000000000003
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "D",
+            "target": "A",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 210.54975,
+                "y": 137.65000000000003
+              },
+              {
+                "x": 210.54975,
+                "y": 89.275
+              },
+              {
+                "x": 111.03774999999999,
+                "y": 89.275
+              },
+              {
+                "x": 111.03774999999999,
+                "y": 76.9
+              }
+            ],
+            "edgeIndex": 3,
+            "routeCertificate": {
+              "edgeIndex": 3,
+              "routeClass": "feedback",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "D->A"
+                }
+              ],
+              "sourcePortAssignment": {
+                "side": "N",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "feedback-source"
+              },
+              "targetPortAssignment": {
+                "side": "S",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "feedback-target"
+              },
+              "invariant": "feedback-detour"
+            }
+          }
+        ],
+        "groups": [],
+        "certification": {
+          "status": "passed",
+          "strategy": "default",
+          "attempts": 1,
+          "hardViolations": 0,
+          "preference": {
+            "selectedScore": {
+              "unreadableTitles": 0,
+              "labelConflicts": 0,
+              "edgeCrossings": 3,
+              "totalBends": 4,
+              "nonCanonicalEndpointRate": 0.75,
+              "peerBarycenterDelta": 0,
+              "area": 60419.83255000001
+            },
+            "reason": "no-alternative",
+            "compared": [
+              {
+                "strategy": "default",
+                "score": {
+                  "unreadableTitles": 0,
+                  "labelConflicts": 0,
+                  "edgeCrossings": 3,
+                  "totalBends": 4,
+                  "nonCanonicalEndpointRate": 0.75,
+                  "peerBarycenterDelta": 0,
+                  "area": 60419.83255000001
+                }
+              }
+            ]
+          }
+        },
+        "layoutDecision": {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1"
+        }
+      },
+      "afterGraph": {
+        "width": 273.293,
+        "height": 209.60000000000002,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "登录 Ω",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 40.000000000000014,
+            "width": 90.973,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "登录 Ω",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "登录 Ω",
+              "lines": [
+                "登录 Ω"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "登录 Ω",
+                  "width": 50.973,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 50.973,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 160.221,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 154.293,
+            "y": 124.9,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "保存 é",
+            "shape": "rectangle",
+            "x": 43.120000000000005,
+            "y": 124.90000000000002,
+            "width": 84.733,
+            "height": 44.7,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "保存 é",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "保存 é",
+              "lines": [
+                "保存 é"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "保存 é",
+                  "width": 44.733,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 44.733,
+              "height": 24.7,
+              "lineHeight": 24.7,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 78.4865,
+                "y": 76.90000000000002
+              },
+              {
+                "x": 78.4865,
+                "y": 124.90000000000002
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 193.793,
+                "y": 76.9
+              },
+              {
+                "x": 193.793,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "straight"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 92.4865,
+                "y": 76.90000000000002
+              },
+              {
+                "x": 92.4865,
+                "y": 124.90000000000002
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "D",
+            "target": "A",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 85.4865,
+                "y": 124.90000000000002
+              },
+              {
+                "x": 85.4865,
+                "y": 76.90000000000002
+              }
+            ],
+            "edgeIndex": 3,
+            "routeCertificate": {
+              "edgeIndex": 3,
+              "routeClass": "feedback",
+              "bendCount": 0,
+              "directLaneClear": true,
+              "sourcePort": "N",
+              "targetPort": "S",
+              "sourcePortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "feedback-source",
+                "port": "N"
+              },
+              "targetPortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "feedback-target",
+                "port": "S"
+              },
+              "invariant": "straight",
+              "straightened": true
+            }
+          }
+        ],
+        "groups": []
+      }
+    },
+    {
+      "before": [
+        0,
+        3,
+        0,
+        4,
+        2,
+        -0.25,
+        -0.25,
+        0,
+        0,
+        271.733,
+        222.35000000000002,
+        60419.83255000001,
+        660.5090000000001,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.5,
+        -0.5,
+        0,
+        0,
+        273.293,
+        209.60000000000002,
+        57282.21280000001,
+        192,
+        0
+      ],
+      "rejectedBy": [
+        9
+      ],
+      "beforeGraph": {
+        "width": 271.733,
+        "height": 222.35000000000002,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "登录 Ω",
+            "shape": "rectangle",
+            "x": 42.808,
+            "y": 40,
+            "width": 90.973,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "登录 Ω",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "登录 Ω",
+              "lines": [
+                "登录 Ω"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "登录 Ω",
+                  "width": 50.973,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 50.973,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 161.78099999999998,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 137.65,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "保存 é",
+            "shape": "rectangle",
+            "x": 147,
+            "y": 137.65000000000003,
+            "width": 84.733,
+            "height": 44.7,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "保存 é",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "保存 é",
+              "lines": [
+                "保存 é"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "保存 é",
+                  "width": 44.733,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 44.733,
+              "height": 24.7,
+              "lineHeight": 24.7,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 81.2945,
+                "y": 76.9
+              },
+              {
+                "x": 81.2945,
+                "y": 106.9
+              },
+              {
+                "x": 182.3665,
+                "y": 106.9
+              },
+              {
+                "x": 182.3665,
+                "y": 137.65000000000003
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 195.35299999999998,
+                "y": 76.9
+              },
+              {
+                "x": 195.35299999999998,
+                "y": 101.275
+              },
+              {
+                "x": 79.5,
+                "y": 101.275
+              },
+              {
+                "x": 79.5,
+                "y": 137.65
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "B->C"
+                }
+              ],
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "explained-detour"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 95.2945,
+                "y": 76.9
+              },
+              {
+                "x": 95.2945,
+                "y": 92.9
+              },
+              {
+                "x": 196.3665,
+                "y": 92.9
+              },
+              {
+                "x": 196.3665,
+                "y": 137.65000000000003
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "D",
+            "target": "A",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 210.54975,
+                "y": 137.65000000000003
+              },
+              {
+                "x": 210.54975,
+                "y": 89.275
+              },
+              {
+                "x": 111.03774999999999,
+                "y": 89.275
+              },
+              {
+                "x": 111.03774999999999,
+                "y": 76.9
+              }
+            ],
+            "edgeIndex": 3,
+            "routeCertificate": {
+              "edgeIndex": 3,
+              "routeClass": "feedback",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "D->A"
+                }
+              ],
+              "sourcePortAssignment": {
+                "side": "N",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "feedback-source"
+              },
+              "targetPortAssignment": {
+                "side": "S",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "feedback-target"
+              },
+              "invariant": "feedback-detour"
+            }
+          }
+        ],
+        "groups": [],
+        "certification": {
+          "status": "passed",
+          "strategy": "default",
+          "attempts": 1,
+          "hardViolations": 0,
+          "preference": {
+            "selectedScore": {
+              "unreadableTitles": 0,
+              "labelConflicts": 0,
+              "edgeCrossings": 3,
+              "totalBends": 4,
+              "nonCanonicalEndpointRate": 0.75,
+              "peerBarycenterDelta": 0,
+              "area": 60419.83255000001
+            },
+            "reason": "no-alternative",
+            "compared": [
+              {
+                "strategy": "default",
+                "score": {
+                  "unreadableTitles": 0,
+                  "labelConflicts": 0,
+                  "edgeCrossings": 3,
+                  "totalBends": 4,
+                  "nonCanonicalEndpointRate": 0.75,
+                  "peerBarycenterDelta": 0,
+                  "area": 60419.83255000001
+                }
+              }
+            ]
+          }
+        },
+        "layoutDecision": {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1"
+        }
+      },
+      "afterGraph": {
+        "width": 273.293,
+        "height": 209.60000000000002,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "登录 Ω",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 40.000000000000014,
+            "width": 90.973,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "登录 Ω",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "登录 Ω",
+              "lines": [
+                "登录 Ω"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "登录 Ω",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "登",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "录",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "Ω",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "登录 Ω",
+                  "width": 50.973,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 50.973,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 160.221,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 154.293,
+            "y": 124.9,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "保存 é",
+            "shape": "rectangle",
+            "x": 43.120000000000005,
+            "y": 124.90000000000002,
+            "width": 84.733,
+            "height": 44.7,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "保存 é",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "保存 é",
+              "lines": [
+                "保存 é"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "保存 é",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "保",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "存",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": " ",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "é",
+                          "sourceStart": 3,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "保存 é",
+                  "width": 44.733,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 44.733,
+              "height": 24.7,
+              "lineHeight": 24.7,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 78.4865,
+                "y": 76.90000000000002
+              },
+              {
+                "x": 78.4865,
+                "y": 124.90000000000002
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 193.793,
+                "y": 76.9
+              },
+              {
+                "x": 193.793,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "straight"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 92.4865,
+                "y": 76.90000000000002
+              },
+              {
+                "x": 92.4865,
+                "y": 124.90000000000002
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 2,
+                "slotCount": 3,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "D",
+            "target": "A",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 85.4865,
+                "y": 124.90000000000002
+              },
+              {
+                "x": 85.4865,
+                "y": 76.90000000000002
+              }
+            ],
+            "edgeIndex": 3,
+            "routeCertificate": {
+              "edgeIndex": 3,
+              "routeClass": "feedback",
+              "bendCount": 0,
+              "directLaneClear": true,
+              "sourcePort": "N",
+              "targetPort": "S",
+              "sourcePortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "feedback-source",
+                "port": "N"
+              },
+              "targetPortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 3,
+                "role": "feedback-target",
+                "port": "S"
+              },
+              "invariant": "straight",
+              "straightened": true
+            }
+          }
+        ],
+        "groups": []
+      }
+    }
+  ],
+  "guard": [
+    {
+      "reason": "passed"
+    },
+    {
+      "reason": "passed"
+    },
+    {
+      "reason": "passed"
+    }
+  ]
+}

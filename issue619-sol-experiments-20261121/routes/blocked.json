@@ -1,0 +1,216 @@
+[
+  {
+    "id": "cyclic-labelled-19",
+    "ok": true,
+    "elapsed": 680.175143,
+    "metrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1473.00115,
+          "height": 1602.229
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 1061,
+          "maxOcclusionPairs": 100000,
+          "operations": 73218,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 37,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 19,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 11,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.060135085406095266,
+      "labelEdgeProximity": 13.999999999999886,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 112,
+        "length": 27374.17919570351,
+        "area": 2360085.1595633496
+      },
+      "minimumNodeSpacing": 27.999999999999773,
+      "elementDensity": 0.26693952014704386,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 0.9193449563077436,
+      "nodeCount": 19,
+      "edgeCount": 44
+    },
+    "paint": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1473.00115,
+        "height": 1602.229
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 116,
+        "unmeasured": 0,
+        "preparedText": 31,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 119,
+        "labels": 19,
+        "occlusionPairs": 1061,
+        "maxOcclusionPairs": 100000,
+        "operations": 73218,
+        "maxOperations": 400000,
+        "markers": 44
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:042fe03f296d4792"
+    },
+    "trace": [
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      },
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      },
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      },
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      },
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      },
+      {
+        "mode": "blocked",
+        "pair": [
+          12,
+          30
+        ],
+        "ids": [
+          "n11->n10",
+          "n15->n10"
+        ],
+        "status": "label-seat",
+        "crossings": [
+          5,
+          4
+        ]
+      }
+    ],
+    "svgSha": "68831faac814c77015142fa5b5a550a4bb9f65d7f95573927f8e449b8ccff93f"
+  }
+]

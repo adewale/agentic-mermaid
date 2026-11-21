@@ -1,0 +1,2314 @@
+{
+  "scope": "Full public snapshotSample with source-loader switch only. Instrumented diagnostic, no performance claim. Every failure retained. Actual SVG and layout receipts retained; public quality crossings measure projected public polylines.",
+  "arm": "compaction-unforced",
+  "changes": [
+    {
+      "file": "/workspace/elk-layered-port/src/layout-engine.ts",
+      "sha256": "564830708d1eae55aebeec27a45a3daba5138ebff03c7a491508ec85feb1443d"
+    },
+    {
+      "file": "/workspace/elk-layered-port/src/elk-layered/kernel/layout.ts",
+      "sha256": "4f0cffaaf5dc91a43909cabf4e9ac9fdd2eac16694653e186f592e2487aac3a5"
+    }
+  ],
+  "results": [
+    {
+      "id": "cyclic19",
+      "arm": "compaction-unforced",
+      "ok": true,
+      "sourceHash": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "svgHash": "1f6e931870c47ecf6557750cb8596c874ded9264a819ed433b9be9967c9d864e",
+      "size": [
+        1393.2995166666667,
+        1762.8290000000002
+      ],
+      "metrics": {
+        "paintCertification": {
+          "version": 1,
+          "unit": "px",
+          "scope": "native-scene",
+          "status": "passed",
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "width": 1393.29951667,
+            "height": 1762.829
+          },
+          "attempts": 1,
+          "repairs": [],
+          "coverage": {
+            "measured": 116,
+            "unmeasured": 0,
+            "preparedText": 31,
+            "fallbackText": 0,
+            "conditional": 0
+          },
+          "checks": {
+            "primitives": 119,
+            "labels": 19,
+            "occlusionPairs": 956,
+            "maxOcclusionPairs": 100000,
+            "operations": 72594,
+            "maxOperations": 400000,
+            "markers": 44
+          },
+          "issues": [],
+          "limitations": [
+            "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+            "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+          ]
+        },
+        "edgeCrossings": 48,
+        "labelLegibility": 1,
+        "labelMeasurement": {
+          "measuredNodes": 19,
+          "unmeasuredNodes": 0,
+          "hiddenNodes": 0,
+          "semanticNodes": 0,
+          "measuredEdges": 11,
+          "unmeasuredEdges": 0,
+          "measuredLabels": 0,
+          "unmeasuredLabels": 0,
+          "hiddenLabels": 0,
+          "semanticLabels": 0
+        },
+        "whitespaceBalance": 0.05778311273404901,
+        "labelEdgeProximity": 13.866999999999962,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "routeOverlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 107,
+          "length": 31026.118006606703,
+          "area": 2456148.7936659837
+        },
+        "minimumNodeSpacing": 40.38366666666661,
+        "elementDensity": 0.25649911830450567,
+        "minimumTextContrast": 14.894588477600598,
+        "aspectRatio": 0.790377011421225,
+        "nodeCount": 19,
+        "edgeCount": 44
+      },
+      "paint": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1393.29951667,
+          "height": 1762.829
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 956,
+          "maxOcclusionPairs": 100000,
+          "operations": 72594,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:b6510afb4b8e556e"
+      },
+      "raw": [
+        {
+          "size": [
+            1386.2995166666667,
+            1727.429
+          ],
+          "crossings": 48
+        }
+      ],
+      "trace": [
+        {
+          "feedback": [
+            "e12",
+            "e28",
+            "e30",
+            "e32",
+            "e35"
+          ],
+          "ranks": [
+            [
+              "n16",
+              "n6"
+            ],
+            [
+              "n2",
+              "n3"
+            ],
+            [
+              "n0",
+              "n10"
+            ],
+            [
+              "n14"
+            ],
+            [],
+            [
+              "n11",
+              "n7"
+            ],
+            [
+              "n15"
+            ],
+            [
+              "n8"
+            ],
+            [
+              "n4"
+            ],
+            [
+              "n18",
+              "n12"
+            ],
+            [],
+            [
+              "n5",
+              "n1"
+            ],
+            [
+              "n9",
+              "n17"
+            ],
+            [
+              "n13"
+            ]
+          ],
+          "finalOrder": [
+            [
+              "n16",
+              "n6"
+            ],
+            [
+              "n2",
+              "n3"
+            ],
+            [
+              "n10",
+              "n0"
+            ],
+            [
+              "n14"
+            ],
+            [],
+            [
+              "n11",
+              "n7"
+            ],
+            [
+              "n15"
+            ],
+            [
+              "n8"
+            ],
+            [
+              "n4"
+            ],
+            [
+              "n18",
+              "n12"
+            ],
+            [],
+            [
+              "n1",
+              "n5"
+            ],
+            [
+              "n9",
+              "n17"
+            ],
+            [
+              "n13"
+            ]
+          ]
+        }
+      ],
+      "meaning": {
+        "nodes": [
+          {
+            "id": "n2",
+            "label": "Node 76-2"
+          },
+          {
+            "id": "n6",
+            "label": "Node 76-6"
+          },
+          {
+            "id": "n7",
+            "label": "Node 76-7"
+          },
+          {
+            "id": "n10",
+            "label": "Node 76-10"
+          },
+          {
+            "id": "n16",
+            "label": "Node 76-16"
+          },
+          {
+            "id": "n3",
+            "label": "Node 76-3"
+          },
+          {
+            "id": "n0",
+            "label": "Node 76-0"
+          },
+          {
+            "id": "n14",
+            "label": "Node 76-14"
+          },
+          {
+            "id": "n1",
+            "label": "Node 76-1"
+          },
+          {
+            "id": "n11",
+            "label": "Node 76-11"
+          },
+          {
+            "id": "n15",
+            "label": "Node 76-15"
+          },
+          {
+            "id": "n4",
+            "label": "Node 76-4"
+          },
+          {
+            "id": "n8",
+            "label": "Node 76-8"
+          },
+          {
+            "id": "n12",
+            "label": "Node 76-12"
+          },
+          {
+            "id": "n18",
+            "label": "Node 76-18"
+          },
+          {
+            "id": "n5",
+            "label": "Node 76-5"
+          },
+          {
+            "id": "n9",
+            "label": "Node 76-9"
+          },
+          {
+            "id": "n13",
+            "label": "Node 76-13"
+          },
+          {
+            "id": "n17",
+            "label": "Node 76-17"
+          }
+        ],
+        "edges": [
+          {
+            "id": "n14->n11",
+            "from": "n14",
+            "to": "n11",
+            "label": {
+              "x": 582.30325,
+              "y": 545.1675,
+              "text": "edge 0 xxx",
+              "bounds": {
+                "x": 555.9362500000001,
+                "y": 538.0175,
+                "w": 52.734,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n0->n4",
+            "from": "n0",
+            "to": "n4"
+          },
+          {
+            "id": "n9->n13",
+            "from": "n9",
+            "to": "n13"
+          },
+          {
+            "id": "n10->n14",
+            "from": "n10",
+            "to": "n14"
+          },
+          {
+            "id": "n18->n5",
+            "from": "n18",
+            "to": "n5",
+            "label": {
+              "x": 474.05199999999996,
+              "y": 1227.0490000000002,
+              "text": "edge 4 xxxxxxx",
+              "bounds": {
+                "x": 435.80499999999995,
+                "y": 1219.8990000000001,
+                "w": 76.49400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n15->n8",
+            "from": "n15",
+            "to": "n8"
+          },
+          {
+            "id": "n9->n13#1",
+            "from": "n9",
+            "to": "n13"
+          },
+          {
+            "id": "n4->n18",
+            "from": "n4",
+            "to": "n18"
+          },
+          {
+            "id": "n11->n17",
+            "from": "n11",
+            "to": "n17",
+            "label": {
+              "x": 727.0556666666669,
+              "y": 1064.799,
+              "text": "edge 8 xxxxxxxxxxx",
+              "bounds": {
+                "x": 676.9286666666669,
+                "y": 1057.649,
+                "w": 100.25400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n7->n15",
+            "from": "n7",
+            "to": "n15"
+          },
+          {
+            "id": "n14->n1",
+            "from": "n14",
+            "to": "n1"
+          },
+          {
+            "id": "n0->n14",
+            "from": "n0",
+            "to": "n14"
+          },
+          {
+            "id": "n11->n10",
+            "from": "n11",
+            "to": "n10",
+            "label": {
+              "x": 864.8502500000001,
+              "y": 474.755,
+              "text": "edge 12 xxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 801.65525,
+                "y": 467.605,
+                "w": 126.39000000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n2->n18",
+            "from": "n2",
+            "to": "n18"
+          },
+          {
+            "id": "n16->n3",
+            "from": "n16",
+            "to": "n3"
+          },
+          {
+            "id": "n18->n13",
+            "from": "n18",
+            "to": "n13"
+          },
+          {
+            "id": "n0->n4#1",
+            "from": "n0",
+            "to": "n4",
+            "label": {
+              "x": 1228.5501833333335,
+              "y": 667.005,
+              "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 1153.4751833333335,
+                "y": 659.855,
+                "w": 150.15,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n0",
+            "from": "n3",
+            "to": "n0"
+          },
+          {
+            "id": "n8->n5",
+            "from": "n8",
+            "to": "n5"
+          },
+          {
+            "id": "n3->n5",
+            "from": "n3",
+            "to": "n5"
+          },
+          {
+            "id": "n5->n13",
+            "from": "n5",
+            "to": "n13",
+            "label": {
+              "x": 980.0067166666666,
+              "y": 1548.564,
+              "text": "edge 20 xxxxxx",
+              "bounds": {
+                "x": 941.7597166666667,
+                "y": 1541.414,
+                "w": 76.49400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n1->n9",
+            "from": "n1",
+            "to": "n9"
+          },
+          {
+            "id": "n6->n3",
+            "from": "n6",
+            "to": "n3"
+          },
+          {
+            "id": "n2->n14",
+            "from": "n2",
+            "to": "n14"
+          },
+          {
+            "id": "n2->n8",
+            "from": "n2",
+            "to": "n8",
+            "label": {
+              "x": 993.8942166666668,
+              "y": 629.302,
+              "text": "edge 24 xxxxxxxxxx",
+              "bounds": {
+                "x": 943.7672166666669,
+                "y": 622.152,
+                "w": 100.25400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n5#1",
+            "from": "n3",
+            "to": "n5"
+          },
+          {
+            "id": "n18->n17",
+            "from": "n18",
+            "to": "n17"
+          },
+          {
+            "id": "n4->n12",
+            "from": "n4",
+            "to": "n12"
+          },
+          {
+            "id": "n14->n3",
+            "from": "n14",
+            "to": "n3",
+            "label": {
+              "x": 231.201,
+              "y": 389.105,
+              "text": "edge 28 xxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 169.194,
+                "y": 381.95500000000004,
+                "w": 124.01400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n11->n15",
+            "from": "n11",
+            "to": "n15"
+          },
+          {
+            "id": "n15->n10",
+            "from": "n15",
+            "to": "n10"
+          },
+          {
+            "id": "n15->n17",
+            "from": "n15",
+            "to": "n17"
+          },
+          {
+            "id": "n17->n10",
+            "from": "n17",
+            "to": "n10",
+            "label": {
+              "x": 526.186,
+              "y": 967.1489999999999,
+              "text": "edge 32 xxxxxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 452.29900000000004,
+                "y": 959.9989999999999,
+                "w": 147.77400000000003,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n5->n17",
+            "from": "n5",
+            "to": "n17"
+          },
+          {
+            "id": "n0->n4#2",
+            "from": "n0",
+            "to": "n4"
+          },
+          {
+            "id": "n4->n6",
+            "from": "n4",
+            "to": "n6"
+          },
+          {
+            "id": "n10->n9",
+            "from": "n10",
+            "to": "n9",
+            "label": {
+              "x": 357.708,
+              "y": 940.5645,
+              "text": "edge 36 xxxxx",
+              "bounds": {
+                "x": 322.43100000000004,
+                "y": 933.4145,
+                "w": 70.554,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n11",
+            "from": "n3",
+            "to": "n11"
+          },
+          {
+            "id": "n16->n18",
+            "from": "n16",
+            "to": "n18"
+          },
+          {
+            "id": "n5->n9",
+            "from": "n5",
+            "to": "n9"
+          },
+          {
+            "id": "n15->n4",
+            "from": "n15",
+            "to": "n4",
+            "label": {
+              "x": 835.9256333333335,
+              "y": 967.1489999999999,
+              "text": "edge 40 xxxxxxxxx",
+              "bounds": {
+                "x": 788.7686333333335,
+                "y": 959.9989999999999,
+                "w": 94.31400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n1->n17",
+            "from": "n1",
+            "to": "n17"
+          },
+          {
+            "id": "n6->n3#1",
+            "from": "n6",
+            "to": "n3"
+          },
+          {
+            "id": "n2->n10",
+            "from": "n2",
+            "to": "n10"
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "a": "n14->n11",
+          "b": "n14->n1",
+          "i": 0,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n11",
+          "b": "n15->n10",
+          "i": 0,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4",
+          "b": "n0->n14",
+          "i": 1,
+          "j": 11,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4",
+          "b": "n15->n17",
+          "i": 1,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n9->n13",
+          "b": "n17->n10",
+          "i": 2,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n10->n14",
+          "b": "n17->n10",
+          "i": 3,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n11->n17",
+          "i": 4,
+          "j": 8,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n14->n1",
+          "i": 4,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n17->n10",
+          "i": 4,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n9->n13#1",
+          "b": "n17->n10",
+          "i": 6,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n11->n17",
+          "i": 7,
+          "j": 8,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n14->n1",
+          "i": 7,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n8->n5",
+          "i": 7,
+          "j": 18,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n17->n10",
+          "i": 7,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n15->n10",
+          "i": 8,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n4->n6",
+          "i": 8,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n5->n9",
+          "i": 8,
+          "j": 39,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n1",
+          "b": "n4->n6",
+          "i": 10,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n11->n10",
+          "i": 11,
+          "j": 12,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n2->n8",
+          "i": 11,
+          "j": 24,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n15->n10",
+          "i": 11,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n3->n11",
+          "i": 11,
+          "j": 37,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n10",
+          "b": "n2->n14",
+          "i": 12,
+          "j": 23,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n14->n3",
+          "i": 13,
+          "j": 28,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n4->n6",
+          "i": 13,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n10->n9",
+          "i": 13,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n16->n3",
+          "b": "n4->n6",
+          "i": 14,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n13",
+          "b": "n10->n9",
+          "i": 15,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4#1",
+          "b": "n15->n17",
+          "i": 16,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n8->n5",
+          "b": "n4->n6",
+          "i": 18,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n8->n5",
+          "b": "n15->n4",
+          "i": 18,
+          "j": 40,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n3->n5",
+          "b": "n15->n17",
+          "i": 19,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n5->n13",
+          "b": "n15->n17",
+          "i": 20,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n1->n9",
+          "b": "n18->n17",
+          "i": 21,
+          "j": 26,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n14",
+          "b": "n15->n10",
+          "i": 23,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n8",
+          "b": "n15->n17",
+          "i": 24,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n8",
+          "b": "n3->n11",
+          "i": 24,
+          "j": 37,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n3->n5#1",
+          "b": "n15->n17",
+          "i": 25,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n17",
+          "b": "n17->n10",
+          "i": 26,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n17",
+          "b": "n5->n9",
+          "i": 26,
+          "j": 39,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n3",
+          "b": "n17->n10",
+          "i": 28,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n3",
+          "b": "n10->n9",
+          "i": 28,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n15->n17",
+          "b": "n0->n4#2",
+          "i": 31,
+          "j": 34,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n17->n10",
+          "b": "n4->n6",
+          "i": 32,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n17->n10",
+          "b": "n10->n9",
+          "i": 32,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n6",
+          "b": "n10->n9",
+          "i": 35,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n10->n9",
+          "b": "n16->n18",
+          "i": 36,
+          "j": 38,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n5->n9",
+          "b": "n1->n17",
+          "i": 39,
+          "j": 41,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        }
+      ],
+      "inputs": [
+        {
+          "id": "cyclic19",
+          "ordinal": 0,
+          "baselineInputHash": "56e7913097ed7eafe26c02075bc520b2f9cece04b9b2ba7eff7a062ad76db609",
+          "actualInputHash": "9ed50668c219380e00177163fb50e7e383fc890c7156eb23f9405d4a8f0df8e3",
+          "archivedInputExact": true,
+          "children": [
+            "n2",
+            "n6",
+            "n7",
+            "n10",
+            "n16",
+            "n3",
+            "n0",
+            "n14",
+            "n1",
+            "n11",
+            "n15",
+            "n4",
+            "n8",
+            "n12",
+            "n18",
+            "n5",
+            "n9",
+            "n13",
+            "n17"
+          ]
+        },
+        {
+          "id": "cyclic19",
+          "ordinal": 1,
+          "baselineInputHash": "56e7913097ed7eafe26c02075bc520b2f9cece04b9b2ba7eff7a062ad76db609",
+          "actualInputHash": "9ed50668c219380e00177163fb50e7e383fc890c7156eb23f9405d4a8f0df8e3",
+          "archivedInputExact": true,
+          "children": [
+            "n2",
+            "n6",
+            "n7",
+            "n10",
+            "n16",
+            "n3",
+            "n0",
+            "n14",
+            "n1",
+            "n11",
+            "n15",
+            "n4",
+            "n8",
+            "n12",
+            "n18",
+            "n5",
+            "n9",
+            "n13",
+            "n17"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cyclic19-label-edit",
+      "arm": "compaction-unforced",
+      "ok": true,
+      "sourceHash": "4d448ec4332dc39e7c35c17808062206567969c8527f7048db29e4eba163cd04",
+      "svgHash": "0592625d151a5a0be9f87045ba01ae58ea5c198ccf6d6959a182f45d16525e05",
+      "size": [
+        1393.2995166666667,
+        1762.8290000000002
+      ],
+      "metrics": {
+        "paintCertification": {
+          "version": 1,
+          "unit": "px",
+          "scope": "native-scene",
+          "status": "passed",
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "width": 1393.29951667,
+            "height": 1762.829
+          },
+          "attempts": 1,
+          "repairs": [],
+          "coverage": {
+            "measured": 116,
+            "unmeasured": 0,
+            "preparedText": 31,
+            "fallbackText": 0,
+            "conditional": 0
+          },
+          "checks": {
+            "primitives": 119,
+            "labels": 19,
+            "occlusionPairs": 956,
+            "maxOcclusionPairs": 100000,
+            "operations": 72594,
+            "maxOperations": 400000,
+            "markers": 44
+          },
+          "issues": [],
+          "limitations": [
+            "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+            "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+          ]
+        },
+        "edgeCrossings": 48,
+        "labelLegibility": 1,
+        "labelMeasurement": {
+          "measuredNodes": 19,
+          "unmeasuredNodes": 0,
+          "hiddenNodes": 0,
+          "semanticNodes": 0,
+          "measuredEdges": 11,
+          "unmeasuredEdges": 0,
+          "measuredLabels": 0,
+          "unmeasuredLabels": 0,
+          "hiddenLabels": 0,
+          "semanticLabels": 0
+        },
+        "whitespaceBalance": 0.05778311273404901,
+        "labelEdgeProximity": 13.866999999999962,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "routeOverlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 107,
+          "length": 31026.118006606703,
+          "area": 2456148.7936659837
+        },
+        "minimumNodeSpacing": 40.38366666666661,
+        "elementDensity": 0.25649911830450567,
+        "minimumTextContrast": 14.894588477600598,
+        "aspectRatio": 0.790377011421225,
+        "nodeCount": 19,
+        "edgeCount": 44
+      },
+      "paint": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1393.29951667,
+          "height": 1762.829
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 956,
+          "maxOcclusionPairs": 100000,
+          "operations": 72594,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:5f2da1809e8eafd7"
+      },
+      "raw": [
+        {
+          "size": [
+            1386.2995166666667,
+            1727.429
+          ],
+          "crossings": 48
+        }
+      ],
+      "trace": [
+        {
+          "feedback": [
+            "e12",
+            "e28",
+            "e30",
+            "e32",
+            "e35"
+          ],
+          "ranks": [
+            [
+              "n16",
+              "n6"
+            ],
+            [
+              "n2",
+              "n3"
+            ],
+            [
+              "n0",
+              "n10"
+            ],
+            [
+              "n14"
+            ],
+            [],
+            [
+              "n11",
+              "n7"
+            ],
+            [
+              "n15"
+            ],
+            [
+              "n8"
+            ],
+            [
+              "n4"
+            ],
+            [
+              "n18",
+              "n12"
+            ],
+            [],
+            [
+              "n5",
+              "n1"
+            ],
+            [
+              "n9",
+              "n17"
+            ],
+            [
+              "n13"
+            ]
+          ],
+          "finalOrder": [
+            [
+              "n16",
+              "n6"
+            ],
+            [
+              "n2",
+              "n3"
+            ],
+            [
+              "n10",
+              "n0"
+            ],
+            [
+              "n14"
+            ],
+            [],
+            [
+              "n11",
+              "n7"
+            ],
+            [
+              "n15"
+            ],
+            [
+              "n8"
+            ],
+            [
+              "n4"
+            ],
+            [
+              "n18",
+              "n12"
+            ],
+            [],
+            [
+              "n1",
+              "n5"
+            ],
+            [
+              "n9",
+              "n17"
+            ],
+            [
+              "n13"
+            ]
+          ]
+        }
+      ],
+      "meaning": {
+        "nodes": [
+          {
+            "id": "n2",
+            "label": "Node 76-2"
+          },
+          {
+            "id": "n6",
+            "label": "Node 76-6"
+          },
+          {
+            "id": "n7",
+            "label": "Node 76-7"
+          },
+          {
+            "id": "n10",
+            "label": "Node 76-10"
+          },
+          {
+            "id": "n16",
+            "label": "Node 76-16"
+          },
+          {
+            "id": "n3",
+            "label": "Node 76-3"
+          },
+          {
+            "id": "n0",
+            "label": "Node 76-0"
+          },
+          {
+            "id": "n14",
+            "label": "Node 76-14"
+          },
+          {
+            "id": "n1",
+            "label": "Node 76-1"
+          },
+          {
+            "id": "n11",
+            "label": "Node 76-11"
+          },
+          {
+            "id": "n15",
+            "label": "Node 76-15"
+          },
+          {
+            "id": "n4",
+            "label": "Node 76-4"
+          },
+          {
+            "id": "n8",
+            "label": "Node 76-8"
+          },
+          {
+            "id": "n12",
+            "label": "Node 76-12"
+          },
+          {
+            "id": "n18",
+            "label": "Node 76-18"
+          },
+          {
+            "id": "n5",
+            "label": "Node 76-5"
+          },
+          {
+            "id": "n9",
+            "label": "Node 76-9"
+          },
+          {
+            "id": "n13",
+            "label": "Node 76-13"
+          },
+          {
+            "id": "n17",
+            "label": "Node 76-17"
+          }
+        ],
+        "edges": [
+          {
+            "id": "n14->n11",
+            "from": "n14",
+            "to": "n11",
+            "label": {
+              "x": 582.30325,
+              "y": 545.1675,
+              "text": "edge 0 xxx",
+              "bounds": {
+                "x": 555.9362500000001,
+                "y": 538.0175,
+                "w": 52.734,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n0->n4",
+            "from": "n0",
+            "to": "n4"
+          },
+          {
+            "id": "n9->n13",
+            "from": "n9",
+            "to": "n13"
+          },
+          {
+            "id": "n10->n14",
+            "from": "n10",
+            "to": "n14"
+          },
+          {
+            "id": "n18->n5",
+            "from": "n18",
+            "to": "n5",
+            "label": {
+              "x": 474.05199999999996,
+              "y": 1227.0490000000002,
+              "text": "edge 4 xxxxxxx",
+              "bounds": {
+                "x": 435.80499999999995,
+                "y": 1219.8990000000001,
+                "w": 76.49400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n15->n8",
+            "from": "n15",
+            "to": "n8"
+          },
+          {
+            "id": "n9->n13#1",
+            "from": "n9",
+            "to": "n13"
+          },
+          {
+            "id": "n4->n18",
+            "from": "n4",
+            "to": "n18"
+          },
+          {
+            "id": "n11->n17",
+            "from": "n11",
+            "to": "n17",
+            "label": {
+              "x": 727.0556666666669,
+              "y": 1064.799,
+              "text": "edge 8 xxxxxxxxxxx",
+              "bounds": {
+                "x": 676.9286666666669,
+                "y": 1057.649,
+                "w": 100.25400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n7->n15",
+            "from": "n7",
+            "to": "n15"
+          },
+          {
+            "id": "n14->n1",
+            "from": "n14",
+            "to": "n1"
+          },
+          {
+            "id": "n0->n14",
+            "from": "n0",
+            "to": "n14"
+          },
+          {
+            "id": "n11->n10",
+            "from": "n11",
+            "to": "n10",
+            "label": {
+              "x": 864.82025,
+              "y": 474.755,
+              "text": "edge 12 xxxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 798.65525,
+                "y": 467.605,
+                "w": 132.33,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n2->n18",
+            "from": "n2",
+            "to": "n18"
+          },
+          {
+            "id": "n16->n3",
+            "from": "n16",
+            "to": "n3"
+          },
+          {
+            "id": "n18->n13",
+            "from": "n18",
+            "to": "n13"
+          },
+          {
+            "id": "n0->n4#1",
+            "from": "n0",
+            "to": "n4",
+            "label": {
+              "x": 1228.5501833333335,
+              "y": 667.005,
+              "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 1153.4751833333335,
+                "y": 659.855,
+                "w": 150.15,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n0",
+            "from": "n3",
+            "to": "n0"
+          },
+          {
+            "id": "n8->n5",
+            "from": "n8",
+            "to": "n5"
+          },
+          {
+            "id": "n3->n5",
+            "from": "n3",
+            "to": "n5"
+          },
+          {
+            "id": "n5->n13",
+            "from": "n5",
+            "to": "n13",
+            "label": {
+              "x": 980.0067166666666,
+              "y": 1548.564,
+              "text": "edge 20 xxxxxx",
+              "bounds": {
+                "x": 941.7597166666667,
+                "y": 1541.414,
+                "w": 76.49400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n1->n9",
+            "from": "n1",
+            "to": "n9"
+          },
+          {
+            "id": "n6->n3",
+            "from": "n6",
+            "to": "n3"
+          },
+          {
+            "id": "n2->n14",
+            "from": "n2",
+            "to": "n14"
+          },
+          {
+            "id": "n2->n8",
+            "from": "n2",
+            "to": "n8",
+            "label": {
+              "x": 993.8942166666668,
+              "y": 629.302,
+              "text": "edge 24 xxxxxxxxxx",
+              "bounds": {
+                "x": 943.7672166666669,
+                "y": 622.152,
+                "w": 100.25400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n5#1",
+            "from": "n3",
+            "to": "n5"
+          },
+          {
+            "id": "n18->n17",
+            "from": "n18",
+            "to": "n17"
+          },
+          {
+            "id": "n4->n12",
+            "from": "n4",
+            "to": "n12"
+          },
+          {
+            "id": "n14->n3",
+            "from": "n14",
+            "to": "n3",
+            "label": {
+              "x": 231.201,
+              "y": 389.105,
+              "text": "edge 28 xxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 169.194,
+                "y": 381.95500000000004,
+                "w": 124.01400000000002,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n11->n15",
+            "from": "n11",
+            "to": "n15"
+          },
+          {
+            "id": "n15->n10",
+            "from": "n15",
+            "to": "n10"
+          },
+          {
+            "id": "n15->n17",
+            "from": "n15",
+            "to": "n17"
+          },
+          {
+            "id": "n17->n10",
+            "from": "n17",
+            "to": "n10",
+            "label": {
+              "x": 526.186,
+              "y": 967.1489999999999,
+              "text": "edge 32 xxxxxxxxxxxxxxxxxx",
+              "bounds": {
+                "x": 452.29900000000004,
+                "y": 959.9989999999999,
+                "w": 147.77400000000003,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n5->n17",
+            "from": "n5",
+            "to": "n17"
+          },
+          {
+            "id": "n0->n4#2",
+            "from": "n0",
+            "to": "n4"
+          },
+          {
+            "id": "n4->n6",
+            "from": "n4",
+            "to": "n6"
+          },
+          {
+            "id": "n10->n9",
+            "from": "n10",
+            "to": "n9",
+            "label": {
+              "x": 357.708,
+              "y": 940.5645,
+              "text": "edge 36 xxxxx",
+              "bounds": {
+                "x": 322.43100000000004,
+                "y": 933.4145,
+                "w": 70.554,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n3->n11",
+            "from": "n3",
+            "to": "n11"
+          },
+          {
+            "id": "n16->n18",
+            "from": "n16",
+            "to": "n18"
+          },
+          {
+            "id": "n5->n9",
+            "from": "n5",
+            "to": "n9"
+          },
+          {
+            "id": "n15->n4",
+            "from": "n15",
+            "to": "n4",
+            "label": {
+              "x": 835.9256333333335,
+              "y": 967.1489999999999,
+              "text": "edge 40 xxxxxxxxx",
+              "bounds": {
+                "x": 788.7686333333335,
+                "y": 959.9989999999999,
+                "w": 94.31400000000001,
+                "h": 14.3
+              }
+            }
+          },
+          {
+            "id": "n1->n17",
+            "from": "n1",
+            "to": "n17"
+          },
+          {
+            "id": "n6->n3#1",
+            "from": "n6",
+            "to": "n3"
+          },
+          {
+            "id": "n2->n10",
+            "from": "n2",
+            "to": "n10"
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "a": "n14->n11",
+          "b": "n14->n1",
+          "i": 0,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n11",
+          "b": "n15->n10",
+          "i": 0,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4",
+          "b": "n0->n14",
+          "i": 1,
+          "j": 11,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4",
+          "b": "n15->n17",
+          "i": 1,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n9->n13",
+          "b": "n17->n10",
+          "i": 2,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n10->n14",
+          "b": "n17->n10",
+          "i": 3,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n11->n17",
+          "i": 4,
+          "j": 8,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n14->n1",
+          "i": 4,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n5",
+          "b": "n17->n10",
+          "i": 4,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n9->n13#1",
+          "b": "n17->n10",
+          "i": 6,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n11->n17",
+          "i": 7,
+          "j": 8,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n14->n1",
+          "i": 7,
+          "j": 10,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n8->n5",
+          "i": 7,
+          "j": 18,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n18",
+          "b": "n17->n10",
+          "i": 7,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n15->n10",
+          "i": 8,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n4->n6",
+          "i": 8,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n17",
+          "b": "n5->n9",
+          "i": 8,
+          "j": 39,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n1",
+          "b": "n4->n6",
+          "i": 10,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n11->n10",
+          "i": 11,
+          "j": 12,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n2->n8",
+          "i": 11,
+          "j": 24,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n15->n10",
+          "i": 11,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n14",
+          "b": "n3->n11",
+          "i": 11,
+          "j": 37,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n11->n10",
+          "b": "n2->n14",
+          "i": 12,
+          "j": 23,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n14->n3",
+          "i": 13,
+          "j": 28,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n4->n6",
+          "i": 13,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n18",
+          "b": "n10->n9",
+          "i": 13,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n16->n3",
+          "b": "n4->n6",
+          "i": 14,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n13",
+          "b": "n10->n9",
+          "i": 15,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n0->n4#1",
+          "b": "n15->n17",
+          "i": 16,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n8->n5",
+          "b": "n4->n6",
+          "i": 18,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n8->n5",
+          "b": "n15->n4",
+          "i": 18,
+          "j": 40,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n3->n5",
+          "b": "n15->n17",
+          "i": 19,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n5->n13",
+          "b": "n15->n17",
+          "i": 20,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n1->n9",
+          "b": "n18->n17",
+          "i": 21,
+          "j": 26,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n14",
+          "b": "n15->n10",
+          "i": 23,
+          "j": 30,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n8",
+          "b": "n15->n17",
+          "i": 24,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n2->n8",
+          "b": "n3->n11",
+          "i": 24,
+          "j": 37,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n3->n5#1",
+          "b": "n15->n17",
+          "i": 25,
+          "j": 31,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n17",
+          "b": "n17->n10",
+          "i": 26,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n18->n17",
+          "b": "n5->n9",
+          "i": 26,
+          "j": 39,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n3",
+          "b": "n17->n10",
+          "i": 28,
+          "j": 32,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n14->n3",
+          "b": "n10->n9",
+          "i": 28,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n15->n17",
+          "b": "n0->n4#2",
+          "i": 31,
+          "j": 34,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n17->n10",
+          "b": "n4->n6",
+          "i": 32,
+          "j": 35,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n17->n10",
+          "b": "n10->n9",
+          "i": 32,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n4->n6",
+          "b": "n10->n9",
+          "i": 35,
+          "j": 36,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n10->n9",
+          "b": "n16->n18",
+          "i": 36,
+          "j": 38,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        },
+        {
+          "a": "n5->n9",
+          "b": "n1->n17",
+          "i": 39,
+          "j": 41,
+          "crossing": 1,
+          "parallel": 0,
+          "opposing": 0
+        }
+      ],
+      "inputs": [
+        {
+          "id": "cyclic19-label-edit",
+          "ordinal": 2,
+          "baselineInputHash": "d685330aae58be110b1ca9ced2f0c3ad35821271f8538b6f37a17aed3bfe36e9",
+          "actualInputHash": "1f6bacc46d27aaeb2f5934cedee245be20b0f3c73b8e40ce57c569bfe6e3b6d3",
+          "children": [
+            "n2",
+            "n6",
+            "n7",
+            "n10",
+            "n16",
+            "n3",
+            "n0",
+            "n14",
+            "n1",
+            "n11",
+            "n15",
+            "n4",
+            "n8",
+            "n12",
+            "n18",
+            "n5",
+            "n9",
+            "n13",
+            "n17"
+          ]
+        },
+        {
+          "id": "cyclic19-label-edit",
+          "ordinal": 3,
+          "baselineInputHash": "d685330aae58be110b1ca9ced2f0c3ad35821271f8538b6f37a17aed3bfe36e9",
+          "actualInputHash": "1f6bacc46d27aaeb2f5934cedee245be20b0f3c73b8e40ce57c569bfe6e3b6d3",
+          "children": [
+            "n2",
+            "n6",
+            "n7",
+            "n10",
+            "n16",
+            "n3",
+            "n0",
+            "n14",
+            "n1",
+            "n11",
+            "n15",
+            "n4",
+            "n8",
+            "n12",
+            "n18",
+            "n5",
+            "n9",
+            "n13",
+            "n17"
+          ]
+        }
+      ]
+    }
+  ]
+}

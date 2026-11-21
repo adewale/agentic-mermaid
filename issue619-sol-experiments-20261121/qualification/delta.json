@@ -1,0 +1,726 @@
+[
+  {
+    "id": "winning-duplicate-return",
+    "mode": "balanced",
+    "before": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 258.59,
+          "height": 214.55
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 52,
+          "maxOcclusionPairs": 100000,
+          "operations": 22397,
+          "maxOperations": 400000,
+          "markers": 4
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 3,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 4,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 0,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.18848632080709385,
+      "labelEdgeProximity": null,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 8,
+        "length": 644.324,
+        "area": 55480.48450000001
+      },
+      "minimumNodeSpacing": 27.99999999999997,
+      "elementDensity": 1.4419484746929343,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 1.2052668375670008,
+      "nodeCount": 4,
+      "edgeCount": 4
+    },
+    "after": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 258.59,
+          "height": 201.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 20,
+          "maxOcclusionPairs": 100000,
+          "operations": 22221,
+          "maxOperations": 400000,
+          "markers": 4
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 4,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 0,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.20039514434668976,
+      "labelEdgeProximity": null,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 0,
+        "length": 192,
+        "area": 52183.46200000001
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 1.5330527514636723,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 1.2814172447968286,
+      "nodeCount": 4,
+      "edgeCount": 4
+    },
+    "paintBefore": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 214.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22397,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:42e5004001be1505"
+    },
+    "paintAfter": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 201.8
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 20,
+        "maxOcclusionPairs": 100000,
+        "operations": 22221,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:028d27b3416849bd"
+    }
+  },
+  {
+    "id": "generated-cyclic:135",
+    "mode": "balanced",
+    "before": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1658.468,
+          "height": 616.7795
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 75,
+          "unmeasured": 0,
+          "preparedText": 20,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 78,
+          "labels": 13,
+          "occlusionPairs": 795,
+          "maxOcclusionPairs": 100000,
+          "operations": 51283,
+          "maxOperations": 400000,
+          "markers": 28
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 13,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 13,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.10782862729713653,
+      "labelEdgeProximity": 14,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 66,
+        "length": 15438.815333067603,
+        "area": 1022909.0638059999
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 0.40081764304100315,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.6889155686918906,
+      "nodeCount": 13,
+      "edgeCount": 28
+    },
+    "after": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1601.718,
+          "height": 563.370833333
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 75,
+          "unmeasured": 0,
+          "preparedText": 20,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 78,
+          "labels": 13,
+          "occlusionPairs": 809,
+          "maxOcclusionPairs": 100000,
+          "operations": 51338,
+          "maxOperations": 400000,
+          "markers": 28
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 10,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 13,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.1222336240289545,
+      "labelEdgeProximity": 13.074999999999989,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 63,
+        "length": 13710.830566430612,
+        "area": 902361.204425
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 0.45436350542270826,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.8430971311081357,
+      "nodeCount": 13,
+      "edgeCount": 28
+    },
+    "paintBefore": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1658.468,
+        "height": 616.7795
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 75,
+        "unmeasured": 0,
+        "preparedText": 20,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 78,
+        "labels": 13,
+        "occlusionPairs": 795,
+        "maxOcclusionPairs": 100000,
+        "operations": 51283,
+        "maxOperations": 400000,
+        "markers": 28
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:60dcfa7221b2793f"
+    },
+    "paintAfter": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1601.718,
+        "height": 563.370833333
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 75,
+        "unmeasured": 0,
+        "preparedText": 20,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 78,
+        "labels": 13,
+        "occlusionPairs": 809,
+        "maxOcclusionPairs": 100000,
+        "operations": 51338,
+        "maxOperations": 400000,
+        "markers": 28
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:0ba2ffd72ce0849b"
+    }
+  },
+  {
+    "id": "generated-cyclic:139",
+    "mode": "balanced",
+    "before": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1868.866,
+          "height": 854.8083
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 104,
+          "unmeasured": 0,
+          "preparedText": 27,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 107,
+          "labels": 17,
+          "occlusionPairs": 887,
+          "maxOcclusionPairs": 100000,
+          "operations": 67127,
+          "maxOperations": 400000,
+          "markers": 40
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 43,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 17,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.08778973763946869,
+      "labelEdgeProximity": 11.28999999999985,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 106,
+        "length": 24154.945879969993,
+        "area": 1597522.1683877995
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 0.3568025604146935,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.1862983782445724,
+      "nodeCount": 17,
+      "edgeCount": 40
+    },
+    "after": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1724.498,
+          "height": 803.3585
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 104,
+          "unmeasured": 0,
+          "preparedText": 27,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 107,
+          "labels": 17,
+          "occlusionPairs": 891,
+          "maxOcclusionPairs": 100000,
+          "operations": 67173,
+          "maxOperations": 400000,
+          "markers": 40
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 24,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 17,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.10123217233182685,
+      "labelEdgeProximity": 13,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 104,
+        "length": 20183.030251277472,
+        "area": 1385390.1265329998
+      },
+      "minimumNodeSpacing": 35.63858521672817,
+      "elementDensity": 0.4114364532295681,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.1466107597044157,
+      "nodeCount": 17,
+      "edgeCount": 40
+    },
+    "paintBefore": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1868.866,
+        "height": 854.8083
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 104,
+        "unmeasured": 0,
+        "preparedText": 27,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 107,
+        "labels": 17,
+        "occlusionPairs": 887,
+        "maxOcclusionPairs": 100000,
+        "operations": 67127,
+        "maxOperations": 400000,
+        "markers": 40
+      },
+      "issues": [
+        {
+          "code": "POTENTIAL_OCCLUSION",
+          "id": "edge:n1->n16#0",
+          "by": "node-shape:n16",
+          "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+        },
+        {
+          "code": "POTENTIAL_OCCLUSION",
+          "id": "edge:n11->n16#0",
+          "by": "node-shape:n16",
+          "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:38bade4658d0119a"
+    },
+    "paintAfter": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1724.498,
+        "height": 803.3585
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 104,
+        "unmeasured": 0,
+        "preparedText": 27,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 107,
+        "labels": 17,
+        "occlusionPairs": 891,
+        "maxOcclusionPairs": 100000,
+        "operations": 67173,
+        "maxOperations": 400000,
+        "markers": 40
+      },
+      "issues": [
+        {
+          "code": "POTENTIAL_OCCLUSION",
+          "id": "edge:n1->n16#0",
+          "by": "node-shape:n16",
+          "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+        },
+        {
+          "code": "POTENTIAL_OCCLUSION",
+          "id": "edge:n11->n16#0",
+          "by": "node-shape:n16",
+          "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:ba721b172377e2d1"
+    }
+  }
+]

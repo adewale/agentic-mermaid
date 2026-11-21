@@ -1,0 +1,5846 @@
+{
+  "summary": {
+    "id": "cyclic19",
+    "arm": "declared-forced",
+    "ok": true,
+    "sourceHash": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+    "svgHash": "22db7af37bf8b233d9e90fe6ea52eabf38ae63b76329f56c0180a423fdf92510",
+    "size": [
+      1844.5865999999999,
+      1596.404
+    ],
+    "metrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1844.5866,
+          "height": 1596.404
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 859,
+          "maxOcclusionPairs": 100000,
+          "operations": 73305,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 84,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 19,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 11,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.04819630559805193,
+      "labelEdgeProximity": 12.509999999999934,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 133,
+        "length": 47410.94634315602,
+        "area": 2944705.4265864
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 0.21394330119135782,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 1.1554635292820614,
+      "nodeCount": 19,
+      "edgeCount": 44
+    },
+    "paint": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1844.5866,
+        "height": 1596.404
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 116,
+        "unmeasured": 0,
+        "preparedText": 31,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 119,
+        "labels": 19,
+        "occlusionPairs": 859,
+        "maxOcclusionPairs": 100000,
+        "operations": 73305,
+        "maxOperations": 400000,
+        "markers": 44
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:5541c1c4042248fa"
+    },
+    "raw": [
+      {
+        "size": [
+          1836.6265999999998,
+          1553.004
+        ],
+        "crossings": 84
+      }
+    ],
+    "trace": [
+      {
+        "feedback": [
+          "e0",
+          "e10",
+          "e12",
+          "e14",
+          "e15",
+          "e17",
+          "e18",
+          "e22",
+          "e26",
+          "e28",
+          "e30",
+          "e32",
+          "e36",
+          "e4",
+          "e40",
+          "e42",
+          "e5"
+        ],
+        "ranks": [
+          [
+            "n0"
+          ],
+          [
+            "n3"
+          ],
+          [
+            "n4",
+            "n5",
+            "n1"
+          ],
+          [
+            "n9",
+            "n6",
+            "n12"
+          ],
+          [
+            "n2",
+            "n13"
+          ],
+          [
+            "n10"
+          ],
+          [
+            "n8"
+          ],
+          [
+            "n11",
+            "n7"
+          ],
+          [
+            "n15"
+          ],
+          [
+            "n14",
+            "n17",
+            "n16"
+          ],
+          [
+            "n18"
+          ]
+        ],
+        "finalOrder": [
+          [
+            "n0"
+          ],
+          [
+            "n3"
+          ],
+          [
+            "n1",
+            "n4",
+            "n5"
+          ],
+          [
+            "n6",
+            "n9",
+            "n12"
+          ],
+          [
+            "n2",
+            "n13"
+          ],
+          [
+            "n10"
+          ],
+          [
+            "n8"
+          ],
+          [
+            "n7",
+            "n11"
+          ],
+          [
+            "n15"
+          ],
+          [
+            "n14",
+            "n16",
+            "n17"
+          ],
+          [
+            "n18"
+          ]
+        ]
+      }
+    ],
+    "meaning": {
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "Node 76-0"
+        },
+        {
+          "id": "n1",
+          "label": "Node 76-1"
+        },
+        {
+          "id": "n2",
+          "label": "Node 76-2"
+        },
+        {
+          "id": "n3",
+          "label": "Node 76-3"
+        },
+        {
+          "id": "n4",
+          "label": "Node 76-4"
+        },
+        {
+          "id": "n5",
+          "label": "Node 76-5"
+        },
+        {
+          "id": "n6",
+          "label": "Node 76-6"
+        },
+        {
+          "id": "n7",
+          "label": "Node 76-7"
+        },
+        {
+          "id": "n8",
+          "label": "Node 76-8"
+        },
+        {
+          "id": "n9",
+          "label": "Node 76-9"
+        },
+        {
+          "id": "n10",
+          "label": "Node 76-10"
+        },
+        {
+          "id": "n11",
+          "label": "Node 76-11"
+        },
+        {
+          "id": "n12",
+          "label": "Node 76-12"
+        },
+        {
+          "id": "n13",
+          "label": "Node 76-13"
+        },
+        {
+          "id": "n14",
+          "label": "Node 76-14"
+        },
+        {
+          "id": "n15",
+          "label": "Node 76-15"
+        },
+        {
+          "id": "n16",
+          "label": "Node 76-16"
+        },
+        {
+          "id": "n17",
+          "label": "Node 76-17"
+        },
+        {
+          "id": "n18",
+          "label": "Node 76-18"
+        }
+      ],
+      "edges": [
+        {
+          "id": "n14->n11",
+          "from": "n14",
+          "to": "n11",
+          "label": {
+            "x": 1230.8455999999999,
+            "y": 1248.479,
+            "text": "edge 0 xxx",
+            "bounds": {
+              "x": 1204.4786,
+              "y": 1241.329,
+              "w": 52.734,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n0->n4",
+          "from": "n0",
+          "to": "n4"
+        },
+        {
+          "id": "n9->n13",
+          "from": "n9",
+          "to": "n13"
+        },
+        {
+          "id": "n10->n14",
+          "from": "n10",
+          "to": "n14"
+        },
+        {
+          "id": "n18->n5",
+          "from": "n18",
+          "to": "n5",
+          "label": {
+            "x": 1731.3396,
+            "y": 907.785,
+            "text": "edge 4 xxxxxxx",
+            "bounds": {
+              "x": 1693.0926,
+              "y": 900.635,
+              "w": 76.49400000000001,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n15->n8",
+          "from": "n15",
+          "to": "n8"
+        },
+        {
+          "id": "n9->n13#1",
+          "from": "n9",
+          "to": "n13"
+        },
+        {
+          "id": "n4->n18",
+          "from": "n4",
+          "to": "n18"
+        },
+        {
+          "id": "n11->n17",
+          "from": "n11",
+          "to": "n17",
+          "label": {
+            "x": 1134.7246,
+            "y": 1172.4927303588026,
+            "text": "edge 8 xxxxxxxxxxx",
+            "bounds": {
+              "x": 1084.5976,
+              "y": 1165.3427303588026,
+              "w": 100.25400000000002,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n7->n15",
+          "from": "n7",
+          "to": "n15"
+        },
+        {
+          "id": "n14->n1",
+          "from": "n14",
+          "to": "n1"
+        },
+        {
+          "id": "n0->n14",
+          "from": "n0",
+          "to": "n14"
+        },
+        {
+          "id": "n11->n10",
+          "from": "n11",
+          "to": "n10",
+          "label": {
+            "x": 667.9719333333331,
+            "y": 1071.535,
+            "text": "edge 12 xxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 604.7769333333331,
+              "y": 1064.385,
+              "w": 126.39000000000001,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n2->n18",
+          "from": "n2",
+          "to": "n18"
+        },
+        {
+          "id": "n16->n3",
+          "from": "n16",
+          "to": "n3"
+        },
+        {
+          "id": "n18->n13",
+          "from": "n18",
+          "to": "n13"
+        },
+        {
+          "id": "n0->n4#1",
+          "from": "n0",
+          "to": "n4",
+          "label": {
+            "x": 243.06200000000013,
+            "y": 344.82000000000005,
+            "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 167.98700000000014,
+              "y": 337.6700000000001,
+              "w": 150.15,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n3->n0",
+          "from": "n3",
+          "to": "n0"
+        },
+        {
+          "id": "n8->n5",
+          "from": "n8",
+          "to": "n5"
+        },
+        {
+          "id": "n3->n5",
+          "from": "n3",
+          "to": "n5"
+        },
+        {
+          "id": "n5->n13",
+          "from": "n5",
+          "to": "n13",
+          "label": {
+            "x": 1625.8455999999999,
+            "y": 625.585,
+            "text": "edge 20 xxxxxx",
+            "bounds": {
+              "x": 1587.5985999999998,
+              "y": 618.4350000000001,
+              "w": 76.49400000000001,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n1->n9",
+          "from": "n1",
+          "to": "n9"
+        },
+        {
+          "id": "n6->n3",
+          "from": "n6",
+          "to": "n3"
+        },
+        {
+          "id": "n2->n14",
+          "from": "n2",
+          "to": "n14"
+        },
+        {
+          "id": "n2->n8",
+          "from": "n2",
+          "to": "n8",
+          "label": {
+            "x": 826.4020166666666,
+            "y": 868.66,
+            "text": "edge 24 xxxxxxxxxx",
+            "bounds": {
+              "x": 776.2750166666665,
+              "y": 861.51,
+              "w": 100.25400000000002,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n3->n5#1",
+          "from": "n3",
+          "to": "n5"
+        },
+        {
+          "id": "n18->n17",
+          "from": "n18",
+          "to": "n17"
+        },
+        {
+          "id": "n4->n12",
+          "from": "n4",
+          "to": "n12"
+        },
+        {
+          "id": "n14->n3",
+          "from": "n14",
+          "to": "n3",
+          "label": {
+            "x": 1553.9135999999999,
+            "y": 907.785,
+            "text": "edge 28 xxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 1491.9065999999998,
+              "y": 900.635,
+              "w": 124.01400000000002,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n11->n15",
+          "from": "n11",
+          "to": "n15"
+        },
+        {
+          "id": "n15->n10",
+          "from": "n15",
+          "to": "n10"
+        },
+        {
+          "id": "n15->n17",
+          "from": "n15",
+          "to": "n17"
+        },
+        {
+          "id": "n17->n10",
+          "from": "n17",
+          "to": "n10",
+          "label": {
+            "x": 580.3899333333333,
+            "y": 1248.479,
+            "text": "edge 32 xxxxxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 506.50293333333326,
+              "y": 1241.329,
+              "w": 147.77400000000003,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n5->n17",
+          "from": "n5",
+          "to": "n17"
+        },
+        {
+          "id": "n0->n4#2",
+          "from": "n0",
+          "to": "n4"
+        },
+        {
+          "id": "n4->n6",
+          "from": "n4",
+          "to": "n6"
+        },
+        {
+          "id": "n10->n9",
+          "from": "n10",
+          "to": "n9",
+          "label": {
+            "x": 1154.3436,
+            "y": 834.135,
+            "text": "edge 36 xxxxx",
+            "bounds": {
+              "x": 1119.0665999999999,
+              "y": 826.985,
+              "w": 70.554,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n3->n11",
+          "from": "n3",
+          "to": "n11"
+        },
+        {
+          "id": "n16->n18",
+          "from": "n16",
+          "to": "n18"
+        },
+        {
+          "id": "n5->n9",
+          "from": "n5",
+          "to": "n9"
+        },
+        {
+          "id": "n15->n4",
+          "from": "n15",
+          "to": "n4",
+          "label": {
+            "x": 491.1599333333332,
+            "y": 846.135,
+            "text": "edge 40 xxxxxxxxx",
+            "bounds": {
+              "x": 444.0029333333332,
+              "y": 838.985,
+              "w": 94.31400000000001,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "n1->n17",
+          "from": "n1",
+          "to": "n17"
+        },
+        {
+          "id": "n6->n3#1",
+          "from": "n6",
+          "to": "n3"
+        },
+        {
+          "id": "n2->n10",
+          "from": "n2",
+          "to": "n10"
+        }
+      ]
+    },
+    "pairs": [
+      {
+        "a": "n14->n11",
+        "b": "n11->n17",
+        "i": 0,
+        "j": 8,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n11",
+        "b": "n18->n13",
+        "i": 0,
+        "j": 15,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n11",
+        "b": "n15->n17",
+        "i": 0,
+        "j": 31,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n11",
+        "b": "n1->n17",
+        "i": 0,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13",
+        "b": "n6->n3",
+        "i": 2,
+        "j": 22,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13",
+        "b": "n15->n4",
+        "i": 2,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13",
+        "b": "n6->n3#1",
+        "i": 2,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n15->n8",
+        "i": 3,
+        "j": 5,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n11->n10",
+        "i": 3,
+        "j": 12,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n2->n8",
+        "i": 3,
+        "j": 24,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n11->n15",
+        "i": 3,
+        "j": 29,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n15->n17",
+        "i": 3,
+        "j": 31,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n14",
+        "b": "n1->n17",
+        "i": 3,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n5",
+        "b": "n8->n5",
+        "i": 4,
+        "j": 18,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n5",
+        "b": "n3->n11",
+        "i": 4,
+        "j": 37,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n15->n8",
+        "b": "n11->n10",
+        "i": 5,
+        "j": 12,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n15->n8",
+        "b": "n8->n5",
+        "i": 5,
+        "j": 18,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n15->n8",
+        "b": "n11->n15",
+        "i": 5,
+        "j": 29,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13#1",
+        "b": "n6->n3",
+        "i": 6,
+        "j": 22,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13#1",
+        "b": "n15->n4",
+        "i": 6,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n9->n13#1",
+        "b": "n6->n3#1",
+        "i": 6,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n18",
+        "b": "n14->n1",
+        "i": 7,
+        "j": 10,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n18",
+        "b": "n0->n14",
+        "i": 7,
+        "j": 11,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n18",
+        "b": "n18->n13",
+        "i": 7,
+        "j": 15,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n18",
+        "b": "n1->n9",
+        "i": 7,
+        "j": 21,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n18",
+        "b": "n1->n17",
+        "i": 7,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n11->n17",
+        "b": "n16->n3",
+        "i": 8,
+        "j": 14,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n7->n15",
+        "b": "n11->n10",
+        "i": 9,
+        "j": 12,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n1",
+        "b": "n0->n14",
+        "i": 10,
+        "j": 11,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n1",
+        "b": "n2->n18",
+        "i": 10,
+        "j": 13,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n1",
+        "b": "n17->n10",
+        "i": 10,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n0->n14",
+        "b": "n2->n18",
+        "i": 11,
+        "j": 13,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n0->n14",
+        "b": "n17->n10",
+        "i": 11,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n11->n10",
+        "b": "n18->n13",
+        "i": 12,
+        "j": 15,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n11->n10",
+        "b": "n2->n8",
+        "i": 12,
+        "j": 24,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n11->n10",
+        "b": "n15->n10",
+        "i": 12,
+        "j": 30,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n18",
+        "b": "n18->n13",
+        "i": 13,
+        "j": 15,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n18",
+        "b": "n1->n17",
+        "i": 13,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n8->n5",
+        "i": 14,
+        "j": 18,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n5->n13",
+        "i": 14,
+        "j": 20,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n6->n3",
+        "i": 14,
+        "j": 22,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n15->n17",
+        "i": 14,
+        "j": 31,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n3->n11",
+        "i": 14,
+        "j": 37,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n5->n9",
+        "i": 14,
+        "j": 39,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n1->n17",
+        "i": 14,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n16->n3",
+        "b": "n6->n3#1",
+        "i": 14,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n8->n5",
+        "i": 15,
+        "j": 18,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n14->n3",
+        "i": 15,
+        "j": 28,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n11->n15",
+        "i": 15,
+        "j": 29,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n15->n17",
+        "i": 15,
+        "j": 31,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n17->n10",
+        "i": 15,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n10->n9",
+        "i": 15,
+        "j": 36,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n13",
+        "b": "n1->n17",
+        "i": 15,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n8->n5",
+        "b": "n14->n3",
+        "i": 18,
+        "j": 28,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n8->n5",
+        "b": "n5->n17",
+        "i": 18,
+        "j": 33,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n5->n13",
+        "b": "n14->n3",
+        "i": 20,
+        "j": 28,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n5->n13",
+        "b": "n10->n9",
+        "i": 20,
+        "j": 36,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n1->n9",
+        "b": "n4->n6",
+        "i": 21,
+        "j": 35,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n6->n3",
+        "b": "n10->n9",
+        "i": 22,
+        "j": 36,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n6->n3",
+        "b": "n5->n9",
+        "i": 22,
+        "j": 39,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n6->n3",
+        "b": "n15->n4",
+        "i": 22,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n14",
+        "b": "n17->n10",
+        "i": 23,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n14",
+        "b": "n1->n17",
+        "i": 23,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n8",
+        "b": "n15->n10",
+        "i": 24,
+        "j": 30,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n8",
+        "b": "n17->n10",
+        "i": 24,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n2->n8",
+        "b": "n15->n4",
+        "i": 24,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n18->n17",
+        "b": "n14->n3",
+        "i": 26,
+        "j": 28,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n12",
+        "b": "n10->n9",
+        "i": 27,
+        "j": 36,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n4->n12",
+        "b": "n5->n9",
+        "i": 27,
+        "j": 39,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n3",
+        "b": "n17->n10",
+        "i": 28,
+        "j": 32,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n3",
+        "b": "n5->n17",
+        "i": 28,
+        "j": 33,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n3",
+        "b": "n3->n11",
+        "i": 28,
+        "j": 37,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n3",
+        "b": "n16->n18",
+        "i": 28,
+        "j": 38,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n14->n3",
+        "b": "n5->n9",
+        "i": 28,
+        "j": 39,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n17->n10",
+        "b": "n16->n18",
+        "i": 32,
+        "j": 38,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n17->n10",
+        "b": "n15->n4",
+        "i": 32,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n17->n10",
+        "b": "n1->n17",
+        "i": 32,
+        "j": 41,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n5->n17",
+        "b": "n3->n11",
+        "i": 33,
+        "j": 37,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n9",
+        "b": "n15->n4",
+        "i": 36,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n10->n9",
+        "b": "n6->n3#1",
+        "i": 36,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n5->n9",
+        "b": "n15->n4",
+        "i": 39,
+        "j": 40,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n5->n9",
+        "b": "n6->n3#1",
+        "i": 39,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n15->n4",
+        "b": "n6->n3#1",
+        "i": 40,
+        "j": 42,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      },
+      {
+        "a": "n15->n4",
+        "b": "n2->n10",
+        "i": 40,
+        "j": 43,
+        "crossing": 1,
+        "parallel": 0,
+        "opposing": 0
+      }
+    ],
+    "inputs": [
+      {
+        "id": "cyclic19",
+        "ordinal": 0,
+        "baselineInputHash": "56e7913097ed7eafe26c02075bc520b2f9cece04b9b2ba7eff7a062ad76db609",
+        "actualInputHash": "ef368e9e3f6776ce39e3142ae42d04efd889260cddd4794002f9246fe19fc3fe",
+        "archivedInputExact": true,
+        "children": [
+          "n0",
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "n6",
+          "n7",
+          "n8",
+          "n9",
+          "n10",
+          "n11",
+          "n12",
+          "n13",
+          "n14",
+          "n15",
+          "n16",
+          "n17",
+          "n18"
+        ]
+      },
+      {
+        "id": "cyclic19",
+        "ordinal": 1,
+        "baselineInputHash": "56e7913097ed7eafe26c02075bc520b2f9cece04b9b2ba7eff7a062ad76db609",
+        "actualInputHash": "ef368e9e3f6776ce39e3142ae42d04efd889260cddd4794002f9246fe19fc3fe",
+        "archivedInputExact": true,
+        "children": [
+          "n0",
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "n6",
+          "n7",
+          "n8",
+          "n9",
+          "n10",
+          "n11",
+          "n12",
+          "n13",
+          "n14",
+          "n15",
+          "n16",
+          "n17",
+          "n18"
+        ]
+      }
+    ]
+  },
+  "sample": {
+    "id": "cyclic19",
+    "family": "flowchart",
+    "source": "---\ntitle: Cyclic routes\n---\nflowchart TD\nn0[[Node 76-0]]\nn1[(Node 76-1)]\nn2[Node 76-2]\nn3{Node 76-3}\nn4(Node 76-4)\nn5((Node 76-5))\nn6[[Node 76-6]]\nn7[(Node 76-7)]\nn8[Node 76-8]\nn9{Node 76-9}\nn10(Node 76-10)\nn11((Node 76-11))\nn12[[Node 76-12]]\nn13[(Node 76-13)]\nn14[Node 76-14]\nn15{Node 76-15}\nn16(Node 76-16)\nn17((Node 76-17))\nn18[[Node 76-18]]\nn14 -->|edge 0 xxx| n11\nn0 --> n4\nn9 --> n13\nn10 --> n14\nn18 -->|edge 4 xxxxxxx| n5\nn15 --> n8\nn9 --> n13\nn4 --> n18\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn7 --> n15\nn14 --> n1\nn0 --> n14\nn11 -->|edge 12 xxxxxxxxxxxxxxx| n10\nn2 --> n18\nn16 --> n3\nn18 --> n13\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n0\nn8 --> n5\nn3 --> n5\nn5 -->|edge 20 xxxxxx| n13\nn1 --> n9\nn6 --> n3\nn2 --> n14\nn2 -->|edge 24 xxxxxxxxxx| n8\nn3 --> n5\nn18 --> n17\nn4 --> n12\nn14 -->|edge 28 xxxxxxxxxxxxxx| n3\nn11 --> n15\nn15 --> n10\nn15 --> n17\nn17 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10\nn5 --> n17\nn0 --> n4\nn4 --> n6\nn10 -->|edge 36 xxxxx| n9\nn3 --> n11\nn16 --> n18\nn5 --> n9\nn15 -->|edge 40 xxxxxxxxx| n4\nn1 --> n17\nn6 --> n3\nn2 --> n10\n",
+    "ok": true,
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "n0",
+          "x": 104.30899999999997,
+          "y": 234.905,
+          "w": 101.22999999999999,
+          "h": 36.900000000000006,
+          "shape": "subroutine",
+          "label": "Node 76-0",
+          "labelBounds": {
+            "x": 124.30899999999998,
+            "y": 244.90500000000003,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 104.30899999999997,
+            "y": 234.905,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n1",
+          "x": 67.66300000000001,
+          "y": 381.855,
+          "w": 96.78399999999999,
+          "h": 50.900000000000006,
+          "shape": "cylinder",
+          "label": "Node 76-1",
+          "labelBounds": {
+            "x": 87.66300000000001,
+            "y": 398.855,
+            "w": 56.784,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 67.66300000000001,
+            "y": 381.855,
+            "w": 96.78399999999999,
+            "h": 50.900000000000006
+          }
+        },
+        {
+          "id": "n2",
+          "x": 225.95668333333333,
+          "y": 679.485,
+          "w": 101.22999999999999,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Node 76-2",
+          "labelBounds": {
+            "x": 245.95668333333333,
+            "y": 689.485,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 225.95668333333333,
+            "y": 679.485,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n3",
+          "x": 1613.3816,
+          "y": 135.775,
+          "w": 125.22999999999999,
+          "h": 125.22999999999999,
+          "shape": "diamond",
+          "label": "Node 76-3",
+          "labelBounds": {
+            "x": 1645.3816,
+            "y": 189.94,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1613.3816,
+            "y": 135.775,
+            "w": 125.22999999999999,
+            "h": 125.22999999999999
+          }
+        },
+        {
+          "id": "n4",
+          "x": 192.44700000000012,
+          "y": 381.855,
+          "w": 101.22999999999999,
+          "h": 36.900000000000006,
+          "shape": "rounded",
+          "label": "Node 76-4",
+          "labelBounds": {
+            "x": 212.44700000000012,
+            "y": 391.855,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 192.44700000000012,
+            "y": 381.855,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n5",
+          "x": 1568.0985999999998,
+          "y": 321.755,
+          "w": 116,
+          "h": 116,
+          "shape": "circle",
+          "label": "Node 76-5",
+          "labelBounds": {
+            "x": 1595.4835999999998,
+            "y": 371.305,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1568.0985999999998,
+            "y": 321.755,
+            "w": 116,
+            "h": 116
+          }
+        },
+        {
+          "id": "n6",
+          "x": 210.60075000000006,
+          "y": 568.835,
+          "w": 101.22999999999999,
+          "h": 36.900000000000006,
+          "shape": "subroutine",
+          "label": "Node 76-6",
+          "labelBounds": {
+            "x": 230.60075000000006,
+            "y": 578.835,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 210.60075000000006,
+            "y": 568.835,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n7",
+          "x": 756.1669333333332,
+          "y": 1019.535,
+          "w": 101.22999999999999,
+          "h": 50.900000000000006,
+          "shape": "cylinder",
+          "label": "Node 76-7",
+          "labelBounds": {
+            "x": 776.1669333333332,
+            "y": 1036.5349999999999,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 756.1669333333332,
+            "y": 1019.535,
+            "w": 101.22999999999999,
+            "h": 50.900000000000006
+          }
+        },
+        {
+          "id": "n8",
+          "x": 913.2445999999999,
+          "y": 881.035,
+          "w": 101.22999999999999,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Node 76-8",
+          "labelBounds": {
+            "x": 933.2445999999999,
+            "y": 891.035,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 913.2445999999999,
+            "y": 881.035,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n9",
+          "x": 339.8307500000001,
+          "y": 474.505,
+          "w": 125.22999999999999,
+          "h": 125.22999999999999,
+          "shape": "diamond",
+          "label": "Node 76-9",
+          "labelBounds": {
+            "x": 371.8307500000001,
+            "y": 528.67,
+            "w": 61.23,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 339.8307500000001,
+            "y": 474.505,
+            "w": 125.22999999999999,
+            "h": 125.22999999999999
+          }
+        },
+        {
+          "id": "n10",
+          "x": 867.5132666666666,
+          "y": 796.135,
+          "w": 104.194,
+          "h": 36.900000000000006,
+          "shape": "rounded",
+          "label": "Node 76-10",
+          "labelBounds": {
+            "x": 887.5132666666666,
+            "y": 806.135,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 867.5132666666666,
+            "y": 796.135,
+            "w": 104.194,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n11",
+          "x": 1048.4746,
+          "y": 966.685,
+          "w": 115,
+          "h": 115,
+          "shape": "circle",
+          "label": "Node 76-11",
+          "labelBounds": {
+            "x": 1076.1006,
+            "y": 1015.7349999999999,
+            "w": 59.748000000000005,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1048.4746,
+            "y": 966.685,
+            "w": 115,
+            "h": 115
+          }
+        },
+        {
+          "id": "n12",
+          "x": 493.0607500000001,
+          "y": 568.835,
+          "w": 104.194,
+          "h": 36.900000000000006,
+          "shape": "subroutine",
+          "label": "Node 76-12",
+          "labelBounds": {
+            "x": 513.0607500000001,
+            "y": 578.835,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 493.0607500000001,
+            "y": 568.835,
+            "w": 104.194,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n13",
+          "x": 714.2185166666666,
+          "y": 679.485,
+          "w": 104.194,
+          "h": 50.900000000000006,
+          "shape": "cylinder",
+          "label": "Node 76-13",
+          "labelBounds": {
+            "x": 734.2185166666666,
+            "y": 696.485,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 714.2185166666666,
+            "y": 679.485,
+            "w": 104.194,
+            "h": 50.900000000000006
+          }
+        },
+        {
+          "id": "n14",
+          "x": 759.2647833333332,
+          "y": 1377.4789999999998,
+          "w": 104.194,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Node 76-14",
+          "labelBounds": {
+            "x": 779.2647833333332,
+            "y": 1387.4789999999998,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 759.2647833333332,
+            "y": 1377.4789999999998,
+            "w": 104.194,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n15",
+          "x": 764.0505999999998,
+          "y": 1118.435,
+          "w": 128.19400000000002,
+          "h": 128.19400000000002,
+          "shape": "diamond",
+          "label": "Node 76-15",
+          "labelBounds": {
+            "x": 796.0505999999998,
+            "y": 1174.0819999999999,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 764.0505999999998,
+            "y": 1118.435,
+            "w": 128.19400000000002,
+            "h": 128.19400000000002
+          }
+        },
+        {
+          "id": "n16",
+          "x": 1281.2125999999998,
+          "y": 1377.4789999999998,
+          "w": 104.194,
+          "h": 36.900000000000006,
+          "shape": "rounded",
+          "label": "Node 76-16",
+          "labelBounds": {
+            "x": 1301.2125999999998,
+            "y": 1387.4789999999998,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1281.2125999999998,
+            "y": 1377.4789999999998,
+            "w": 104.194,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "n17",
+          "x": 1413.4065999999998,
+          "y": 1307.379,
+          "w": 119,
+          "h": 119,
+          "shape": "circle",
+          "label": "Node 76-17",
+          "labelBounds": {
+            "x": 1440.8095999999998,
+            "y": 1358.4289999999999,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1413.4065999999998,
+            "y": 1307.379,
+            "w": 119,
+            "h": 119
+          }
+        },
+        {
+          "id": "n18",
+          "x": 1239.1703499999999,
+          "y": 1487.129,
+          "w": 104.194,
+          "h": 36.900000000000006,
+          "shape": "subroutine",
+          "label": "Node 76-18",
+          "labelBounds": {
+            "x": 1259.1703499999999,
+            "y": 1497.129,
+            "w": 64.194,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1239.1703499999999,
+            "y": 1487.129,
+            "w": 104.194,
+            "h": 36.900000000000006
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "n14->n11",
+          "from": "n14",
+          "to": "n11",
+          "path": [
+            [
+              837.4102833333332,
+              1414.379
+            ],
+            [
+              837.4102833333332,
+              1426.754
+            ],
+            [
+              1230.9786,
+              1426.754
+            ],
+            [
+              1230.9786,
+              954.31
+            ],
+            [
+              1125.1412666666665,
+              954.31
+            ],
+            [
+              1125.1412666666665,
+              969.9734801090312
+            ]
+          ],
+          "label": {
+            "x": 1230.8455999999999,
+            "y": 1248.479,
+            "text": "edge 0 xxx",
+            "bounds": {
+              "x": 1204.4786,
+              "y": 1241.329,
+              "w": 52.734,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 0,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n0->n4",
+          "from": "n0",
+          "to": "n4",
+          "path": [
+            [
+              154.92399999999998,
+              271.805
+            ],
+            [
+              154.92399999999998,
+              369.48
+            ],
+            [
+              212.6930000000002,
+              369.48
+            ],
+            [
+              212.6930000000002,
+              381.855
+            ]
+          ],
+          "route": {
+            "edgeIndex": 1,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n0->n4"
+              },
+              {
+                "kind": "label",
+                "id": "n0->n4"
+              }
+            ],
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 4,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n9->n13",
+          "from": "n9",
+          "to": "n13",
+          "path": [
+            [
+              395.4457500000001,
+              592.735
+            ],
+            [
+              395.4457500000001,
+              629.735
+            ],
+            [
+              719.2185166666666,
+              629.735
+            ],
+            [
+              719.2185166666666,
+              683.4926455947796
+            ]
+          ],
+          "route": {
+            "edgeIndex": 2,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "bundle"
+          }
+        },
+        {
+          "id": "n10->n14",
+          "from": "n10",
+          "to": "n14",
+          "path": [
+            [
+              902.2446,
+              833.035
+            ],
+            [
+              902.2446,
+              1365.1039999999998
+            ],
+            [
+              811.3617833333332,
+              1365.1039999999998
+            ],
+            [
+              811.3617833333332,
+              1377.4789999999998
+            ]
+          ],
+          "route": {
+            "edgeIndex": 3,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n10->n14"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n18->n5",
+          "from": "n18",
+          "to": "n5",
+          "path": [
+            [
+              1291.2673499999999,
+              1524.029
+            ],
+            [
+              1291.2673499999999,
+              1548.404
+            ],
+            [
+              1731.5926,
+              1548.404
+            ],
+            [
+              1731.5926,
+              309.38
+            ],
+            [
+              1660.8986,
+              309.38
+            ],
+            [
+              1660.8986,
+              333.35500000000013
+            ]
+          ],
+          "label": {
+            "x": 1731.3396,
+            "y": 907.785,
+            "text": "edge 4 xxxxxxx",
+            "bounds": {
+              "x": 1693.0926,
+              "y": 900.635,
+              "w": 76.49400000000001,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 4,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 3,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n15->n8",
+          "from": "n15",
+          "to": "n8",
+          "path": [
+            [
+              866.6057999999998,
+              1208.1707999999999
+            ],
+            [
+              866.6057999999998,
+              1271.004
+            ],
+            [
+              1024.4746,
+              1271.004
+            ],
+            [
+              1024.4746,
+              868.66
+            ],
+            [
+              980.7312666666666,
+              868.66
+            ],
+            [
+              980.7312666666666,
+              881.035
+            ]
+          ],
+          "route": {
+            "edgeIndex": 5,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n9->n13#1",
+          "from": "n9",
+          "to": "n13",
+          "path": [
+            [
+              409.4457500000001,
+              592.735
+            ],
+            [
+              409.4457500000001,
+              615.735
+            ],
+            [
+              733.2185166666666,
+              615.735
+            ],
+            [
+              733.2185166666666,
+              681.0791171485515
+            ]
+          ],
+          "route": {
+            "edgeIndex": 6,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "bundle"
+          }
+        },
+        {
+          "id": "n4->n18",
+          "from": "n4",
+          "to": "n18",
+          "path": [
+            [
+              217.7545,
+              418.755
+            ],
+            [
+              217.7545,
+              450.13
+            ],
+            [
+              94.17066666666665,
+              450.13
+            ],
+            [
+              94.17066666666665,
+              1474.754
+            ],
+            [
+              1265.2188499999997,
+              1474.754
+            ],
+            [
+              1265.2188499999997,
+              1487.129
+            ]
+          ],
+          "route": {
+            "edgeIndex": 7,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n4->n18"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n11->n17",
+          "from": "n11",
+          "to": "n17",
+          "path": [
+            [
+              1134.7246,
+              1073.9814607176054
+            ],
+            [
+              1134.7246,
+              1271.004
+            ],
+            [
+              1472.9065999999998,
+              1271.004
+            ],
+            [
+              1472.9065999999998,
+              1307.379
+            ]
+          ],
+          "label": {
+            "x": 1134.7246,
+            "y": 1172.4927303588026,
+            "text": "edge 8 xxxxxxxxxxx",
+            "bounds": {
+              "x": 1084.5976,
+              "y": 1165.3427303588026,
+              "w": 100.25400000000002,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 8,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n11->n17"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 5,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n7->n15",
+          "from": "n7",
+          "to": "n15",
+          "path": [
+            [
+              806.7819333333332,
+              1070.4350000000002
+            ],
+            [
+              806.7819333333332,
+              1139.8006666666665
+            ]
+          ],
+          "route": {
+            "edgeIndex": 9,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "directLaneClear": true,
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-target"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "n14->n1",
+          "from": "n14",
+          "to": "n1",
+          "path": [
+            [
+              785.3132833333332,
+              1414.379
+            ],
+            [
+              785.3132833333332,
+              1486.754
+            ],
+            [
+              40.039999999999964,
+              1486.754
+            ],
+            [
+              40.039999999999964,
+              362.48
+            ],
+            [
+              116.05500000000006,
+              362.48
+            ],
+            [
+              116.05500000000006,
+              381.855
+            ]
+          ],
+          "route": {
+            "edgeIndex": 10,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n0->n14",
+          "from": "n0",
+          "to": "n14",
+          "path": [
+            [
+              124.55500000000006,
+              271.805
+            ],
+            [
+              124.55500000000006,
+              350.48
+            ],
+            [
+              53.039999999999964,
+              350.48
+            ],
+            [
+              53.039999999999964,
+              1365.1039999999998
+            ],
+            [
+              785.3132833333332,
+              1365.1039999999998
+            ],
+            [
+              785.3132833333332,
+              1377.4789999999998
+            ]
+          ],
+          "route": {
+            "edgeIndex": 11,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n0->n14"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n11->n10",
+          "from": "n11",
+          "to": "n10",
+          "path": [
+            [
+              1077.2246,
+              1073.9814607176054
+            ],
+            [
+              1077.2246,
+              1094.06
+            ],
+            [
+              668.2769333333331,
+              1094.06
+            ],
+            [
+              668.2769333333331,
+              814.585
+            ],
+            [
+              867.5132666666666,
+              814.585
+            ]
+          ],
+          "label": {
+            "x": 667.9719333333331,
+            "y": 1071.535,
+            "text": "edge 12 xxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 604.7769333333331,
+              "y": 1064.385,
+              "w": 126.39000000000001,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 12,
+            "routeClass": "feedback",
+            "bendCount": 3,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n11->n10"
+              }
+            ],
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "feedback-source"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "feedback-target",
+              "port": "W"
+            },
+            "invariant": "outer-feedback"
+          }
+        },
+        {
+          "id": "n2->n18",
+          "from": "n2",
+          "to": "n18",
+          "path": [
+            [
+              246.20268333333343,
+              716.385
+            ],
+            [
+              246.20268333333343,
+              799.61
+            ],
+            [
+              171.1605999999997,
+              799.61
+            ],
+            [
+              171.1605999999997,
+              1462.754
+            ],
+            [
+              1291.2673499999999,
+              1462.754
+            ],
+            [
+              1291.2673499999999,
+              1487.129
+            ]
+          ],
+          "route": {
+            "edgeIndex": 13,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n2->n18"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n16->n3",
+          "from": "n16",
+          "to": "n3",
+          "path": [
+            [
+              1315.9439333333332,
+              1414.379
+            ],
+            [
+              1315.9439333333332,
+              1426.754
+            ],
+            [
+              1271.2125999999998,
+              1426.754
+            ],
+            [
+              1271.2125999999998,
+              87.4
+            ],
+            [
+              1713.5656,
+              87.4
+            ],
+            [
+              1713.5656,
+              173.34399999999997
+            ]
+          ],
+          "route": {
+            "edgeIndex": 14,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n18->n13",
+          "from": "n18",
+          "to": "n13",
+          "path": [
+            [
+              1265.2188499999997,
+              1524.029
+            ],
+            [
+              1265.2188499999997,
+              1536.404
+            ],
+            [
+              1037.4746,
+              1536.404
+            ],
+            [
+              1037.4746,
+              660.11
+            ],
+            [
+              797.5737166666665,
+              660.11
+            ],
+            [
+              797.5737166666665,
+              680.885
+            ]
+          ],
+          "route": {
+            "edgeIndex": 15,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 3,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n0->n4#1",
+          "from": "n0",
+          "to": "n4",
+          "path": [
+            [
+              165.04700000000003,
+              271.805
+            ],
+            [
+              165.04700000000003,
+              326.83000000000004
+            ],
+            [
+              243.06200000000013,
+              326.83000000000004
+            ],
+            [
+              243.06200000000013,
+              381.855
+            ]
+          ],
+          "label": {
+            "x": 243.06200000000013,
+            "y": 344.82000000000005,
+            "text": "edge 16 xxxxxxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 167.98700000000014,
+              "y": 337.6700000000001,
+              "w": 150.15,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 16,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n0->n4"
+              },
+              {
+                "kind": "crossing",
+                "id": "n0->n4"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 4,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n3->n0",
+          "from": "n3",
+          "to": "n0",
+          "path": [
+            [
+              1713.5656,
+              223.43600000000006
+            ],
+            [
+              1713.5656,
+              273.38
+            ],
+            [
+              1748.6116,
+              273.38
+            ],
+            [
+              1748.6116,
+              75.4
+            ],
+            [
+              154.92399999999998,
+              75.4
+            ],
+            [
+              154.92399999999998,
+              234.905
+            ]
+          ],
+          "route": {
+            "edgeIndex": 17,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 4,
+              "slotCount": 5,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n8->n5",
+          "from": "n8",
+          "to": "n5",
+          "path": [
+            [
+              963.8595999999999,
+              917.935
+            ],
+            [
+              963.8595999999999,
+              930.31
+            ],
+            [
+              1783.5865999999999,
+              930.31
+            ],
+            [
+              1783.5865999999999,
+              297.38
+            ],
+            [
+              1637.6986,
+              297.38
+            ],
+            [
+              1637.6986,
+              322.9268379674303
+            ]
+          ],
+          "route": {
+            "edgeIndex": 18,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n3->n5",
+          "from": "n3",
+          "to": "n5",
+          "path": [
+            [
+              1668.9966,
+              254.00500000000002
+            ],
+            [
+              1668.9966,
+              277.005
+            ],
+            [
+              1573.0985999999998,
+              277.005
+            ],
+            [
+              1573.0985999999998,
+              356.19656202122053
+            ]
+          ],
+          "route": {
+            "edgeIndex": 19,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 5,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "bundle"
+          }
+        },
+        {
+          "id": "n5->n13",
+          "from": "n5",
+          "to": "n13",
+          "path": [
+            [
+              1626.0985999999998,
+              437.755
+            ],
+            [
+              1626.0985999999998,
+              648.11
+            ],
+            [
+              776.7349166666665,
+              648.11
+            ],
+            [
+              776.7349166666665,
+              679.6264287202071
+            ]
+          ],
+          "label": {
+            "x": 1625.8455999999999,
+            "y": 625.585,
+            "text": "edge 20 xxxxxx",
+            "bounds": {
+              "x": 1587.5985999999998,
+              "y": 618.4350000000001,
+              "w": 76.49400000000001,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 20,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n5->n13"
+              }
+            ],
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n1->n9",
+          "from": "n1",
+          "to": "n9",
+          "path": [
+            [
+              116.055,
+              432.755
+            ],
+            [
+              116.055,
+              462.13
+            ],
+            [
+              402.4457500000001,
+              462.13
+            ],
+            [
+              402.4457500000001,
+              474.505
+            ]
+          ],
+          "route": {
+            "edgeIndex": 21,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n1->n9"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n6->n3",
+          "from": "n6",
+          "to": "n3",
+          "path": [
+            [
+              278.08741666666674,
+              605.735
+            ],
+            [
+              278.08741666666674,
+              624.11
+            ],
+            [
+              1407.63635,
+              624.11
+            ],
+            [
+              1407.63635,
+              99.4
+            ],
+            [
+              1688.5195999999999,
+              99.4
+            ],
+            [
+              1688.5195999999999,
+              148.29799999999994
+            ]
+          ],
+          "route": {
+            "edgeIndex": 22,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n2->n14",
+          "from": "n2",
+          "to": "n14",
+          "path": [
+            [
+              266.4486833333333,
+              716.385
+            ],
+            [
+              266.4486833333333,
+              811.61
+            ],
+            [
+              187.78359999999975,
+              811.61
+            ],
+            [
+              187.78359999999975,
+              1283.004
+            ],
+            [
+              811.3617833333332,
+              1283.004
+            ],
+            [
+              811.3617833333332,
+              1377.4789999999998
+            ]
+          ],
+          "route": {
+            "edgeIndex": 23,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n2->n14"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n2->n8",
+          "from": "n2",
+          "to": "n8",
+          "path": [
+            [
+              276.57168333333334,
+              716.385
+            ],
+            [
+              276.57168333333334,
+              868.66
+            ],
+            [
+              963.8595999999999,
+              868.66
+            ],
+            [
+              963.8595999999999,
+              881.035
+            ]
+          ],
+          "label": {
+            "x": 826.4020166666666,
+            "y": 868.66,
+            "text": "edge 24 xxxxxxxxxx",
+            "bounds": {
+              "x": 776.2750166666665,
+              "y": 861.51,
+              "w": 100.25400000000002,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 24,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n2->n8"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 4,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n3->n5#1",
+          "from": "n3",
+          "to": "n5",
+          "path": [
+            [
+              1682.9966,
+              254.00500000000002
+            ],
+            [
+              1682.9966,
+              291.005
+            ],
+            [
+              1587.0985999999998,
+              291.005
+            ],
+            [
+              1587.0985999999998,
+              336.8248241326687
+            ]
+          ],
+          "route": {
+            "edgeIndex": 25,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 5,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "bundle"
+          }
+        },
+        {
+          "id": "n18->n17",
+          "from": "n18",
+          "to": "n17",
+          "path": [
+            [
+              1317.31585,
+              1524.029
+            ],
+            [
+              1317.31585,
+              1536.404
+            ],
+            [
+              1542.4065999999998,
+              1536.404
+            ],
+            [
+              1542.4065999999998,
+              1295.004
+            ],
+            [
+              1512.5732666666665,
+              1295.004
+            ],
+            [
+              1512.5732666666665,
+              1322.5303184462541
+            ]
+          ],
+          "route": {
+            "edgeIndex": 26,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 4,
+              "slotCount": 5,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n4->n12",
+          "from": "n4",
+          "to": "n12",
+          "path": [
+            [
+              268.3695,
+              418.755
+            ],
+            [
+              268.3695,
+              430.755
+            ],
+            [
+              545.1577500000001,
+              430.755
+            ],
+            [
+              545.1577500000001,
+              568.835
+            ]
+          ],
+          "route": {
+            "edgeIndex": 27,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n4->n12"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n14->n3",
+          "from": "n14",
+          "to": "n3",
+          "path": [
+            [
+              811.3617833333332,
+              1414.379
+            ],
+            [
+              811.3617833333332,
+              1438.754
+            ],
+            [
+              1554.4065999999998,
+              1438.754
+            ],
+            [
+              1554.4065999999998,
+              123.4
+            ],
+            [
+              1638.4276,
+              123.4
+            ],
+            [
+              1638.4276,
+              173.34399999999997
+            ]
+          ],
+          "label": {
+            "x": 1553.9135999999999,
+            "y": 907.785,
+            "text": "edge 28 xxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 1491.9065999999998,
+              "y": 900.635,
+              "w": 124.01400000000002,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 28,
+            "routeClass": "feedback",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n14->n3"
+              }
+            ],
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "feedback-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 5,
+              "role": "feedback-target"
+            },
+            "invariant": "feedback-detour"
+          }
+        },
+        {
+          "id": "n11->n15",
+          "from": "n11",
+          "to": "n15",
+          "path": [
+            [
+              1105.9746,
+              1081.685
+            ],
+            [
+              1105.9746,
+              1106.06
+            ],
+            [
+              828.1475999999998,
+              1106.06
+            ],
+            [
+              828.1475999999998,
+              1118.435
+            ]
+          ],
+          "route": {
+            "edgeIndex": 29,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n11->n15"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n15->n10",
+          "from": "n15",
+          "to": "n10",
+          "path": [
+            [
+              764.0505999999998,
+              1182.532
+            ],
+            [
+              745.1669333333332,
+              1182.532
+            ],
+            [
+              745.1669333333332,
+              814.585
+            ],
+            [
+              867.5132666666666,
+              814.585
+            ]
+          ],
+          "route": {
+            "edgeIndex": 30,
+            "routeClass": "feedback",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n15->n10"
+              },
+              {
+                "kind": "crossing",
+                "id": "n15->n10"
+              }
+            ],
+            "sourcePort": "W",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-source",
+              "port": "W"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "feedback-target",
+              "port": "W"
+            },
+            "invariant": "outer-feedback"
+          }
+        },
+        {
+          "id": "n15->n17",
+          "from": "n15",
+          "to": "n17",
+          "path": [
+            [
+              828.1475999999998,
+              1246.629
+            ],
+            [
+              828.1475999999998,
+              1277.004
+            ],
+            [
+              1472.9065999999998,
+              1277.004
+            ],
+            [
+              1472.9065999999998,
+              1307.379
+            ]
+          ],
+          "route": {
+            "edgeIndex": 31,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n15->n17"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 5,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n17->n10",
+          "from": "n17",
+          "to": "n10",
+          "path": [
+            [
+              1472.9065999999998,
+              1426.379
+            ],
+            [
+              1472.9065999999998,
+              1450.754
+            ],
+            [
+              580.5029333333332,
+              1450.754
+            ],
+            [
+              580.5029333333332,
+              759.76
+            ],
+            [
+              930.0296666666666,
+              759.76
+            ],
+            [
+              930.0296666666666,
+              796.135
+            ]
+          ],
+          "label": {
+            "x": 580.3899333333333,
+            "y": 1248.479,
+            "text": "edge 32 xxxxxxxxxxxxxxxxxx",
+            "bounds": {
+              "x": 506.50293333333326,
+              "y": 1241.329,
+              "w": 147.77400000000003,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 32,
+            "routeClass": "feedback",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n17->n10"
+              }
+            ],
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "feedback-target"
+            },
+            "invariant": "outer-feedback"
+          }
+        },
+        {
+          "id": "n5->n17",
+          "from": "n5",
+          "to": "n17",
+          "path": [
+            [
+              1655.0985999999998,
+              429.9844734194975
+            ],
+            [
+              1655.0985999999998,
+              603.0600000000001
+            ],
+            [
+              1678.0926,
+              603.0600000000001
+            ],
+            [
+              1678.0926,
+              1283.004
+            ],
+            [
+              1492.7399333333333,
+              1283.004
+            ],
+            [
+              1492.7399333333333,
+              1310.7818620258672
+            ]
+          ],
+          "route": {
+            "edgeIndex": 33,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n5->n17"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 3,
+              "slotCount": 5,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n0->n4#2",
+          "from": "n0",
+          "to": "n4",
+          "path": [
+            [
+              185.2929999999999,
+              271.805
+            ],
+            [
+              185.2929999999999,
+              295.42999999999995
+            ],
+            [
+              356.7159999999999,
+              295.42999999999995
+            ],
+            [
+              356.7159999999999,
+              364.48
+            ],
+            [
+              253.18500000000017,
+              364.48
+            ],
+            [
+              253.18500000000017,
+              381.855
+            ]
+          ],
+          "route": {
+            "edgeIndex": 34,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n0->n4"
+              },
+              {
+                "kind": "label",
+                "id": "n0->n4"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 3,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n4->n6",
+          "from": "n4",
+          "to": "n6",
+          "path": [
+            [
+              243.06200000000013,
+              418.755
+            ],
+            [
+              243.06200000000013,
+              450.13
+            ],
+            [
+              261.21575000000007,
+              450.13
+            ],
+            [
+              261.21575000000007,
+              568.835
+            ]
+          ],
+          "route": {
+            "edgeIndex": 35,
+            "routeClass": "feedback",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n4->n6"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "feedback-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-target",
+              "port": "N"
+            },
+            "invariant": "feedback-detour"
+          }
+        },
+        {
+          "id": "n10->n9",
+          "from": "n10",
+          "to": "n9",
+          "path": [
+            [
+              936.9759333333333,
+              833.035
+            ],
+            [
+              936.9759333333333,
+              856.66
+            ],
+            [
+              1154.5665999999999,
+              856.66
+            ],
+            [
+              1154.5665999999999,
+              462.13
+            ],
+            [
+              433.75325,
+              462.13
+            ],
+            [
+              433.75325,
+              505.8124999999999
+            ]
+          ],
+          "label": {
+            "x": 1154.3436,
+            "y": 834.135,
+            "text": "edge 36 xxxxx",
+            "bounds": {
+              "x": 1119.0665999999999,
+              "y": 826.985,
+              "w": 70.554,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 36,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "targetPort": "NE",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "NE"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n3->n11",
+          "from": "n3",
+          "to": "n11",
+          "path": [
+            [
+              1688.5195999999999,
+              248.4820000000001
+            ],
+            [
+              1688.5195999999999,
+              285.38
+            ],
+            [
+              1796.5865999999999,
+              285.38
+            ],
+            [
+              1796.5865999999999,
+              942.31
+            ],
+            [
+              1086.8079333333333,
+              942.31
+            ],
+            [
+              1086.8079333333333,
+              969.9734801090314
+            ]
+          ],
+          "route": {
+            "edgeIndex": 37,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n3->n11"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 3,
+              "slotCount": 5,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n16->n18",
+          "from": "n16",
+          "to": "n18",
+          "path": [
+            [
+              1333.3095999999998,
+              1414.379
+            ],
+            [
+              1333.3095999999998,
+              1487.129
+            ]
+          ],
+          "route": {
+            "edgeIndex": 38,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "directLaneClear": true,
+            "sourcePort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 2,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "straight",
+            "straightened": true
+          }
+        },
+        {
+          "id": "n5->n9",
+          "from": "n5",
+          "to": "n9",
+          "path": [
+            [
+              1597.0985999999998,
+              429.9844734194975
+            ],
+            [
+              1597.0985999999998,
+              450.13
+            ],
+            [
+              402.4457500000001,
+              450.13
+            ],
+            [
+              402.4457500000001,
+              474.505
+            ]
+          ],
+          "route": {
+            "edgeIndex": 39,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n5->n9"
+              }
+            ],
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 1,
+              "slotCount": 3,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n15->n4",
+          "from": "n15",
+          "to": "n4",
+          "path": [
+            [
+              815.3281999999998,
+              1233.8096
+            ],
+            [
+              815.3281999999998,
+              1271.004
+            ],
+            [
+              491.5029333333332,
+              1271.004
+            ],
+            [
+              491.5029333333332,
+              747.76
+            ],
+            [
+              607.2547500000001,
+              747.76
+            ],
+            [
+              607.2547500000001,
+              376.48
+            ],
+            [
+              273.43100000000004,
+              376.48
+            ],
+            [
+              273.43100000000004,
+              381.855
+            ]
+          ],
+          "label": {
+            "x": 491.1599333333332,
+            "y": 846.135,
+            "text": "edge 40 xxxxxxxxx",
+            "bounds": {
+              "x": 444.0029333333332,
+              "y": 838.985,
+              "w": 94.31400000000001,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 40,
+            "routeClass": "primary-forward",
+            "bendCount": 6,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 3,
+              "slotCount": 4,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n1->n17",
+          "from": "n1",
+          "to": "n17",
+          "path": [
+            [
+              99.92433333333338,
+              432.3546632910744
+            ],
+            [
+              99.92433333333338,
+              438.13
+            ],
+            [
+              81.17066666666665,
+              438.13
+            ],
+            [
+              81.17066666666665,
+              1295.004
+            ],
+            [
+              1433.2399333333333,
+              1295.004
+            ],
+            [
+              1433.2399333333333,
+              1322.530318446254
+            ]
+          ],
+          "route": {
+            "edgeIndex": 41,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n1->n17"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 5,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "n6->n3#1",
+          "from": "n6",
+          "to": "n3",
+          "path": [
+            [
+              244.3440833333334,
+              605.735
+            ],
+            [
+              244.3440833333334,
+              636.11
+            ],
+            [
+              1420.63635,
+              636.11
+            ],
+            [
+              1420.63635,
+              111.4
+            ],
+            [
+              1663.4736,
+              111.4
+            ],
+            [
+              1663.4736,
+              148.29799999999992
+            ]
+          ],
+          "route": {
+            "edgeIndex": 42,
+            "routeClass": "primary-forward",
+            "bendCount": 4,
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 3,
+              "role": "flow-target"
+            },
+            "invariant": "unverified-shape"
+          }
+        },
+        {
+          "id": "n2->n10",
+          "from": "n2",
+          "to": "n10",
+          "path": [
+            [
+              306.94068333333325,
+              716.385
+            ],
+            [
+              306.94068333333325,
+              735.76
+            ],
+            [
+              950.8684666666666,
+              735.76
+            ],
+            [
+              950.8684666666666,
+              796.135
+            ]
+          ],
+          "route": {
+            "edgeIndex": 43,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "n2->n10"
+              }
+            ],
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 3,
+              "slotCount": 4,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 1844.5865999999999,
+        "h": 1596.404
+      },
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1844.5866,
+          "height": 1596.404
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 859,
+          "maxOcclusionPairs": 100000,
+          "operations": 73305,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "regions": [
+        {
+          "id": "canvas",
+          "kind": "canvas",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 1844.5865999999999,
+            "h": 1596.404
+          }
+        },
+        {
+          "id": "node:n0",
+          "kind": "node",
+          "elementId": "n0",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 104.30899999999997,
+            "y": 234.905,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 2
+        },
+        {
+          "id": "node:n1",
+          "kind": "node",
+          "elementId": "n1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 67.66300000000001,
+            "y": 381.855,
+            "w": 96.78399999999999,
+            "h": 50.900000000000006
+          },
+          "sourceLine": 3
+        },
+        {
+          "id": "node:n2",
+          "kind": "node",
+          "elementId": "n2",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 225.95668333333333,
+            "y": 679.485,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 4
+        },
+        {
+          "id": "node:n3",
+          "kind": "node",
+          "elementId": "n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1613.3816,
+            "y": 135.775,
+            "w": 125.22999999999999,
+            "h": 125.22999999999999
+          },
+          "sourceLine": 5
+        },
+        {
+          "id": "node:n4",
+          "kind": "node",
+          "elementId": "n4",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 192.44700000000012,
+            "y": 381.855,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 6
+        },
+        {
+          "id": "node:n5",
+          "kind": "node",
+          "elementId": "n5",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1568.0985999999998,
+            "y": 321.755,
+            "w": 116,
+            "h": 116
+          },
+          "sourceLine": 7
+        },
+        {
+          "id": "node:n6",
+          "kind": "node",
+          "elementId": "n6",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 210.60075000000006,
+            "y": 568.835,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 8
+        },
+        {
+          "id": "node:n7",
+          "kind": "node",
+          "elementId": "n7",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 756.1669333333332,
+            "y": 1019.535,
+            "w": 101.22999999999999,
+            "h": 50.900000000000006
+          },
+          "sourceLine": 9
+        },
+        {
+          "id": "node:n8",
+          "kind": "node",
+          "elementId": "n8",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 913.2445999999999,
+            "y": 881.035,
+            "w": 101.22999999999999,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 10
+        },
+        {
+          "id": "node:n9",
+          "kind": "node",
+          "elementId": "n9",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 339.8307500000001,
+            "y": 474.505,
+            "w": 125.22999999999999,
+            "h": 125.22999999999999
+          },
+          "sourceLine": 11
+        },
+        {
+          "id": "node:n10",
+          "kind": "node",
+          "elementId": "n10",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 867.5132666666666,
+            "y": 796.135,
+            "w": 104.194,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 12
+        },
+        {
+          "id": "node:n11",
+          "kind": "node",
+          "elementId": "n11",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1048.4746,
+            "y": 966.685,
+            "w": 115,
+            "h": 115
+          },
+          "sourceLine": 13
+        },
+        {
+          "id": "node:n12",
+          "kind": "node",
+          "elementId": "n12",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 493.0607500000001,
+            "y": 568.835,
+            "w": 104.194,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 14
+        },
+        {
+          "id": "node:n13",
+          "kind": "node",
+          "elementId": "n13",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 714.2185166666666,
+            "y": 679.485,
+            "w": 104.194,
+            "h": 50.900000000000006
+          },
+          "sourceLine": 15
+        },
+        {
+          "id": "node:n14",
+          "kind": "node",
+          "elementId": "n14",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 759.2647833333332,
+            "y": 1377.4789999999998,
+            "w": 104.194,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 16
+        },
+        {
+          "id": "node:n15",
+          "kind": "node",
+          "elementId": "n15",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 764.0505999999998,
+            "y": 1118.435,
+            "w": 128.19400000000002,
+            "h": 128.19400000000002
+          },
+          "sourceLine": 17
+        },
+        {
+          "id": "node:n16",
+          "kind": "node",
+          "elementId": "n16",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1281.2125999999998,
+            "y": 1377.4789999999998,
+            "w": 104.194,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 18
+        },
+        {
+          "id": "node:n17",
+          "kind": "node",
+          "elementId": "n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1413.4065999999998,
+            "y": 1307.379,
+            "w": 119,
+            "h": 119
+          },
+          "sourceLine": 19
+        },
+        {
+          "id": "node:n18",
+          "kind": "node",
+          "elementId": "n18",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1239.1703499999999,
+            "y": 1487.129,
+            "w": 104.194,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 20
+        },
+        {
+          "id": "edge:n14->n11",
+          "kind": "edge",
+          "elementId": "n14->n11",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 837.4102833333332,
+            "y": 954.31,
+            "w": 393.56831666666676,
+            "h": 472.44399999999996
+          }
+        },
+        {
+          "id": "label:n14->n11",
+          "kind": "label",
+          "elementId": "n14->n11",
+          "parentId": "edge:n14->n11",
+          "bounds": {
+            "x": 1195.8455999999999,
+            "y": 1241.479,
+            "w": 70,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n0->n4",
+          "kind": "edge",
+          "elementId": "n0->n4",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 154.92399999999998,
+            "y": 271.805,
+            "w": 57.76900000000023,
+            "h": 110.05000000000001
+          }
+        },
+        {
+          "id": "edge:n9->n13",
+          "kind": "edge",
+          "elementId": "n9->n13",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 395.4457500000001,
+            "y": 592.735,
+            "w": 323.7727666666665,
+            "h": 90.75764559477955
+          }
+        },
+        {
+          "id": "edge:n10->n14",
+          "kind": "edge",
+          "elementId": "n10->n14",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 811.3617833333332,
+            "y": 833.035,
+            "w": 90.88281666666683,
+            "h": 544.4439999999998
+          }
+        },
+        {
+          "id": "edge:n18->n5",
+          "kind": "edge",
+          "elementId": "n18->n5",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1291.2673499999999,
+            "y": 309.38,
+            "w": 440.3252500000001,
+            "h": 1239.024
+          }
+        },
+        {
+          "id": "label:n18->n5",
+          "kind": "label",
+          "elementId": "n18->n5",
+          "parentId": "edge:n18->n5",
+          "bounds": {
+            "x": 1682.3396,
+            "y": 900.785,
+            "w": 98,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n15->n8",
+          "kind": "edge",
+          "elementId": "n15->n8",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 866.6057999999998,
+            "y": 868.66,
+            "w": 157.8688000000002,
+            "h": 402.34399999999994
+          }
+        },
+        {
+          "id": "edge:n9->n13#1",
+          "kind": "edge",
+          "elementId": "n9->n13#1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 409.4457500000001,
+            "y": 592.735,
+            "w": 323.7727666666665,
+            "h": 88.3441171485515
+          }
+        },
+        {
+          "id": "edge:n4->n18",
+          "kind": "edge",
+          "elementId": "n4->n18",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 94.17066666666665,
+            "y": 418.755,
+            "w": 1171.048183333333,
+            "h": 1068.3739999999998
+          }
+        },
+        {
+          "id": "edge:n11->n17",
+          "kind": "edge",
+          "elementId": "n11->n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1134.7246,
+            "y": 1073.9814607176054,
+            "w": 338.1819999999998,
+            "h": 233.39753928239452
+          }
+        },
+        {
+          "id": "label:n11->n17",
+          "kind": "label",
+          "elementId": "n11->n17",
+          "parentId": "edge:n11->n17",
+          "bounds": {
+            "x": 1071.7246,
+            "y": 1165.4927303588026,
+            "w": 126,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n7->n15",
+          "kind": "edge",
+          "elementId": "n7->n15",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 806.7819333333332,
+            "y": 1070.4350000000002,
+            "w": 1,
+            "h": 69.36566666666636
+          }
+        },
+        {
+          "id": "edge:n14->n1",
+          "kind": "edge",
+          "elementId": "n14->n1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 40.039999999999964,
+            "y": 362.48,
+            "w": 745.2732833333332,
+            "h": 1124.274
+          }
+        },
+        {
+          "id": "edge:n0->n14",
+          "kind": "edge",
+          "elementId": "n0->n14",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 53.039999999999964,
+            "y": 271.805,
+            "w": 732.2732833333332,
+            "h": 1105.6739999999998
+          }
+        },
+        {
+          "id": "edge:n11->n10",
+          "kind": "edge",
+          "elementId": "n11->n10",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 668.2769333333331,
+            "y": 814.585,
+            "w": 408.9476666666669,
+            "h": 279.4749999999999
+          }
+        },
+        {
+          "id": "label:n11->n10",
+          "kind": "label",
+          "elementId": "n11->n10",
+          "parentId": "edge:n11->n10",
+          "bounds": {
+            "x": 587.4719333333331,
+            "y": 1064.535,
+            "w": 161,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n2->n18",
+          "kind": "edge",
+          "elementId": "n2->n18",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 171.1605999999997,
+            "y": 716.385,
+            "w": 1120.1067500000001,
+            "h": 770.7439999999999
+          }
+        },
+        {
+          "id": "edge:n16->n3",
+          "kind": "edge",
+          "elementId": "n16->n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1271.2125999999998,
+            "y": 87.4,
+            "w": 442.35300000000007,
+            "h": 1339.3539999999998
+          }
+        },
+        {
+          "id": "edge:n18->n13",
+          "kind": "edge",
+          "elementId": "n18->n13",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 797.5737166666665,
+            "y": 660.11,
+            "w": 467.6451333333332,
+            "h": 876.294
+          }
+        },
+        {
+          "id": "edge:n0->n4#1",
+          "kind": "edge",
+          "elementId": "n0->n4#1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 165.04700000000003,
+            "y": 271.805,
+            "w": 78.0150000000001,
+            "h": 110.05000000000001
+          }
+        },
+        {
+          "id": "label:n0->n4#1",
+          "kind": "label",
+          "elementId": "n0->n4#1",
+          "parentId": "edge:n0->n4#1",
+          "bounds": {
+            "x": 148.56200000000013,
+            "y": 337.82000000000005,
+            "w": 189,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n3->n0",
+          "kind": "edge",
+          "elementId": "n3->n0",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 154.92399999999998,
+            "y": 75.4,
+            "w": 1593.6876,
+            "h": 197.98
+          }
+        },
+        {
+          "id": "edge:n8->n5",
+          "kind": "edge",
+          "elementId": "n8->n5",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 963.8595999999999,
+            "y": 297.38,
+            "w": 819.727,
+            "h": 632.93
+          }
+        },
+        {
+          "id": "edge:n3->n5",
+          "kind": "edge",
+          "elementId": "n3->n5",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1573.0985999999998,
+            "y": 254.00500000000002,
+            "w": 95.89800000000014,
+            "h": 102.1915620212205
+          }
+        },
+        {
+          "id": "edge:n5->n13",
+          "kind": "edge",
+          "elementId": "n5->n13",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 776.7349166666665,
+            "y": 437.755,
+            "w": 849.3636833333333,
+            "h": 241.87142872020706
+          }
+        },
+        {
+          "id": "label:n5->n13",
+          "kind": "label",
+          "elementId": "n5->n13",
+          "parentId": "edge:n5->n13",
+          "bounds": {
+            "x": 1576.8455999999999,
+            "y": 618.585,
+            "w": 98,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n1->n9",
+          "kind": "edge",
+          "elementId": "n1->n9",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 116.055,
+            "y": 432.755,
+            "w": 286.3907500000001,
+            "h": 41.75
+          }
+        },
+        {
+          "id": "edge:n6->n3",
+          "kind": "edge",
+          "elementId": "n6->n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 278.08741666666674,
+            "y": 99.4,
+            "w": 1410.4321833333331,
+            "h": 524.71
+          }
+        },
+        {
+          "id": "edge:n2->n14",
+          "kind": "edge",
+          "elementId": "n2->n14",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 187.78359999999975,
+            "y": 716.385,
+            "w": 623.5781833333334,
+            "h": 661.0939999999998
+          }
+        },
+        {
+          "id": "edge:n2->n8",
+          "kind": "edge",
+          "elementId": "n2->n8",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 276.57168333333334,
+            "y": 716.385,
+            "w": 687.2879166666665,
+            "h": 164.64999999999998
+          }
+        },
+        {
+          "id": "label:n2->n8",
+          "kind": "label",
+          "elementId": "n2->n8",
+          "parentId": "edge:n2->n8",
+          "bounds": {
+            "x": 763.4020166666666,
+            "y": 861.66,
+            "w": 126,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n3->n5#1",
+          "kind": "edge",
+          "elementId": "n3->n5#1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1587.0985999999998,
+            "y": 254.00500000000002,
+            "w": 95.89800000000014,
+            "h": 82.81982413266869
+          }
+        },
+        {
+          "id": "edge:n18->n17",
+          "kind": "edge",
+          "elementId": "n18->n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1317.31585,
+            "y": 1295.004,
+            "w": 225.09074999999984,
+            "h": 241.4000000000001
+          }
+        },
+        {
+          "id": "edge:n4->n12",
+          "kind": "edge",
+          "elementId": "n4->n12",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 268.3695,
+            "y": 418.755,
+            "w": 276.78825000000006,
+            "h": 150.08000000000004
+          }
+        },
+        {
+          "id": "edge:n14->n3",
+          "kind": "edge",
+          "elementId": "n14->n3",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 811.3617833333332,
+            "y": 123.4,
+            "w": 827.0658166666668,
+            "h": 1315.3539999999998
+          }
+        },
+        {
+          "id": "label:n14->n3",
+          "kind": "label",
+          "elementId": "n14->n3",
+          "parentId": "edge:n14->n3",
+          "bounds": {
+            "x": 1476.9135999999999,
+            "y": 900.785,
+            "w": 154,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n11->n15",
+          "kind": "edge",
+          "elementId": "n11->n15",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 828.1475999999998,
+            "y": 1081.685,
+            "w": 277.8270000000002,
+            "h": 36.75
+          }
+        },
+        {
+          "id": "edge:n15->n10",
+          "kind": "edge",
+          "elementId": "n15->n10",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 745.1669333333332,
+            "y": 814.585,
+            "w": 122.3463333333334,
+            "h": 367.9469999999999
+          }
+        },
+        {
+          "id": "edge:n15->n17",
+          "kind": "edge",
+          "elementId": "n15->n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 828.1475999999998,
+            "y": 1246.629,
+            "w": 644.759,
+            "h": 60.75
+          }
+        },
+        {
+          "id": "edge:n17->n10",
+          "kind": "edge",
+          "elementId": "n17->n10",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 580.5029333333332,
+            "y": 759.76,
+            "w": 892.4036666666666,
+            "h": 690.9939999999999
+          }
+        },
+        {
+          "id": "label:n17->n10",
+          "kind": "label",
+          "elementId": "n17->n10",
+          "parentId": "edge:n17->n10",
+          "bounds": {
+            "x": 489.38993333333326,
+            "y": 1241.479,
+            "w": 182,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n5->n17",
+          "kind": "edge",
+          "elementId": "n5->n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1492.7399333333333,
+            "y": 429.9844734194975,
+            "w": 185.35266666666666,
+            "h": 880.7973886063697
+          }
+        },
+        {
+          "id": "edge:n0->n4#2",
+          "kind": "edge",
+          "elementId": "n0->n4#2",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 185.2929999999999,
+            "y": 271.805,
+            "w": 171.423,
+            "h": 110.05000000000001
+          }
+        },
+        {
+          "id": "edge:n4->n6",
+          "kind": "edge",
+          "elementId": "n4->n6",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 243.06200000000013,
+            "y": 418.755,
+            "w": 18.153749999999945,
+            "h": 150.08000000000004
+          }
+        },
+        {
+          "id": "edge:n10->n9",
+          "kind": "edge",
+          "elementId": "n10->n9",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 433.75325,
+            "y": 462.13,
+            "w": 720.8133499999999,
+            "h": 394.53
+          }
+        },
+        {
+          "id": "label:n10->n9",
+          "kind": "label",
+          "elementId": "n10->n9",
+          "parentId": "edge:n10->n9",
+          "bounds": {
+            "x": 1108.8436,
+            "y": 827.135,
+            "w": 91,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n3->n11",
+          "kind": "edge",
+          "elementId": "n3->n11",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1086.8079333333333,
+            "y": 248.4820000000001,
+            "w": 709.7786666666666,
+            "h": 721.4914801090313
+          }
+        },
+        {
+          "id": "edge:n16->n18",
+          "kind": "edge",
+          "elementId": "n16->n18",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1333.3095999999998,
+            "y": 1414.379,
+            "w": 1,
+            "h": 72.75
+          }
+        },
+        {
+          "id": "edge:n5->n9",
+          "kind": "edge",
+          "elementId": "n5->n9",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 402.4457500000001,
+            "y": 429.9844734194975,
+            "w": 1194.6528499999997,
+            "h": 44.52052658050252
+          }
+        },
+        {
+          "id": "edge:n15->n4",
+          "kind": "edge",
+          "elementId": "n15->n4",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 273.43100000000004,
+            "y": 376.48,
+            "w": 541.8971999999998,
+            "h": 894.5239999999999
+          }
+        },
+        {
+          "id": "label:n15->n4",
+          "kind": "label",
+          "elementId": "n15->n4",
+          "parentId": "edge:n15->n4",
+          "bounds": {
+            "x": 431.6599333333332,
+            "y": 839.135,
+            "w": 119,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:n1->n17",
+          "kind": "edge",
+          "elementId": "n1->n17",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 81.17066666666665,
+            "y": 432.3546632910744,
+            "w": 1352.0692666666666,
+            "h": 890.1756551551795
+          }
+        },
+        {
+          "id": "edge:n6->n3#1",
+          "kind": "edge",
+          "elementId": "n6->n3#1",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 244.3440833333334,
+            "y": 111.4,
+            "w": 1419.1295166666666,
+            "h": 524.71
+          }
+        },
+        {
+          "id": "edge:n2->n10",
+          "kind": "edge",
+          "elementId": "n2->n10",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 306.94068333333325,
+            "y": 716.385,
+            "w": 643.9277833333333,
+            "h": 79.75
+          }
+        }
+      ],
+      "actions": []
+    },
+    "layoutReceipt": {
+      "version": 2,
+      "output": "layout",
+      "sharedRequestDigest": "fnv1a64:cdadcbd46d7ebb45",
+      "requestDigest": "fnv1a64:c0f3391979a3fe75",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:project-positioned",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1844.5866,
+          "height": 1596.404
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 859,
+          "maxOcclusionPairs": 100000,
+          "operations": 73305,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      }
+    },
+    "metrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1844.5866,
+          "height": 1596.404
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 859,
+          "maxOcclusionPairs": 100000,
+          "operations": 73305,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 84,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 19,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 11,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.04819630559805193,
+      "labelEdgeProximity": 12.509999999999934,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 133,
+        "length": 47410.94634315602,
+        "area": 2944705.4265864
+      },
+      "minimumNodeSpacing": 28,
+      "elementDensity": 0.21394330119135782,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 1.1554635292820614,
+      "nodeCount": 19,
+      "edgeCount": 44
+    },
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1844.5866\" height=\"1596.404\" viewBox=\"0 0 1844.5866 1596.404\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0sdk9t01ec8zih\">\n<style>\n  svg.am-0sdk9t01ec8zih { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-0sdk9t01ec8zih {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<defs>\n  <marker id=\"order-arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"order-arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<text x=\"922.2933\" y=\"51.7\" class=\"diagram-title\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"600\" fill=\"#27272A\" data-id=\"diagram-title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"6.3\" textLength=\"116.1\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Cyclic routes</text>\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 0 xxx\" points=\"837.410283333,1414.379 837.410283333,1426.754 1230.9786,1426.754 1230.9786,954.31 1125.14126667,954.31 1125.14126667,969.973480109\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n14-&gt;n11#0\" data-role=\"edge\" data-from=\"n14\" data-to=\"n11\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n14 to n11: edge 0 xxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"154.924,271.805 154.924,369.48 212.693,369.48 212.693,381.855\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n4#0\" data-role=\"edge\" data-from=\"n0\" data-to=\"n4\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n4\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"395.44575,592.735 395.44575,629.735 719.218516667,629.735 719.218516667,683.492645595\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n9-&gt;n13#0\" data-role=\"edge\" data-from=\"n9\" data-to=\"n13\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n9 to n13\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"902.2446,833.035 902.2446,1365.104 811.361783333,1365.104 811.361783333,1377.479\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n10-&gt;n14#0\" data-role=\"edge\" data-from=\"n10\" data-to=\"n14\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n10 to n14\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 4 xxxxxxx\" points=\"1291.26735,1524.029 1291.26735,1548.404 1731.5926,1548.404 1731.5926,309.38 1660.8986,309.38 1660.8986,333.355\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n18-&gt;n5#0\" data-role=\"edge\" data-from=\"n18\" data-to=\"n5\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n18 to n5: edge 4 xxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"866.6058,1208.1708 866.6058,1271.004 1024.4746,1271.004 1024.4746,868.66 980.731266667,868.66 980.731266667,881.035\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n15-&gt;n8#0\" data-role=\"edge\" data-from=\"n15\" data-to=\"n8\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n15 to n8\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"409.44575,592.735 409.44575,615.735 733.218516667,615.735 733.218516667,681.079117149\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n9-&gt;n13#1\" data-role=\"edge\" data-from=\"n9\" data-to=\"n13\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n9 to n13\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"217.7545,418.755 217.7545,450.13 94.1706666667,450.13 94.1706666667,1474.754 1265.21885,1474.754 1265.21885,1487.129\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n4-&gt;n18#0\" data-role=\"edge\" data-from=\"n4\" data-to=\"n18\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n4 to n18\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 8 xxxxxxxxxxx\" points=\"1134.7246,1073.98146072 1134.7246,1271.004 1472.9066,1271.004 1472.9066,1307.379\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n11-&gt;n17#0\" data-role=\"edge\" data-from=\"n11\" data-to=\"n17\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n11 to n17: edge 8 xxxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"806.781933333,1070.435 806.781933333,1139.80066667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n7-&gt;n15#0\" data-role=\"edge\" data-from=\"n7\" data-to=\"n15\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n7 to n15\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"785.313283333,1414.379 785.313283333,1486.754 40.04,1486.754 40.04,362.48 116.055,362.48 116.055,381.855\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n14-&gt;n1#0\" data-role=\"edge\" data-from=\"n14\" data-to=\"n1\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n14 to n1\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"124.555,271.805 124.555,350.48 53.04,350.48 53.04,1365.104 785.313283333,1365.104 785.313283333,1377.479\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n14#0\" data-role=\"edge\" data-from=\"n0\" data-to=\"n14\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n14\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 12 xxxxxxxxxxxxxxx\" points=\"1077.2246,1073.98146072 1077.2246,1094.06 668.276933333,1094.06 668.276933333,814.585 867.513266667,814.585\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n11-&gt;n10#0\" data-role=\"edge\" data-from=\"n11\" data-to=\"n10\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n11 to n10: edge 12 xxxxxxxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"246.202683333,716.385 246.202683333,799.61 171.1606,799.61 171.1606,1462.754 1291.26735,1462.754 1291.26735,1487.129\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n18#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n18\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n18\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1315.94393333,1414.379 1315.94393333,1426.754 1271.2126,1426.754 1271.2126,87.4 1713.5656,87.4 1713.5656,173.344\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n16-&gt;n3#0\" data-role=\"edge\" data-from=\"n16\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n16 to n3\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1265.21885,1524.029 1265.21885,1536.404 1037.4746,1536.404 1037.4746,660.11 797.573716667,660.11 797.573716667,680.885\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n18-&gt;n13#0\" data-role=\"edge\" data-from=\"n18\" data-to=\"n13\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n18 to n13\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 16 xxxxxxxxxxxxxxxxxxx\" points=\"165.047,271.805 165.047,326.83 243.062,326.83 243.062,381.855\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n4#1\" data-role=\"edge\" data-from=\"n0\" data-to=\"n4\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n4: edge 16 xxxxxxxxxxxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1713.5656,223.436 1713.5656,273.38 1748.6116,273.38 1748.6116,75.4 154.924,75.4 154.924,234.905\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n0#0\" data-role=\"edge\" data-from=\"n3\" data-to=\"n0\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n0\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"963.8596,917.935 963.8596,930.31 1783.5866,930.31 1783.5866,297.38 1637.6986,297.38 1637.6986,322.926837967\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n8-&gt;n5#0\" data-role=\"edge\" data-from=\"n8\" data-to=\"n5\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n8 to n5\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1668.9966,254.005 1668.9966,277.005 1573.0986,277.005 1573.0986,356.196562021\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n5#0\" data-role=\"edge\" data-from=\"n3\" data-to=\"n5\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n5\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 20 xxxxxx\" points=\"1626.0986,437.755 1626.0986,648.11 776.734916667,648.11 776.734916667,679.62642872\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n5-&gt;n13#0\" data-role=\"edge\" data-from=\"n5\" data-to=\"n13\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n5 to n13: edge 20 xxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"116.055,432.755 116.055,462.13 402.44575,462.13 402.44575,474.505\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n1-&gt;n9#0\" data-role=\"edge\" data-from=\"n1\" data-to=\"n9\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n1 to n9\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"278.087416667,605.735 278.087416667,624.11 1407.63635,624.11 1407.63635,99.4 1688.5196,99.4 1688.5196,148.298\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n6-&gt;n3#0\" data-role=\"edge\" data-from=\"n6\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n6 to n3\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"266.448683333,716.385 266.448683333,811.61 187.7836,811.61 187.7836,1283.004 811.361783333,1283.004 811.361783333,1377.479\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n14#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n14\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n14\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 24 xxxxxxxxxx\" points=\"276.571683333,716.385 276.571683333,868.66 963.8596,868.66 963.8596,881.035\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n8#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n8\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n8: edge 24 xxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1682.9966,254.005 1682.9966,291.005 1587.0986,291.005 1587.0986,336.824824133\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n5#1\" data-role=\"edge\" data-from=\"n3\" data-to=\"n5\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n5\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1317.31585,1524.029 1317.31585,1536.404 1542.4066,1536.404 1542.4066,1295.004 1512.57326667,1295.004 1512.57326667,1322.53031845\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n18-&gt;n17#0\" data-role=\"edge\" data-from=\"n18\" data-to=\"n17\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n18 to n17\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"268.3695,418.755 268.3695,430.755 545.15775,430.755 545.15775,568.835\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n4-&gt;n12#0\" data-role=\"edge\" data-from=\"n4\" data-to=\"n12\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n4 to n12\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 28 xxxxxxxxxxxxxx\" points=\"811.361783333,1414.379 811.361783333,1438.754 1554.4066,1438.754 1554.4066,123.4 1638.4276,123.4 1638.4276,173.344\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n14-&gt;n3#0\" data-role=\"edge\" data-from=\"n14\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n14 to n3: edge 28 xxxxxxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1105.9746,1081.685 1105.9746,1106.06 828.1476,1106.06 828.1476,1118.435\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n11-&gt;n15#0\" data-role=\"edge\" data-from=\"n11\" data-to=\"n15\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n11 to n15\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"764.0506,1182.532 745.166933333,1182.532 745.166933333,814.585 867.513266667,814.585\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n15-&gt;n10#0\" data-role=\"edge\" data-from=\"n15\" data-to=\"n10\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n15 to n10\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"828.1476,1246.629 828.1476,1277.004 1472.9066,1277.004 1472.9066,1307.379\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n15-&gt;n17#0\" data-role=\"edge\" data-from=\"n15\" data-to=\"n17\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n15 to n17\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 32 xxxxxxxxxxxxxxxxxx\" points=\"1472.9066,1426.379 1472.9066,1450.754 580.502933333,1450.754 580.502933333,759.76 930.029666667,759.76 930.029666667,796.135\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n17-&gt;n10#0\" data-role=\"edge\" data-from=\"n17\" data-to=\"n10\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n17 to n10: edge 32 xxxxxxxxxxxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1655.0986,429.984473419 1655.0986,603.06 1678.0926,603.06 1678.0926,1283.004 1492.73993333,1283.004 1492.73993333,1310.78186203\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n5-&gt;n17#0\" data-role=\"edge\" data-from=\"n5\" data-to=\"n17\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n5 to n17\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"185.293,271.805 185.293,295.43 356.716,295.43 356.716,364.48 253.185,364.48 253.185,381.855\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n0-&gt;n4#2\" data-role=\"edge\" data-from=\"n0\" data-to=\"n4\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n0 to n4\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"243.062,418.755 243.062,450.13 261.21575,450.13 261.21575,568.835\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n4-&gt;n6#0\" data-role=\"edge\" data-from=\"n4\" data-to=\"n6\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n4 to n6\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 36 xxxxx\" points=\"936.975933333,833.035 936.975933333,856.66 1154.5666,856.66 1154.5666,462.13 433.75325,462.13 433.75325,505.8125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n10-&gt;n9#0\" data-role=\"edge\" data-from=\"n10\" data-to=\"n9\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n10 to n9: edge 36 xxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1688.5196,248.482 1688.5196,285.38 1796.5866,285.38 1796.5866,942.31 1086.80793333,942.31 1086.80793333,969.973480109\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n3-&gt;n11#0\" data-role=\"edge\" data-from=\"n3\" data-to=\"n11\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n3 to n11\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1333.3096,1414.379 1333.3096,1487.129\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n16-&gt;n18#0\" data-role=\"edge\" data-from=\"n16\" data-to=\"n18\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n16 to n18\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1597.0986,429.984473419 1597.0986,450.13 402.44575,450.13 402.44575,474.505\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n5-&gt;n9#0\" data-role=\"edge\" data-from=\"n5\" data-to=\"n9\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n5 to n9\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 40 xxxxxxxxx\" points=\"815.3282,1233.8096 815.3282,1271.004 491.502933333,1271.004 491.502933333,747.76 607.25475,747.76 607.25475,376.48 273.431,376.48 273.431,381.855\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n15-&gt;n4#0\" data-role=\"edge\" data-from=\"n15\" data-to=\"n4\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n15 to n4: edge 40 xxxxxxxxx\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"99.9243333333,432.354663291 99.9243333333,438.13 81.1706666667,438.13 81.1706666667,1295.004 1433.23993333,1295.004 1433.23993333,1322.53031845\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n1-&gt;n17#0\" data-role=\"edge\" data-from=\"n1\" data-to=\"n17\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n1 to n17\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"244.344083333,605.735 244.344083333,636.11 1420.63635,636.11 1420.63635,111.4 1663.4736,111.4 1663.4736,148.298\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n6-&gt;n3#1\" data-role=\"edge\" data-from=\"n6\" data-to=\"n3\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n6 to n3\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"306.940683333,716.385 306.940683333,735.76 950.868466667,735.76 950.868466667,796.135\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n2-&gt;n10#0\" data-role=\"edge\" data-from=\"n2\" data-to=\"n10\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n2 to n10\" />\n<g class=\"edge-label\" data-from=\"n14\" data-to=\"n11\" data-label=\"edge 0 xxx\">\n  <rect class=\"edge-label-halo\" x=\"1192.4786\" y=\"1229.329\" width=\"76.734\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1196.4786\" y=\"1233.329\" width=\"68.734\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1230.8456\" y=\"1248.479\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"52.734\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 0 xxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n18\" data-to=\"n5\" data-label=\"edge 4 xxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"1681.0926\" y=\"888.635\" width=\"100.494\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1685.0926\" y=\"892.635\" width=\"92.494\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1731.3396\" y=\"907.785\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"76.494\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 4 xxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n11\" data-to=\"n17\" data-label=\"edge 8 xxxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"1072.5976\" y=\"1153.34273036\" width=\"124.254\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1076.5976\" y=\"1157.34273036\" width=\"116.254\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1134.7246\" y=\"1172.49273036\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"100.254\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 8 xxxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n11\" data-to=\"n10\" data-label=\"edge 12 xxxxxxxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"592.776933333\" y=\"1052.385\" width=\"150.39\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"596.776933333\" y=\"1056.385\" width=\"142.39\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"667.971933333\" y=\"1071.535\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"126.39\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 12 xxxxxxxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n0\" data-to=\"n4\" data-label=\"edge 16 xxxxxxxxxxxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"155.987\" y=\"325.67\" width=\"174.15\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"159.987\" y=\"329.67\" width=\"166.15\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"243.062\" y=\"344.82\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"150.15\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 16 xxxxxxxxxxxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n5\" data-to=\"n13\" data-label=\"edge 20 xxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"1575.5986\" y=\"606.435\" width=\"100.494\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1579.5986\" y=\"610.435\" width=\"92.494\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1625.8456\" y=\"625.585\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"76.494\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 20 xxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n2\" data-to=\"n8\" data-label=\"edge 24 xxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"764.275016667\" y=\"849.51\" width=\"124.254\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"768.275016667\" y=\"853.51\" width=\"116.254\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"826.402016667\" y=\"868.66\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"100.254\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 24 xxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n14\" data-to=\"n3\" data-label=\"edge 28 xxxxxxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"1479.9066\" y=\"888.635\" width=\"148.014\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1483.9066\" y=\"892.635\" width=\"140.014\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1553.9136\" y=\"907.785\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"124.014\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 28 xxxxxxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n17\" data-to=\"n10\" data-label=\"edge 32 xxxxxxxxxxxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"494.502933333\" y=\"1229.329\" width=\"171.774\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"498.502933333\" y=\"1233.329\" width=\"163.774\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"580.389933333\" y=\"1248.479\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"147.774\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 32 xxxxxxxxxxxxxxxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n10\" data-to=\"n9\" data-label=\"edge 36 xxxxx\">\n  <rect class=\"edge-label-halo\" x=\"1107.0666\" y=\"814.985\" width=\"94.554\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1111.0666\" y=\"818.985\" width=\"86.554\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1154.3436\" y=\"834.135\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"70.554\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 36 xxxxx</text>\n</g>\n<g class=\"edge-label\" data-from=\"n15\" data-to=\"n4\" data-label=\"edge 40 xxxxxxxxx\">\n  <rect class=\"edge-label-halo\" x=\"432.002933333\" y=\"826.985\" width=\"118.314\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"436.002933333\" y=\"830.985\" width=\"110.314\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"491.159933333\" y=\"846.135\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"94.314\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">edge 40 xxxxxxxxx</text>\n</g>\n<g class=\"node\" data-id=\"n0\" data-label=\"Node 76-0\" data-shape=\"subroutine\" data-role=\"node\">\n  <rect x=\"104.309\" y=\"234.905\" width=\"101.23\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n0\" data-role=\"node\" />\n  <line x1=\"112.309\" y1=\"234.905\" x2=\"112.309\" y2=\"271.805\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"197.539\" y1=\"234.905\" x2=\"197.539\" y2=\"271.805\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"154.924\" y=\"253.355\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-0</text>\n</g>\n<g class=\"node\" data-id=\"n1\" data-label=\"Node 76-1\" data-shape=\"cylinder\" data-role=\"node\">\n  <rect x=\"67.663\" y=\"388.855\" width=\"96.784\" height=\"36.9\" fill=\"#f9f9f9\" stroke=\"none\" data-id=\"node-shape:n1\" data-role=\"node\" />\n  <line x1=\"67.663\" y1=\"388.855\" x2=\"67.663\" y2=\"425.755\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"164.447\" y1=\"388.855\" x2=\"164.447\" y2=\"425.755\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"116.055\" cy=\"425.755\" rx=\"48.392\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"116.055\" cy=\"388.855\" rx=\"48.392\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"116.055\" y=\"407.305\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"56.784\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-1</text>\n</g>\n<g class=\"node\" data-id=\"n2\" data-label=\"Node 76-2\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"225.956683333\" y=\"679.485\" width=\"101.23\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n2\" data-role=\"node\" />\n  <text x=\"276.571683333\" y=\"697.935\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-2</text>\n</g>\n<g class=\"node\" data-id=\"n3\" data-label=\"Node 76-3\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"1675.9966,135.775 1738.6116,198.39 1675.9966,261.005 1613.3816,198.39\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n3\" data-role=\"node\" />\n  <text x=\"1675.9966\" y=\"198.39\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-3</text>\n</g>\n<g class=\"node\" data-id=\"n4\" data-label=\"Node 76-4\" data-shape=\"rounded\" data-role=\"node\">\n  <rect x=\"192.447\" y=\"381.855\" width=\"101.23\" height=\"36.9\" rx=\"6\" ry=\"6\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n4\" data-role=\"node\" />\n  <text x=\"243.062\" y=\"400.305\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-4</text>\n</g>\n<g class=\"node\" data-id=\"n5\" data-label=\"Node 76-5\" data-shape=\"circle\" data-role=\"node\">\n  <circle cx=\"1626.0986\" cy=\"379.755\" r=\"58\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n5\" data-role=\"node\" />\n  <text x=\"1626.0986\" y=\"379.755\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-5</text>\n</g>\n<g class=\"node\" data-id=\"n6\" data-label=\"Node 76-6\" data-shape=\"subroutine\" data-role=\"node\">\n  <rect x=\"210.60075\" y=\"568.835\" width=\"101.23\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n6\" data-role=\"node\" />\n  <line x1=\"218.60075\" y1=\"568.835\" x2=\"218.60075\" y2=\"605.735\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"303.83075\" y1=\"568.835\" x2=\"303.83075\" y2=\"605.735\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"261.21575\" y=\"587.285\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-6</text>\n</g>\n<g class=\"node\" data-id=\"n7\" data-label=\"Node 76-7\" data-shape=\"cylinder\" data-role=\"node\">\n  <rect x=\"756.166933333\" y=\"1026.535\" width=\"101.23\" height=\"36.9\" fill=\"#f9f9f9\" stroke=\"none\" data-id=\"node-shape:n7\" data-role=\"node\" />\n  <line x1=\"756.166933333\" y1=\"1026.535\" x2=\"756.166933333\" y2=\"1063.435\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"857.396933333\" y1=\"1026.535\" x2=\"857.396933333\" y2=\"1063.435\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"806.781933333\" cy=\"1063.435\" rx=\"50.615\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"806.781933333\" cy=\"1026.535\" rx=\"50.615\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"806.781933333\" y=\"1044.985\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-7</text>\n</g>\n<g class=\"node\" data-id=\"n8\" data-label=\"Node 76-8\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"913.2446\" y=\"881.035\" width=\"101.23\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n8\" data-role=\"node\" />\n  <text x=\"963.8596\" y=\"899.485\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-8</text>\n</g>\n<g class=\"node\" data-id=\"n9\" data-label=\"Node 76-9\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"402.44575,474.505 465.06075,537.12 402.44575,599.735 339.83075,537.12\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n9\" data-role=\"node\" />\n  <text x=\"402.44575\" y=\"537.12\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.23\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-9</text>\n</g>\n<g class=\"node\" data-id=\"n10\" data-label=\"Node 76-10\" data-shape=\"rounded\" data-role=\"node\">\n  <rect x=\"867.513266667\" y=\"796.135\" width=\"104.194\" height=\"36.9\" rx=\"6\" ry=\"6\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n10\" data-role=\"node\" />\n  <text x=\"919.610266667\" y=\"814.585\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-10</text>\n</g>\n<g class=\"node\" data-id=\"n11\" data-label=\"Node 76-11\" data-shape=\"circle\" data-role=\"node\">\n  <circle cx=\"1105.9746\" cy=\"1024.185\" r=\"57.5\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n11\" data-role=\"node\" />\n  <text x=\"1105.9746\" y=\"1024.185\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"59.748\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-11</text>\n</g>\n<g class=\"node\" data-id=\"n12\" data-label=\"Node 76-12\" data-shape=\"subroutine\" data-role=\"node\">\n  <rect x=\"493.06075\" y=\"568.835\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n12\" data-role=\"node\" />\n  <line x1=\"501.06075\" y1=\"568.835\" x2=\"501.06075\" y2=\"605.735\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"589.25475\" y1=\"568.835\" x2=\"589.25475\" y2=\"605.735\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"545.15775\" y=\"587.285\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-12</text>\n</g>\n<g class=\"node\" data-id=\"n13\" data-label=\"Node 76-13\" data-shape=\"cylinder\" data-role=\"node\">\n  <rect x=\"714.218516667\" y=\"686.485\" width=\"104.194\" height=\"36.9\" fill=\"#f9f9f9\" stroke=\"none\" data-id=\"node-shape:n13\" data-role=\"node\" />\n  <line x1=\"714.218516667\" y1=\"686.485\" x2=\"714.218516667\" y2=\"723.385\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"818.412516667\" y1=\"686.485\" x2=\"818.412516667\" y2=\"723.385\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"766.315516667\" cy=\"723.385\" rx=\"52.097\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <ellipse cx=\"766.315516667\" cy=\"686.485\" rx=\"52.097\" ry=\"7\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"766.315516667\" y=\"704.935\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-13</text>\n</g>\n<g class=\"node\" data-id=\"n14\" data-label=\"Node 76-14\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"759.264783333\" y=\"1377.479\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n14\" data-role=\"node\" />\n  <text x=\"811.361783333\" y=\"1395.929\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-14</text>\n</g>\n<g class=\"node\" data-id=\"n15\" data-label=\"Node 76-15\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"828.1476,1118.435 892.2446,1182.532 828.1476,1246.629 764.0506,1182.532\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n15\" data-role=\"node\" />\n  <text x=\"828.1476\" y=\"1182.532\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-15</text>\n</g>\n<g class=\"node\" data-id=\"n16\" data-label=\"Node 76-16\" data-shape=\"rounded\" data-role=\"node\">\n  <rect x=\"1281.2126\" y=\"1377.479\" width=\"104.194\" height=\"36.9\" rx=\"6\" ry=\"6\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n16\" data-role=\"node\" />\n  <text x=\"1333.3096\" y=\"1395.929\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-16</text>\n</g>\n<g class=\"node\" data-id=\"n17\" data-label=\"Node 76-17\" data-shape=\"circle\" data-role=\"node\">\n  <circle cx=\"1472.9066\" cy=\"1366.879\" r=\"59.5\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n17\" data-role=\"node\" />\n  <text x=\"1472.9066\" y=\"1366.879\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-17</text>\n</g>\n<g class=\"node\" data-id=\"n18\" data-label=\"Node 76-18\" data-shape=\"subroutine\" data-role=\"node\">\n  <rect x=\"1239.17035\" y=\"1487.129\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n18\" data-role=\"node\" />\n  <line x1=\"1247.17035\" y1=\"1487.129\" x2=\"1247.17035\" y2=\"1524.029\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <line x1=\"1335.36435\" y1=\"1487.129\" x2=\"1335.36435\" y2=\"1524.029\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"1291.26735\" y=\"1505.579\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Node 76-18</text>\n</g>\n</svg>",
+    "svgReceipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:e8689933b22c842f",
+      "requestDigest": "fnv1a64:74143d91e7608ded",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "executionDecision": {
+        "family": {
+          "id": "family:flowchart",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:086cc5e1e80cddcb"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "graphicalProjectionDigest": "fnv1a64:5541c1c4042248fa",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1844.5866,
+          "height": 1596.404
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 116,
+          "unmeasured": 0,
+          "preparedText": 31,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 119,
+          "labels": 19,
+          "occlusionPairs": 859,
+          "maxOcclusionPairs": 100000,
+          "operations": 73305,
+          "maxOperations": 400000,
+          "markers": 44
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:5541c1c4042248fa"
+      }
+    }
+  }
+}

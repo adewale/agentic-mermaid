@@ -1,0 +1,11 @@
+{
+  "head": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "clean": true,
+  "unitPass": 17057,
+  "unitSkip": 78,
+  "unitFail": 0,
+  "node": "24.19.0",
+  "bun": "1.4.4",
+  "remoteCI": "not run, owner requested local only",
+  "at": "2026-11-21T19:38:08.230906+00:00"
+}

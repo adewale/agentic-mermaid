@@ -1,0 +1,258 @@
+{
+  "scope": "Original ELK.js 0.11.1 development oracle. Reciprocal SDK/peer model controlled 2x2 breaker×force matrix. Raw only; no public-pipeline, paint, role-consumer or balanced qualification. No runtime fallback.",
+  "workerSHA256": "c93ae799ceb15b94b19272307b5bfde46e7dde6f274a2fb78afeba2ac0393f77",
+  "rows": [
+    {
+      "arm": "sdk-MODEL_ORDER-true",
+      "model": "sdk",
+      "cycle": "MODEL_ORDER",
+      "force": "true",
+      "ok": true,
+      "crossings": 37,
+      "size": [
+        1473.0011499999998,
+        1566.829
+      ],
+      "upwardRectRelations": [
+        "e12",
+        "e28",
+        "e30",
+        "e32",
+        "e35"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "56e7913097ed7eafe26c02075bc520b2f9cece04b9b2ba7eff7a062ad76db609"
+    },
+    {
+      "arm": "sdk-MODEL_ORDER-false",
+      "model": "sdk",
+      "cycle": "MODEL_ORDER",
+      "force": "false",
+      "ok": true,
+      "crossings": 48,
+      "size": [
+        1385.3395166666667,
+        1584.929
+      ],
+      "upwardRectRelations": [
+        "e12",
+        "e28",
+        "e30",
+        "e32",
+        "e35"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "333ad591d1ddc018fe2e5deaaf218ee01cc63b9d6d2e4e7822b74082c0a54d5e"
+    },
+    {
+      "arm": "sdk-DEPTH_FIRST-true",
+      "model": "sdk",
+      "cycle": "DEPTH_FIRST",
+      "force": "true",
+      "ok": true,
+      "crossings": 50,
+      "size": [
+        1838.5121333333332,
+        1718.449
+      ],
+      "upwardRectRelations": [
+        "e1",
+        "e7",
+        "e8",
+        "e11",
+        "e12",
+        "e16",
+        "e18",
+        "e19",
+        "e25",
+        "e30",
+        "e31",
+        "e34",
+        "e37",
+        "e41"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "6c09e6d95f32b73dc38fefb9b923b088c4037e69c3bb51b63ad1855a28c93840"
+    },
+    {
+      "arm": "sdk-DEPTH_FIRST-false",
+      "model": "sdk",
+      "cycle": "DEPTH_FIRST",
+      "force": "false",
+      "ok": true,
+      "crossings": 58,
+      "size": [
+        1562.8885833333331,
+        1821.2490000000003
+      ],
+      "upwardRectRelations": [
+        "e1",
+        "e7",
+        "e8",
+        "e11",
+        "e12",
+        "e16",
+        "e18",
+        "e19",
+        "e25",
+        "e30",
+        "e31",
+        "e34",
+        "e37",
+        "e41"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "d8f0079a68bee33cd1c6e8ac90d24eee13afead3a101ca90fa543d0f2a19aa03"
+    },
+    {
+      "arm": "peer-MODEL_ORDER-true",
+      "model": "peer",
+      "cycle": "MODEL_ORDER",
+      "force": "true",
+      "ok": true,
+      "crossings": 57,
+      "size": [
+        2199.3918449299067,
+        2227.546787786643
+      ],
+      "upwardRectRelations": [
+        "e0",
+        "e4",
+        "e5",
+        "e10",
+        "e12",
+        "e14",
+        "e15",
+        "e17",
+        "e18",
+        "e22",
+        "e26",
+        "e28",
+        "e30",
+        "e32",
+        "e36",
+        "e40",
+        "e42"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "23f54af2951e67358814e65bb1691c5e2bce7ca81f825920d445570000a69a3a"
+    },
+    {
+      "arm": "peer-MODEL_ORDER-false",
+      "model": "peer",
+      "cycle": "MODEL_ORDER",
+      "force": "false",
+      "ok": true,
+      "crossings": 41,
+      "size": [
+        2245.1738417764445,
+        2027.5467877866429
+      ],
+      "upwardRectRelations": [
+        "e0",
+        "e4",
+        "e5",
+        "e10",
+        "e12",
+        "e14",
+        "e15",
+        "e17",
+        "e18",
+        "e22",
+        "e26",
+        "e28",
+        "e30",
+        "e32",
+        "e36",
+        "e40",
+        "e42"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "a64ddc62653604772c86bd325fdca0707a44b0a05163c1b621787bd08534df61"
+    },
+    {
+      "arm": "peer-DEPTH_FIRST-true",
+      "model": "peer",
+      "cycle": "DEPTH_FIRST",
+      "force": "true",
+      "ok": true,
+      "crossings": 43,
+      "size": [
+        2057.70581600418,
+        2365.33754137661
+      ],
+      "upwardRectRelations": [
+        "e1",
+        "e7",
+        "e8",
+        "e11",
+        "e12",
+        "e16",
+        "e18",
+        "e19",
+        "e25",
+        "e30",
+        "e31",
+        "e34",
+        "e37",
+        "e41"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "5f6816ac6e72bce422e2ae046292a15f8326e7ac0a537c32f4de4001c193d39b"
+    },
+    {
+      "arm": "peer-DEPTH_FIRST-false",
+      "model": "peer",
+      "cycle": "DEPTH_FIRST",
+      "force": "false",
+      "ok": true,
+      "crossings": 31,
+      "size": [
+        1889.263338262053,
+        2385.33754137661
+      ],
+      "upwardRectRelations": [
+        "e1",
+        "e7",
+        "e8",
+        "e11",
+        "e12",
+        "e16",
+        "e18",
+        "e19",
+        "e25",
+        "e30",
+        "e31",
+        "e34",
+        "e37",
+        "e41"
+      ],
+      "feedback": "Unassessed: no original-JS processor trace; upward rectangle relations are physical observations, not exact reversed flags.",
+      "nodes": 19,
+      "edges": 44,
+      "labels": 11,
+      "inputSHA256": "3eb927bec70e2d607a83757cc2379446e1467e6548f3b876dac4ca043a198bac"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "arms": [
+    {
+      "label": "ts-control",
+      "backend": "elk",
+      "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+      "root": "/tmp/issue619-followup-20261121/package-c18f6073/package"
+    },
+    {
+      "label": "ts-final",
+      "backend": "elk",
+      "source": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+      "root": "/workspace/elk-layered-port"
+    }
+  ],
+  "protocolOrigin": "/workspace/elk-layered-tools/current-main-2c689f-comparison/final96-render-protocol",
+  "workerSha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd",
+  "scope": "Full SVG+entire receipt serialization+UTF8 inside API clocks; import/cold/cache/edit separate, compression and explicit GC outside; RSS includes whole harness",
+  "sampling": "Three balanced fresh processes per configuration/cache/case; seven warm repeats; one actual source edit followed by three repeat renders of that edit; exploratory, not formal calibration",
+  "casesSha256": "698e253f8cd8aabd8c9eff1b0cf279e346f3fcda584c3b740e7c7fc7620a524a",
+  "cases": 7,
+  "launcherSha256": "47479f52c7865a50376f7893f91e38e4030eb3cdfa79ff55a6d0b7b0bc7ca6b8",
+  "nodeVersion": "v24.19.0",
+  "nodeBinary": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+  "candidateRoot": "/workspace/elk-layered-port",
+  "candidateRevision": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "armProductEntries": [
+    {
+      "label": "ts-control",
+      "indexSha256": "2f8bc94668be7111c6f615a54448b5346e47d6087749c8ca6c3d6c7a4f98931f"
+    },
+    {
+      "label": "ts-final",
+      "indexSha256": "20066dedd5b362f3e02becd710630049540ea05adc19e99a1b7ec01d841110da"
+    }
+  ],
+  "workerPath": "/tmp/issue619-followup-20261121/benchmark-final/receipt-worker.mjs",
+  "controlRevision": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "start": "2026-11-21T19:38:49.532Z",
+  "timingStatus": "COMPLETED",
+  "end": "2026-11-21T19:42:13.736Z",
+  "completed": 84,
+  "lifecycleErrors": 0
+}

@@ -1,0 +1,1247 @@
+{
+  "id": "duplicate-labelled",
+  "family": "flowchart",
+  "source": "flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA -->|first| D\nB --> C\nA -->|second| D",
+  "ok": true,
+  "layout": {
+    "version": 1,
+    "kind": "flowchart",
+    "nodes": [
+      {
+        "id": "A",
+        "x": 45.403999999999996,
+        "y": 40,
+        "w": 65.662,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "One",
+        "labelBounds": {
+          "x": 65.404,
+          "y": 50,
+          "w": 25.662,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 45.403999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "B",
+        "x": 158.688,
+        "y": 40.000000000000014,
+        "w": 67.14399999999999,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Two",
+        "labelBounds": {
+          "x": 178.688,
+          "y": 50.000000000000014,
+          "w": 27.143999999999995,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 158.688,
+          "y": 40.000000000000014,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "C",
+        "x": 152.76,
+        "y": 124.90000000000002,
+        "w": 79,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Three",
+        "labelBounds": {
+          "x": 172.76,
+          "y": 134.90000000000003,
+          "w": 39,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 152.76,
+          "y": 124.90000000000002,
+          "w": 79,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "D",
+        "x": 42.44,
+        "y": 193.2,
+        "w": 71.59,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Four",
+        "labelBounds": {
+          "x": 62.44,
+          "y": 203.2,
+          "w": 31.589999999999996,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 42.44,
+          "y": 193.2,
+          "w": 71.59,
+          "h": 36.900000000000006
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "A->D",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            66.30333333333334,
+            76.9
+          ],
+          [
+            66.30333333333334,
+            193.2
+          ]
+        ],
+        "label": {
+          "x": 66.30333333333334,
+          "y": 102.74,
+          "text": "first",
+          "bounds": {
+            "x": 56.56833333333334,
+            "y": 95.58999999999999,
+            "w": 19.47,
+            "h": 14.3
+          }
+        },
+        "route": {
+          "edgeIndex": 0,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "directLaneClear": true,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 2,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 2,
+            "role": "flow-target"
+          },
+          "invariant": "straight",
+          "straightened": true
+        }
+      },
+      {
+        "id": "B->C",
+        "from": "B",
+        "to": "C",
+        "path": [
+          [
+            192.26,
+            76.90000000000002
+          ],
+          [
+            192.26,
+            124.90000000000002
+          ]
+        ],
+        "route": {
+          "edgeIndex": 1,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "sourcePort": "S",
+          "targetPort": "N",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-target",
+            "port": "N"
+          },
+          "invariant": "straight"
+        }
+      },
+      {
+        "id": "A->D#1",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            102.47,
+            76.9
+          ],
+          [
+            102.47,
+            193.2
+          ]
+        ],
+        "label": {
+          "x": 102.47,
+          "y": 143.64999999999998,
+          "text": "second",
+          "bounds": {
+            "x": 83.825,
+            "y": 136.49999999999997,
+            "w": 37.29,
+            "h": 14.3
+          }
+        },
+        "route": {
+          "edgeIndex": 2,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "directLaneClear": true,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 1,
+            "slotCount": 2,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 1,
+            "slotCount": 2,
+            "role": "flow-target"
+          },
+          "invariant": "straight",
+          "straightened": true
+        }
+      }
+    ],
+    "groups": [],
+    "bounds": {
+      "w": 271.76,
+      "h": 270.1
+    },
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.76,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 17,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 4,
+        "occlusionPairs": 27,
+        "maxOcclusionPairs": 100000,
+        "operations": 22027,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "regions": [
+      {
+        "id": "canvas",
+        "kind": "canvas",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "w": 271.76,
+          "h": 270.1
+        }
+      },
+      {
+        "id": "node:A",
+        "kind": "node",
+        "elementId": "A",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 45.403999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 2
+      },
+      {
+        "id": "node:B",
+        "kind": "node",
+        "elementId": "B",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 158.688,
+          "y": 40.000000000000014,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 3
+      },
+      {
+        "id": "node:C",
+        "kind": "node",
+        "elementId": "C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 152.76,
+          "y": 124.90000000000002,
+          "w": 79,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 4
+      },
+      {
+        "id": "node:D",
+        "kind": "node",
+        "elementId": "D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 42.44,
+          "y": 193.2,
+          "w": 71.59,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 5
+      },
+      {
+        "id": "edge:A->D",
+        "kind": "edge",
+        "elementId": "A->D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 66.30333333333334,
+          "y": 76.9,
+          "w": 1,
+          "h": 116.29999999999998
+        }
+      },
+      {
+        "id": "label:A->D",
+        "kind": "label",
+        "elementId": "A->D",
+        "parentId": "edge:A->D",
+        "bounds": {
+          "x": 48.80333333333334,
+          "y": 95.74,
+          "w": 35,
+          "h": 14
+        }
+      },
+      {
+        "id": "edge:B->C",
+        "kind": "edge",
+        "elementId": "B->C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 192.26,
+          "y": 76.90000000000002,
+          "w": 1,
+          "h": 48
+        }
+      },
+      {
+        "id": "edge:A->D#1",
+        "kind": "edge",
+        "elementId": "A->D#1",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 102.47,
+          "y": 76.9,
+          "w": 1,
+          "h": 116.29999999999998
+        }
+      },
+      {
+        "id": "label:A->D#1",
+        "kind": "label",
+        "elementId": "A->D#1",
+        "parentId": "edge:A->D#1",
+        "bounds": {
+          "x": 81.47,
+          "y": 136.64999999999998,
+          "w": 42,
+          "h": 14
+        }
+      }
+    ],
+    "actions": []
+  },
+  "layoutReceipt": {
+    "version": 2,
+    "output": "layout",
+    "sharedRequestDigest": "fnv1a64:18f043fef6a354ce",
+    "requestDigest": "fnv1a64:810693d9deb54476",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:project-positioned",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 0,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 0,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.76,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 17,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 4,
+        "occlusionPairs": 27,
+        "maxOcclusionPairs": 100000,
+        "operations": 22027,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "metrics": {
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.76,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 17,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 4,
+        "occlusionPairs": 27,
+        "maxOcclusionPairs": 100000,
+        "operations": 22027,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "edgeCrossings": 0,
+    "labelLegibility": 1,
+    "labelMeasurement": {
+      "measuredNodes": 4,
+      "unmeasuredNodes": 0,
+      "hiddenNodes": 0,
+      "semanticNodes": 0,
+      "measuredEdges": 2,
+      "unmeasuredEdges": 0,
+      "measuredLabels": 0,
+      "unmeasuredLabels": 0,
+      "hiddenLabels": 0,
+      "semanticLabels": 0
+    },
+    "whitespaceBalance": 0.14246558449279625,
+    "labelEdgeProximity": 17.52166666666666,
+    "labelConflicts": {
+      "total": 0,
+      "labelLabel": 0,
+      "labelNode": 0,
+      "labelEdge": 0
+    },
+    "routeOverlaps": {
+      "parallel": 0,
+      "opposing": 0
+    },
+    "routeGeometry": {
+      "bends": 0,
+      "length": 280.59999999999997,
+      "area": 73402.376
+    },
+    "minimumNodeSpacing": 47.621999999999986,
+    "elementDensity": 0.9536476039958162,
+    "minimumTextContrast": 14.894588477600598,
+    "aspectRatio": 1.0061458718992964,
+    "nodeCount": 4,
+    "edgeCount": 3
+  },
+  "svgReceipt": {
+    "version": 2,
+    "output": "svg",
+    "sharedRequestDigest": "fnv1a64:e6225388a26b93b7",
+    "requestDigest": "fnv1a64:a0359c2f9b596313",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:lower-scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "backend:scene-renderer",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/resources/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/interaction/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/transform/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/topology/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/subpaths/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/closedness/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/bend-radius/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-opacity/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-cap/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-join/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-miter/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-array/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-offset/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-restart/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/path-length/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/paint-order/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/compositing/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/non-scaling-stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-orientation/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-overflow/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/endpoints/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/direction/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/markers/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/relation/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/interaction/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/hit-geometry/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:svg",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "executionDecision": {
+      "family": {
+        "id": "family:flowchart",
+        "version": "1.0.0"
+      },
+      "backend": {
+        "mode": "scene",
+        "requestedId": "default",
+        "selectedId": "backend:default",
+        "version": "1.0.0",
+        "hostPolicy": false
+      },
+      "digest": "fnv1a64:086cc5e1e80cddcb"
+    },
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 0,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 0,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "graphicalProjectionDigest": "fnv1a64:b3d5e2dc9f642656",
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.76,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 17,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 4,
+        "occlusionPairs": 27,
+        "maxOcclusionPairs": 100000,
+        "operations": 22027,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:b3d5e2dc9f642656"
+    }
+  },
+  "verify": {
+    "ok": true,
+    "warnings": [],
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "A",
+          "x": 45.403999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "One",
+          "labelBounds": {
+            "x": 65.404,
+            "y": 50,
+            "w": 25.662,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 45.403999999999996,
+            "y": 40,
+            "w": 65.662,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "B",
+          "x": 158.688,
+          "y": 40.000000000000014,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Two",
+          "labelBounds": {
+            "x": 178.688,
+            "y": 50.000000000000014,
+            "w": 27.143999999999995,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 158.688,
+            "y": 40.000000000000014,
+            "w": 67.14399999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "C",
+          "x": 152.76,
+          "y": 124.90000000000002,
+          "w": 79,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Three",
+          "labelBounds": {
+            "x": 172.76,
+            "y": 134.90000000000003,
+            "w": 39,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 152.76,
+            "y": 124.90000000000002,
+            "w": 79,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "D",
+          "x": 42.44,
+          "y": 193.2,
+          "w": 71.59,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Four",
+          "labelBounds": {
+            "x": 62.44,
+            "y": 203.2,
+            "w": 31.589999999999996,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 42.44,
+            "y": 193.2,
+            "w": 71.59,
+            "h": 36.900000000000006
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->D",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              66.30333333333334,
+              76.9
+            ],
+            [
+              66.30333333333334,
+              193.2
+            ]
+          ],
+          "label": {
+            "x": 66.30333333333334,
+            "y": 102.74,
+            "text": "first",
+            "bounds": {
+              "x": 56.56833333333334,
+              "y": 95.58999999999999,
+              "w": 19.47,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "B->C",
+          "from": "B",
+          "to": "C",
+          "path": [
+            [
+              192.26,
+              76.90000000000002
+            ],
+            [
+              192.26,
+              124.90000000000002
+            ]
+          ]
+        },
+        {
+          "id": "A->D#1",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              102.47,
+              76.9
+            ],
+            [
+              102.47,
+              193.2
+            ]
+          ],
+          "label": {
+            "x": 102.47,
+            "y": 143.64999999999998,
+            "text": "second",
+            "bounds": {
+              "x": 83.825,
+              "y": 136.49999999999997,
+              "w": 37.29,
+              "h": 14.3
+            }
+          }
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 271.76,
+        "h": 270.1
+      }
+    },
+    "checks": {
+      "renderability": "passed",
+      "sourceLoss": "not-detected",
+      "taskCorrectness": "not-checked"
+    },
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 271.76,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 17,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 4,
+        "occlusionPairs": 27,
+        "maxOcclusionPairs": 100000,
+        "operations": 704,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "trace": [],
+  "guard": []
+}

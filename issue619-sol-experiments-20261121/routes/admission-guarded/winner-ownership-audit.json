@@ -1,0 +1,565 @@
+{
+  "incumbent": {
+    "svgSha256": "b2b8c0575018570ffd6939da566f9af2cc6dc5de62d0bf3f41dc809971eb81b9",
+    "nodeLabels": [
+      [
+        "A",
+        "One"
+      ],
+      [
+        "B",
+        "Two"
+      ],
+      [
+        "C",
+        "Three"
+      ],
+      [
+        "D",
+        "Four"
+      ]
+    ],
+    "edges": [
+      [
+        "A->D",
+        "A",
+        "D",
+        [
+          [
+            74.723,
+            76.9
+          ],
+          [
+            74.723,
+            106.9
+          ],
+          [
+            175.79500000000002,
+            106.9
+          ],
+          [
+            175.79500000000002,
+            137.65
+          ]
+        ],
+        {
+          "edgeIndex": 0,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      ],
+      [
+        "B->C",
+        "B",
+        "C",
+        [
+          [
+            176.12599999999998,
+            76.9
+          ],
+          [
+            176.12599999999998,
+            113.275
+          ],
+          [
+            79.5,
+            113.275
+          ],
+          [
+            79.5,
+            137.65
+          ]
+        ],
+        {
+          "edgeIndex": 1,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "directLaneClear": false,
+          "directLaneBlockedBy": [
+            {
+              "kind": "span",
+              "id": "B->C"
+            }
+          ],
+          "sourcePort": "S",
+          "targetPort": "N",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-target",
+            "port": "N"
+          },
+          "invariant": "explained-detour"
+        }
+      ],
+      [
+        "A->D#1",
+        "A",
+        "D",
+        [
+          [
+            88.723,
+            76.9
+          ],
+          [
+            88.723,
+            92.9
+          ],
+          [
+            189.79500000000002,
+            92.9
+          ],
+          [
+            189.79500000000002,
+            137.65
+          ]
+        ],
+        {
+          "edgeIndex": 2,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      ],
+      [
+        "D->A",
+        "D",
+        "A",
+        [
+          [
+            200.6925,
+            137.65
+          ],
+          [
+            200.6925,
+            89.275
+          ],
+          [
+            98.13850000000001,
+            89.275
+          ],
+          [
+            98.13850000000001,
+            76.9
+          ]
+        ],
+        {
+          "edgeIndex": 3,
+          "routeClass": "feedback",
+          "bendCount": 2,
+          "directLaneClear": false,
+          "directLaneBlockedBy": [
+            {
+              "kind": "span",
+              "id": "D->A"
+            }
+          ],
+          "sourcePortAssignment": {
+            "side": "N",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "feedback-source"
+          },
+          "targetPortAssignment": {
+            "side": "S",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "feedback-target"
+          },
+          "invariant": "feedback-detour"
+        }
+      ]
+    ],
+    "svgOwnedInk": [
+      {
+        "data-id": "edge:A->D#0",
+        "data-from": "A",
+        "data-to": "D",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "74.723,76.9 74.723,106.9 175.795,106.9 175.795,137.65",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:B->C#0",
+        "data-from": "B",
+        "data-to": "C",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "176.126,76.9 176.126,113.275 79.5,113.275 79.5,137.65",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:A->D#1",
+        "data-from": "A",
+        "data-to": "D",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "88.723,76.9 88.723,92.9 189.795,92.9 189.795,137.65",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:D->A#0",
+        "data-from": "D",
+        "data-to": "A",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "200.6925,137.65 200.6925,89.275 98.1385,89.275 98.1385,76.9",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      }
+    ],
+    "sharedSpans": [],
+    "paint": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 214.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 52,
+        "maxOcclusionPairs": 100000,
+        "operations": 22397,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:0d3422211aad223c"
+    },
+    "meaning": {
+      "ok": true,
+      "checks": {
+        "renderability": "passed",
+        "sourceLoss": "not-detected",
+        "taskCorrectness": "not-checked"
+      },
+      "warnings": [
+        {
+          "code": "DUPLICATE_EDGE",
+          "edge": "A->D#1",
+          "duplicateOf": "A->D#0",
+          "from": "A",
+          "to": "D"
+        }
+      ]
+    }
+  },
+  "admitted": {
+    "svgSha256": "a72aab1e5d6ea63c475e6fddebb562a9124df32e57e95b06e4493f70415536c5",
+    "nodeLabels": [
+      [
+        "A",
+        "One"
+      ],
+      [
+        "B",
+        "Two"
+      ],
+      [
+        "C",
+        "Three"
+      ],
+      [
+        "D",
+        "Four"
+      ]
+    ],
+    "edges": [
+      [
+        "A->D",
+        "A",
+        "D",
+        [
+          [
+            68.795,
+            76.9
+          ],
+          [
+            68.795,
+            124.9
+          ]
+        ],
+        {
+          "edgeIndex": 0,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      ],
+      [
+        "B->C",
+        "B",
+        "C",
+        [
+          [
+            179.09,
+            76.9
+          ],
+          [
+            179.09,
+            124.9
+          ]
+        ],
+        {
+          "edgeIndex": 1,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "sourcePort": "S",
+          "targetPort": "N",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-target",
+            "port": "N"
+          },
+          "invariant": "straight"
+        }
+      ],
+      [
+        "A->D#1",
+        "A",
+        "D",
+        [
+          [
+            82.795,
+            76.9
+          ],
+          [
+            82.795,
+            124.9
+          ]
+        ],
+        {
+          "edgeIndex": 2,
+          "routeClass": "primary-forward",
+          "bendCount": 0,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 2,
+            "slotCount": 3,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      ],
+      [
+        "D->A",
+        "D",
+        "A",
+        [
+          [
+            75.795,
+            124.9
+          ],
+          [
+            75.795,
+            76.9
+          ]
+        ],
+        {
+          "edgeIndex": 3,
+          "routeClass": "feedback",
+          "bendCount": 0,
+          "directLaneClear": true,
+          "sourcePort": "N",
+          "targetPort": "S",
+          "sourcePortAssignment": {
+            "side": "N",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "feedback-source",
+            "port": "N"
+          },
+          "targetPortAssignment": {
+            "side": "S",
+            "slotIndex": 1,
+            "slotCount": 3,
+            "role": "feedback-target",
+            "port": "S"
+          },
+          "invariant": "straight",
+          "straightened": true
+        }
+      ]
+    ],
+    "svgOwnedInk": [
+      {
+        "data-id": "edge:A->D#0",
+        "data-from": "A",
+        "data-to": "D",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "68.795,76.9 68.795,124.9",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:B->C#0",
+        "data-from": "B",
+        "data-to": "C",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "179.09,76.9 179.09,124.9",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:A->D#1",
+        "data-from": "A",
+        "data-to": "D",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "82.795,76.9 82.795,124.9",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      },
+      {
+        "data-id": "edge:D->A#0",
+        "data-from": "D",
+        "data-to": "A",
+        "data-arrow-start": "false",
+        "data-arrow-end": "true",
+        "data-marker-end": "arrow",
+        "points": "75.795,124.9 75.795,76.9",
+        "marker-end": "url(#admission-exp-arrowhead)"
+      }
+    ],
+    "sharedSpans": [],
+    "paint": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 201.8
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 12,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 15,
+        "labels": 4,
+        "occlusionPairs": 20,
+        "maxOcclusionPairs": 100000,
+        "operations": 22221,
+        "maxOperations": 400000,
+        "markers": 4
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:0a396efb552c622e"
+    },
+    "meaning": {
+      "ok": true,
+      "checks": {
+        "renderability": "passed",
+        "sourceLoss": "not-detected",
+        "taskCorrectness": "not-checked"
+      },
+      "warnings": [
+        {
+          "code": "DUPLICATE_EDGE",
+          "edge": "A->D#1",
+          "duplicateOf": "A->D#0",
+          "from": "A",
+          "to": "D"
+        }
+      ]
+    }
+  },
+  "scope": "Independent read of completed public paths and actual SVG relationship ink. Every authored occurrence is a separate path and arrow marker reference. Stroke/marker nonocclusion uses complete public paint certification."
+}

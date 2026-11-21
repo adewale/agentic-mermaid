@@ -1,0 +1,2135 @@
+{
+  "summary": {
+    "id": "auth",
+    "arm": "declared-forced",
+    "ok": true,
+    "sourceHash": "ba4fff18ce70fa9224e3f8fd6e21a32f161492040a8b452cec409eaed168fcbc",
+    "svgHash": "3a280746c57baa815a462445fa34851b304cfe2198c2103565cc41ddfae4707d",
+    "size": [
+      1647.5770000000002,
+      380.98041666666666
+    ],
+    "metrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1647.577,
+          "height": 380.980416667
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 45,
+          "unmeasured": 0,
+          "preparedText": 15,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 48,
+          "labels": 8,
+          "occlusionPairs": 115,
+          "maxOcclusionPairs": 100000,
+          "operations": 30811,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 8,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 6,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.14801994512283168,
+      "labelEdgeProximity": 18.414666666666648,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 9,
+        "length": 1893.6936666666668,
+        "area": 627694.5719504168
+      },
+      "minimumNodeSpacing": 47.99999999999977,
+      "elementDensity": 0.28676367144723164,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 4.324571363576212,
+      "nodeCount": 8,
+      "edgeCount": 10
+    },
+    "paint": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1647.577,
+        "height": 380.980416667
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 45,
+        "unmeasured": 0,
+        "preparedText": 15,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 48,
+        "labels": 8,
+        "occlusionPairs": 115,
+        "maxOcclusionPairs": 100000,
+        "operations": 30811,
+        "maxOperations": 400000,
+        "markers": 10
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:5fd4514062fa95e6"
+    },
+    "raw": [
+      {
+        "size": [
+          1647.5770000000002,
+          336.73041666666666
+        ],
+        "crossings": 0
+      }
+    ],
+    "trace": [
+      {
+        "feedback": [
+          "e2",
+          "e6"
+        ],
+        "ranks": [
+          [
+            "A"
+          ],
+          [
+            "B"
+          ],
+          [],
+          [
+            "C"
+          ],
+          [],
+          [
+            "D"
+          ],
+          [],
+          [
+            "E"
+          ],
+          [],
+          [
+            "F"
+          ],
+          [],
+          [
+            "G"
+          ],
+          [
+            "H"
+          ]
+        ],
+        "finalOrder": [
+          [
+            "A"
+          ],
+          [
+            "B"
+          ],
+          [],
+          [
+            "C"
+          ],
+          [],
+          [
+            "D"
+          ],
+          [],
+          [
+            "E"
+          ],
+          [],
+          [
+            "F"
+          ],
+          [],
+          [
+            "G"
+          ],
+          [
+            "H"
+          ]
+        ]
+      }
+    ],
+    "meaning": {
+      "nodes": [
+        {
+          "id": "A",
+          "label": "User"
+        },
+        {
+          "id": "B",
+          "label": "Login Page"
+        },
+        {
+          "id": "C",
+          "label": "Valid Credentials?"
+        },
+        {
+          "id": "D",
+          "label": "MFA Enabled?"
+        },
+        {
+          "id": "E",
+          "label": "Enter MFA Code"
+        },
+        {
+          "id": "F",
+          "label": "Code Valid?"
+        },
+        {
+          "id": "G",
+          "label": "Create Session"
+        },
+        {
+          "id": "H",
+          "label": "Dashboard"
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->B",
+          "from": "A",
+          "to": "B"
+        },
+        {
+          "id": "B->C",
+          "from": "B",
+          "to": "C"
+        },
+        {
+          "id": "C->B",
+          "from": "C",
+          "to": "B",
+          "label": {
+            "x": 257.61199999999997,
+            "y": 320.98041666666666,
+            "text": "No",
+            "bounds": {
+              "x": 250.25299999999996,
+              "y": 313.8304166666667,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "C->D",
+          "from": "C",
+          "to": "D",
+          "label": {
+            "x": 552.6949999999999,
+            "y": 225.13291666666666,
+            "text": "Yes",
+            "bounds": {
+              "x": 542.366,
+              "y": 217.98291666666665,
+              "w": 20.658,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "D->E",
+          "from": "D",
+          "to": "E",
+          "label": {
+            "x": 824.5535,
+            "y": 225.13291666666666,
+            "text": "Yes",
+            "bounds": {
+              "x": 814.2245,
+              "y": 217.98291666666665,
+              "w": 20.658,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "E->F",
+          "from": "E",
+          "to": "F"
+        },
+        {
+          "id": "F->E",
+          "from": "F",
+          "to": "E",
+          "label": {
+            "x": 1020.7320000000001,
+            "y": 220.895,
+            "text": "No",
+            "bounds": {
+              "x": 1013.373,
+              "y": 213.745,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "D->G",
+          "from": "D",
+          "to": "G",
+          "label": {
+            "x": 930.3878888888888,
+            "y": 250.6975833333333,
+            "text": "No",
+            "bounds": {
+              "x": 923.0288888888888,
+              "y": 243.5475833333333,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "F->G",
+          "from": "F",
+          "to": "G",
+          "label": {
+            "x": 1272.4208333333331,
+            "y": 143.5725,
+            "text": "Yes",
+            "bounds": {
+              "x": 1262.0918333333332,
+              "y": 136.42249999999999,
+              "w": 20.658,
+              "h": 14.3
+            }
+          }
+        },
+        {
+          "id": "G->H",
+          "from": "G",
+          "to": "H"
+        }
+      ],
+      "authPrimary": [
+        {
+          "id": "A",
+          "x": 40
+        },
+        {
+          "id": "B",
+          "x": 159.59
+        },
+        {
+          "id": "C",
+          "x": 316.971
+        },
+        {
+          "id": "D",
+          "x": 615.024
+        },
+        {
+          "id": "E",
+          "x": 893.07
+        },
+        {
+          "id": "F",
+          "x": 1080.091
+        },
+        {
+          "id": "G",
+          "x": 1317.844
+        },
+        {
+          "id": "H",
+          "x": 1498.937
+        }
+      ],
+      "authReturns": [
+        {
+          "id": "C->B",
+          "start": [
+            403.6685,
+            311.8304166666667
+          ],
+          "end": [
+            214.28050000000002,
+            243.58291666666668
+          ]
+        },
+        {
+          "id": "F->E",
+          "start": [
+            1148.2634999999998,
+            211.745
+          ],
+          "end": [
+            962.5805,
+            162.0225
+          ]
+        }
+      ]
+    },
+    "pairs": [],
+    "inputs": [
+      {
+        "id": "auth",
+        "ordinal": 8,
+        "baselineInputHash": "2ae163ef6832a18568a5537072bf9099383d2a066bd0d514f2ae9b8f738e7244",
+        "actualInputHash": "2ae163ef6832a18568a5537072bf9099383d2a066bd0d514f2ae9b8f738e7244",
+        "children": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ]
+      },
+      {
+        "id": "auth",
+        "ordinal": 9,
+        "baselineInputHash": "2ae163ef6832a18568a5537072bf9099383d2a066bd0d514f2ae9b8f738e7244",
+        "actualInputHash": "2ae163ef6832a18568a5537072bf9099383d2a066bd0d514f2ae9b8f738e7244",
+        "children": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ]
+      }
+    ]
+  },
+  "sample": {
+    "id": "auth",
+    "family": "flowchart",
+    "source": "---\ntitle: Auth Flow\n---\nflowchart LR\n  A[User] --> B[Login Page]\n  B --> C{Valid Credentials?}\n  C -->|No| B\n  C -->|Yes| D{MFA Enabled?}\n  D -->|Yes| E[Enter MFA Code]\n  E --> F{Code Valid?}\n  F -->|No| E\n  D -->|No| G[Create Session]\n  F -->|Yes| G\n  G --> H[Dashboard]\n",
+    "ok": true,
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "A",
+          "x": 40,
+          "y": 206.68291666666667,
+          "w": 71.59,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "User",
+          "labelBounds": {
+            "x": 60,
+            "y": 216.6829166666667,
+            "w": 31.589999999999996,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 40,
+            "y": 206.68291666666667,
+            "w": 71.59,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "B",
+          "x": 159.59,
+          "y": 206.68291666666667,
+          "w": 109.381,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Login Page",
+          "labelBounds": {
+            "x": 179.59000000000003,
+            "y": 216.6829166666667,
+            "w": 69.381,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 159.59,
+            "y": 206.68291666666667,
+            "w": 109.381,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "C",
+          "x": 316.971,
+          "y": 138.43541666666667,
+          "w": 173.395,
+          "h": 173.395,
+          "shape": "diamond",
+          "label": "Valid Credentials?",
+          "labelBounds": {
+            "x": 348.971,
+            "y": 216.6829166666667,
+            "w": 109.39500000000001,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 316.971,
+            "y": 138.43541666666667,
+            "w": 173.395,
+            "h": 173.395
+          }
+        },
+        {
+          "id": "D",
+          "x": 615.024,
+          "y": 148.43891666666667,
+          "w": 153.388,
+          "h": 153.388,
+          "shape": "diamond",
+          "label": "MFA Enabled?",
+          "labelBounds": {
+            "x": 647.024,
+            "y": 216.6829166666667,
+            "w": 89.388,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 615.024,
+            "y": 148.43891666666667,
+            "w": 153.388,
+            "h": 153.388
+          }
+        },
+        {
+          "id": "E",
+          "x": 893.07,
+          "y": 125.1225,
+          "w": 139.021,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Enter MFA Code",
+          "labelBounds": {
+            "x": 913.07,
+            "y": 135.1225,
+            "w": 99.02099999999999,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 893.07,
+            "y": 125.1225,
+            "w": 139.021,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "F",
+          "x": 1080.091,
+          "y": 75.4,
+          "w": 136.345,
+          "h": 136.345,
+          "shape": "diamond",
+          "label": "Code Valid?",
+          "labelBounds": {
+            "x": 1112.091,
+            "y": 135.1225,
+            "w": 72.345,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1080.091,
+            "y": 75.4,
+            "w": 136.345,
+            "h": 136.345
+          }
+        },
+        {
+          "id": "G",
+          "x": 1317.844,
+          "y": 169.49666666666667,
+          "w": 133.09300000000002,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Create Session",
+          "labelBounds": {
+            "x": 1337.844,
+            "y": 179.49666666666667,
+            "w": 93.093,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1317.844,
+            "y": 169.49666666666667,
+            "w": 133.09300000000002,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "H",
+          "x": 1498.937,
+          "y": 169.49666666666667,
+          "w": 108.64,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Dashboard",
+          "labelBounds": {
+            "x": 1518.937,
+            "y": 179.49666666666667,
+            "w": 68.64,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 1498.937,
+            "y": 169.49666666666667,
+            "w": 108.64,
+            "h": 36.900000000000006
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->B",
+          "from": "A",
+          "to": "B",
+          "path": [
+            [
+              111.59,
+              225.13291666666666
+            ],
+            [
+              159.59,
+              225.13291666666666
+            ]
+          ],
+          "route": {
+            "edgeIndex": 0,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "E",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "B->C",
+          "from": "B",
+          "to": "C",
+          "path": [
+            [
+              268.971,
+              225.13291666666666
+            ],
+            [
+              316.971,
+              225.13291666666666
+            ]
+          ],
+          "route": {
+            "edgeIndex": 1,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "E",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "C->B",
+          "from": "C",
+          "to": "B",
+          "path": [
+            [
+              403.6685,
+              311.8304166666667
+            ],
+            [
+              403.6685,
+              321.8304166666667
+            ],
+            [
+              214.28050000000002,
+              321.8304166666667
+            ],
+            [
+              214.28050000000002,
+              243.58291666666668
+            ]
+          ],
+          "label": {
+            "x": 257.61199999999997,
+            "y": 320.98041666666666,
+            "text": "No",
+            "bounds": {
+              "x": 250.25299999999996,
+              "y": 313.8304166666667,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 2,
+            "routeClass": "feedback",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "channel",
+                "id": "B->C"
+              },
+              {
+                "kind": "span",
+                "id": "C->B"
+              },
+              {
+                "kind": "label",
+                "id": "C->B"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-target",
+              "port": "S"
+            },
+            "invariant": "outer-feedback"
+          }
+        },
+        {
+          "id": "C->D",
+          "from": "C",
+          "to": "D",
+          "path": [
+            [
+              490.366,
+              225.13291666666666
+            ],
+            [
+              615.024,
+              225.13291666666666
+            ]
+          ],
+          "label": {
+            "x": 552.6949999999999,
+            "y": 225.13291666666666,
+            "text": "Yes",
+            "bounds": {
+              "x": 542.366,
+              "y": 217.98291666666665,
+              "w": 20.658,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 3,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "E",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "D->E",
+          "from": "D",
+          "to": "E",
+          "path": [
+            [
+              768.4119999999999,
+              225.13291666666666
+            ],
+            [
+              880.695,
+              225.13291666666666
+            ],
+            [
+              880.695,
+              137.4225
+            ],
+            [
+              893.07,
+              137.4225
+            ]
+          ],
+          "label": {
+            "x": 824.5535,
+            "y": 225.13291666666666,
+            "text": "Yes",
+            "bounds": {
+              "x": 814.2245,
+              "y": 217.98291666666665,
+              "w": 20.658,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 4,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "D->E"
+              }
+            ],
+            "sourcePort": "E",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 2,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "E->F",
+          "from": "E",
+          "to": "F",
+          "path": [
+            [
+              1032.091,
+              143.5725
+            ],
+            [
+              1080.091,
+              143.5725
+            ]
+          ],
+          "route": {
+            "edgeIndex": 5,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "E",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "straight"
+          }
+        },
+        {
+          "id": "F->E",
+          "from": "F",
+          "to": "E",
+          "path": [
+            [
+              1148.2634999999998,
+              211.745
+            ],
+            [
+              1148.2634999999998,
+              221.745
+            ],
+            [
+              962.5805,
+              221.745
+            ],
+            [
+              962.5805,
+              162.0225
+            ]
+          ],
+          "label": {
+            "x": 1020.7320000000001,
+            "y": 220.895,
+            "text": "No",
+            "bounds": {
+              "x": 1013.373,
+              "y": 213.745,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 6,
+            "routeClass": "feedback",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "channel",
+                "id": "E->F"
+              },
+              {
+                "kind": "span",
+                "id": "F->E"
+              },
+              {
+                "kind": "label",
+                "id": "F->E"
+              }
+            ],
+            "sourcePort": "S",
+            "targetPort": "S",
+            "sourcePortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-source",
+              "port": "S"
+            },
+            "targetPortAssignment": {
+              "side": "S",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "feedback-target",
+              "port": "S"
+            },
+            "invariant": "outer-feedback"
+          }
+        },
+        {
+          "id": "D->G",
+          "from": "D",
+          "to": "G",
+          "path": [
+            [
+              742.8473333333333,
+              250.6975833333333
+            ],
+            [
+              1305.469,
+              250.6975833333333
+            ],
+            [
+              1305.469,
+              187.9466666666667
+            ],
+            [
+              1317.844,
+              187.9466666666667
+            ]
+          ],
+          "label": {
+            "x": 930.3878888888888,
+            "y": 250.6975833333333,
+            "text": "No",
+            "bounds": {
+              "x": 923.0288888888888,
+              "y": 243.5475833333333,
+              "w": 14.718000000000004,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 7,
+            "routeClass": "primary-forward",
+            "bendCount": 2,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "D->G"
+              },
+              {
+                "kind": "node",
+                "id": "F"
+              }
+            ],
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 1,
+              "slotCount": 2,
+              "role": "flow-source"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "F->G",
+          "from": "F",
+          "to": "G",
+          "path": [
+            [
+              1216.4359999999997,
+              143.5725
+            ],
+            [
+              1384.3905,
+              143.5725
+            ],
+            [
+              1384.3905,
+              169.49666666666667
+            ]
+          ],
+          "label": {
+            "x": 1272.4208333333331,
+            "y": 143.5725,
+            "text": "Yes",
+            "bounds": {
+              "x": 1262.0918333333332,
+              "y": 136.42249999999999,
+              "w": 20.658,
+              "h": 14.3
+            }
+          },
+          "route": {
+            "edgeIndex": 8,
+            "routeClass": "primary-forward",
+            "bendCount": 1,
+            "directLaneClear": false,
+            "directLaneBlockedBy": [
+              {
+                "kind": "span",
+                "id": "F->G"
+              }
+            ],
+            "sourcePort": "E",
+            "targetPort": "N",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "N",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "N"
+            },
+            "invariant": "explained-detour"
+          }
+        },
+        {
+          "id": "G->H",
+          "from": "G",
+          "to": "H",
+          "path": [
+            [
+              1450.937,
+              187.9466666666667
+            ],
+            [
+              1498.937,
+              187.9466666666667
+            ]
+          ],
+          "route": {
+            "edgeIndex": 9,
+            "routeClass": "primary-forward",
+            "bendCount": 0,
+            "sourcePort": "E",
+            "targetPort": "W",
+            "sourcePortAssignment": {
+              "side": "E",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-source",
+              "port": "E"
+            },
+            "targetPortAssignment": {
+              "side": "W",
+              "slotIndex": 0,
+              "slotCount": 1,
+              "role": "flow-target",
+              "port": "W"
+            },
+            "invariant": "straight"
+          }
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 1647.5770000000002,
+        "h": 380.98041666666666
+      },
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1647.577,
+          "height": 380.980416667
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 45,
+          "unmeasured": 0,
+          "preparedText": 15,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 48,
+          "labels": 8,
+          "occlusionPairs": 115,
+          "maxOcclusionPairs": 100000,
+          "operations": 30811,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "regions": [
+        {
+          "id": "canvas",
+          "kind": "canvas",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 1647.5770000000002,
+            "h": 380.98041666666666
+          }
+        },
+        {
+          "id": "node:A",
+          "kind": "node",
+          "elementId": "A",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 40,
+            "y": 206.68291666666667,
+            "w": 71.59,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 2
+        },
+        {
+          "id": "node:B",
+          "kind": "node",
+          "elementId": "B",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 159.59,
+            "y": 206.68291666666667,
+            "w": 109.381,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 2
+        },
+        {
+          "id": "node:C",
+          "kind": "node",
+          "elementId": "C",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 316.971,
+            "y": 138.43541666666667,
+            "w": 173.395,
+            "h": 173.395
+          },
+          "sourceLine": 3
+        },
+        {
+          "id": "node:D",
+          "kind": "node",
+          "elementId": "D",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 615.024,
+            "y": 148.43891666666667,
+            "w": 153.388,
+            "h": 153.388
+          },
+          "sourceLine": 5
+        },
+        {
+          "id": "node:E",
+          "kind": "node",
+          "elementId": "E",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 893.07,
+            "y": 125.1225,
+            "w": 139.021,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 6
+        },
+        {
+          "id": "node:F",
+          "kind": "node",
+          "elementId": "F",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1080.091,
+            "y": 75.4,
+            "w": 136.345,
+            "h": 136.345
+          },
+          "sourceLine": 7
+        },
+        {
+          "id": "node:G",
+          "kind": "node",
+          "elementId": "G",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1317.844,
+            "y": 169.49666666666667,
+            "w": 133.09300000000002,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 9
+        },
+        {
+          "id": "node:H",
+          "kind": "node",
+          "elementId": "H",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1498.937,
+            "y": 169.49666666666667,
+            "w": 108.64,
+            "h": 36.900000000000006
+          },
+          "sourceLine": 11
+        },
+        {
+          "id": "edge:A->B",
+          "kind": "edge",
+          "elementId": "A->B",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 111.59,
+            "y": 225.13291666666666,
+            "w": 48,
+            "h": 1
+          }
+        },
+        {
+          "id": "edge:B->C",
+          "kind": "edge",
+          "elementId": "B->C",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 268.971,
+            "y": 225.13291666666666,
+            "w": 48,
+            "h": 1
+          }
+        },
+        {
+          "id": "edge:C->B",
+          "kind": "edge",
+          "elementId": "C->B",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 214.28050000000002,
+            "y": 243.58291666666668,
+            "w": 189.38799999999998,
+            "h": 78.2475
+          }
+        },
+        {
+          "id": "label:C->B",
+          "kind": "label",
+          "elementId": "C->B",
+          "parentId": "edge:C->B",
+          "bounds": {
+            "x": 250.61199999999997,
+            "y": 313.98041666666666,
+            "w": 14,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:C->D",
+          "kind": "edge",
+          "elementId": "C->D",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 490.366,
+            "y": 225.13291666666666,
+            "w": 124.65800000000002,
+            "h": 1
+          }
+        },
+        {
+          "id": "label:C->D",
+          "kind": "label",
+          "elementId": "C->D",
+          "parentId": "edge:C->D",
+          "bounds": {
+            "x": 542.1949999999999,
+            "y": 218.13291666666666,
+            "w": 21,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:D->E",
+          "kind": "edge",
+          "elementId": "D->E",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 768.4119999999999,
+            "y": 137.4225,
+            "w": 124.65800000000013,
+            "h": 87.71041666666665
+          }
+        },
+        {
+          "id": "label:D->E",
+          "kind": "label",
+          "elementId": "D->E",
+          "parentId": "edge:D->E",
+          "bounds": {
+            "x": 814.0535,
+            "y": 218.13291666666666,
+            "w": 21,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:E->F",
+          "kind": "edge",
+          "elementId": "E->F",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1032.091,
+            "y": 143.5725,
+            "w": 48,
+            "h": 1
+          }
+        },
+        {
+          "id": "edge:F->E",
+          "kind": "edge",
+          "elementId": "F->E",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 962.5805,
+            "y": 162.0225,
+            "w": 185.68299999999977,
+            "h": 59.7225
+          }
+        },
+        {
+          "id": "label:F->E",
+          "kind": "label",
+          "elementId": "F->E",
+          "parentId": "edge:F->E",
+          "bounds": {
+            "x": 1013.7320000000001,
+            "y": 213.895,
+            "w": 14,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:D->G",
+          "kind": "edge",
+          "elementId": "D->G",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 742.8473333333333,
+            "y": 187.9466666666667,
+            "w": 574.9966666666668,
+            "h": 62.750916666666626
+          }
+        },
+        {
+          "id": "label:D->G",
+          "kind": "label",
+          "elementId": "D->G",
+          "parentId": "edge:D->G",
+          "bounds": {
+            "x": 923.3878888888888,
+            "y": 243.6975833333333,
+            "w": 14,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:F->G",
+          "kind": "edge",
+          "elementId": "F->G",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1216.4359999999997,
+            "y": 143.5725,
+            "w": 167.95450000000028,
+            "h": 25.92416666666668
+          }
+        },
+        {
+          "id": "label:F->G",
+          "kind": "label",
+          "elementId": "F->G",
+          "parentId": "edge:F->G",
+          "bounds": {
+            "x": 1261.9208333333331,
+            "y": 136.5725,
+            "w": 21,
+            "h": 14
+          }
+        },
+        {
+          "id": "edge:G->H",
+          "kind": "edge",
+          "elementId": "G->H",
+          "parentId": "canvas",
+          "bounds": {
+            "x": 1450.937,
+            "y": 187.9466666666667,
+            "w": 48,
+            "h": 1
+          }
+        }
+      ],
+      "actions": []
+    },
+    "layoutReceipt": {
+      "version": 2,
+      "output": "layout",
+      "sharedRequestDigest": "fnv1a64:5fb15208a9d78593",
+      "requestDigest": "fnv1a64:a50123c837550df9",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:project-positioned",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1647.577,
+          "height": 380.980416667
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 45,
+          "unmeasured": 0,
+          "preparedText": 15,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 48,
+          "labels": 8,
+          "occlusionPairs": 115,
+          "maxOcclusionPairs": 100000,
+          "operations": 30811,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      }
+    },
+    "metrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1647.577,
+          "height": 380.980416667
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 45,
+          "unmeasured": 0,
+          "preparedText": 15,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 48,
+          "labels": 8,
+          "occlusionPairs": 115,
+          "maxOcclusionPairs": 100000,
+          "operations": 30811,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 8,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 6,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.14801994512283168,
+      "labelEdgeProximity": 18.414666666666648,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 9,
+        "length": 1893.6936666666668,
+        "area": 627694.5719504168
+      },
+      "minimumNodeSpacing": 47.99999999999977,
+      "elementDensity": 0.28676367144723164,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 4.324571363576212,
+      "nodeCount": 8,
+      "edgeCount": 10
+    },
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1647.577\" height=\"380.980416667\" viewBox=\"0 0 1647.577 380.980416667\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1vncwhh089yanz\">\n<style>\n  svg.am-1vncwhh089yanz { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1vncwhh089yanz {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<defs>\n  <marker id=\"order-arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"order-arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<text x=\"823.7885\" y=\"51.7\" class=\"diagram-title\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"600\" fill=\"#27272A\" data-id=\"diagram-title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"6.3\" textLength=\"85.86\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Auth Flow</text>\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"111.59,225.132916667 159.59,225.132916667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:A-&gt;B#0\" data-role=\"edge\" data-from=\"A\" data-to=\"B\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"A to B\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"268.971,225.132916667 316.971,225.132916667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:B-&gt;C#0\" data-role=\"edge\" data-from=\"B\" data-to=\"C\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"B to C\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"No\" points=\"403.6685,311.830416667 403.6685,321.830416667 214.2805,321.830416667 214.2805,243.582916667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:C-&gt;B#0\" data-role=\"edge\" data-from=\"C\" data-to=\"B\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"C to B: No\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Yes\" points=\"490.366,225.132916667 615.024,225.132916667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:C-&gt;D#0\" data-role=\"edge\" data-from=\"C\" data-to=\"D\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"C to D: Yes\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Yes\" points=\"768.412,225.132916667 880.695,225.132916667 880.695,137.4225 893.07,137.4225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:D-&gt;E#0\" data-role=\"edge\" data-from=\"D\" data-to=\"E\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"D to E: Yes\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1032.091,143.5725 1080.091,143.5725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:E-&gt;F#0\" data-role=\"edge\" data-from=\"E\" data-to=\"F\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"E to F\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"No\" points=\"1148.2635,211.745 1148.2635,221.745 962.5805,221.745 962.5805,162.0225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:F-&gt;E#0\" data-role=\"edge\" data-from=\"F\" data-to=\"E\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"F to E: No\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"No\" points=\"742.847333333,250.697583333 1305.469,250.697583333 1305.469,187.946666667 1317.844,187.946666667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:D-&gt;G#0\" data-role=\"edge\" data-from=\"D\" data-to=\"G\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"D to G: No\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Yes\" points=\"1216.436,143.5725 1384.3905,143.5725 1384.3905,169.496666667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:F-&gt;G#0\" data-role=\"edge\" data-from=\"F\" data-to=\"G\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"F to G: Yes\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"1450.937,187.946666667 1498.937,187.946666667\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#order-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:G-&gt;H#0\" data-role=\"edge\" data-from=\"G\" data-to=\"H\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"G to H\" />\n<g class=\"edge-label\" data-from=\"C\" data-to=\"B\" data-label=\"No\">\n  <rect class=\"edge-label-halo\" x=\"238.253\" y=\"301.830416667\" width=\"38.718\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"242.253\" y=\"305.830416667\" width=\"30.718\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"257.612\" y=\"320.980416667\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"14.718\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">No</text>\n</g>\n<g class=\"edge-label\" data-from=\"C\" data-to=\"D\" data-label=\"Yes\">\n  <rect class=\"edge-label-halo\" x=\"530.366\" y=\"205.982916667\" width=\"44.658\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"534.366\" y=\"209.982916667\" width=\"36.658\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"552.695\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"20.658\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Yes</text>\n</g>\n<g class=\"edge-label\" data-from=\"D\" data-to=\"E\" data-label=\"Yes\">\n  <rect class=\"edge-label-halo\" x=\"802.2245\" y=\"205.982916667\" width=\"44.658\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"806.2245\" y=\"209.982916667\" width=\"36.658\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"824.5535\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"20.658\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Yes</text>\n</g>\n<g class=\"edge-label\" data-from=\"F\" data-to=\"E\" data-label=\"No\">\n  <rect class=\"edge-label-halo\" x=\"1001.373\" y=\"201.745\" width=\"38.718\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1005.373\" y=\"205.745\" width=\"30.718\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1020.732\" y=\"220.895\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"14.718\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">No</text>\n</g>\n<g class=\"edge-label\" data-from=\"D\" data-to=\"G\" data-label=\"No\">\n  <rect class=\"edge-label-halo\" x=\"911.028888889\" y=\"231.547583333\" width=\"38.718\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"915.028888889\" y=\"235.547583333\" width=\"30.718\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"930.387888889\" y=\"250.697583333\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"14.718\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">No</text>\n</g>\n<g class=\"edge-label\" data-from=\"F\" data-to=\"G\" data-label=\"Yes\">\n  <rect class=\"edge-label-halo\" x=\"1250.09183333\" y=\"124.4225\" width=\"44.658\" height=\"38.3\" rx=\"4\" ry=\"4\" fill=\"#FFFFFF\" stroke=\"none\" />\n  <rect x=\"1254.09183333\" y=\"128.4225\" width=\"36.658\" height=\"30.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"1\" />\n  <text x=\"1272.42083333\" y=\"143.5725\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"20.658\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Yes</text>\n</g>\n<g class=\"node\" data-id=\"A\" data-label=\"User\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"40\" y=\"206.682916667\" width=\"71.59\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:A\" data-role=\"node\" />\n  <text x=\"75.795\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"31.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">User</text>\n</g>\n<g class=\"node\" data-id=\"B\" data-label=\"Login Page\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"159.59\" y=\"206.682916667\" width=\"109.381\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:B\" data-role=\"node\" />\n  <text x=\"214.2805\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"69.381\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Login Page</text>\n</g>\n<g class=\"node\" data-id=\"C\" data-label=\"Valid Credentials?\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"403.6685,138.435416667 490.366,225.132916667 403.6685,311.830416667 316.971,225.132916667\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:C\" data-role=\"node\" />\n  <text x=\"403.6685\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"109.395\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Valid Credentials?</text>\n</g>\n<g class=\"node\" data-id=\"D\" data-label=\"MFA Enabled?\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"691.718,148.438916667 768.412,225.132916667 691.718,301.826916667 615.024,225.132916667\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:D\" data-role=\"node\" />\n  <text x=\"691.718\" y=\"225.132916667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"89.388\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">MFA Enabled?</text>\n</g>\n<g class=\"node\" data-id=\"E\" data-label=\"Enter MFA Code\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"893.07\" y=\"125.1225\" width=\"139.021\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:E\" data-role=\"node\" />\n  <text x=\"962.5805\" y=\"143.5725\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"99.021\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Enter MFA Code</text>\n</g>\n<g class=\"node\" data-id=\"F\" data-label=\"Code Valid?\" data-shape=\"diamond\" data-role=\"node\">\n  <polygon points=\"1148.2635,75.4 1216.436,143.5725 1148.2635,211.745 1080.091,143.5725\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:F\" data-role=\"node\" />\n  <text x=\"1148.2635\" y=\"143.5725\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"72.345\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Code Valid?</text>\n</g>\n<g class=\"node\" data-id=\"G\" data-label=\"Create Session\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"1317.844\" y=\"169.496666667\" width=\"133.093\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:G\" data-role=\"node\" />\n  <text x=\"1384.3905\" y=\"187.946666667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"93.093\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Create Session</text>\n</g>\n<g class=\"node\" data-id=\"H\" data-label=\"Dashboard\" data-shape=\"rectangle\" data-role=\"node\">\n  <rect x=\"1498.937\" y=\"169.496666667\" width=\"108.64\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:H\" data-role=\"node\" />\n  <text x=\"1553.257\" y=\"187.946666667\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"68.64\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Dashboard</text>\n</g>\n</svg>",
+    "svgReceipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:45ac73e08f21ff11",
+      "requestDigest": "fnv1a64:eb27127e900d95d9",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:flowchart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:marker/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "executionDecision": {
+        "family": {
+          "id": "family:flowchart",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:086cc5e1e80cddcb"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "graphicalProjectionDigest": "fnv1a64:5fd4514062fa95e6",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1647.577,
+          "height": 380.980416667
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 45,
+          "unmeasured": 0,
+          "preparedText": 15,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 48,
+          "labels": 8,
+          "occlusionPairs": 115,
+          "maxOcclusionPairs": 100000,
+          "operations": 30811,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:5fd4514062fa95e6"
+      }
+    }
+  }
+}

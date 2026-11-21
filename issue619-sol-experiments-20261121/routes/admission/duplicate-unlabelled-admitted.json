@@ -1,0 +1,3648 @@
+{
+  "id": "duplicate-unlabelled",
+  "family": "flowchart",
+  "source": "flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C\nA --> D",
+  "ok": true,
+  "layout": {
+    "version": 1,
+    "kind": "flowchart",
+    "nodes": [
+      {
+        "id": "A",
+        "x": 48.891999999999996,
+        "y": 40,
+        "w": 65.662,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "One",
+        "labelBounds": {
+          "x": 68.892,
+          "y": 50,
+          "w": 25.662,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 48.891999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "B",
+        "x": 142.55399999999997,
+        "y": 40,
+        "w": 67.14399999999999,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Two",
+        "labelBounds": {
+          "x": 162.55399999999997,
+          "y": 50,
+          "w": 27.143999999999995,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 142.55399999999997,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "C",
+        "x": 40,
+        "y": 125.65,
+        "w": 79,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Three",
+        "labelBounds": {
+          "x": 60,
+          "y": 135.65000000000003,
+          "w": 39,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 40,
+          "y": 125.65,
+          "w": 79,
+          "h": 36.900000000000006
+        }
+      },
+      {
+        "id": "D",
+        "x": 147,
+        "y": 125.65,
+        "w": 71.59,
+        "h": 36.900000000000006,
+        "shape": "rectangle",
+        "label": "Four",
+        "labelBounds": {
+          "x": 167.00000000000003,
+          "y": 135.65000000000003,
+          "w": 31.589999999999996,
+          "h": 16.900000000000002
+        },
+        "labelContainer": {
+          "x": 147,
+          "y": 125.65,
+          "w": 71.59,
+          "h": 36.900000000000006
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "A->D",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            74.723,
+            76.9
+          ],
+          [
+            74.723,
+            106.9
+          ],
+          [
+            175.79500000000002,
+            106.9
+          ],
+          [
+            175.79500000000002,
+            125.65
+          ]
+        ],
+        "route": {
+          "edgeIndex": 0,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 2,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 2,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      },
+      {
+        "id": "B->C",
+        "from": "B",
+        "to": "C",
+        "path": [
+          [
+            176.12599999999998,
+            76.9
+          ],
+          [
+            176.12599999999998,
+            89.275
+          ],
+          [
+            79.5,
+            89.275
+          ],
+          [
+            79.5,
+            125.65
+          ]
+        ],
+        "route": {
+          "edgeIndex": 1,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "directLaneClear": false,
+          "directLaneBlockedBy": [
+            {
+              "kind": "span",
+              "id": "B->C"
+            }
+          ],
+          "sourcePort": "S",
+          "targetPort": "N",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "flow-target",
+            "port": "N"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "id": "A->D#1",
+        "from": "A",
+        "to": "D",
+        "path": [
+          [
+            88.723,
+            76.9
+          ],
+          [
+            88.723,
+            92.9
+          ],
+          [
+            189.79500000000002,
+            92.9
+          ],
+          [
+            189.79500000000002,
+            125.65
+          ]
+        ],
+        "route": {
+          "edgeIndex": 2,
+          "routeClass": "primary-forward",
+          "bendCount": 2,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 1,
+            "slotCount": 2,
+            "role": "flow-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 1,
+            "slotCount": 2,
+            "role": "flow-target"
+          },
+          "invariant": "bundle"
+        }
+      }
+    ],
+    "groups": [],
+    "bounds": {
+      "w": 258.59000000000003,
+      "h": 202.55
+    },
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 202.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 11,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 14,
+        "labels": 4,
+        "occlusionPairs": 39,
+        "maxOcclusionPairs": 100000,
+        "operations": 21513,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "regions": [
+      {
+        "id": "canvas",
+        "kind": "canvas",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "w": 258.59000000000003,
+          "h": 202.55
+        }
+      },
+      {
+        "id": "node:A",
+        "kind": "node",
+        "elementId": "A",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 48.891999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 2
+      },
+      {
+        "id": "node:B",
+        "kind": "node",
+        "elementId": "B",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 142.55399999999997,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 3
+      },
+      {
+        "id": "node:C",
+        "kind": "node",
+        "elementId": "C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 40,
+          "y": 125.65,
+          "w": 79,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 4
+      },
+      {
+        "id": "node:D",
+        "kind": "node",
+        "elementId": "D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 147,
+          "y": 125.65,
+          "w": 71.59,
+          "h": 36.900000000000006
+        },
+        "sourceLine": 5
+      },
+      {
+        "id": "edge:A->D",
+        "kind": "edge",
+        "elementId": "A->D",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 74.723,
+          "y": 76.9,
+          "w": 101.07200000000002,
+          "h": 48.75
+        }
+      },
+      {
+        "id": "edge:B->C",
+        "kind": "edge",
+        "elementId": "B->C",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 79.5,
+          "y": 76.9,
+          "w": 96.62599999999998,
+          "h": 48.75
+        }
+      },
+      {
+        "id": "edge:A->D#1",
+        "kind": "edge",
+        "elementId": "A->D#1",
+        "parentId": "canvas",
+        "bounds": {
+          "x": 88.723,
+          "y": 76.9,
+          "w": 101.07200000000002,
+          "h": 48.75
+        }
+      }
+    ],
+    "actions": []
+  },
+  "layoutReceipt": {
+    "version": 2,
+    "output": "layout",
+    "sharedRequestDigest": "fnv1a64:3e78ac22dad30a46",
+    "requestDigest": "fnv1a64:0d117aa3dcfbe4ae",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:project-positioned",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 1,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 1,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 202.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 11,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 14,
+        "labels": 4,
+        "occlusionPairs": 39,
+        "maxOcclusionPairs": 100000,
+        "operations": 21513,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "metrics": {
+    "paintCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 202.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 11,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 14,
+        "labels": 4,
+        "occlusionPairs": 39,
+        "maxOcclusionPairs": 100000,
+        "operations": 21513,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    },
+    "edgeCrossings": 2,
+    "labelLegibility": 1,
+    "labelMeasurement": {
+      "measuredNodes": 4,
+      "unmeasuredNodes": 0,
+      "hiddenNodes": 0,
+      "semanticNodes": 0,
+      "measuredEdges": 0,
+      "unmeasuredEdges": 0,
+      "measuredLabels": 0,
+      "unmeasuredLabels": 0,
+      "hiddenLabels": 0,
+      "semanticLabels": 0
+    },
+    "whitespaceBalance": 0.19965312332343613,
+    "labelEdgeProximity": null,
+    "labelConflicts": {
+      "total": 0,
+      "labelLabel": 0,
+      "labelNode": 0,
+      "labelEdge": 0
+    },
+    "routeOverlaps": {
+      "parallel": 0,
+      "opposing": 0
+    },
+    "routeGeometry": {
+      "bends": 6,
+      "length": 445.02,
+      "area": 52377.40450000001
+    },
+    "minimumNodeSpacing": 27.99999999999997,
+    "elementDensity": 1.3364541574411153,
+    "minimumTextContrast": 14.894588477600598,
+    "aspectRatio": 1.276672426561343,
+    "nodeCount": 4,
+    "edgeCount": 3
+  },
+  "svgReceipt": {
+    "version": 2,
+    "output": "svg",
+    "sharedRequestDigest": "fnv1a64:47831a11f1b60e05",
+    "requestDigest": "fnv1a64:a2941ba51411eb69",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:lower-scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "backend:scene-renderer",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/resources/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/interaction/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/transform/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/topology/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/subpaths/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/closedness/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/bend-radius/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-opacity/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-cap/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-join/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-miter/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-array/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-offset/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-restart/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/path-length/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/paint-order/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/compositing/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/non-scaling-stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-orientation/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-overflow/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/endpoints/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/direction/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/markers/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/relation/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/interaction/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/hit-geometry/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:svg",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "executionDecision": {
+      "family": {
+        "id": "family:flowchart",
+        "version": "1.0.0"
+      },
+      "backend": {
+        "mode": "scene",
+        "requestedId": "default",
+        "selectedId": "backend:default",
+        "version": "1.0.0",
+        "hostPolicy": false
+      },
+      "digest": "fnv1a64:086cc5e1e80cddcb"
+    },
+    "layoutOptimization": {
+      "additionalProducerLimit": 2,
+      "additionalProducerCalls": 1,
+      "primaryProducerCalls": 1,
+      "alternativesAttempted": 1,
+      "selected": []
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "graphicalProjectionDigest": "fnv1a64:2ea2a034ca60ed3b",
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59,
+        "height": 202.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 11,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 14,
+        "labels": 4,
+        "occlusionPairs": 39,
+        "maxOcclusionPairs": 100000,
+        "operations": 21513,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:2ea2a034ca60ed3b"
+    }
+  },
+  "verify": {
+    "ok": true,
+    "warnings": [
+      {
+        "code": "DUPLICATE_EDGE",
+        "edge": "A->D#1",
+        "duplicateOf": "A->D#0",
+        "from": "A",
+        "to": "D"
+      }
+    ],
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "A",
+          "x": 48.891999999999996,
+          "y": 40,
+          "w": 65.662,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "One",
+          "labelBounds": {
+            "x": 68.892,
+            "y": 50,
+            "w": 25.662,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 48.891999999999996,
+            "y": 40,
+            "w": 65.662,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "B",
+          "x": 142.55399999999997,
+          "y": 40,
+          "w": 67.14399999999999,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Two",
+          "labelBounds": {
+            "x": 162.55399999999997,
+            "y": 50,
+            "w": 27.143999999999995,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 142.55399999999997,
+            "y": 40,
+            "w": 67.14399999999999,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "C",
+          "x": 40,
+          "y": 125.65,
+          "w": 79,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Three",
+          "labelBounds": {
+            "x": 60,
+            "y": 135.65000000000003,
+            "w": 39,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 40,
+            "y": 125.65,
+            "w": 79,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "D",
+          "x": 147,
+          "y": 125.65,
+          "w": 71.59,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Four",
+          "labelBounds": {
+            "x": 167.00000000000003,
+            "y": 135.65000000000003,
+            "w": 31.589999999999996,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 147,
+            "y": 125.65,
+            "w": 71.59,
+            "h": 36.900000000000006
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->D",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              74.723,
+              76.9
+            ],
+            [
+              74.723,
+              106.9
+            ],
+            [
+              175.79500000000002,
+              106.9
+            ],
+            [
+              175.79500000000002,
+              125.65
+            ]
+          ]
+        },
+        {
+          "id": "B->C",
+          "from": "B",
+          "to": "C",
+          "path": [
+            [
+              176.12599999999998,
+              76.9
+            ],
+            [
+              176.12599999999998,
+              89.275
+            ],
+            [
+              79.5,
+              89.275
+            ],
+            [
+              79.5,
+              125.65
+            ]
+          ]
+        },
+        {
+          "id": "A->D#1",
+          "from": "A",
+          "to": "D",
+          "path": [
+            [
+              88.723,
+              76.9
+            ],
+            [
+              88.723,
+              92.9
+            ],
+            [
+              189.79500000000002,
+              92.9
+            ],
+            [
+              189.79500000000002,
+              125.65
+            ]
+          ]
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 258.59000000000003,
+        "h": 202.55
+      }
+    },
+    "checks": {
+      "renderability": "passed",
+      "sourceLoss": "not-detected",
+      "taskCorrectness": "not-checked"
+    },
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 258.59000000000003,
+        "height": 202.55
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 11,
+        "unmeasured": 0,
+        "preparedText": 4,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 14,
+        "labels": 4,
+        "occlusionPairs": 39,
+        "maxOcclusionPairs": 100000,
+        "operations": 648,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  },
+  "trace": [
+    {
+      "before": [
+        0,
+        2,
+        0,
+        2,
+        2,
+        -0.3333333333333333,
+        -0.3333333333333333,
+        0,
+        0,
+        258.59000000000003,
+        202.55,
+        52377.40450000001,
+        445.02,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.3333333333333333,
+        -0.3333333333333333,
+        0,
+        0,
+        272.5733333333334,
+        201.8,
+        55005.29866666668,
+        144,
+        0
+      ],
+      "rejectedBy": [
+        9,
+        11
+      ],
+      "beforeGraph": {
+        "width": 258.59000000000003,
+        "height": 202.55,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "One",
+            "shape": "rectangle",
+            "x": 48.891999999999996,
+            "y": 40,
+            "width": 65.662,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "One",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "One",
+              "lines": [
+                "One"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "One",
+                  "width": 25.662,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 25.662,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 142.55399999999997,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 125.65,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "Four",
+            "shape": "rectangle",
+            "x": 147,
+            "y": 125.65,
+            "width": 71.59,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Four",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Four",
+              "lines": [
+                "Four"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Four",
+                  "width": 31.589999999999996,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 31.589999999999996,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 74.723,
+                "y": 76.9
+              },
+              {
+                "x": 74.723,
+                "y": 106.9
+              },
+              {
+                "x": 175.79500000000002,
+                "y": 106.9
+              },
+              {
+                "x": 175.79500000000002,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 176.12599999999998,
+                "y": 76.9
+              },
+              {
+                "x": 176.12599999999998,
+                "y": 89.275
+              },
+              {
+                "x": 79.5,
+                "y": 89.275
+              },
+              {
+                "x": 79.5,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "B->C"
+                }
+              ],
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "explained-detour"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 88.723,
+                "y": 76.9
+              },
+              {
+                "x": 88.723,
+                "y": 92.9
+              },
+              {
+                "x": 189.79500000000002,
+                "y": 92.9
+              },
+              {
+                "x": 189.79500000000002,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          }
+        ],
+        "groups": [],
+        "certification": {
+          "status": "passed",
+          "strategy": "default",
+          "attempts": 1,
+          "hardViolations": 0,
+          "preference": {
+            "selectedScore": {
+              "unreadableTitles": 0,
+              "labelConflicts": 0,
+              "edgeCrossings": 2,
+              "totalBends": 2,
+              "nonCanonicalEndpointRate": 0.6666666666666667,
+              "peerBarycenterDelta": 0,
+              "area": 52377.40450000001
+            },
+            "reason": "no-alternative",
+            "compared": [
+              {
+                "strategy": "default",
+                "score": {
+                  "unreadableTitles": 0,
+                  "labelConflicts": 0,
+                  "edgeCrossings": 2,
+                  "totalBends": 2,
+                  "nonCanonicalEndpointRate": 0.6666666666666667,
+                  "peerBarycenterDelta": 0,
+                  "area": 52377.40450000001
+                }
+              }
+            ]
+          }
+        },
+        "layoutDecision": {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1"
+        }
+      },
+      "afterGraph": {
+        "width": 272.5733333333334,
+        "height": 201.8,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "One",
+            "shape": "rectangle",
+            "x": 65.83933333333334,
+            "y": 40,
+            "width": 65.662,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "One",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "One",
+              "lines": [
+                "One"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "One",
+                  "width": 25.662,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 25.662,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 159.50133333333335,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 153.57333333333335,
+            "y": 124.9,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "Four",
+            "shape": "rectangle",
+            "x": 62.875333333333344,
+            "y": 124.9,
+            "width": 71.59,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Four",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Four",
+              "lines": [
+                "Four"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Four",
+                  "width": 31.589999999999996,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 31.589999999999996,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 91.67033333333335,
+                "y": 76.9
+              },
+              {
+                "x": 91.67033333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 193.07333333333335,
+                "y": 76.9
+              },
+              {
+                "x": 193.07333333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "straight"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 105.67033333333335,
+                "y": 76.9
+              },
+              {
+                "x": 105.67033333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          }
+        ],
+        "groups": []
+      }
+    },
+    {
+      "before": [
+        0,
+        2,
+        0,
+        2,
+        2,
+        -0.3333333333333333,
+        -0.3333333333333333,
+        0,
+        0,
+        258.59000000000003,
+        202.55,
+        52377.40450000001,
+        445.02,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.3333333333333333,
+        -0.3333333333333333,
+        0,
+        0,
+        272.5733333333334,
+        201.8,
+        55005.29866666668,
+        144,
+        0
+      ],
+      "rejectedBy": [
+        9,
+        11
+      ],
+      "beforeGraph": {
+        "width": 258.59000000000003,
+        "height": 202.55,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "One",
+            "shape": "rectangle",
+            "x": 48.891999999999996,
+            "y": 40,
+            "width": 65.662,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "One",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "One",
+              "lines": [
+                "One"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "One",
+                  "width": 25.662,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 25.662,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 142.55399999999997,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 40,
+            "y": 125.65,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "Four",
+            "shape": "rectangle",
+            "x": 147,
+            "y": 125.65,
+            "width": 71.59,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Four",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Four",
+              "lines": [
+                "Four"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Four",
+                  "width": 31.589999999999996,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 31.589999999999996,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 74.723,
+                "y": 76.9
+              },
+              {
+                "x": 74.723,
+                "y": 106.9
+              },
+              {
+                "x": 175.79500000000002,
+                "y": 106.9
+              },
+              {
+                "x": 175.79500000000002,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 176.12599999999998,
+                "y": 76.9
+              },
+              {
+                "x": 176.12599999999998,
+                "y": 89.275
+              },
+              {
+                "x": 79.5,
+                "y": 89.275
+              },
+              {
+                "x": 79.5,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "directLaneClear": false,
+              "directLaneBlockedBy": [
+                {
+                  "kind": "span",
+                  "id": "B->C"
+                }
+              ],
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "explained-detour"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 88.723,
+                "y": 76.9
+              },
+              {
+                "x": 88.723,
+                "y": 92.9
+              },
+              {
+                "x": 189.79500000000002,
+                "y": 92.9
+              },
+              {
+                "x": 189.79500000000002,
+                "y": 125.65
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 2,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          }
+        ],
+        "groups": [],
+        "certification": {
+          "status": "passed",
+          "strategy": "default",
+          "attempts": 1,
+          "hardViolations": 0,
+          "preference": {
+            "selectedScore": {
+              "unreadableTitles": 0,
+              "labelConflicts": 0,
+              "edgeCrossings": 2,
+              "totalBends": 2,
+              "nonCanonicalEndpointRate": 0.6666666666666667,
+              "peerBarycenterDelta": 0,
+              "area": 52377.40450000001
+            },
+            "reason": "no-alternative",
+            "compared": [
+              {
+                "strategy": "default",
+                "score": {
+                  "unreadableTitles": 0,
+                  "labelConflicts": 0,
+                  "edgeCrossings": 2,
+                  "totalBends": 2,
+                  "nonCanonicalEndpointRate": 0.6666666666666667,
+                  "peerBarycenterDelta": 0,
+                  "area": 52377.40450000001
+                }
+              }
+            ]
+          }
+        },
+        "layoutDecision": {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1"
+        }
+      },
+      "afterGraph": {
+        "width": 272.5733333333334,
+        "height": 201.8,
+        "nodes": [
+          {
+            "id": "A",
+            "label": "One",
+            "shape": "rectangle",
+            "x": 65.83933333333334,
+            "y": 40,
+            "width": 65.662,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "One",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "One",
+              "lines": [
+                "One"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "One",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "O",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "n",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "One",
+                  "width": 25.662,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 25.662,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "B",
+            "label": "Two",
+            "shape": "rectangle",
+            "x": 159.50133333333335,
+            "y": 40,
+            "width": 67.14399999999999,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Two",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Two",
+              "lines": [
+                "Two"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Two",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 3,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "w",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Two",
+                  "width": 27.143999999999995,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 27.143999999999995,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "C",
+            "label": "Three",
+            "shape": "rectangle",
+            "x": 153.57333333333335,
+            "y": 124.9,
+            "width": 79,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Three",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Three",
+              "lines": [
+                "Three"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Three",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 5,
+                      "clusters": [
+                        {
+                          "text": "T",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "h",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        },
+                        {
+                          "text": "e",
+                          "sourceStart": 4,
+                          "sourceEnd": 5
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Three",
+                  "width": 39,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 39,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          },
+          {
+            "id": "D",
+            "label": "Four",
+            "shape": "rectangle",
+            "x": 62.875333333333344,
+            "y": 124.9,
+            "width": 71.59,
+            "height": 36.900000000000006,
+            "labelBlock": {
+              "unit": "px",
+              "prepared": {
+                "source": "Four",
+                "display": "formatted",
+                "lines": [
+                  [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ]
+                ],
+                "lineStarts": [
+                  0
+                ]
+              },
+              "text": "Four",
+              "lines": [
+                "Four"
+              ],
+              "lineBlocks": [
+                {
+                  "runs": [
+                    {
+                      "text": "Four",
+                      "bold": false,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "sourceStart": 0,
+                      "sourceEnd": 4,
+                      "clusters": [
+                        {
+                          "text": "F",
+                          "sourceStart": 0,
+                          "sourceEnd": 1
+                        },
+                        {
+                          "text": "o",
+                          "sourceStart": 1,
+                          "sourceEnd": 2
+                        },
+                        {
+                          "text": "u",
+                          "sourceStart": 2,
+                          "sourceEnd": 3
+                        },
+                        {
+                          "text": "r",
+                          "sourceStart": 3,
+                          "sourceEnd": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "text": "Four",
+                  "width": 31.589999999999996,
+                  "baseline": 4.55,
+                  "originX": 0
+                }
+              ],
+              "breaks": [],
+              "width": 31.589999999999996,
+              "height": 16.900000000000002,
+              "lineHeight": 16.900000000000002,
+              "fontSize": 13,
+              "fontWeight": 500,
+              "letterSpacing": 0,
+              "monospace": false,
+              "safeFont": false
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 91.67033333333335,
+                "y": 76.9
+              },
+              {
+                "x": 91.67033333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 0,
+            "routeCertificate": {
+              "edgeIndex": 0,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 193.07333333333335,
+                "y": 76.9
+              },
+              {
+                "x": 193.07333333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 1,
+            "routeCertificate": {
+              "edgeIndex": 1,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePort": "S",
+              "targetPort": "N",
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-source",
+                "port": "S"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 0,
+                "slotCount": 1,
+                "role": "flow-target",
+                "port": "N"
+              },
+              "invariant": "straight"
+            }
+          },
+          {
+            "source": "A",
+            "target": "D",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow",
+            "points": [
+              {
+                "x": 105.67033333333335,
+                "y": 76.9
+              },
+              {
+                "x": 105.67033333333335,
+                "y": 124.9
+              }
+            ],
+            "edgeIndex": 2,
+            "routeCertificate": {
+              "edgeIndex": 2,
+              "routeClass": "primary-forward",
+              "bendCount": 0,
+              "sourcePortAssignment": {
+                "side": "S",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-source"
+              },
+              "targetPortAssignment": {
+                "side": "N",
+                "slotIndex": 1,
+                "slotCount": 2,
+                "role": "flow-target"
+              },
+              "invariant": "bundle"
+            }
+          }
+        ],
+        "groups": []
+      }
+    }
+  ]
+}

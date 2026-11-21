@@ -1,0 +1,42 @@
+flowchart RL
+n0((Node 135-0))
+n1[[Node 135-1]]
+n2[(Node 135-2)]
+n3[Node 135-3]
+n4{Node 135-4}
+n5(Node 135-5)
+n6((Node 135-6))
+n7[[Node 135-7]]
+n8[(Node 135-8)]
+n9[Node 135-9]
+n10{Node 135-10}
+n11(Node 135-11)
+n12((Node 135-12))
+n11 -->|edge 0 xxx| n5
+n2 --> n11
+n12 --> n2
+n0 --> n5
+n5 -->|edge 4 xxxxxxx| n8
+n9 --> n1
+n7 --> n5
+n3 --> n8
+n6 -->|edge 8 xxxxxxxxxxx| n9
+n7 --> n8
+n2 --> n5
+n5 --> n1
+n5 -->|edge 12 xxxxxxxxxxxxxxx| n3
+n4 --> n0
+n12 --> n6
+n10 --> n2
+n1 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12
+n1 --> n6
+n0 --> n7
+n7 --> n3
+n3 -->|edge 20 xxxxxx| n1
+n0 --> n1
+n6 --> n0
+n5 --> n1
+n0 -->|edge 24 xxxxxxxxxx| n7
+n4 --> n9
+n4 --> n7
+n6 --> n11

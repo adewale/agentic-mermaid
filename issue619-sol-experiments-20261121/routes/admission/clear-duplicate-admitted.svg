@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="174.465333333" height="201.8" viewBox="0 0 174.465333333 201.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1cq7cu90ize8zv">
+<style>
+  svg.am-1cq7cu90ize8zv { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1cq7cu90ize8zv {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="admission-exp-arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="admission-exp-arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="91.6703333333,76.9 91.6703333333,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#admission-exp-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;D#0" data-role="edge" data-from="A" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="A to D" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="105.670333333,76.9 105.670333333,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#admission-exp-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;D#1" data-role="edge" data-from="A" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="A to D" />
+<g class="node" data-id="A" data-label="One" data-shape="rectangle" data-role="node">
+  <rect x="65.8393333333" y="40" width="65.662" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="98.6703333333" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="25.662" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">One</text>
+</g>
+<g class="node" data-id="D" data-label="Four" data-shape="rectangle" data-role="node">
+  <rect x="62.8753333333" y="124.9" width="71.59" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D" data-role="node" />
+  <text x="98.6703333333" y="143.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="31.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Four</text>
+</g>
+</svg>
