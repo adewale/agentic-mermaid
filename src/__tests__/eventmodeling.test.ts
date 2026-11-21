@@ -151,6 +151,12 @@ test.each([
   expect(verifyMermaid(input).ok).toBe(true)
 })
 
+test.each(['hand-drawn', 'watercolor'])('paint outside canonical sharp geometry keeps the exterior route: %s', style => {
+  const source = 'eventmodeling\nrf 01 cmd Save\nrf 02 ui Screen\nrf 03 evt Saved ->> 01'
+  const layout = layoutMermaidWithReceipt(source, { style }).layout
+  expect(layout.edges[0]!.path).toHaveLength(6)
+})
+
 test('multiple explicit inputs retain separate painted arrowheads through backward and rounded routes', () => {
   const reciprocal = 'eventmodeling\nrf 09 ui Cart.UI ->> 01 ->> 03\nrf 01 cmd Cart.Save ->> 09\nrf 03 evt Cart.Saved ->> 01'
   const fanIn = `eventmodeling\n${Array.from({ length: 12 }, (_, index) => `rf ${index + 1} cmd Input${index + 1}`).join('\n')}\nrf 13 evt Output ${Array.from({ length: 12 }, (_, index) => `->> ${index + 1}`).join(' ')}`
