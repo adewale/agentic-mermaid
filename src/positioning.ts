@@ -119,7 +119,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // model, 20-30x the authored text) from the source alone, which the key
   // already holds. Every other family config stays keyed.
   const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, (familyId === 'class' || familyId === 'eventmodeling') ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : familyId === 'eventmodeling' ? resolved.paintBackendId ?? null : undefined,
     layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
