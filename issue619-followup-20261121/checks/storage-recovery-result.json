@@ -1,0 +1,26 @@
+{
+  "source": "c18f607364ca1d85dd91a669c8ac33a2c7173a23",
+  "at": "2026-11-21T14:37:14.529720+00:00",
+  "prePush": {
+    "exit": 0,
+    "checksPassed": 8,
+    "defaultBrowserProbeSkipped": 1,
+    "skipCoveredByExplicitChromium": "/usr/bin/chromium; actual request budgets exit0"
+  },
+  "fontSubsets": "manifest and4canonicalWOFF2 pass; unchanged pinned image/toolchain/wheelhash/bytecomparisons, local trustedCA and temporarymemory mount",
+  "dockerRecovery": {
+    "removedOnlyStoppedContainer": "elk-port-local-ci-20261116",
+    "reportedWritableLayer": "1.14GB",
+    "backupArchiveBytes": 1608653347,
+    "backupTarMembers": 49453,
+    "backupCrcAndTarVerified": true,
+    "fullFilesystemAndPrivateConfigurationPreserved": true,
+    "imagesRemoved": 0,
+    "volumesRemoved": 0,
+    "workspaceWorkDeleted": false,
+    "freeDiskBytesAtCheck": 4843450368
+  },
+  "remoteCI": "notrun",
+  "sourceChanged": false,
+  "layoutMetrics": "previous comparisons retained; no new performance claim"
+}

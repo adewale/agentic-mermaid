@@ -1,0 +1,228 @@
+{
+  "source": "Archived 2026-11-17 observer run; same authored input, historical renderer outputs, not a rerun of current c18",
+  "version": "Trident0.4.0",
+  "policy": "flowchart-svg-layout-v2",
+  "sampleStep": 0.5,
+  "maxSamples": 32768,
+  "maxComparisons": 2000000,
+  "rows": [
+    {
+      "arm": "native",
+      "sourceSha256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "status": "unassessed",
+      "nodes": {
+        "expected": 19,
+        "observed": 19
+      },
+      "edges": {
+        "expected": 44,
+        "observed": 13,
+        "reasons": [
+          "edge:13: Error: Layout sample budget exceeded",
+          "edge:14: Error: Layout sample budget exceeded",
+          "edge:15: Error: Layout sample budget exceeded",
+          "edge:16: Error: Layout sample budget exceeded",
+          "edge:17: Error: Layout sample budget exceeded",
+          "edge:18: Error: Layout sample budget exceeded",
+          "edge:19: Error: Layout sample budget exceeded",
+          "edge:20: Error: Layout sample budget exceeded",
+          "edge:21: Error: Layout sample budget exceeded",
+          "edge:22: Error: Layout sample budget exceeded",
+          "edge:23: Error: Layout sample budget exceeded",
+          "edge:24: Error: Layout sample budget exceeded",
+          "edge:25: Error: Layout sample budget exceeded",
+          "edge:26: Error: Layout sample budget exceeded",
+          "edge:27: Error: Layout sample budget exceeded",
+          "edge:28: Error: Layout sample budget exceeded",
+          "edge:29: Error: Layout sample budget exceeded",
+          "edge:30: Error: Layout sample budget exceeded",
+          "edge:31: Error: Layout sample budget exceeded",
+          "edge:32: Error: Layout sample budget exceeded",
+          "edge:33: Error: Layout sample budget exceeded",
+          "edge:34: Error: Layout sample budget exceeded",
+          "edge:35: Error: Layout sample budget exceeded",
+          "edge:36: Error: Layout sample budget exceeded",
+          "Source-owned edge inventory is unqualified or differs",
+          "Expected 44, observed 13"
+        ]
+      },
+      "crossings": {
+        "status": "unassessed",
+        "value": null,
+        "observed": 3
+      },
+      "labelOwnershipGaps": [
+        "label:0: ambiguous caption owner",
+        "label:6: ambiguous caption owner",
+        "Visible caption inventory is unqualified",
+        "Expected 30, observed 29"
+      ]
+    },
+    {
+      "arm": "zombie",
+      "sourceSha256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "status": "unassessed",
+      "nodes": {
+        "expected": 19,
+        "observed": 19
+      },
+      "edges": {
+        "expected": 44,
+        "observed": 7,
+        "reasons": [
+          "edge:7: Error: Layout sample budget exceeded",
+          "edge:8: Error: Layout sample budget exceeded",
+          "edge:9: Error: Layout sample budget exceeded",
+          "edge:10: Error: Layout sample budget exceeded",
+          "edge:11: Error: Layout sample budget exceeded",
+          "edge:12: Error: Layout sample budget exceeded",
+          "edge:13: Error: Layout sample budget exceeded",
+          "edge:14: Error: Layout sample budget exceeded",
+          "edge:15: Error: Layout sample budget exceeded",
+          "edge:16: Error: Layout sample budget exceeded",
+          "edge:17: Error: Layout sample budget exceeded",
+          "edge:18: Error: Layout sample budget exceeded",
+          "edge:19: Error: Layout sample budget exceeded",
+          "edge:20: Error: Layout sample budget exceeded",
+          "edge:21: Error: Layout sample budget exceeded",
+          "edge:22: Error: Layout sample budget exceeded",
+          "edge:23: Error: Layout sample budget exceeded",
+          "edge:24: Error: Layout sample budget exceeded",
+          "edge:25: Error: Layout sample budget exceeded",
+          "edge:26: Error: Layout sample budget exceeded",
+          "edge:27: Error: Layout sample budget exceeded",
+          "edge:28: Error: Layout sample budget exceeded",
+          "edge:29: Error: Layout sample budget exceeded",
+          "edge:30: Error: Layout sample budget exceeded",
+          "edge:31: Error: Layout sample budget exceeded",
+          "edge:32: Error: Layout sample budget exceeded",
+          "edge:33: Error: Layout sample budget exceeded",
+          "edge:34: Error: Layout sample budget exceeded",
+          "Source-owned edge inventory is unqualified or differs",
+          "Expected 44, observed 7"
+        ]
+      },
+      "crossings": {
+        "status": "unassessed",
+        "value": null,
+        "observed": 0
+      },
+      "labelOwnershipGaps": [
+        "label:2: ambiguous caption owner",
+        "label:5: ambiguous caption owner",
+        "label:8: ambiguous caption owner",
+        "label:30: ambiguous caption owner",
+        "Visible caption inventory is unqualified",
+        "Expected 30, observed 27"
+      ]
+    },
+    {
+      "arm": "elkjs-main",
+      "sourceSha256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "status": "unassessed",
+      "nodes": {
+        "expected": 19,
+        "observed": 19
+      },
+      "edges": {
+        "expected": 44,
+        "observed": 10,
+        "reasons": [
+          "edge:10: Error: Layout sample budget exceeded",
+          "edge:11: Error: Layout sample budget exceeded",
+          "edge:12: Error: Layout sample budget exceeded",
+          "edge:13: Error: Layout sample budget exceeded",
+          "edge:14: Error: Layout sample budget exceeded",
+          "edge:15: Error: Layout sample budget exceeded",
+          "edge:16: Error: Layout sample budget exceeded",
+          "edge:17: Error: Layout sample budget exceeded",
+          "edge:18: Error: Layout sample budget exceeded",
+          "edge:19: Error: Layout sample budget exceeded",
+          "edge:20: Error: Layout sample budget exceeded",
+          "edge:21: Error: Layout sample budget exceeded",
+          "edge:22: Error: Layout sample budget exceeded",
+          "edge:23: Error: Layout sample budget exceeded",
+          "edge:24: Error: Layout sample budget exceeded",
+          "edge:25: Error: Layout sample budget exceeded",
+          "edge:26: Error: Layout sample budget exceeded",
+          "edge:27: Error: Layout sample budget exceeded",
+          "edge:28: Error: Layout sample budget exceeded",
+          "edge:29: Error: Layout sample budget exceeded",
+          "edge:30: Error: Layout sample budget exceeded",
+          "edge:31: Error: Layout sample budget exceeded",
+          "edge:32: Error: Layout sample budget exceeded",
+          "edge:33: Error: Layout sample budget exceeded",
+          "edge:34: Error: Layout sample budget exceeded",
+          "edge:35: Error: Layout sample budget exceeded",
+          "Source-owned edge inventory is unqualified or differs",
+          "Expected 44, observed 10"
+        ]
+      },
+      "crossings": {
+        "status": "unassessed",
+        "value": null,
+        "observed": 3
+      },
+      "labelOwnershipGaps": [
+        "label:0: ambiguous caption owner",
+        "label:6: ambiguous caption owner",
+        "Visible caption inventory is unqualified",
+        "Expected 30, observed 29"
+      ]
+    },
+    {
+      "arm": "elkts",
+      "sourceSha256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "status": "unassessed",
+      "nodes": {
+        "expected": 19,
+        "observed": 19
+      },
+      "edges": {
+        "expected": 44,
+        "observed": 10,
+        "reasons": [
+          "edge:10: Error: Layout sample budget exceeded",
+          "edge:11: Error: Layout sample budget exceeded",
+          "edge:12: Error: Layout sample budget exceeded",
+          "edge:13: Error: Layout sample budget exceeded",
+          "edge:14: Error: Layout sample budget exceeded",
+          "edge:15: Error: Layout sample budget exceeded",
+          "edge:16: Error: Layout sample budget exceeded",
+          "edge:17: Error: Layout sample budget exceeded",
+          "edge:18: Error: Layout sample budget exceeded",
+          "edge:19: Error: Layout sample budget exceeded",
+          "edge:20: Error: Layout sample budget exceeded",
+          "edge:21: Error: Layout sample budget exceeded",
+          "edge:22: Error: Layout sample budget exceeded",
+          "edge:23: Error: Layout sample budget exceeded",
+          "edge:24: Error: Layout sample budget exceeded",
+          "edge:25: Error: Layout sample budget exceeded",
+          "edge:26: Error: Layout sample budget exceeded",
+          "edge:27: Error: Layout sample budget exceeded",
+          "edge:28: Error: Layout sample budget exceeded",
+          "edge:29: Error: Layout sample budget exceeded",
+          "edge:30: Error: Layout sample budget exceeded",
+          "edge:31: Error: Layout sample budget exceeded",
+          "edge:32: Error: Layout sample budget exceeded",
+          "edge:33: Error: Layout sample budget exceeded",
+          "edge:34: Error: Layout sample budget exceeded",
+          "edge:35: Error: Layout sample budget exceeded",
+          "Source-owned edge inventory is unqualified or differs",
+          "Expected 44, observed 10"
+        ]
+      },
+      "crossings": {
+        "status": "unassessed",
+        "value": null,
+        "observed": 3
+      },
+      "labelOwnershipGaps": [
+        "label:0: ambiguous caption owner",
+        "label:6: ambiguous caption owner",
+        "Visible caption inventory is unqualified",
+        "Expected 30, observed 29"
+      ]
+    }
+  ]
+}
