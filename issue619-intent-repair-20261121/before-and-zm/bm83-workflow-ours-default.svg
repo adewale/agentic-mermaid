@@ -1,0 +1,298 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1074.186" height="3899.55" viewBox="0 0 1074.186 3899.55" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1ve7nkz19waj9z">
+<style>
+  svg.am-1ve7nkz19waj9z { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1ve7nkz19waj9z {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="239.4,76.9 239.4,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="278.085666667,161.8 278.085666667,278.1" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;C#0" data-role="edge" data-from="B" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="B to C" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="344.779833333,315 344.779833333,431.3" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C-&gt;C1#0" data-role="edge" data-from="C" data-to="C1" role="graphics-symbol" aria-roledescription="relation" aria-label="C to C1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="344.779833333,468.2 344.779833333,516.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C1-&gt;C2#0" data-role="edge" data-from="C1" data-to="C2" role="graphics-symbol" aria-roledescription="relation" aria-label="C1 to C2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="344.779833333,553.1 344.779833333,601.1" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C2-&gt;C3#0" data-role="edge" data-from="C2" data-to="C3" role="graphics-symbol" aria-roledescription="relation" aria-label="C2 to C3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="341.165833333,638 341.165833333,754.3" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C3-&gt;D#0" data-role="edge" data-from="C3" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="C3 to D: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="466.179833333,619.55 741.024166667,619.55 741.024166667,449.75 544.862333333,449.75" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C3-&gt;C1#0" data-role="edge" data-from="C3" data-to="C1" role="graphics-symbol" aria-roledescription="relation" aria-label="C3 to C1: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="384.2325,791.2 384.2325,907.5" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;D1#0" data-role="edge" data-from="D" data-to="D1" role="graphics-symbol" aria-roledescription="relation" aria-label="D to D1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="384.2325,944.4 384.2325,992.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D1-&gt;D2#0" data-role="edge" data-from="D1" data-to="D2" role="graphics-symbol" aria-roledescription="relation" aria-label="D1 to D2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="384.2325,1029.3 384.2325,1077.3" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D2-&gt;D3#0" data-role="edge" data-from="D2" data-to="D3" role="graphics-symbol" aria-roledescription="relation" aria-label="D2 to D3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="375.3925,1114.2 375.3925,1230.5" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D3-&gt;E#0" data-role="edge" data-from="D3" data-to="E" role="graphics-symbol" aria-roledescription="relation" aria-label="D3 to E: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="529.0325,1095.75 740.54825,1095.75 740.54825,925.95 513.4325,925.95" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D3-&gt;D1#0" data-role="edge" data-from="D3" data-to="D1" role="graphics-symbol" aria-roledescription="relation" aria-label="D3 to D1: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="437.205166667,1267.4 437.205166667,1383.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E-&gt;E1#0" data-role="edge" data-from="E" data-to="E1" role="graphics-symbol" aria-roledescription="relation" aria-label="E to E1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="437.205166667,1420.6 437.205166667,1468.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E1-&gt;E2#0" data-role="edge" data-from="E1" data-to="E2" role="graphics-symbol" aria-roledescription="relation" aria-label="E1 to E2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="437.205166667,1505.5 437.205166667,1553.5" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E2-&gt;E3#0" data-role="edge" data-from="E2" data-to="E3" role="graphics-symbol" aria-roledescription="relation" aria-label="E2 to E3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="437.205166667,1590.4 437.205166667,1638.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E3-&gt;E4#0" data-role="edge" data-from="E3" data-to="E4" role="graphics-symbol" aria-roledescription="relation" aria-label="E3 to E4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="420.539166667,1675.3 420.539166667,1791.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E4-&gt;F#0" data-role="edge" data-from="E4" data-to="F" role="graphics-symbol" aria-roledescription="relation" aria-label="E4 to F: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="605.483166667,1656.85 746.895583333,1656.85 746.895583333,1402.15 622.643166667,1402.15" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:E4-&gt;E1#0" data-role="edge" data-from="E4" data-to="E1" role="graphics-symbol" aria-roledescription="relation" aria-label="E4 to E1: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="461.005833333,1828.5 461.005833333,1944.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F-&gt;F1#0" data-role="edge" data-from="F" data-to="F1" role="graphics-symbol" aria-roledescription="relation" aria-label="F to F1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="461.005833333,1981.7 461.005833333,2029.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F1-&gt;F2#0" data-role="edge" data-from="F1" data-to="F2" role="graphics-symbol" aria-roledescription="relation" aria-label="F1 to F2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="461.005833333,2066.6 461.005833333,2114.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F2-&gt;F3#0" data-role="edge" data-from="F2" data-to="F3" role="graphics-symbol" aria-roledescription="relation" aria-label="F2 to F3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="461.005833333,2151.5 461.005833333,2199.5" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F3-&gt;F4#0" data-role="edge" data-from="F3" data-to="F4" role="graphics-symbol" aria-roledescription="relation" aria-label="F3 to F4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="452.165833333,2236.4 452.165833333,2352.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F4-&gt;G#0" data-role="edge" data-from="F4" data-to="G" role="graphics-symbol" aria-roledescription="relation" aria-label="F4 to G: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="613.605833333,2217.95 737.545416667,2217.95 737.545416667,1963.25 582.405833333,1963.25" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:F4-&gt;F1#0" data-role="edge" data-from="F4" data-to="F1" role="graphics-symbol" aria-roledescription="relation" aria-label="F4 to F1: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="513.4325,2389.6 513.4325,2505.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G-&gt;G1#0" data-role="edge" data-from="G" data-to="G1" role="graphics-symbol" aria-roledescription="relation" aria-label="G to G1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="513.4325,2542.8 513.4325,2590.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G1-&gt;G2#0" data-role="edge" data-from="G1" data-to="G2" role="graphics-symbol" aria-roledescription="relation" aria-label="G1 to G2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="513.4325,2627.7 513.4325,2675.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G2-&gt;G3#0" data-role="edge" data-from="G2" data-to="G3" role="graphics-symbol" aria-roledescription="relation" aria-label="G2 to G3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="513.4325,2712.6 513.4325,2760.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G3-&gt;G4#0" data-role="edge" data-from="G3" data-to="G4" role="graphics-symbol" aria-roledescription="relation" aria-label="G3 to G4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="452.139833333,2797.5 452.139833333,2913.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G4-&gt;H#0" data-role="edge" data-from="G4" data-to="H" role="graphics-symbol" aria-roledescription="relation" aria-label="G4 to H: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="697.3105,2779.05 735.186,2779.05 735.186,2524.35 697.2325,2524.35" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:G4-&gt;G1#0" data-role="edge" data-from="G4" data-to="G1" role="graphics-symbol" aria-roledescription="relation" aria-label="G4 to G1: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="452.139833333,2950.7 452.139833333,2998.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H-&gt;H1#0" data-role="edge" data-from="H" data-to="H1" role="graphics-symbol" aria-roledescription="relation" aria-label="H to H1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="452.139833333,3035.6 452.139833333,3083.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H1-&gt;H2#0" data-role="edge" data-from="H1" data-to="H2" role="graphics-symbol" aria-roledescription="relation" aria-label="H1 to H2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="452.139833333,3120.5 452.139833333,3168.5" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H2-&gt;H3#0" data-role="edge" data-from="H2" data-to="H3" role="graphics-symbol" aria-roledescription="relation" aria-label="H2 to H3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="修改闭环" points="376.568404762,3205.4 376.568404762,3346.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;I#0" data-role="edge" data-from="H3" data-to="I" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to I: 修改闭环" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="406.79697619,3205.4 406.79697619,3265.775 974.186,3265.775 974.186,296.55 394.142666667,296.55" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;C#0" data-role="edge" data-from="H3" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to C: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="437.025547619,3205.4 437.025547619,3253.775 926.186,3253.775 926.186,772.75 451.723833333,772.75" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;D#0" data-role="edge" data-from="H3" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to D: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="467.254119048,3205.4 467.254119048,3241.775 878.186,3241.775 878.186,1248.95 493.6725,1248.95" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;E#0" data-role="edge" data-from="H3" data-to="E" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to E: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="497.482690476,3205.4 497.482690476,3229.775 830.186,3229.775 830.186,1810.05 538.819166667,1810.05" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;F#0" data-role="edge" data-from="H3" data-to="F" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to F: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="557.939833333,3186.95 782.186,3186.95 782.186,2371.15 578.245833333,2371.15" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:H3-&gt;G#0" data-role="edge" data-from="H3" data-to="G" role="graphics-symbol" aria-roledescription="relation" aria-label="H3 to G: 校验不通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="422.235071429,3383.35 422.235071429,3499.65" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:I-&gt;I1#0" data-role="edge" data-from="I" data-to="I1" role="graphics-symbol" aria-roledescription="relation" aria-label="I to I1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="422.235071429,3536.55 422.235071429,3584.55" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:I1-&gt;I2#0" data-role="edge" data-from="I1" data-to="I2" role="graphics-symbol" aria-roledescription="relation" aria-label="I1 to I2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="422.235071429,3621.45 422.235071429,3669.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:I2-&gt;I3#0" data-role="edge" data-from="I2" data-to="I3" role="graphics-symbol" aria-roledescription="relation" aria-label="I2 to I3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验通过" points="422.235071429,3706.35 422.235071429,3822.65" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:I3-&gt;J#0" data-role="edge" data-from="I3" data-to="J" role="graphics-symbol" aria-roledescription="relation" aria-label="I3 to J: 校验通过" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="校验不通过" points="567.035071429,3687.9 637.924071429,3687.9 637.924071429,3518.1 559.235071429,3518.1" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:I3-&gt;I1#0" data-role="edge" data-from="I3" data-to="I1" role="graphics-symbol" aria-roledescription="relation" aria-label="I3 to I1: 校验不通过" />
+<g class="edge-label" data-from="C3" data-to="D" data-label="校验通过">
+  <rect class="edge-label-halo" x="302.765833333" y="677" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="306.765833333" y="681" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="341.165833333" y="696.15" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="341.165833333" y="700" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="C3" data-to="C1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="696.024166667" y="515.5" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="700.024166667" y="519.5" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="741.024166667" y="534.65" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="741.024166667" y="538.5" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="D3" data-to="E" data-label="校验通过">
+  <rect class="edge-label-halo" x="336.9925" y="1153.2" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="340.9925" y="1157.2" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="375.3925" y="1172.35" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="375.3925" y="1176.2" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="D3" data-to="D1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="695.54825" y="991.7" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="699.54825" y="995.7" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="740.54825" y="1010.85" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="740.54825" y="1014.7" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="E4" data-to="F" data-label="校验通过">
+  <rect class="edge-label-halo" x="382.139166667" y="1714.3" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="386.139166667" y="1718.3" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="420.539166667" y="1733.45" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="420.539166667" y="1737.3" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="E4" data-to="E1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="701.895583333" y="1510.35" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="705.895583333" y="1514.35" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="746.895583333" y="1529.5" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="746.895583333" y="1533.35" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="F4" data-to="G" data-label="校验通过">
+  <rect class="edge-label-halo" x="413.765833333" y="2275.4" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="417.765833333" y="2279.4" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="452.165833333" y="2294.55" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="452.165833333" y="2298.4" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="F4" data-to="F1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="692.545416667" y="2071.45" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="696.545416667" y="2075.45" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="737.545416667" y="2090.6" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="737.545416667" y="2094.45" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="G4" data-to="H" data-label="校验通过">
+  <rect class="edge-label-halo" x="413.739833333" y="2836.5" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="417.739833333" y="2840.5" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="452.139833333" y="2855.65" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="452.139833333" y="2859.5" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="G4" data-to="G1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="690.186" y="2683.3" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="694.186" y="2687.3" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="735.186" y="2702.45" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="735.186" y="2706.3" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="I" data-label="修改闭环">
+  <rect class="edge-label-halo" x="338.168404762" y="3280.28333333" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="342.168404762" y="3284.28333333" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="376.568404762" y="3299.43333333" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="376.568404762" y="3303.28333333" text-anchor="middle" data-text-fragment="true">修改闭环</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="C" data-label="校验不通过">
+  <rect class="edge-label-halo" x="929.186" y="3046.9" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="933.186" y="3050.9" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="974.186" y="3066.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="974.186" y="3069.9" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="D" data-label="校验不通过">
+  <rect class="edge-label-halo" x="881.186" y="1994.1125" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="885.186" y="1998.1125" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="926.186" y="2013.2625" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="926.186" y="2017.1125" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="E" data-label="校验不通过">
+  <rect class="edge-label-halo" x="833.186" y="3111.5" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="837.186" y="3115.5" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="878.186" y="3130.65" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="878.186" y="3134.5" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="F" data-label="校验不通过">
+  <rect class="edge-label-halo" x="785.186" y="2500.7625" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="789.186" y="2504.7625" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="830.186" y="2519.9125" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="830.186" y="2523.7625" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="H3" data-to="G" data-label="校验不通过">
+  <rect class="edge-label-halo" x="737.186" y="2759.9" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="741.186" y="2763.9" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="782.186" y="2779.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="782.186" y="2782.9" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="edge-label" data-from="I3" data-to="J" data-label="校验通过">
+  <rect class="edge-label-halo" x="383.835071429" y="3745.35" width="76.8" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="387.835071429" y="3749.35" width="68.8" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="422.235071429" y="3764.5" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="422.235071429" y="3768.35" text-anchor="middle" data-text-fragment="true">校验通过</tspan></text>
+</g>
+<g class="edge-label" data-from="I3" data-to="I1" data-label="校验不通过">
+  <rect class="edge-label-halo" x="592.924071429" y="3583.85" width="90" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="596.924071429" y="3587.85" width="82" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="637.924071429" y="3603" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="637.924071429" y="3606.85" text-anchor="middle" data-text-fragment="true">校验不通过</tspan></text>
+</g>
+<g class="node" data-id="A" data-label="用户输入任务指令" data-shape="rectangle" data-role="node">
+  <rect x="157" y="40" width="164.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="239.4" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="239.4" y="63" text-anchor="middle" data-text-fragment="true">用户输入任务指令</tspan></text>
+</g>
+<g class="node" data-id="B" data-label="目标深度解构：穿透商业本质，拆解可量化核心指标" data-shape="rectangle" data-role="node">
+  <rect x="40" y="124.9" width="398.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="239.4" y="143.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="239.4" y="147.9" text-anchor="middle" data-text-fragment="true">目标深度解构：穿透商业本质，拆解可量化核心指标</tspan></text>
+</g>
+<g class="node" data-id="C" data-label="模块1：前置市场与用户洞察" data-shape="rectangle" data-role="node">
+  <rect x="162.028666667" y="278.1" width="232.114" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C" data-role="node" />
+  <text x="278.085666667" y="296.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="278.085666667" y="301.1" text-anchor="middle" data-text-fragment="true">模块1：前置市场与用户洞察</tspan></text>
+</g>
+<g class="node" data-id="C1" data-label="自主细化调研维度：商圈/客群/竞品/商户全维度调研" data-shape="rectangle" data-role="node">
+  <rect x="144.697333333" y="431.3" width="400.165" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C1" data-role="node" />
+  <text x="344.779833333" y="449.75" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="344.779833333" y="454.3" text-anchor="middle" data-text-fragment="true">自主细化调研维度：商圈/客群/竞品/商户全维度调研</tspan></text>
+</g>
+<g class="node" data-id="C2" data-label="数据填充与洞察结论输出" data-shape="rectangle" data-role="node">
+  <rect x="238.979833333" y="516.2" width="211.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C2" data-role="node" />
+  <text x="344.779833333" y="534.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="344.779833333" y="539.2" text-anchor="middle" data-text-fragment="true">数据填充与洞察结论输出</tspan></text>
+</g>
+<g class="node" data-id="C3" data-label="洞察报告合规性与有效性校验" data-shape="rectangle" data-role="node">
+  <rect x="223.379833333" y="601.1" width="242.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C3" data-role="node" />
+  <text x="344.779833333" y="619.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="344.779833333" y="624.1" text-anchor="middle" data-text-fragment="true">洞察报告合规性与有效性校验</tspan></text>
+</g>
+<g class="node" data-id="D" data-label="模块2：非遗IP与内容策划" data-shape="rectangle" data-role="node">
+  <rect x="230.607833333" y="754.3" width="221.116" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D" data-role="node" />
+  <text x="341.165833333" y="772.75" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="341.165833333" y="777.3" text-anchor="middle" data-text-fragment="true">模块2：非遗IP与内容策划</tspan></text>
+</g>
+<g class="node" data-id="D1" data-label="基于洞察结论筛选适配非遗项目" data-shape="rectangle" data-role="node">
+  <rect x="255.0325" y="907.5" width="258.4" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D1" data-role="node" />
+  <text x="384.2325" y="925.95" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="384.2325" y="930.5" text-anchor="middle" data-text-fragment="true">基于洞察结论筛选适配非遗项目</tspan></text>
+</g>
+<g class="node" data-id="D2" data-label="IP打造、年轻化表达与商业化路径设计" data-shape="rectangle" data-role="node">
+  <rect x="231.5545" y="992.4" width="305.356" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D2" data-role="node" />
+  <text x="384.2325" y="1010.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="384.2325" y="1015.4" text-anchor="middle" data-text-fragment="true">IP打造、年轻化表达与商业化路径设计</tspan></text>
+</g>
+<g class="node" data-id="D3" data-label="非遗内容合规性校验与授权规范确认" data-shape="rectangle" data-role="node">
+  <rect x="239.4325" y="1077.3" width="289.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D3" data-role="node" />
+  <text x="384.2325" y="1095.75" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="384.2325" y="1100.3" text-anchor="middle" data-text-fragment="true">非遗内容合规性校验与授权规范确认</tspan></text>
+</g>
+<g class="node" data-id="E" data-label="模块3：全案活动策划与执行" data-shape="rectangle" data-role="node">
+  <rect x="257.1125" y="1230.5" width="236.56" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E" data-role="node" />
+  <text x="375.3925" y="1248.95" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="375.3925" y="1253.5" text-anchor="middle" data-text-fragment="true">模块3：全案活动策划与执行</tspan></text>
+</g>
+<g class="node" data-id="E1" data-label="基于IP内容与客群洞察，拆分8周4阶段执行节奏" data-shape="rectangle" data-role="node">
+  <rect x="251.767166667" y="1383.7" width="370.876" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E1" data-role="node" />
+  <text x="437.205166667" y="1402.15" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="437.205166667" y="1406.7" text-anchor="middle" data-text-fragment="true">基于IP内容与客群洞察，拆分8周4阶段执行节奏</tspan></text>
+</g>
+<g class="node" data-id="E2" data-label="线下场景、线上玩法、分层客群活动细化" data-shape="rectangle" data-role="node">
+  <rect x="276.805166667" y="1468.6" width="320.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E2" data-role="node" />
+  <text x="437.205166667" y="1487.05" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="437.205166667" y="1491.6" text-anchor="middle" data-text-fragment="true">线下场景、线上玩法、分层客群活动细化</tspan></text>
+</g>
+<g class="node" data-id="E3" data-label="执行节点、落地标准与人员架构明确" data-shape="rectangle" data-role="node">
+  <rect x="292.405166667" y="1553.5" width="289.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E3" data-role="node" />
+  <text x="437.205166667" y="1571.95" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="437.205166667" y="1576.5" text-anchor="middle" data-text-fragment="true">执行节点、落地标准与人员架构明确</tspan></text>
+</g>
+<g class="node" data-id="E4" data-label="活动方案与IP内容、预算约束交叉适配校验" data-shape="rectangle" data-role="node">
+  <rect x="268.927166667" y="1638.4" width="336.556" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E4" data-role="node" />
+  <text x="437.205166667" y="1656.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="437.205166667" y="1661.4" text-anchor="middle" data-text-fragment="true">活动方案与IP内容、预算约束交叉适配校验</tspan></text>
+</g>
+<g class="node" data-id="F" data-label="模块4：商业运营与成本管控" data-shape="rectangle" data-role="node">
+  <rect x="302.259166667" y="1791.6" width="236.56" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F" data-role="node" />
+  <text x="420.539166667" y="1810.05" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="420.539166667" y="1814.6" text-anchor="middle" data-text-fragment="true">模块4：商业运营与成本管控</tspan></text>
+</g>
+<g class="node" data-id="F1" data-label="商户合作体系、招商方案设计" data-shape="rectangle" data-role="node">
+  <rect x="339.605833333" y="1944.8" width="242.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F1" data-role="node" />
+  <text x="461.005833333" y="1963.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="461.005833333" y="1967.8" text-anchor="middle" data-text-fragment="true">商户合作体系、招商方案设计</tspan></text>
+</g>
+<g class="node" data-id="F2" data-label="全周期成本明细拆分、营收预估与ROI测算" data-shape="rectangle" data-role="node">
+  <rect x="295.106833333" y="2029.7" width="331.798" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F2" data-role="node" />
+  <text x="461.005833333" y="2048.15" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="461.005833333" y="2052.7" text-anchor="middle" data-text-fragment="true">全周期成本明细拆分、营收预估与ROI测算</tspan></text>
+</g>
+<g class="node" data-id="F3" data-label="预算管控机制设计，总预算锁定780万内" data-shape="rectangle" data-role="node">
+  <rect x="302.165833333" y="2114.6" width="317.68" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F3" data-role="node" />
+  <text x="461.005833333" y="2133.05" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="461.005833333" y="2137.6" text-anchor="middle" data-text-fragment="true">预算管控机制设计，总预算锁定780万内</tspan></text>
+</g>
+<g class="node" data-id="F4" data-label="成本方案与活动策划方案双向适配校验" data-shape="rectangle" data-role="node">
+  <rect x="308.405833333" y="2199.5" width="305.2" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F4" data-role="node" />
+  <text x="461.005833333" y="2217.95" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="461.005833333" y="2222.5" text-anchor="middle" data-text-fragment="true">成本方案与活动策划方案双向适配校验</tspan></text>
+</g>
+<g class="node" data-id="G" data-label="模块5：全渠道传播与舆情管理" data-shape="rectangle" data-role="node">
+  <rect x="326.085833333" y="2352.7" width="252.16" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:G" data-role="node" />
+  <text x="452.165833333" y="2371.15" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="452.165833333" y="2375.7" text-anchor="middle" data-text-fragment="true">模块5：全渠道传播与舆情管理</tspan></text>
+</g>
+<g class="node" data-id="G1" data-label="匹配活动节奏，制定全周期传播策略与话题矩阵" data-shape="rectangle" data-role="node">
+  <rect x="329.6325" y="2505.9" width="367.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:G1" data-role="node" />
+  <text x="513.4325" y="2524.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="513.4325" y="2528.9" text-anchor="middle" data-text-fragment="true">匹配活动节奏，制定全周期传播策略与话题矩阵</tspan></text>
+</g>
+<g class="node" data-id="G2" data-label="分层KOL/KOC投放矩阵设计与效果管控" data-shape="rectangle" data-role="node">
+  <rect x="356.679" y="2590.8" width="313.507" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:G2" data-role="node" />
+  <text x="513.4325" y="2609.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="513.4325" y="2613.8" text-anchor="middle" data-text-fragment="true">分层KOL/KOC投放矩阵设计与效果管控</tspan></text>
+</g>
+<g class="node" data-id="G3" data-label="7*24h舆情监测体系与三级危机预案制定" data-shape="rectangle" data-role="node">
+  <rect x="353.0325" y="2675.7" width="320.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:G3" data-role="node" />
+  <text x="513.4325" y="2694.15" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="513.4325" y="2698.7" text-anchor="middle" data-text-fragment="true">7*24h舆情监测体系与三级危机预案制定</tspan></text>
+</g>
+<g class="node" data-id="G4" data-label="传播方案与IP合规要求、活动节点双向对齐校验" data-shape="rectangle" data-role="node">
+  <rect x="329.5545" y="2760.6" width="367.756" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:G4" data-role="node" />
+  <text x="513.4325" y="2779.05" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="513.4325" y="2783.6" text-anchor="middle" data-text-fragment="true">传播方案与IP合规要求、活动节点双向对齐校验</tspan></text>
+</g>
+<g class="node" data-id="H" data-label="模块6：全案合规与风险防控" data-shape="rectangle" data-role="node">
+  <rect x="333.859833333" y="2913.8" width="236.56" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:H" data-role="node" />
+  <text x="452.139833333" y="2932.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="452.139833333" y="2936.8" text-anchor="middle" data-text-fragment="true">模块6：全案合规与风险防控</tspan></text>
+</g>
+<g class="node" data-id="H1" data-label="全案全模块合规性终审，设置一票否决权" data-shape="rectangle" data-role="node">
+  <rect x="291.739833333" y="2998.7" width="320.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:H1" data-role="node" />
+  <text x="452.139833333" y="3017.15" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="452.139833333" y="3021.7" text-anchor="middle" data-text-fragment="true">全案全模块合规性终审，设置一票否决权</tspan></text>
+</g>
+<g class="node" data-id="H2" data-label="全场景风险点识别、分级与应对预案制定" data-shape="rectangle" data-role="node">
+  <rect x="291.739833333" y="3083.6" width="320.8" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:H2" data-role="node" />
+  <text x="452.139833333" y="3102.05" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="452.139833333" y="3106.6" text-anchor="middle" data-text-fragment="true">全场景风险点识别、分级与应对预案制定</tspan></text>
+</g>
+<g class="node" data-id="H3" data-label="问题内容识别与退回修改" data-shape="rectangle" data-role="node">
+  <rect x="346.339833333" y="3168.5" width="211.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:H3" data-role="node" />
+  <text x="452.139833333" y="3186.95" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="452.139833333" y="3191.5" text-anchor="middle" data-text-fragment="true">问题内容识别与退回修改</tspan></text>
+</g>
+<g class="node" data-id="I" data-label="模块7：全案整合与定稿" data-shape="rectangle" data-role="node">
+  <rect x="273.888404762" y="3346.45" width="205.36" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:I" data-role="node" />
+  <text x="376.568404762" y="3364.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="376.568404762" y="3369.45" text-anchor="middle" data-text-fragment="true">模块7：全案整合与定稿</tspan></text>
+</g>
+<g class="node" data-id="I1" data-label="全模块内容整合，解决冲突与矛盾" data-shape="rectangle" data-role="node">
+  <rect x="285.235071429" y="3499.65" width="274" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:I1" data-role="node" />
+  <text x="422.235071429" y="3518.1" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="422.235071429" y="3522.65" text-anchor="middle" data-text-fragment="true">全模块内容整合，解决冲突与矛盾</tspan></text>
+</g>
+<g class="node" data-id="I2" data-label="全周期执行timeline与落地标准表制定" data-shape="rectangle" data-role="node">
+  <rect x="271.546071429" y="3584.55" width="301.378" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:I2" data-role="node" />
+  <text x="422.235071429" y="3603" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="422.235071429" y="3607.55" text-anchor="middle" data-text-fragment="true">全周期执行timeline与落地标准表制定</tspan></text>
+</g>
+<g class="node" data-id="I3" data-label="全案与核心目标、硬性约束最终校验" data-shape="rectangle" data-role="node">
+  <rect x="277.435071429" y="3669.45" width="289.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:I3" data-role="node" />
+  <text x="422.235071429" y="3687.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="422.235071429" y="3692.45" text-anchor="middle" data-text-fragment="true">全案与核心目标、硬性约束最终校验</tspan></text>
+</g>
+<g class="node" data-id="J" data-label="最终可落地完整全案交付" data-shape="rectangle" data-role="node">
+  <rect x="316.435071429" y="3822.65" width="211.6" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:J" data-role="node" />
+  <text x="422.235071429" y="3841.1" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="422.235071429" y="3845.65" text-anchor="middle" data-text-fragment="true">最终可落地完整全案交付</tspan></text>
+</g>
+</svg>

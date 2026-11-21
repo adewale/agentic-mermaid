@@ -1,0 +1,5 @@
+home: 9 requests, 703583 raw / 408255 gzip / 388687 Brotli bytes
+examples: 6 requests, 237368 raw / 40371 gzip / 31612 Brotli bytes
+demo: 17 requests, 717811 raw / 277968 gzip / 246703 Brotli bytes
+editor-empty: 3 requests, 439600 raw / 126769 gzip / 108844 Brotli bytes
+Website payload request graphs and budgets pass

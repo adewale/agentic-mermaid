@@ -1,0 +1,471 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/aesthetic-issue-regressions.test.ts:
+129 |     { file: 'bm52-wallet', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/52', nodes: 10, edges: 11, captions: 0 },
+130 |     { file: 'bm83-approval-loops', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/83', nodes: 34, edges: 44, captions: 18 },
+131 |   ])('$url preserves the complete richer diagram and readable relationships', fixture => {
+132 |     const src = readFileSync(new URL(`./fixtures/aesthetic-intent/${fixture.file}.mmd`, import.meta.url), 'utf8')
+133 |     const svg = renderedSvg(src), r = parseSvg(svg)
+134 |     expect(r.nodes).toHaveLength(fixture.nodes)
+                          ^
+error: expect(received).toHaveLength(expected)
+
+Expected length: 10
+Received length: 9
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:134:21)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [176.34ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/83 preserves the complete richer diagram and readable relationships [183.58ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #6476 avoidable edge crossings: a planar bipartite graph renders with none [37.81ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #5601 planar state diagram is rendered planar (no edge crossings) [31.75ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #5060 parallel labeled edges do not overlap into geometric defects [36.15ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #2792 a transitive edge does not pass through an intervening node [18.87ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #2131 edge labels keep clearance from unrelated nodes [26.82ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #6336 / #6049 a self-loop renders with endpoints on the outline, no defects [40.13ms]
+
+src/__tests__/layout-certification.test.ts:
+(pass) bounded final layout certification > propagates strict producer failure %s [0.58ms]
+(pass) bounded final layout certification > propagates strict producer failure %s [0.26ms]
+(pass) bounded final layout certification > propagates strict producer failure %s [0.21ms]
+(pass) bounded final layout certification > strict candidate correspondence failures remain engine defects [3.10ms]
+(pass) bounded final layout certification > strict candidate geometry rejection stays classified [1.90ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [2.51ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [1.69ms]
+(pass) bounded final layout certification > a failing primary producer is contained before separate hierarchy within the public fallback budget [3.97ms]
+(pass) bounded final layout certification > optional order search preserves the fourth mandatory recovery with balanced=%s [6.15ms]
+(pass) bounded final layout certification > optional order search preserves the fourth mandatory recovery with balanced=%s [6.01ms]
+(pass) bounded final layout certification > optional geometry cannot cross a published symmetry rounding boundary [1.11ms]
+(pass) bounded final layout certification > the public layout certifies actual styled label geometry [8.95ms]
+(pass) bounded final layout certification > an invalid first route yields to a certified deterministic alternative [5.44ms]
+(pass) bounded final layout certification > readable container titles take precedence over a crossing reduction [3.26ms]
+(pass) bounded final layout certification > crossing reduction outranks fewer bends and a smaller canvas among feasible routes [0.69ms]
+(pass) bounded final layout certification > a final route comparison reuses its placement preflight and keeps placement evidence [0.65ms]
+(pass) bounded final layout certification > a final routing callback cannot use an attached receipt to bypass placement checks [3.20ms]
+288 |     const { positioned: clear } = labelledWitness(true)
+289 |     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+290 |       { strategy: 'occluded-without-crossings', produce: () => occluded },
+291 |       { strategy: 'readable-with-crossing', produce: () => clear },
+292 |     ])
+293 |     expect(selected).toBe(clear)
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: {
+  width: 360,
+  height: 280,
+  groups: [],
+  nodes: [
+    {
+      id: "A",
+      label: "A",
+      shape: "rectangle",
+      x: 20,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "B",
+      label: "B",
+      shape: "rectangle",
+      x: 260,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "C",
+      label: "C",
+      shape: "rectangle",
+      x: 140,
+      y: 20,
+      width: 40,
+      height: 40,
+    }, {
+      id: "D",
+      label: "D",
+      shape: "rectangle",
+      x: 140,
+      y: 220,
+      width: 40,
+      height: 40,
+    }
+  ],
+  edges: [
+    {
+      source: "A",
+      target: "B",
+      label: "x",
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 0,
+      points: [
+        {
+          x: 60,
+          y: 120,
+        }, {
+          x: 260,
+          y: 120,
+        }
+      ],
+      labelPosition: {
+        x: 100,
+        y: 120,
+      },
+      labelBlock: {
+        unit: "px",
+        prepared: {
+          source: "x",
+          display: "formatted",
+          lines: [
+            [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ]
+          ],
+          lineStarts: [ 0 ],
+        },
+        text: "x",
+        lines: [ "x" ],
+        lineBlocks: [
+          {
+            runs: [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ],
+            text: "x",
+            width: 7.59,
+            baseline: 3.8499999999999996,
+            originX: 0,
+          }
+        ],
+        breaks: [],
+        width: 7.59,
+        height: 14.3,
+        lineHeight: 14.3,
+        fontSize: 11,
+        fontWeight: 400,
+        letterSpacing: 0,
+        monospace: false,
+        safeFont: false,
+      },
+    }, {
+      source: "C",
+      target: "D",
+      label: undefined,
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 1,
+      points: [
+        {
+          x: 160,
+          y: 60,
+        }, {
+          x: 160,
+          y: 220,
+        }
+      ],
+    }
+  ],
+}
+Received: {
+  width: 360,
+  height: 280,
+  groups: [],
+  nodes: [
+    {
+      id: "A",
+      label: "A",
+      shape: "rectangle",
+      x: 20,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "B",
+      label: "B",
+      shape: "rectangle",
+      x: 260,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "C",
+      label: "C",
+      shape: "rectangle",
+      x: 80,
+      y: 70,
+      width: 40,
+      height: 40,
+    }, {
+      id: "D",
+      label: "D",
+      shape: "rectangle",
+      x: 300,
+      y: 220,
+      width: 40,
+      height: 40,
+    }
+  ],
+  edges: [
+    {
+      source: "A",
+      target: "B",
+      label: "x",
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 0,
+      points: [
+        {
+          x: 60,
+          y: 120,
+        }, {
+          x: 260,
+          y: 120,
+        }
+      ],
+      labelPosition: {
+        x: 100,
+        y: 120,
+      },
+      labelBlock: {
+        unit: "px",
+        prepared: {
+          source: "x",
+          display: "formatted",
+          lines: [
+            [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ]
+          ],
+          lineStarts: [ 0 ],
+        },
+        text: "x",
+        lines: [ "x" ],
+        lineBlocks: [
+          {
+            runs: [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ],
+            text: "x",
+            width: 7.59,
+            baseline: 3.8499999999999996,
+            originX: 0,
+          }
+        ],
+        breaks: [],
+        width: 7.59,
+        height: 14.3,
+        lineHeight: 14.3,
+        fontSize: 11,
+        fontWeight: 400,
+        letterSpacing: 0,
+        monospace: false,
+        safeFont: false,
+      },
+    }, {
+      source: "C",
+      target: "D",
+      label: undefined,
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 1,
+      points: [
+        {
+          x: 100,
+          y: 70,
+        }, {
+          x: 100,
+          y: 60,
+        }, {
+          x: 320,
+          y: 60,
+        }, {
+          x: 320,
+          y: 220,
+        }
+      ],
+    }
+  ],
+  certification: {
+    status: "passed",
+    strategy: "occluded-without-crossings",
+    attempts: 2,
+    hardViolations: 0,
+    preference: {
+      selectedScore: {
+        unreadableTitles: 0,
+        labelConflicts: 1,
+        edgeCrossings: 0,
+        totalBends: 2,
+        nonCanonicalEndpointRate: 0,
+        peerBarycenterDelta: 0,
+        area: 100800,
+      },
+      reason: "edgeCrossings",
+      compared: [
+        {
+          strategy: "occluded-without-crossings",
+          score: {
+            unreadableTitles: 0,
+            labelConflicts: 1,
+            edgeCrossings: 0,
+            totalBends: 2,
+            nonCanonicalEndpointRate: 0,
+            peerBarycenterDelta: 0,
+            area: 100800,
+          },
+        }, {
+          strategy: "readable-with-crossing",
+          score: {
+            unreadableTitles: 0,
+            labelConflicts: 0,
+            edgeCrossings: 1,
+            totalBends: 0,
+            nonCanonicalEndpointRate: 0,
+            peerBarycenterDelta: 0,
+            area: 100800,
+          },
+        }
+      ],
+    },
+  },
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/layout-certification.test.ts:293:22)
+(fail) bounded final layout certification > clearing a label conflict can buy one crossing between otherwise feasible routes [2.11ms]
+(pass) bounded final layout certification > zero crossings do not suppress a bounded label-conflict comparison [0.89ms]
+(pass) bounded final layout certification > continuity outranks canonical ports when crossings are equal [0.47ms]
+(pass) bounded final layout certification > canonical ports outrank symmetry, which outranks compactness [20.08ms]
+(pass) bounded final layout certification > compactness breaks quality ties and exact ties retain candidate order [1.33ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 64 [1.45ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 65 [0.83ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 128 [6.49ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 129 [3.49ms]
+(pass) bounded final layout certification > ordinary zero-crossing graphs and no-op strategies do not produce a cosmetic alternative [34.69ms]
+(pass) bounded final layout certification > a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink [21.08ms]
+(pass) bounded final layout certification > no candidate succeeds on non-finite geometry, even when an outline checker could miss it [1.51ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelBlock before certification [2.71ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelPosition before certification [2.03ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node [4.00ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored edge [1.61ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored marker [1.55ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored label [1.27ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node-label [1.42ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored group-label [1.07ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored parent [1.14ms]
+(pass) bounded final layout certification > report safety draws the best drawable candidate when none certifies [6.39ms]
+(pass) bounded final layout certification > State drawings share the report-safety fallback [14.28ms]
+(pass) bounded final layout certification > a candidate cannot exchange authored members between intact group frames [3.47ms]
+(pass) bounded final layout certification > public group membership retains authored identities instead of inferring ownership from coordinates [1.29ms]
+(pass) bounded final layout certification > a retained node text block cannot replace the authored label [3.62ms]
+(pass) bounded final layout certification > a retained group text block cannot replace the authored label [1.56ms]
+(pass) bounded final layout certification > a retained edge text block cannot replace the authored label [1.54ms]
+(pass) bounded final layout certification > retained formatted and transformed labels preserve their authored source [6.03ms]
+(pass) bounded final layout certification > retained node text preserves decoded literal meaning through certification [13.13ms]
+(pass) bounded final layout certification > retained group text preserves decoded literal meaning through certification [4.63ms]
+(pass) bounded final layout certification > retained edge text preserves decoded literal meaning through certification [4.05ms]
+(pass) bounded final layout certification > retained text cannot change its prepared display interpretation [2.87ms]
+(pass) bounded final layout certification > retained text cannot change its prepared transform interpretation [1.19ms]
+(pass) bounded final layout certification > an authored child frame cannot escape its parent with its members [2.74ms]
+(pass) bounded final layout certification > exhaustion stops after four attempts and never returns the least-bad candidate [1.37ms]
+(pass) bounded final layout certification > a title preference preflight exception stays inside its candidate attempt [2.87ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid title alternative without an extra production [0.68ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid quality alternative without an extra production [0.43ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.26ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.55ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.36ms]
+(pass) final full group-header route geometry > unrelated root header [0.65ms]
+(pass) final full group-header route geometry > nested header below the parent band [0.12ms]
+(pass) final full group-header route geometry > authored north exterior contact [0.04ms]
+(pass) final full group-header route geometry > own endpoint approached through its header interior [0.02ms]
+(pass) final full group-header route geometry > border-only north contact [0.02ms]
+(pass) final full group-header route geometry > invisible route [0.02ms]
+(pass) final full group-header route geometry > concurrency region has no own header [0.03ms]
+(pass) final full group-header route geometry > explicit zero header [0.02ms]
+(pass) final full group-header route geometry > missing height retains measured band [0.05ms]
+(pass) final full group-header route geometry > missing height does not reserve the whole group [0.05ms]
+(pass) group headers gate completed candidate consumers > a clear shorter shaft cannot make a reserved-header candidate feasible [1.29ms]
+(pass) group headers gate completed candidate consumers > a route alternative with fewer bends cannot overwrite a header-clear baseline [0.63ms]
+(pass) retained header bands are independent of frame height > final band: zero-width band above zero frame [0.17ms]
+(pass) retained header bands are independent of frame height > final band: positive-width full band beyond frame [0.03ms]
+(pass) retained header bands are independent of frame height > final band: below full retained band [0.01ms]
+(pass) retained header bands are independent of frame height > final band: exact lower boundary
+(pass) retained header bands are independent of frame height > final band: missing height uses actual text fallback
+(pass) retained header bands are independent of frame height > final band: negative retained height
+(pass) retained header bands are independent of frame height > final band: nonfinite retained height [0.09ms]
+(pass) retained header bands are independent of frame height > final band: infinite retained height [0.01ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: edge-to-edge vertical crossing beside the title [0.16ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: jog travelling inside the band [0.04ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: vertical crossing through the title [0.02ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: route ending inside the band [0.04ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: parallel run on the band edge [0.05ms]
+(pass) retained header bands are independent of frame height > lane band: inside measured band beyond frame [0.14ms]
+(pass) retained header bands are independent of frame height > lane band: below measured band beyond frame [0.01ms]
+(pass) retained header bands are independent of frame height > lane band: missing height conservatively reserves whole frame [0.01ms]
+(pass) retained header bands are independent of frame height > lane band: negative height conservative
+(pass) retained header bands are independent of frame height > lane band: nonfinite height conservative
+(pass) retained header bands are independent of frame height > lane band: infinite height conservative
+(pass) retained header bands are independent of frame height > public empty flowchart subgraph retains authored identity and a visible frame under its band [8.71ms]
+(pass) retained header bands are independent of frame height > public empty state composite retains authored identity and a visible frame under its band [7.90ms]
+
+2 tests failed:
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [176.34ms]
+(fail) bounded final layout certification > clearing a label conflict can buy one crossing between otherwise feasible routes [2.11ms]
+
+ 98 pass
+ 2 fail
+ 1023 expect() calls
+Ran 100 tests across 2 files. [1259.00ms]

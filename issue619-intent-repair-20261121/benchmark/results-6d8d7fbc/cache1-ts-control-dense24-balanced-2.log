@@ -1,0 +1,11 @@
+{"case":"dense24-balanced","backend":"elk","phase":"repeat1","status":"returned","wallMs":36.802274000000125,"cpuMs":59.704}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat2","status":"returned","wallMs":7.444944000000078,"cpuMs":15.362}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.008645999999999,"cpuMs":6.374}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat4","status":"returned","wallMs":2.1171489999999267,"cpuMs":5.51}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat5","status":"returned","wallMs":1.3080499999998665,"cpuMs":4.611}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat6","status":"returned","wallMs":1.2632830000000013,"cpuMs":4.28}
+{"case":"dense24-balanced","backend":"elk","phase":"repeat7","status":"returned","wallMs":1.2447149999998146,"cpuMs":4.279}
+{"case":"dense24-balanced","backend":"elk","phase":"edit1","status":"returned","wallMs":1130.347777,"cpuMs":1724.393}
+{"case":"dense24-balanced","backend":"elk","phase":"edit2","status":"returned","wallMs":25.460571000000073,"cpuMs":36.584}
+{"case":"dense24-balanced","backend":"elk","phase":"edit3","status":"returned","wallMs":5.0215940000002774,"cpuMs":13.007}
+{"case":"dense24-balanced","backend":"elk","phase":"edit4","status":"returned","wallMs":1.0293299999998453,"cpuMs":4.523}

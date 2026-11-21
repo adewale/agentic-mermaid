@@ -1,0 +1,10 @@
+Processes 108 proofs {'passed': 1152, 'unverified': 144} byArm {'ts-control': {'passed': 576, 'unverified': 72}, 'ts-final': {'passed': 576, 'unverified': 72}} errors 0
+winning-duplicate-return-balanced [('ts-control', 15.07, 97.72, 24.82), ('ts-final', 15.88, 95.25, 24.91)]
+lcg-135-balanced [('ts-final', 131.56, 165.54, 37.18), ('ts-control', 154.59, 150.77, 40.52)]
+lcg-139-balanced [('ts-control', 181.58, 169.98, 39.42), ('ts-final', 177.22, 159.09, 40.63)]
+cyclic19-balanced [('ts-final', 235.63, 190.79, 50.75), ('ts-control', 222.4, 179.96, 54.25)]
+cyclic19-default [('ts-control', 179.43, 159.04, 41.42), ('ts-final', 161.9, 160.26, 41.06)]
+dense24-balanced [('ts-final', 717.81, 280.9, 80.08), ('ts-control', 752.39, 302.21, 88.71)]
+dense24-default [('ts-control', 504.2, 244.04, 83.93), ('ts-final', 490.73, 268.3, 81.19)]
+bm52-wallet [('ts-final', 22.83, 97.08, 21.67), ('ts-control', 26.56, 100.85, 25.48)]
+bm83-workflow [('ts-control', 69.1, 127.81, 32.34), ('ts-final', 71.48, 137.34, 32.0)]

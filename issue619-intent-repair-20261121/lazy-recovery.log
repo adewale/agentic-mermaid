@@ -1,0 +1,92 @@
+$ bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts
+$ bun run scripts/build/generate-browser-family-catalog.ts
+generated browser family catalog (33 families)
+CLI Building entry: {"browser-lazy/index":"src/browser-lazy.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /workspace/elk-layered-port/tsup.browser-lazy.config.ts
+CLI Target: es2022
+ESM Build start
+DTS Build start
+ESM dist/browser-lazy/index.js                                  4.29 KB
+ESM dist/browser-lazy/chunks/pie-2Y2U7ZEC.js                    22.19 KB
+ESM dist/browser-lazy/chunks/quadrant-CZNTHTD2.js               28.46 KB
+ESM dist/browser-lazy/chunks/gantt-ETTLOY7O.js                  47.83 KB
+ESM dist/browser-lazy/chunks/gitgraph-F3AID3W4.js               31.35 KB
+ESM dist/browser-lazy/chunks/mindmap-P47AU5IT.js                20.03 KB
+ESM dist/browser-lazy/chunks/sankey-JBMMKUKR.js                 24.49 KB
+ESM dist/browser-lazy/chunks/radar-YXCB74LS.js                  30.03 KB
+ESM dist/browser-lazy/chunks/block-DP5CJPGC.js                  33.84 KB
+ESM dist/browser-lazy/chunks/render-core-WZ3JMJ3V.js            34.41 KB
+ESM dist/browser-lazy/chunks/flowchart-2JYEH27O.js              5.49 KB
+ESM dist/browser-lazy/chunks/sequence-52D7N4V6.js               7.06 KB
+ESM dist/browser-lazy/chunks/xychart-AW2DQQGI.js                52.85 KB
+ESM dist/browser-lazy/chunks/class-IQA2FXYY.js                  111.47 KB
+ESM dist/browser-lazy/chunks/er-EQFECVMZ.js                     87.59 KB
+ESM dist/browser-lazy/chunks/timeline-ZMQSENZD.js               21.24 KB
+ESM dist/browser-lazy/chunks/architecture-BIHVY7NA.js           55.82 KB
+ESM dist/browser-lazy/chunks/parser-source-YKXDUE4P.js          2.34 KB
+ESM dist/browser-lazy/chunks/journey-S47LK4RM.js                33.25 KB
+ESM dist/browser-lazy/chunks/kanban-YII6BMB6.js                 14.89 KB
+ESM dist/browser-lazy/chunks/requirement-K3MQXRR6.js            26.25 KB
+ESM dist/browser-lazy/chunks/treemap-FUFXFM27.js                17.79 KB
+ESM dist/browser-lazy/chunks/zenuml-O7VQEJEV.js                 22.43 KB
+ESM dist/browser-lazy/chunks/cynefin-NCWQQUB3.js                11.13 KB
+ESM dist/browser-lazy/chunks/ishikawa-5R52CVRR.js               9.36 KB
+ESM dist/browser-lazy/chunks/agentflow-GNGPMTCD.js              16.48 KB
+ESM dist/browser-lazy/chunks/railroad-GIIZBIFM.js               23.01 KB
+ESM dist/browser-lazy/chunks/swimlane-N2LRCEB7.js               22.44 KB
+ESM dist/browser-lazy/chunks/treeview-QF7ABS6Q.js               11.21 KB
+ESM dist/browser-lazy/chunks/usecase-D3XKZSJN.js                47.38 KB
+ESM dist/browser-lazy/chunks/venn-C3L7AEYS.js                   23.43 KB
+ESM dist/browser-lazy/chunks/decode-FL2SBZ3N.js                 39.58 KB
+ESM dist/browser-lazy/chunks/packet-J6YVC5NV.js                 8.53 KB
+ESM dist/browser-lazy/chunks/eventmodeling-PZ6CHMRO.js          20.40 KB
+ESM dist/browser-lazy/chunks/wardley-QF6YGETC.js                25.38 KB
+ESM dist/browser-lazy/chunks/edge-crossings-indexed-I6BJOVKB.js 3.93 KB
+ESM dist/browser-lazy/chunks/inter-metrics-kernel-ISBGZHXL.js   18.18 KB
+ESM dist/browser-lazy/chunks/mermaid-yaml-runtime-64ZJJTHB.js   97.76 KB
+ESM dist/browser-lazy/chunks/chunk-ORF4HJGP.js                  6.41 KB
+ESM dist/browser-lazy/chunks/chunk-V4WS5APO.js                  2.17 KB
+ESM dist/browser-lazy/chunks/chunk-5R26VWPJ.js                  2.84 KB
+ESM dist/browser-lazy/chunks/chunk-EJJJZK7Y.js                  194.00 B
+ESM dist/browser-lazy/chunks/chunk-B3OCWFFG.js                  1.64 KB
+ESM dist/browser-lazy/chunks/chunk-EZ3ROTVT.js                  1.81 KB
+ESM dist/browser-lazy/chunks/chunk-LIL2JGWC.js                  11.50 KB
+ESM dist/browser-lazy/chunks/chunk-HCBTTSUO.js                  374.00 B
+ESM dist/browser-lazy/chunks/chunk-TM7USALT.js                  891.00 B
+ESM dist/browser-lazy/chunks/chunk-JAMRBJHS.js                  125.05 KB
+ESM dist/browser-lazy/chunks/chunk-AGC4UE6R.js                  4.12 KB
+ESM dist/browser-lazy/chunks/chunk-5ECXV4ET.js                  1.32 KB
+ESM dist/browser-lazy/chunks/chunk-WOI3Z3QK.js                  7.16 KB
+ESM dist/browser-lazy/chunks/chunk-WQ35WEIW.js                  13.39 KB
+ESM dist/browser-lazy/chunks/chunk-FD7YQSRK.js                  1.57 KB
+ESM dist/browser-lazy/chunks/chunk-LULQIIAJ.js                  506.00 B
+ESM dist/browser-lazy/chunks/chunk-6AIXHD3O.js                  8.46 KB
+ESM dist/browser-lazy/chunks/chunk-DGTJPOBX.js                  163.00 B
+ESM dist/browser-lazy/chunks/chunk-PGHWKKTB.js                  281.00 B
+ESM dist/browser-lazy/chunks/chunk-XEUOZMLN.js                  383.00 B
+ESM dist/browser-lazy/chunks/chunk-JUPTVRTD.js                  786.00 B
+ESM dist/browser-lazy/chunks/chunk-EJX6CBBM.js                  59.38 KB
+ESM dist/browser-lazy/chunks/chunk-EHJBJ7TT.js                  911.00 B
+ESM dist/browser-lazy/chunks/chunk-2WTNWYB6.js                  2.13 KB
+ESM dist/browser-lazy/chunks/builtin-backends-JRDLCE44.js       39.48 KB
+ESM dist/browser-lazy/chunks/chunk-MKPBN6DW.js                  1.20 KB
+ESM dist/browser-lazy/chunks/optimization-runtime-HVZL4SPR.js   6.07 KB
+ESM dist/browser-lazy/chunks/chunk-W7SFZXEW.js                  267.00 B
+ESM dist/browser-lazy/chunks/chunk-II2C4P2T.js                  20.02 KB
+ESM dist/browser-lazy/chunks/chunk-2BB46O73.js                  340.00 B
+ESM dist/browser-lazy/chunks/chunk-D6GHWX3F.js                  414.00 B
+ESM dist/browser-lazy/chunks/chunk-BM43LGMO.js                  427.00 B
+ESM dist/browser-lazy/chunks/chunk-L66YNCJ3.js                  759.00 B
+ESM dist/browser-lazy/chunks/chunk-64SBUIAS.js                  3.54 KB
+ESM dist/browser-lazy/chunks/chunk-NICJO2HG.js                  400.00 B
+ESM dist/browser-lazy/chunks/chunk-UCCNBSLI.js                  73.05 KB
+ESM dist/browser-lazy/chunks/chunk-U5U6DOWT.js                  128.78 KB
+ESM dist/browser-lazy/chunks/state-SCLBT2UN.js                  7.72 KB
+ESM dist/browser-lazy/chunks/c4-SOQI5DFM.js                     72.05 KB
+ESM dist/browser-lazy/chunks/layout-BVL2PPME.js                 214.64 KB
+ESM dist/browser-lazy/chunks/chunk-237B0682.js                  442.03 KB
+ESM ⚡️ Build success in 7788ms
+DTS ⚡️ Build success in 16100ms
+DTS dist/browser-lazy/index.d.ts 53.02 KB

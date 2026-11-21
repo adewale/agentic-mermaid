@@ -1,0 +1,284 @@
+[
+  {
+    "source": "bm52-wallet.mmd",
+    "sourceSha256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+    "outputs": [
+      {
+        "arm": "ours-default",
+        "version": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+        "svg": "renders/bm52-wallet-ours-default.svg",
+        "svgSha256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+        "viewBox": "0 0 1165.877 340.025",
+        "nodeCount": 10,
+        "edgeCount": 11,
+        "edgeCaptions": 0,
+        "paint": "passed",
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "inspectedWalletTransfers": [
+          {
+            "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "467.5285,58.45 496.4845,58.45 496.4845,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "457.8955,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "463.8235,193.625 496.4845,193.625 496.4845,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+            "shafts": "463.8235,199.775 508.8595,199.775",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          }
+        ]
+      },
+      {
+        "arm": "ours-balanced",
+        "version": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+        "svg": "renders/bm52-wallet-ours-balanced.svg",
+        "svgSha256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+        "viewBox": "0 0 1165.877 340.025",
+        "nodeCount": 10,
+        "edgeCount": 11,
+        "edgeCaptions": 0,
+        "paint": "passed",
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "inspectedWalletTransfers": [
+          {
+            "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "467.5285,58.45 496.4845,58.45 496.4845,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "457.8955,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "463.8235,193.625 496.4845,193.625 496.4845,125.141666667 508.8595,125.141666667",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+            "shafts": "463.8235,199.775 508.8595,199.775",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          }
+        ]
+      },
+      {
+        "arm": "bm",
+        "version": "1.1.3",
+        "svg": "renders/bm52-wallet-bm.svg",
+        "svgSha256": "59834dc3408653b62addd050460e64aff0060e12e94a795ba59a8609102929a9",
+        "viewBox": "0 0 970.5300000000001 340.02500000000003",
+        "inspectedWalletTransfers": [
+          {
+            "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "389.762,58.45 409.05875000000003,58.45 409.05875000000003,115.22500000000002 428.3555,115.22500000000002",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "385.316,123.35000000000001 409.05875000000003,123.35000000000001 409.05875000000003,115.22500000000002 428.3555,115.22500000000002",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "391.24399999999997,193.625 409.79975,193.625 409.79975,115.22500000000002 428.3555,115.22500000000002",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+            "shafts": "391.24399999999997,193.625 409.79975,193.625 409.79975,199.77500000000003 428.3555,199.77500000000003",
+            "shape": "polyline",
+            "markerEnd": "url(#arrowhead)"
+          }
+        ]
+      },
+      {
+        "arm": "zm",
+        "version": "5.18.0",
+        "svg": "renders/bm52-wallet-zm.svg",
+        "svgSha256": "ed267ae06e0e03832c216529b1d152754c3573ded36fcc86409330cd8d6db1b6",
+        "viewBox": "0 0 1037.94 521",
+        "inspectedWalletTransfers": [
+          {
+            "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "M 421.94 79 L 434.87 79 Q 441.94 79, 441.94 86.07 L 441.94 171.93 Q 441.94 179, 449.01 179 L 461.94 179",
+            "shape": "path",
+            "markerEnd": "url(#zm9orw8u-arrowhead)"
+          },
+          {
+            "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "M 421.94 197 L 461.94 197",
+            "shape": "path",
+            "markerEnd": "url(#zm9orw8u-arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "shafts": "M 421.94 302 L 434.87 302 Q 441.94 302, 441.94 294.93 L 441.94 222.07 Q 441.94 215, 449.01 215 L 461.94 215",
+            "shape": "path",
+            "markerEnd": "url(#zm9orw8u-arrowhead)"
+          },
+          {
+            "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "target": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+            "shafts": "M 421.94 328 L 461.94 328",
+            "shape": "path",
+            "markerEnd": "url(#zm9orw8u-arrowhead)"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "source": "bm83-approval-loops.mmd",
+    "sourceSha256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+    "outputs": [
+      {
+        "arm": "ours-default",
+        "version": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+        "svg": "renders/bm83-workflow-ours-default.svg",
+        "svgSha256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+        "viewBox": "0 0 1074.186 3899.55",
+        "nodeCount": 34,
+        "edgeCount": 44,
+        "edgeCaptions": 18,
+        "paint": "passed",
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "centerDirections": {
+          "primary-forward / down": 33,
+          "feedback / up": 11
+        },
+        "upwardEdges": [
+          "C3->C1",
+          "D3->D1",
+          "E4->E1",
+          "F4->F1",
+          "G4->G1",
+          "H3->C",
+          "H3->D",
+          "H3->E",
+          "H3->F",
+          "H3->G",
+          "I3->I1"
+        ]
+      },
+      {
+        "arm": "ours-balanced",
+        "version": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+        "svg": "renders/bm83-workflow-ours-balanced.svg",
+        "svgSha256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+        "viewBox": "0 0 1074.186 3899.55",
+        "nodeCount": 34,
+        "edgeCount": 44,
+        "edgeCaptions": 18,
+        "paint": "passed",
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "centerDirections": {
+          "primary-forward / down": 33,
+          "feedback / up": 11
+        },
+        "upwardEdges": [
+          "C3->C1",
+          "D3->D1",
+          "E4->E1",
+          "F4->F1",
+          "G4->G1",
+          "H3->C",
+          "H3->D",
+          "H3->E",
+          "H3->F",
+          "H3->G",
+          "I3->I1"
+        ]
+      },
+      {
+        "arm": "bm",
+        "version": "1.1.3",
+        "svg": "renders/bm83-workflow-bm.svg",
+        "svgSha256": "ec3ee54dd676163993db7aedb55e16d8efa118d08cf5d18ef7569a8dae26c6c4",
+        "viewBox": "0 0 3662.3529166666663 650.3"
+      },
+      {
+        "arm": "zm",
+        "version": "5.18.0",
+        "svg": "renders/bm83-workflow-zm.svg",
+        "svgSha256": "d33e37ccbaf30055f7d04864198443fbd496189be9b7789d4bf46dfdd53230ca",
+        "viewBox": "0 0 1153.35 3494.1"
+      }
+    ]
+  }
+]

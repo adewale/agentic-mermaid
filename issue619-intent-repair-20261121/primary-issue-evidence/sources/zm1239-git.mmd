@@ -1,0 +1,11 @@
+graph LR
+  A[main] --> B[develop]
+  B --> C[feature/auth]
+  B --> D[feature/ui]
+  C --> E{PR Review}
+  D --> E
+  E -->|approved| B
+  B --> F[release/1.0]
+  F --> G{Tests?}
+  G -->|pass| A
+  G -->|fail| F

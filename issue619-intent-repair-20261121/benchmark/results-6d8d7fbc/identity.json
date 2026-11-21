@@ -1,0 +1,44 @@
+{
+  "arms": [
+    {
+      "label": "ts-control",
+      "backend": "elk",
+      "source": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+      "root": "/workspace/elk-layered-tools/issue619-intent-repair-20261121/baseline-root"
+    },
+    {
+      "label": "ts-final",
+      "backend": "elk",
+      "source": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+      "root": "/workspace/elk-layered-port"
+    }
+  ],
+  "protocolOrigin": "/workspace/elk-layered-tools/current-main-2c689f-comparison/final96-render-protocol",
+  "workerSha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd",
+  "scope": "Full SVG+entire receipt serialization+UTF8 inside API clocks; import/cold/cache/edit separate, compression and explicit GC outside; RSS includes whole harness",
+  "sampling": "Three balanced fresh processes per configuration/cache/case; seven warm repeats; one actual source edit followed by three repeat renders of that edit; exploratory, not formal calibration",
+  "casesSha256": "0dbec3a3e1acc3cb3ec4d30061603abba5ddff27cad6fe741a9f53f6d7b3cb1b",
+  "cases": 9,
+  "launcherSha256": "47479f52c7865a50376f7893f91e38e4030eb3cdfa79ff55a6d0b7b0bc7ca6b8",
+  "nodeVersion": "v24.19.0",
+  "nodeBinary": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+  "candidateRoot": "/workspace/elk-layered-port",
+  "candidateRevision": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "armProductEntries": [
+    {
+      "label": "ts-control",
+      "indexSha256": "20066dedd5b362f3e02becd710630049540ea05adc19e99a1b7ec01d841110da"
+    },
+    {
+      "label": "ts-final",
+      "indexSha256": "3a3ff43b5ed4743224b3fdce23de4ec63a20dd4938eedfafe3c3b886ac6252ec"
+    }
+  ],
+  "workerPath": "/tmp/issue619-followup-20261121/benchmark-final/receipt-worker.mjs",
+  "controlRevision": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "start": "2026-11-21T23:02:33.662Z",
+  "timingStatus": "COMPLETED",
+  "end": "2026-11-21T23:06:35.189Z",
+  "completed": 108,
+  "lifecycleErrors": 0
+}

@@ -1,0 +1,14 @@
+{
+  "id": "bm83-workflow",
+  "product": "Mermaid",
+  "version": "12.3.0",
+  "layout": "default Dagre",
+  "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+  "options": {
+    "startOnLoad": false
+  },
+  "boundary": "Installed browser ESM served on loopback only",
+  "ok": true,
+  "svgSHA256": "b72fb976b61f8331257fcd8c2da074cab9ba2426f0153dfd7af82f6d3d5af70d",
+  "viewBox": "4 4 630 4341"
+}

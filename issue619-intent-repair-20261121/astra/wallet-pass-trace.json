@@ -1,0 +1,415 @@
+{
+  "scope": "One ordinary 10-node wallet layout. Logged only when one of the three arrivals changed its final two points or generic bundle membership.",
+  "evidence": [
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "extractEdgesRecursively",
+      "phase": "before",
+      "spokes": []
+    },
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "extractEdgesRecursively",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 510.712,
+            "y": 98.57500000000002
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 98.57500000000002
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 510.712,
+            "y": 112.02500000000002
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 112.02500000000002
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 510.712,
+            "y": 125.47500000000002
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 125.47500000000002
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "alignLayerNodes",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 111.69166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 111.69166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 125.14166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 138.59166666666664
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 138.59166666666664
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "centerPeerBarycenters",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 111.69166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 111.69166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 125.14166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 138.59166666666664
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 138.59166666666664
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "bundleEdgePaths",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 488.194,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": true
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 488.194,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": true
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 486.3415,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": true
+        }
+      ]
+    },
+    {
+      "proposal": 1,
+      "mergeEdges": true,
+      "pass": "collapseTinyBundledHitches",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 488.194,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": true
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 123.35000000000001
+          },
+          "entry": {
+            "x": 457.8955,
+            "y": 123.35000000000001
+          },
+          "ownsBundle": true
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 486.3415,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": true
+        }
+      ]
+    },
+    {
+      "proposal": 2,
+      "mergeEdges": false,
+      "pass": "extractEdgesRecursively",
+      "phase": "before",
+      "spokes": []
+    },
+    {
+      "proposal": 2,
+      "mergeEdges": false,
+      "pass": "extractEdgesRecursively",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 510.712,
+            "y": 98.57500000000002
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 98.57500000000002
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 510.712,
+            "y": 112.02500000000002
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 112.02500000000002
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 510.712,
+            "y": 125.47500000000002
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 125.47500000000002
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 2,
+      "mergeEdges": false,
+      "pass": "alignLayerNodes",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 111.69166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 111.69166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 125.14166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 138.59166666666664
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 138.59166666666664
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 2,
+      "mergeEdges": false,
+      "pass": "centerPeerBarycenters",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 111.69166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 111.69166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666665
+          },
+          "entry": {
+            "x": 498.337,
+            "y": 125.14166666666665
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 138.59166666666664
+          },
+          "entry": {
+            "x": 494.632,
+            "y": 138.59166666666664
+          },
+          "ownsBundle": false
+        }
+      ]
+    },
+    {
+      "proposal": 2,
+      "mergeEdges": false,
+      "pass": "applyRouteContracts",
+      "phase": "after",
+      "spokes": [
+        {
+          "from": "TWnK4k",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 496.4845,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TQBb8D",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 457.8955,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": false
+        },
+        {
+          "from": "TUaYgu",
+          "docks": {
+            "x": 508.8595,
+            "y": 125.14166666666667
+          },
+          "entry": {
+            "x": 496.4845,
+            "y": 125.14166666666667
+          },
+          "ownsBundle": false
+        }
+      ]
+    }
+  ]
+}

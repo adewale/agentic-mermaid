@@ -1,0 +1,77 @@
+{
+  "mode": "timing",
+  "span": 8,
+  "node": "v24.19.0",
+  "sourceHead": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "authoredNodes": 96,
+  "authoredEdges": 183,
+  "dimensions": "40x30; external agent dimensions/options unknown",
+  "inputSHA256": "6a3898d90e277b6acded0281498345e33a0346b834265340357f48bc1282cb59",
+  "sourceCountsAreNotBytes": true,
+  "rows": [
+    {
+      "layoutMs": 148.999843,
+      "consumedMs": 149.32165799999999,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 88059904,
+      "heap": 18222488
+    },
+    {
+      "layoutMs": 67.393044,
+      "consumedMs": 67.58259900000002,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 93831168,
+      "heap": 18589664
+    },
+    {
+      "layoutMs": 106.24321600000002,
+      "consumedMs": 106.47565600000001,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 116768768,
+      "heap": 23735584
+    },
+    {
+      "layoutMs": 38.449198999999965,
+      "consumedMs": 38.63051199999995,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 116871168,
+      "heap": 16202592
+    },
+    {
+      "layoutMs": 54.662373,
+      "consumedMs": 55.03964099999996,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 122507264,
+      "heap": 39724328
+    },
+    {
+      "layoutMs": 126.39439099999998,
+      "consumedMs": 126.63388200000003,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 154066944,
+      "heap": 27786224
+    },
+    {
+      "layoutMs": 35.48167000000001,
+      "consumedMs": 35.86974399999997,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 156499968,
+      "heap": 45018336
+    },
+    {
+      "layoutMs": 33.393416,
+      "consumedMs": 33.604292999999984,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 159735808,
+      "heap": 31140920
+    },
+    {
+      "layoutMs": 34.270615999999904,
+      "consumedMs": 34.439870999999926,
+      "outputSHA256": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+      "rss": 161439744,
+      "heap": 47911528
+    }
+  ],
+  "peakRssKiB": 157656
+}

@@ -1,0 +1,1646 @@
+{
+  "base": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "candidate": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "processes": 108,
+  "proofCounts": {
+    "passed": 1152,
+    "unverified": 144
+  },
+  "proofByArm": {
+    "ts-control": {
+      "passed": 576,
+      "unverified": 72
+    },
+    "ts-final": {
+      "passed": 576,
+      "unverified": 72
+    }
+  },
+  "errors": [],
+  "lifecycleErrors": [],
+  "method": "Three balanced fresh processes per arm/case/cache. Median per-process means for seven warm repeats and three repeats of one edited source; first edit, cold and import separate. Entire SVG and receipt serialized within each clock. Compression, GC and evidence writes outside clocks. RSS/heap include harness, retained products and prior compression. Exploratory, not formal calibration or full Trident scores.",
+  "summary": [
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 186.236821,
+      "coldMs": 127.58730000000003,
+      "warmMs": 15.067251857142846,
+      "firstEditMs": 16.393236,
+      "editedWarmMs": 12.584504333333333,
+      "warmRssMiB": 97.72433035714286,
+      "warmHeapMiB": 24.82039533342634,
+      "warmHeapTotalMiB": 37.45424107142857,
+      "peakRssMiB": 99.87890625,
+      "coldRssMiB": 92.7421875,
+      "firstEditRssMiB": 99.12890625
+    },
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 174.06969299999997,
+      "coldMs": 127.63515699999996,
+      "warmMs": 15.881669000000004,
+      "firstEditMs": 16.320707999999968,
+      "editedWarmMs": 12.500567333333302,
+      "warmRssMiB": 95.24944196428571,
+      "warmHeapMiB": 24.909175327845983,
+      "warmHeapTotalMiB": 37.3828125,
+      "peakRssMiB": 96.91015625,
+      "coldRssMiB": 90.078125,
+      "firstEditRssMiB": 96.703125
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 181.43765100000002,
+      "coldMs": 298.49661199999997,
+      "warmMs": 131.56194314285713,
+      "firstEditMs": 265.02159299999994,
+      "editedWarmMs": 121.60231100000003,
+      "warmRssMiB": 165.53962053571428,
+      "warmHeapMiB": 37.18179539271763,
+      "warmHeapTotalMiB": 72.66852678571429,
+      "peakRssMiB": 189.36328125,
+      "coldRssMiB": 121.296875,
+      "firstEditRssMiB": 189.11328125
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 191.669392,
+      "coldMs": 336.717839,
+      "warmMs": 154.59408371428574,
+      "firstEditMs": 121.41607499999986,
+      "editedWarmMs": 127.98715166666678,
+      "warmRssMiB": 150.77064732142858,
+      "warmHeapMiB": 40.52042715890067,
+      "warmHeapTotalMiB": 77.70424107142857,
+      "peakRssMiB": 170.18359375,
+      "coldRssMiB": 115.53515625,
+      "firstEditRssMiB": 168.2421875
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 180.221528,
+      "coldMs": 397.518118,
+      "warmMs": 181.58425199999996,
+      "firstEditMs": 174.10314199999993,
+      "editedWarmMs": 208.7370350000001,
+      "warmRssMiB": 169.98493303571428,
+      "warmHeapMiB": 39.41815948486328,
+      "warmHeapTotalMiB": 83.59709821428571,
+      "peakRssMiB": 242.46484375,
+      "coldRssMiB": 137.515625,
+      "firstEditRssMiB": 179.91015625
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 186.371265,
+      "coldMs": 417.148593,
+      "warmMs": 177.22276428571422,
+      "firstEditMs": 168.07599900000014,
+      "editedWarmMs": 211.60806500000004,
+      "warmRssMiB": 159.08872767857142,
+      "warmHeapMiB": 40.62809753417969,
+      "warmHeapTotalMiB": 83.8828125,
+      "peakRssMiB": 231.71484375,
+      "coldRssMiB": 133.671875,
+      "firstEditRssMiB": 166.63671875
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 176.662203,
+      "coldMs": 455.34989,
+      "warmMs": 235.62765328571427,
+      "firstEditMs": 194.79471599999988,
+      "editedWarmMs": 218.72960700000007,
+      "warmRssMiB": 190.79296875,
+      "warmHeapMiB": 50.74910409109933,
+      "warmHeapTotalMiB": 108.84709821428571,
+      "peakRssMiB": 249.875,
+      "coldRssMiB": 135.66796875,
+      "firstEditRssMiB": 247.40234375
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 183.964857,
+      "coldMs": 479.59108999999995,
+      "warmMs": 222.40159199999997,
+      "firstEditMs": 204.794218,
+      "editedWarmMs": 194.4195149999999,
+      "warmRssMiB": 179.96484375,
+      "warmHeapMiB": 54.25311497279576,
+      "warmHeapTotalMiB": 113.45424107142857,
+      "peakRssMiB": 237.2109375,
+      "coldRssMiB": 133.9921875,
+      "firstEditRssMiB": 233.0078125
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 179.896795,
+      "coldMs": 374.878477,
+      "warmMs": 179.4303534285714,
+      "firstEditMs": 165.2970620000001,
+      "editedWarmMs": 167.77476066666668,
+      "warmRssMiB": 159.03627232142858,
+      "warmHeapMiB": 41.4189202444894,
+      "warmHeapTotalMiB": 83.70424107142857,
+      "peakRssMiB": 228.61328125,
+      "coldRssMiB": 131.62890625,
+      "firstEditRssMiB": 172.23828125
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 177.904913,
+      "coldMs": 397.198273,
+      "warmMs": 161.89766200000003,
+      "firstEditMs": 152.72553399999993,
+      "editedWarmMs": 163.846497,
+      "warmRssMiB": 160.25669642857142,
+      "warmHeapMiB": 41.062150137765066,
+      "warmHeapTotalMiB": 83.23995535714286,
+      "peakRssMiB": 230.66015625,
+      "coldRssMiB": 123.88671875,
+      "firstEditRssMiB": 172.12109375
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 190.058295,
+      "coldMs": 1291.278021,
+      "warmMs": 717.8053861428572,
+      "firstEditMs": 639.7266319999999,
+      "editedWarmMs": 702.4437126666668,
+      "warmRssMiB": 280.8950892857143,
+      "warmHeapMiB": 80.08239201136998,
+      "warmHeapTotalMiB": 181.45424107142858,
+      "peakRssMiB": 289.7109375,
+      "coldRssMiB": 189.44140625,
+      "firstEditRssMiB": 283.2890625
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 265.537054,
+      "coldMs": 1038.828544,
+      "warmMs": 752.387113,
+      "firstEditMs": 685.0793619999995,
+      "editedWarmMs": 778.0486153333335,
+      "warmRssMiB": 302.21261160714283,
+      "warmHeapMiB": 88.71497889927456,
+      "warmHeapTotalMiB": 187.34709821428572,
+      "peakRssMiB": 306.13671875,
+      "coldRssMiB": 196.65234375,
+      "firstEditRssMiB": 301.359375
+    },
+    {
+      "id": "dense24-default",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 174.52904900000001,
+      "coldMs": 818.906255,
+      "warmMs": 504.20311042857145,
+      "firstEditMs": 452.73658499999965,
+      "editedWarmMs": 502.6890586666668,
+      "warmRssMiB": 244.04073660714286,
+      "warmHeapMiB": 83.93161119733539,
+      "warmHeapTotalMiB": 165.16852678571428,
+      "peakRssMiB": 256.8984375,
+      "coldRssMiB": 179.58984375,
+      "firstEditRssMiB": 250.58984375
+    },
+    {
+      "id": "dense24-default",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 168.05297000000002,
+      "coldMs": 882.4758019999999,
+      "warmMs": 490.73199828571427,
+      "firstEditMs": 446.632259,
+      "editedWarmMs": 477.80404633333336,
+      "warmRssMiB": 268.29910714285717,
+      "warmHeapMiB": 81.18839808872768,
+      "warmHeapTotalMiB": 163.16852678571428,
+      "peakRssMiB": 281.7890625,
+      "coldRssMiB": 178.60546875,
+      "firstEditRssMiB": 277.38671875
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 165.05766300000002,
+      "coldMs": 143.661004,
+      "warmMs": 22.83494828571429,
+      "firstEditMs": 22.004095000000007,
+      "editedWarmMs": 19.365073999999975,
+      "warmRssMiB": 97.078125,
+      "warmHeapMiB": 21.665465218680247,
+      "warmHeapTotalMiB": 37.8828125,
+      "peakRssMiB": 99.85546875,
+      "coldRssMiB": 93.25390625,
+      "firstEditRssMiB": 99.10546875
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 212.128985,
+      "coldMs": 171.37780199999997,
+      "warmMs": 26.556775285714302,
+      "firstEditMs": 26.574577999999974,
+      "editedWarmMs": 23.343692333333365,
+      "warmRssMiB": 100.85212053571429,
+      "warmHeapMiB": 25.47571345738002,
+      "warmHeapTotalMiB": 38.418526785714285,
+      "peakRssMiB": 104.56640625,
+      "coldRssMiB": 97.19140625,
+      "firstEditRssMiB": 103.44140625
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 0,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 177.03009500000002,
+      "coldMs": 215.72133599999998,
+      "warmMs": 69.09635357142861,
+      "firstEditMs": 63.3731479999999,
+      "editedWarmMs": 84.88979099999999,
+      "warmRssMiB": 127.80580357142857,
+      "warmHeapMiB": 32.33791896275112,
+      "warmHeapTotalMiB": 65.45424107142857,
+      "peakRssMiB": 147.51171875,
+      "coldRssMiB": 104.359375,
+      "firstEditRssMiB": 143.88671875
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 0,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 168.410754,
+      "coldMs": 234.36709100000002,
+      "warmMs": 71.47651757142857,
+      "firstEditMs": 60.07054300000016,
+      "editedWarmMs": 58.66311966666672,
+      "warmRssMiB": 137.33705357142858,
+      "warmHeapMiB": 32.00101361955915,
+      "warmHeapTotalMiB": 65.59709821428571,
+      "peakRssMiB": 155.27734375,
+      "coldRssMiB": 107.19921875,
+      "firstEditRssMiB": 154.52734375
+    },
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 170.95273200000003,
+      "coldMs": 134.62287399999997,
+      "warmMs": 2.163387428571444,
+      "firstEditMs": 25.76578999999998,
+      "editedWarmMs": 2.32886400000001,
+      "warmRssMiB": 90.66294642857143,
+      "warmHeapMiB": 18.199580601283483,
+      "warmHeapTotalMiB": 35.3828125,
+      "peakRssMiB": 92.73046875,
+      "coldRssMiB": 89.9375,
+      "firstEditRssMiB": 92.48046875
+    },
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 167.8844,
+      "coldMs": 126.246442,
+      "warmMs": 2.0768198571428553,
+      "firstEditMs": 25.49513300000001,
+      "editedWarmMs": 2.396583000000002,
+      "warmRssMiB": 90.65066964285714,
+      "warmHeapMiB": 18.194715227399552,
+      "warmHeapTotalMiB": 35.525669642857146,
+      "peakRssMiB": 92.6328125,
+      "coldRssMiB": 90.1328125,
+      "firstEditRssMiB": 92.1328125
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 168.29283600000002,
+      "coldMs": 344.60231000000005,
+      "warmMs": 4.097601999999987,
+      "firstEditMs": 158.246493,
+      "editedWarmMs": 6.995454333333328,
+      "warmRssMiB": 117.41741071428571,
+      "warmHeapMiB": 22.091169084821427,
+      "warmHeapTotalMiB": 56.56138392857143,
+      "peakRssMiB": 137.125,
+      "coldRssMiB": 116.8046875,
+      "firstEditRssMiB": 134.51953125
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 165.008238,
+      "coldMs": 289.71516099999997,
+      "warmMs": 3.1755407142857,
+      "firstEditMs": 156.305886,
+      "editedWarmMs": 6.822463000000009,
+      "warmRssMiB": 116.72488839285714,
+      "warmHeapMiB": 22.071437290736608,
+      "warmHeapTotalMiB": 40.70424107142857,
+      "peakRssMiB": 137.01953125,
+      "coldRssMiB": 117.32421875,
+      "firstEditRssMiB": 133.703125
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 186.576294,
+      "coldMs": 426.947258,
+      "warmMs": 4.73696657142859,
+      "firstEditMs": 202.86650099999997,
+      "editedWarmMs": 8.630005666666648,
+      "warmRssMiB": 133.6796875,
+      "warmHeapMiB": 22.57440730503627,
+      "warmHeapTotalMiB": 57.025669642857146,
+      "peakRssMiB": 138.46875,
+      "coldRssMiB": 137.84375,
+      "firstEditRssMiB": 134.5078125
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 164.483224,
+      "coldMs": 368.82711000000006,
+      "warmMs": 4.320813142857154,
+      "firstEditMs": 180.01779399999998,
+      "editedWarmMs": 7.95958666666661,
+      "warmRssMiB": 140.93359375,
+      "warmHeapMiB": 22.56531306675502,
+      "warmHeapTotalMiB": 57.6328125,
+      "peakRssMiB": 147.39453125,
+      "coldRssMiB": 141.703125,
+      "firstEditRssMiB": 143.96484375
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 173.803999,
+      "coldMs": 467.92774699999995,
+      "warmMs": 5.240368857142877,
+      "firstEditMs": 237.9048540000001,
+      "editedWarmMs": 8.4778960000001,
+      "warmRssMiB": 137.15234375,
+      "warmHeapMiB": 23.02624729701451,
+      "warmHeapTotalMiB": 57.31138392857143,
+      "peakRssMiB": 143.43359375,
+      "coldRssMiB": 139.25390625,
+      "firstEditRssMiB": 141.89453125
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 180.385328,
+      "coldMs": 437.14366000000007,
+      "warmMs": 5.191293428571433,
+      "firstEditMs": 235.03537199999994,
+      "editedWarmMs": 8.151470999999978,
+      "warmRssMiB": 133.484375,
+      "warmHeapMiB": 23.06244659423828,
+      "warmHeapTotalMiB": 57.06138392857143,
+      "peakRssMiB": 143.53125,
+      "coldRssMiB": 137.625,
+      "firstEditRssMiB": 141.2421875
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 169.50806,
+      "coldMs": 383.33210999999994,
+      "warmMs": 4.858293428571463,
+      "firstEditMs": 178.71232399999997,
+      "editedWarmMs": 8.438199666666643,
+      "warmRssMiB": 131.02678571428572,
+      "warmHeapMiB": 22.713382175990514,
+      "warmHeapTotalMiB": 56.489955357142854,
+      "peakRssMiB": 136.99609375,
+      "coldRssMiB": 131.17578125,
+      "firstEditRssMiB": 133.2734375
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 175.311916,
+      "coldMs": 390.50033700000006,
+      "warmMs": 5.219775285714312,
+      "firstEditMs": 179.22193100000004,
+      "editedWarmMs": 8.851766666666625,
+      "warmRssMiB": 129.70256696428572,
+      "warmHeapMiB": 22.70574733189174,
+      "warmHeapTotalMiB": 56.989955357142854,
+      "peakRssMiB": 135.15234375,
+      "coldRssMiB": 129.59765625,
+      "firstEditRssMiB": 131.6484375
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 165.716301,
+      "coldMs": 1055.7380739999999,
+      "warmMs": 7.0492335714285606,
+      "firstEditMs": 994.6332299999999,
+      "editedWarmMs": 10.503831666666732,
+      "warmRssMiB": 190.60323660714286,
+      "warmHeapMiB": 24.876625061035156,
+      "warmHeapTotalMiB": 93.1328125,
+      "peakRssMiB": 261.8359375,
+      "coldRssMiB": 194.71484375,
+      "firstEditRssMiB": 261.8359375
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 178.459792,
+      "coldMs": 1017.543561,
+      "warmMs": 6.208862142857145,
+      "firstEditMs": 713.2113619999998,
+      "editedWarmMs": 13.962830333333235,
+      "warmRssMiB": 183.05301339285714,
+      "warmHeapMiB": 24.862960815429688,
+      "warmHeapTotalMiB": 92.45424107142857,
+      "peakRssMiB": 224.8984375,
+      "coldRssMiB": 188.25,
+      "firstEditRssMiB": 224.3984375
+    },
+    {
+      "id": "dense24-default",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 173.17422200000001,
+      "coldMs": 832.26261,
+      "warmMs": 6.990998428571402,
+      "firstEditMs": 496.00614599999994,
+      "editedWarmMs": 10.345795333333248,
+      "warmRssMiB": 171.64118303571428,
+      "warmHeapMiB": 24.517606462751115,
+      "warmHeapTotalMiB": 91.45424107142857,
+      "peakRssMiB": 181.31640625,
+      "coldRssMiB": 178.10546875,
+      "firstEditRssMiB": 179.4609375
+    },
+    {
+      "id": "dense24-default",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 168.448197,
+      "coldMs": 770.23149,
+      "warmMs": 6.984058142857115,
+      "firstEditMs": 583.5807580000001,
+      "editedWarmMs": 12.28999866666671,
+      "warmRssMiB": 178.11997767857142,
+      "warmHeapMiB": 24.528092520577566,
+      "warmHeapTotalMiB": 91.20424107142857,
+      "peakRssMiB": 186.125,
+      "coldRssMiB": 181.06640625,
+      "firstEditRssMiB": 181.7421875
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 168.049545,
+      "coldMs": 164.061319,
+      "warmMs": 2.8177032857142876,
+      "firstEditMs": 35.90885800000001,
+      "editedWarmMs": 3.7673769999999913,
+      "warmRssMiB": 100.06138392857143,
+      "warmHeapMiB": 19.936774117606028,
+      "warmHeapTotalMiB": 37.097098214285715,
+      "peakRssMiB": 102.69140625,
+      "coldRssMiB": 98.81640625,
+      "firstEditRssMiB": 102.31640625
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 196.31814200000002,
+      "coldMs": 178.21216500000003,
+      "warmMs": 2.9202550000000054,
+      "firstEditMs": 31.89801699999998,
+      "editedWarmMs": 4.140941666666663,
+      "warmRssMiB": 96.91238839285714,
+      "warmHeapMiB": 19.667337690080917,
+      "warmHeapTotalMiB": 36.597098214285715,
+      "peakRssMiB": 102.875,
+      "coldRssMiB": 96.01953125,
+      "firstEditRssMiB": 102.5
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 1,
+      "arm": "ts-final",
+      "processes": 3,
+      "importMs": 175.188242,
+      "coldMs": 241.766605,
+      "warmMs": 6.9514624285714035,
+      "firstEditMs": 96.33908199999996,
+      "editedWarmMs": 10.512418000000025,
+      "warmRssMiB": 109.62388392857143,
+      "warmHeapMiB": 21.234041486467635,
+      "warmHeapTotalMiB": 39.239955357142854,
+      "peakRssMiB": 129.8203125,
+      "coldRssMiB": 107.6953125,
+      "firstEditRssMiB": 127.4453125
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 1,
+      "arm": "ts-control",
+      "processes": 3,
+      "importMs": 185.073085,
+      "coldMs": 244.33446200000003,
+      "warmMs": 6.619726285714283,
+      "firstEditMs": 91.747389,
+      "editedWarmMs": 11.606625666666636,
+      "warmRssMiB": 109.01674107142857,
+      "warmHeapMiB": 21.233639308384486,
+      "warmHeapTotalMiB": 41.56138392857143,
+      "peakRssMiB": 130.734375,
+      "coldRssMiB": 107.609375,
+      "firstEditRssMiB": 128.859375
+    }
+  ],
+  "paired": [
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 186.236821,
+          "candidateMedian": 174.06969299999997,
+          "medianPairedDelta": -12.16712800000002,
+          "medianPairedRatio": 0.934668515416723
+        },
+        "coldMs": {
+          "controlMedian": 127.58730000000003,
+          "candidateMedian": 127.63515699999996,
+          "medianPairedDelta": -1.3081819999999595,
+          "medianPairedRatio": 0.9889679046952832
+        },
+        "warmMs": {
+          "controlMedian": 15.067251857142846,
+          "candidateMedian": 15.881669000000004,
+          "medianPairedDelta": 0.12505542857144292,
+          "medianPairedRatio": 1.0088577350837333
+        },
+        "firstEditMs": {
+          "controlMedian": 16.393236,
+          "candidateMedian": 16.320707999999968,
+          "medianPairedDelta": -0.44744700000001103,
+          "medianPairedRatio": 0.9723614385836403
+        },
+        "editedWarmMs": {
+          "controlMedian": 12.584504333333333,
+          "candidateMedian": 12.500567333333302,
+          "medianPairedDelta": 0.37671433333332516,
+          "medianPairedRatio": 1.0329173102084597
+        },
+        "warmRssMiB": {
+          "controlMedian": 97.72433035714286,
+          "candidateMedian": 95.24944196428571,
+          "medianPairedDelta": -2.474888392857153,
+          "medianPairedRatio": 0.9746747981407247
+        },
+        "warmHeapMiB": {
+          "controlMedian": 24.82039533342634,
+          "candidateMedian": 24.909175327845983,
+          "medianPairedDelta": 0.05201394217355215,
+          "medianPairedRatio": 1.0020973214643183
+        },
+        "peakRssMiB": {
+          "controlMedian": 99.87890625,
+          "candidateMedian": 96.91015625,
+          "medianPairedDelta": -2.83203125,
+          "medianPairedRatio": 0.9716064854703532
+        }
+      }
+    },
+    {
+      "id": "winning-duplicate-return-balanced",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 167.8844,
+          "candidateMedian": 170.95273200000003,
+          "medianPairedDelta": 7.370131000000043,
+          "medianPairedRatio": 1.045054492072785
+        },
+        "coldMs": {
+          "controlMedian": 126.246442,
+          "candidateMedian": 134.62287399999997,
+          "medianPairedDelta": 7.045757999999978,
+          "medianPairedRatio": 1.0552274437682068
+        },
+        "warmMs": {
+          "controlMedian": 2.0768198571428553,
+          "candidateMedian": 2.163387428571444,
+          "medianPairedDelta": 0.1287164285714164,
+          "medianPairedRatio": 1.0607538571819886
+        },
+        "firstEditMs": {
+          "controlMedian": 25.49513300000001,
+          "candidateMedian": 25.76578999999998,
+          "medianPairedDelta": 0.5969889999999509,
+          "medianPairedRatio": 1.0237194056244456
+        },
+        "editedWarmMs": {
+          "controlMedian": 2.396583000000002,
+          "candidateMedian": 2.32886400000001,
+          "medianPairedDelta": 0.0054616666666142955,
+          "medianPairedRatio": 1.002235144575705
+        },
+        "warmRssMiB": {
+          "controlMedian": 90.65066964285714,
+          "candidateMedian": 90.66294642857143,
+          "medianPairedDelta": 0.125,
+          "medianPairedRatio": 1.0013806365720765
+        },
+        "warmHeapMiB": {
+          "controlMedian": 18.194715227399552,
+          "candidateMedian": 18.199580601283483,
+          "medianPairedDelta": 0.0071389334542431016,
+          "medianPairedRatio": 1.0003923630221754
+        },
+        "peakRssMiB": {
+          "controlMedian": 92.6328125,
+          "candidateMedian": 92.73046875,
+          "medianPairedDelta": 0.09765625,
+          "medianPairedRatio": 1.001054229569031
+        }
+      }
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 191.669392,
+          "candidateMedian": 181.43765100000002,
+          "medianPairedDelta": 10.917552,
+          "medianPairedRatio": 1.0640250156082773
+        },
+        "coldMs": {
+          "controlMedian": 336.717839,
+          "candidateMedian": 298.49661199999997,
+          "medianPairedDelta": -35.64492999999999,
+          "medianPairedRatio": 0.9054690383322649
+        },
+        "warmMs": {
+          "controlMedian": 154.59408371428574,
+          "candidateMedian": 131.56194314285713,
+          "medianPairedDelta": -12.066610857142877,
+          "medianPairedRatio": 0.9219464900128786
+        },
+        "firstEditMs": {
+          "controlMedian": 121.41607499999986,
+          "candidateMedian": 265.02159299999994,
+          "medianPairedDelta": 143.60551800000007,
+          "medianPairedRatio": 2.182755397092191
+        },
+        "editedWarmMs": {
+          "controlMedian": 127.98715166666678,
+          "candidateMedian": 121.60231100000003,
+          "medianPairedDelta": -8.731103333333522,
+          "medianPairedRatio": 0.9317814075894661
+        },
+        "warmRssMiB": {
+          "controlMedian": 150.77064732142858,
+          "candidateMedian": 165.53962053571428,
+          "medianPairedDelta": 11.998325892857139,
+          "medianPairedRatio": 1.0781439672028668
+        },
+        "warmHeapMiB": {
+          "controlMedian": 40.52042715890067,
+          "candidateMedian": 37.18179539271763,
+          "medianPairedDelta": -2.722316196986604,
+          "medianPairedRatio": 0.9280884130386321
+        },
+        "peakRssMiB": {
+          "controlMedian": 170.18359375,
+          "candidateMedian": 189.36328125,
+          "medianPairedDelta": 18.046875,
+          "medianPairedRatio": 1.1053423626787058
+        }
+      }
+    },
+    {
+      "id": "lcg-135-balanced",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 168.29283600000002,
+          "candidateMedian": 165.008238,
+          "medianPairedDelta": -2.9256369999999947,
+          "medianPairedRatio": 0.9825786369783941
+        },
+        "coldMs": {
+          "controlMedian": 344.60231000000005,
+          "candidateMedian": 289.71516099999997,
+          "medianPairedDelta": -42.57838500000008,
+          "medianPairedRatio": 0.871865146005574
+        },
+        "warmMs": {
+          "controlMedian": 4.097601999999987,
+          "candidateMedian": 3.1755407142857,
+          "medianPairedDelta": -0.8428435714286029,
+          "medianPairedRatio": 0.7902531187908077
+        },
+        "firstEditMs": {
+          "controlMedian": 158.246493,
+          "candidateMedian": 156.305886,
+          "medianPairedDelta": 3.814585999999963,
+          "medianPairedRatio": 1.0225919210458438
+        },
+        "editedWarmMs": {
+          "controlMedian": 6.995454333333328,
+          "candidateMedian": 6.822463000000009,
+          "medianPairedDelta": -1.216903666666667,
+          "medianPairedRatio": 0.8260436551107019
+        },
+        "warmRssMiB": {
+          "controlMedian": 117.41741071428571,
+          "candidateMedian": 116.72488839285714,
+          "medianPairedDelta": -0.6925223214285694,
+          "medianPairedRatio": 0.9941020474117446
+        },
+        "warmHeapMiB": {
+          "controlMedian": 22.091169084821427,
+          "candidateMedian": 22.071437290736608,
+          "medianPairedDelta": -0.01702335902622565,
+          "medianPairedRatio": 0.9992294043397675
+        },
+        "peakRssMiB": {
+          "controlMedian": 137.125,
+          "candidateMedian": 137.01953125,
+          "medianPairedDelta": -0.7890625,
+          "medianPairedRatio": 0.9942742141217155
+        }
+      }
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 180.221528,
+          "candidateMedian": 186.371265,
+          "medianPairedDelta": -8.113947000000024,
+          "medianPairedRatio": 0.9549779258335884
+        },
+        "coldMs": {
+          "controlMedian": 397.518118,
+          "candidateMedian": 417.148593,
+          "medianPairedDelta": 19.63047499999999,
+          "medianPairedRatio": 1.0493825919149677
+        },
+        "warmMs": {
+          "controlMedian": 181.58425199999996,
+          "candidateMedian": 177.22276428571422,
+          "medianPairedDelta": -4.361487714285744,
+          "medianPairedRatio": 0.9759809142794732
+        },
+        "firstEditMs": {
+          "controlMedian": 174.10314199999993,
+          "candidateMedian": 168.07599900000014,
+          "medianPairedDelta": -10.898582000000033,
+          "medianPairedRatio": 0.9300457319096611
+        },
+        "editedWarmMs": {
+          "controlMedian": 208.7370350000001,
+          "candidateMedian": 211.60806500000004,
+          "medianPairedDelta": 1.6195616666665558,
+          "medianPairedRatio": 1.0077126206480727
+        },
+        "warmRssMiB": {
+          "controlMedian": 169.98493303571428,
+          "candidateMedian": 159.08872767857142,
+          "medianPairedDelta": -13.050223214285694,
+          "medianPairedRatio": 0.9232271767784042
+        },
+        "warmHeapMiB": {
+          "controlMedian": 39.41815948486328,
+          "candidateMedian": 40.62809753417969,
+          "medianPairedDelta": 1.773099626813618,
+          "medianPairedRatio": 1.0456337594211393
+        },
+        "peakRssMiB": {
+          "controlMedian": 242.46484375,
+          "candidateMedian": 231.71484375,
+          "medianPairedDelta": -7.6171875,
+          "medianPairedRatio": 0.9681731381285805
+        }
+      }
+    },
+    {
+      "id": "lcg-139-balanced",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 164.483224,
+          "candidateMedian": 186.576294,
+          "medianPairedDelta": 22.81419600000001,
+          "medianPairedRatio": 1.1435318575859375
+        },
+        "coldMs": {
+          "controlMedian": 368.82711000000006,
+          "candidateMedian": 426.947258,
+          "medianPairedDelta": 34.30254000000002,
+          "medianPairedRatio": 1.0987270714253041
+        },
+        "warmMs": {
+          "controlMedian": 4.320813142857154,
+          "candidateMedian": 4.73696657142859,
+          "medianPairedDelta": 0.4323279999999512,
+          "medianPairedRatio": 1.0987029496183982
+        },
+        "firstEditMs": {
+          "controlMedian": 180.01779399999998,
+          "candidateMedian": 202.86650099999997,
+          "medianPairedDelta": 22.84870699999999,
+          "medianPairedRatio": 1.126924713898005
+        },
+        "editedWarmMs": {
+          "controlMedian": 7.95958666666661,
+          "candidateMedian": 8.630005666666648,
+          "medianPairedDelta": 0.6704190000000381,
+          "medianPairedRatio": 1.0842278661036053
+        },
+        "warmRssMiB": {
+          "controlMedian": 140.93359375,
+          "candidateMedian": 133.6796875,
+          "medianPairedDelta": -7.25390625,
+          "medianPairedRatio": 0.9485296155658416
+        },
+        "warmHeapMiB": {
+          "controlMedian": 22.56531306675502,
+          "candidateMedian": 22.57440730503627,
+          "medianPairedDelta": 0.00909423828125,
+          "medianPairedRatio": 1.000403018484802
+        },
+        "peakRssMiB": {
+          "controlMedian": 147.39453125,
+          "candidateMedian": 138.46875,
+          "medianPairedDelta": -8.92578125,
+          "medianPairedRatio": 0.9394429279410595
+        }
+      }
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 183.964857,
+          "candidateMedian": 176.662203,
+          "medianPairedDelta": -7.30265399999999,
+          "medianPairedRatio": 0.9603040813387527
+        },
+        "coldMs": {
+          "controlMedian": 479.59108999999995,
+          "candidateMedian": 455.34989,
+          "medianPairedDelta": -72.4211279999999,
+          "medianPairedRatio": 0.8592344236607242
+        },
+        "warmMs": {
+          "controlMedian": 222.40159199999997,
+          "candidateMedian": 235.62765328571427,
+          "medianPairedDelta": 10.688352000000037,
+          "medianPairedRatio": 1.0480587926726714
+        },
+        "firstEditMs": {
+          "controlMedian": 204.794218,
+          "candidateMedian": 194.79471599999988,
+          "medianPairedDelta": -9.99950200000012,
+          "medianPairedRatio": 0.9511729281341326
+        },
+        "editedWarmMs": {
+          "controlMedian": 194.4195149999999,
+          "candidateMedian": 218.72960700000007,
+          "medianPairedDelta": 24.63525933333358,
+          "medianPairedRatio": 1.1267118649757644
+        },
+        "warmRssMiB": {
+          "controlMedian": 179.96484375,
+          "candidateMedian": 190.79296875,
+          "medianPairedDelta": 10.974330357142861,
+          "medianPairedRatio": 1.0610299936381833
+        },
+        "warmHeapMiB": {
+          "controlMedian": 54.25311497279576,
+          "candidateMedian": 50.74910409109933,
+          "medianPairedDelta": -2.8765792846679688,
+          "medianPairedRatio": 0.9472228112410223
+        },
+        "peakRssMiB": {
+          "controlMedian": 237.2109375,
+          "candidateMedian": 249.875,
+          "medianPairedDelta": 12.6640625,
+          "medianPairedRatio": 1.0533873464413925
+        }
+      }
+    },
+    {
+      "id": "cyclic19-balanced",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 173.803999,
+          "candidateMedian": 180.385328,
+          "medianPairedDelta": -14.175765999999982,
+          "medianPairedRatio": 0.9184382057860476
+        },
+        "coldMs": {
+          "controlMedian": 467.92774699999995,
+          "candidateMedian": 437.14366000000007,
+          "medianPairedDelta": -30.784086999999886,
+          "medianPairedRatio": 0.934211879510535
+        },
+        "warmMs": {
+          "controlMedian": 5.240368857142877,
+          "candidateMedian": 5.191293428571433,
+          "medianPairedDelta": -0.2545289999999989,
+          "medianPairedRatio": 0.9532616049571107
+        },
+        "firstEditMs": {
+          "controlMedian": 237.9048540000001,
+          "candidateMedian": 235.03537199999994,
+          "medianPairedDelta": -2.8694820000001755,
+          "medianPairedRatio": 0.9879385310902477
+        },
+        "editedWarmMs": {
+          "controlMedian": 8.4778960000001,
+          "candidateMedian": 8.151470999999978,
+          "medianPairedDelta": -0.19000966666669683,
+          "medianPairedRatio": 0.9788986460616349
+        },
+        "warmRssMiB": {
+          "controlMedian": 137.15234375,
+          "candidateMedian": 133.484375,
+          "medianPairedDelta": 0.6685267857142776,
+          "medianPairedRatio": 1.005092195084629
+        },
+        "warmHeapMiB": {
+          "controlMedian": 23.02624729701451,
+          "candidateMedian": 23.06244659423828,
+          "medianPairedDelta": 0.03725651332310065,
+          "medianPairedRatio": 1.0016180019628267
+        },
+        "peakRssMiB": {
+          "controlMedian": 143.43359375,
+          "candidateMedian": 143.53125,
+          "medianPairedDelta": -0.65234375,
+          "medianPairedRatio": 0.9954756034786378
+        }
+      }
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 179.896795,
+          "candidateMedian": 177.904913,
+          "medianPairedDelta": -8.173626000000013,
+          "medianPairedRatio": 0.9560743219291935
+        },
+        "coldMs": {
+          "controlMedian": 374.878477,
+          "candidateMedian": 397.198273,
+          "medianPairedDelta": 27.813939999999945,
+          "medianPairedRatio": 1.0766137896783758
+        },
+        "warmMs": {
+          "controlMedian": 179.4303534285714,
+          "candidateMedian": 161.89766200000003,
+          "medianPairedDelta": -6.099079571428575,
+          "medianPairedRatio": 0.9636952507865435
+        },
+        "firstEditMs": {
+          "controlMedian": 165.2970620000001,
+          "candidateMedian": 152.72553399999993,
+          "medianPairedDelta": -10.21608900000001,
+          "medianPairedRatio": 0.9381955802699021
+        },
+        "editedWarmMs": {
+          "controlMedian": 167.77476066666668,
+          "candidateMedian": 163.846497,
+          "medianPairedDelta": -2.4558360000000903,
+          "medianPairedRatio": 0.9852327026584763
+        },
+        "warmRssMiB": {
+          "controlMedian": 159.03627232142858,
+          "candidateMedian": 160.25669642857142,
+          "medianPairedDelta": 0.5362723214285552,
+          "medianPairedRatio": 1.0033720126459245
+        },
+        "warmHeapMiB": {
+          "controlMedian": 41.4189202444894,
+          "candidateMedian": 41.062150137765066,
+          "medianPairedDelta": -1.3000008719308056,
+          "medianPairedRatio": 0.9686133567882237
+        },
+        "peakRssMiB": {
+          "controlMedian": 228.61328125,
+          "candidateMedian": 230.66015625,
+          "medianPairedDelta": -4.75390625,
+          "medianPairedRatio": 0.9792054677488253
+        }
+      }
+    },
+    {
+      "id": "cyclic19-default",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 175.311916,
+          "candidateMedian": 169.50806,
+          "medianPairedDelta": -12.520948999999973,
+          "medianPairedRatio": 0.9279255547212044
+        },
+        "coldMs": {
+          "controlMedian": 390.50033700000006,
+          "candidateMedian": 383.33210999999994,
+          "medianPairedDelta": -7.168227000000115,
+          "medianPairedRatio": 0.9816434806303378
+        },
+        "warmMs": {
+          "controlMedian": 5.219775285714312,
+          "candidateMedian": 4.858293428571463,
+          "medianPairedDelta": -0.33938528571431004,
+          "medianPairedRatio": 0.9363869100980944
+        },
+        "firstEditMs": {
+          "controlMedian": 179.22193100000004,
+          "candidateMedian": 178.71232399999997,
+          "medianPairedDelta": -3.8489470000000665,
+          "medianPairedRatio": 0.9785241293935167
+        },
+        "editedWarmMs": {
+          "controlMedian": 8.851766666666625,
+          "candidateMedian": 8.438199666666643,
+          "medianPairedDelta": -0.6280596666666725,
+          "medianPairedRatio": 0.9307256009810433
+        },
+        "warmRssMiB": {
+          "controlMedian": 129.70256696428572,
+          "candidateMedian": 131.02678571428572,
+          "medianPairedDelta": -1.5987723214285552,
+          "medianPairedRatio": 0.987945217007132
+        },
+        "warmHeapMiB": {
+          "controlMedian": 22.70574733189174,
+          "candidateMedian": 22.713382175990514,
+          "medianPairedDelta": 0.010953630719868102,
+          "medianPairedRatio": 1.0004824166568824
+        },
+        "peakRssMiB": {
+          "controlMedian": 135.15234375,
+          "candidateMedian": 136.99609375,
+          "medianPairedDelta": 1.07421875,
+          "medianPairedRatio": 1.0081566068515497
+        }
+      }
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 265.537054,
+          "candidateMedian": 190.058295,
+          "medianPairedDelta": -75.47875900000003,
+          "medianPairedRatio": 0.7157505596186963
+        },
+        "coldMs": {
+          "controlMedian": 1038.828544,
+          "candidateMedian": 1291.278021,
+          "medianPairedDelta": 225.31188300000008,
+          "medianPairedRatio": 1.2113687057852864
+        },
+        "warmMs": {
+          "controlMedian": 752.387113,
+          "candidateMedian": 717.8053861428572,
+          "medianPairedDelta": -34.581726857142826,
+          "medianPairedRatio": 0.9540373216664294
+        },
+        "firstEditMs": {
+          "controlMedian": 685.0793619999995,
+          "candidateMedian": 639.7266319999999,
+          "medianPairedDelta": -33.14317899999969,
+          "medianPairedRatio": 0.9507435488140815
+        },
+        "editedWarmMs": {
+          "controlMedian": 778.0486153333335,
+          "candidateMedian": 702.4437126666668,
+          "medianPairedDelta": -43.05146533333334,
+          "medianPairedRatio": 0.9446673839077663
+        },
+        "warmRssMiB": {
+          "controlMedian": 302.21261160714283,
+          "candidateMedian": 280.8950892857143,
+          "medianPairedDelta": -20.6015625,
+          "medianPairedRatio": 0.9316690172909703
+        },
+        "warmHeapMiB": {
+          "controlMedian": 88.71497889927456,
+          "candidateMedian": 80.08239201136998,
+          "medianPairedDelta": -7.729809352329795,
+          "medianPairedRatio": 0.9128691744253686
+        },
+        "peakRssMiB": {
+          "controlMedian": 306.13671875,
+          "candidateMedian": 289.7109375,
+          "medianPairedDelta": -15.6484375,
+          "medianPairedRatio": 0.9487540295758072
+        }
+      }
+    },
+    {
+      "id": "dense24-balanced",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 165.716301,
+          "candidateMedian": 178.459792,
+          "medianPairedDelta": 12.743491000000006,
+          "medianPairedRatio": 1.0768994415341193
+        },
+        "coldMs": {
+          "controlMedian": 1055.7380739999999,
+          "candidateMedian": 1017.543561,
+          "medianPairedDelta": -38.194512999999915,
+          "medianPairedRatio": 0.963821980147701
+        },
+        "warmMs": {
+          "controlMedian": 7.0492335714285606,
+          "candidateMedian": 6.208862142857145,
+          "medianPairedDelta": -0.8403714285714159,
+          "medianPairedRatio": 0.8807854187187741
+        },
+        "firstEditMs": {
+          "controlMedian": 994.6332299999999,
+          "candidateMedian": 713.2113619999998,
+          "medianPairedDelta": -171.9311970000001,
+          "medianPairedRatio": 0.8199697036828226
+        },
+        "editedWarmMs": {
+          "controlMedian": 10.503831666666732,
+          "candidateMedian": 13.962830333333235,
+          "medianPairedDelta": 1.0383179999997392,
+          "medianPairedRatio": 1.0803371123970242
+        },
+        "warmRssMiB": {
+          "controlMedian": 190.60323660714286,
+          "candidateMedian": 183.05301339285714,
+          "medianPairedDelta": -8.2890625,
+          "medianPairedRatio": 0.9562244711512958
+        },
+        "warmHeapMiB": {
+          "controlMedian": 24.876625061035156,
+          "candidateMedian": 24.862960815429688,
+          "medianPairedDelta": -0.0102876935686389,
+          "medianPairedRatio": 0.9995863952565377
+        },
+        "peakRssMiB": {
+          "controlMedian": 261.8359375,
+          "candidateMedian": 224.8984375,
+          "medianPairedDelta": -39.078125,
+          "medianPairedRatio": 0.8507533940026853
+        }
+      }
+    },
+    {
+      "id": "dense24-default",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 174.52904900000001,
+          "candidateMedian": 168.05297000000002,
+          "medianPairedDelta": -4.846074999999985,
+          "medianPairedRatio": 0.9719716496988171
+        },
+        "coldMs": {
+          "controlMedian": 818.906255,
+          "candidateMedian": 882.4758019999999,
+          "medianPairedDelta": 43.00958999999989,
+          "medianPairedRatio": 1.0512344503985824
+        },
+        "warmMs": {
+          "controlMedian": 504.20311042857145,
+          "candidateMedian": 490.73199828571427,
+          "medianPairedDelta": -19.34193600000009,
+          "medianPairedRatio": 0.9628283374307381
+        },
+        "firstEditMs": {
+          "controlMedian": 452.73658499999965,
+          "candidateMedian": 446.632259,
+          "medianPairedDelta": -18.45512999999937,
+          "medianPairedRatio": 0.9592364951023356
+        },
+        "editedWarmMs": {
+          "controlMedian": 502.6890586666668,
+          "candidateMedian": 477.80404633333336,
+          "medianPairedDelta": -20.675209333333157,
+          "medianPairedRatio": 0.9579873744075674
+        },
+        "warmRssMiB": {
+          "controlMedian": 244.04073660714286,
+          "candidateMedian": 268.29910714285717,
+          "medianPairedDelta": -3.597098214285694,
+          "medianPairedRatio": 0.9850672967776312
+        },
+        "warmHeapMiB": {
+          "controlMedian": 83.93161119733539,
+          "candidateMedian": 81.18839808872768,
+          "medianPairedDelta": -2.9780099051339306,
+          "medianPairedRatio": 0.96461759535525
+        },
+        "peakRssMiB": {
+          "controlMedian": 256.8984375,
+          "candidateMedian": 281.7890625,
+          "medianPairedDelta": -4.8359375,
+          "medianPairedRatio": 0.981057012577654
+        }
+      }
+    },
+    {
+      "id": "dense24-default",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 168.448197,
+          "candidateMedian": 173.17422200000001,
+          "medianPairedDelta": 5.167764000000034,
+          "medianPairedRatio": 1.0317209010711335
+        },
+        "coldMs": {
+          "controlMedian": 770.23149,
+          "candidateMedian": 832.26261,
+          "medianPairedDelta": 59.81117099999983,
+          "medianPairedRatio": 1.0805356841486706
+        },
+        "warmMs": {
+          "controlMedian": 6.984058142857115,
+          "candidateMedian": 6.990998428571402,
+          "medianPairedDelta": -0.04221699999996975,
+          "medianPairedRatio": 0.9942621136031998
+        },
+        "firstEditMs": {
+          "controlMedian": 583.5807580000001,
+          "candidateMedian": 496.00614599999994,
+          "medianPairedDelta": -95.25202900000022,
+          "medianPairedRatio": 0.8348589132051948
+        },
+        "editedWarmMs": {
+          "controlMedian": 12.28999866666671,
+          "candidateMedian": 10.345795333333248,
+          "medianPairedDelta": -2.0438696666666765,
+          "medianPairedRatio": 0.8336965103006789
+        },
+        "warmRssMiB": {
+          "controlMedian": 178.11997767857142,
+          "candidateMedian": 171.64118303571428,
+          "medianPairedDelta": -4.993861607142861,
+          "medianPairedRatio": 0.9717277983129561
+        },
+        "warmHeapMiB": {
+          "controlMedian": 24.528092520577566,
+          "candidateMedian": 24.517606462751115,
+          "medianPairedDelta": -0.01226806640625,
+          "medianPairedRatio": 0.9994998361003425
+        },
+        "peakRssMiB": {
+          "controlMedian": 186.125,
+          "candidateMedian": 181.31640625,
+          "medianPairedDelta": -4.80859375,
+          "medianPairedRatio": 0.9741647078576225
+        }
+      }
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 212.128985,
+          "candidateMedian": 165.05766300000002,
+          "medianPairedDelta": -47.07132199999998,
+          "medianPairedRatio": 0.7781004703341226
+        },
+        "coldMs": {
+          "controlMedian": 171.37780199999997,
+          "candidateMedian": 143.661004,
+          "medianPairedDelta": -21.546913999999987,
+          "medianPairedRatio": 0.8694315748458898
+        },
+        "warmMs": {
+          "controlMedian": 26.556775285714302,
+          "candidateMedian": 22.83494828571429,
+          "medianPairedDelta": -3.7083754285714186,
+          "medianPairedRatio": 0.8643712307962883
+        },
+        "firstEditMs": {
+          "controlMedian": 26.574577999999974,
+          "candidateMedian": 22.004095000000007,
+          "medianPairedDelta": -4.570482999999967,
+          "medianPairedRatio": 0.8280129603563235
+        },
+        "editedWarmMs": {
+          "controlMedian": 23.343692333333365,
+          "candidateMedian": 19.365073999999975,
+          "medianPairedDelta": -3.5769976666666707,
+          "medianPairedRatio": 0.8437119688499148
+        },
+        "warmRssMiB": {
+          "controlMedian": 100.85212053571429,
+          "candidateMedian": 97.078125,
+          "medianPairedDelta": -3.773995535714292,
+          "medianPairedRatio": 0.9625789173726117
+        },
+        "warmHeapMiB": {
+          "controlMedian": 25.47571345738002,
+          "candidateMedian": 21.665465218680247,
+          "medianPairedDelta": -3.806170872279573,
+          "medianPairedRatio": 0.8505961028864937
+        },
+        "peakRssMiB": {
+          "controlMedian": 104.56640625,
+          "candidateMedian": 99.85546875,
+          "medianPairedDelta": -5.11328125,
+          "medianPairedRatio": 0.95110015316224
+        }
+      }
+    },
+    {
+      "id": "bm52-wallet",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 168.049545,
+          "candidateMedian": 196.31814200000002,
+          "medianPairedDelta": 28.268597000000028,
+          "medianPairedRatio": 1.168215849676951
+        },
+        "coldMs": {
+          "controlMedian": 164.061319,
+          "candidateMedian": 178.21216500000003,
+          "medianPairedDelta": 8.551873000000029,
+          "medianPairedRatio": 1.0504058604355109
+        },
+        "warmMs": {
+          "controlMedian": 2.8177032857142876,
+          "candidateMedian": 2.9202550000000054,
+          "medianPairedDelta": 0.25601871428572,
+          "medianPairedRatio": 1.0960945977871783
+        },
+        "firstEditMs": {
+          "controlMedian": 35.90885800000001,
+          "candidateMedian": 31.89801699999998,
+          "medianPairedDelta": -4.010841000000028,
+          "medianPairedRatio": 0.8883049692084325
+        },
+        "editedWarmMs": {
+          "controlMedian": 3.7673769999999913,
+          "candidateMedian": 4.140941666666663,
+          "medianPairedDelta": -0.01167466666665451,
+          "medianPairedRatio": 0.9969011153737323
+        },
+        "warmRssMiB": {
+          "controlMedian": 100.06138392857143,
+          "candidateMedian": 96.91238839285714,
+          "medianPairedDelta": -2.707589285714292,
+          "medianPairedRatio": 0.9729407171936868
+        },
+        "warmHeapMiB": {
+          "controlMedian": 19.936774117606028,
+          "candidateMedian": 19.667337690080917,
+          "medianPairedDelta": -0.2694364275251111,
+          "medianPairedRatio": 0.9864854551726513
+        },
+        "peakRssMiB": {
+          "controlMedian": 102.69140625,
+          "candidateMedian": 102.875,
+          "medianPairedDelta": 0.078125,
+          "medianPairedRatio": 1.0007607744684088
+        }
+      }
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 0,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 177.03009500000002,
+          "candidateMedian": 168.410754,
+          "medianPairedDelta": -8.61934100000002,
+          "medianPairedRatio": 0.9513114366232475
+        },
+        "coldMs": {
+          "controlMedian": 215.72133599999998,
+          "candidateMedian": 234.36709100000002,
+          "medianPairedDelta": 2.0207739999999887,
+          "medianPairedRatio": 1.0086149734692875
+        },
+        "warmMs": {
+          "controlMedian": 69.09635357142861,
+          "candidateMedian": 71.47651757142857,
+          "medianPairedDelta": 3.2035098571428477,
+          "medianPairedRatio": 1.0388909045006613
+        },
+        "firstEditMs": {
+          "controlMedian": 63.3731479999999,
+          "candidateMedian": 60.07054300000016,
+          "medianPairedDelta": -1.7833859999998367,
+          "medianPairedRatio": 0.97185896462016
+        },
+        "editedWarmMs": {
+          "controlMedian": 84.88979099999999,
+          "candidateMedian": 58.66311966666672,
+          "medianPairedDelta": -26.22667133333327,
+          "medianPairedRatio": 0.691050348641649
+        },
+        "warmRssMiB": {
+          "controlMedian": 127.80580357142857,
+          "candidateMedian": 137.33705357142858,
+          "medianPairedDelta": 10.6484375,
+          "medianPairedRatio": 1.0843008358514905
+        },
+        "warmHeapMiB": {
+          "controlMedian": 32.33791896275112,
+          "candidateMedian": 32.00101361955915,
+          "medianPairedDelta": -0.39738137381417005,
+          "medianPairedRatio": 0.9877345351862199
+        },
+        "peakRssMiB": {
+          "controlMedian": 147.51171875,
+          "candidateMedian": 155.27734375,
+          "medianPairedDelta": 10.3359375,
+          "medianPairedRatio": 1.071311144050667
+        }
+      }
+    },
+    {
+      "id": "bm83-workflow",
+      "cache": 1,
+      "completePairs": 3,
+      "expectedPairs": 3,
+      "metrics": {
+        "importMs": {
+          "controlMedian": 185.073085,
+          "candidateMedian": 175.188242,
+          "medianPairedDelta": -12.873171999999983,
+          "medianPairedRatio": 0.92704973756447
+        },
+        "coldMs": {
+          "controlMedian": 244.33446200000003,
+          "candidateMedian": 241.766605,
+          "medianPairedDelta": -2.567857000000032,
+          "medianPairedRatio": 0.9894904018901761
+        },
+        "warmMs": {
+          "controlMedian": 6.619726285714283,
+          "candidateMedian": 6.9514624285714035,
+          "medianPairedDelta": 0.7357651428570842,
+          "medianPairedRatio": 1.1183721003511722
+        },
+        "firstEditMs": {
+          "controlMedian": 91.747389,
+          "candidateMedian": 96.33908199999996,
+          "medianPairedDelta": 4.591692999999964,
+          "medianPairedRatio": 1.0500471245018206
+        },
+        "editedWarmMs": {
+          "controlMedian": 11.606625666666636,
+          "candidateMedian": 10.512418000000025,
+          "medianPairedDelta": -1.48577066666663,
+          "medianPairedRatio": 0.8719894386760786
+        },
+        "warmRssMiB": {
+          "controlMedian": 109.01674107142857,
+          "candidateMedian": 109.62388392857143,
+          "medianPairedDelta": 0.6071428571428612,
+          "medianPairedRatio": 1.0055692625845882
+        },
+        "warmHeapMiB": {
+          "controlMedian": 21.233639308384486,
+          "candidateMedian": 21.234041486467635,
+          "medianPairedDelta": 0.005767822265625,
+          "medianPairedRatio": 1.0002716360668022
+        },
+        "peakRssMiB": {
+          "controlMedian": 130.734375,
+          "candidateMedian": 129.8203125,
+          "medianPairedDelta": -1.875,
+          "medianPairedRatio": 0.9857625912084
+        }
+      }
+    }
+  ]
+}

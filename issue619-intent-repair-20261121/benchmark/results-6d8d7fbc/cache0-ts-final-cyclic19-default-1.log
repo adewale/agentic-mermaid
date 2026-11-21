@@ -1,0 +1,11 @@
+{"case":"cyclic19-default","backend":"elk","phase":"repeat1","status":"returned","wallMs":161.67607299999997,"cpuMs":321.771}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat2","status":"returned","wallMs":153.57883800000002,"cpuMs":264.281}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat3","status":"returned","wallMs":199.074257,"cpuMs":331.871}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat4","status":"returned","wallMs":146.02005500000018,"cpuMs":242.425}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat5","status":"returned","wallMs":146.89108699999997,"cpuMs":249.22}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat6","status":"returned","wallMs":177.28721900000005,"cpuMs":330.881}
+{"case":"cyclic19-default","backend":"elk","phase":"repeat7","status":"returned","wallMs":148.75610499999993,"cpuMs":259.35}
+{"case":"cyclic19-default","backend":"elk","phase":"edit1","status":"returned","wallMs":152.72553399999993,"cpuMs":238.44}
+{"case":"cyclic19-default","backend":"elk","phase":"edit2","status":"returned","wallMs":228.5131839999999,"cpuMs":394.837}
+{"case":"cyclic19-default","backend":"elk","phase":"edit3","status":"returned","wallMs":202.31409699999995,"cpuMs":289.218}
+{"case":"cyclic19-default","backend":"elk","phase":"edit4","status":"returned","wallMs":182.15846599999986,"cpuMs":270.985}

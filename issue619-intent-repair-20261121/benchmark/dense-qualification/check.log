@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/workspace/elk-layered-tools/issue619-intent-repair-20261121/benchmark/dense-qualification/check.py", line 7, in <module>
+    groups=m.inp.path_groups(e.get('d')) if m.inp.tag(e)=='path' else m.inp.poly_groups(e.get('points'))
+                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/issue619-followup-20261121/pipeline/curve-inputs.py", line 59, in poly_groups
+    p=[tuple(Q(n) for n in item.split(',')) for item in s.split()]
+                                                        ^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'split'

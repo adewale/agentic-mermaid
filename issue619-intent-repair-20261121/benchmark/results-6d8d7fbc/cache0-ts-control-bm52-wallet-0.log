@@ -1,0 +1,11 @@
+{"case":"bm52-wallet","backend":"elk","phase":"repeat1","status":"returned","wallMs":36.90211099999999,"cpuMs":60.955}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat2","status":"returned","wallMs":29.477809000000036,"cpuMs":42.652}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat3","status":"returned","wallMs":28.454177000000016,"cpuMs":40.707}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat4","status":"returned","wallMs":28.924714999999992,"cpuMs":58.798}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat5","status":"returned","wallMs":23.188085,"cpuMs":36.746}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat6","status":"returned","wallMs":22.601181999999994,"cpuMs":29.215}
+{"case":"bm52-wallet","backend":"elk","phase":"repeat7","status":"returned","wallMs":21.846623999999906,"cpuMs":29.641}
+{"case":"bm52-wallet","backend":"elk","phase":"edit1","status":"returned","wallMs":24.226598999999965,"cpuMs":35.316}
+{"case":"bm52-wallet","backend":"elk","phase":"edit2","status":"returned","wallMs":22.937657999999942,"cpuMs":37.339}
+{"case":"bm52-wallet","backend":"elk","phase":"edit3","status":"returned","wallMs":42.669389000000024,"cpuMs":50.22}
+{"case":"bm52-wallet","backend":"elk","phase":"edit4","status":"returned","wallMs":21.178338000000053,"cpuMs":29.096}

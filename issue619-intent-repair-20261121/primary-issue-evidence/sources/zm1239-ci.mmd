@@ -1,0 +1,11 @@
+graph TD
+  subgraph ci [CI Pipeline]
+    A[Push Code] --> B{Tests Pass?}
+    B -->|Yes| C[Build Image]
+    B -->|No| D[Fix & Retry]
+    D -.-> A
+  end
+  C --> E([Deploy Staging])
+  E --> F{QA Approved?}
+  F -->|Yes| G((Production))
+  F -->|No| D

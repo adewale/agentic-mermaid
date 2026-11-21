@@ -1,0 +1,16 @@
+{
+  "id": "seed139",
+  "product": "Pele npm",
+  "version": "1.13.0",
+  "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+  "options": {},
+  "boundary": "Installed local public API; no source sent externally",
+  "ok": true,
+  "svgSHA256": "cca0d7c1eeb03a14c18cfb0e920ad4a0876edafa618b891f4f123ef87098722f",
+  "metadata": {
+    "type": "flowchart",
+    "width": 2691,
+    "height": 758,
+    "links": []
+  }
+}

@@ -1,0 +1,5 @@
+erDiagram
+  ORDER ||--|{ LINE_ITEM : contains
+  ORDER ||..o{ SHIPMENT : ships-via
+  PRODUCT ||--o{ LINE_ITEM : includes
+  PRODUCT ||..o{ REVIEW : receives

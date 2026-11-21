@@ -1,0 +1,544 @@
+[
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/11",
+    "number": 11,
+    "title": "Multiple transitions joining the same states overlap on state diagrams",
+    "author": "peterc",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-01-29T22:55:10Z",
+    "updated_at": "2026-02-23T11:53:35Z",
+    "closed_at": "2026-02-23T11:17:48Z",
+    "comment_count": 3,
+    "body": "This is not something that I expect to be fixed quickly, but something I encountered. I suspect it is also true of the upstream project.\n\nIf you have a state diagram where two states refer to each other with multiple transitions, the edges get rendered over the top of each other. For example: \n\n```\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Running : start\n    Running --> Idle : stop\n```\n\n```\n┌─────────┐\n│         │\n│         │\n│         │\n└────┬────┘\n     │\n     │\n     │\n     │\n     ▼\n┌─────────┐\n│         │\n│   Idle  │\n│         │\n└────┬────┘\n     ▲\n     │\n   stopt\n     │\n     ▼\n┌────┴────┐\n│         │\n│ Running │\n│         │\n└─────────┘\n```\n\nOG Mermaid renders the two edges with curved routing to avoid this overlap.\n\nI'm going to have a try at fixing it, but this issue is here for anyone else who encounters it and may also want to fix. If I achieve anything, I'll comment or, potentially, drop a PR.",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/11#issuecomment-3944161666",
+        "author": "balintorosz",
+        "id": 3944161666,
+        "created_at": "2026-02-23T11:17:30Z",
+        "updated_at": "2026-02-23T11:17:46Z",
+        "body": "Fixed in [v1.0.0](https://github.com/lukilabs/beautiful-mermaid/releases/tag/v1.0.0).\n\nThe ELK.js layout engine now routes parallel edges between the same nodes as separate paths with distinct label positions. The `start` and `stop` transitions between Idle and Running render as two clearly separated edges.\n\nYou can verify on the live demo: https://agents.craft.do/mermaid"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/11#issuecomment-3944167510",
+        "author": "balintorosz",
+        "id": 3944167510,
+        "created_at": "2026-02-23T11:18:50Z",
+        "updated_at": "2026-02-23T11:19:18Z",
+        "body": "**v1.0.0 render proof:**\n\n![v1.0.0 state diagram](https://github.com/lukilabs/beautiful-mermaid/releases/download/v1.0.0/issue-11-state.svg.png)"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/11#issuecomment-3944321583",
+        "author": "peterc",
+        "id": 3944321583,
+        "created_at": "2026-02-23T11:53:35Z",
+        "updated_at": "2026-02-23T11:53:35Z",
+        "body": "Nice! 👍 "
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/16",
+    "number": 16,
+    "title": "On the official site, The transition of \"fail\" in text version looks wierd",
+    "author": "wongdao",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-01-30T12:52:21Z",
+    "updated_at": "2026-02-23T11:18:11Z",
+    "closed_at": "2026-02-23T11:18:11Z",
+    "comment_count": 1,
+    "body": "https://agents.craft.do/mermaid, is this normal? \n\n<img width=\"870\" height=\"1076\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/01aaca99-b53b-46e6-b8bc-162d4f0a98e6\" />",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/16#issuecomment-3944164535",
+        "author": "balintorosz",
+        "id": 3944164535,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Fixed in [v1.0.0](https://github.com/lukilabs/beautiful-mermaid/releases/tag/v1.0.0).\n\nThe demo site has been redeployed with the new ELK.js layout engine, which produces much cleaner edge routing. The \"fail\" transition label no longer renders oddly.\n\nVerify at: https://agents.craft.do/mermaid"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/25",
+    "number": 25,
+    "title": "cannot  render loop logic diagram correctly",
+    "author": "luojunhui1",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-02-02T04:40:55Z",
+    "updated_at": "2026-02-23T11:19:20Z",
+    "closed_at": "2026-02-23T11:17:51Z",
+    "comment_count": 2,
+    "body": "here is the diagram:\n``` mermaid\ngraph TD\n    A[contextSnippetsBlock函数] --> B[接收autocompleteContext字符串]\n    B --> C[按行分割]\n    C --> D[逐行处理]\n    \n    D --> E{匹配headerRegex?}\n    E -->|是| F[提取文件名]\n    F --> G[添加INSTINCT_CONTEXT_FILE_TOKEN]\n    E -->|否| H[检查前一行为header?]\n    \n    H -->|是| I[添加INSTINCT_SNIPPET_TOKEN]\n    I --> J[添加当前行内容]\n    H -->|否| K[直接添加当前行]\n    \n    G --> L[继续下一行]\n    J --> L\n    K --> L\n    \n    L --> M[所有行处理完毕?]\n    M -->|否| D\n    M -->|是| N[连接所有行并返回]\n```\n\nhere is the rendered svg:\n\n<img width=\"840\" height=\"743\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/a82879d8-51ed-409d-8a11-3d2ae4512e7a\" />\n\nthese lines direction is not natural",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/25#issuecomment-3944163131",
+        "author": "balintorosz",
+        "id": 3944163131,
+        "created_at": "2026-02-23T11:17:50Z",
+        "updated_at": "2026-02-23T11:17:50Z",
+        "body": "Fixed in [v1.0.0](https://github.com/lukilabs/beautiful-mermaid/releases/tag/v1.0.0).\n\nThe ELK.js layout engine handles back-edges and cycles much better than the previous dagre-based layout. The `M -->|否| D` loop now routes cleanly with natural orthogonal edge direction, and the overall flow reads naturally top-to-bottom.\n\nYou can verify on the live demo: https://agents.craft.do/mermaid"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/25#issuecomment-3944169562",
+        "author": "balintorosz",
+        "id": 3944169562,
+        "created_at": "2026-02-23T11:19:20Z",
+        "updated_at": "2026-02-23T11:19:20Z",
+        "body": "**v1.0.0 render proof:**\n\n![v1.0.0 loop diagram](https://github.com/lukilabs/beautiful-mermaid/releases/download/v1.0.0/issue-25-loop.svg.png)"
+      }
+    ],
+    "selected_timeline_events": [
+      {
+        "event": "closed",
+        "actor": "balintorosz",
+        "time": "2026-02-23T11:17:51Z",
+        "source": null,
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/32",
+    "number": 32,
+    "title": "Inconsistent rendering of flowchart branches  with -- Yes -->",
+    "author": "1119302165",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-02-05T07:01:38Z",
+    "updated_at": "2026-08-29T20:59:05Z",
+    "closed_at": "2026-02-26T13:03:45Z",
+    "comment_count": 2,
+    "body": "**Description:**\nI am encountering an issue where some Mermaid flowcharts with labeled branches do not render correctly in my environment, Inconsistent rendering of flowchart branches with -- |Yes| --> \n\n**Content 1 (does not render as expected):**\n\n```mermaid\nflowchart TD\n  A(Start) --> B{Is it sunny?}\n  B -- Yes --> C[Go to the park]\n  B -- No --> D[Stay indoors]\n  C --> E[Finish]\n  D --> E\n```\n\n**Content 2 (renders as expected):**\n\n```mermaid\nflowchart TD\n  A{Is it raining?} -->|Yes| B{Have umbrella?}\n  A -->|No| C([Go outside])\n  B -->|Yes| D([Go with umbrella])\n  B -->|No| E{Is it heavy?}\n  E -->|Yes| F([Stay inside])\n  E -->|No| G([Run for it])\n```\n\n**Additional information:**\n- The only difference is the use of branch label syntax: content 1 uses `-- |Yes| -->`, content 2 uses `-->|Yes|`.\n- Both diagrams render correctly on [mermaid.live](https://mermaid.live/), but not in my current deployment/environment.\n- Mermaid version: [fill in]\n- Rendering method: [e.g. extension, markdown parser, etc.]\n\n**Expected:**\nBoth syntaxes for labeled branches should render consistently, as shown on mermaid.live.\n\n**Actual:**\nContent 1 fails to render, while content 2 works.\n\n**Request:**\nPlease clarify whether both branch label syntaxes are officially supported and ensure consistent rendering across different environments.\n\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/32#issuecomment-3966785138",
+        "author": "balintorosz",
+        "id": 3966785138,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Fixed in v1.1.0 via PR #49. The parser now supports both label syntaxes:\n- Pipe syntax: `-->|Yes|` ✅ (already worked)\n- Text-embedded: `-- Yes -->` ✅ (now supported)\n\nAlso supports dotted (`-. Maybe .->`) and thick (`== Sure ==>`) variants.\n\nThanks for reporting this, @1119302165!"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/32#issuecomment-5464849864",
+        "author": "dfadler",
+        "id": 5464849864,
+        "created_at": null,
+        "updated_at": null,
+        "body": "@1119302165 Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. Text-embedded edge-label syntax (`-- Yes -->`, `-. Maybe .->`, `== Sure ==>`) is now parsed correctly as a fallback alongside the pipe (`-->|Yes|`) form.\n\nFixed by [PR #49](https://github.com/dfadler/zombie-mermaid/pull/49), commit [`9d722cf`](https://github.com/dfadler/zombie-mermaid/commit/9d722cf38012056f46810e6c0f32a85ab8cb084f), shipped in [v1.1.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.1.0).\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/52",
+    "number": 52,
+    "title": "[Feature Request] add a option to toggle off merge edges.",
+    "author": "leslie555",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-02-27T03:18:56Z",
+    "updated_at": "2026-10-07T15:42:26Z",
+    "closed_at": null,
+    "comment_count": 2,
+    "body": "I would like the plugin to add a switch to control whether to merge edges.\n\nmy graph string as below:\n```\ngraph LR\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK((\"📍 Current<br>Ξ TPRPxm...avvK\")) --> TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW(\"Ξ TWnK4k...fBaW\")\n  TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf[\"Ξ TL8TBp...SwEf<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb(\"Ξ TQBb8D...Xotb\")\n  TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy(\"Ξ TUaYgu...RLVy\")\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c[\"Ξ TUaZjK...tZ8c<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP(\"Ξ TUciXW...zDbP\")\n  TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP --> TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ(\"Ξ TXTaap...fvGZ\")\n  TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ --> TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu[\"Ξ TQBftm...FRTu<br><b>HuionePay</b>\"]\n  TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu --> TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8[\"Ξ TNVaKW...4Ug8<br><b>HuionePay</b>\"]\n  %% click TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 \"copyAddress('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8')\"\n  classDef highRiskNode stroke:#ff0000,stroke-width:2px,color:#cc0000\n  classDef currentNode stroke:#6366f1,stroke-width:2px,color:#6366f1\n  class TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK,TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf,TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c,TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 highRiskNode\n```\n\nThe screenshot 1 is render by beautiful-mermiad. It's hard to know the flow in the green box part.\n<img width=\"1139\" height=\"539\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/1dab380c-278b-43e5-a9b1-8ce9e39a88a8\" />\n\nThe workflow rendered using Mermaid is very clear.\n<img width=\"1783\" height=\"582\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/181c18fb-f645-434e-a605-6f0a6feead62\" />",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/52#issuecomment-4003134724",
+        "author": "leslie555",
+        "id": 4003134724,
+        "created_at": "2026-03-05T08:07:11Z",
+        "updated_at": "2026-03-05T08:07:11Z",
+        "body": "#57 \n"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/52#issuecomment-6041364162",
+        "author": "dfadler",
+        "id": 6041364162,
+        "created_at": "2026-10-07T15:42:26Z",
+        "updated_at": "2026-10-07T15:42:26Z",
+        "body": "@leslie555 Beautiful Mermaid doesn't look to be maintained anymore, so I wanted to say this is fixed in [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork. There's now a `mergeEdges` option (default true). With `mergeEdges: false` each edge gets its own path, shown below on your graph. It affects SVG only; ASCII output is the same either way.\n\nMermaid source:\n\n```mermaid\ngraph LR\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK((\"📍 Current<br>Ξ TPRPxm...avvK\")) --> TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW(\"Ξ TWnK4k...fBaW\")\n  TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf[\"Ξ TL8TBp...SwEf<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb(\"Ξ TQBb8D...Xotb\")\n  TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy(\"Ξ TUaYgu...RLVy\")\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf\n  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c[\"Ξ TUaZjK...tZ8c<br><b>HuionePay</b>\"]\n  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP(\"Ξ TUciXW...zDbP\")\n  TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP --> TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ(\"Ξ TXTaap...fvGZ\")\n  TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ --> TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu[\"Ξ TQBftm...FRTu<br><b>HuionePay</b>\"]\n  TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu --> TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8[\"Ξ TNVaKW...4Ug8<br><b>HuionePay</b>\"]\n  %% click TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 \"copyAddress('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8')\"\n  classDef highRiskNode stroke:#ff0000,stroke-width:2px,color:#cc0000\n  classDef currentNode stroke:#6366f1,stroke-width:2px,color:#6366f1\n  class TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK,TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf,TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c,TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 highRiskNode\n```\n\n| beautiful-mermaid 1.1.3 (default) | zombie-mermaid 4.2.0 (`mergeEdges: false`) |\n|---|---|\n| ![beautiful-mermaid 1.1.3 (default)](https://github.com/user-attachments/assets/e662dcb1-1306-4c9a-9935-58abae2177c8) | ![zombie-mermaid 4.2.0 (`mergeEdges: false`)](https://github.com/user-attachments/assets/4dd71fca-2a7e-441d-9674-d56b6c57be9c) |\n\n| zombie-mermaid 4.2.0 (default) |\n|---|\n| ![zombie-mermaid 4.2.0 (default)](https://github.com/user-attachments/assets/b3927c60-e7a6-4ba4-8285-5d2b322bcf53) |\n\nFixed in [zombie-mermaid#49](https://github.com/dfadler/zombie-mermaid/pull/49) · merge commit [`cdc5cbd`](https://github.com/dfadler/zombie-mermaid/commit/cdc5cbd21a10064db2642910b30bed27bfe729c8) · first shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0)\n"
+      }
+    ],
+    "selected_timeline_events": []
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/55",
+    "number": 55,
+    "title": "subgraph relationships render broken",
+    "author": "1119302165",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-03-02T08:21:56Z",
+    "updated_at": "2026-05-06T10:10:36Z",
+    "closed_at": "2026-05-06T10:10:36Z",
+    "comment_count": 2,
+    "body": "source code :\n```\nflowchart TD\n    subgraph System_A [系统A]\n        Start((开始))\n        ClickBanner[点击banner跳转邮箱绑定页]\n        EndNode((结束))\n    end\n\n    subgraph System_B [系统B]\n        Verify[验证账号密码合法性，通过则继续]\n        Fail1[提示：绑定失败]\n        BoundMsg[提示：邮箱已绑定]\n        Fail2[提示：绑定失败]\n        Success[提示：绑定成功]\n    end\n\n    subgraph System_C [系统C]\n        IsEmailable{邮箱是否可用于绑定}\n        BindOp[用户ID+邮箱进行绑定]\n        IsEmailBound{邮箱是否已存在绑定了的用户}\n        SyncInfo1[信息同步]\n        IsUserExist1{用户ID是否已存在}\n        Unbind[解除原有邮箱绑定关系]\n        SyncTable[信息同步邮箱、绑定信息落表]\n        IsUserExist2{用户ID是否已存在}\n        NewBind[新增用户邮箱绑定关系]\n        UpdateBind[更新原用户绑定的邮箱]\n    end\n\n    subgraph System_D [系统D]\n        QueryUser[信息查询用户信息]\n        CheckUser{是否查到可用的用户信息？}\n    end\n\n    Start --> ClickBanner\n    ClickBanner --\"邮箱地址(校验)\"--> Verify\n    Verify -.\"用户ID+状态+邮箱地址(校验)\".-> IsEmailable\n    IsEmailable --是--> BindOp\n    IsEmailable --> Fail1\n    BindOp --> IsEmailBound\n    IsEmailBound --已绑定--> BoundMsg\n    IsEmailBound --未绑定--> QueryUser\n    QueryUser --> CheckUser\n    CheckUser --\"查不到\"--> SyncInfo1\n    CheckUser --\"查到同步邮箱+用户信息\"--> SyncTable\n    SyncInfo1 --> IsUserExist1\n    IsUserExist1 --不存在--> Fail2\n    IsUserExist1 --存在--> Unbind\n    Unbind --> SyncTable\n    SyncTable --> IsUserExist2\n    IsUserExist2 --不存在--> NewBind\n    IsUserExist2 --已存在--> UpdateBind\n    NewBind --> Success\n    UpdateBind --> Success\n    Success --> EndNode\n```\n\nrender:\n<img width=\"523\" height=\"450\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/511bc8e4-6102-4515-ac8b-481cabefbb39\" />\n\n\n**The actual situation should be as shown in the figure below.**\nhttps://mermaid.live\n\n<img width=\"507\" height=\"554\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/c0465137-d9b0-4764-bf2d-0438d6710d6b\" />",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/55#issuecomment-3982891740",
+        "author": "1119302165",
+        "id": 3982891740,
+        "created_at": null,
+        "updated_at": null,
+        "body": "@lliuxiaopai-ai need help"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/55#issuecomment-4029401661",
+        "author": "balintorosz",
+        "id": 4029401661,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Thanks, fix on it's way \n\n<img width=\"3526\" height=\"1752\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/09bc8b80-e0da-460c-89e2-c5ae968666aa\" />"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64",
+    "number": 64,
+    "title": "A* pathfinding in edge-bundling exhausts memory (Map maximum size exceeded) on dense TD graphs",
+    "author": "ktrysmt",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-03-18T14:03:49Z",
+    "updated_at": "2026-11-08T22:45:00Z",
+    "closed_at": null,
+    "comment_count": 5,
+    "body": "## Bug\n\n`renderMermaidASCII` throws `RangeError: Map maximum size exceeded` on dense top-down flowcharts with multiple fan-in edge bundles.\n\n### Reproduction\n\n```ts\nimport { renderMermaidASCII } from 'beautiful-mermaid';\n\nconst code = `graph TD\n    A[\"AAA<br>(keita)\"] --> C[\"CCC\"]\n    B[\"BBB<br>(yuriko)\"] --> C\n    C --> D[\"DDDD\"]\n    D --> E[\"EEEE\"]\n\n    A1[\"1 / 2\"] --> A\n    A2[\"3 / 4\"] --> A\n    A3[\"5 / 6\"] --> A\n    A4[\"XXX<br>(YYY ZZZ)\"] --> A\n\n    B1[\"77 77<br>(7 / 7 / 7)\"] --> B\n    B2[\"88-88<br>(99 99)\"] --> B\n    B3[\"111s 222s\"] --> B\n\n    D --> F{\"F?\"}\n    F -->|Yes| G[\"High level<br>Tr\"]\n    F -->|No| H[\"Dumb Tr<br>S\"]`;\n\nrenderMermaidASCII(code); // => RangeError: Map maximum size exceeded\n```\n\n### Stack trace\n\n```\nRangeError: Map maximum size exceeded\n    at Map.set (<anonymous>)\n    at getPath (dist/index.js)           // src/ascii/pathfinder.ts:164\n    at routeBundledEdges (dist/index.js)  // src/ascii/edge-bundling.ts:277\n    at processBundles (dist/index.js)     // src/ascii/edge-bundling.ts:326\n    at createMapping (dist/index.js)      // src/ascii/grid.ts:537\n```\n\n### Analysis\n\nThe diagram has 13 nodes and 15 edges forming three edge bundles:\n\n- **Fan-in to A**: A1, A2, A3, A4 (4 unlabelled edges)\n- **Fan-in to B**: B1, B2, B3 (3 unlabelled edges)\n- **Fan-out from D**: D -> E, D -> F (2 unlabelled edges)\n\n`routeBundledEdges` computes a junction point via `calculateJunctionPoint` and then calls `getPath` to route from each source's exit cell to the junction. On this graph, the junction point or its neighbors can\nbecome enclosed by other nodes' 3x3 grid blocks, making it unreachable through free cells.\n\nThe root cause is in `getPath` (`src/ascii/pathfinder.ts:121-173`):\n\n1. **No upper-bound check on grid coordinates.** `isFreeInGrid` (line 112) rejects negative coordinates but imposes no positive limit. The search space is unbounded in the +x/+y direction.\n2. **No iteration limit.** When the destination is unreachable, A\\* expands every reachable free cell in the semi-infinite positive quadrant until V8's `Map` size limit (~16.7M entries) is hit.\n\n### Suggested fix\n\nAdd a maximum iteration guard to `getPath`. When exceeded, return `null` (no path found) — the caller already handles this gracefully by falling back to a straight-line segment:\n\n```ts\n// src/ascii/pathfinder.ts — getPath()\nconst MAX_ITERATIONS = 50_000\n\nexport function getPath(\n  grid: Map<string, AsciiNode>,\n  from: GridCoord,\n  to: GridCoord,\n): GridCoord[] | null {\n  const pq = new MinHeap()\n  pq.push({ coord: from, priority: 0 })\n\n  const costSoFar = new Map<string, number>()\n  costSoFar.set(gridKey(from), 0)\n\n  const cameFrom = new Map<string, GridCoord | null>()\n  cameFrom.set(gridKey(from), null)\n\n  let iterations = 0                        // +\n  while (pq.length > 0) {\n    if (++iterations > MAX_ITERATIONS) {     // +\n      return null                            // +\n    }                                        // +\n\n    // ... rest unchanged\n  }\n\n  return null\n}\n```\n\nAn alternative / complementary approach would be to clamp the search area to a bounding box derived from the grid's occupied extent (e.g., `max occupied coordinate + margin`).\n\n### Environment\n\n- beautiful-mermaid 1.1.3\n- Node.js v25.8.1 / Linux\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64#issuecomment-5464850359",
+        "author": "dfadler",
+        "id": 5464850359,
+        "created_at": "2026-08-29T20:59:11Z",
+        "updated_at": "2026-08-29T20:59:11Z",
+        "body": "@ktrysmt Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. The ASCII/Unicode A* pathfinder is now bounded by a render-wide iteration budget (not just per-call), and unobstructed edges skip A* entirely and take a direct route, so dense graphs no longer exhaust the heap.\n\nFixed by [PR #89](https://github.com/dfadler/zombie-mermaid/pull/89), commit [`5fa08d0`](https://github.com/dfadler/zombie-mermaid/commit/5fa08d02245ff53ac113e29af71ca009c16635a9), shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0).\n"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64#issuecomment-6092322061",
+        "author": "dynaum",
+        "id": 6092322061,
+        "created_at": "2026-10-10T01:44:53Z",
+        "updated_at": "2026-10-10T01:44:53Z",
+        "body": "Another trigger for the same error, with no edge bundles at all: a plain linear chain of 25 edges.\n\n```ts\nimport { renderMermaidASCII } from \"beautiful-mermaid\";\n\nconst chain = (n: number) =>\n  \"flowchart TD\\n\" + Array.from({ length: n }, (_, i) => `  N${i} --> N${i + 1}`).join(\"\\n\");\n\nrenderMermaidASCII(chain(24)); // ~0.08 s, renders\nrenderMermaidASCII(chain(25)); // ~12 s, then RangeError: Map maximum size exceeded\n```\n\nMeasured on beautiful-mermaid 1.1.3, Node 22, Apple M-series:\n\n| Edges in the chain | Time | Result |\n|---|---|---|\n| 22 | 0.07 s | renders |\n| 24 | 0.08 s | renders |\n| 25 | 12.5 s | `RangeError: Map maximum size exceeded` |\n\n`flowchart LR` behaves the same. A fan of 30 edges from one node, two parallel chains of 12 and 13, and a 40-message sequence diagram all render in under 0.1 s, so the cliff seems tied to chain depth.\n\nThe 12 s before the throw hurts more than the throw. Terminal viewers that call a renderer with a timeout (herdr-file-viewer kills it at 5 s) lose the whole document's rendering. In [maidog](https://github.com/dynaum/maidog) I now draw in a child process with a deadline as a workaround.\n"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64#issuecomment-6116909669",
+        "author": "dfadler",
+        "id": 6116909669,
+        "created_at": "2026-10-12T02:55:01Z",
+        "updated_at": "2026-10-12T02:55:01Z",
+        "body": "🤖 **Claude** (posted on behalf of @dfadler)\n\n@dynaum thanks for the extra trigger and the timing table, the 12 s before the throw is a useful detail.\n\nI tried your `chain(n)` generator for n = 24, 25, 40 and 60 in both `TD` and `LR` against [zombie-mermaid](https://github.com/dfadler/zombie-mermaid) (a fork of beautiful-mermaid, which I maintain) 5.0.1. All render without an error. I also ran the same generator against upstream 1.1.3 and reproduced your failure: the 25-edge TD chain threw `RangeError: Map maximum size exceeded` after 18.7 s (LR: 20.2 s), versus about 5 ms on the fork. I haven't bisected, so I can't say which change made the difference.\n\nIf you want to try it in maidog, `renderMermaidASCII` is the same entry point under the package name `zombie-mermaid`. If you still see a slow or failing case on it, a repro would be welcome as an issue on the fork.\n"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64#issuecomment-6128858430",
+        "author": "dfadler",
+        "id": 6128858430,
+        "created_at": "2026-10-12T17:01:56Z",
+        "updated_at": "2026-10-12T17:01:56Z",
+        "body": "🤖 **Claude** (posted on behalf of @dfadler)\n\nFollow-up to my earlier comment: I bisected between upstream 1.1.3 and zombie-mermaid `main` on the 25-edge `TD` chain, so I can now say what changed.\n\nThe first fixed commit is [`bc455262`](https://github.com/dfadler/zombie-mermaid/commit/bc455262db45e5a82f97f3a1a6cd9f2edf7ee5aa) in the fork, a port of #66 (thanks @ktrysmt). `getPath()` in `src/ascii/pathfinder.ts` counts iterations of the A* loop and returns `null` past `MAX_ITERATIONS = 50_000`. Callers already treat `null` as \"no path\", so the edge falls back instead of the open set and `cameFrom` growing until `RangeError: Map maximum size exceeded`.\n\nOn my machine (Node 22, single runs): the parent of that commit still hit my 30 s kill timer, and `bc455262` renders the chain in 74 ms. So #66 looks like it covers this trigger as well as the dense fan-in graph it was written for. I only tested the plain chain, not the edge-bundle cases from the original report.\n"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/64#issuecomment-6728196889",
+        "author": "rooboo",
+        "id": 6728196889,
+        "created_at": "2026-11-08T22:45:00Z",
+        "updated_at": "2026-11-08T22:45:00Z",
+        "body": "Another trigger for the same unbounded search, but here it never throws: it\nspins forever (no Map limit hit in time), which blocks the host process.\n\nflowchart TD\n  R[r]\n  N[n]\n  Q[q]\n  S[s]\n  A[a]\n  N --> R\n  N --> Q\n  Q --> S\n  Q --> A\n\nrenderMermaidASCII(src) with beautiful-mermaid 1.1.3 does not return (profile:\nall time in getPath / MinHeap.sinkDown / Map.set). Dropping R makes it render.\nBounding the search to the occupied grid extent + 2 cells (return null beyond\nit) makes it finish in ~25 ms; a pure iteration cap would also work."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/65",
+    "number": 65,
+    "title": "Root detection in grid layout is order-dependent, misclassifying child nodes as roots",
+    "author": "ktrysmt",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-03-18T14:38:22Z",
+    "updated_at": "2026-08-29T20:59:13Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "## Bug\n\n`createMapping` misidentifies root nodes when edges defining `child → parent` relationships appear after `parent → grandchild` edges in the mermaid source. This causes all misidentified roots to be placed on the same grid level, producing a flat horizontal layout instead of the expected hierarchical tree.\n\n### Reproduction\n\n```ts\nimport { renderMermaidASCII } from 'beautiful-mermaid';\n\nconst result = renderMermaidASCII(`graph TD\n    A[\"Parent A\"] --> C[\"Child C\"]\n    B[\"Parent B\"] --> C\n    C --> D[\"Grandchild D\"]\n    A1[\"Root 1\"] --> A\n    A2[\"Root 2\"] --> A\n    A3[\"Root 3\"] --> A\n    B1[\"Root 4\"] --> B\n    B2[\"Root 5\"] --> B`);\n\nconsole.log(result);\n```\n\n**Expected:** A1, A2, A3, B1, B2 at the top level; A, B one level below; C, D below that.\n\n**Actual:** A, B, A1, A2, A3, B1, B2 are all placed on the same row (level 0), producing a flat horizontal strip instead of a tree.\n\n### Analysis\n\nThe root detection in `src/ascii/grid.ts:398-410`:\n\n```typescript\nconst nodesFound = new Set<string>()\nconst initialRoots: AsciiNode[] = []\n\nfor (const node of graph.nodes) {\n  if (!nodesFound.has(node.name)) {\n    initialRoots.push(node)\n  }\n  nodesFound.add(node.name)\n  for (const child of getChildren(graph, node)) {\n    nodesFound.add(child.name)\n  }\n}\n```\n\nThe comment says _\"Identify root nodes -- nodes that aren't the target of any edge\"_, but the implementation does not check all edge targets. It performs a single forward pass over `graph.nodes` (in Map insertion order from the parser) and marks a node as root if it hasn't been seen as a **child** yet.\n\nThe parser inserts nodes into the Map in the order they first appear in edges. So for:\n\n```\nA --> C       ← A inserted first\n...\nA1 --> A      ← A1 inserted after A\n```\n\nWhen the loop reaches node `A`, `A1 → A` hasn't been processed yet, so `A` has never been seen as anyone's child. `A` is incorrectly added to `initialRoots`.\n\nThe second filter (line 415-429) only removes subgraph nodes with external incoming edges — it does not catch this case for non-subgraph nodes.\n\n### Suggested fix\n\nReplace the order-dependent heuristic with a direct edge-target check:\n\n```typescript\n// Collect all nodes that are the target of at least one edge\nconst edgeTargets = new Set(graph.edges.map(e => e.to.name))\n\n// Root nodes are those that never appear as an edge target\nconst rootNodes = graph.nodes.filter(n => !edgeTargets.has(n.name))\n```\n\nThis produces the correct result regardless of node insertion order.\n\nFor the reproduction case above:\n- Current algorithm: `initialRoots = [A, B, A1, A2, A3, B1, B2]` (7 roots, **wrong**)\n- Proposed fix: `rootNodes = [A1, A2, A3, B1, B2]` (5 roots, **correct**)\n\n### Environment\n\n- beautiful-mermaid 1.1.3\n- Node.js v25.8.1 / Linux",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/65#issuecomment-5464850485",
+        "author": "dfadler",
+        "id": 5464850485,
+        "created_at": "2026-08-29T20:59:13Z",
+        "updated_at": "2026-08-29T20:59:13Z",
+        "body": "@ktrysmt Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. Root detection is now a two-pass, order-independent algorithm (collect every edge target first, then anything never targeted is a root), so a `child --> parent` edge appearing before `parent --> grandchild` in source no longer misclassifies nodes as roots.\n\nFixed by [PR #89](https://github.com/dfadler/zombie-mermaid/pull/89), commit [`5fa08d0`](https://github.com/dfadler/zombie-mermaid/commit/5fa08d02245ff53ac113e29af71ca009c16635a9), shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0).\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/68",
+    "number": 68,
+    "title": "Root nodes in fan-in groups are placed without target-aware grouping, causing edge overlap",
+    "author": "ktrysmt",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-03-18T15:31:11Z",
+    "updated_at": "2026-08-29T20:59:15Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "## Bug\n\nWhen a graph has multiple fan-in groups feeding into different target nodes, all root nodes are placed in a flat horizontal sequence regardless of which target they connect to. This causes edge paths from different fan-in groups to overlap, making the diagram hard to read.\n\n### Reproduction\n\n```mermaid\ngraph TD\n    A1 --> A\n    A2 --> A\n    B1 --> B\n    B2 --> B\n    A --> C\n    B --> C\n```\n\n```ts\nimport { renderMermaidASCII } from 'beautiful-mermaid';\n\nconst code = `graph TD\n    A1 --> A\n    A2 --> A\n    B1 --> B\n    B2 --> B\n    A --> C\n    B --> C`;\n\nconsole.log(renderMermaidASCII(code));\n```\n\n### Current output (conceptual)\n\n```\nA1   A2   B1   B2      <-- all roots on one row, no grouping\n └────┼────┴────┘       <-- paths overlap, can't tell A-group from B-group\n      |    |\n      A    B\n```\n\n### Expected output (conceptual)\n\n```\nA1   A2        B1   B2\n └────┘         └────┘\n      |              |\n      A              B\n```\n\nRoot nodes feeding into the same target should be placed contiguously, with fan-in targets aligned near their respective root groups.\n\n## Analysis\n\nThe root cause is in `createMapping` in `src/ascii/grid.ts` (around lines 448-455). Root nodes are placed sequentially with a fixed `+4` increment, without considering which downstream target each root feeds into:\n\n```typescript\nfor (const node of externalRootNodes) {\n  const requested: GridCoord = dir === 'LR'\n    ? { x: 0, y: highestPositionPerLevel[0]\\! }\n    : { x: highestPositionPerLevel[0]\\!, y: 0 }\n  reserveSpotInGrid(graph, graph.nodes[node.index]\\!, requested)\n  highestPositionPerLevel[0] = highestPositionPerLevel[0]\\! + 4\n}\n```\n\nFor the example above, A1, A2, B1, B2 all get placed at x = 0, 4, 8, 12 regardless of A being at one position and B at another.\n\nAdditionally, the child placement loop places children at the next available slot on their level (`highestPositionPerLevel[childLevel]`), ignoring the parent's perpendicular position. This means fan-in targets like B end up far from their root group (e.g. B1 at x=8, B2 at x=12, but B at x=4).\n\nThis also contributes to the pathfinding cost described in #64 — when roots are poorly positioned relative to their targets, edge routing becomes unnecessarily complex.\n\n## Suggested fix\n\nTwo changes in `src/ascii/grid.ts`:\n\n1. **Group roots by immediate downstream target** before placement. Roots feeding into the same target are placed contiguously, so their edge spans don't interleave with other groups.\n\n2. **Align fan-in targets with their parents.** When placing a child that has multiple incoming edges (in-degree > 1), use `Math.max(levelTracker, parentPerpendicular)` instead of just the level tracker. This keeps fan-in targets near their root groups rather than at the next available slot.\n\n### Edge cases to consider\n\n- A root node with edges to multiple targets should only appear once (group by first child as a heuristic)\n- Single fan-in group: no grouping effect needed, behavior unchanged from current\n- LR direction: the same issue exists vertically; the fix should apply symmetrically\n\n## Environment\n\n- beautiful-mermaid 1.1.3",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/68#issuecomment-5464850646",
+        "author": "dfadler",
+        "id": 5464850646,
+        "created_at": "2026-08-29T20:59:15Z",
+        "updated_at": "2026-08-29T20:59:15Z",
+        "body": "@ktrysmt Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. Fan-in root nodes are now grouped by their shared downstream target before grid placement, so nodes feeding the same target are placed contiguously instead of interleaved with unrelated roots.\n\nFixed by [PR #89](https://github.com/dfadler/zombie-mermaid/pull/89), commit [`5fa08d0`](https://github.com/dfadler/zombie-mermaid/commit/5fa08d02245ff53ac113e29af71ca009c16635a9), shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0).\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/83",
+    "number": 83,
+    "title": "TD/TB Flowchart Layout Flipping to Horizontal",
+    "author": "jiezhengj",
+    "state": "closed",
+    "state_reason": "not_planned",
+    "created_at": "2026-04-02T04:17:53Z",
+    "updated_at": "2026-10-09T12:13:21Z",
+    "closed_at": "2026-10-09T12:13:21Z",
+    "comment_count": 2,
+    "body": "## Problem Description\n\nWhen rendering a flowchart with `flowchart TD` (Top-Down) or `flowchart TB` (Top-Bottom) that contains many backward/reverse edges (e.g., `C3 --> C1`), the layout incorrectly flips to a horizontal orientation instead of maintaining the specified vertical orientation.\n\n### Expected Behavior\n\nThe diagram should render vertically (height > width) when using `TD` or `TB` direction.\n\n### Actual Behavior\n\nThe diagram renders horizontally with a very wide aspect ratio (width ≈ 5.6x height).\n\n## Reproduction Steps\n\n1. Use the following Mermaid code:\n\n```mermaid\nflowchart TD\n    A[用户输入任务指令] --> B[目标深度解构：穿透商业本质，拆解可量化核心指标]\n    B --> C[模块1：前置市场与用户洞察]\n    C --> C1[自主细化调研维度：商圈/客群/竞品/商户全维度调研]\n    C1 --> C2[数据填充与洞察结论输出]\n    C2 --> C3[洞察报告合规性与有效性校验]\n    C3 -->|校验通过| D[模块2：非遗IP与内容策划]\n    C3 -->|校验不通过| C1\n    D --> D1[基于洞察结论筛选适配非遗项目]\n    D1 --> D2[IP打造、年轻化表达与商业化路径设计]\n    D2 --> D3[非遗内容合规性校验与授权规范确认]\n    D3 -->|校验通过| E[模块3：全案活动策划与执行]\n    D3 -->|校验不通过| D1\n    E --> E1[基于IP内容与客群洞察，拆分8周4阶段执行节奏]\n    E1 --> E2[线下场景、线上玩法、分层客群活动细化]\n    E2 --> E3[执行节点、落地标准与人员架构明确]\n    E3 --> E4[活动方案与IP内容、预算约束交叉适配校验]\n    E4 -->|校验通过| F[模块4：商业运营与成本管控]\n    E4 -->|校验不通过| E1\n    F --> F1[商户合作体系、招商方案设计]\n    F1 --> F2[全周期成本明细拆分、营收预估与ROI测算]\n    F2 --> F3[预算管控机制设计，总预算锁定780万内]\n    F3 --> F4[成本方案与活动策划方案双向适配校验]\n    F4 -->|校验通过| G[模块5：全渠道传播与舆情管理]\n    F4 -->|校验不通过| F1\n    G --> G1[匹配活动节奏，制定全周期传播策略与话题矩阵]\n    G1 --> G2[分层KOL/KOC投放矩阵设计与效果管控]\n    G2 --> G3[7*24h舆情监测体系与三级危机预案制定]\n    G3 --> G4[传播方案与IP合规要求、活动节点双向对齐校验]\n    G4 -->|校验通过| H[模块6：全案合规与风险防控]\n    G4 -->|校验不通过| G1\n    H --> H1[全案全模块合规性终审，设置一票否决权]\n    H1 --> H2[全场景风险点识别、分级与应对预案制定]\n    H2 --> H3[问题内容识别与退回修改]\n    H3 -->|修改闭环| I[模块7：全案整合与定稿]\n    H3 -->|校验不通过| C & D & E & F & G\n    I --> I1[全模块内容整合，解决冲突与矛盾]\n    I1 --> I2[全周期执行timeline与落地标准表制定]\n    I2 --> I3[全案与核心目标、硬性约束最终校验]\n    I3 -->|校验通过| J[最终可落地完整全案交付]\n    I3 -->|校验不通过| I1\n```\n\n1. Render with beautiful-mermaid\n2. Observe the layout is horizontal instead of vertical\n\n## Root Cause\n\nThe ELK.js layout engine, when processing graphs with many backward edges (cycles), can incorrectly choose a horizontal layout orientation even when a vertical direction (DOWN) is explicitly specified. The default ELK configuration doesn't enforce the direction strongly enough for complex cyclic graphs.\n\n## Solution\n\nAdd specific ELK layout options to force the correct vertical orientation and prevent layout flipping:\n\n### File: `src/layout-engine.ts`\n\nAdd the following layout options to the root ELK graph configuration (around line 213-218):\n\n```typescript\n// Force correct direction and prevent layout from flipping\n'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST',\n'elk.layered.layering.strategy': 'LONGEST_PATH',\n'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',\n'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',\n'elk.layered.crossingMinimization.semiInteractive': 'false',\n```\n\n### What these options do:\n\n1. **`cycleBreaking.strategy: 'DEPTH_FIRST'`** - Uses depth-first cycle breaking which preserves the original direction better\n2. **`layering.strategy: 'LONGEST_PATH'`** - Uses longest path layering which maintains the intended vertical flow\n3. **`crossingMinimization.forceNodeModelOrder: 'true'`** - Forces nodes to stay in their original definition order\n4. **`crossingMinimization.semiInteractive: 'false'`** - Disables semi-interactive mode which could reorder nodes\n\n## Results Before Fix\n\n- Width: 3662.35 px\n- Height: 650.30 px\n- Aspect Ratio: 5.63:1 (very wide, horizontal)\n\n## Results After Fix\n\n- Width: 983.93 px\n- Height: 3372.70 px\n- Aspect Ratio: 0.29:1 (tall, vertical - correct!) ✅\n\nThe diagram now properly renders in the vertical TD/TB orientation as specified.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/83#issuecomment-4744036064",
+        "author": "jd-solanki",
+        "id": 4744036064,
+        "created_at": "2026-06-18T16:26:35Z",
+        "updated_at": "2026-06-18T16:26:35Z",
+        "body": "Another example:\n```\nflowchart TD\n  A[\"Label an issue ready-for-agent and assign it to yourself\"] --> B[\"Run: kb run --agent claude\"]\n  B --> C[\"krutrimbox creates a branch from a clean origin ref\"]\n  C --> D[\"Creates an isolated sandbox with a private clone of your repo\"]\n  D --> E[\"A fresh agent session implements the next issue\"]\n  E --> F[\"krutrimbox commits and pushes it from your host\"]\n  F --> G[\"Opens or updates a draft pull request\"]\n  G --> H{\"More issues in the sequence?\"}\n  H -- yes --> E\n  H -- no --> I[\"Final review pass; PR marked ready for review\"]\n  I --> J[\"You review and merge — GitHub closes the issues\"]\n```"
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/83#issuecomment-6041376503",
+        "author": "dfadler",
+        "id": 6041376503,
+        "created_at": "2026-10-07T15:43:02Z",
+        "updated_at": "2026-10-07T15:43:02Z",
+        "body": "@jiezhengj Beautiful Mermaid doesn't look to be maintained anymore, so I wanted to say this is fixed in [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork. A cyclic top-down flowchart no longer flips horizontal: the same diagram goes from 3662 x 650 on 1.1.3 to 988 x 3373, top-down, with back edges routed down the right side. Cycles are now broken the way Mermaid does, so this was a side effect of a broader layout change rather than a targeted fix.\n\n<details><summary>Mermaid source: (41 lines)</summary>\n\n```mermaid\nflowchart TD\n    A[用户输入任务指令] --> B[目标深度解构：穿透商业本质，拆解可量化核心指标]\n    B --> C[模块1：前置市场与用户洞察]\n    C --> C1[自主细化调研维度：商圈/客群/竞品/商户全维度调研]\n    C1 --> C2[数据填充与洞察结论输出]\n    C2 --> C3[洞察报告合规性与有效性校验]\n    C3 -->|校验通过| D[模块2：非遗IP与内容策划]\n    C3 -->|校验不通过| C1\n    D --> D1[基于洞察结论筛选适配非遗项目]\n    D1 --> D2[IP打造、年轻化表达与商业化路径设计]\n    D2 --> D3[非遗内容合规性校验与授权规范确认]\n    D3 -->|校验通过| E[模块3：全案活动策划与执行]\n    D3 -->|校验不通过| D1\n    E --> E1[基于IP内容与客群洞察，拆分8周4阶段执行节奏]\n    E1 --> E2[线下场景、线上玩法、分层客群活动细化]\n    E2 --> E3[执行节点、落地标准与人员架构明确]\n    E3 --> E4[活动方案与IP内容、预算约束交叉适配校验]\n    E4 -->|校验通过| F[模块4：商业运营与成本管控]\n    E4 -->|校验不通过| E1\n    F --> F1[商户合作体系、招商方案设计]\n    F1 --> F2[全周期成本明细拆分、营收预估与ROI测算]\n    F2 --> F3[预算管控机制设计，总预算锁定780万内]\n    F3 --> F4[成本方案与活动策划方案双向适配校验]\n    F4 -->|校验通过| G[模块5：全渠道传播与舆情管理]\n    F4 -->|校验不通过| F1\n    G --> G1[匹配活动节奏，制定全周期传播策略与话题矩阵]\n    G1 --> G2[分层KOL/KOC投放矩阵设计与效果管控]\n    G2 --> G3[7*24h舆情监测体系与三级危机预案制定]\n    G3 --> G4[传播方案与IP合规要求、活动节点双向对齐校验]\n    G4 -->|校验通过| H[模块6：全案合规与风险防控]\n    G4 -->|校验不通过| G1\n    H --> H1[全案全模块合规性终审，设置一票否决权]\n    H1 --> H2[全场景风险点识别、分级与应对预案制定]\n    H2 --> H3[问题内容识别与退回修改]\n    H3 -->|修改闭环| I[模块7：全案整合与定稿]\n    H3 -->|校验不通过| C & D & E & F & G\n    I --> I1[全模块内容整合，解决冲突与矛盾]\n    I1 --> I2[全周期执行timeline与落地标准表制定]\n    I2 --> I3[全案与核心目标、硬性约束最终校验]\n    I3 -->|校验通过| J[最终可落地完整全案交付]\n    I3 -->|校验不通过| I1\n```\n</details>\n\n| beautiful-mermaid 1.1.3 (SVG) | zombie-mermaid 4.2.0 (SVG) |\n|---|---|\n| ![beautiful-mermaid 1.1.3 (SVG)](https://github.com/user-attachments/assets/95f1a97b-17f1-47ab-b610-b7edd35d2535) | ![zombie-mermaid 4.2.0 (SVG)](https://github.com/user-attachments/assets/67ab7460-ad42-4da1-9d5f-4516e4aecd67) |\n\nFixed in [zombie-mermaid#1313](https://github.com/dfadler/zombie-mermaid/pull/1313) · merge commit [`e271c6c`](https://github.com/dfadler/zombie-mermaid/commit/e271c6ca5652297dfdb4fa739957c9a0c89a3c9a) · first shipped in [4.0.0](https://github.com/dfadler/zombie-mermaid/releases/tag/zombie-mermaid%404.0.0)\n"
+      }
+    ],
+    "selected_timeline_events": [
+      {
+        "event": "cross-referenced",
+        "actor": "chatgpt-codex-connector[bot]",
+        "time": "2026-10-05T12:01:33Z",
+        "source": "https://github.com/syshin0116/syshin0116.dev/pull/294",
+        "commit": null
+      },
+      {
+        "event": "closed",
+        "actor": "jiezhengj",
+        "time": "2026-10-09T12:13:22Z",
+        "source": null,
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/111",
+    "number": 111,
+    "title": "Sibling edges from the same source fail to share a trunk segment (ASCII)",
+    "author": "rmvegasm",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-05-19T19:34:37Z",
+    "updated_at": "2026-08-29T20:58:33Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "## Sibling edges from the same source fail to share a trunk segment\n\n### Description\n\nWhen multiple edges originate from the same node with the same exit direction, they should share a common trunk segment before branching to their targets. Instead, each edge independently routes from the source, producing disconnected paths where later edges take unnecessary detours instead of following the first edge's trunk.\n\n### Reproduction\n\nRender the following Mermaid diagram:\n\n```mermaid\nflowchart TB\n    Src[\"Source\"]\n    Left[\"Left Target\"]\n    Center[\"Center Target\"]\n    Right[\"Right Target\"]\n    Src -->|left*| Left\n    Src -->|center*| Center\n    Src -->|right*| Right\n```\n\n### Actual behavior\n\nThe Right edge detours to y=2 instead of sharing the y=1 horizontal trunk with the Center edge. The labels for center\\* and right\\* land on the wrong segments:\n\n```\n│    Source   ├────/center*──────┐\n│             │          │       │\n└──────┬──────┘          └───────┼───────/right*───────────────┐\n       │                         │                             │\n    /left*                       │                             │\n       ▼                         ▼                             ▼\n```\n\n### Expected behavior\n\nAll three edges share a common trunk from Source's right border. Each label sits on its own vertical branch:\n\n```\n│    Source   ├─────────────┬─────────────────────┐\n│             │             │                     │\n└──────┬──────┘          center*               right*\n       │                    │                     │\n     left*                  │                     │\n       ▼                    ▼                     ▼\n```\n\n### Root cause\n\nThe A* pathfinder runs independently for each edge. When two candidate paths have equal Manhattan cost, the min-heap's LIFO tie-breaking (`<` in `sinkDown`) picks the wrong alternative. Additionally, old branch items from early A* expansion stay in the queue and are explored before more direct items from later expansion — preventing sibling edges from naturally converging on the same trunk.\n\n### Proposed approach\n\n1. Make the min-heap tie-breaking deterministic (FIFO via `<=` in `sinkDown`)\n2. Order MOVE_DIRS exploration so each edge's initial exit direction is explored first (Right for TD Right-exit edges, Down for LR Down-exit edges)\n3. Add post-processing in the grid layout that re-routes subsequent sibling edges from the first edge's branch point (where it turns toward its target) instead of from the source, with explicit T-junction character drawing at convergence points\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/111#issuecomment-5464847457",
+        "author": "dfadler",
+        "id": 5464847457,
+        "created_at": "2026-08-29T20:58:33Z",
+        "updated_at": "2026-08-29T20:58:33Z",
+        "body": "@rmvegasm Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. Sibling edges from the same source now share a straight trunk instead of one taking an unnecessary zigzag, by preferring an unobstructed direct route over an equal-length A* detour.\n\nFixed by [PR #89](https://github.com/dfadler/zombie-mermaid/pull/89), commit [`5fa08d0`](https://github.com/dfadler/zombie-mermaid/commit/5fa08d02245ff53ac113e29af71ca009c16635a9), shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0).\n"
+      }
+    ],
+    "selected_timeline_events": [
+      {
+        "event": "cross-referenced",
+        "actor": "rmvegasm",
+        "time": "2026-05-19T19:42:43Z",
+        "source": "https://github.com/lukilabs/beautiful-mermaid/pull/113",
+        "commit": null
+      },
+      {
+        "event": "cross-referenced",
+        "actor": "adewale",
+        "time": "2026-06-10T09:56:26Z",
+        "source": "https://github.com/adewale/agentic-mermaid/pull/17",
+        "commit": null
+      },
+      {
+        "event": "cross-referenced",
+        "actor": "adewale",
+        "time": "2026-06-10T17:17:08Z",
+        "source": "https://github.com/adewale/agentic-mermaid/pull/21",
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/112",
+    "number": 112,
+    "title": "Box-start connector (`├`) displaced from the source box border when a sibling edge has a label (ASCII)",
+    "author": "rmvegasm",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-05-19T19:35:36Z",
+    "updated_at": "2026-08-29T20:58:35Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "## Box-start connector (`├`) displaced from the source box border when a sibling edge has a label\n\n### Description\n\nThe box-start junction character — `├` for Right-exit edges, `┤` for Left-exit, `┬` for Down-exit, `┴` for Up-exit — is placed at a position derived from `gridToDrawingCoord` on the edge's start grid cell. This returns the center of that grid cell. When a sibling edge's label widens the column (to accommodate its label text), the cell center shifts right, and the connector follows — even though the actual box border hasn't moved.\n\n### Reproduction\n\nRender the following Mermaid diagram:\n\n```mermaid\nflowchart LR\n  Src[\"Source\"]\n  Top[\"Top Target\"]\n  Mid[\"Middle Target\"]\n  Bot[\"Bottom Target\"]\n  Src -->|top*| Top\n  Src -->|mid*| Mid\n  Src -->|bot*| Bot\n```\n\n### Actual behavior\n\nThe `├` for the Top edge floats 2–3 characters right of Source's right border. The Mid edge's label (`/mid*`) is placed on horizontal segment `(1,5)→(4,5)`, which causes `determineLabelLine` to widen column 2 (the Source node's right border column) from 1 to 7 character widths. This shifts `gridToDrawingCoord` for the Top edge's start cell, which `drawBoxStart` uses to place the connector:\n\n```\n┌────────┐             ┌───────────────┐\n│        │             │               │\n│ Source │  ├──/top*──►│   Top Target  │\n│        │             │               │\n└────┬───┘             └───────────────┘\n           ^^^\n           ├ should be flush on the │\n```\n\n### Expected behavior\n\nThe `├` sits directly on Source's right border, replacing the `│` character at the box edge:\n\n```\n┌────────┐        ┌───────────────┐\n│        │        │               │\n│ Source ├─/top*─►│   Top Target  │\n│        │        │               │\n└────┬───┘        └───────────────┘\n```\n\n### Root cause\n\n`drawBoxStart` computes the connector position as `firstLine[0].x - 1`, where `firstLine[0]` comes from `drawLine` with `offsetFrom=1` applied to `gridToDrawingCoord`. The coordinate chain is:\n\n```\nMid edge's label widens col[2] (Source's border column)\n  → gridToDrawingCoord(2,1).x = col[0] + col[1] + floor(col[2]/2)\n  → returns 12 instead of 9\n  → drawBoxStart places ├ at 12 instead of 9\n```\n\nThe box border itself hasn't moved (it's defined by `col[0] + col[1]`, independent of the widened border column `col[2]`), but the connector placement logic doesn't use the box border — it uses the shifted grid-cell center.\n\n### Proposed approach\n\nReplace the grid-cell-center derivation with a direct box-border computation via `getNodeAttachmentPoint` (a function that already exists and is used by bundled edges). Pass this coordinate to both `drawPath` (as the first segment's start override) and `drawBoxStart` (for the junction character placement), so the line and the connector start from the actual box border regardless of column-width changes from other edges' labels.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/112#issuecomment-5464847625",
+        "author": "dfadler",
+        "id": 5464847625,
+        "created_at": null,
+        "updated_at": null,
+        "body": "@rmvegasm Heads up — this is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid. The box-start connector (`├`/`┤`/`┬`/`┴`) no longer drifts off the source node's border when a sibling edge's label widens a shared grid column.\n\nFixed by [PR #89](https://github.com/dfadler/zombie-mermaid/pull/89), commit [`5fa08d0`](https://github.com/dfadler/zombie-mermaid/commit/5fa08d02245ff53ac113e29af71ca009c16635a9), shipped in [v1.2.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.2.0).\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/133",
+    "number": 133,
+    "title": "Bug: marker-start arrowheads missing on bidirectional (<-->) and backward (<-.-) SVG edges",
+    "author": "wsnark",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-07-06T14:34:21Z",
+    "updated_at": "2026-10-07T15:50:53Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "## Summary\n\nEvery start-side arrowhead (`marker-start`) is missing in SVG output. Bidirectional edges (`<-->`) render with only the end/target head, and backward edges (`<-.-`) render with **no head at all** — just a bare line. Forward (`-->`) edges are unaffected.\n\n## Environment\n\n- `beautiful-mermaid` `1.1.3` (current `main`)\n- Reproduced in librsvg (`rsvg-convert`), Inkscape, and Firefox.\n\n## Reproduction\n\n```ts\n// Repro: start-side arrowheads (marker-start) are missing on backward `<-.-`\n// and bidirectional `<-->` flowchart edges — the line renders but the head does not.\n//\n// Cause: the `arrowhead-start` marker is double-reversed — orient=\"auto-start-reverse\"\n// (already a 180° flip) is combined with a pre-reversed polygon, so the head points\n// into the line and vanishes in librsvg / Inkscape / browsers. The bug lives in two\n// marker generators, so we emit two SVGs: default markers, and linkStyle-colored ones.\n//\n// Run: bun run repro.ts\nimport { renderMermaidSVG } from 'beautiful-mermaid'\nimport { writeFileSync } from 'node:fs'\n\nconst graph = `graph TD\n  Top <--> Bot\n  Top <-.- Bot`\n\n// Cosmetic only, unrelated to the bug: beautiful-mermaid colors everything via CSS\n// var(--…); viewers that don't resolve custom properties would show black boxes, so\n// flatten to plain black-on-white (fills → white, strokes/text/arrows → black).\nconst view = (svg: string) =>\n  svg.replace(/var\\(--(_node-fill|bg)\\)/g, 'white').replace(/var\\(--[\\w-]+\\)/g, 'black')\n\nwriteFileSync('repro.svg', view(renderMermaidSVG(graph)))\nwriteFileSync('repro-color.svg', view(renderMermaidSVG(`${graph}\n  linkStyle default stroke:#2563eb`)))\n```\n\nRun `bun run repro.ts`, then open `repro.svg` (default markers) and `repro-color.svg` (the `linkStyle`-colored variant).\n\n## Expected vs. actual\n\n- **Expected:** the `<-->` edge has a head at *both* ends; the `<-.-` edge has a head pointing back into `Top`.\n- **Actual:** the `<-->` edge has a head only at `Bot`; the `<-.-` edge has no head at all.\n\n**Before (buggy) / after (fixed):**\n\n<img width=\"292\" height=\"404\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/fb5fc2cd-9fa7-490d-9771-063570cc415b\" />\n\n<img width=\"292\" height=\"404\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/26414539-45ae-4c02-9d28-771bef0c5a89\" />\n\n## Root cause\n\nThe `arrowhead-start` marker is *double-reversed*. In `src/renderer.ts`:\n\n```\n<marker id=\"arrowhead-start\" ... refX=\"1\" orient=\"auto-start-reverse\">\n  <polygon points=\"8 0, 0 2.5, 8 5\" .../>\n```\n\n`orient=\"auto-start-reverse\"` already rotates the head 180° to point back out of the start node — but the polygon is *also* pre-reversed (tip at `x=0` instead of `x=8`). The two reversals cancel, so the head points **into** the line and vanishes. The forward `arrowhead` marker uses `orient=\"auto\"` with the non-reversed polygon, which is why end heads render fine.\n\nBoth marker generators are affected: `arrowMarkerDefs()` and `arrowMarkerDefsForColor()` (the latter for `linkStyle` stroke overrides).\n\n## Fix\n\nReuse the forward head's geometry for the start marker (non-reversed polygon + matching `refX`), keeping `orient=\"auto-start-reverse\"` for the single intended flip. PR incoming.\n\n## Related\n\nSame underlying bug as #58 (open since 2026-03, appears stalled). This report adds a reproducer, root cause, and fix.\n\n## Separate minor note\n\nThe parser only accepts `<` before a complete op (`-->`, `-.->`, `==>`, `---`, `-.-`, `===`), so `A <-- B` and `A <== B` are silently dropped as edges. Not addressed by this fix.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/138",
+    "number": 138,
+    "title": "subgraphs are not rendered properly",
+    "author": "brc-dd",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-07-18T08:47:48Z",
+    "updated_at": "2026-07-18T09:28:30Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "Example:\n\n```mmd\nflowchart TB\n  subgraph Server[\"Node.js (Server)\"]\n    direction TB\n    RpcServer[\"RPC Server\"]\n    subgraph Context[\"DevTools Node Context\"]\n      Docks[\"Docks Host\"]\n      Views[\"Views Host\"]\n      Rpc[\"RPC Host\"]\n      State[\"State Host\"]\n    end\n    RpcServer --> Context\n  end\n```\n\nOutput:\n\n<img width=\"400\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/b3617001-766e-4974-8c55-03b6963d6fc1\" /><br />\n\nhttps://agents.craft.do/mermaid/editor#eyJzb3VyY2UiOiJmbG93Y2hhcnQgVEJcbiAgc3ViZ3JhcGggU2VydmVyW1wiTm9kZS5qcyAoU2VydmVyKVwiXVxuICAgIGRpcmVjdGlvbiBUQlxuICAgIFJwY1NlcnZlcltcIlJQQyBTZXJ2ZXJcIl1cbiAgICBzdWJncmFwaCBDb250ZXh0W1wiRGV2VG9vbHMgTm9kZSBDb250ZXh0XCJdXG4gICAgICBEb2Nrc1tcIkRvY2tzIEhvc3RcIl1cbiAgICAgIFZpZXdzW1wiVmlld3MgSG9zdFwiXVxuICAgICAgUnBjW1wiUlBDIEhvc3RcIl1cbiAgICAgIFN0YXRlW1wiU3RhdGUgSG9zdFwiXVxuICAgIGVuZFxuICAgIFJwY1NlcnZlciAtLT4gQ29udGV4dFxuICBlbmQifQ==\n\nNotice \"DevTools Node Context\" being rendered twice and overflowing the container. Also, the order of entries is random / different than what's in the definition.\n\nMermaid Output:\n\n<img width=\"400\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/9f40f921-6f6d-4325-9483-af10e215e124\" />\n\nhttps://mermaid.live/edit#pako:eNpdUstuwjAQ_BVrT60UophXiA89FA69tKoA9dC6BzdZSNrEjhybRxH_XjtARPFlvTszu7OWD5CqDIHBqlTbNBfakOUjl4Q09mutRZ2TBeoN6g8OL44Yfjfk7lS55_DpiYRkhcbUFEqepYTM67STzV-n5x6doOs9VdLgzjjWDDdLpcqG-CmXeicgZKbSn8bzfCRPqrkG3wrcerCNt6DzcnZxAyyMMOigNv4HUWY3i5Be76GzJVsGBLDWRQbMaIsBVKgr4VM4eAIHk2OFHJi7SrRGi5IDl0cnq4V8V6q6KLWy6xzYSpSNy2ydOT-zQrgnqrqqsEYt9jK9aFwLYAfYAaPRJJzQURKNR-MRTaJBEsAeWByHA9ofjiMa912kg2MAv-3QKJzEw-T6BIBZYZR-Pn2F9kc4W25H1FNlpfFT6PEP-lOvCA",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/144",
+    "number": 144,
+    "title": "Flowchart: `~~~` invisible edges are ignored, and per-subgraph `direction` leaks diagram-wide",
+    "author": "brandonburrus",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-08-18T16:44:01Z",
+    "updated_at": "2026-08-29T20:59:03Z",
+    "closed_at": "2026-08-19T21:46:44Z",
+    "comment_count": 2,
+    "body": "### Summary\n\nTwo related flowchart layout defects around subgraph layout control, found while rendering diagrams through [`rsgdev`](https://github.com/RepublicServicesRepository/rsgdev) (an internal CLI that bundles `beautiful-mermaid@1.1.3` for Mermaid rendering):\n\n1. **`~~~` invisible ordering edges are not handled at all.** Grepping the built `dist/index.js` for `~~~` returns zero matches — there's no parsing or layout handling for this standard Mermaid.js edge type, which is normally used to pin node order without drawing a visible connector.\n2. **A `direction` statement nested inside a `subgraph ... end` block is parsed but not scoped to that subgraph.** The parser does capture it (`subgraphStack[subgraphStack.length - 1].direction = ...`), but the layout engine appears to apply it diagram-wide instead of only to the subgraph's own contents.\n\n### Repro 1 — `~~~` ordering edges ignored\n\n```mermaid\nflowchart TB\n  subgraph Row1\n    R1[Node 1]\n    R2[Node 2]\n    R3[Node 3]\n    R1 ~~~ R2 ~~~ R3\n  end\n```\n\n- **Expected:** R1, R2, R3 ordered left-to-right per the invisible-edge chain (matches Mermaid.js / mermaid.live).\n- **Actual:** node order is unaffected by the `~~~` edges.\n\n### Repro 2 — subgraph `direction` leaks diagram-wide\n\n```mermaid\nflowchart TB\n  subgraph Row1\n    direction LR\n    A1 --> A2 --> A3\n  end\n  subgraph Row2\n    direction LR\n    B1 --> B2 --> B3\n  end\n  subgraph Row3\n    direction LR\n    C1 --> C2 --> C3\n  end\n```\n\n- **Expected:** each subgraph's own contents laid out left-to-right, while the three subgraphs stack top-to-bottom per the outer `flowchart TB`.\n- **Actual:** the entire diagram renders as a single, very wide, short row — the `LR` direction leaks out of the subgraphs and applies diagram-wide instead of staying scoped.\n\n### Environment\n\n- `beautiful-mermaid`: `1.1.3` (exact resolved version, via `node_modules/beautiful-mermaid/package.json`)\n\n### Possibly related\n\n#138 also shows incorrect nested-subgraph layout (duplicated content, random ordering) with a similar nested `direction` construct, though the failure mode described there (rendering duplication/overflow) looks different from the diagram-wide leak described here. Filing separately since they don't obviously share a root cause, but flagging in case a fix ends up touching the same code path.\n\n### Workaround\n\nDetect these two constructs in flowchart source and fall back to a real Mermaid.js renderer (e.g. `@mermaid-js/mermaid-cli`) for affected diagrams, which handles both correctly.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/144#issuecomment-5348407909",
+        "author": "brandonburrus",
+        "id": 5348407909,
+        "created_at": "2026-08-19T21:49:20Z",
+        "updated_at": "2026-08-19T21:49:20Z",
+        "body": "Apologies — this was filed prematurely without proper internal review on our end. We're resolving this entirely within our own tooling instead of pursuing an upstream change. Thanks for the quick response either way."
+      },
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/144#issuecomment-5464849691",
+        "author": "dfadler",
+        "id": 5464849691,
+        "created_at": "2026-08-29T20:59:02Z",
+        "updated_at": "2026-08-29T20:59:02Z",
+        "body": "@brandonburrus Heads up — the first repro in this issue is fixed in our fork, [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork of beautiful-mermaid: `A ~~~ B` invisible-link syntax is now parsed and participates in layout ordering (drawn with no line/connector/arrowhead).\n\nFixed by [PR #206](https://github.com/dfadler/zombie-mermaid/pull/206), commit [`673d3da`](https://github.com/dfadler/zombie-mermaid/commit/673d3da22305af381ac167e85d4b17fb20427dc6), shipped in [v1.3.0](https://github.com/dfadler/zombie-mermaid/releases/tag/v1.3.0).\n\nI haven't confirmed a fix for the second repro (per-subgraph `direction` leaking diagram-wide) — flagging that as still open on our end too, so leaving this issue as-is rather than claiming full resolution.\n"
+      }
+    ],
+    "selected_timeline_events": [
+      {
+        "event": "closed",
+        "actor": "brandonburrus",
+        "time": "2026-08-19T21:46:44Z",
+        "source": null,
+        "commit": null
+      },
+      {
+        "event": "cross-referenced",
+        "actor": "chatgpt-codex-connector[bot]",
+        "time": "2026-10-05T07:59:29Z",
+        "source": "https://github.com/syshin0116/syshin0116.dev/pull/294",
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/154",
+    "number": 154,
+    "title": "ASCII: vertical edge lines draw through spaces in edge labels",
+    "author": "NahumLitvin",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-10-02T14:11:29Z",
+    "updated_at": "2026-10-07T15:42:07Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "\n\n```\ngraph TD\n  A -->|push = build| B\n```\n\nrenders as\n\n```\n  push =│build\n```\n\nThe line shows through the space in the label. Single-word labels look fine only because there's no space to leak through.\n\nCause: `mergeCanvases` treats every space in an overlay as transparent (`src/ascii/canvas.ts:246`, `if (c !== ' ')`), and the label canvas from `drawTextOnLine` (`src/ascii/draw.ts:677`) is merged that way, so a label's spaces never cover the path under them.\n\nPossible fix: write label spaces as a placeholder (a non-breaking space, say) in `drawTextOnLine` so the merge keeps them, then map it back to a plain space when the canvas becomes a string. Happy to send a PR if that direction works for you.\n\nSeen with 1.1.3 (latest on npm).\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/lukilabs/beautiful-mermaid/issues/154#issuecomment-6041357924",
+        "author": "dfadler",
+        "id": 6041357924,
+        "created_at": null,
+        "updated_at": null,
+        "body": "@NahumLitvin Beautiful Mermaid doesn't look to be maintained anymore, so I wanted to say this is fixed in [zombie-mermaid](https://github.com/dfadler/zombie-mermaid), a maintained fork. The vertical edge label now sits beside the stroke instead of the line cutting through its spaces. This came with the broader \"label beside the stroke\" change rather than a targeted fix.\n\nMermaid source:\n\n```mermaid\ngraph TD\n  A -->|push = build| B\n```\n\n| beautiful-mermaid 1.1.3 | zombie-mermaid 4.2.0 |\n|---|---|\n| ![beautiful-mermaid 1.1.3](https://github.com/user-attachments/assets/77678da6-a7d7-4d07-8cd7-b36e013e3be1) | ![zombie-mermaid 4.2.0](https://github.com/user-attachments/assets/3a7da89d-4b4a-4b18-a1cf-b1e74f74713b) |\n\nFixed in [zombie-mermaid#1332](https://github.com/dfadler/zombie-mermaid/pull/1332) · merge commit [`ebed012`](https://github.com/dfadler/zombie-mermaid/commit/ebed01286f61fcaa675500bbd9dc049a3da67883) · first shipped in [4.1.0](https://github.com/dfadler/zombie-mermaid/releases/tag/zombie-mermaid%404.1.0)\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/lukilabs/beautiful-mermaid/issues/160",
+    "number": 160,
+    "title": "Class diagrams: superclass is aligned with one subclass instead of centered over them",
+    "author": "ajlakanen",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-10-09T05:47:51Z",
+    "updated_at": "2026-10-09T05:47:51Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "A superclass with several subclasses ends up above one of them, often an outer one, so inheritance trees look lopsided.\n\n```mermaid\nclassDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  Animal <|-- Bird\n```\n\nWith 1.1.3 the box centers are Animal 130, Bird 100, Dog 260, Cat 420. Written the other way round (`Dog --|> Animal` …) Animal is centered, so the\nresult depends on edge direction.\n\nFlowcharts already pass `'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED'` (`src/layout-engine.ts`), but `buildClassElkGraph` in `src/class/layout.ts` does not, so ELK picks the narrowest of its four Brandes–Köpf alignments. Adding the same option puts Animal at 260.\n\nSuggested change (`src/class/layout.ts`, `layoutOptions`):\n\n```ts\n'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',\n```\n\nNotes from trying it on diagrams with uneven widths, deep trees, multiple inheritance, edge labels, cycles and disconnected parts:\n\n- Equally wide subclasses: superclass exactly centered. With very uneven   widths it sits above the middle subclass instead, which is how Brandes–Köpf works; still much better than the edge.\n- No new overlaps, edge crossings, or edges through boxes.\n- Size is mostly unchanged; a deep skewed tree grew from 380 to 440 px, since the default picks the narrowest alignment.\n- `NETWORK_SIMPLEX` placement gives the same positions but wider diagrams.",
+    "comments_fetched": false,
+    "comments": []
+  }
+]

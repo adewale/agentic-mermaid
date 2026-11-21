@@ -1,0 +1,522 @@
+{
+  "arm": "bm",
+  "id": "bm83-workflow",
+  "sourceSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "beautiful-mermaid",
+  "version": "1.1.3",
+  "elk": "0.11.1",
+  "parsed": {
+    "direction": "TD",
+    "nodes": {
+      "A": {
+        "id": "A",
+        "label": "用户输入任务指令",
+        "shape": "rectangle"
+      },
+      "B": {
+        "id": "B",
+        "label": "目标深度解构：穿透商业本质，拆解可量化核心指标",
+        "shape": "rectangle"
+      },
+      "C": {
+        "id": "C",
+        "label": "模块1：前置市场与用户洞察",
+        "shape": "rectangle"
+      },
+      "C1": {
+        "id": "C1",
+        "label": "自主细化调研维度：商圈/客群/竞品/商户全维度调研",
+        "shape": "rectangle"
+      },
+      "C2": {
+        "id": "C2",
+        "label": "数据填充与洞察结论输出",
+        "shape": "rectangle"
+      },
+      "C3": {
+        "id": "C3",
+        "label": "洞察报告合规性与有效性校验",
+        "shape": "rectangle"
+      },
+      "D": {
+        "id": "D",
+        "label": "模块2：非遗IP与内容策划",
+        "shape": "rectangle"
+      },
+      "D1": {
+        "id": "D1",
+        "label": "基于洞察结论筛选适配非遗项目",
+        "shape": "rectangle"
+      },
+      "D2": {
+        "id": "D2",
+        "label": "IP打造、年轻化表达与商业化路径设计",
+        "shape": "rectangle"
+      },
+      "D3": {
+        "id": "D3",
+        "label": "非遗内容合规性校验与授权规范确认",
+        "shape": "rectangle"
+      },
+      "E": {
+        "id": "E",
+        "label": "模块3：全案活动策划与执行",
+        "shape": "rectangle"
+      },
+      "E1": {
+        "id": "E1",
+        "label": "基于IP内容与客群洞察，拆分8周4阶段执行节奏",
+        "shape": "rectangle"
+      },
+      "E2": {
+        "id": "E2",
+        "label": "线下场景、线上玩法、分层客群活动细化",
+        "shape": "rectangle"
+      },
+      "E3": {
+        "id": "E3",
+        "label": "执行节点、落地标准与人员架构明确",
+        "shape": "rectangle"
+      },
+      "E4": {
+        "id": "E4",
+        "label": "活动方案与IP内容、预算约束交叉适配校验",
+        "shape": "rectangle"
+      },
+      "F": {
+        "id": "F",
+        "label": "模块4：商业运营与成本管控",
+        "shape": "rectangle"
+      },
+      "F1": {
+        "id": "F1",
+        "label": "商户合作体系、招商方案设计",
+        "shape": "rectangle"
+      },
+      "F2": {
+        "id": "F2",
+        "label": "全周期成本明细拆分、营收预估与ROI测算",
+        "shape": "rectangle"
+      },
+      "F3": {
+        "id": "F3",
+        "label": "预算管控机制设计，总预算锁定780万内",
+        "shape": "rectangle"
+      },
+      "F4": {
+        "id": "F4",
+        "label": "成本方案与活动策划方案双向适配校验",
+        "shape": "rectangle"
+      },
+      "G": {
+        "id": "G",
+        "label": "模块5：全渠道传播与舆情管理",
+        "shape": "rectangle"
+      },
+      "G1": {
+        "id": "G1",
+        "label": "匹配活动节奏，制定全周期传播策略与话题矩阵",
+        "shape": "rectangle"
+      },
+      "G2": {
+        "id": "G2",
+        "label": "分层KOL/KOC投放矩阵设计与效果管控",
+        "shape": "rectangle"
+      },
+      "G3": {
+        "id": "G3",
+        "label": "7*24h舆情监测体系与三级危机预案制定",
+        "shape": "rectangle"
+      },
+      "G4": {
+        "id": "G4",
+        "label": "传播方案与IP合规要求、活动节点双向对齐校验",
+        "shape": "rectangle"
+      },
+      "H": {
+        "id": "H",
+        "label": "模块6：全案合规与风险防控",
+        "shape": "rectangle"
+      },
+      "H1": {
+        "id": "H1",
+        "label": "全案全模块合规性终审，设置一票否决权",
+        "shape": "rectangle"
+      },
+      "H2": {
+        "id": "H2",
+        "label": "全场景风险点识别、分级与应对预案制定",
+        "shape": "rectangle"
+      },
+      "H3": {
+        "id": "H3",
+        "label": "问题内容识别与退回修改",
+        "shape": "rectangle"
+      },
+      "I": {
+        "id": "I",
+        "label": "模块7：全案整合与定稿",
+        "shape": "rectangle"
+      },
+      "I1": {
+        "id": "I1",
+        "label": "全模块内容整合，解决冲突与矛盾",
+        "shape": "rectangle"
+      },
+      "I2": {
+        "id": "I2",
+        "label": "全周期执行timeline与落地标准表制定",
+        "shape": "rectangle"
+      },
+      "I3": {
+        "id": "I3",
+        "label": "全案与核心目标、硬性约束最终校验",
+        "shape": "rectangle"
+      },
+      "J": {
+        "id": "J",
+        "label": "最终可落地完整全案交付",
+        "shape": "rectangle"
+      }
+    },
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "C",
+        "target": "C1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "C1",
+        "target": "C2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "C2",
+        "target": "C3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "C3",
+        "target": "D",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "C3",
+        "target": "C1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D",
+        "target": "D1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D1",
+        "target": "D2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D2",
+        "target": "D3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D3",
+        "target": "E",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D3",
+        "target": "D1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E",
+        "target": "E1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E1",
+        "target": "E2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E2",
+        "target": "E3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E3",
+        "target": "E4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E4",
+        "target": "F",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "E4",
+        "target": "E1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F",
+        "target": "F1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F1",
+        "target": "F2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F2",
+        "target": "F3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F3",
+        "target": "F4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F4",
+        "target": "G",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "F4",
+        "target": "F1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G",
+        "target": "G1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G1",
+        "target": "G2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G2",
+        "target": "G3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G3",
+        "target": "G4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G4",
+        "target": "H",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "G4",
+        "target": "G1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H",
+        "target": "H1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H1",
+        "target": "H2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H2",
+        "target": "H3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "I",
+        "label": "修改闭环",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "C",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "D",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "E",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "F",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "H3",
+        "target": "G",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "I",
+        "target": "I1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "I1",
+        "target": "I2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "I2",
+        "target": "I3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "I3",
+        "target": "J",
+        "label": "校验通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "I3",
+        "target": "I1",
+        "label": "校验不通过",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {},
+    "classAssignments": {},
+    "nodeStyles": {},
+    "linkStyles": {}
+  },
+  "ok": true,
+  "svgSHA256": "ec3ee54dd676163993db7aedb55e16d8efa118d08cf5d18ef7569a8dae26c6c4",
+  "svgBytes": 40973,
+  "viewBox": "0 0 3662.3529166666663 650.3"
+}

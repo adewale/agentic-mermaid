@@ -1,0 +1,14 @@
+{
+  "id": "seed135",
+  "product": "Mermaid",
+  "version": "12.3.0",
+  "layout": "default Dagre",
+  "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+  "options": {
+    "startOnLoad": false
+  },
+  "boundary": "Installed browser ESM served on loopback only",
+  "ok": true,
+  "svgSHA256": "66807cbdf6b7195b978795c8ede0bbd2446d7985091876a4ca48789387c8ad80",
+  "viewBox": "4 4 2878.125732421875 580.9524536132812"
+}

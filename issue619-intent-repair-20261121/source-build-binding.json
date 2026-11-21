@@ -1,0 +1,42 @@
+{
+  "sourceHead": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "baselineSource": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "sourceClean": true,
+  "build": "build-final.log, followed by lazy-recovery.log after unit fixture child-pipe EPERM removed the lazy output",
+  "changedFiles": [
+    "docs/design/system/layout-rubric.md",
+    "docs/quality.md",
+    "src/__tests__/aesthetic-issue-regressions.test.ts",
+    "src/__tests__/fixtures/aesthetic-intent/bm111-labelled-fan.mmd",
+    "src/__tests__/fixtures/aesthetic-intent/bm52-wallet.mmd",
+    "src/__tests__/fixtures/aesthetic-intent/bm83-approval-loops.mmd",
+    "src/__tests__/fixtures/aesthetic-intent/zm629-round-trip.mmd",
+    "src/__tests__/layout-certification.test.ts",
+    "src/__tests__/layout-pass.test.ts",
+    "src/layout/certification.ts",
+    "src/layout/geometry.ts",
+    "src/layout/passes/edge-bundling.ts",
+    "src/layout/passes/peers.ts",
+    "src/layout/passes/shared.ts",
+    "src/layout/route-geometry.ts",
+    "src/layout/route-lanes.ts",
+    "src/layout/route-marker-clearance.ts",
+    "src/route-contracts.ts"
+  ],
+  "builtPublicEntries": {
+    "index.js": "3a3ff43b5ed4743224b3fdce23de4ec63a20dd4938eedfafe3c3b886ac6252ec",
+    "agent-core.js": "a203ee0c76f0e24fc26e87f4f52fb6223e7d2bb5798af1d3816d09b970cab7f9",
+    "elk-solver.node.cjs": "5b64a6c95398c615cba099d59fdfb334f9812a2428a96e8ef9d0521009de0aac",
+    "layout-optimization.cjs": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+  },
+  "baselinePublicEntries": {
+    "index.js": "20066dedd5b362f3e02becd710630049540ea05adc19e99a1b7ec01d841110da",
+    "agent-core.js": "c3d8cb18c98bde20d47a2b59bcd65125dc5ba9553c4ae7ce867c5bfca85bfa39",
+    "elk-solver.node.cjs": "5b64a6c95398c615cba099d59fdfb334f9812a2428a96e8ef9d0521009de0aac",
+    "layout-optimization.cjs": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+  },
+  "fullSvgAudit": "astra/final-svg-audit.json",
+  "note": "Runtime build immediately preceded e459; final6d8 only strengthens the invisible-edge test. No production source changed across these two commits. Generated artifacts outside source diff.",
+  "runtimeMilestone": "e459cd7c70d37bfd4afe9667fe91bf5827a5aa89",
+  "testOnlyFollowup": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b"
+}

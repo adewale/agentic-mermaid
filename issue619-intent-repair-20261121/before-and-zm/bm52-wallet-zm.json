@@ -1,0 +1,173 @@
+{
+  "arm": "zm",
+  "id": "bm52-wallet",
+  "sourceSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "zombie-mermaid",
+  "version": "5.18.0",
+  "elk": "0.12.1",
+  "parsed": {
+    "direction": "LR",
+    "nodes": {
+      "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK": {
+        "id": "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK",
+        "label": "📍 Current\nΞ TPRPxm...avvK",
+        "shape": "circle"
+      },
+      "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW": {
+        "id": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+        "label": "Ξ TWnK4k...fBaW",
+        "shape": "rounded"
+      },
+      "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf": {
+        "id": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+        "label": "Ξ TL8TBp...SwEf\n<b>HuionePay</b>",
+        "shape": "rectangle"
+      },
+      "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb": {
+        "id": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+        "label": "Ξ TQBb8D...Xotb",
+        "shape": "rounded"
+      },
+      "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy": {
+        "id": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "label": "Ξ TUaYgu...RLVy",
+        "shape": "rounded"
+      },
+      "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c": {
+        "id": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+        "label": "Ξ TUaZjK...tZ8c\n<b>HuionePay</b>",
+        "shape": "rectangle"
+      },
+      "TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP": {
+        "id": "TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP",
+        "label": "Ξ TUciXW...zDbP",
+        "shape": "rounded"
+      },
+      "TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ": {
+        "id": "TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ",
+        "label": "Ξ TXTaap...fvGZ",
+        "shape": "rounded"
+      },
+      "TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu": {
+        "id": "TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu",
+        "label": "Ξ TQBftm...FRTu\n<b>HuionePay</b>",
+        "shape": "rectangle"
+      },
+      "TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8": {
+        "id": "TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8",
+        "label": "Ξ TNVaKW...4Ug8\n<b>HuionePay</b>",
+        "shape": "rectangle"
+      }
+    },
+    "edges": [
+      {
+        "source": "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK",
+        "target": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+        "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK",
+        "target": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+        "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK",
+        "target": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "target": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+        "target": "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK",
+        "target": "TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP",
+        "target": "TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ",
+        "target": "TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu",
+        "target": "TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {
+      "highRiskNode": {
+        "stroke": "#ff0000",
+        "stroke-width": "2px",
+        "color": "#cc0000"
+      },
+      "currentNode": {
+        "stroke": "#6366f1",
+        "stroke-width": "2px",
+        "color": "#6366f1"
+      }
+    },
+    "classAssignments": {
+      "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK": "highRiskNode",
+      "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf": "highRiskNode",
+      "TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c": "highRiskNode",
+      "TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8": "highRiskNode"
+    },
+    "nodeStyles": {},
+    "linkStyles": {},
+    "interactions": {},
+    "initConfig": {
+      "ignored": []
+    }
+  },
+  "ok": true,
+  "svgSHA256": "ed267ae06e0e03832c216529b1d152754c3573ded36fcc86409330cd8d6db1b6",
+  "svgBytes": 10972,
+  "viewBox": "0 0 1037.94 521"
+}

@@ -1,0 +1,74 @@
+{
+  "arm": "bm",
+  "id": "duplicate",
+  "sourceSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "beautiful-mermaid",
+  "version": "1.1.3",
+  "elk": "0.11.1",
+  "parsed": {
+    "direction": "TD",
+    "nodes": {
+      "A": {
+        "id": "A",
+        "label": "One",
+        "shape": "rectangle"
+      },
+      "B": {
+        "id": "B",
+        "label": "Two",
+        "shape": "rectangle"
+      },
+      "C": {
+        "id": "C",
+        "label": "Three",
+        "shape": "rectangle"
+      },
+      "D": {
+        "id": "D",
+        "label": "Four",
+        "shape": "rectangle"
+      }
+    },
+    "edges": [
+      {
+        "source": "A",
+        "target": "D",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "A",
+        "target": "D",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "D",
+        "target": "A",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {},
+    "classAssignments": {},
+    "nodeStyles": {},
+    "linkStyles": {}
+  },
+  "ok": true,
+  "svgSHA256": "546c527d51acf7fbf1e684078d3667281279c0dd6072a5b398244c3a20f2c409",
+  "svgBytes": 4266,
+  "viewBox": "0 0 258.59000000000003 201.8"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "bm52-wallet",
+  "product": "Mermaid",
+  "version": "12.3.0",
+  "layout": "default Dagre",
+  "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+  "options": {
+    "startOnLoad": false
+  },
+  "boundary": "Installed browser ESM served on loopback only",
+  "ok": true,
+  "svgSHA256": "a12085719f57d8409da2a85028f8b286ff71a029a558f109f57cd53a06dff59d",
+  "viewBox": "4 4 973.4112548828125 365.0833435058594"
+}

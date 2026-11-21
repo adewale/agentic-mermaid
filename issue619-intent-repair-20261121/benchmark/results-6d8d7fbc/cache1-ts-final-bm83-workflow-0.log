@@ -1,0 +1,11 @@
+{"case":"bm83-workflow","backend":"elk","phase":"repeat1","status":"returned","wallMs":32.20550000000003,"cpuMs":52.803}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat2","status":"returned","wallMs":8.749943999999914,"cpuMs":15.929}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.006320999999957,"cpuMs":5.16}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat4","status":"returned","wallMs":1.3705139999999574,"cpuMs":4.6}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat5","status":"returned","wallMs":1.3459369999999353,"cpuMs":4.443}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat6","status":"returned","wallMs":1.5074399999999741,"cpuMs":4.401}
+{"case":"bm83-workflow","backend":"elk","phase":"repeat7","status":"returned","wallMs":1.4745810000000574,"cpuMs":4.464}
+{"case":"bm83-workflow","backend":"elk","phase":"edit1","status":"returned","wallMs":89.25854200000003,"cpuMs":152.649}
+{"case":"bm83-workflow","backend":"elk","phase":"edit2","status":"returned","wallMs":24.91846799999996,"cpuMs":36.196}
+{"case":"bm83-workflow","backend":"elk","phase":"edit3","status":"returned","wallMs":4.429930000000013,"cpuMs":12.494}
+{"case":"bm83-workflow","backend":"elk","phase":"edit4","status":"returned","wallMs":1.0141670000000431,"cpuMs":1.016}

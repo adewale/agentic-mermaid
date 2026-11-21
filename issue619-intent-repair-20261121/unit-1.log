@@ -1,0 +1,40 @@
+$ bun run scripts/ci/run-unit-tests.ts "--shard=1/3" "--parallel=1" --smol
+1783 |   const artifactDirectory = join(ROOT, 'dist', 'browser-lazy')
+1784 |   const artifact = join(artifactDirectory, 'index.js')
+1785 |   const built = process.env.AM_CI_ARTIFACTS === '1' && !CHECK ? null
+1786 |     : Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+1787 |   if ((built && !built.success) || !existsSync(artifact)) {
+1788 |     throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built?.stderr ?? 'missing transferred artifact'}`)
+                     ^
+error: browser demo needs dist/browser-lazy/index.js; `bun run build:browser:lazy` failed:
+$ bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts
+$ bun run scripts/build/generate-browser-family-catalog.ts
+EPERM: operation not permitted, write
+ syscall: "write",
+   errno: -1,
+    code: "EPERM"
+
+      at write (unknown:1:1)
+      at writeFast (internal:fs/streams:382:38)
+
+Bun v1.4.4 (Linux x64)
+error: script "generate:browser-families" exited with code 1
+error: script "build:browser:lazy" exited with code 1
+
+      at emitLazyBrowserDemo (/workspace/elk-layered-port/website/build.ts:1788:15)
+      at /workspace/elk-layered-port/website/build.ts:1891:7
+
+Bun v1.4.4 (Linux x64)
+25 |     const result = Bun.spawnSync([process.execPath, 'run', 'website/build.ts'], {
+26 |       cwd: root,
+27 |       env: { ...process.env, AM_CI_ARTIFACTS: reuseLazy ? '1' : '0' },
+28 |       stdout: 'inherit', stderr: 'inherit', timeout: 60_000, killSignal: 'SIGKILL',
+29 |     })
+30 |     if (!result.success) throw new Error(`Website fixture build failed: exit=${result.exitCode}, signal=${result.signalCode}`)
+                                        ^
+error: Website fixture build failed: exit=1, signal=undefined
+      at prepareWebsiteFixture (/workspace/elk-layered-port/scripts/site/prepare-website-fixture.ts:30:36)
+      at /workspace/elk-layered-port/scripts/ci/run-unit-tests.ts:15:6
+
+Bun v1.4.4 (Linux x64)
+error: script "test" exited with code 1

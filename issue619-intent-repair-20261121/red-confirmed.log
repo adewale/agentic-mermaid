@@ -1,0 +1,587 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/aesthetic-issue-regressions.test.ts:
+146 |       const incoming = r.edges.filter(edge => edge.to === upper)
+147 |       expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
+148 |       expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
+149 |       // Three incoming relationships need three visible arrival positions;
+150 |       // merging them hides the distinction requested by the wallet analyst.
+151 |       expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
+                                                                                        ^
+error: expect(received).toBe(expected)
+
+Expected: 3
+Received: 1
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:151:83)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [244.62ms]
+146 |       const incoming = r.edges.filter(edge => edge.to === upper)
+147 |       expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
+148 |       expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
+149 |       // Three incoming relationships need three visible arrival positions;
+150 |       // merging them hides the distinction requested by the wallet analyst.
+151 |       expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
+                                                                                        ^
+error: expect(received).toBe(expected)
+
+Expected: 3
+Received: 1
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:151:83)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [75.89ms]
+146 |       const incoming = r.edges.filter(edge => edge.to === upper)
+147 |       expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
+148 |       expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
+149 |       // Three incoming relationships need three visible arrival positions;
+150 |       // merging them hides the distinction requested by the wallet analyst.
+151 |       expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
+                                                                                        ^
+error: expect(received).toBe(expected)
+
+Expected: 3
+Received: 1
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:151:83)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [47.89ms]
+146 |       const incoming = r.edges.filter(edge => edge.to === upper)
+147 |       expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
+148 |       expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
+149 |       // Three incoming relationships need three visible arrival positions;
+150 |       // merging them hides the distinction requested by the wallet analyst.
+151 |       expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
+                                                                                        ^
+error: expect(received).toBe(expected)
+
+Expected: 3
+Received: 1
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:151:83)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [47.95ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/83 preserves the complete richer diagram and readable relationships [179.78ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/111 preserves the complete richer diagram and readable relationships [63.41ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/dfadler/zombie-mermaid/issues/629 preserves the complete richer diagram and readable relationships [21.08ms]
+170 |   test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
+171 |     // Same failure class as BM #52, with both senders choosing a private branch.
+172 |     const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
+173 |     const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
+174 |     const arrivals = r.edges.filter(edge => edge.to === 'H')
+175 |     expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+                                              ^
+error: expect(received).not.toEqual(expected)
+
+Expected: not {
+  "x": 148,
+  "y": 123.35,
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:175:41)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in LR [18.35ms]
+170 |   test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
+171 |     // Same failure class as BM #52, with both senders choosing a private branch.
+172 |     const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
+173 |     const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
+174 |     const arrivals = r.edges.filter(edge => edge.to === 'H')
+175 |     expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+                                              ^
+error: expect(received).not.toEqual(expected)
+
+Expected: not {
+  "x": 100,
+  "y": 123.35,
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:175:41)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in RL [15.09ms]
+170 |   test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
+171 |     // Same failure class as BM #52, with both senders choosing a private branch.
+172 |     const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
+173 |     const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
+174 |     const arrivals = r.edges.filter(edge => edge.to === 'H')
+175 |     expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+                                              ^
+error: expect(received).not.toEqual(expected)
+
+Expected: not {
+  "x": 158,
+  "y": 124.9,
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:175:41)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in TB [13.94ms]
+170 |   test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
+171 |     // Same failure class as BM #52, with both senders choosing a private branch.
+172 |     const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
+173 |     const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
+174 |     const arrivals = r.edges.filter(edge => edge.to === 'H')
+175 |     expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
+                                              ^
+error: expect(received).not.toEqual(expected)
+
+Expected: not {
+  "x": 158,
+  "y": 76.9,
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/aesthetic-issue-regressions.test.ts:175:41)
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in BT [12.81ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #6476 avoidable edge crossings: a planar bipartite graph renders with none [35.39ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #5601 planar state diagram is rendered planar (no edge crossings) [31.01ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #5060 parallel labeled edges do not overlap into geometric defects [34.96ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #2792 a transitive edge does not pass through an intervening node [17.51ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #2131 edge labels keep clearance from unrelated nodes [30.45ms]
+(pass) layout-aesthetic regression fixtures (issue-keyed) > #6336 / #6049 a self-loop renders with endpoints on the outline, no defects [54.62ms]
+
+src/__tests__/layout-certification.test.ts:
+(pass) bounded final layout certification > propagates strict producer failure %s [5.29ms]
+(pass) bounded final layout certification > propagates strict producer failure %s [0.17ms]
+(pass) bounded final layout certification > propagates strict producer failure %s [0.14ms]
+(pass) bounded final layout certification > strict candidate correspondence failures remain engine defects [2.69ms]
+(pass) bounded final layout certification > strict candidate geometry rejection stays classified [1.36ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [2.40ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [1.26ms]
+(pass) bounded final layout certification > a failing primary producer is contained before separate hierarchy within the public fallback budget [4.25ms]
+(pass) bounded final layout certification > optional order search preserves the fourth mandatory recovery with balanced=%s [6.98ms]
+(pass) bounded final layout certification > optional order search preserves the fourth mandatory recovery with balanced=%s [6.32ms]
+(pass) bounded final layout certification > optional geometry cannot cross a published symmetry rounding boundary [1.22ms]
+(pass) bounded final layout certification > the public layout certifies actual styled label geometry [8.75ms]
+(pass) bounded final layout certification > an invalid first route yields to a certified deterministic alternative [6.15ms]
+(pass) bounded final layout certification > readable container titles take precedence over a crossing reduction [2.51ms]
+(pass) bounded final layout certification > crossing reduction outranks fewer bends and a smaller canvas among feasible routes [0.62ms]
+(pass) bounded final layout certification > a final route comparison reuses its placement preflight and keeps placement evidence [0.70ms]
+(pass) bounded final layout certification > a final routing callback cannot use an attached receipt to bypass placement checks [2.81ms]
+288 |     const { positioned: clear } = labelledWitness(true)
+289 |     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+290 |       { strategy: 'occluded-without-crossings', produce: () => occluded },
+291 |       { strategy: 'readable-with-crossing', produce: () => clear },
+292 |     ])
+293 |     expect(selected).toBe(clear)
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: {
+  width: 360,
+  height: 280,
+  groups: [],
+  nodes: [
+    {
+      id: "A",
+      label: "A",
+      shape: "rectangle",
+      x: 20,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "B",
+      label: "B",
+      shape: "rectangle",
+      x: 260,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "C",
+      label: "C",
+      shape: "rectangle",
+      x: 140,
+      y: 20,
+      width: 40,
+      height: 40,
+    }, {
+      id: "D",
+      label: "D",
+      shape: "rectangle",
+      x: 140,
+      y: 220,
+      width: 40,
+      height: 40,
+    }
+  ],
+  edges: [
+    {
+      source: "A",
+      target: "B",
+      label: "x",
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 0,
+      points: [
+        {
+          x: 60,
+          y: 120,
+        }, {
+          x: 260,
+          y: 120,
+        }
+      ],
+      labelPosition: {
+        x: 100,
+        y: 120,
+      },
+      labelBlock: {
+        unit: "px",
+        prepared: {
+          source: "x",
+          display: "formatted",
+          lines: [
+            [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ]
+          ],
+          lineStarts: [ 0 ],
+        },
+        text: "x",
+        lines: [ "x" ],
+        lineBlocks: [
+          {
+            runs: [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ],
+            text: "x",
+            width: 7.59,
+            baseline: 3.8499999999999996,
+            originX: 0,
+          }
+        ],
+        breaks: [],
+        width: 7.59,
+        height: 14.3,
+        lineHeight: 14.3,
+        fontSize: 11,
+        fontWeight: 400,
+        letterSpacing: 0,
+        monospace: false,
+        safeFont: false,
+      },
+    }, {
+      source: "C",
+      target: "D",
+      label: undefined,
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 1,
+      points: [
+        {
+          x: 160,
+          y: 60,
+        }, {
+          x: 160,
+          y: 220,
+        }
+      ],
+    }
+  ],
+}
+Received: {
+  width: 360,
+  height: 280,
+  groups: [],
+  nodes: [
+    {
+      id: "A",
+      label: "A",
+      shape: "rectangle",
+      x: 20,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "B",
+      label: "B",
+      shape: "rectangle",
+      x: 260,
+      y: 100,
+      width: 40,
+      height: 40,
+    }, {
+      id: "C",
+      label: "C",
+      shape: "rectangle",
+      x: 80,
+      y: 70,
+      width: 40,
+      height: 40,
+    }, {
+      id: "D",
+      label: "D",
+      shape: "rectangle",
+      x: 300,
+      y: 220,
+      width: 40,
+      height: 40,
+    }
+  ],
+  edges: [
+    {
+      source: "A",
+      target: "B",
+      label: "x",
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 0,
+      points: [
+        {
+          x: 60,
+          y: 120,
+        }, {
+          x: 260,
+          y: 120,
+        }
+      ],
+      labelPosition: {
+        x: 100,
+        y: 120,
+      },
+      labelBlock: {
+        unit: "px",
+        prepared: {
+          source: "x",
+          display: "formatted",
+          lines: [
+            [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ]
+          ],
+          lineStarts: [ 0 ],
+        },
+        text: "x",
+        lines: [ "x" ],
+        lineBlocks: [
+          {
+            runs: [
+              {
+                text: "x",
+                bold: false,
+                italic: false,
+                underline: false,
+                strikethrough: false,
+                sourceStart: 0,
+                sourceEnd: 1,
+                clusters: [
+                  [Object ...]
+                ],
+              }
+            ],
+            text: "x",
+            width: 7.59,
+            baseline: 3.8499999999999996,
+            originX: 0,
+          }
+        ],
+        breaks: [],
+        width: 7.59,
+        height: 14.3,
+        lineHeight: 14.3,
+        fontSize: 11,
+        fontWeight: 400,
+        letterSpacing: 0,
+        monospace: false,
+        safeFont: false,
+      },
+    }, {
+      source: "C",
+      target: "D",
+      label: undefined,
+      style: "solid",
+      hasArrowStart: false,
+      hasArrowEnd: true,
+      startMarker: undefined,
+      endMarker: "arrow",
+      edgeIndex: 1,
+      points: [
+        {
+          x: 100,
+          y: 70,
+        }, {
+          x: 100,
+          y: 60,
+        }, {
+          x: 320,
+          y: 60,
+        }, {
+          x: 320,
+          y: 220,
+        }
+      ],
+    }
+  ],
+  certification: {
+    status: "passed",
+    strategy: "occluded-without-crossings",
+    attempts: 2,
+    hardViolations: 0,
+    preference: {
+      selectedScore: {
+        unreadableTitles: 0,
+        labelConflicts: 1,
+        edgeCrossings: 0,
+        totalBends: 2,
+        nonCanonicalEndpointRate: 0,
+        peerBarycenterDelta: 0,
+        area: 100800,
+      },
+      reason: "edgeCrossings",
+      compared: [
+        {
+          strategy: "occluded-without-crossings",
+          score: {
+            unreadableTitles: 0,
+            labelConflicts: 1,
+            edgeCrossings: 0,
+            totalBends: 2,
+            nonCanonicalEndpointRate: 0,
+            peerBarycenterDelta: 0,
+            area: 100800,
+          },
+        }, {
+          strategy: "readable-with-crossing",
+          score: {
+            unreadableTitles: 0,
+            labelConflicts: 0,
+            edgeCrossings: 1,
+            totalBends: 0,
+            nonCanonicalEndpointRate: 0,
+            peerBarycenterDelta: 0,
+            area: 100800,
+          },
+        }
+      ],
+    },
+  },
+}
+
+      at <anonymous> (/workspace/elk-layered-port/src/__tests__/layout-certification.test.ts:293:22)
+(fail) bounded final layout certification > clearing a label conflict can buy one crossing between otherwise feasible routes [1.89ms]
+(pass) bounded final layout certification > clearing one padded label conflict cannot buy two crossings [0.78ms]
+(pass) bounded final layout certification > zero crossings do not suppress a bounded label-conflict comparison [0.69ms]
+(pass) bounded final layout certification > continuity outranks canonical ports when crossings are equal [0.49ms]
+(pass) bounded final layout certification > canonical ports outrank symmetry, which outranks compactness [1.83ms]
+(pass) bounded final layout certification > compactness breaks quality ties and exact ties retain candidate order [1.07ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 64 [1.40ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 65 [0.77ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 128 [6.48ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 129 [2.80ms]
+(pass) bounded final layout certification > ordinary zero-crossing graphs and no-op strategies do not produce a cosmetic alternative [38.56ms]
+(pass) bounded final layout certification > a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink [20.64ms]
+(pass) bounded final layout certification > no candidate succeeds on non-finite geometry, even when an outline checker could miss it [1.46ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelBlock before certification [2.93ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelPosition before certification [2.13ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node [4.65ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored edge [2.05ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored marker [1.64ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored label [1.65ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node-label [1.21ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored group-label [1.22ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored parent [1.22ms]
+(pass) bounded final layout certification > report safety draws the best drawable candidate when none certifies [5.78ms]
+(pass) bounded final layout certification > State drawings share the report-safety fallback [14.08ms]
+(pass) bounded final layout certification > a candidate cannot exchange authored members between intact group frames [3.40ms]
+(pass) bounded final layout certification > public group membership retains authored identities instead of inferring ownership from coordinates [1.28ms]
+(pass) bounded final layout certification > a retained node text block cannot replace the authored label [3.56ms]
+(pass) bounded final layout certification > a retained group text block cannot replace the authored label [2.04ms]
+(pass) bounded final layout certification > a retained edge text block cannot replace the authored label [1.71ms]
+(pass) bounded final layout certification > retained formatted and transformed labels preserve their authored source [5.47ms]
+(pass) bounded final layout certification > retained node text preserves decoded literal meaning through certification [7.69ms]
+(pass) bounded final layout certification > retained group text preserves decoded literal meaning through certification [3.71ms]
+(pass) bounded final layout certification > retained edge text preserves decoded literal meaning through certification [2.92ms]
+(pass) bounded final layout certification > retained text cannot change its prepared display interpretation [2.44ms]
+(pass) bounded final layout certification > retained text cannot change its prepared transform interpretation [1.07ms]
+(pass) bounded final layout certification > an authored child frame cannot escape its parent with its members [3.19ms]
+(pass) bounded final layout certification > exhaustion stops after four attempts and never returns the least-bad candidate [1.38ms]
+(pass) bounded final layout certification > a title preference preflight exception stays inside its candidate attempt [2.99ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid title alternative without an extra production [0.68ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid quality alternative without an extra production [0.32ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.56ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [1.82ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [1.82ms]
+(pass) final full group-header route geometry > unrelated root header [0.65ms]
+(pass) final full group-header route geometry > nested header below the parent band [0.05ms]
+(pass) final full group-header route geometry > authored north exterior contact [0.02ms]
+(pass) final full group-header route geometry > own endpoint approached through its header interior [0.02ms]
+(pass) final full group-header route geometry > border-only north contact [0.01ms]
+(pass) final full group-header route geometry > invisible route [0.01ms]
+(pass) final full group-header route geometry > concurrency region has no own header [0.05ms]
+(pass) final full group-header route geometry > explicit zero header [0.02ms]
+(pass) final full group-header route geometry > missing height retains measured band [0.03ms]
+(pass) final full group-header route geometry > missing height does not reserve the whole group [0.04ms]
+(pass) group headers gate completed candidate consumers > a clear shorter shaft cannot make a reserved-header candidate feasible [1.09ms]
+(pass) group headers gate completed candidate consumers > a route alternative with fewer bends cannot overwrite a header-clear baseline [0.56ms]
+(pass) retained header bands are independent of frame height > final band: zero-width band above zero frame [0.14ms]
+(pass) retained header bands are independent of frame height > final band: positive-width full band beyond frame [0.02ms]
+(pass) retained header bands are independent of frame height > final band: below full retained band
+(pass) retained header bands are independent of frame height > final band: exact lower boundary
+(pass) retained header bands are independent of frame height > final band: missing height uses actual text fallback
+(pass) retained header bands are independent of frame height > final band: negative retained height
+(pass) retained header bands are independent of frame height > final band: nonfinite retained height
+(pass) retained header bands are independent of frame height > final band: infinite retained height
+(pass) retained header bands are independent of frame height > perpendicular crossing: edge-to-edge vertical crossing beside the title [0.33ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: jog travelling inside the band [0.03ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: vertical crossing through the title [0.01ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: route ending inside the band [0.04ms]
+(pass) retained header bands are independent of frame height > perpendicular crossing: parallel run on the band edge [0.02ms]
+(pass) retained header bands are independent of frame height > lane band: inside measured band beyond frame [0.08ms]
+(pass) retained header bands are independent of frame height > lane band: below measured band beyond frame
+(pass) retained header bands are independent of frame height > lane band: missing height conservatively reserves whole frame
+(pass) retained header bands are independent of frame height > lane band: negative height conservative
+(pass) retained header bands are independent of frame height > lane band: nonfinite height conservative
+(pass) retained header bands are independent of frame height > lane band: infinite height conservative
+(pass) retained header bands are independent of frame height > public empty flowchart subgraph retains authored identity and a visible frame under its band [8.04ms]
+(pass) retained header bands are independent of frame height > public empty state composite retains authored identity and a visible frame under its band [7.80ms]
+
+9 tests failed:
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [244.62ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [75.89ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [47.89ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > https://github.com/lukilabs/beautiful-mermaid/issues/52 preserves the complete richer diagram and readable relationships [47.95ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in LR [18.35ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in RL [15.09ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in TB [13.94ms]
+(fail) layout-aesthetic regression fixtures (issue-keyed) > competing fan-outs retain independent arrivals in BT [12.81ms]
+(fail) bounded final layout certification > clearing a label conflict can buy one crossing between otherwise feasible routes [1.89ms]
+
+ 101 pass
+ 9 fail
+ 1102 expect() calls
+Ran 110 tests across 2 files. [1.60s]

@@ -1,0 +1,78 @@
+$ bun run scripts/ci/quality-gates.ts --pre-push
+
+==> Verify website payload request graphs and budgets: skipped because chromium is unavailable (run `bunx playwright install chromium`); CI still runs it
+
+==> Reject high or critical dependency advisories
+$ bun audit --audit-level=high
+bun audit v1.4.4 (38afee6c8)
+
+No vulnerabilities found (checked 687 packages, 14 below --audit-level=high) [139.00ms]
+
+==> Regenerate and byte-verify canonical Inter subsets
+  WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)'))': /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+  WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)'))': /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+  WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)'))': /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+  WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)'))': /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+  WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)'))': /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+ERROR: Could not install packages due to an OSError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Max retries exceeded with url: /packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1010)')))
+
+75 |     '--workdir', '/work',
+76 |     WEBSITE_INTER_SUBSET_TOOLCHAIN.image,
+77 |     'sh', '-eu', '-c',
+78 |     'python -m pip install --disable-pip-version-check --no-cache-dir --no-deps --require-hashes --target /output/toolchain -r /work/scripts/site/website-font-subset-requirements.txt >/dev/null && PYTHONPATH=/output/toolchain python /work/scripts/site/subset-website-inter-fonts.py /output/policy.json /output/generated',
+79 |   ], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
+80 |   if (docker.exitCode !== 0) throw new Error(`canonical Inter subset container failed with exit ${docker.exitCode}`)
+                                            ^
+error: canonical Inter subset container failed with exit 1
+      at /workspace/elk-layered-port/scripts/site/subset-website-inter-fonts.ts:80:40
+
+Bun v1.4.4 (Linux x64)
+
+==> Verify the committed lazy browser family catalog
+$ bun run scripts/build/generate-browser-family-catalog.ts --check
+browser family catalog is current (33 families)
+
+==> Verify website and Worker artifacts
+$ bun run website/build.ts --check
+website/build: 17/40 warning pages carry a build-time-verified firing demo
+website/build --check: regenerated 417 public and 13 Worker artifacts successfully.
+
+==> Verify the lazy browser bundle graph and size budgets
+$ bun run scripts/build/browser-lazy-report.ts
+browser lazy build verified: 6247 B initial gzip; 9 families budget the shared on-demand ELK transfer; 24 family graphs exclude it
+
+==> Audit rendered corpora and family structural evidence
+$ bun run eval/ugly-detector/audit.ts
+Ugly-layout audit — rendered SVG / PNG / ASCII / Unicode
+(SVG authoritative; PNG = SVG structure + pixel sanity; terminal projections = display-cell grids)
+
+corpus            diagrams   hard(svg/png/ascii/unicode)   soft   render-err
+contact-sheet           44    0 / 0 / 0 / 0                  0          0
+tracker                112    0 / 0 / 0 / 0                  0          0
+samples                134    0 / 0 / 0 / 0                  0          0
+fixtures                59    0 / 0 / 0 / 0                  0          0
+eval-linkrank-feedback-packing         6    0 / 0 / 0 / 0                  0          0
+eval-mindmap-gitgraph-content-corpus        13    0 / 0 / 0 / 0                  0          0
+eval-section-b-brand-evidence         1    0 / 0 / 0 / 0                  0          0
+eval-stable-families         7    0 / 0 / 0 / 0                  0          0
+golden-ascii            87    0 / 0 / 0 / 0                  0          0
+golden-unicode          66    0 / 0 / 0 / 0                  0          0
+————————————————————————————————————————————————————————————————
+529 diagrams · 2116 format-audits · 0 HARD · 0 soft · 0 render-errors
+structural admission: 529/529 renderer layouts; 279/529 SVG markup adapters
+
+✓ no hard ugly-layout defects in any rendered diagram
+
+==> Lint TypeScript
+$ biome lint .
+Checked 2177 files in 1303ms. No fixes applied.
+
+==> Type check
+$ bun run typecheck:core && bun run typecheck:repo
+$ tsc --noEmit -p tsconfig.json
+$ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+/workspace/elk-layered-port/bench-report/.trident/f080278e31e4202ca89d524e4ee9e4cf3cbff038
+
+Pre-push checks failed in 1 check:
+- Regenerate and byte-verify canonical Inter subsets: bun run scripts/site/subset-website-inter-fonts.ts --check
+error: script "check:pre-push" exited with code 1

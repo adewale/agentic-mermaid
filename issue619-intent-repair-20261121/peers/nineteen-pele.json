@@ -1,0 +1,16 @@
+{
+  "id": "nineteen",
+  "product": "Pele npm",
+  "version": "1.13.0",
+  "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "options": {},
+  "boundary": "Installed local public API; no source sent externally",
+  "ok": true,
+  "svgSHA256": "c8e72574d72acd64dcd437baa779770440647acfe71e587264448c1d03c1364a",
+  "metadata": {
+    "type": "flowchart",
+    "width": 1857,
+    "height": 1471,
+    "links": []
+  }
+}

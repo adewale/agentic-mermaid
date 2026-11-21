@@ -1,0 +1,940 @@
+[
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/64",
+    "number": 64,
+    "title": "ASCII: edge-routing engine crashes on dense fan-in graphs and misplaces fan-in/fan-out paths",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-08-25T19:33:17Z",
+    "updated_at": "2026-08-26T13:59:49Z",
+    "closed_at": "2026-08-26T13:59:49Z",
+    "comment_count": 1,
+    "body": "## Summary\n\nThe ASCII renderer's custom edge-routing/root-detection engine (`src/ascii/grid.ts`, `src/ascii/pathfinder.ts`, `src/ascii/edge-bundling.ts`) has several confirmed bugs ranging from hard crashes to misplaced/overlapping edge paths. Unlike the SVG path — which now uses ELK.js for layout — the ASCII renderer still uses the original custom layout/routing code, so these carry over unchanged from upstream. All five below were reproduced directly against this fork's current `main`.\n\n### 1. Crash: `RangeError`/internal `Map maximum size exceeded` on dense fan-in graphs\n\n```ts\nimport { renderMermaidASCII } from 'zombie-mermaid'\n\nrenderMermaidASCII(`graph TD\n    A[\"AAA<br>(keita)\"] --> C[\"CCC\"]\n    B[\"BBB<br>(yuriko)\"] --> C\n    C --> D[\"DDDD\"]\n    D --> E[\"EEEE\"]\n    A1[\"1 / 2\"] --> A\n    A2[\"3 / 4\"] --> A\n    A3[\"5 / 6\"] --> A\n    A4[\"XXX<br>(YYY ZZZ)\"] --> A\n    B1[\"77 77<br>(7 / 7 / 7)\"] --> B\n    B2[\"88-88<br>(99 99)\"] --> B\n    B3[\"111s 222s\"] --> B\n    D --> F{\"F?\"}\n    F -->|Yes| G[\"High level<br>Tr\"]\n    F -->|No| H[\"Dumb Tr<br>S\"]`)\n```\nOn this fork, this call doesn't return within 60s and had to be force-killed — consistent with the reported unbounded blowup in `routeBundledEdges`/`getPath` in `src/ascii/pathfinder.ts` / `src/ascii/edge-bundling.ts`.\n\n### 2. Crash: order-dependent root misdetection throws `Map maximum size exceeded`\n\n```ts\nrenderMermaidASCII(`graph TD\n    A[\"Parent A\"] --> C[\"Child C\"]\n    B[\"Parent B\"] --> C\n    C --> D[\"Grandchild D\"]\n    A1[\"Root 1\"] --> A\n    A2[\"Root 2\"] --> A\n    A3[\"Root 3\"] --> A\n    B1[\"Root 4\"] --> B\n    B2[\"Root 5\"] --> B`)\n```\nThrows `Error: Map maximum size exceeded` on this fork. The root cause described upstream — `src/ascii/grid.ts`'s root-detection loop does a single forward pass over `graph.nodes` in Map-insertion order and misclassifies nodes as roots when `child → parent` edges appear after `parent → grandchild` edges in the source — still applies; here it manifests as a crash rather than just a flat/wrong layout, likely compounding with bug #1's pathfinding blowup once roots are misclassified.\n\n### 3. Fan-in root nodes aren't grouped by target, causing overlapping edge paths\n\n```ts\nrenderMermaidASCII(`graph TD\n    A1 --> A\n    A2 --> A\n    B1 --> B\n    B2 --> B\n    A --> C\n    B --> C`)\n```\nRenders with A1/A2/B1/B2 on one flat row and their trunk edges visibly crossing/overlapping, instead of grouping each fan-in cluster (A1,A2 → A) contiguously and separately from (B1,B2 → B). Root cause: `createMapping` in `src/ascii/grid.ts` places root nodes sequentially with a fixed increment, without regard to which downstream target each root feeds into.\n\n### 4. Sibling edges from the same source don't share a trunk segment\n\n```ts\nrenderMermaidASCII(`flowchart TB\n    Src[\"Source\"]\n    Left[\"Left Target\"]\n    Center[\"Center Target\"]\n    Right[\"Right Target\"]\n    Src -->|left*| Left\n    Src -->|center*| Center\n    Src -->|right*| Right`)\n```\nThe right-hand edge takes an unnecessary detour instead of sharing the horizontal trunk the other sibling edges use, per the upstream report.\n\n### 5. Box-start connector (`├`/`┤`/`┬`/`┴`) drifts off the source box border when a sibling edge has a label\n\n```ts\nrenderMermaidASCII(`flowchart LR\n  Src[\"Source\"]\n  Top[\"Top Target\"]\n  Mid[\"Middle Target\"]\n  Bot[\"Bottom Target\"]\n  Src -->|top*| Top\n  Src -->|mid*| Mid\n  Src -->|bot*| Bot`)\n```\nThe `├` connector for the \"Top\" edge floats visibly right of `Source`'s actual right border once a sibling edge's label (`mid*`) widens that grid column — confirmed in this fork's output, matching the upstream repro almost exactly.\n\n## Provenance\n\nMined from an upstream audit of `lukilabs/beautiful-mermaid` open issues (tracking issue #21 in this repo). Based on upstream:\n- https://github.com/lukilabs/beautiful-mermaid/issues/64 (memory exhaustion)\n- https://github.com/lukilabs/beautiful-mermaid/issues/65 (order-dependent root detection)\n- https://github.com/lukilabs/beautiful-mermaid/issues/68 (fan-in grouping)\n- https://github.com/lukilabs/beautiful-mermaid/issues/111 (sibling trunk sharing)\n- https://github.com/lukilabs/beautiful-mermaid/issues/112 (box-start connector displacement)\n\nAll five are bundled here because they live in the same small cluster of files (`src/ascii/grid.ts`, `pathfinder.ts`, `edge-bundling.ts`) and a fix likely touches shared root-detection/routing logic — but feel free to split into separate PRs.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/64#issuecomment-5415814141",
+        "author": "dfadler",
+        "id": 5415814141,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Cross-referencing the upstream PR audit (issue #22): item 1 (dense fan-in OOM crash) is fixed by PR #52 (porting lukilabs/beautiful-mermaid#66). Items 2 and 3 (order-dependent root misdetection, fan-in grouping) correspond to upstream lukilabs/beautiful-mermaid#67 and #69 by @ktrysmt — not ported yet; the diffs apply cleanly against this fork's `src/ascii/grid.ts` but change layout heuristics broadly enough (root placement order affects many of the ~63 ASCII golden-file snapshots) that they need careful visual review rather than a blind cherry-pick. Items 4 and 5 (sibling trunk sharing, box-start connector drift) correspond to upstream lukilabs/beautiful-mermaid#113 by @rmvegasm (\"Fixes #111 Fixes #112\"), not yet reviewed in depth."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/351",
+    "number": 351,
+    "title": "ASCII erDiagram: stray connector glyphs, edges routed through boxes, and large blank gutters",
+    "author": "aahoughton",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-08-31T17:12:37Z",
+    "updated_at": "2026-09-23T16:12:35Z",
+    "closed_at": "2026-09-09T08:19:21Z",
+    "comment_count": 6,
+    "body": "\n**Environment:** `zombie-mermaid@1.5.0`, Node v24.14.0, `renderMermaidASCII(src)` (Unicode mode, no options).\n\nFiled separately from the label-overwrite corruption\n(see *ASCII erDiagram: relationship labels are composited over entity boxes*),\nsince these are visible layout defects rather than silent data loss. Splitting them\nso neither half gets lost — lukilabs/beautiful-mermaid#121 bundled several ASCII symptoms and only\nsome were addressed.\n\n## 1. Stray vertical connector next to the cardinality glyph\n\nVisible in the smallest possible diagram:\n\n```mermaid\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n```\n\n```\n┌──────────┐        ┌───────┐    \n│ CUSTOMER │─│───○╟─│ ORDER │    \n└──────────┘ places └───────┘    \n                                 \n                                 \n```\n\nThe connector renders as `─│───○╟─`. The `│` immediately after the `CUSTOMER`\nborder is not part of either cardinality notation — `||` (exactly one) and `o{`\n(zero or more) are already represented by `╟` and `○`. On vertical runs the same\nartifact appears doubled, as `││` and `○╟│`.\n\n## 2. Edges route through entity boxes\n\nIn multi-entity layouts, edge paths are drawn straight across box interiors rather\nthan routed around them, and vertical segments cut through horizontal edge labels —\nproducing labels split by a line, e.g. `appear│_in`.\n\n## 3. Disconnected entities get a large blank gutter\n\n```mermaid\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    PRODUCT ||--o{ LINE_ITEM : appears_in\n```\n\n```\n┌──────────┐        ┌───────┐           \n│ CUSTOMER │─│───○╟─│ ORDER │           \n└──────────┘ places └───────┘           \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n┌─────────┐            ┌───────────┐    \n│ PRODUCT │─│───────○╟─│ LINE_ITEM │    \n└─────────┘ appears_in └───────────┘    \n                                        \n                                        \n```\n\nEntities in separate components are separated by a run of blank rows rather than\npacked, which for a schema with a few unrelated tables leaves most of the output\nempty.\n\n## Note\n\nThe SVG backend renders all of these correctly — correct routing, labels sitting on\ntheir edges, no overlap. These are ASCII-backend-only.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/538",
+    "number": 538,
+    "title": "Scope a pluggable/domain-aware layout architecture",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-09-06T16:28:46Z",
+    "updated_at": "2026-09-09T16:46:36Z",
+    "closed_at": "2026-09-09T16:46:36Z",
+    "comment_count": 2,
+    "body": "🤖 **Claude:** Split from #536.\n\n## Context\n\nCompeting tools treat layout as a swappable subsystem rather than one hardcoded algorithm: D2 exposes three interchangeable engines (Dagre, ELK, TALA — the last purpose-built for architecture diagrams), and even ELK's \"Graphviz Dot\" option is a literal wrapper around the external `dot` binary rather than a native reimplementation. Separately, academic work is moving toward layout that preserves a diagram's intrinsic order (e.g. keeping a control-flow graph's execution order top-to-bottom) instead of applying generic layered layout everywhere.\n\n## Task\n\nAssess whether zombie-mermaid's current renderer can support either of:\n\n- swapping in an alternate layout engine per diagram type, or\n- domain-aware layout for specific diagram types (e.g. sequence/flowchart execution order)\n\nwithout a from-scratch layout rewrite. Produce a short feasibility note: what's retrofittable, what isn't, and roughly what a from-scratch path would look like if one is needed.\n\n## References\n\n- https://d2lang.com/tour/layouts/\n- https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-graphviz-dot.html\n- https://arxiv.org/pdf/2511.05066 (CFG-aware layout research)\n\nNote: a related claim that SPX (a multi-objective layout optimizer) beats dot/dagre/OGDF on all tested DAGs was checked and refuted during the original research pass — don't treat SPX as proven-best, only as \"optimizes multiple criteria jointly.\"\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/538#issuecomment-5571620230",
+        "author": "dfadler",
+        "id": 5571620230,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Full scoping analysis for #578 (the TL;DR now lives in\n`docs/decisions/layout-architecture-scoping.md`, trimmed down per\n[review feedback](https://github.com/dfadler/zombie-mermaid/pull/578#discussion_r3950308772)\nto keep the committed doc short and put the detailed notes here instead).\n\n## Current architecture, as read\n\n### SVG side: three independent ELK integrations, not one seam\n\n`src/layout-engine.ts` is the only diagram family with a real pipeline\nseparation:\n\n```\nMermaidGraph --[to-elk.ts: mermaidToElk()]--> ElkNode (ELK JSON)\n            --[elk-instance.ts: elkLayoutSync()]--> ElkNode (positioned)\n            --[from-elk.ts: elkToPositioned()]--> PositionedGraph\n```\n\nThis looks like a clean seam — `mermaidToElk` / `elkToPositioned` bookend a\npure `elkLayoutSync(graph)` call — but the seam is at the wrong altitude for\nswapping the *engine*: `mermaidToElk` returns an `ElkNode`, not a neutral\ngraph. Its 700+ lines are almost entirely ELK-specific: `elk.algorithm`,\n`elk.direction`, `elk.hierarchyHandling` (`SEPARATE` vs `INCLUDE_CHILDREN`),\nhand-built hierarchical ports and hop/bridge edges to route cross-subgraph\nedges under `SEPARATE` (`src/layout-engine/to-elk.ts:320-405`), and per-edge\n`elk.edgeLabels.inline`/`placement` options. None of this could be handed to\na different engine (Dagre, or a native `dot` binary) without a full rewrite\nof the conversion — the subgraph/port/hop-edge decomposition exists\nspecifically to work around ELK's own hierarchy-handling semantics\n(`to-elk.ts:320-329`'s comment explains this is required because \"ELK only\nresolves an edge automatically when both endpoints are visible from the\nedge's container\").\n\nWorse, `class/layout.ts` and `er/layout.ts` **do not go through\n`layout-engine.ts` at all.** Each imports `elkLayoutSync` from\n`elk-instance.ts` directly and builds its own inline `ElkNode` graph:\n\n- `src/class/layout.ts:191-195` constructs its own root `ElkNode` with\n  `'elk.algorithm': 'layered'`, `'elk.direction': 'DOWN'` hardcoded (no\n  direction-override or subgraph support at all — class diagrams have no\n  subgraphs).\n- `src/er/layout.ts` does the same, with its own `directionToElk()` — a\n  near-duplicate of `to-elk.ts`'s function of the same name, but with a\n  different default (`RIGHT` vs flowchart's `DOWN`) baked in independently.\n\nThe only code shared across all three ELK call sites is\n`src/layout-engine/elk-adapter-utils.ts`, whose own header comment states the\nproblem plainly: *\"`from-elk.ts` (flowchart/state), `src/class/layout.ts`,\nand `src/er/layout.ts` each independently walk an ELK edge's\n`section.startPoint → bendPoints → endPoint` into a `Point[]`... This module\nis the single place that logic lives, so the three call sites can't drift.\"*\nThat module only covers point/label extraction from ELK's *output* — none of\nthe graph-*construction* logic is shared. Three separate teams of code build\nthree separate `ElkNode` graphs, using ELK-specific vocabulary throughout.\n\n**What a real engine-swap seam would need**: an engine-neutral intermediate\ngraph type (nodes with size/shape metadata, edges with optional labels,\ncompound/subgraph nesting, a requested direction) that all three diagram\ntypes build once, plus a per-engine adapter (`toElk(graph)`, `toDagre(graph)`,\netc.) that translates *that* into the target engine's format, mirroring what\nD2 does (see the D2 comparison below: D2 keeps one graph model and\nper-engine \"shims\" for the handful of features an engine can't express, e.g.\ncontainer width/height only working on ELK/TALA). That's a from-scratch\ndesign task, not a refactor of the existing conversion code — `to-elk.ts`\nand its siblings would need to be rewritten against the new neutral type\nrather than adapted, since so much of their logic (hop-edge decomposition,\nhierarchical ports) exists purely to satisfy ELK's own `hierarchyHandling`\nquirks and has no equivalent in a neutral model.\n\n### SVG side: two diagram types that don't use graph layout at all\n\n- `src/sequence/layout.ts` never touches ELK. Its header comment says so\n  explicitly: *\"Custom timeline-based layout (no ELK — sequence diagrams\n  aren't graphs).\"* Actors get fixed X positions by declaration order;\n  messages are stacked at `messageY` strictly in **source/chronological\n  order** (`layoutSequenceDiagram`, `src/sequence/layout.ts:351-478` — the\n  main loop advances `messageY` monotonically per message, block, and note,\n  with no reordering or crossing-minimization pass at all).\n- `src/xychart/layout.ts` is direct coordinate-space math for axes/bars/\n  lines — not a node/edge graph, so \"layout engine\" doesn't apply.\n\n### ASCII side: four more independent layout algorithms, none of them ELK\n\nNone of the ASCII renderers reuse the SVG-side `PositionedGraph`/ELK\npipeline or the SVG-side per-diagram-type layout modules:\n\n- `src/ascii/converter.ts` + `src/ascii/grid.ts`: a from-scratch\n  character-grid layout for flowcharts/state diagrams (rank/column\n  assignment, subgraph bounding boxes, its own `getEffectiveDirection`,\n  its own edge routing in `edge-routing.ts`/`pathfinder.ts`). No ELK\n  import anywhere in `src/ascii/`.\n- `src/ascii/class-diagram.ts`: its own row-packing layout\n  (`currentX`/`currentY` slot placement, `src/ascii/class-diagram.ts:462-500`)\n  — completely independent of `src/class/layout.ts`'s ELK-based SVG layout.\n  Parses the diagram fresh from `class/parser.ts` rather than reusing any\n  positioned output.\n- `src/ascii/er-diagram.ts`: its own layout (`findConnectedComponents`,\n  `chooseFreeRow`) — independent of `src/er/layout.ts`.\n- `src/ascii/sequence.ts`: its own position computation\n  (`renderSequenceAscii`) — independent of `src/sequence/layout.ts`, though\n  it's a much smaller reimplementation since sequence layout is already\n  simple (chronological stacking) on both sides.\n\nNet effect: **there are roughly nine distinct layout implementations** in\nthis codebase (SVG flowchart/state, SVG class, SVG ER, SVG sequence, SVG\nxychart, ASCII flowchart/state, ASCII class, ASCII ER, ASCII sequence), and\nonly the SVG flowchart/state one uses a general-purpose layout algorithm at\nall (ELK). Any \"pluggable layout engine\" framing that starts from \"swap ELK\nfor X\" only ever addresses 3 of those 9 — and even within those 3, ELK isn't\nbehind one seam.\n\n## D2's layout abstraction\n\nPer [d2lang.com/tour/layouts](https://d2lang.com/tour/layouts/), D2 keeps a\nsingle internal graph model and lets the user pick the rendering engine at\nthe CLI/config level (`--layout=dagre|elk|tala`, or `$D2_LAYOUT`). The three\nengines aren't drop-in equivalent, though — D2's own docs list per-engine\ncapability gaps (container-to-child connections fail under Dagre;\nwidth/height constraints on containers only work under ELK/TALA;\nposition-locking is TALA-only), which D2 handles as documented\nengine-specific limitations rather than papering over them. That's the\nrealistic bar for \"pluggable\": not perfect parity across engines, but one\nshared graph model with engine-specific adapters and known, documented\ncapability gaps per engine — not, as zombie-mermaid has today, the target\nengine's own types doing double duty as the internal model in three\nindependently-written places.\n\nELK's own \"Graphviz Dot\" algorithm option\n([reference](https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-graphviz-dot.html))\nreinforces the same point from the other direction: ELK itself is built as a\npluggable-algorithm framework (15+ algorithms, including one that wraps\nGraphviz's layered approach), all consumed through one shared `elk.*`\nlayout-option vocabulary and one `ElkNode` I/O format. zombie-mermaid\ncurrently gets zero benefit from that pluggability — the codebase always\nrequests `'elk.algorithm': 'layered'` and never varies it — but it's a\nreminder that \"swap the algorithm\" and \"swap the engine\" are different asks:\nELK already supports the former cheaply (change one string, in three\nplaces), while the latter is the expensive one this note is about.\n\n## Domain-aware layout assessment\n\nSequence diagrams are, today, already the thing the issue speculates might\nbe \"feasible as an incremental addition\": their layout preserves message\norder top-to-bottom by construction, because the layout was never written as\na general graph algorithm in the first place (`sequence/layout.ts`'s own\nheader: \"Custom timeline-based layout (no ELK — sequence diagrams aren't\ngraphs)\"). This wasn't a deliberate response to order-preservation research —\nit's the natural shape of a sequence diagram's semantics (messages *are* a\ntimeline) — but it validates the same idea the VEIL paper\n(arXiv:2511.05066) argues for CFGs: skip generic layered/Sugiyama layout\nentirely when the diagram already carries an intrinsic order, and position\ndirectly from that order instead of asking a crossing-minimizing algorithm\nto (hopefully) preserve it as a side effect.\n\nFlowcharts get a much weaker version of the same idea:\n`to-elk.ts:294`'s `'elk.layered.considerModelOrder.strategy':\n'NODES_AND_EDGES'` asks ELK to use declaration order as a *tie-break* during\ncrossing minimization (confirmed load-bearing by the sibling-subgraph\nreversal logic just above it, `to-elk.ts:425-448`, needed specifically\nbecause \"ELK's `considerModelOrder` uses [model order] as a tie-break during\ncrossing minimization and thus what ultimately decides left-right sibling\norder\" — see issue #444). That's meaningfully different from sequence\ndiagrams' guarantee: it's a heuristic nudge inside a general algorithm, not a\nstructural property of the layout. A flowchart with a strong top-to-bottom\n\"execution order\" reading (state diagrams are the most CFG-like diagram type\nthis repo renders) could in principle get closer to VEIL's approach, but\nthat would mean **replacing** ELK's layered algorithm for that diagram type\nwith a bespoke order-preserving placement pass — the same category of\nfrom-scratch work as building a new engine adapter, not a tweak to existing\nELK options. It is not a \"comparatively low-risk near-term win\": it would be\na new, unproven layout algorithm competing with a mature one (ELK layered),\nfor a diagram type (state/flowchart) that currently has zero user-reported\ncomplaints about node ordering in this repo's issue history searched during\nthis scoping pass.\n\n**No specific near-term win is being called out.** The honest read is that\nsequence diagrams already capture the easy, high-value case for free, and\nextending true order-preservation to flowchart/state diagrams is\narchitecturally the same size of effort as the engine-swap problem above\n(a new layout algorithm needs to be designed and validated against the\nexisting ELK-based rendering across the diagram-heavy test/visual-regression\nsuite), not a smaller, separable one.\n\n## What a from-scratch path would look like (if pursued later)\n\n1. Design one engine-neutral graph IR (nodes with size + shape metadata,\n   edges with optional labels, compound/nesting, requested direction) —\n   informed by, but not copied from, `MermaidGraph` (which is closer to the\n   parser's AST than a layout-ready graph) and ELK's own `ElkNode` shape\n   (which is the right *shape* but the wrong *vocabulary* to keep neutral).\n2. Rewrite `to-elk.ts`, `class/layout.ts`'s graph-building half, and\n   `er/layout.ts`'s graph-building half to each build the neutral IR once,\n   sharing that construction code instead of duplicating it (this alone —\n   independent of any engine swap — would close the three-way duplication\n   flagged above; tracked separately as #616).\n3. Add an `elk` adapter (`neutralToElk`, mostly today's `to-elk.ts` logic\n   moved one layer down) and, only once a second engine is actually wanted,\n   a second adapter for it, following D2's precedent of documenting\n   per-engine capability gaps rather than requiring full parity.\n4. Leave ASCII layout untouched — it is not graph-algorithm-driven in any\n   diagram type today, so it sits outside this seam entirely regardless of\n   what happens on the SVG side.\n\nThis is scoping only — no estimate is given here for calendar cost, since\nthe point of this note is the shape of the problem, not a commitment to do\nit.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/538#issuecomment-5605475247",
+        "author": "dfadler",
+        "id": 5605475247,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Closing — already fully scoped via merged PR #578 (`docs/decisions/layout-architecture-scoping.md` + a detailed analysis comment on this issue), with a follow-up (#616, PR #641) already landed deduping the three ELK graph-construction paths' shared primitives. PR #578's body never used `Closes #538`, so it never auto-closed."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/629",
+    "number": 629,
+    "title": "ASCII: two edges between the same pair of nodes in *opposite* directions still corrupt each other's labels and lose an arrowhead (the reverse-direction half of #329)",
+    "author": "theimpostor",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-09-07T16:03:02Z",
+    "updated_at": "2026-09-10T20:56:04Z",
+    "closed_at": "2026-09-08T19:33:47Z",
+    "comment_count": 1,
+    "body": "## Summary\n\nIn a left-to-right flowchart, a pair of edges running both ways between the same\ntwo nodes is drawn as a single arrow. The two labels are composited onto the same\ncells, producing garbled text, and one of the two arrowheads is dropped.\n\n[#329](https://github.com/dfadler/zombie-mermaid/issues/329) reported this for two\nedges in the **same** direction, and that case is now fixed — 2.1.0 gives the two\nedges separate lanes and renders both labels in full. The **opposite**-direction\ncase still produces the exact output #329 quoted, character for character,\nincluding the `SFirst─Arrow` corruption.\n\nThe SVG backend renders the same source correctly. Only `renderMermaidASCII` is\naffected.\n\n## Version\n\n- `zombie-mermaid` 2.1.0 (latest on npm)\n- Bun 1.4.2, macOS 26 (Darwin 25.6.0), arm64\n- Also reproduces on 1.7.0 and on `beautiful-mermaid` 1.1.3 with byte-identical\n  output, so this is longstanding rather than a recent regression\n\n## Minimal reproduction\n\nTwo nodes, two labelled edges, opposite directions.\n\n```mermaid\ngraph LR\n  Browser -- request --> Server\n  Server -- response --> Browser\n```\n\n## Steps to reproduce\n\n```bash\nmkdir zm-repro && cd zm-repro\nbun init -y\nbun add zombie-mermaid@2.1.0\n```\n\nSave as `repro.ts`:\n\n```ts\nimport { renderMermaidASCII } from \"zombie-mermaid\";\n\nconst source = `graph LR\n  Browser -- request --> Server\n  Server -- response --> Browser`;\n\nconsole.log(renderMermaidASCII(source, { colorMode: \"none\" }));\n```\n\nThen:\n\n```bash\nbun repro.ts\n```\n\nNo options beyond `colorMode` are needed. The failure also occurs with\n`useAscii: true` and at any `paddingX`.\n\n## Actual output\n\n```text\n┌─────────┐          ┌────────┐\n│         │          │        │\n│ Browser ├rrequest─►┤ Server │\n│         │          │        │\n└─────────┘          └────────┘\n```\n\nThree defects are visible:\n\n1. `request` and `response` are composited into `rrequest`. The `r` of `response`\n   lands on the cell before the `r` of `request`. No reader can recover either\n   word.\n2. One arrowhead is drawn, not two. The edge reads as one-way.\n3. The two edges occupy one row, so nothing indicates the source declared two.\n\n## Expected output\n\nEither two lanes, as the same-direction case now produces, or the merged\nbidirectional form the renderer already draws correctly when asked for it\nexplicitly:\n\n```text\n┌─────────┐                  ┌────────┐\n│         │                  │        │\n│ Browser ◄request/response─►│ Server │\n│         │                  │        │\n└─────────┘                  └────────┘\n```\n\n## The same-direction case is already fixed\n\nFor contrast, #329's own source on 2.1.0:\n\n```mermaid\nflowchart LR\n    A -->|First Arrow| B\n    A -->|Second Arrow| B\n```\n\n```text\n┌───┐              ┌───┐\n│   │              │   │\n│ A ├─First─Arrow─►│ B │\n│   │              ▲   │\n└───┤              ├───┘\n    │              │\n    └Second─Arrow──┘\n```\n\nCorrect: two lanes, both labels intact, both arrowheads. Now reverse the second\nedge, changing nothing else:\n\n```mermaid\nflowchart LR\n    A -->|First Arrow| B\n    B -->|Second Arrow| A\n```\n\n```text\n┌───┐              ┌───┐\n│   │              │   │\n│ A ├SFirst─Arrow─►┤ B │\n│   │              │   │\n└───┘              └───┘\n```\n\nThis is byte-identical to the \"Actual output\" block in #329. Whatever gave the\nsame-direction pair its own lanes is not reached when the second edge points the\nother way.\n\n## Trigger conditions\n\nEach case was tested independently against 2.1.0.\n\n| Case | Result |\n| --- | --- |\n| `graph LR`, both edges labelled | **Reproduces** — labels garbled, one arrowhead |\n| `graph RL`, both edges labelled | **Reproduces** — identical output to LR |\n| `graph LR`, only the forward edge labelled | **Reproduces** — reverse arrowhead silently lost |\n| `graph LR`, only the reverse edge labelled | **Reproduces** — reverse arrowhead silently lost |\n| `graph LR`, neither edge labelled | OK — renders `◄►`, both arrowheads |\n| `graph LR`, explicit `A <-->\\|request/response\\| B` | OK |\n| `graph TB` / `graph TD`, both edges labelled | OK — labels stacked, both arrowheads |\n| `graph LR`, self loop `A -- loop --> A` | OK |\n| `graph LR`, chain of two opposed pairs | **Reproduces** — see below |\n\nTwo rows are worth calling out.\n\n**Labels cause the lost arrowhead.** The unlabelled pair renders `│ A ├◄►┤ B │`\nwith both arrowheads. Adding a label to just one of the two edges removes the\nother edge's arrowhead:\n\n```text\ngraph LR              ┌───┐      ┌───┐\n  A -- ping --> B     │ A ├ping─►┤ B │\n  B --> A             └───┘      └───┘\n```\n\nSo the renderer can draw the bidirectional connector. Label placement is what\nsuppresses it.\n\n**A chain loses whole edges.** Four edges, two opposed pairs:\n\n```mermaid\ngraph LR\n  A -- a1 --> B\n  B -- b1 --> A\n  B -- b2 --> C\n  C -- c1 --> B\n```\n\n```text\n┌───┐    ┌───┐    ┌───┐\n│   │    │   │    │   │\n│ A ├a1─►┤ B ├b2─►┤ C │\n│   │    │   │    │   │\n└───┘    └───┘    └───┘\n```\n\n`b1` and `c1` are gone, along with both reverse directions. The output reads as a\none-way pipeline `A → B → C`. Nothing marks the loss.\n\n## The SVG backend is correct\n\n`renderMermaidSVG` on the same source emits both labels, well separated, and two\narrowheads:\n\n```html\n<text x=\"206.225\" y=\"50.15\"  text-anchor=\"middle\" font-size=\"11\" ...>request</text>\n<text x=\"201.830\" y=\"83.450\" text-anchor=\"middle\" font-size=\"11\" ...>response</text>\n```\n\nTwo `marker-end` attributes are present. The labels are 33.3 px apart vertically\nat an 11 px font size, so they do not collide. The defect is confined to the\nASCII backend.\n\n## Impact\n\nRequest/response, client/server, publish/acknowledge, read/write — a labelled\nround trip between two components is one of the most common shapes in an\narchitecture diagram, and `graph LR` is the natural direction to draw it in.\n\nThe output is not merely ugly. It states something false. A round trip is shown\nas one-way, and in the chain case two edges disappear from the drawing entirely.\nA reader cannot tell, because the result is a well-formed box drawing. A caller\ncannot detect it either, because `renderMermaidASCII` does not throw.\n\nThe workaround is to rewrite the source before rendering, folding each opposed\npair into one `A <-->|x/y| B` statement. That works — it produces the \"Expected\noutput\" above — but it needs a full parse of the source, an exact-match rewrite,\nand a re-parse to verify the rewrite changed nothing else, because it is only\nsafe when the fold is provably equivalent. It also discards which label belongs\nto which direction, which the source stated and the drawing can no longer say.\n\n## Note\n\n#329 closed against the same-direction case, and\n[#532](https://github.com/dfadler/zombie-mermaid/issues/532) proposes unifying\nASCII collision avoidance into one occupancy module. If the lane assignment that\nfixed #329 keys on the ordered pair `(source, target)` rather than the unordered\npair, the reverse edge would land in a different group and never be offset. That\nwould be consistent with everything above, including why the unlabelled case\nstill finds its bidirectional form. It may be worth folding this into #532's\nscope rather than patching the ordered-pair grouping in place.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/629#issuecomment-5625320434",
+        "author": "theimpostor",
+        "id": 5625320434,
+        "created_at": "2026-09-10T20:56:04Z",
+        "updated_at": "2026-09-10T20:56:04Z",
+        "body": "This appears to be fixed in 2.2.1, thanks!"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1239",
+    "number": 1239,
+    "title": "Flowchart: long routed edges cross subgraph titles and share one trunk (CI/CD, git branching)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-01T06:48:56Z",
+    "updated_at": "2026-10-08T17:09:33Z",
+    "closed_at": "2026-10-08T17:09:33Z",
+    "comment_count": 0,
+    "body": "Two flowchart samples render with **long routed edges that cross a subgraph title or share a single trunk**, so it is hard to see which edge goes where. In both, the official Mermaid layout is much cleaner.\n\nFound during a fidelity review of the SVG visual baselines against official mermaid.js 11.17.2 (while regenerating them in #1229). I confirmed both against the reference myself. This is layout quality, not wrong information.\n\n## 1. CI/CD pipeline: the `No` edge crosses the \"CI Pipeline\" title\n```mermaid\ngraph TD\n  subgraph ci [CI Pipeline]\n    A[Push Code] --> B{Tests Pass?}\n    B -->|Yes| C[Build Image]\n    B -->|No| D[Fix & Retry]\n    D -.-> A\n  end\n  C --> E([Deploy Staging])\n  E --> F{QA Approved?}\n  F -->|Yes| G((Production))\n  F -->|No| D\n```\n\n<table width=\"100%\"><tr><th width=\"50%\">official Mermaid 11.17.2</th><th width=\"50%\">zombie-mermaid</th></tr><tr><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/da466a59-8eed-429b-8adc-4b3ab8103f24\" width=\"100%\" alt=\"reference: subgraph at the top, short No path\"></td><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/62641db6-c779-4427-a63a-939d8f3b92f2\" width=\"100%\" alt=\"zombie-mermaid: Deploy Staging at the top, the No edge runs through the CI Pipeline title\"></td></tr></table>\n\nThe layout is inverted compared with the reference (`Deploy Staging` at the top, the subgraph below). The `QA Approved?` `No` edge runs down into the subgraph, crosses the \"CI Pipeline\" title and the full height of the box to reach `Fix & Retry`, and `Build Image` to `Deploy Staging` is routed out the bottom, around the right and back up, hugging the subgraph border.\n\n## 2. Git branching: several edges share one vertical trunk\n```mermaid\ngraph LR\n  A[main] --> B[develop]\n  B --> C[feature/auth]\n  B --> D[feature/ui]\n  C --> E{PR Review}\n  D --> E\n  E -->|approved| B\n  B --> F[release/1.0]\n  F --> G{Tests?}\n  G -->|pass| A\n  G -->|fail| F\n```\n\n<table width=\"100%\"><tr><th width=\"50%\">official Mermaid 11.17.2</th><th width=\"50%\">zombie-mermaid</th></tr><tr><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/8404a2c7-d003-42da-a4ae-fa078e18a88a\" width=\"100%\" alt=\"reference: separate curved edges\"></td><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/a3d37461-4849-4eea-99a9-c7642972c90c\" width=\"100%\" alt=\"zombie-mermaid: edges from develop to three targets and the Tests? arrows share one vertical line\"></td></tr></table>\n\nThe edges from `develop` to `feature/auth`, `feature/ui` and `release/1.0` and the arrows into and out of `Tests?` overlap on one vertical trunk next to `develop`; the `approved` arrow lands on the right edge of `develop`, and `fail` enters `release/1.0` at the same spot as the trunk. Direction and endpoints are ambiguous.\n\n## Not part of this issue\nThe `Source` to `Input` edge crossing the \"Processing Pipeline\" title in \"Flowchart: Subgraph Direction Override\" (`general-18`) is **also in official Mermaid's render**, so it is inherent to the layout and not tracked here.\n\n## Affected samples\n`packages/site/samples-data.ts`: \"Flowchart: CI/CD Pipeline\" (`general-21`) and \"Flowchart: Git Branching Workflow\" (`general-24`).\n\n## Where to look (hypothesis, not debugged)\nLayout goes through ELK (`packages/svg-renderer/src/layout-engine/to-elk.ts`, `from-elk.ts`). The subgraph case likely involves how edges that cross a compound node are routed; the trunk case, how parallel edges from one node are separated.\n\n## Acceptance\nDecide what is acceptable. A reasonable bar: no edge passes through a subgraph title, and edges leaving one node in different directions do not overlap. The affected baselines regenerated afterwards.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [],
+    "selected_timeline_events": [
+      {
+        "event": "closed",
+        "actor": "dfadler",
+        "time": "2026-10-08T17:09:33Z",
+        "source": null,
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1240",
+    "number": 1240,
+    "title": "State diagram: inverted or hard-to-follow layout in the basic and connection-lifecycle samples",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-01T06:48:58Z",
+    "updated_at": "2026-10-01T19:30:24Z",
+    "closed_at": "2026-10-01T19:30:24Z",
+    "comment_count": 0,
+    "body": "Two state-diagram samples render with a **hard-to-follow layout** compared with official Mermaid: the diagram runs bottom-to-top, the start marker is beside a state instead of above the chain, and parallel edges between the same states are hard to tell apart. The information is present; the reading order is not.\n\nFound during a fidelity review of the SVG visual baselines against official mermaid.js 11.17.2 (while regenerating them in #1229). I confirmed both against the reference myself.\n\n## 1. Basic state diagram\n```mermaid\nstateDiagram-v2\n  [*] --> Idle\n  Idle --> Active : start\n  Active --> Idle : cancel\n  Active --> Done : complete\n  Done --> [*]\n```\n\n<table width=\"100%\"><tr><th width=\"50%\">official Mermaid 11.17.2</th><th width=\"50%\">zombie-mermaid</th></tr><tr><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/e2153649-b8fc-469d-a3bf-d3d2f24f249e\" width=\"100%\" alt=\"reference: top-to-bottom chain\"></td><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/6019e893-2fa4-45fe-a810-d92bc7021aae\" width=\"100%\" alt=\"zombie-mermaid: Active above Idle, start dot beside Idle\"></td></tr></table>\n\n`Active` sits above `Idle`, so `Idle --> Active` runs upward; the `[*]` start dot is to the right of `Idle`, entering from the right; the `start` and `cancel` edges run side by side and are hard to tell apart; `Done` sits off to the right.\n\n## 2. Connection lifecycle\n```mermaid\nstateDiagram-v2\n  [*] --> Closed\n  Closed --> Connecting : connect\n  Connecting --> Connected : success\n  Connecting --> Closed : timeout\n  Connected --> Disconnecting : close\n  Connected --> Reconnecting : error\n  Reconnecting --> Connected : success\n  Reconnecting --> Closed : max_retries\n  Disconnecting --> Closed : done\n  Closed --> [*]\n```\n\n<table width=\"100%\"><tr><th width=\"50%\">official Mermaid 11.17.2</th><th width=\"50%\">zombie-mermaid</th></tr><tr><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/71f995b1-6dd2-4153-89a2-04ac706560b8\" width=\"100%\" alt=\"reference: start dot on top, Closed below it\"></td><td width=\"50%\"><img src=\"https://github.com/user-attachments/assets/d0e6f266-563e-4676-ae62-7522629f0c26\" width=\"100%\" alt=\"zombie-mermaid: Closed at the bottom, start dot beside it, long edges up the left side\"></td></tr></table>\n\nThe layout is inverted: `Closed` is at the bottom with the `[*]` start dot beside it (bottom right) and its arrow pointing down into `Closed`, so it reads like another incoming edge; the end marker is below `Closed`. Long edges run up the left side to `Connecting` and `Reconnecting`, and several verticals converge on `Closed` and `Connected` (`success`, `error`, `success`, `close`), so it is hard to tell which label belongs to which edge or that `error` and `success` run in opposite directions between `Connected` and `Reconnecting`.\n\n## Affected samples\n`packages/site/samples-data.ts`: \"State: Basic State Diagram\" (`general-29`) and \"State: Connection Lifecycle\" (`general-31`). The other state samples (composite states, CJK names) were not flagged.\n\n## Where to look (hypothesis, not debugged)\nState diagrams share the ELK-based layout engine (`packages/svg-renderer/src/layout-engine/`). Layers seem to be assigned so the start state does not end up first; check how `[*]` start and end nodes are constrained (a start node pinned to the first layer and an end node to the last) and the cycle handling for back-edges such as `Active --> Idle`.\n\n## Acceptance\nThe start marker is at the beginning of the reading direction and the end marker at its end, and back-edges (`cancel`, `error`) do not reverse the main chain. The affected baselines regenerated afterwards.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [],
+    "selected_timeline_events": [
+      {
+        "event": "closed",
+        "actor": "dfadler",
+        "time": "2026-10-01T19:30:24Z",
+        "source": null,
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1249",
+    "number": 1249,
+    "title": "Class diagram: disconnected components are not laid out in source order (SVG)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-01T13:22:29Z",
+    "updated_at": "2026-10-01T16:50:03Z",
+    "closed_at": "2026-10-01T16:50:03Z",
+    "comment_count": 1,
+    "body": "## Problem\n\nIn a class diagram made of several disconnected components, zombie-mermaid's SVG output does not lay them out in source order. Official Mermaid places each component left to right in the order it is declared; ours reorders them and wraps onto a second row.\n\nFound while verifying #1247 (the `*--` / `o--` marker fix). It is not caused by that PR: the \"before\" render there has the same order.\n\n## Repro\n\n```mermaid\nclassDiagram\n  A <|-- B : inheritance\n  C *-- D : composition\n  E o-- F : aggregation\n  G --> H : association\n  I ..> J : dependency\n  K ..|> L : realization\n```\n\nExpected order (official Mermaid): A/B, C/D, E/F, G/H, I/J, K/L, left to right in one row.\n\nOurs renders the first row as K/L, A/B, G/H, E/F and a second row as C/D, I/J.\n\n| official Mermaid | zombie-mermaid |\n| --- | --- |\n| ![reference: source order](https://github.com/user-attachments/assets/1fbcb090-057c-4fe9-bc12-a3539e3352c8) | ![zombie-mermaid: K A G E / C I](https://github.com/user-attachments/assets/a1ec56b0-b2ec-4dee-90df-9bfb1e759ec7) |\n\n## Where to look (hypothesis, not debugged)\n\n`packages/svg-renderer/src/class/layout.ts`: disconnected components appear to be ordered by something other than declaration order (graph or rank order) before being packed into rows. Mermaid keeps declaration order.\n\n## Affected samples\n\n\"Class: All 6 Relationship Types\" (`general-60`) for sure; likely any class sample with more than one disconnected component.\n\n## Acceptance\n\n- Disconnected components are placed in source order.\n- A test that asserts the order of the positioned components (the visual suite alone would not make the intent clear).\n- SVG baselines for the affected samples regenerated (Linux and darwin). Expect a lot of PNG churn, which is why this is separate from #1247.\n\nRelated: #1232.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1249#issuecomment-5932740779",
+        "author": "dfadler",
+        "id": 5932740779,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Picking this up now. I'll look at component ordering in the class layout and add a test asserting source order."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1287",
+    "number": 1287,
+    "title": "State diagrams: apply reading-order layout to composite states",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-01T20:33:32Z",
+    "updated_at": "2026-10-01T23:19:12Z",
+    "closed_at": "2026-10-01T23:19:12Z",
+    "comment_count": 0,
+    "body": "Follow-up to #1240 / #1280. That PR lays flat state diagrams out in reading order (`MODEL_ORDER` cycle breaking, start marker pinned `FIRST`, end marker `LAST_SEPARATE`, `postCompaction: NONE`), but deliberately does not apply those options to diagrams with composite states.\n\n## Problem\nApplying the same ELK options to composite states flipped the `general-30` sample (State: Composite States). Subgraph (composite) nodes are added to the ELK model after the leaf nodes, so under `MODEL_ORDER` a composite is treated as coming after every leaf and the layer order inverts.\n\n## Proposed fix\nRework the ELK model order in `packages/svg-renderer/src/layout-engine/to-elk.ts` so a composite state sits at its first-mention position among its siblings, then apply the flat-state options to composite diagrams too. Related: #1239 hits the same ordering limitation for flowchart subgraphs (a comment in `to-elk.ts` says the reorder was avoided for blast radius).\n\n## Acceptance\n- `general-30` (and other composite state samples) read in source order, start marker first and end marker last.\n- Reviewed before/after for every sample whose baseline changes.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1307",
+    "number": 1307,
+    "title": "Flowchart: CI/CD sample layout is inverted vs official Mermaid (ELK cycle breaking)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-02T12:51:10Z",
+    "updated_at": "2026-10-04T16:51:09Z",
+    "closed_at": "2026-10-04T16:51:09Z",
+    "comment_count": 0,
+    "body": "Split out of #1239 (the \"edges cross subgraph titles\" part is handled in #1306).\n\nThe CI/CD Pipeline sample is still inverted compared with official Mermaid: Deploy Staging sits on top and the subgraph below it. This comes from ELK cycle breaking in the flowchart layout, not from edge routing.\n\nState diagrams already apply a reading-order layout (`MODEL_ORDER` cycle breaking, start marker pinned first; see #1287). Flowcharts would need an equivalent so declaration order wins when a cycle is broken.\n\nOpen question: apply it to all flowcharts, or only when the graph has cycles? Either way it changes many flowchart baselines, so check the sample hashes before and after.\n",
+    "comments_fetched": true,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1308",
+    "number": 1308,
+    "title": "Flowchart: parallel edges leaving one node share a single trunk (git branching sample)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-02T12:51:12Z",
+    "updated_at": "2026-10-08T17:09:33Z",
+    "closed_at": "2026-10-08T17:09:33Z",
+    "comment_count": 0,
+    "body": "Split out of #1239 (the \"edges cross subgraph titles\" part is handled in #1306).\n\nIn the git branching sample, several edges leaving one node (next to `develop`) share a single vertical trunk, so the branches can't be told apart.\n\nOpen question: how should parallel edges leaving one node be separated (per-edge exit offsets, separate lanes, or fanning out from distinct ports)? This overlaps with the cluster-exit anchoring work in #1181 and #1182, so decide it alongside those.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1349",
+    "number": 1349,
+    "title": "ascii: back edges and rank-skipping edges take long wrap-around detours",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-05T15:21:55Z",
+    "updated_at": "2026-10-07T19:06:16Z",
+    "closed_at": "2026-10-07T19:06:16Z",
+    "comment_count": 1,
+    "body": "## Problem\n\nEdges that must go around other nodes (back edges such as `C→A` and `D→A`, or edges that skip a rank like `A→D`) take long detours around the far side of the diagram, with many bends, and end far from where the edge starts. Both ends and the route are hard to follow, and several detours run next to each other.\n\nRepro (see #1345 real-terminal capture):\n\n```mermaid\ngraph TD\nA -->|x| B\nB -->|long label| A\nA -->|long label| C\nC -->|ab| A\nB -->|mid| D\nA -->|ab| D\nD -->|x| A\n```\n\nExamples: `C→A` leaves C's right side, climbs past the top of A and re-enters A from the right with a `◄`; `D→A` enters D's right side after a staircase of bends.\n\n## Expected\n\nMermaid/dagre routes a back edge as a smooth path on the near side of the nodes it connects, with the arrowhead on the target's border facing the direction of travel. In ASCII: prefer the shortest route with the fewest bends, keep a back edge on the same side as its source/target where it can, and avoid wrapping around the whole diagram when a nearer lane exists.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1349#issuecomment-6044876174",
+        "author": "dfadler",
+        "id": 6044876174,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Closing as already fixed on main: #1355 (C→A) and #1356 (D→A). #1356's \"Closes #1349\" didn't auto-close this because it merged into a stacked branch, not main. On current main the issue's repro shows neither listed defect. One related case remains (D→A runs around the far side of C because A→D uses the nearer column); not listed here, so open a new issue if it matters.\n\n🤖 Posted by Claude Code on behalf of @dfadler\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1364",
+    "number": 1364,
+    "title": "ASCII: labelled fan-in labels collide when the child also fans out (onetwo)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-06T03:18:05Z",
+    "updated_at": "2026-10-07T19:43:55Z",
+    "closed_at": "2026-10-07T19:43:55Z",
+    "comment_count": 0,
+    "body": "## Problem\n\nA node with two labelled parents that also fans out to two or more children renders its parents' labels on top of each other:\n\n```mermaid\nflowchart TD\n    X -->|one| A\n    Y -->|two| A\n    A --> B\n    A --> C\n```\n\nIn ASCII output the labels `one` and `two` collide and read as `onetwo`, so one label is effectively lost.\n\n## Cause (as found while working #1339)\n\n#1340 (`centerParentsOverChildren`) centres `A` over its children but does not set `node.fanInCentered`. The per-edge side-entry routing added for labelled fan-in (#1344, on top of #1346) keys off that flag, so it never applies here, and both labelled edges still share one horizontal run and the final drop.\n\n## Possible fix\n\nSet `fanInCentered` when `centerParentsOverChildren` moves a node that has several labelled parents, so the side-entry route is used. Needs the same gates as `labeledFanInFits` (not LR, no cycle through a parent).\n\n## Notes\n\n- Found by the agent working #1344 on main (post-#1340). It was reproduced through `renderMermaidASCII`, not a real-terminal capture, and I have not re-checked it against current main after #1344 merged; a real-terminal repro should come first.\n- Related: #1339.\n",
+    "comments_fetched": true,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1391",
+    "number": 1391,
+    "title": "ASCII: `renderMermaidASCII` hangs or throws `pathCells` on a TD flowchart that 4.1.0 renders",
+    "author": "theimpostor",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-07T16:48:09Z",
+    "updated_at": "2026-10-12T17:12:51Z",
+    "closed_at": "2026-10-07T19:50:10Z",
+    "comment_count": 2,
+    "body": "## Summary\n\nIn 4.2.0 and 4.2.1, `renderMermaidASCII` never returns for one small top-down flowchart. If one edge label is added to the same graph, the function throws instead. Version 4.1.0 renders both graphs.\n\n## Reproduction 1: hang\n\n```mermaid\nflowchart TD\n    A --> B\n    A --> C\n    C --> D\n    D --> E\n    D --> F\n    F --> G\n    G --> H\n    G --> I\n```\n\n```ts\nimport { renderMermaidASCII } from \"zombie-mermaid/ascii\";\n\nrenderMermaidASCII(source, { colorMode: \"none\" }); // never returns\n```\n\nThe call does not return. A 20-second timeout kills it. Default options produce the hang. All 8 edges are necessary: if any one edge is removed, the graph renders.\n\n## Reproduction 2: throw\n\nChange `A --> C` to `A -->|no| C`:\n\n```mermaid\nflowchart TD\n    A --> B\n    A -->|no| C\n    C --> D\n    D --> E\n    D --> F\n    F --> G\n    G --> H\n    G --> I\n```\n\n```text\nError: pathCells: segment from (5.5,1) to (1,1) did not reach its endpoint within 100000 steps\n```\n\nA larger graph with the same shape throws with different fractional coordinates, for example `segment from (3.75,9) to (1,9)`.\n\n## Expected\n\nBoth graphs render, as they do in 4.1.0.\n\n## Notes\n\n- The graph is a chain of three fan-outs. Each fan-out has two children, and one child continues the chain.\n- The segment start has a fractional x coordinate (`5.5`, `3.75`). A fractional coordinate probably cannot reach an integer endpoint in whole steps. This could explain both the throw and the hang. The hang path may not have the 100000-step guard.\n- The 4.2.0 changes that place a node centered between its parents (#1344, #1346) or rank nodes by longest path (#1345) may be related. I did not bisect.\n\n## Environment\n\n- zombie-mermaid 4.2.1 and 4.2.0 (4.1.0 renders both graphs)\n- Bun 1.4.2, macOS arm64\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1391#issuecomment-6126646034",
+        "author": "dfadler",
+        "id": 6126646034,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Sorry this one went out without a reply. This is fixed.\n\n- Fixed in PR #1407 (`4cb9a5e`): chained fan-outs could leave a fractional parent column, and the edge router then never reached its endpoint, which produced both the hang and the `pathCells` throw you traced.\n- Released in 4.2.3, and still in current releases (5.1.0). Your two repro graphs should render now; if either one still hangs or throws on 4.2.3 or later, comment here and we will look again.\n\nThanks for the small repro and for pointing at the fractional x coordinate.\n\n### Visual verification\n\nASCII output, captured in a real terminal. The hang graph:\n\n```mermaid\nflowchart TD\n    A --> B\n    A --> C\n    C --> D\n    D --> E\n    D --> F\n    F --> G\n    G --> H\n    G --> I\n```\n\n| Before (4.2.2: never returns, killed at 10 s) | After (main, 5.1.0) |\n| --- | --- |\n| ![1391-hang-before-4.2.2](https://github.com/user-attachments/assets/d7a69628-b783-4538-916f-b0270336f391) | ![1391-hang-after-main](https://github.com/user-attachments/assets/4ced4c64-ed1d-4938-9fb5-d3a52648bc3b) |\n\nThe second repro (the same graph with `A -->|no| C`):\n\n```mermaid\nflowchart TD\n    A --> B\n    A -->|no| C\n    C --> D\n    D --> E\n    D --> F\n    F --> G\n    G --> H\n    G --> I\n```\n\n| Before (4.2.2: throws `pathCells`) | After (main, 5.1.0) |\n| --- | --- |\n| ![1391-pathcells-before-4.2.2](https://github.com/user-attachments/assets/4b19eb65-4244-4990-97cf-a59f84cc2435) | ![1391-pathcells-after-main](https://github.com/user-attachments/assets/7d3e767f-7713-4cb8-9901-0d7a514747c6) |\n\nThe \"before\" images are text captures of the hang and the thrown error, not diagrams.\n\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1391#issuecomment-6128772007",
+        "author": "dfadler",
+        "id": 6128772007,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Follow-up on the second repro's \"after\" screenshot above: the graph renders, but the arrowhead above `H` sits one column right of its stem. That is a separate drawing defect, tracked in #1914. It does not affect the hang or `pathCells` fix.\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1392",
+    "number": 1392,
+    "title": "ASCII: an edge label is written over another edge's label in an LR flowchart",
+    "author": "theimpostor",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-07T16:48:11Z",
+    "updated_at": "2026-10-12T14:49:13Z",
+    "closed_at": "2026-10-07T19:27:27Z",
+    "comment_count": 1,
+    "body": "## Summary\n\nIn 4.2.1, two labeled edges into the same node can put their labels on the same row. The second label overwrites the first, and one label disappears. Also, the edge whose label is lost has no visible end: its stroke stops at the other edge's row with no junction and no arrowhead.\n\n## Reproduction\n\n```mermaid\nflowchart LR\n  B --> C\n  D -->|third label| E\n  C -->|fourth label| E\n```\n\n```ts\nimport { renderMermaidASCII } from \"zombie-mermaid/ascii\";\n\nconsole.log(renderMermaidASCII(source, { colorMode: \"none\" }));\n```\n\n## Actual (4.2.1)\n\n```text\n┌───┐     ┌───┐\n│   │     │   │\n│ B ├────►│ C │\n│   │     │   │\n└───┘     └─┬─┘\n            │\n            │\n            │\n            │\n            │\n┌───┐       │                ┌───┐\n│   │       │                │   │\n│ D ├──────third lab label──►│ E │\n│   │                        │   │\n└───┘                        └───┘\n```\n\n- `fourth label` is not in the output. Only `label` from its end remains, inside `third lab label`.\n- The `C → E` stroke stops one row above `D → E`. It has no `┴` junction and no arrowhead, so it is not clear that the edge goes to `E`.\n\n## 4.1.0 output, for comparison\n\n```text\n┌───┐             ┌──────────────┐\n│   │             │              │\n│ B ├────────────►│      C       │\n│   │             │              │\n└───┘             └───────┬──────┘\n                          │\n                          │ fourth label\n                          │\n                          │\n                          ▼\n┌───┐             ┌──────────────┐\n│   │             │              │\n│ D ├─third─label►│      E       │\n│   │             │              │\n└───┘             └──────────────┘\n```\n\n## Expected\n\nEach label appears once and complete, next to its own edge, and every edge ends in an arrowhead at `E`.\n\n## Notes\n\nThe 4.2.0 label placement changes (#1353, #1358) or the fan-in placement changes (#1344, #1346) may be related. I did not bisect.\n\n## Environment\n\n- zombie-mermaid 4.2.1 and 4.2.0 (4.1.0 renders both labels)\n- Bun 1.4.2, macOS arm64\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1392#issuecomment-6126646436",
+        "author": "dfadler",
+        "id": 6126646436,
+        "created_at": "2026-10-12T14:49:13Z",
+        "updated_at": "2026-10-12T14:49:13Z",
+        "body": "🤖 **Claude:** Sorry for the silence on this. Fixed.\n\n- Fixed in PR #1406 (`b43ed80`): in an LR flowchart, two labelled edges into the same node now both keep their labels instead of one overwriting the other.\n- Released in 4.2.3, and still in current releases (5.1.0).\n\nYour `third label` / `fourth label` graph is the case to retry. Comment here if the output still looks wrong.\n\n### Visual verification\n\nASCII output, captured in a real terminal:\n\n```mermaid\nflowchart LR\n  B --> C\n  D -->|third label| E\n  C -->|fourth label| E\n```\n\n| Before (4.2.2) | After (main, 5.1.0) |\n| --- | --- |\n| ![1392-before-4.2.2](https://github.com/user-attachments/assets/58e16eea-f4fd-4ea0-9b38-38caab7dbaa2) | ![1392-after-main](https://github.com/user-attachments/assets/b18cbcc7-528f-4f92-9aa9-b6412a33a628) |\n\nBefore, the \"fourth label\" is overwritten (it reads \"third lab label\") and C to E has no arrowhead. After, both labels show and the edges join with a junction.\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1393",
+    "number": 1393,
+    "title": "ASCII: with `paddingX` 2 or less, an LR fan-in edge stops beside the child's border with no junction or arrowhead",
+    "author": "theimpostor",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-07T16:48:13Z",
+    "updated_at": "2026-10-12T17:02:37Z",
+    "closed_at": "2026-10-07T19:27:08Z",
+    "comment_count": 2,
+    "body": "## Summary\n\nIn 4.2.1, LR fan-in routes each parent through its right face and joins the edges in the gap before the child (#1346). When `paddingX` is 1 or 2, the gap is too narrow for the join. The edge from the farther parent rises in the gap and stops one row under the other edge. It does not join that edge and has no arrowhead. With `paddingX: 3`, the same graph is correct.\n\n## Reproduction\n\n```mermaid\nflowchart LR\n  A --> B\n  A --> C\n  B --> C\n```\n\n```ts\nimport { renderMermaidASCII } from \"zombie-mermaid/ascii\";\n\nconsole.log(renderMermaidASCII(source, { colorMode: \"none\", paddingX: 2 }));\n```\n\n## Actual (4.2.1, `paddingX: 2`)\n\n```text\n┌───┐  ┌───┐  ┌───┐\n│   │  │   │  │   │\n│ A ├─►│ B ├─►│ C │\n│   │ ││   │ ││   │\n└───┘ │└───┘ │└───┘\n      │      │\n      └──────┘\n```\n\nThe `A → C` edge leaves A at the bottom of the gap and runs under B. Then it rises beside C's left border and stops. It has no `┬` junction with `B → C` and no arrowhead. The same column also touches B's left border, so the edge looks like it ends at B.\n\n`paddingX: 1` shows the same problem:\n\n```text\n┌───┐ ┌───┐ ┌───┐\n│   │ │   │ │   │\n│ A ├►│ B ├►│ C │\n│   │││   │││   │\n└───┘│└───┘│└───┘\n     │     │\n     └─────┘\n```\n\n## Correct with `paddingX: 3`\n\n```text\n┌───┐   ┌───┐   ┌───┐\n│   │   │   │   │   │\n│ A ├─┬►│ B ├─┬►│ C │\n│   │ │ │   │ │ │   │\n└───┘ │ └───┘ │ └───┘\n      │       │\n      └───────┘\n```\n\n## Expected\n\nWith a narrow `paddingX`, the fan-in either joins the other edge with a junction, or the renderer falls back to the 4.1.0 layout. In 4.1.0 with `paddingX: 2`, C sits under B and `A → C` enters C's left side with its own arrowhead.\n\nIn larger diagrams, the same defect occurs at multi-line nodes. For example, the stroke leaves from a lower port of a two-line node, such as `├─┐`.\n\n## Environment\n\n- zombie-mermaid 4.2.1 and 4.2.0 (4.1.0 is correct with `paddingX` 1 and 2)\n- Bun 1.4.2, macOS arm64\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1393#issuecomment-6126646913",
+        "author": "dfadler",
+        "id": 6126646913,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Sorry for the late reply. Fixed.\n\n- Fixed in PR #1404 (`f5fd936`): the gap before an LR fan-in child is now kept at least 3 wide, so the join and arrowhead are no longer cut off at `paddingX` 1 or 2.\n- Released in 4.2.3, and still in current releases (5.1.0).\n\nThe fix widens the gap rather than falling back to the 4.1.0 layout. Comment here if you would rather have the fallback.\n\n### Visual verification\n\nASCII output with `paddingX: 2`, captured in a real terminal:\n\n```mermaid\nflowchart LR\n  A --> B\n  A --> C\n  B --> C\n```\n\n| Before (4.2.2) | After (main, 5.1.0) |\n| --- | --- |\n| ![1393-before-4.2.2](https://github.com/user-attachments/assets/be6588f1-0c2c-4187-b6ef-4bfc7f929b49) | ![1393-after-main](https://github.com/user-attachments/assets/a06b977c-a0e9-4eb0-a785-b6ab30225291) |\n\nBefore, the A to C edge stops beside C with no junction and no arrowhead. After, the junction and the arrowhead are drawn.\n\n\nThe screenshots were re-captured at 2x through a real PTY, replayed with xterm and drawn in Chromium so the lines are smooth. The A to B gap still has no junction at `paddingX: 2`; that is tracked in #1915.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1393#issuecomment-6128772379",
+        "author": "dfadler",
+        "id": 6128772379,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Follow-up on the \"after\" screenshot above: at `paddingX: 2` the gap before the fan-in child now has its `┬` and arrowhead, but the long edge's origin gap before `B` still has no `┬`. That is tracked in #1915 and does not change the fix described above.\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1399",
+    "number": 1399,
+    "title": "ASCII: CI/CD Pipeline sample routes edges so they merge and cross",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-07T17:43:42Z",
+    "updated_at": "2026-10-08T16:42:39Z",
+    "closed_at": "2026-10-08T16:42:39Z",
+    "comment_count": 0,
+    "body": "🤖 **Claude:** found while refreshing stale darwin baselines in [#1398](https://github.com/dfadler/zombie-mermaid/pull/1398).\n\n## Problem\n\nThe ASCII render of the gallery sample \"Flowchart / CI/CD Pipeline\" got harder to read between the old `-chromium-darwin.png` baseline and what `main` renders now (`acee57a4`). Both versions contain every edge, but the current one routes them so they are hard to tell apart:\n\n- Build Image → Deploy Staging runs as a long horizontal line that crosses the dashed Fix & Retry → Push Code back-edge.\n- The QA Approved? \"No\" edge runs left and joins the Tests Pass? \"No\" vertical, so two edges look like one and share a single arrowhead into Fix & Retry.\n- The \"No\" label on the QA edge sits on top of the line.\n- The diagram is much wider (333px → 466px in the mockup) with a large empty area.\n\n## Mermaid source\n\n```mermaid\ngraph TD\n  subgraph ci [CI Pipeline]\n    A[Push Code] --> B{Tests Pass?}\n    B -->|Yes| C[Build Image]\n    B -->|No| D[Fix & Retry]\n    D -.-> A\n  end\n  C --> E([Deploy Staging])\n  E --> F{QA Approved?}\n  F -->|Yes| G((Production))\n  F -->|No| D\n```\n\n## Before / after\n\nBoth are the Playwright browser mockup of the ASCII output, not a real terminal capture. Before is the old darwin baseline; after is current `main`.\n\n| Before (old baseline) | After (current `main`) |\n|---|---|\n| ![ascii-general-21-flowchart-ci-cd-pipeline.before](https://github.com/user-attachments/assets/ae9f1a7a-f139-46c3-8419-3345e6312e85) | ![ascii-general-21-flowchart-ci-cd-pipeline.after](https://github.com/user-attachments/assets/15e88572-02ce-4120-8372-c17001236626) |\n\n## Expected\n\nA compact layout with the QA \"No\" edge reaching Fix & Retry on its own path, as in the before image, or at least edges that don't merge or cross the dashed back-edge.\n\n## Notes\n\n- I haven't found which commit changed the layout; the old darwin baseline for this sample dates from 2026-09-05, the Linux baseline from 2026-10-02.\n- The SVG render of the same sample improved (it now flows top-down as `graph TD` says), so this is specific to the ASCII renderer's routing of this graph.\n- Not verified in a real terminal; the screenshots are the browser mockup. Reproduce with `renderMermaidASCII` per the `verify-ascii-terminal` skill before fixing.\n",
+    "comments_fetched": true,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1467",
+    "number": 1467,
+    "title": "ascii LR: edges sharing a lane into one node can't be told apart, so labels can't be attributed",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-09T17:10:31Z",
+    "updated_at": "2026-10-12T16:38:09Z",
+    "closed_at": "2026-10-09T20:34:55Z",
+    "comment_count": 2,
+    "body": "## Problem\n\nIn an LR flowchart, several edges into the same node can be routed onto one shared lane and one shared final drop. The ASCII output then no longer matches the Mermaid source: four separate edges look like one path, and a reader cannot tell which label belongs to which edge.\n\n#1433, #1448, #1463 and #1464 each stopped labels from erasing a stroke or each other. That makes the text readable, but it cannot fix this: with four edges on one path, moving labels around only moves the ambiguity.\n\n## Repro\n\n```mermaid\nflowchart LR\n  A --> B\n  A -->|first| C\n  B -->|second| C\n  A -->|third| D\n  C -->|fourth| D\n  B -->|fifth| D\n  B -->|sixth| D\n  A -->|seventh| D\n```\n\nIn Mermaid (SVG) `B → D` (`fifth`, `sixth`) and `A → D` (`third`, `seventh`) are four separate edges with their own paths and labels.\n\n## Actual (ASCII, after #1464)\n\n```\n┌───┐     ┌───┐         ┌───┐        ┌───┐\n│   │     │   │ second  │   │fourth  │   │\n│ A ├──┬─►│ B ├────┬───►│ C ├────┬──►│ D │\n│   │  │  │   │    │    │   │  fifth │   │\n└─┬─┘  │  └─┬─┘  first  └───┘  third └───┘\n  │    │    │      │       sixth │     ▲\n  └────┴────┴──────┴─────────────┴─────┘\n                    seventh\n```\n\n- All four edges share the bottom lane and the single drop into D.\n- `fifth` and `third` stack on the same stem; `sixth` sits on the lane. Nothing ties a label to its edge.\n- `seventh` hangs under the lane, far from the edge it names.\n\n## Expected\n\nAn edge that is a separate edge in the source stays distinguishable in the ASCII, or, where edges are deliberately bundled, a label can be attributed to its edge (for example one lane or drop per edge, or a bundle drawn so each label is attached to a visible branch).\n\n## Notes\n\n- Label placement alone cannot fix this: the ambiguity comes from the router merging the edges onto one path. The fix is in edge routing/bundling (`edge-routing.ts`, `draw-bundles.ts`, `edge-bundling.ts` are the likely places), so it needs its own change and review across other diagrams.\n- Not measured: how many existing samples would change if lanes were split, or how bundling currently decides to merge these edges. That is the first thing to find out.\n- Related: #1413 (label-vs-label overlap), #1463 (`sixtfifth`, fixed in #1464).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1467#issuecomment-6086866875",
+        "author": "dfadler",
+        "id": 6086866875,
+        "created_at": "2026-10-09T18:28:15Z",
+        "updated_at": "2026-10-09T18:28:15Z",
+        "body": "🤖 **Claude:**\n\n## Measurement results\n\nFull notes and method: [research doc @ 6356973](https://github.com/dfadler/zombie-mermaid/blob/6356973b59eec3149fe56073b6e944b97a43cc29/docs/research/1467-ascii-lr-shared-lane-measurement.md) (PR #1476, docs only, no renderer change).\n\n### How the edges end up merged\n- It is not bundling. `analyzeEdgeBundles` returns `[]` for non-TD, so no edge in the repro has `edge.bundle` set and `draw-bundles.ts` is not involved.\n- It comes from A\\*. `determinePath` calls `getPath` per edge with a uniform step cost of 1. Only node boxes are obstacles, and drawn edges are neither obstacles nor penalised. Edges with the same target and equal-length routes therefore pick the same cells: the same under-row lane and the same final drop.\n- Only same-source-and-target edges get separate lanes, via `assignParallelEdgeLanes`. `A->D`, `B->D` and `C->D` are not a parallel group, so nothing separates them.\n\n### Blast radius\nI counted edge pairs with the same target (or source) that share 2 or more cells, across the 29 flowchart samples and the repro:\n- 2 of 29 samples have any shared run. CI/CD Pipeline (TD) has one both-labeled fan-in pair that reads fine. Git Branching Workflow (LR) has one unlabeled fan-out pair.\n- Neither sample shows the unattributable-label symptom. Only the repro does, with 4 fan-in pairs, all both-labeled.\n- This is an upper bound, since any shared run counts. I did not scan other diagram types or the unit-test corpus.\n\n### Options with this evidence\n- **(a) one lane/drop per source edge:** needs an edge-occupancy cost in `getPath` or a per-target port allocator. It changes the layout of every fan-in graph, LR and TD. The effect on the samples is small, but the code surface is large.\n- **(b) keep the shared path, attribute labels:** local to label placement and drawing. It cannot make 4 stacked edges distinguishable on its own.\n- **(c) middle path:** split lanes only when a shared run carries 2 or more labeled edges. This touches none of the current samples except the repro.\n\n### Open\nThe test corpus and real-world graphs are unmeasured, so a refresh is needed before choosing (a) or (c). This issue stays open for the choice between the options.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1467#issuecomment-6128493866",
+        "author": "dfadler",
+        "id": 6128493866,
+        "created_at": "2026-10-12T16:38:09Z",
+        "updated_at": "2026-10-12T16:38:09Z",
+        "body": "🤖 **Claude:** Closing note, written after the fact (see #1557). #1486 and #1489 together shipped option (c) for LR: once a labeled edge shares a bent run with an earlier labeled edge into the same node, it gets its own lane. In the repro, `third`, `fifth`, `sixth` and `seventh` now each sit on their own lane.\n\nNot shipped: option (a). The lanes still merge into one final drop into D, `first` and `third` share a run out of A, the first two labeled edges into a node may still share a run on purpose, and TD and unlabeled edges are unchanged.\n\nIf the shared final drop matters for your diagrams, say so and we will open a separate issue for it. Thanks for the report.\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1555",
+    "number": 1555,
+    "title": "Comms: reply to external reporters whose issues closed silently (theimpostor, richardtallent-erm)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-10T16:39:23Z",
+    "updated_at": "2026-10-14T19:26:46Z",
+    "closed_at": "2026-10-14T19:26:46Z",
+    "comment_count": 3,
+    "body": "Part of umbrella #1502 (project review since 2026-09-24). Found by the merged/closed-issue gap review on 2026-10-10 (09-24 to 10-10: 144 closed issues, 231 merged PRs).\n\nDraft comments for review before posting. theimpostor: #1391 (ASCII hang/throw on a TD flowchart, regression from 4.1.0; fixed by #1407, 4.2.3), #1392 (fixed by #1406) and #1393 (fixed by #1404); richardtallent-erm: #1397 (SVG marker IDs; fixed by #1405, 4.2.3). All four closed with 0 comments. Also consider a close-with-version habit or workflow step for issues authored by external reporters (28 of 57 completed closes in 09-30..10-03 had no comment; fine for owner-authored issues, not for external ones). Optional low-priority: #1466 (coderabbit) lacks a closing note linking #1490/#1498.\n\nGenerated with Claude Code.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1555#issuecomment-6100792391",
+        "author": "dfadler",
+        "id": 6100792391,
+        "created_at": null,
+        "updated_at": null,
+        "body": "**POSTED 2026-10-12.** These replies were posted, with before/after screenshots added: [#1391](https://github.com/dfadler/zombie-mermaid/issues/1391#issuecomment-6126646034), [#1392](https://github.com/dfadler/zombie-mermaid/issues/1392#issuecomment-6126646436), [#1393](https://github.com/dfadler/zombie-mermaid/issues/1393#issuecomment-6126646913), [#1397](https://github.com/dfadler/zombie-mermaid/issues/1397#issuecomment-6126647466). The text below is the original draft, kept for the record; the posted comments are authoritative. Screenshot review found two renderer bugs, filed as #1914 and #1915.\n\nFacts verified against the repo (merge SHAs via `gh pr view`, versions via `git tag --contains`, `CHANGELOG.md`): all four fixes first shipped in 4.2.3 (tagged 2026-10-08); latest is 5.1.0, which also contains them. Only #1405 and #1406 are named in the 4.2.3 CHANGELOG; #1404 and #1407 are in the 4.2.3 tag by `git tag --contains` but not listed by number there.\n\n---\n\n### Reply for #1391 (theimpostor)\n\n> 🤖 **Claude:** Sorry this one went out without a reply. This is fixed.\n>\n> - Fixed in PR #1407 (`4cb9a5e`): chained fan-outs could leave a fractional parent column, and the edge router then never reached its endpoint, which produced both the hang and the `pathCells` throw you traced.\n> - Released in 4.2.3 (and still in 5.1.0). Your two repro graphs should render now; if either one still hangs or throws on 4.2.3 or later, comment here and we will look again.\n>\n> Thanks for the small repro and for pointing at the fractional x coordinate.\n\n### Reply for #1392 (theimpostor)\n\n> 🤖 **Claude:** Sorry for the silence on this. Fixed.\n>\n> - Fixed in PR #1406 (`b43ed80`): in an LR flowchart, two labelled edges into the same node now both keep their labels instead of one overwriting the other.\n> - Released in 4.2.3 (and in 5.1.0).\n>\n> Your `third label` / `fourth label` graph is the case to retry. Comment here if the output still looks wrong.\n\n### Reply for #1393 (theimpostor)\n\n> 🤖 **Claude:** Sorry for the late reply. Fixed.\n>\n> - Fixed in PR #1404 (`f5fd936`): the gap before an LR fan-in child is now kept at least 3 wide, so the join and arrowhead are no longer cut off at `paddingX` 1 or 2.\n> - Released in 4.2.3 (and in 5.1.0).\n>\n> The fix widens the gap rather than falling back to the 4.1.0 layout. Comment here if you would rather have the fallback.\n\n### Reply for #1397 (richardtallent-erm)\n\n> 🤖 **Claude:** Thanks for the report, and sorry it closed without a note. Fixed.\n>\n> - Fixed in PR #1405 (`47a02d5`): SVG ids are now scoped per render, so inlined diagrams no longer resolve `url(#...)` to another diagram's marker, including when the first one sits in a `display: none` container.\n> - Released in 4.2.3 (and in 5.1.0).\n>\n> Your hidden-tab repro is the case to retry. Comment here if you still see missing arrowheads.\n\n---\n\nProcess note for the maintainer (not part of any reply): #1555 also suggests a close-with-version step for external-reporter issues.\n\n\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1555#issuecomment-6126650177",
+        "author": "dfadler",
+        "id": 6126650177,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** POSTED (2026-10-12, with the maintainer's approval), with two edits to the drafts above: the version line now says \"still in current releases (5.1.0)\", and each reply carries before/after screenshots with the exact Mermaid source.\n\n- #1391: https://github.com/dfadler/zombie-mermaid/issues/1391#issuecomment-6126646034\n- #1392: https://github.com/dfadler/zombie-mermaid/issues/1392#issuecomment-6126646436\n- #1393: https://github.com/dfadler/zombie-mermaid/issues/1393#issuecomment-6126646913\n- #1397: https://github.com/dfadler/zombie-mermaid/issues/1397#issuecomment-6126647466\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1555#issuecomment-6176539124",
+        "author": "dfadler",
+        "id": 6176539124,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Done: the replies to the external reporters were posted on 2026-10-12.\n\nClosed from the #1502 backlog triage.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1704",
+    "number": 1704,
+    "title": "Investigate 'Labeled Fan-In (LR)' and four weaker flowcharts against Mermaid side by side",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-10T21:28:33Z",
+    "updated_at": "2026-10-11T14:22:09Z",
+    "closed_at": "2026-10-11T14:22:09Z",
+    "comment_count": 2,
+    "body": "## Context\n`layout:oracle` (official mermaid 11.17.2) shows 17% vertical agreement for the flowchart \"Labeled Fan-In (LR)\" (horizontal 100%); other flowcharts are 90-100%. Four more are weaker, vertical/horizontal: CI/CD Pipeline 95/76, Git Branching Workflow 95/86, System Architecture 96/93, Decision Tree 90/95. All have subgraphs or fan-out. Unconfirmed: bug or intentional-but-undocumented.\n\n## Source\nFound in the 2026-10-10 project review (#1502). Snapshot fidelity audit (#1592), findings 1-2.\n\n## Open questions / proposed work\n- Compare \"Labeled Fan-In (LR)\" and the four weaker flowcharts against Mermaid side by side.\n- Refresh baselines only after that investigation.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1704#issuecomment-6102619676",
+        "author": "dfadler",
+        "id": 6102619676,
+        "created_at": null,
+        "updated_at": null,
+        "body": "## Side-by-side investigation (read-only; no code, snapshot or baseline touched)\n\nMethod: each sample rendered through `renderMermaidSVG` (ours) and through mermaid 11.17.2 in headless Chromium (`scripts/lib/real-mermaid.ts`, what `layout:oracle` uses); I viewed every image, and compared node positions from `layoutFlowchartSync` against the browser-measured mermaid SVG. The ELK cross-axis option sweep from [#1700](https://github.com/dfadler/zombie-mermaid/issues/1700#issuecomment-6102501427) is not repeated.\n\n**Headline: in all five cases both renderers assign the same layers and the same node order within each layer, except Labeled Fan-In (a mirrored tie-break) and Decision Tree (one sink node lands a layer late). The scores come from cross-axis placement and edge routing, not from structural disagreement.**\n\n### 1. Labeled Fan-In (LR), 17% vertical\n\n| mermaid | ours |\n|---|---|\n| ![c0-mermaid](https://github.com/user-attachments/assets/58a9c7c3-f13d-4332-92ad-7ef83da0705c) | ![c0-ours](https://github.com/user-attachments/assets/2c016f81-53cd-4f9f-a517-9f62209902d4) |\n\nLayers match (A | B | C | D). Within the A/B/C columns the vertical order is mirrored: mermaid has C above A above B (B at y=138, C at y=64); ours has B above A above C (B y=66, C y=123). Crossing counts look equal, so this is a symmetric tie that dagre and ELK break in opposite directions (ELK follows source order top-to-bottom via `considerModelOrder.strategy: NODES_AND_EDGES`, `to-elk.ts`; dagre's LR ordering is reversed). With only 4 nodes, one flipped pair swings the percentage hugely. Both drawings are valid; ours also reads better (one lane per edge, labels on their stroke, per #1467).\n**Class: intentional tie-break difference (model order), not a bug.** No decision doc states it; the code comment on `considerModelOrder` is the closest. **Recommendation:** no renderer change; document it in `docs/layout-fidelity-scorecard.md` (or exclude this sample from the headline mean) and refresh nothing.\n\n### 2. CI/CD Pipeline, 95% vertical / 76% horizontal\n\n| mermaid | ours |\n|---|---|\n| ![c1-mermaid](https://github.com/user-attachments/assets/bbd57587-8678-4eb4-be47-11ec6c3c8b05) | ![c1-ours](https://github.com/user-attachments/assets/a3b935f0-ad0b-4412-bf4f-b5ed0a11fe5d) |\n\nSame layers and same topology. Differences: mermaid keeps Deploy Staging, QA Approved? and Production in one column and draws one \"Yes\" edge straight down; ours pushes Production left of the diamond's centre because the two diamond exits (Yes/No) take separate ports. Ours also routes the dashed Fix-to-Push back-edge inside the subgraph; mermaid does the same. This is the BK node-placement/port effect already measured in #1700 (every ELK option rejected).\n**Class: intentional trade-off (cross-axis placement; cited: #1700, #1312).** **Recommendation:** no change; a bespoke post-layout column-alignment pass is the only fix and is a separate design decision.\n\n### 3. Git Branching Workflow, 95% vertical / 86% horizontal\n\n| mermaid | ours |\n|---|---|\n| ![c2-mermaid](https://github.com/user-attachments/assets/d4f3f92a-e106-4fb6-a330-25994e3ca68e) | ![c2-ours](https://github.com/user-attachments/assets/45aa5f7c-4373-45a0-a7a4-91c6a5fdfde5) |\n\nSame five layers and same order. Only offsets differ: mermaid puts `Tests?` (G) below `release/1.0` (G y=309 vs F y=268); ours puts it slightly above (G y=199 vs F y=219) because ELK centres it against its two back-edge endpoints. Back-edge labels pass/fail/approved sit sensibly in both.\n**Class: Mermaid/ELK placement quirk, cosmetic.** **Recommendation:** none.\n\n### 4. System Architecture, 96% vertical / 93% horizontal\n\n| mermaid | ours |\n|---|---|\n| ![c3-mermaid](https://github.com/user-attachments/assets/e8d56f64-bbf4-4602-9a1e-e976aa558443) | ![c3-ours](https://github.com/user-attachments/assets/ada500ec-7368-4b86-aa48-d05384fcac0c) |\n\nSame layers, same order, same subgraph containment. Score gap is cross-axis offsets (ours packs Web/Mobile App tighter and centres the Client Layer box differently). One real visual defect in ours worth noting: the three edges leaving API Gateway share a vertical trunk that runs exactly along the right border of the Client Layer box, so the border and the connector overlap; mermaid clips each edge separately. Related prior art: `docs/decisions/cluster-exit-anchoring-scoping-1135.md` (ASCII side only).\n**Class: scoring gap is intentional/ELK; the trunk-on-border is a small bug candidate (SVG edge routing at subgraph boundary).** **Recommendation:** file a separate low-priority issue for the trunk overlap; do not touch baselines for the scores.\n\n### 5. Decision Tree, 90% vertical / 95% horizontal\n\n| mermaid | ours |\n|---|---|\n| ![c4-mermaid](https://github.com/user-attachments/assets/85301143-841f-458b-9663-b612343707ae) | ![c4-ours](https://github.com/user-attachments/assets/ead363b3-696f-4051-8917-bd126445ecde) |\n\nThis is the one case with a real layer difference. Mermaid puts `Go outside` (C) in the same layer as `Have umbrella?`; ours places it a layer lower, giving `Is it raining? -> No -> Go outside` a long vertical edge, and `Go with umbrella` (D) likewise sits in its own row between `Is it heavy?` and the last row (mermaid: D beside E). Measured with the sample source: with edge labels removed C's top is 361 and B spans 232-398 (same layer); with the labels C top is 498 and B spans 300-466 (C one layer later). So the late sinks are triggered by labeled edges (ELK's inline-centred label layers give the layering free slack for a leaf with a single in-edge), not by the shape sizes.\n**Class: bug (cosmetic layering), caused by our label handling plus ELK's default network-simplex slack for sink nodes.** No decision doc or comment calls it intentional. **Recommendation:** worth a follow-up issue: try pinning single-in-edge sink nodes to their parent's next layer (or `layering.strategy`/`nodePromotion`), measure with `layout:oracle` over all 27 samples, as #1700 did for placement. `layering.*` was not in #1700's sweep, so this is not a repeat.\n\n### Summary\n\n| Case | Class | Action |\n|---|---|---|\n| Labeled Fan-In (LR) | intentional tie-break (model order) | document; no baseline refresh |\n| CI/CD Pipeline | intentional trade-off (#1700) | none |\n| Git Branching | ELK/Mermaid placement quirk | none |\n| System Architecture | scores intentional; trunk on subgraph border is a small bug | file separate issue |\n| Decision Tree | bug: sink node one layer late when edges are labeled | file follow-up on layering |\n\nReproduction scratch script: layouts via `layoutFlowchartSync` and `renderMermaidSVG`; nothing committed.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1704#issuecomment-6109997268",
+        "author": "dfadler",
+        "id": 6109997268,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Closing: the investigation is complete and its results are recorded.\n\n- Findings are documented in `docs/known-differences.md` (merged in #1742).\n- **Labeled Fan-In (LR):** intentional tie-break (ELK follows source order, dagre reverses it). Documented; no baseline change.\n- **CI/CD Pipeline** and **Git Branching Workflow:** no action (ELK placement trade-offs; see #1700).\n- **System Architecture** edge trunk overlapping the Client Layer border: now #1749.\n- **Decision Tree** sink landing one layer late when edges are labeled: now #1750.\n\n(AI-generated comment, Claude Code)"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1750",
+    "number": 1750,
+    "title": "svg: Decision Tree sink node lands one layer late when edges are labeled (differs from mermaid.js)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-11T14:21:31Z",
+    "updated_at": "2026-10-14T18:50:33Z",
+    "closed_at": "2026-10-14T18:50:33Z",
+    "comment_count": 1,
+    "body": "## Problem\n\nIn the \"Decision Tree\" gallery sample, adding edge labels pushes a sink node one layer later than without labels, which disagrees with mermaid.js.\n\nFrom the investigation, in the SVG output on `main`: with the labels present, `Go outside` (`C`) lands one layer below `Have umbrella?` (`B`); mermaid.js puts them in the same layer. Removing the labels from the source puts `C` back beside `B`. Edge labels are the trigger, not node shapes.\n\nThis sample scores 90% vertical and 95% horizontal in `pnpm run layout:oracle`, among the weaker flowcharts.\n\n## Where to look (cause not verified)\n\nThe cause has not been confirmed. One possibility is that labeled edges take up extra space in the layered layout and shift the sink down, while mermaid.js/dagre accounts for labels differently; that is a guess. The ELK options we pass are set in `packages/svg-renderer/src/layout-engine/to-elk.ts`. The earlier ELK alignment sweep on #1700 covered node-placement options, not layering options.\n\n## Suggested work\n\n1. Reproduce with the sample's source, with and without labels, and confirm the extra layer.\n2. Try layering strategy or label placement options, scoring every flowchart with `pnpm run layout:oracle` before and after. Reject any change that lowers another sample, as the #1700 sweep did.\n3. If no safe option exists, document it as a known limitation (it already is in #1742) and close.\n\n## Source and related\n\n- Found in the 2026-10-10 project review (#1502). Investigation: #1704 (https://github.com/dfadler/zombie-mermaid/issues/1704#issuecomment-6102619676); documented in #1742 (`docs/known-differences.md`, \"Known limitations\").\n- Related: #1700 (ELK alignment, which found no safe change), #1592.\n\n## Not checked\n\nWhether the ASCII renderer shows the same layering, and other labeled flowcharts for the same effect.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1750#issuecomment-6112247076",
+        "author": "dfadler",
+        "id": 6112247076,
+        "created_at": null,
+        "updated_at": null,
+        "body": "## Layering / label-placement sweep: no safe option (no PR)\n\n**Confirmed on main (fc6e18d9).** Decision Tree, `layoutFlowchartSync` node tops (TD): with labels `B=300 C=498 E=583`, without labels `B=232 C=361 E=446`. Without labels `C` is bottom-aligned inside `B`'s span (same layer, 361+37 = 398 = B's bottom). With labels `C` (498..535) sits below `B`'s bottom (466), in the layer between `B` and `E`, i.e. the layer holding the `B -> E` label dummy. So the labels are the trigger, as the issue says.\n\n**Method.** Temporary env hook injecting extra ELK root / edge-label options in `to-elk.ts`, then `pnpm run layout:oracle --json` (all flowcharts) diffed against an unmodified baseline (the harness was removed, nothing is committed). Baseline: Decision Tree 90% vertical / 95% horizontal; weakest others: Labeled Fan-In (LR) 17% vertical, Edges Into and Out of Subgraphs 64/61, CI/CD 95/76.\n\n| Option | Decision Tree | Other samples |\n|---|---|---|\n| `layering.strategy` LONGEST_PATH | no change | Git Branching horizontal 86 -> 95 (improves) |\n| COFFMAN_GRAHAM | horizontal 95 -> 90 (worse) | Git Branching 86 -> 95 |\n| MIN_WIDTH | vertical 90 -> 67, horizontal 95 -> 86 (worse) | Git Branching 86 -> 95 |\n| STRETCH_WIDTH | hangs (killed after >90 s) | n/a |\n| LONGEST_PATH_SOURCE, INTERACTIVE | no change | no change |\n| BF_MODEL_ORDER, DF_MODEL_ORDER | n/a | large regressions (Subgraphs 100 -> 50/33, System Architecture 96/93 -> 49/51, CI/CD, Subgraph Direction Override, Text-Embedded Labels lose their score) |\n| `layering.nodePromotion.strategy` NO_BOUNDARY | no change | no change |\n| NIKOLOV*, DUMMYNODE_PERCENTAGE, NODECOUNT_PERCENTAGE, `layerChoiceConstraint`, `edgeLabels.centerLabelPlacementStrategy` (TAIL/HEAD/SPACE_EFFICIENT/WIDEST/CENTER/MEDIAN), `edgeLabels.sideSelection` | geometry of C unchanged (C=498) in a single-graph probe | not oracle-scored (no effect on the target) |\n| edge label `elk.edgeLabels.inline=false` | C moves into B's layer (C=429) but oracle score unchanged | no change |\n| edge label `elk.edgeLabels.placement=HEAD` | not improved | Git Branching 86 -> 95, but Labeled Fan-In (LR) vertical 17 -> 33 and **CJK Labels vertical 100 -> 50** |\n| edge label `elk.edgeLabels.placement=TAIL` | not improved | Git Branching 86 -> 100, same Fan-In and **CJK Labels 100 -> 50** |\n\nNo candidate improves Decision Tree without lowering another sample, so by the #1700 rule nothing ships. Stopping without a PR; the limitation stays documented in `docs/known-differences.md`.\n\n**Side finding, out of scope for this issue:** `layering.strategy: LONGEST_PATH` raises Git Branching Workflow horizontal from 86% to 95% and lowers no sample in the 27-sample oracle. It is worth its own issue (it would change SVG baselines and needs the ASCII/Linux baseline process).\n\nWhy inline=false puts C beside B but does not move the score is not understood; the Decision Tree 90% vertical may involve other pairs (E/D, F/G heights) rather than only C.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1904",
+    "number": 1904,
+    "title": "Flowchart layout: follow mermaid 12's ELK defaults (sibling-subgraph order, feedback edges)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-12T02:53:31Z",
+    "updated_at": "2026-10-14T19:27:13Z",
+    "closed_at": "2026-10-14T19:27:13Z",
+    "comment_count": 4,
+    "body": "Found while investigating #1834. Mermaid 12.0.0 made ELK the default layout engine for flowcharts (release notes: https://github.com/mermaid-js/mermaid/releases/tag/mermaid%4012.0.0). mermaid.live renders the same: Nested Subgraphs there puts `A` left of `C`, matching `mermaid@12.1.0` headless, not 11.17.2 or our output.\n\nTwo things in `packages/svg-renderer/src/layout-engine/to-elk.ts` were written to imitate mermaid's old dagre layout (11.x) and now disagree with the reference:\n\n1. **Sibling subgraphs are added in reverse declaration order** (`mermaidToElk` and `subgraphToElk`, issue #444). Mermaid 12's ELK graph puts them in source order when an edge ties them together. Nested Subgraphs: mermaid 12 has `A` at x=56, `C` at x=306; ours has `A` at 267, `C` at 72 (horizontal 20%). Note `Subgraphs` and `Nested Subgraphs (RL/BT)` still score 100%, so a change must keep those.\n2. **Depth-first back edges are pre-reversed** (`edgesReversedForLayout`, #1307) to mimic dagre cycle breaking. Mermaid 12 uses ELK with `cycleBreaking: DEPTH_FIRST` and no `considerModelOrder`, and 12.1.0 adds `elk.orientFeedbackEdges` (on by default): an edge that points back into a subgraph from outside is flipped, so the subgraph stays contiguous. CI/CD Pipeline: mermaid 12 puts `D` (Fix & Retry) beside `C`; ours puts it at the bottom, below `F` (horizontal 48%, vertical 86%).\n\n## Measured\n\n`pnpm run layout:oracle`, mermaid 12.1.0: Nested Subgraphs 100% / 20%, CI/CD Pipeline 86% / 48%. With `layout: dagre, look: classic` on the same 12.1.0 both are 100/100 and 95/76, so the drop is the engine, not the version.\n\n## What I tried (not committed)\n\n- `considerModelOrder: NONE` and/or `cycleBreaking: DEPTH_FIRST` globally: no help for these two, and breaks ten other samples (Parallel Links, Text-Embedded Labels, System Architecture, ...). Model order must stay.\n- Flipping both sibling-subgraph reversals to forward order: Nested Subgraphs stayed at 20%, so the ordering is decided somewhere else too (hop edges, ports or `compound-flat.ts` have not been checked).\n\n## Suggested work\n\n1. Find what decides sibling-subgraph left-right order for `E --> A`, `E --> C` into two sibling subgraphs, and make it source order for a flowchart (mermaid 12) without moving `Subgraphs` / `Nested Subgraphs (RL/BT)`.\n2. Evaluate an `orientFeedbackEdges` equivalent: flip a cross-boundary edge that points back into a subgraph.\n3. Score all four oracle types before and after; reject any option that lowers another sample. Check the GitHub render of the CI/CD sample before building (CLAUDE.md, \"Parity with mermaid.js\"); only mermaid.live was checked here.\n\nRelated: #1834, #1831, #444, #1307.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1904#issuecomment-6145506474",
+        "author": "dfadler",
+        "id": 6145506474,
+        "created_at": "2026-10-13T12:26:15Z",
+        "updated_at": "2026-10-13T12:26:15Z",
+        "body": "Data point from the scorecard regenerated in #1926 (mermaid 12.1.0): **Flowchart: Five Cluster Exit Siblings (TD)** scores 67% horizontal (100% vertical, 100% containment). It is a new sample with no earlier figure.\n\nIt may share a root cause with the sibling-subgraph order work here. Not confirmed. Worth checking whether fixing the order also fixes this sample, and adding it to this issue's checklist if so.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1904#issuecomment-6145579643",
+        "author": "dfadler",
+        "id": 6145579643,
+        "created_at": "2026-10-13T12:30:25Z",
+        "updated_at": "2026-10-13T12:30:25Z",
+        "body": "Correction to my earlier comment: **Flowchart: Five Cluster Exit Siblings (TD)** does not share this issue's root cause. The sample has one subgraph and no back edges, so neither mechanism here applies: sibling-subgraph reversal has nothing to reorder, and `edgesReversedForLayout` returns an empty set. Please don't add it to this issue's checklist.\n\nIts 67% horizontal comes from how mermaid spreads five labelled parallel edges (T lands about 25px left of the source column). That is tracked separately in the new issue linked below.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nNew issue: https://github.com/dfadler/zombie-mermaid/issues/1943\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1904#issuecomment-6154801678",
+        "author": "dfadler",
+        "id": 6154801678,
+        "created_at": "2026-10-13T20:42:40Z",
+        "updated_at": "2026-10-13T20:42:40Z",
+        "body": "Status after #1982: sibling-subgraph order is fixed (Nested Subgraphs horizontal agreement 20% to 100% against mermaid 12.2.0; the cause was `orderSiblings` in `compound-flat.ts`, not the `to-elk.ts` reversals). The feedback-edge half (CI/CD Pipeline) is not fixed and needs a spine-layout redesign, now tracked in #1993. This issue stays open until #1982 merges and #1993 is resolved.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/1904#issuecomment-6176547386",
+        "author": "dfadler",
+        "id": 6176547386,
+        "created_at": "2026-10-14T19:27:12Z",
+        "updated_at": "2026-10-14T19:27:12Z",
+        "body": "Sibling-subgraph order is fixed by #1982 (merged 2026-10-13; Nested Subgraphs 20% to 100%). The remaining feedback-edge half (CI/CD Pipeline) is tracked in #1993; closing this issue with that pointer.\n\nClosed from the #1502 backlog triage.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/1993",
+    "number": 1993,
+    "title": "Flowchart layout: orient feedback edges like mermaid 12's ELK (CI/CD Pipeline, follow-up to #1904)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-13T20:33:22Z",
+    "updated_at": "2026-10-14T21:13:23Z",
+    "closed_at": "2026-10-14T21:13:23Z",
+    "comment_count": 0,
+    "body": "Follow-up to #1904 / #1982, which fixed sibling-subgraph order for subgraphs tied by an edge or a shared outside node (Nested Subgraphs horizontal agreement 20% to 100%) but not the feedback-edge half.\n\n## What is left\n\nMermaid 12 uses ELK by default and orients feedback edges differently from the dagre-era layout we imitate. In our flat compound layout the CI/CD Pipeline sample still disagrees with `mermaid@12.2.0` (Chrome render: D beside C).\n\nTried in #1982 and rejected: dropping the DFS pre-reversal of feedback edges in `to-elk.ts`. It took CI/CD to 57% / 52% agreement and regressed three other samples. The `to-elk.ts` sibling reversals are not the cause of the order problem (flipping them changes nothing); the cause was `orderSiblings` in `compound-flat.ts`.\n\nAn equivalent of ELK's own feedback-edge orientation (`orientFeedbackEdges`) looks like it needs a redesign of the spine layout in `packages/svg-renderer/src/layout-engine/compound-flat.ts`, not a flag change.\n\n## To do\n\n- Reproduce on current main with the CI/CD Pipeline and Nested Subgraphs samples against `mermaid@12.2.0` (`scripts/lib/real-mermaid.ts`, `pnpm run layout:oracle`) and mermaid.live. GitHub's own render was not checked (#1924).\n- Decide the approach: feedback-edge orientation inside the compound-flat spine, or hand more of the layout to ELK.\n- Land it with SVG and ASCII baselines for every changed sample, and name the mermaid version checked in the PR body.\n\n## Done when\n\n- CI/CD Pipeline agrees with `mermaid@12.2.0` at or above the oracle threshold with no regression in the other samples.\n- #1904 can be closed.\n\nRelated: #1904, #1982, #1924, #1934, #1941, #1943.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2009",
+    "number": 2009,
+    "title": "ASCII: branching LR flowchart layout and node shapes diverge from mermaid",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-14T16:46:49Z",
+    "updated_at": "2026-10-26T00:08:48Z",
+    "closed_at": "2026-10-26T00:08:48Z",
+    "comment_count": 4,
+    "body": "## Problem\n\nASCII output for a branching `graph LR` does not follow the shape or arrangement mermaid produces. Found while reviewing the \"Visual verification\" captures on #2006; the layout is the same on `main` and is unrelated to that PR.\n\n```mermaid\ngraph LR\n  A[Start] -->|go| B{Ok?}\n  B -->|yes| C((Done))\n  B -->|no| D[Café 日本語]\n```\n\nRendered by GitHub (the image in the #2006 review), `Done` sits above-right and `Café 日本語` below-right of a centered diamond `Ok?`. The ASCII renderer (default options, `main` @ e84ba943) gives:\n\n```\n┌───────┐     ◇─────◇     ◯─────────────◯\n│       │     │     │     │             │\n│ Start ├─go─►│ Ok? ├─yes►│     Done    │\n│       │     │     │     │             │\n└───────┘     ◇──┬──◇     ◯─────────────◯\n                 │\n                 │\n                 │\n                 │\n                 │\n                 │        ┌─────────────┐\n                 │        │             │\n                 └──no───►│ Café 日本語 │\n                          │             │\n                          └─────────────┘\n```\n\n## Differences\n\n1. `Done` shares a row with `Ok?` instead of branching above it, and `Café` is pushed ~6 rows down, so the two branches are not symmetric around `Ok?`.\n2. The decision node is drawn as a box with `◇` corners and the circle as a box with `◯` corners, not as a diamond / circle.\n3. The `no` edge leaves from the bottom of `Ok?`; the `yes` edge from its right side. Mermaid leaves both from the right side.\n\n## Not yet checked\n\nOnly the GitHub render was compared. Per CLAUDE.md \"Parity with mermaid.js\", the latest `mermaid` from npm (via `scripts/lib/real-mermaid.ts`) and mermaid.live should be rendered next to the pinned oracle before any fix is designed, and the PR must name the version it matched.\n\n## Related capture bugs (found in the same review)\n\n- `scripts/ascii-render-runner.mjs` forced `colorMode: 'auto'`, which overrides `profile: 'markdown'`'s `'none'` default, so #2006's \"after\" capture was not a `profile: 'markdown'` render.\n- `DEFAULT_ASCII_THEME.fg` is `#27272a` (`packages/ascii-renderer/src/ansi.ts`), near-black; against the capture script's `github-dark` background node text is almost invisible, so the \"before\" image shows no labels. Whether default output on a dark terminal has the same problem is untested.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2058",
+    "number": 2058,
+    "title": "Layout oracle: flowchart 'LR Fan-In With Bypass Edge' scores 33% vertical, below the 85% floor",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-14T19:39:45Z",
+    "updated_at": "2026-10-23T18:53:02Z",
+    "closed_at": "2026-10-23T18:53:02Z",
+    "comment_count": 2,
+    "body": "Found while re-running the layout oracle for #1794/#1834 (comments there, 2026-10-14) and again by the weekly-oracle work in #2037 / PR #2054.\n\nOn current main the layout oracle (SVG layout vs mermaid, pinned 12.1.0) scores the flowchart sample **\"LR Fan-In With Bypass Edge\" at 33% vertical / 100% horizontal**, below the 85% default floor in `scripts/layout-oracle.ts`. Running the exact command the new workflow runs exits 1 on this sample, so the first scheduled run of #2054 will open a `layout-oracle` tracking issue for it.\n\nThis is the **SVG layout**, not the ASCII renderer. The ASCII fixes for the same sample (#1915 / PR #2016, and the open #2043 and #2044) do not change SVG layout.\n\n## To do\n\n- Reproduce: `pnpm run layout:oracle -- --type=flowchart` and read the row for this sample. Confirm the sample name and that it is the gallery sample added with #1915 (I took the name from the oracle output and have not confirmed it).\n- Find out what differs from mermaid: vertical agreement of 33% means most nodes sit on different rows. Compare ours with mermaid 12.1.0 (the oracle pin) and with what users see (mermaid 12.2.0 in real Chrome, mermaid.live and GitHub: the CLAUDE.md \"Parity with mermaid.js\" rule). Check first that the mermaid layout is what we want to match: this sample was written to exercise an ASCII bypass edge, so mermaid's layout may be a different shape of graph.\n- Decide: fix the layout (see #1993 for the related feedback-edge orientation work in `compound-flat.ts`), or record the sample as a known difference with a lowered per-sample floor in `SAMPLE_FLOORS` and a reason.\n\n## Done when\n\n- The sample is at or above its floor with the reason recorded, and `pnpm run layout:oracle --thresholds` exits 0 on main.\n\nRelated: #1915, #2016, #2037, #2054, #1993, #1834, #1794.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2058#issuecomment-6351925605",
+        "author": "dfadler",
+        "id": 6351925605,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Re-ran the layout oracle on current `origin/main` (82d9acd5, mermaid pin 12.2.0 after #2274) and this sample no longer diverges:\n\n| Sample | vertical | horizontal | floor |\n| --- | --- | --- | --- |\n| LR Fan-In With Bypass Edge (3 nodes) | 100% | 100% | 0.85 (default, no per-sample entry) |\n\n- `pnpm run layout:oracle -- --thresholds` exits 0.\n- `--scorecard-json` lists the sample at vertical 1, horizontal 1, floor 0.85.\n- The 33% figure was measured against the 12.1.0 pin, before #2075, #2235 and the 12.2.0 pin change. I did not bisect which of those moved it. No `SAMPLE_FLOORS` entry exists or was needed, so no floor was lowered.\n\nThe \"Done when\" condition holds on main, so this issue can be closed. I have not closed it.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2058#issuecomment-6372396335",
+        "author": "dfadler",
+        "id": 6372396335,
+        "created_at": null,
+        "updated_at": null,
+        "body": "No longer reproduces: LR Fan-In With Bypass Edge scores 100/100 on main against the current oracle pin (mermaid 12.2.0). The earlier 33% was measured against the old 12.1.0 pin.\n\n_Closed on the maintainer's instruction; comment posted by Claude Code._\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2071",
+    "number": 2071,
+    "title": "ASCII: dense duplicate-edge graph keeps one closed stroke rectangle from unavoidable lane crossings",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-14T21:16:00Z",
+    "updated_at": "2026-10-23T18:53:09Z",
+    "closed_at": "2026-10-23T18:53:09Z",
+    "comment_count": 2,
+    "body": "Left over from [#2040](https://github.com/dfadler/zombie-mermaid/pull/2040).\n\n## Problem\n\nIn a dense graph of duplicate edges, two lane crossings are unavoidable, so the output keeps one closed stroke rectangle (a ┼ crossing reads as a box).\n\n```mermaid\nflowchart TD\n  a[\"a\"]\n  b[\"b\"]\n  c[\"c\"]\n  a --> b\n  a --> b\n  a --> b\n  a --> b\n  b --> c\n  b --> c\n  a --> c\n  a --> c\n  c --> a\n  c --> a\n```\n\nCurrent ASCII (TD): `a --> c` takes the only gutter column next to `b`, so the short `b`-side lanes cross it.\n\n```\n┌───────┐              \n│       ├───────────┐  \n│   a   ├─────┐     │  \n│       │◄──┐ │     │  \n└──┬─┬──┘   │ │     │  \n   │ │      │ │     │  \n   │ │      │ │     │  \n   │ └────┐ │ │     │  \n   │      │ │ │     │  \n   ▼      │ │ │     │  \n┌───────┐ │ │ │     │  \n│       │◄┼─┼─┘     │  \n│   b   │ │ │       │  \n│       ├─┼─┼─┐     │  \n└───┬───┘ │ │ │     │  \n    │     │ │ │     │  \n    │     │ │ │     │  \n    │ ┌───┘ │ │     │  \n    │ │     │ │     │  \n    ▼ ▼     │ │     │  \n┌───────┐   │ │     │  \n│       ├───┘ │     │  \n│   c   │◄────┘     │  \n│       │◄──────────┘  \n└───────┘              \n```\n\n## Cause\n\nLanes can only grow outward, so a lane that has to reach a node on the far side of a nearer lane's column must cross it. The case is recorded with this reason in the `CROSSINGS` list of `ascii-duplicate-edges-2025-2028-2030.test.ts`.\n\n## Suggested direction\n\nLet lanes order or grow inward as well as outward, or choose the lane order that minimises crossings. Remove the case from `CROSSINGS` when fixed.\n\n_🤖 Filed with [Claude Code](https://claude.com/claude-code)_\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2071#issuecomment-6352894588",
+        "author": "dfadler",
+        "id": 6352894588,
+        "created_at": "2026-10-22T22:40:51Z",
+        "updated_at": "2026-10-22T22:40:51Z",
+        "body": "Checked on `origin/main` (bd0a701c): this looks already fixed, so no new PR.\n\n- The dense sample from the issue body now renders with every lane on its own column and no closed stroke rectangle: back-edges (`c --> a`) leave c's top and enter a's bottom on flow-axis faces, and the `a --> c` lanes no longer cross the `b`-side lanes. This came with #2121 (PR #2137).\n- `CROSSINGS` in `ascii-duplicate-edges-2025-2028-2030.test.ts` is now empty (`const CROSSINGS: Record<string, number> = {}`), so the dense case is asserted at 0 closed strokes.\n\nSuggest closing as completed by #2137. I have not closed it.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2071#issuecomment-6372398528",
+        "author": "dfadler",
+        "id": 6372398528,
+        "created_at": "2026-10-23T18:53:08Z",
+        "updated_at": "2026-10-23T18:53:08Z",
+        "body": "Fixed by #2137 (back-edges on the flow-axis faces). The issue's sample no longer renders a closed stroke rectangle, and CROSSINGS in ascii-duplicate-edges-2025-2028-2030.test.ts is now empty.\n\n_Closed on the maintainer's instruction; comment posted by Claude Code._\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2112",
+    "number": 2112,
+    "title": "ER ASCII: edge crossings without junctions, ambiguous labels, edges hugging box borders",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-15T02:50:13Z",
+    "updated_at": "2026-10-15T18:25:49Z",
+    "closed_at": "2026-10-15T18:25:49Z",
+    "comment_count": 0,
+    "body": "## Problem\n\nER diagrams in ASCII route edges illegibly on two gallery samples: crossings draw no junction glyph, edge labels sit between two adjacent verticals so it is unclear which they label (or far from both ends), and one edge leaves its box along the box border. The SVG for the same sources is clean, and `ascii-legibility.visual.test.ts` does not cover ER, so it caught none of this.\n\nReproduced on origin/main 0c13e226 with `renderMermaidASCII` (mermaid has no ASCII output, so this is judged against our own SVG and against legibility, not a Mermaid ASCII reference).\n\nMixed Identifying and Non-Identifying (`ascii-samples/general-75`):\n\n```mermaid\nerDiagram\n  ORDER ||--|{ LINE_ITEM : contains\n  ORDER ||..o{ SHIPMENT : ships-via\n  PRODUCT ||--o{ LINE_ITEM : includes\n  PRODUCT ||..o{ REVIEW : receives\n```\n\n```text\n┌───────┐      ┌─────────┐\n│ ORDER │      │ PRODUCT │\n└───────┘      └─────────┘\n ┼     ┼        ┼      ┌┼\n │     └╌╌╌╌╌╌╌╌│╌╌╌╌╌╌┊╌┐\n │ contains┌────┘      ┊ ┊ ships-via\n │         │ includes  └ receives ╌╌╌╌╌╌╌╌┐\n```\n\n- The dashed `ORDER`-`SHIPMENT` line crosses the solid `PRODUCT`-`LINE_ITEM` line with a plain `│` (no junction).\n- `ships-via` sits between two adjacent dashed verticals; `PRODUCT`'s bottom carries three markers side by side (`┼`, `┌┼`).\n\nBlog Platform (`ascii-samples/general-77`), the `USER ||--o{ COMMENT : authors` edge:\n\n```text\n ┼────────────────────┐\n          ┌─────────┘ │\n          │ writes    │\n ...\n │ int author_id FK │  │ authors\n```\n\n- The edge leaves `USER` along the box's bottom border (`┼────…┐`), runs down past `POST`, crosses `tagged-with`, and its label sits mid-run, far from either end.\n\n(Full sources are the gallery samples \"ER: Mixed Identifying & Non-Identifying\" and \"ER: Blog Platform Schema\" in `packages/site/samples-data.ts`.)\n\n## Evidence\n\n- #1592 ER deep dive, findings 1, 2 and 13: https://github.com/dfadler/zombie-mermaid/issues/1592#issuecomment-6183110264. Re-run here; both outputs match the report's description.\n- Not re-verified: the report's note that samples 76 and 78 route cleanly, and that sibling order differs from mermaid in 3 of 4 multi-row samples (finding 12, by eye; tracked separately).\n\n## To do\n\n- Reproduce both samples; find where ER edges are routed in `packages/ascii-renderer/src/er-diagram.ts` and how crossings, label placement and the box-border attach point are decided.\n- Fix it once in the ER routing/drawing path so all ER callers get junction glyphs at crossings, labels adjacent to their own edge, and edges that leave a box from a face, not along a border.\n- Add ER to `__tests__/visual/ascii-legibility.visual.test.ts` (or an equivalent invariant check, see #1858) so samples 75 and 77 fail before the fix.\n- Add cases with SVG and ASCII snapshots for each variant fixed; the ASCII baselines for 75 and 77 change and need review.\n- Parity check in what users see: compare against the SVG render and mermaid.live / latest mermaid layout (named version) for relationship topology.\n- This changes ASCII output, so attach a real-terminal before/after capture per CLAUDE.md (`verify-ascii-terminal` skill), with the Mermaid source inline in a ```mermaid block before the image table.\n\n## Done when\n\n- Crossings show a junction glyph, each label is unambiguously next to its own edge, no edge runs along a box border, on samples 75 and 77.\n- ER is covered by the legibility test and the test fails on the old output.\n- SVG and ASCII snapshots updated and reviewed.\n\n## Related\n\n#1592, #67 (ER label truncation, closed), #453 (ambiguous markers, closed), #1145 (crossing styles, closed), #2083 (ER marker half-cell gap, open), #1858, #1795.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2178",
+    "number": 2178,
+    "title": "Fix face capacity in the grid renderer for self-loops and back-edges; close #2160",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-16T16:10:19Z",
+    "updated_at": "2026-10-18T03:31:42Z",
+    "closed_at": "2026-10-18T03:31:42Z",
+    "comment_count": 0,
+    "body": "Part of #2177. Independent; ships first.\n\n## Problem\n`assignParallelEdgeLanes` (`packages/ascii-renderer/src/edge-routing.ts`) lengthens a node's side face only for reciprocal and duplicate lane siblings. It ignores two other things that take a cell on that face: self-loop ends, and ungrouped back-edges and skips. The face ends up short and `placeFace` (`port-offsets.ts`) falls back to sharing a cell. That produces the merged arrowheads and the `├`/`┤` tick marks seen in the dense-duplicate samples (gallery 157/158, #2071).\n\n## Work\n- Add one cell per self-loop on the node, and the count of edges at the node that are not in a lane group, are not self-loops, and are back-edges or skips (flow-axis delta below 0 or above 4).\n- Spike branch with the change and a new test (`ascii-face-capacity-loops.test.ts`): `worktree-agent-ae9f3a5792435114c`. It fixes the TD and RL dense samples; the LR sample (several long lanes crossing a middle node's stems) is unchanged and out of scope.\n- Add before/after real-terminal captures per the repo's ASCII rule (`verify-ascii-terminal`), and the Mermaid source inline.\n- Close #2160 with a comment pointing here (its heuristics did not fix the visible defects and the metric it targeted is not user-facing).\n\n## Done when\n- `pnpm run verify` passes; no existing golden changes (or each change is justified).\n- Test fails when the new face accounting is removed (sabotage check).\n- #2160 closed with a link to the replacement PR.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2238",
+    "number": 2238,
+    "title": "Deep dive: ASCII layout behavior and whether it should keep output within a bounded width",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-21T10:57:12Z",
+    "updated_at": "2026-10-29T10:04:28Z",
+    "closed_at": "2026-10-29T10:04:28Z",
+    "comment_count": 3,
+    "body": "## Question\n\nHas the ASCII layout deviated from expected behavior around keeping a diagram within a bounded width (the maintainer's recollection is something like 80 columns), adjusting edge paths so the output does not run past it? This is a hypothesis to test, not an established regression.\n\n## What prompted it\n\nThe ER stack in [#1522 (comment)](https://github.com/dfadler/zombie-mermaid/issues/1522#issuecomment-6314102620) renders with an off-center lower entity and a jogging edge compared with GitHub's render (tracked separately in the ER defect issue filed alongside this one). That raised the broader question of what the ASCII layout is supposed to guarantee.\n\n## Starting evidence\n\n- A quick grep of `packages/ascii-renderer/src/*.ts` for `maxWidth`, `max_width`, `columns` and `80` found no output-width budget or wrapping option in the renderer. It may live elsewhere (CLI, MCP, site), or never have existed; this has not been traced.\n- `scripts/ascii-terminal-capture.sh` sizes the recording terminal to the larger of 100x40 and the rendered size, and its docs note that 39 of the 90 catalog samples exceed a stock 80x24 terminal. So wide output is currently accepted, not constrained.\n\n## Scope of the deep dive\n\n1. Find out whether a width budget ever existed: search git history (`git log -S`) and closed issues/PRs for width, wrap, 80 columns or terminal-width handling.\n2. Document what the layout currently guarantees per diagram type (flowchart, sequence, class, state, ER): spacing, alignment, edge routing rules, and what happens when output exceeds a terminal width.\n3. Decide, with the maintainer, what the intended contract is (no width limit, a soft budget, or an option), and file follow-ups for any gap.\n\nFindings go in this issue as comments, per the repo's research convention, not in a `docs/research/` file.\n\nRelated: #1917, #2076, #1592.\n\n(Written by an AI assistant on behalf of the maintainer.)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2238#issuecomment-6352899737",
+        "author": "dfadler",
+        "id": 6352899737,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Findings for #2238. Research only; no code, baseline or issue touched. Checked against `origin/main` at bd0a701c.\n\n## 1. Did a width budget ever exist?\n\nShort answer: not in the default renderer, and never at the point the layout is computed. Three width mechanisms exist, all added later and all outside the grid layout:\n\n| Mechanism | Where | Since | What it does |\n|---|---|---|---|\n| `-w/--max-width <n\\|auto>` (CLI, `render --ascii`) | `src/cli.ts`, `src/cli/parse-args.ts`, `src/cli/render.ts` | #382 (`e22e76d2`, 2026-08-31), #335 | `auto` is `process.stdout.columns`, 80 outside a TTY. Warns on stderr when output is wider; stdout is never truncated. |\n| Compact-spacing fallback for `-w` | `src/cli/render.ts` | `88199c14` (2026-09-04) | On overflow, retries once with the tightest node/border padding; prints the narrower diagram if it fits, else the full one plus the warning. Skipped when `-x/-y/-p` are already at or below compact. |\n| `maxCols` (default `DEFAULT_MAX_COLS` = 120; `Infinity` disables) | `packages/ascii-layout/src/rasterize.ts`, only for opt-in `--layout mermaid` | #2181 (`e99c819e`), #2182 | Shrinks blank gaps between node groups; never scales boxes. If it cannot fit, falls back to the default renderer (`fallbackReason`), or keeps wide text with `mermaid-wide`. |\n\nAlso relevant: `profile: 'markdown'` (#1866) is about glyph safety (paste-safe, ASCII-only), not width.\n\nHistory: `git log -S` for `maxWidth`/`columns`/`80 col` across `packages/ascii-renderer` and `src` finds nothing before #382, back to the initial import (`3185b9b6`, beautiful-mermaid v0.1.0). The only `maxWidth` in the renderer is `adjMaxWidth` in `sequence.ts`, a per-gap column width, not a budget. #335 (closed 2026-09-04) states the gap outright (\"no way to cap it for a fixed-width terminal\") and scoped the real fix, \"label wrapping, direction flipping\" as in AlexanderGrooff/mermaid-ascii#47, out as follow-up work that was not done. So the maintainer's 80-column recollection most likely traces to #335/#382 or to mermaid-ascii#47, not to a removed renderer behaviour. I found no commit that removed a budget. The `ascii-terminal-capture.sh` sizing (the larger of 100x40 and the output) is a capture detail, not a contract.\n\n## 2. What the default layout guarantees today\n\nMeasured: `renderMermaidASCII(source, { colorMode: 'none' })` on every source in `packages/site/samples-data.ts` (the visual-test samples, 174 total, including 9 `%%{init}%%`-prefixed ones not broken out by type; not the 100 `xychart-N` gallery cases), widest line in code points, by first keyword:\n\n| Type | n | median | max | >80 cols | >120 cols |\n|---|---|---|---|---|---|\n| flowchart | 27 | 37 | 68 | 0 | 0 |\n| graph | 26 | 45 | 206 | 3 | 1 |\n| stateDiagram-v2 | 8 | 32 | 60 | 0 | 0 |\n| sequenceDiagram | 21 | 46 | 101 | 2 | 0 |\n| classDiagram (+v2) | 28 | 32 | 101 | 2 | 0 |\n| erDiagram | 20 | 23 | 97 | 1 | 0 |\n| xychart | 10 | 72 | 130 | 3 | 1 |\n| pie | 19 | 52 | 84 | 1 | 0 |\n| architecture | 3 | 70 | 80 | 0 | 0 |\n| C4 (3 types) | 3 | 38-65 | 65 | 0 | 0 |\n\nWidest: \"All 12 Flowchart Shapes\" at 206 columns, then \"XY: Numeric X-Axis\" at 130. 12 of the 174 exceed 80 columns, 2 exceed 120. (The capture script docs say 39 of 90 catalog samples exceed 80x24; that is a different sample set and counts rows too, so the numbers do not compare.) The `graph` row mixes TD and LR sources.\n\nGuarantee, in practice: every diagram renders at its natural width; spacing (`-x/-y/-p`, `paddingX/paddingY/boxBorderPadding`) is the only user-visible knob, there is no render-time budget, no wrapping of long lines or labels, and no direction flipping. Width is bounded only by the diagram's own size. What each family does to shrink or grow is by design per type: sequence widens gaps to fit message labels (`adjMaxWidth`), class and ER grow boxes to their longest member, and labels on vertical edges sit beside the stroke (#1284/#1332), which adds width.\n\n## 3. The ER stack that prompted this\n\nNot a width issue. The off-centre lower entity and the jogging edge in #1522 are placement and routing, which `#1592`'s ER deep dive already records (general-75/77 ASCII baselines) and which the ER defect issue filed alongside #2238 tracks. Whether a width cap would change them is untested.\n\n## 4. Where the gaps are, and the decision needed\n\nThe contract today is \"no limit, plus a CLI warning and one compaction retry\". Gaps against what the issue asks:\n\n1. **Library and MCP callers get nothing.** `-w` exists only in the CLI. `renderMermaidASCII` has no `maxWidth` option, and the MCP tool has no equivalent, so the one place an agent would hit a width problem is the one with no help. (MCP: not checked beyond the absence of any `maxWidth` hit in `git grep`.)\n2. **Compaction is a single retry** of padding values; nothing is wrapped, flipped or re-routed. A 206-column diagram cannot be brought to 80 columns this way (a direction flip to TD is what mermaid-ascii#47 does).\n3. **`--layout mermaid` has a cap, the default renderer does not.** The same diagram can be bounded in one mode and unbounded in the other; the cap in the opt-in mode silently relies on falling back to the unbounded renderer when it fails.\n\nThis is the maintainer's call, so I am not filing issues for it. The options, smallest first: (a) keep \"no limit\" and document it plus `-w` in `docs/diagrams.md` (`-w` is mentioned only in the CLI help and, for the opt-in mode, `docs/known-differences.md`; not in the per-diagram guides); (b) promote the compaction retry into a library option (`maxWidth`, reuse the CLI logic) and report whether it fit; (c) add the mermaid-ascii#47 cascade (label wrapping, direction flip for LR to TD). I would pick (a) now and (b) if library or MCP users ask. Tell me which and I will file it.\n\n**Not checked:** the MCP server's ASCII path in detail; the 100 `xychart-N` ASCII cases; real-terminal wrapping behaviour (no PTY capture); whether `profile: 'markdown'` changes widths.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2238#issuecomment-6403146565",
+        "author": "dfadler",
+        "id": 6403146565,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Measured follow-up to the earlier findings comment on #2238 (which answered \"did a width budget ever exist\": no). This one adds numbers for the policy decision. Research only; no renderer code touched. Measured on `main` at 53fd3cbf, `renderMermaidASCII(source, { colorMode: 'none' })`, width = widest line in terminal columns (`displayWidth`). Scripts: `findings/measure-2238.ts`, `analyze-2238.ts`, `cli-outcomes-2238.ts`, `dump-2238.ts`, `xterm-2238.ts` in the agent worktree (not committed).\n\n## Summary\n\n- 175 samples in `packages/site/samples-data.ts`: **p50 44, p90 74, p95 81, max 206** columns. 12 exceed 80, 4 exceed 100, 2 exceed 120.\n- Only **two outliers** (206 and 130) are far past any plausible limit; the other ten sit at 81-101.\n- CLI compact retry rescues 4 of the 12 over 80. The rest are structural (or, for xychart/pie, untouched by padding).\n- `--layout mermaid` does not help: it is flowchart-only and fell back to the standard renderer for the widest sample.\n- A plain 80-column terminal wraps an over-wide diagram so every row is broken, even at only 85 columns. Markdown code blocks scroll instead.\n- **Recommendation: keep unbounded as the default; width stays an explicit opt-in (what #2119 already is). Do not default `profile: 'markdown'` to 80.**\n\n## 1. Width distribution\n\n| | n | p50 | p90 | p95 | max | >80 | >100 | >120 |\n|---|---|---|---|---|---|---|---|---|\n| all samples, default spacing | 175 | 44 | 74 | 81 | 206 | 12 | 4 | 2 |\n| same, `-x 1 -y 1 -p 0` (compact) | 175 | 38 | 66 | 78 | 138 | 8 | 2 | 2 |\n| `gallery: true` subset | 72 | 48 | 80 | - | 206 | 7 | 3 | 2 |\n| `profile: 'markdown'` | 175 | 44 | 74 | 81 | 206 | 12 | 4 | 2 |\n\n`profile: 'markdown'` changed the width of **0 of 175** samples, so it is a glyph profile, not a width one (it would need a separate mechanism to constrain width).\n\nSamples over 80 columns, widest first (compact = width at `-x 1 -y 1 -p 0`; TD = width with `direction: 'TD'`, flowcharts only):\n\n| width | compact | TD | type | sample | why it is wide |\n|---|---|---|---|---|---|\n| 206 | 138 | 19 (but 117 rows) | graph LR | Twelve Core Flowchart Shapes | 12 nodes in one LR chain, 7 rows tall |\n| 130 | 130 | - | xychart | XY: Numeric X-Axis | axis/plot scale, not spacing |\n| 101 | 97 | - | sequence | Self-Messages with Notes | one column per participant plus labels |\n| 101 | 86 | - | class | All 6 Relationship Types | boxes side by side, labels between |\n| 97 | 95 | - | er | Attribute Comments | wide attribute comments |\n| 85 | 74 | 90 | graph | System Architecture | subgraph nesting |\n| 85 | 75 | 85 | graph | Decision Tree | fan-out |\n| 84 | 84 | - | pie | Long Labels | legend label length |\n| 81 | 81 | - | xychart | Bar and Line Overlay | plot scale |\n| 81 | 81 | - | xychart | 12-Month Dataset | plot scale |\n| 81 | 78 | - | sequence | Participant Types | participants |\n| 81 | 54 | - | class | Cardinalities on Every Relationship Kind | cardinality labels |\n\nPer type (first keyword, `graph` + `flowchart` merged; counts differ slightly from the earlier comment because this run is on newer `main` and groups differently):\n\n| type | n | p50 | p90 | max | >80 | >120 |\n|---|---|---|---|---|---|---|\n| flowchart/graph | 55 | 39 | 70 | 206 | 3 | 1 |\n| sequence | 21 | 46 | 80 | 101 | 2 | 0 |\n| class | 29 | 32 | 72 | 101 | 2 | 0 |\n| er | 20 | 19 | 60 | 97 | 1 | 0 |\n| state | 8 | 25 | 60 | 60 | 0 | 0 |\n| xychart | 10 | 66 | 81 | 130 | 3 | 1 |\n| pie | 26 | 52 | 52 | 84 | 1 | 0 |\n| architecture | 3 | 70 | 80 | 80 | 0 | 0 |\n| C4 (3) | 3 | 38-65 | - | 65 | 0 | 0 |\n\nWhy: widths are driven by diagram content, not layout bugs. Flowchart LR chains and sequence participants grow linearly with node/participant count; xychart and pie width comes from the plot scale and legend labels, which spacing options do not touch.\n\n## 2. What the CLI compact retry does today\n\n`src/cli/render.ts`: with `-w N` (or `auto`), render once; if wider than N, retry once at `paddingX 1, paddingY 1, boxBorderPadding 0` (each only if tighter than what is in effect); keep the narrower result; if still wider, print the output anyway plus a stderr warning. Exit code is 0 either way.\n\nOutcome across the 175 samples:\n\n| `-w` | fits as-is | rescued by compact | still over |\n|---|---|---|---|\n| 80 | 163 | 4 | 8 |\n| 100 | 171 | 2 | 2 |\n| 120 | 173 | 0 | 2 |\n\nStill over at 80: Twelve Shapes (206 to 138), Self-Messages (101 to 97), Class All 6 (101 to 86), ER Attribute Comments (97 to 95), XY Overlay (81), XY Numeric (130), XY 12-Month (81), Pie Long Labels (84). Compact narrows 124 of 175 samples, median saving 13%, and **never narrows xychart or pie** (4 of the 12). So compaction is a flowchart/class/sequence remedy only.\n\nRunning the real CLI (`tsx src/cli.ts render --ascii -w 80 <file>`) confirmed the pattern: Twelve Shapes prints `Warning: ... 138 columns ... exceeding --max-width of 80. Compact spacing ... was already applied`, exit 0; System Architecture and Decision Tree print the `Note: ... applied compact spacing automatically` line and fit (85 to 74 and 85 to 75).\n\nSafety point for any default: compact **changes the output of 121 of the 163 samples that already fit in 80**. It is only safe as a retry on overflow, never as a default spacing, which is how both the CLI and #2119 use it.\n\n## 3. How mermaid-style layout behaves for the widest samples\n\n`renderMermaidASCIIWithLayout(..., layout: 'mermaid')` (default cap 120; `mermaid-wide` = no cap):\n\n| sample | result |\n|---|---|\n| Twelve Shapes (206) | fell back to standard renderer: `unsupported (shape \"asymmetric\" ... \"trapezoid\" ... \"trapezoid-alt\")`; still 206 wide, same with `mermaid-wide` |\n| XY Numeric (130), Sequence (101), Class (101), ER (97), Pie (84) | fell back: \"not applicable to ... diagrams (flowcharts only)\" |\n| System Architecture (85) | fell back: `unsupported (subgraphs)` |\n| Decision Tree (85) | **layout-faithful, 99 wide x 89 tall** (standard: 85 x 35) |\n\nSo for the widest samples it is a no-op, and where it does apply it traded 14 columns for 54 more rows. It is not a width remedy. Direction flip is the only lever that shrinks the 206-column chart (to 19 columns), but at 117 rows, and it makes System Architecture wider (85 to 90) and Decision Tree no narrower, so a flip cannot be applied blindly either (that is the mermaid-ascii#47 cascade in #335's scope notes).\n\n## 4. What terminals and Markdown viewers do with overflow\n\n- **Terminal (measured, xterm.js headless 6.0.0, 80 columns):** wraps. Twelve Shapes (7 logical rows, 206 wide) occupies 21 terminal rows. Decision Tree (85 wide, only 5 over) goes from 35 to **70 rows, all 35 logical rows wrapped**, because every row reaches past column 80. Class All 6 (101): 11 to 22 rows, all wrapped. A diagram that overshoots by a few columns is therefore unreadable, not just clipped. (Terminals with autowrap off, or `less -S`, would clip or scroll; not measured.)\n- **GitHub-flavored Markdown code block:** scrolls horizontally. The published github-markdown-css sets `overflow: auto` on `.markdown-body pre` and no `white-space: pre-wrap` (https://raw.githubusercontent.com/sindresorhus/github-markdown-css/main/github-markdown.css, read via fetch). I did not render these in github.com itself or other viewers (VS Code preview, GitLab, Slack); treat as unverified beyond that stylesheet.\n- **Consequence:** an 80-column budget matters for terminals (where overshoot is catastrophic) and much less for Markdown (where it costs a scrollbar). That argues for the caller choosing the limit, not the renderer baking one in.\n\n## 5. Recommended policy\n\nChoices: hard limit, soft limit, profile-based, unbounded.\n\n**Default unbounded; width is an explicit, caller-chosen limit; no profile default.**\n\n1. **Default unbounded.** 163 of 175 samples already fit 80; a default would only act on 12, and the remedies cannot fix most of them (rescue 4 at 80; XY/pie unaffected; flip is unreadable for the 206 case). A default limit would turn today's working-but-wide output into errors (hard) or ignored warnings (soft) for the diagrams where wide output is least bad.\n2. **Opt-in limit = #2119 as written** (hard, throws `AsciiWidthError` with `actualWidth`, `compactApplied`). The data supports hard over soft for an *explicit* limit: the terminal measurement shows over-limit output is unusable, so the caller asked for a limit it cannot meet and should be told rather than receive a wrapped mess, and the library has no warning channel (the #2057 premise). It also shows who needs the error: at `maxWidth: 80`, 8 of 175 samples throw after compact (listed above), 2 at 100 and 2 at 120. Document that xychart and pie will throw whenever the limit is under their natural width, since compact cannot help them.\n3. **No `profile: 'markdown'` width default** (matches #2119's maintainer decision of 2026-10-15; the profile changes 0 of 175 widths, and Markdown viewers scroll).\n4. **Not recommended now:** soft limit (needs a new result shape or callback for little gain), and label-wrap / direction-flip cascade (flip made 2 of 3 measurable flowcharts no better and the third 117 rows tall).\n\n### What it affects\n\n- **#2119 (draft, blocked until 2026-11-09):** consistent, nothing to change. This data can go in its review as evidence that hard-throw-on-explicit-limit is the right shape. Its \"unset output unchanged\" proof matches the finding that compact must never be a default.\n- **#2057 (open):** its body proposes a *soft* limit and a markdown-default of 80; #2119 closes it as hard with no default. This analysis supports the #2119 version; suggest the #2057 text be treated as superseded when #2119 merges.\n- **#2011 (closed):** its width item (\"markdown profile defaults to ~80\") is answered no, with data above.\n- **#335 / #382 / mermaid-ascii#47:** the cascade (wrap, flip) remains unbuilt. The numbers above are the evidence for leaving it unbuilt unless a user asks.\n- **`--layout mermaid` (#2181/#2182):** its 120 default cap sits above 173 of 175 samples, which is consistent; its docs should say it is flowchart-only so users do not expect it to bound sequence/class/ER/xychart/pie.\n- **#1522 / the ER stack that prompted #2238:** not a width problem (as in the previous comment); nothing here changes it.\n- Docs: `-w` and the compact behavior are still absent from the per-diagram guides in `docs/diagrams.md`; a short \"output width\" note (distribution, `-w`, 80-column wrap behavior) would close that.\n\n### Not checked\n\nReal-PTY wrapping on macOS Terminal/iTerm/Windows Terminal (xterm.js model only); how github.com, VS Code, GitLab and Slack render a wide code block (only GitHub's published CSS read); the 100 `xychart-N` catalog cases; the MCP path; #1917 and #2076 (named in the issue, not read for this pass). Counts drift as samples are added (174 earlier, 175 now).\n\n<details>\n<summary>Per-sample data (all 175: default, compact, TD where applicable)</summary>\n\nRaw JSON is in `findings/measure-2238.json` (fields `w` default width, `h` rows, `cw` compact width, `mdw` markdown profile width, `dirTD`/`dirLR` for flowcharts). Reproduce with `pnpm exec tsx findings/measure-2238.ts && pnpm exec tsx findings/analyze-2238.ts`.\n\n</details>\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2238#issuecomment-6493739544",
+        "author": "dfadler",
+        "id": 6493739544,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Closing at the maintainer's request after a triage pass. The research is answered (\"no width budget ever existed\"; p50 44, p95 81, max 206 columns), and the policy decision landed in #2057 (closed) and draft PR #2119."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2492",
+    "number": 2492,
+    "title": "ASCII flowchart: opposing edges between the same pair of nodes merge into one ambiguous route (LR)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-31T19:39:08Z",
+    "updated_at": "2026-11-03T23:52:17Z",
+    "closed_at": "2026-11-03T23:52:17Z",
+    "comment_count": 1,
+    "body": "Found while building the parallelogram samples in dfadler/zombie-mermaid#2488 (reported by the agent working on it; not independently reproduced by me yet, so confirm with the sample's source before fixing).\n\nA flowchart with an edge in each direction between the same two nodes (`B -->|no| D` plus `D --> B`, in LR) renders in ASCII as a single merged route, so the second edge cannot be told apart. The agent dropped the `D-->B` back-edge from the sample to avoid baking the ambiguity into a golden.\n\nRelated, closed: #629 (opposite-direction edges corrupting each other), #1394 (parallel edges side by side), #2121 (back-edges on the flow-axis faces). This may be a regression of one of those or a case they did not cover.\n\nDone when the opposing-edge sample renders two distinguishable routes with both arrowheads, with ASCII and SVG snapshots and a real-terminal before/after (verify-ascii-terminal skill). Refs #1592.\n\n_🤖 Filed by [Claude Code](https://claude.com/claude-code) on the maintainer's instruction._\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2492#issuecomment-6618511301",
+        "author": "dfadler",
+        "id": 6618511301,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Closing as completed: fixed by merged #2509 (the parallelogram sample now draws two routes with both arrowheads)."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2493",
+    "number": 2493,
+    "title": "SVG flowchart: LR/RL edge routing for yes/no edges differs from mermaid 12.2.0 (doubled parallel lines around a loop-back node)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-10-31T19:39:10Z",
+    "updated_at": "2026-11-06T03:06:06Z",
+    "closed_at": "2026-11-06T03:06:06Z",
+    "comment_count": 2,
+    "body": "Found while building the parallelogram samples in dfadler/zombie-mermaid#2488 (reported by the agent working on it; not independently reproduced by me yet).\n\nIn the LR and RL parallelogram samples the SVG renderer's edge routing for the yes/no edges differs from mermaid 12.2.0, with doubled parallel lines around the \"Ask Again\" node. It is not parallelogram-specific.\n\nParity is the objective, so this is a defect: measure it against mermaid 12.2.0 (scripts/lib/real-mermaid.ts, plus a GitHub-rendered block), reproduce it with the sample from #2488, and fix the routing or record the remaining difference in docs/known-differences.md. The flowchart layout oracle (`pnpm run layout:oracle`) does not score edge routing, so extending it would make this measurable.\n\nRefs #1592, dfadler/zombie-mermaid#2488.\n\n_🤖 Filed by [Claude Code](https://claude.com/claude-code) on the maintainer's instruction._\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2493#issuecomment-6563426838",
+        "author": "dfadler",
+        "id": 6563426838,
+        "created_at": "2026-11-01T20:26:03Z",
+        "updated_at": "2026-11-01T20:26:03Z",
+        "body": "Could not reproduce on current main (286d6c8b).\n\nRendered the LR and RL \"Parallelogram Shapes\" samples from #2488 (`A[/Read Input/] --> B{Valid?}`, `B -->|yes| C[\\Write Output\\]`, `B -->|no| D[/Ask Again/]`) with `renderMermaidSVG` and with real mermaid 12.2.0 headless via `scripts/lib/real-mermaid.ts` (the `package.json` pin and npm latest are both 12.2.0), then screenshotted both side by side.\n\n- Same topology in both: Valid? fans out to Write Output and Ask Again, one edge each, single arrowhead each, labels on the edges.\n- No doubled or parallel lines in either direction. The sample has no loop-back into Ask Again, so I could not find the \"loop-back node\" the title describes.\n- Differences are presentation only: mermaid rounds the elbow corners and puts the label on the line, we use square elbows and a boxed label. Those are not routing.\n\nI did not check a GitHub-rendered block (it runs the same mermaid line). The doubled lines may have been in the ASCII output or in an earlier layout build. If you have a screenshot or a source that still shows them, post it and I will reopen the work; otherwise this can be closed.\n\n_🤖 Posted by [Claude Code](https://claude.com/claude-code) on the maintainer's instruction._\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2493#issuecomment-6618725896",
+        "author": "dfadler",
+        "id": 6618725896,
+        "created_at": "2026-11-04T00:05:34Z",
+        "updated_at": "2026-11-04T00:05:34Z",
+        "body": "🤖 **Claude:** Triage of #2493 against mermaid 12.2.0 (headless, `scripts/lib/real-mermaid.ts`), not fixed.\n\n- The LR and RL sample from #2488 (`A[/Read Input/] --> B{Valid?}`, yes to `[\\Write Output\\]`, no to `[/Ask Again/]`) shows no doubled parallel lines in our SVG at current main. The difference is smaller: mermaid leaves the diamond on its right-hand sides with soft curves, we leave from the diamond tips with square bends.\n- Adding the back-edge `D --> B` (which #2488 dropped) does reproduce a routing difference: mermaid runs the return edge under the node into the diamond's lower right side, we run a separate orthogonal lane with the label box sitting on the forward edge.\n- Same root as the \"edges into one node share a bus\" item recorded under #2476 in `docs/known-differences.md`: it comes from ELK edge routing and port placement, not from any renderer code, so it is not a contained fix. Extending the layout oracle to score edge routing is the measurable first step.\n\n<details><summary>Method</summary>\n\nRendered each source through real mermaid 12.2.0 and `renderMermaidSVG`, rasterised both with Playwright and compared by eye; no GitHub-rendered block or mermaid.live check was done for this routing case.\n\n</details>\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2656",
+    "number": 2656,
+    "title": "ASCII ER layer order differs from Mermaid 12.3.0 (ELK) and forces a crossing",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-11-04T21:55:20Z",
+    "updated_at": "2026-11-05T02:49:10Z",
+    "closed_at": "2026-11-05T02:49:10Z",
+    "comment_count": 0,
+    "body": "🤖 **Claude:** Split from #2630. The ASCII ER entity table landed there; this is the one parked entry left from it, `er-ascii-crossings-labels` (`parked: 'ascii-er'` in `demo/fork-fixes-data.ts`).\n\n```mermaid\nerDiagram\n  ORDER ||--|{ LINE_ITEM : contains\n  ORDER ||..o{ SHIPMENT : ships-via\n  PRODUCT ||--o{ LINE_ITEM : includes\n  PRODUCT ||..o{ REVIEW : receives\n```\n\n**Mermaid 12.3.0** (audit render, `oracle-out/er-ascii-crossings-labels.png`): top row `PRODUCT`, `ORDER`; bottom row `REVIEW`, `LINE_ITEM`, `SHIPMENT`; no crossing.\n\n**Ours:** `ORDER`, `PRODUCT` / `LINE_ITEM`, `SHIPMENT`, `REVIEW`, with one `┼` where ORDER's run to LINE_ITEM crosses PRODUCT's stem.\n\n## What was measured (not guessed)\n\n- Mermaid 12.3.0 draws ER with ELK layered, not dagre. `getData()` hands dagre the same node and edge order we use, and `dagre-d3-es@7.0.14` on that graph gives our order, not Mermaid's (it keeps one crossing). A port of dagre's ordering therefore does not match either.\n- This repo's ELK reproduction (`packages/elk-layout`, used by the SVG renderer) gives Mermaid's order. On 150 random layered ER graphs it picks a minimum-crossing order in 147; the parents' mean slot order we use is exact in 75, a dagre port in 86.\n- Among equal-crossing orders (an order and its mirror, as here) ELK's choice is not derivable from the source graph. Picking the closest minimum-crossing order to ours matches ELK in 109 of 150 and would give `ORDER` first here, the mirror of Mermaid.\n- Ordering the layers by crossings alone made this sample worse: the router (port and row assignment in `er-diagram.ts`) then drew two `┼` path crossings. The crossing is in the router, not only the order.\n\n## Open decision\n\nEither (a) make the sync ER path pick minimum-crossing orders and fix the router's port assignment (matches Mermaid whenever there is no tie), accepting that mirror-equivalent ties can differ from ELK; or (b) leave the entry parked and name the limit on the page. Exact parity needs ELK's tie-break, which only the async `layout: 'mermaid'` path (flowcharts today) can reach.\n",
+    "comments_fetched": true,
+    "comments": [],
+    "selected_timeline_events": [
+      {
+        "event": "closed",
+        "actor": "dfadler",
+        "time": "2026-11-05T02:49:11Z",
+        "source": null,
+        "commit": null
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2660",
+    "number": 2660,
+    "title": "ASCII TD back edges + face port ordering (feedback-edge-sibling-order, longest-path-layering)",
+    "author": "dfadler",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-11-05T01:37:01Z",
+    "updated_at": "2026-11-14T16:24:01Z",
+    "closed_at": null,
+    "comment_count": 4,
+    "body": "🤖 **Claude:** Part 2 of #2645 (TD diagonal back edges + port ordering + diamond bottom-slant ports). I could not un-park `ascii-feedback-edge-sibling-order` or `ascii-longest-path-layering` with a change local to `edge-routing.ts` / `port-offsets.ts`. No PR opened, nothing un-parked. Checked against the saved mermaid@12.3.0 oracle renders (a local 12.3.0 install was blocked by the package-age guard), starting from main 49d77469.\n\n## ascii-longest-path-layering\n- `buildFaceLaneRoute` rejects D->A: lane column `fc+3+slot` lands on node C, so `interiorCellsClearOfNodes` fails and it falls back to a right-face loop. Raising the lane base past nodes beside the column fixes that, but breaks 4 tests asserting the old shape (`ascii-back-edge-loop-1349` x2, `ascii-reciprocal-routing-1349`, `ascii-fan-out-exit-offsets-1308`).\n- A<->C and A<->D are reciprocal diagonal pairs, gated out by `flowFanOut`'s reciprocal check. Lifting it plus Up->Down back edges gives crossings (`┼`), a canvas ~58 cols wide where the oracle is narrow, and a widened C. Needs port ordering, not just a gate.\n\n## ascii-feedback-edge-sibling-order\n- The subgraph-member gate in `flowFanOut` blocks the `No` leg. Lifting it routes `No` off the bottom, but Yes (straight) and No share the diamond's one vertex stem. A `staggerFanOuts` rule splitting opposite-bending branches onto the slants did nothing because `Yes` is a straight (anchored) member, and the path model has no jog to offset it.\n- Dotted D->A with Up->Down routes on flow faces, but its bottom port on A sits left of the forward stem and crosses it; the oracle puts it right. That change moved 22 existing tests/snapshots.\n\n## Suggested shape\nA port-ordering pass for TD flow faces: assign each node face's ports in one sort (forward stems, back-edge ports, diamond slants by other-end x), then route. Per-edge shifts in `computePortShifts` cannot see the crossing.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2660#issuecomment-6650071460",
+        "author": "dfadler",
+        "id": 6650071460,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Second pass at #2660 (batch 4), against current main (dc99060d) and the saved mermaid@12.3.0 oracle renders. No PR opened, nothing un-parked.\n\n**Measured**\n- Lane-base fix alone (lane column past nodes beside the column in the span, the earlier session's diff re-applied by hand): D->A now routes as a face lane. The only tests that move are the four named in the brief: `ascii-back-edge-loop-1349` (x2), `ascii-reciprocal-routing-1349`, `ascii-fan-out-exit-offsets-1308`. The CLI dispatch tests also fail in a worktree run; I did not investigate, they do not touch ASCII.\n- But the render is not closer to Mermaid. With the lane past C, D->A, A->D and the x labels run as three nested lanes along the right edge, the canvas is about 70 columns, and A's bottom still has A->C / C->A on side faces. The oracle is about 15 columns of strokes: A's bottom takes six ports in three (out, in) pairs ordered B, C, D by the child's x.\n- `ascii-longest-path-layering` also differs in columns, not only routing: oracle puts B | A over C | D (D right of C, A centred over C); the fork stacks A, B, D in one column with C beside B. Column placement is `grid.ts` placement, and moving it is not local to this entry.\n- `ascii-feedback-edge-sibling-order`: layout already matches the oracle (Fix & Retry beside Build Image). Three routing gaps remain, each its own mechanism: (1) Yes/No leave the diamond's bottom stem / right face instead of the two lower slants; (2) dotted D->A loops round the right instead of a Z into A's bottom face, right of the forward stem; (3) QA `No` leaves the right corner instead of the upper-right slant. The subgraph-member gate in `flowFanOut` is what blocks (1) and (2) today.\n\n**Why I stopped** Both entries need one new TD flow-face builder: ports on every face ordered in one pass (forward stem, back-edge port, diamond slants, by the other end's x), applied to reciprocal diagonal pairs and to subgraph members, plus diamond bottom-slant ports (the TD analogue of PR 2659's `spreadDiamondFaces`). The earlier BACKUD experiment moved 22 tests and snapshots, none of them in the four permitted. Landing that is larger than a fenced `edge-routing.ts` / `port-offsets.ts` / `grid.ts` change with oracle evidence per snapshot, and a partial version would draw a wider, not closer, picture.\n\n**Suggested split** (disjoint): (a) TD diamond bottom-slant ports (`spreadDiamondFaces` for TD, many gallery decision snapshots move, each checkable against 12.3.0); (b) TD back edges as Up->Down with the port right of the forward stem, plus lifting the subgraph gate (feedback-edge); (c) reciprocal diagonal pairs on flow faces plus column placement for longest-path.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2660#issuecomment-6870928612",
+        "author": "dfadler",
+        "id": 6870928612,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Third pass at #2660, re-rendered on current main (5ba9319ba, after #3060 and #3074) against mermaid@12.3.0 (`scripts/lib/real-mermaid.ts`). No PR opened, nothing un-parked: neither #3060 (TD bypass edge) nor #3074 (nested empty subgraph title) touches the routing in question, so the picture is the one from the second pass.\n\n**`ascii-feedback-edge-sibling-order`** (layout matches 12.3.0; three routing gaps remain)\n- `Yes` and `No` leave two adjacent stems under the diamond's bottom vertex; 12.3.0 leaves them from the two lower slants, ending one over `Build Image` and one over `Fix & Retry`.\n- Dotted `D -.-> A` runs up the right side and enters `Push Code` from its bottom face at the far right of the box; 12.3.0 enters the bottom face right of the forward stem after a short Z.\n- QA `No` leaves the diamond's right corner; 12.3.0 leaves the upper-right slant.\n\n**`ascii-longest-path-layering`** (columns and routing both differ)\n- 12.3.0: `B` and `C` under `A`, `D` right of `C` and lower; the `A`/`B`, `A`/`C` pairs run as parallel stems on `A`'s bottom face (six ports, ordered by the child's x), `A`->`D` and `D`->`A` as two lanes on the right edge.\n- Ours: `A` over a wide `C`, `B` far left, `D` far right; the `long label` / `x` labels collide on `A`'s bottom face.\n\n**Why I stopped:** both gaps need the same new TD flow-face pass that the first two passes described: assign every face port in one sort (forward stem, back-edge port, diamond slants, ordered by the other end's x), then route. A diamond bottom-slant port for TD moves the gallery decision-diamond snapshots (each needs checking against 12.3.0), and the reciprocal-pair rule plus column placement in `grid.ts` is not local to one entry. That is wider than the narrow `packages/ascii-renderer` diff other sessions can merge around. The split from the second pass still applies: (a) TD diamond bottom-slant ports, (b) TD back edges Up->Down with the port right of the forward stem, plus lifting the subgraph gate, (c) reciprocal diagonal pairs on flow faces plus longest-path column placement.\n\nSuggest (a) as its own issue first; (b) and (c) build on it.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2660#issuecomment-6880290837",
+        "author": "dfadler",
+        "id": 6880290837,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Correction and outcome of three exploration sessions on #2660 (current main, mermaid@12.3.0 as the oracle). This corrects my [previous comment](https://github.com/dfadler/zombie-mermaid/issues/2660#issuecomment-6870928612).\n\n**Corrections**\n- Gap (2) in that comment was a misread: on main the dotted `D -.-> A` already enters `Push Code`'s bottom face right of the forward stem (a Z), as in 12.3.0. It is not a gap.\n- `ascii-longest-path-layering`: layers, in-layer order and faces already match 12.3.0 (`scripts/ascii-topology.ts`: layer 6/6, order 1/1, faces 14/14). \"Stacks A, B, D in one column\" no longer reproduces. Only alignment (1/6) differs, which is the pixel-to-cell adapter (#2685), plus one label collision (`long label` of C->A prints beside A's third stem). No router or placement change is left for this entry.\n\n**What is left, and where**\n- Decision branches leaving the diamond's lower slants: [PR #3136](https://github.com/dfadler/zombie-mermaid/pull/3136) (`Refs #2660`).\n- Lifting the TD subgraph-member gate in `flowFanOut` only moves the `Yes`/`No` labels onto the vertical drops (as in 12.3.0); it moves four CI/CD snapshots and is only worth landing together with the slant ports.\n- QA `No` leaving the upper-right slant: not done.\n- Label placement of a labelled reciprocal pair: a separate small issue if wanted.\n\nFindings from the three sessions are in the PR description and in the notes of this session group.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/2660#issuecomment-6880595761",
+        "author": "dfadler",
+        "id": 6880595761,
+        "created_at": null,
+        "updated_at": null,
+        "body": "🤖 **Claude:** Corrected findings for #2660 after three exploration sessions, checked against mermaid@12.3.0 (`scripts/lib/real-mermaid.ts`) on main 5ba9319ba. This corrects my earlier comment and the issue body, which predate the ELK layout hints. No work here ends in `Closes #2660`.\n\n**Corrections**\n- The dotted `D -.-> A` in `ascii-feedback-edge-sibling-order` is not a remaining gap: on main it already enters `Push Code`'s bottom face just right of the forward stem (a Z, as in 12.3.0). My earlier comment misread it.\n- The `ascii-longest-path-layering` column stack (\"A, B, D in one column\") no longer reproduces. `scripts/ascii-topology.ts` scores that entry layer 6/6, order 1/1, faces 14/14; only alignment is 1/6. The feedback entry is layer 21/21, order 1/1, faces 16/16, alignment 13/21.\n\n**Options evaluated**\n| Option | Result |\n|---|---|\n| (a) TD decision slant ports | The only real fix: [#3136](https://github.com/dfadler/zombie-mermaid/pull/3136), `Refs #2660`. Moves 5 gallery snapshots (ASCII and Unicode pairs). |\n| (b) Lift the subgraph-member gate in `flowFanOut` | Alone it only moves the `Yes`/`No` labels onto the vertical drops; 4 snapshots move, all the CI/CD sample. Ship it together with (a), not separately. |\n| (c) Reciprocal pairs and column placement | Nothing local left. Columns come from `trackSlots`; the remaining difference is alignment from the pixel-to-cell adapter ([#2685](https://github.com/dfadler/zombie-mermaid/issues/2685)) plus one label collision. |\n\n**What still differs after #3136**\n- `ascii-feedback-edge-sibling-order`: QA `No` leaves the diamond's right corner, 12.3.0 uses the upper-right slant (the same slant rule on a diamond's side face).\n- `ascii-longest-path-layering`: alignment (D lands clear of C's box where 12.3.0 overlaps it by about half a node; wide labels widen the columns, so this follows #2685), and the C->A `long label` prints beside A's third stem instead of on its own stroke.\n\n**Suggested split of what is left:** (1) QA `No` upper-right slant, (2) label placement for a labelled reciprocal pair, (3) #2685 for alignment. I have not filed these.\n\n<details><summary>Measurements</summary>\n\n- Topology (`pnpm exec tsx scripts/ascii-topology.ts --verbose`): longest-path layer 6/6, order 1/1, align 1/6, faces 14/14; feedback layer 21/21, order 1/1, align 13/21, faces 16/16.\n- ELK hints for the longest-path case: A layer 0, B and C layer 1 (orders 0, 1), D layer 2; A's bottom-face port order matches the oracle (A->B 0, B->A 1, A->C 2, C->A 3, A->D 4, D->A 5).\n- Shortening `long label` to `lbl` takes the canvas from 58 to about 32 columns with the same routes.\n- (b) ascii suites (5612 tests): 4 failures, all the CI/CD sample (`general-flowchart-ci-cd-pipeline` and `cicd_pipeline_sealed_target_1493`, ASCII and Unicode).\n</details>\n"
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/2800",
+    "number": 2800,
+    "title": "Investigate Mermaid rank parity for cyclic subgraph exits",
+    "author": "coderabbitai[bot]",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-11-06T22:42:31Z",
+    "updated_at": "2026-11-11T14:47:00Z",
+    "closed_at": "2026-11-11T14:47:00Z",
+    "comment_count": 1,
+    "body": "## Summary\n\nInvestigate Mermaid rank parity in the ASCII renderer for a graph with a subgraph exit and a return edge. The PR author reports that the difference from Mermaid also occurs on the merge base of PR #2796, so this is a follow-up rather than a confirmed regression introduced by that PR.\n\n## Reproduction\n\n```mermaid\nflowchart TD\n  R\n  T\n  subgraph S\n    A --> B\n  end\n  R --> X\n  T --> A\n  X --> B\n  S --> X\n```\n\nRender the graph, then swap the declarations of `R` and `T` and render it again. The cycle crosses the cluster boundary: `S --> X --> B`, with `B` inside `S`.\n\nThe PR author reports the following results from headless Chromium with Mermaid 12.3.0 and the pinned 12.2.0 version:\n\n- `R, T`: Mermaid places `X` beside `T`; the ASCII renderer does not match.\n- `T, R`: Mermaid places `X` below `B`; the ASCII renderer matches.\n\nThe author reports that these results are the same before and after PR #2796. Mermaid is also declaration-order-dependent for this input; order dependence alone is not evidence of a mismatch.\n\n## Follow-up\n\n- Investigate cycle-breaking order in `computeMinLevels` in `packages/ascii-renderer/src/grid.ts` and establish how to match the relevant Mermaid behavior for both declaration orders.\n- Add regression tests for both declaration orders using the agreed Mermaid parity expectations. Do not assume that both orders must produce identical ranks.\n- Check that existing acyclic cluster-exit and feedback-edge behavior remains intact.\n\nRequested by @dfadler.\n\nPR: https://github.com/dfadler/zombie-mermaid/pull/2796\nReview comment: https://github.com/dfadler/zombie-mermaid/pull/2796#discussion_r4498124277",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/3053",
+    "number": 3053,
+    "title": "ASCII: duplicate self-loops in a subgraph with its own direction override draw one hook (#2913 residual)",
+    "author": "dfadler",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-11-12T21:44:53Z",
+    "updated_at": "2026-11-16T02:52:18Z",
+    "closed_at": "2026-11-16T02:52:18Z",
+    "comment_count": 3,
+    "body": "Split from #2913 (bullet 1 residual). Checked against mermaid@12.3.0 only (not checked on GitHub / mermaid.live).\n\nA subgraph with its own `direction` override that differs from the diagram's still draws a loop on a member wrongly, single or duplicate. mermaid@12.3.0 (`scripts/lib/real-mermaid.ts`) honours the override and nests one hook per loop over the top of the node:\n\n```mermaid\nflowchart TD\n    subgraph S\n        direction LR\n        a --> b\n        b --> b\n        b --> b\n    end\n```\n\nOurs (identical on main before and after the nested-subgraph-loop PR):\n\n```\n┌───────────────────┐\n│         S         │\n│                   │\n│                   │\n│ ┌───┐     ┌───┐   │\n│ │   │     │   │   │\n│ │ a ├────►│ b ├─┐ │\n│ │   │     │   │ │ │\n│ └───┘     └───┘ │ │\n│             ▲   │ │\n└─────────────┴───┴─┘\n```\n\nOne hook out of the right face, crossing the frame's bottom wall; topology gate faces 2/6 and hooks 1/2 for this source. Cause: the loop nesting helpers in `grid.ts` (`nestedLoops`, `nestStride`, `nestInset`) and the margin pass read `graph.config.graphDirection`, not the frame's effective direction, so a TD grid carrying an LR frame sizes no top gutter. This is a renderer gap, not a target limit.\n\nDone when: the source above, and labelled, diamond and nested-frame variants, score exact in the gate's `subgraph self-loop cases`, in all four outer directions.\n",
+    "comments_fetched": true,
+    "comments": [
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/3053#issuecomment-6871650626",
+        "author": "dfadler",
+        "id": 6871650626,
+        "created_at": null,
+        "updated_at": null,
+        "body": "https://github.com/dfadler/zombie-mermaid/pull/3114 fixes TD, LR and RL outer directions (nested hooks over the node, checked against mermaid@12.3.0). Left open: a BT outer. The frame's region flip mirrors an LR frame vertically under a BT root, so the hooks land below the node (and a multi-row LR frame's row order differs from mermaid, which keeps b above c). Unflipping the cross axis moved the frame title to the bottom, so I backed it out; needs its own look at `flipSubgraphRegions` in `flowchart.ts`. Labelled, diamond and nested-frame variants were not scored in the topology gate.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/3053#issuecomment-6905738788",
+        "author": "dfadler",
+        "id": 6905738788,
+        "created_at": null,
+        "updated_at": null,
+        "body": "The BT outer left open in the last comment is already fixed on `main` by [#3154](https://github.com/dfadler/zombie-mermaid/pull/3154) (commit 1efdf5c11: `flipSubgraphRegions` flips both axes back for a frame with its own direction, and the title follows the frame's direction).\n\nChecked on `main` at d8f5d0ca8 against mermaid@12.3.0 (the repo's installed `node_modules/mermaid`, rendered headless through `scripts/lib/real-mermaid.ts`):\n\n- `flowchart BT` with `subgraph S / direction LR / a --> b / b --> b / b --> b`: mermaid draws two nested hooks over the top of `b`. The ASCII render does the same, with the title at the top.\n- `flowchart BT` with `a --> b` and `a --> c` in an LR frame: mermaid keeps `b` above `c`. The ASCII render does too.\n- For six frame bodies (two loops, labelled loops, diamond member, nested frame, fan-out with loops, an RL frame), under both ELK hints and the unhinted grid, the BT output is byte-identical to the TD output, and TD is what #3114 matched.\n\nRegression coverage for the BT root is in `ascii-subgraph-self-loops-3053-3068.test.ts`. No code change needed, so there is no PR from this session. The issue's scope looks met; leaving it open for the owner to close.\n"
+      },
+      {
+        "url": "https://github.com/dfadler/zombie-mermaid/issues/3053#issuecomment-6905951541",
+        "author": "dfadler",
+        "id": 6905951541,
+        "created_at": null,
+        "updated_at": null,
+        "body": "Closing as completed: the BT outer case is fixed on main by #3154; findings in the comment above."
+      }
+    ]
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/3144",
+    "number": 3144,
+    "title": "ASCII: cluster-exit labels share one row in mermaid (general-30); #1148 and #1331 say otherwise",
+    "author": "dfadler",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-11-14T16:28:44Z",
+    "updated_at": "2026-11-14T19:18:30Z",
+    "closed_at": null,
+    "comment_count": 1,
+    "body": "Split from #3049 (general-30, State: Composite States, TD). Findings are in [this comment](https://github.com/dfadler/zombie-mermaid/issues/3049#issuecomment-6880613198). Checked against mermaid@12.3.0 headless (`scripts/lib/real-mermaid.ts`); not checked on GitHub or mermaid.live.\n\n## Problem\n\nmermaid puts `done` and `fail` on the same row (y 505), `done` left (x 80 vs 194). Ours has `fail` on the jog row under the cluster wall (row 46) and `done` pulled toward its target (row 55).\n\nBoth are cluster-exit edges, so `determineLabelLine` returns early for them. The row split comes from the gutter jog sitting just under the wall plus `pullTowardTarget` (`draw-arrows.ts`). mermaid also puts all labels of a staircase on one row: flowchart `S -->|one| X`, `|two| Y`, `|three| Z` are all at y=187.\n\n## Decision\n\nTwo deliberate tests assert separate rows, which contradicts mermaid: `ascii-cluster-exit-anchoring-1148.test.ts` (\"done and fail labels do not share a row\") and `ascii-cluster-exit-staircase-1331.test.ts` (\"every sibling's label sits on its own row\"). Reversing them is the owner's call.\n\n## Needed, if reversed\n\nAll exits' labels of a cluster share one row, the first jog row (straight and jogged alike). The gap under the wall shrinks: its 9 rows come from `widenClusterGutters` growing until the pulled `done` label clears, so they go away once the pull does. Re-baseline the cluster-exit samples (SVG and ASCII).\n\nA 69-line prototype (`done` takes a jogged sibling's row, `draw-arrows.ts` only) fixes general-30's order and breaks 5 tests in 3 files (the sample's two snapshots plus those two), but with three exits it puts `two` on `three`'s row and leaves `one` apart, so it is neither distinct nor aligned. Moving the jog to mid-gap while dropping the pull broke 18 tests in 6 files, including an arrowhead with no line cell behind it (`ascii-lane-remaining-1826`).\n\n## Done when\n\ngeneral-30 reads `done` then `fail` on one row, as mermaid@12.3.0 draws it, and #1148's and #1331's assertions are changed on purpose.\n\nRefs #3049.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/3149",
+    "number": 3149,
+    "title": "ASCII: place nodes by ELK's continuous cross offset, not a snapped slot",
+    "author": "dfadler",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-11-14T18:59:35Z",
+    "updated_at": "2026-11-14T18:59:35Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "## Problem\n\n`trackSlots` in `packages/ascii-renderer/src/grid.ts` snaps ELK's cross-axis centres to even cells (`2 * Math.round(((cross - origin) / unit) * 2)`, 50 units). Nodes less than about 25 units apart in ELK end up in one column, where mermaid@12.3.0 offsets them by half a box.\n\nReproduction (from #3147, BT flowchart): n1 and n5 share a column in the ASCII render. In mermaid@12.3.0, n5 sits about 0.4 box right of n1.\n\n```mermaid\nflowchart BT\n  n2([\"IwjRJr\"])\n  n1 -->|0| n3\n  n6 -.->|0| n1\n  n6 -.->|0| n3\n  n5 -.->|0| n1\n  n3 ---|ccc| n1\n  n4 ==>|ccc| n6\n  n6 -->|a| n5\n  n4 --- n3\n  n4 ==> n4\n```\n\n## What was tried (none shipped)\n\nChecked on origin/main `c7ef08ddf`, over 83 flowchart/state gallery and fork-fix samples, ASCII drawn centres against mermaid@12.3.0 node centres (headless, `scripts/lib/real-mermaid.ts`).\n\n| Rule | Samples moved | Closer | Farther | Topology gate |\n|---|---|---|---|---|\n| Global `round(x*4)` | 32 | 20 | 8 | arrowheads 400/401 |\n| Fine cell only if no layer push occurs, else even | 28 | 20 | 5 | arrowheads 400/401, TD/BT 394/401 |\n| Fine cell when an edge neighbour in another layer shares the even cell and fine cells differ by >=1 | 27 | 14 | 7 | arrowheads 400/401, TD/BT 394 |\n| Same, fine cells differ by >=2 | 5 | 3 | 2 (incl. this sample) | arrowheads 401/401 |\n\nA finer snap does not close the gap: an odd cell makes a narrow column, so n5 lands about 0.9 box from n1 (mermaid: about 0.4). The per-layer push (`next = at + 4`) also splits chains that mermaid keeps aligned.\n\n## Proposal\n\nDerive column widths from ELK's continuous cross offsets instead of snapping to slots. Gate: `scripts/ascii-topology.ts` stays 104/104 exact with arrowheads 401/401, and per-sample parity against mermaid@12.3.0 improves.\n\nRelated: #2645, #3147.\n",
+    "comments_fetched": false,
+    "comments": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/3161",
+    "number": 3161,
+    "title": "ASCII: parallel lanes out of a decision leave in the wrong order and cross (BT/TD, VW 38 Fp Zq)",
+    "author": "dfadler",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-11-14T21:29:21Z",
+    "updated_at": "2026-11-14T21:29:21Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "Found in review of #3155. In `flowchart BT` with a decision and two pairs of parallel edges, the ASCII output has the `Zq` stroke crossing the `Fp` stroke. mermaid@12.3.0 does not cross them: its ports leave the decision in order VW, 38, Fp, Zq, each stroke rising beside its neighbour.\n\n```mermaid\nflowchart BT\n  n1[\"F1\"]\n  n2[\"l2\"]\n  n3{\"3D\"}\n  n3 -.->|VW| n2\n  n3 ---|38| n2\n  n3 -->|Fp| n1\n  n3 ==>|Zq| n1\n```\n\nAfter #3155 the stray `+` and the overwritten text are gone, but the ports leave the decision as 38, VW, Zq, Fp: `Zq` starts left of `Fp` and its lane runs right across `Fp`'s vertical to reach `F1`'s right-hand arrow. The lanes of a parallel group are placed by `placeFace` (`port-offsets.ts`) in grid nesting order, not ELK's order along the face; for the lane ends in this source the hint order is not used (a first attempt to rank lane ends by `edgeHints` order did not change the result, because only `Fp`'s end reached that path). TD shows the same crossing.\n",
+    "comments_fetched": true,
+    "comments": [],
+    "selected_timeline_events": []
+  },
+  {
+    "url": "https://github.com/dfadler/zombie-mermaid/issues/3238",
+    "number": 3238,
+    "title": "ASCII LR/RL cluster-exit fans: wide labels rank the outer siblings' legs the other way from mermaid@12.3.0",
+    "author": "dfadler",
+    "state": "open",
+    "state_reason": null,
+    "created_at": "2026-11-18T17:28:59Z",
+    "updated_at": "2026-11-18T17:28:59Z",
+    "closed_at": null,
+    "comment_count": 0,
+    "body": "Left over from the LR/RL cluster-exit fans of #2886 (mermaid@12.3.0, strict tie rule).\n\n**Case:** a cluster with five labelled edges to one target and wide labels (`first label`, `second`, an unlabelled one, `fourth`, `fifth one`) plus `S --> U`, in `flowchart LR`.\n\n**Real (mermaid@12.3.0), bend of each S->T edge:** 0.92, 0.84, 0.32, 0.24, 0.92 and 0.08 for `S --> U`. The fourth edge dips shallowly under T (its rise is the longest leg), where the grid draws it as a deep dip with the drop longest (0.82).\n\n**Cause:** the grid follows the ELK hint, and our hint layout (`layoutFlowchartSync`) boxes edge labels at the drawn 11px, not mermaid's 16px, so with wide labels it ranks the fourth edge's legs the other way. The layout-only option `layoutEdgeLabelFontSize` fixes this for the ASCII provider's real-size layout, but the layout the hints are read from keeps the legacy sizes for graphs without a fan. The SVG layout has the same difference, see #3235.\n\n**Also open, a target limit:** `Five Cluster Exit Siblings` LR edge #3 is a straight stroke in the grid. Real draws a 7px dogleg ([404,113] to [543,113], [543,120], [603,120], bend 0.70), under the half cell the grid can show.\n",
+    "comments_fetched": false,
+    "comments": []
+  }
+]

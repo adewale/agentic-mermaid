@@ -1,0 +1,68 @@
+[
+  {
+    "file": "bm52-original.png",
+    "page": "https://github.com/lukilabs/beautiful-mermaid/issues/52",
+    "source": "https://github.com/user-attachments/assets/1dab380c-278b-43e5-a9b1-8ce9e39a88a8",
+    "sha256": "7466f2f46a9f86f2a5ab61f58ae1fee376a4612c5461724f01270022453a525e",
+    "pixel_dimensions": [
+      2278,
+      1078
+    ],
+    "bytes": 93598
+  },
+  {
+    "file": "bm52-author-preferred.png",
+    "page": "https://github.com/lukilabs/beautiful-mermaid/issues/52",
+    "source": "https://github.com/user-attachments/assets/181c18fb-f645-434e-a605-6f0a6feead62",
+    "sha256": "6bbd900d288f86b636a91dc12c1cf4d71d518a1dbfbcc39917501cf889b62642",
+    "pixel_dimensions": [
+      3566,
+      1164
+    ],
+    "bytes": 360904
+  },
+  {
+    "file": "bm83-bm113.png",
+    "page": "https://github.com/lukilabs/beautiful-mermaid/issues/83#issuecomment-6041376503",
+    "source": "https://github.com/user-attachments/assets/95f1a97b-17f1-47ab-b610-b7edd35d2535",
+    "sha256": "8e2d2b8271152f29f6be47148a775b12b192c7db725abeaacae062bb57b3ef68",
+    "pixel_dimensions": [
+      7326,
+      1302
+    ],
+    "bytes": 428944
+  },
+  {
+    "file": "bm83-zm420.png",
+    "page": "https://github.com/lukilabs/beautiful-mermaid/issues/83#issuecomment-6041376503",
+    "source": "https://github.com/user-attachments/assets/67ab7460-ad42-4da1-9d5f-4516e4aecd67",
+    "sha256": "601ad55d0d8ae61218aa5764aedc61d00638d7a570acd09ea16a122dcb7db426",
+    "pixel_dimensions": [
+      1978,
+      6746
+    ],
+    "bytes": 505284
+  },
+  {
+    "file": "zm3185-before.png",
+    "page": "https://github.com/dfadler/zombie-mermaid/pull/3185",
+    "source": "https://github.com/user-attachments/assets/b272a092-b681-4f7f-aca9-037c9c1be2ae",
+    "sha256": "31954853ab773d1911c27bad91f2a6733facd94864c42308d71e87dae771aa7d",
+    "pixel_dimensions": [
+      207,
+      399
+    ],
+    "bytes": 6595
+  },
+  {
+    "file": "zm3185-after.png",
+    "page": "https://github.com/dfadler/zombie-mermaid/pull/3185",
+    "source": "https://github.com/user-attachments/assets/c4a8ba74-e759-4ff9-9f28-b66bea1dc963",
+    "sha256": "cd0d2afbff7f1eb3317c456839e1f72615c4d1837a1ec1fc59de4a1f6f625a5e",
+    "pixel_dimensions": [
+      194,
+      399
+    ],
+    "bytes": 6497
+  }
+]

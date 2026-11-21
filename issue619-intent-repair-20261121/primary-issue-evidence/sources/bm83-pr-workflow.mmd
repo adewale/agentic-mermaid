@@ -1,0 +1,11 @@
+flowchart TD
+  A["Label an issue ready-for-agent and assign it to yourself"] --> B["Run: kb run --agent claude"]
+  B --> C["krutrimbox creates a branch from a clean origin ref"]
+  C --> D["Creates an isolated sandbox with a private clone of your repo"]
+  D --> E["A fresh agent session implements the next issue"]
+  E --> F["krutrimbox commits and pushes it from your host"]
+  F --> G["Opens or updates a draft pull request"]
+  G --> H{"More issues in the sequence?"}
+  H -- yes --> E
+  H -- no --> I["Final review pass; PR marked ready for review"]
+  I --> J["You review and merge — GitHub closes the issues"]

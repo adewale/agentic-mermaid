@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 424 216" width="424" height="216" role="img" style="--bg:#FFFFFF;--fg:#27272A;--muted:#71717A;background:var(--bg)">
+<style>
+  text { font-family: 'trebuchet ms', 'verdana', 'arial', sans-serif, system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+  @media (prefers-contrast: more) {
+    svg { --_node-stroke: var(--fg); --_inner-stroke: var(--fg); --_line: var(--fg); --_arrow: var(--fg); --_text-sec: var(--fg); --_text-muted: var(--fg); --_text-faint: var(--fg); }
+  }
+  @media (forced-colors: active) {
+    svg { --_node-stroke: CanvasText; --_inner-stroke: CanvasText; --_line: CanvasText; --_arrow: CanvasText; --_text-sec: CanvasText; --_text-muted: CanvasText; --_text-faint: CanvasText; }
+  }
+</style>
+<defs>
+  <marker id="zmu3fvpz-arrowhead" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="zmu3fvpz-arrowhead-start" markerWidth="10.5" markerHeight="12.8" refX="9.5" refY="6.4" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+    <polygon points="0 0, 10.5 6.4, 0 12.8" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<path class="edge" data-from="A" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 78 88 L 78 128" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmu3fvpz-arrowhead)" />
+<path class="edge" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 308 88 L 308 128" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmu3fvpz-arrowhead)" />
+<path class="edge" data-from="A" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 116 88 L 116 128" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmu3fvpz-arrowhead)" />
+<path class="edge" data-from="D" data-to="A" data-style="solid" data-arrow-start="false" data-arrow-end="true" d="M 154 128 L 154 88" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#zmu3fvpz-arrowhead)" />
+<g class="node" data-id="A" data-label="One" data-shape="rectangle">
+  <rect x="40" y="40" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="116" y="64" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">One</text>
+</g>
+<g class="node" data-id="B" data-label="Two" data-shape="rectangle">
+  <rect x="232" y="40" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="308" y="64" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Two</text>
+</g>
+<g class="node" data-id="C" data-label="Three" data-shape="rectangle">
+  <rect x="232" y="128" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="308" y="152" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Three</text>
+</g>
+<g class="node" data-id="D" data-label="Four" data-shape="rectangle">
+  <rect x="40" y="128" width="152" height="48" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="116" y="152" text-anchor="middle" font-size="16" font-weight="500" fill="var(--_text)" dy="5.6">Four</text>
+</g>
+</svg>

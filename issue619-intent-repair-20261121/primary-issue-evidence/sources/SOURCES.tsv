@@ -1,0 +1,24 @@
+filename	GitHub source	reporter	issue opened (UTC)	state	issue closed (UTC)	extraction
+bm52-wallet.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/52	leslie555	2026-02-27T03:18:56Z	open	open	issue body Mermaid fence 1
+bm111-labelled-fan.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/111	rmvegasm	2026-05-19T19:34:37Z	open	open	issue body Mermaid fence 1
+bm25-program-loop.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/25	luojunhui1	2026-02-02T04:40:55Z	closed	2026-02-23T11:17:51Z	issue body Mermaid fence 1
+bm83-approval-loops.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/83	jiezhengj	2026-04-02T04:17:53Z	closed	2026-10-09T12:13:21Z	issue body Mermaid fence 1
+zm629-round-trip.mmd	https://github.com/dfadler/zombie-mermaid/issues/629	theimpostor	2026-09-07T16:03:02Z	closed	2026-09-08T19:33:47Z	issue body Mermaid fence 1
+zm1392-labelled-fan-in.mmd	https://github.com/dfadler/zombie-mermaid/issues/1392	theimpostor	2026-10-07T16:48:11Z	closed	2026-10-07T19:27:27Z	issue body Mermaid fence 1
+zm3161-parallel-decision.mmd	https://github.com/dfadler/zombie-mermaid/issues/3161	dfadler	2026-11-14T21:29:21Z	open	open	issue body Mermaid fence 1
+zm1239-ci.mmd	https://github.com/dfadler/zombie-mermaid/issues/1239	dfadler	2026-10-01T06:48:56Z	closed	2026-10-08T17:09:33Z	issue body Mermaid fence 1
+zm1239-git.mmd	https://github.com/dfadler/zombie-mermaid/issues/1239	dfadler	2026-10-01T06:48:56Z	closed	2026-10-08T17:09:33Z	issue body Mermaid fence 2
+zm1240-state-lifecycle.mmd	https://github.com/dfadler/zombie-mermaid/issues/1240	dfadler	2026-10-01T06:48:58Z	closed	2026-10-01T19:30:24Z	issue body Mermaid fence 2
+zm1467-seven-labels.mmd	https://github.com/dfadler/zombie-mermaid/issues/1467	dfadler	2026-10-09T17:10:31Z	closed	2026-10-09T20:34:55Z	issue body Mermaid fence 1
+bm68-fan-in.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/68	ktrysmt	2026-03-18T15:31:11Z	open	open	issue body Mermaid fence 1
+zm2071-dense-duplicates.mmd	https://github.com/dfadler/zombie-mermaid/issues/2071	dfadler	2026-10-14T21:16:00Z	closed	2026-10-23T18:53:09Z	issue body Mermaid fence 1
+bm11-start-stop.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/11	peterc	2026-01-29T22:55:10Z	closed	2026-02-23T11:17:48Z	issue body Mermaid fence 1
+bm138-nested-devtools.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/138	brc-dd	2026-07-18T08:47:48Z	open	open	issue body Mermaid fence 1
+bm63-ambiguous-branch.mmd	https://github.com/lukilabs/beautiful-mermaid/pull/63	tegonzalez	2026-03-16T07:18:28Z	open	open	PR body Mermaid fence 1
+bm83-pr-workflow.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/83#issuecomment-4744036064	jd-solanki	2026-06-18T16:26:35Z	closed	2026-10-09T12:13:21Z	comment Mermaid fence 1; date belongs to comment
+bm65-late-roots.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/65	ktrysmt	2026-03-18T14:38:22Z	open	open	source string in issue body TypeScript reproduction
+zm2656-er-parts.mmd	https://github.com/dfadler/zombie-mermaid/issues/2656	dfadler	2026-11-04T21:55:20Z	closed	2026-11-05T02:49:10Z	issue body Mermaid fence 1
+zm3053-nested-loops.mmd	https://github.com/dfadler/zombie-mermaid/issues/3053	dfadler	2026-11-12T21:44:53Z	closed	2026-11-16T02:52:18Z	issue body Mermaid fence 1
+bm144-explicit-order.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/144	brandonburrus	2026-08-18T16:44:01Z	closed	2026-08-19T21:46:44Z	issue body Mermaid fence 1
+bm144-local-direction.mmd	https://github.com/lukilabs/beautiful-mermaid/issues/144	brandonburrus	2026-08-18T16:44:01Z	closed	2026-08-19T21:46:44Z	issue body Mermaid fence 2
+zm1393-bypass.mmd	https://github.com/dfadler/zombie-mermaid/issues/1393	theimpostor	2026-10-07T16:48:13Z	closed	2026-10-07T19:27:08Z	issue body Mermaid fence 1

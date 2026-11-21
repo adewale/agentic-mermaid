@@ -1,0 +1,86 @@
+{
+  "base": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "candidate": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "compression": "sum of each fetched file; gzip level 9; Brotli quality 11",
+  "flowchart": {
+    "before": {
+      "requests": 26,
+      "elk": true,
+      "raw": 1096030,
+      "gzip": 352667,
+      "brotli": 300014,
+      "static": {
+        "requests": 25,
+        "raw": 876240,
+        "gzip": 290135,
+        "brotli": 248190
+      }
+    },
+    "after": {
+      "requests": 26,
+      "elk": true,
+      "raw": 1097438,
+      "gzip": 353084,
+      "brotli": 300261,
+      "static": {
+        "requests": 25,
+        "raw": 877648,
+        "gzip": 290552,
+        "brotli": 248437
+      }
+    },
+    "gzipDelta": 417
+  },
+  "budgetedFlowchart": {
+    "before": {
+      "requests": 27,
+      "elk": true,
+      "raw": 1196138,
+      "gzip": 383916,
+      "brotli": 327853
+    },
+    "after": {
+      "requests": 27,
+      "elk": true,
+      "raw": 1197546,
+      "gzip": 384333,
+      "brotli": 328100
+    }
+  },
+  "initial": {
+    "before": {
+      "requests": 5,
+      "raw": 16293,
+      "gzip": 6249,
+      "brotli": 5538
+    },
+    "after": {
+      "requests": 5,
+      "raw": 16288,
+      "gzip": 6247,
+      "brotli": 5543
+    }
+  },
+  "elkTransfer": {
+    "before": {
+      "raw": 219984,
+      "gzip": 62699,
+      "brotli": 51951
+    },
+    "after": {
+      "raw": 219984,
+      "gzip": 62699,
+      "brotli": 51951
+    }
+  },
+  "npm": {
+    "archiveBefore": 7104337,
+    "archiveAfter": 7107924,
+    "archiveDelta": 3587,
+    "unpackedBefore": 21019620,
+    "unpackedAfter": 21024746,
+    "unpackedDelta": 5126,
+    "filesBefore": 270,
+    "filesAfter": 270
+  }
+}

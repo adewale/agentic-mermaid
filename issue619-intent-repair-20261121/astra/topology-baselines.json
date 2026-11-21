@@ -1,0 +1,1943 @@
+{
+  "scope": "Source and physical contact are independent. Counts exclude invisible shafts and self-loops; sameDockAndRayPairs require same terminal and same unit arrival direction to 5 decimals for distinct sources, within targets whose source outgoing destination sets differ somewhere. Includes typed endpoint and route labels, not general common paint or interpreted transfer attribution. Primary-only uses retained route class, not same-side source ray. Numeric graph results come solely from already emitted geometry.",
+  "records": [
+    {
+      "product": "bm52-wallet-ours-balanced",
+      "svgSHA256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 1,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 1,
+      "hubs": {
+        "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb"
+              ],
+              "sourceSetsDiffer": false,
+              "primarySourceSetsDiffer": false,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "product": "bm52-wallet-ours-default",
+      "svgSHA256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 1,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 1,
+      "hubs": {
+        "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb"
+              ],
+              "sourceSetsDiffer": false,
+              "primarySourceSetsDiffer": false,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+              ],
+              "sources": [
+                "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+                "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                508.8595,
+                125.14167,
+                1.0,
+                0.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "product": "bm83-workflow-ours-balanced",
+      "svgSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 11,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 0,
+      "hubs": {
+        "C": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "C1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "D": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "D1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "E": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "E1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "F": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "F1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "G": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "G1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "I1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "bm83-workflow-ours-default",
+      "svgSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 11,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 0,
+      "hubs": {
+        "C": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "C1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "D": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "D1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "E": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "E1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "F": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "F1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "G": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "G1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "I1": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "duplicate-ours-balanced",
+      "svgSHA256": "806b6c2266ff171fa53a105065cdeeb6f02c4e84d6057789de682d8729e58a54",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 0,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 0,
+      "hubs": {}
+    },
+    {
+      "product": "duplicate-ours-default",
+      "svgSHA256": "48db84e52d14814cb525a7ebbcef5a549dfcb0e0a1a92ebb0df9cce7e6b18c7c",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 0,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 0,
+      "hubs": {}
+    },
+    {
+      "product": "nineteen-body-ours-balanced",
+      "svgSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 4,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n13": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n14": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n14",
+                "n0->n14"
+              ],
+              "sources": [
+                "n10",
+                "n0"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n10",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n0->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n0",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n18": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n4->n18",
+                "n16->n18"
+              ],
+              "sources": [
+                "n4",
+                "n16"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1192.7044,
+                983.999,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n17": {
+          "incomingVisible": 5,
+          "distinctSources": 5,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n11->n17",
+                "n18->n17"
+              ],
+              "sources": [
+                "n11",
+                "n18"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n11->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n11",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n18->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n18",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n15": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n10": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "nineteen-body-ours-default",
+      "svgSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 4,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n13": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n14": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n14",
+                "n0->n14"
+              ],
+              "sources": [
+                "n10",
+                "n0"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n10",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n0->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n0",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                372.155,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n18": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n4->n18",
+                "n16->n18"
+              ],
+              "sources": [
+                "n4",
+                "n16"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1192.7044,
+                983.999,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n17": {
+          "incomingVisible": 5,
+          "distinctSources": 5,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n11->n17",
+                "n18->n17"
+              ],
+              "sources": [
+                "n11",
+                "n18"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n11->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n11",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n18->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n18",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1311.439,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n15": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n10": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "nineteen-ours-balanced",
+      "svgSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 4,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n13": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n14": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n14",
+                "n0->n14"
+              ],
+              "sources": [
+                "n10",
+                "n0"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n10",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n0->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n0",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n18": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n4->n18",
+                "n16->n18"
+              ],
+              "sources": [
+                "n4",
+                "n16"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1192.7044,
+                1019.399,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n17": {
+          "incomingVisible": 5,
+          "distinctSources": 5,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n11->n17",
+                "n18->n17"
+              ],
+              "sources": [
+                "n11",
+                "n18"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n11->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n11",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n18->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n18",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n15": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n10": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "nineteen-ours-default",
+      "svgSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 4,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n13": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n14": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n14",
+                "n0->n14"
+              ],
+              "sources": [
+                "n10",
+                "n0"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n10",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n0->n14",
+                "n2->n14"
+              ],
+              "sources": [
+                "n0",
+                "n2"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                683.69615,
+                407.555,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n18": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n4->n18",
+                "n16->n18"
+              ],
+              "sources": [
+                "n4",
+                "n16"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1192.7044,
+                1019.399,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n17": {
+          "incomingVisible": 5,
+          "distinctSources": 5,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n11->n17",
+                "n18->n17"
+              ],
+              "sources": [
+                "n11",
+                "n18"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n11->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n11",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            },
+            {
+              "incoming": [
+                "n18->n17",
+                "n5->n17"
+              ],
+              "sources": [
+                "n18",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                777.68355,
+                1346.839,
+                0.0,
+                1.0
+              ]
+            }
+          ]
+        },
+        "n15": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n10": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "seed135-ours-balanced",
+      "svgSHA256": "c60c2dd878db35b06876507eabb19a710e4baa9d455b283bb8bce8748e6ffd76",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 10,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 5,
+      "hubs": {
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n2": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n12->n2",
+                "n10->n2"
+              ],
+              "sources": [
+                "n12",
+                "n10"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1358.912,
+                114.06233,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n8": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n5->n8",
+                "n7->n8"
+              ],
+              "sources": [
+                "n5",
+                "n7"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                293.067,
+                364.278,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n1": {
+          "incomingVisible": 5,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n5->n3",
+                "n7->n3"
+              ],
+              "sources": [
+                "n5",
+                "n7"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                436.811,
+                218.98733,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n0": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n4->n0",
+                "n6->n0"
+              ],
+              "sources": [
+                "n4",
+                "n6"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1212.343,
+                267.62117,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n6": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n7": {
+          "incomingVisible": 3,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n0->n7#1",
+                "n4->n7"
+              ],
+              "sources": [
+                "n0",
+                "n4"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                900.339,
+                267.62117,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "product": "seed135-ours-default",
+      "svgSHA256": "b295eb953a34475a54ae03c4dcd409c1e46657edc53296c07e45d89eea3c8473",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 10,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n5": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n11": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n2": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n1": {
+          "incomingVisible": 5,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n9->n1",
+                "n5->n1#1"
+              ],
+              "sources": [
+                "n9",
+                "n5"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                164.123,
+                283.25408,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n9": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n5->n3",
+                "n7->n3"
+              ],
+              "sources": [
+                "n5",
+                "n7"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                true,
+                false
+              ],
+              "docking": [
+                449.561,
+                263.0855,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n0": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n6": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n7": {
+          "incomingVisible": 3,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n0->n7",
+                "n4->n7"
+              ],
+              "sources": [
+                "n0",
+                "n4"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                913.089,
+                119.05,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "product": "seed139-ours-balanced",
+      "svgSHA256": "0da06245b0a3ceb4b8dfb12cb7b973b0b3107dbea3319b5f4f34b14e5da5ff5c",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 3,
+      "hubs": {
+        "n12": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n11": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n11",
+                "n15->n11"
+              ],
+              "sources": [
+                "n10",
+                "n15"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                908.567,
+                130.02097,
+                -1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n11",
+                "n8->n11"
+              ],
+              "sources": [
+                "n10",
+                "n8"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                908.567,
+                130.02097,
+                -1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "n15->n11",
+                "n8->n11"
+              ],
+              "sources": [
+                "n15",
+                "n8"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                908.567,
+                130.02097,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n13": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n8->n13",
+                "n15->n13"
+              ],
+              "sources": [
+                "n8",
+                "n15"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                true
+              ],
+              "docking": [
+                1033.52,
+                363.3623,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n14": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n5->n14",
+                "n9->n14"
+              ],
+              "sources": [
+                "n5",
+                "n9"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                427.392,
+                514.11947,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n7": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n9": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n1": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n5": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n16": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    },
+    {
+      "product": "seed139-ours-default",
+      "svgSHA256": "41c85c5e8a2ccc1cd15242b6f3e90635bbd36d875b59091a481b3359362a4af2",
+      "asymmetricHubsByAllVisibleOutgoingTargetSets": 12,
+      "asymmetricHubsWithAnyExactlyCoincidentIncomingDock": 4,
+      "hubs": {
+        "n12": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n11": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n11",
+                "n15->n11"
+              ],
+              "sources": [
+                "n10",
+                "n15"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1030.602,
+                533.25567,
+                -1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "n10->n11",
+                "n8->n11"
+              ],
+              "sources": [
+                "n10",
+                "n8"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1030.602,
+                533.25567,
+                -1.0,
+                0.0
+              ]
+            },
+            {
+              "incoming": [
+                "n15->n11",
+                "n8->n11"
+              ],
+              "sources": [
+                "n15",
+                "n8"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1030.602,
+                533.25567,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n13": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n10->n13",
+                "n8->n13"
+              ],
+              "sources": [
+                "n10",
+                "n8"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1200.279,
+                502.51567,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n14": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n5->n14",
+                "n9->n14"
+              ],
+              "sources": [
+                "n5",
+                "n9"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                450.642,
+                482.84317,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n7": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": [
+            {
+              "incoming": [
+                "n15->n7",
+                "n13->n7"
+              ],
+              "sources": [
+                "n15",
+                "n13"
+              ],
+              "sourceSetsDiffer": true,
+              "primarySourceSetsDiffer": true,
+              "bothPrimary": true,
+              "labelled": [
+                false,
+                false
+              ],
+              "docking": [
+                1032.084,
+                676.72233,
+                -1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "n9": {
+          "incomingVisible": 4,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n3": {
+          "incomingVisible": 4,
+          "distinctSources": 4,
+          "sameDockAndRayPairs": []
+        },
+        "n1": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        },
+        "n5": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n4": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n16": {
+          "incomingVisible": 2,
+          "distinctSources": 2,
+          "sameDockAndRayPairs": []
+        },
+        "n8": {
+          "incomingVisible": 3,
+          "distinctSources": 3,
+          "sameDockAndRayPairs": []
+        }
+      }
+    }
+  ]
+}

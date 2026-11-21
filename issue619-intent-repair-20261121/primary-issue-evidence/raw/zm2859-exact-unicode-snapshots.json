@@ -1,0 +1,20 @@
+{
+  "before": {
+    "url": "https://github.com/dfadler/zombie-mermaid/blob/437aae450d7b5a8549c943f53745647fb3a7da51/__tests__/__ascii-snapshots__/unicode/general-er-er-mixed-identifying-non-identifying.txt",
+    "gitBlobSha": "ec371def41c8c54f88da9981b51c5d45987b650b",
+    "width": 62,
+    "height": 16,
+    "nonblankRows": 14,
+    "cells": 992,
+    "content": "┌───────┐            ┌─────────┐                              \n│ ORDER │            │ PRODUCT │                              \n└───────┘            └─────────┘                              \n ┼     ┼              ┼       ┼                               \n │     ┊              │       ┊                               \n │     └╌ ships-via ╌╌┼╌╌╌╌╌╌╌┊                               \n contains             │       └╌╌╌╌╌╌ receives ╌╌╌╌╌╌┐        \n │                    │       ┊                      ┊        \n │         ┌ includes ┘       ┊                      ┊        \n │         ○                  ○                      ○        \n ╧         ╧                  ╧                      ╧        \n┌───────────┐           ┌──────────┐            ┌────────┐    \n│ LINE_ITEM │           │ SHIPMENT │            │ REVIEW │    \n└───────────┘           └──────────┘            └────────┘    \n                                                              \n                                                              \n"
+  },
+  "after": {
+    "url": "https://github.com/dfadler/zombie-mermaid/blob/5d18414c2260e3d103baed863faffaa96a8802a2/__tests__/__ascii-snapshots__/unicode/general-er-er-mixed-identifying-non-identifying.txt",
+    "gitBlobSha": "8220a3e7020491ef26fa78393debb050f6f0173e",
+    "width": 61,
+    "height": 17,
+    "nonblankRows": 15,
+    "cells": 1037,
+    "content": "           ┌─────────┐             ┌───────┐                 \n           │ PRODUCT │             │ ORDER │                 \n           └─────────┘             └───────┘                 \n            ┼       ┼               ┼     ┼                  \n            ┊       │               │     ┊                  \n            ┊       └─┐             │     └╌╌╌╌╌╌╌╌┐         \n            ┊         │             │              ┊         \n         receives  includes      contains      ships-via     \n            ┊         │             │              ┊         \n     ┌╌╌╌╌╌╌┘         │         ┌───┘              ┊         \n     ○                ○         │                  ○         \n     ╧                ╧         ╧                  ╧         \n┌────────┐           ┌───────────┐           ┌──────────┐    \n│ REVIEW │           │ LINE_ITEM │           │ SHIPMENT │    \n└────────┘           └───────────┘           └──────────┘    \n                                                             \n                                                             \n"
+  }
+}

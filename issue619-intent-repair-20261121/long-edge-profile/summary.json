@@ -1,0 +1,567 @@
+[
+  {
+    "span": 2,
+    "authoredEdges": 189,
+    "generatedDummiesPerLayout": 94.0,
+    "copiedOptionEntriesPerLayout": 0.0,
+    "copiedOptionMapHistogramAcross9": {
+      "LONG_EDGE:0": 846
+    },
+    "median9LayoutMs": 30.847622,
+    "coldLayoutMs": 87.80423099999999,
+    "warm8LayoutMedianMs": 26.129843000000022,
+    "median9ConsumedJsonMs": 31.46084499999995,
+    "peakWholeProcessRssMiB": 141.4453125,
+    "lastHeapMiB": 16.95703125,
+    "qualifiedOutputHash": "34826bb1576d954c3a14ff54d2bd042e0409de9e6cfed1f3a3e0fe0373fa0774",
+    "all18TimingAndProfileHashesMatchQualified": true,
+    "cpuSampledMs": {
+      "other setup/solver/harness": 146.767,
+      "garbage collection": 46.641000000000005,
+      "diagnostic observers": 10.459000000000001,
+      "splitting": 3.286,
+      "crossing minimization": 197.7939999999998,
+      "node placement": 21.556000000000004,
+      "orthogonal routing": 20.789
+    },
+    "cpuFractionPercent": {
+      "other setup/solver/harness": 32.81234629727338,
+      "garbage collection": 10.42741654221404,
+      "diagnostic observers": 2.338293553204619,
+      "splitting": 0.7346431413930948,
+      "crossing minimization": 44.22033034348924,
+      "node placement": 4.8192232367223236,
+      "orthogonal routing": 4.6477468857033015
+    },
+    "sampledAllocationBytes": {
+      "other setup/solver/harness": 39536080,
+      "diagnostic observers": 6544624,
+      "crossing minimization": 204083440,
+      "splitting": 3685776,
+      "joining": 517304,
+      "orthogonal routing": 16061480,
+      "node placement": 14497296
+    },
+    "sampledAllocationTotalBytes": 284926000,
+    "largestSampledAllocatingFunctions": [
+      [
+        "next",
+        48147120
+      ],
+      [
+        "sort",
+        45197984
+      ],
+      [
+        "distributePorts",
+        30430368
+      ],
+      [
+        "calculatePortRanks",
+        19511640
+      ],
+      [
+        "initPositions",
+        18618992
+      ],
+      [
+        "filter",
+        11592288
+      ],
+      [
+        "processConstraints",
+        10482280
+      ],
+      [
+        "calculateBarycenter",
+        10228272
+      ],
+      [
+        "values",
+        8248952
+      ],
+      [
+        "countAllCrossings",
+        7326944
+      ],
+      [
+        "countCrossingsOnPorts",
+        4616712
+      ],
+      [
+        "",
+        4378096
+      ]
+    ],
+    "phaseCounters": {
+      "before-splitting": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 378,
+        "edges": 189,
+        "rankDelta": 94,
+        "maximumLayerWidth": 1,
+        "heapUsed": 16062064
+      },
+      "after-splitting": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 16647368
+      },
+      "before-crossing": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 17632992
+      },
+      "after-crossing": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 16098256
+      },
+      "before-placement": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 17120448
+      },
+      "after-placement": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 17827480
+      },
+      "before-routing": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 17867320
+      },
+      "after-routing": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 18994072
+      },
+      "before-joining": {
+        "nodes": 190,
+        "dummies": 94,
+        "ports": 566,
+        "edges": 283,
+        "rankDelta": 0,
+        "maximumLayerWidth": 2,
+        "heapUsed": 19120400
+      },
+      "after-joining": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 378,
+        "edges": 189,
+        "rankDelta": 94,
+        "maximumLayerWidth": 1,
+        "heapUsed": 19256512
+      }
+    }
+  },
+  {
+    "span": 8,
+    "authoredEdges": 183,
+    "generatedDummiesPerLayout": 616.0,
+    "copiedOptionEntriesPerLayout": 0.0,
+    "copiedOptionMapHistogramAcross9": {
+      "LONG_EDGE:0": 5544
+    },
+    "median9LayoutMs": 54.662373,
+    "coldLayoutMs": 148.999843,
+    "warm8LayoutMedianMs": 46.55578599999998,
+    "median9ConsumedJsonMs": 55.03964099999996,
+    "peakWholeProcessRssMiB": 153.9609375,
+    "lastHeapMiB": 45.691993713378906,
+    "qualifiedOutputHash": "c9aefdeb56df883d98ca729decd9003c8ebfa2bc8930553954dab7fe8b99ad29",
+    "all18TimingAndProfileHashesMatchQualified": true,
+    "cpuSampledMs": {
+      "other setup/solver/harness": 224.35500000000002,
+      "garbage collection": 137.84499999999994,
+      "splitting": 18.686999999999998,
+      "diagnostic observers": 17.201999999999998,
+      "crossing minimization": 453.79700000000025,
+      "node placement": 79.01299999999996,
+      "orthogonal routing": 41.164,
+      "joining": 3.2809999999999997
+    },
+    "cpuFractionPercent": {
+      "other setup/solver/harness": 23.002653422792367,
+      "garbage collection": 14.132962318935668,
+      "splitting": 1.9159394018930753,
+      "diagnostic observers": 1.7636854279105625,
+      "crossing minimization": 46.526866418412396,
+      "node placement": 8.101039223084364,
+      "orthogonal routing": 4.2204596532095335,
+      "joining": 0.3363941337620367
+    },
+    "sampledAllocationBytes": {
+      "other setup/solver/harness": 50796704,
+      "diagnostic observers": 9636600,
+      "crossing minimization": 366505800,
+      "splitting": 21051168,
+      "joining": 2947984,
+      "orthogonal routing": 33701688,
+      "node placement": 37238704
+    },
+    "sampledAllocationTotalBytes": 521878648,
+    "largestSampledAllocatingFunctions": [
+      [
+        "next",
+        77095152
+      ],
+      [
+        "calculatePortRanks",
+        67594208
+      ],
+      [
+        "initPositions",
+        64330528
+      ],
+      [
+        "sort",
+        42119376
+      ],
+      [
+        "distributePorts",
+        33553944
+      ],
+      [
+        "calculateBarycenter",
+        29943880
+      ],
+      [
+        "processConstraints",
+        18676864
+      ],
+      [
+        "filter",
+        14348224
+      ],
+      [
+        "countAllCrossings",
+        13183176
+      ],
+      [
+        "countCrossingsOnPorts",
+        11772608
+      ],
+      [
+        "concat",
+        10319488
+      ],
+      [
+        "values",
+        9303480
+      ]
+    ],
+    "phaseCounters": {
+      "before-splitting": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 366,
+        "edges": 183,
+        "rankDelta": 616,
+        "maximumLayerWidth": 1,
+        "heapUsed": 21150184
+      },
+      "after-splitting": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 23662760
+      },
+      "before-crossing": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 24583536
+      },
+      "after-crossing": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 23578936
+      },
+      "before-placement": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 25256320
+      },
+      "after-placement": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 30005360
+      },
+      "before-routing": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 30075328
+      },
+      "after-routing": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 33947320
+      },
+      "before-joining": {
+        "nodes": 712,
+        "dummies": 616,
+        "ports": 1598,
+        "edges": 799,
+        "rankDelta": 0,
+        "maximumLayerWidth": 8,
+        "heapUsed": 33948520
+      },
+      "after-joining": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 366,
+        "edges": 183,
+        "rankDelta": 616,
+        "maximumLayerWidth": 1,
+        "heapUsed": 34268904
+      }
+    }
+  },
+  {
+    "span": 24,
+    "authoredEdges": 167,
+    "generatedDummiesPerLayout": 1656.0,
+    "copiedOptionEntriesPerLayout": 0.0,
+    "copiedOptionMapHistogramAcross9": {
+      "LONG_EDGE:0": 14904
+    },
+    "median9LayoutMs": 154.274514,
+    "coldLayoutMs": 172.910077,
+    "warm8LayoutMedianMs": 119.07807349999999,
+    "median9ConsumedJsonMs": 154.47932300000002,
+    "peakWholeProcessRssMiB": 244.59375,
+    "lastHeapMiB": 106.86827850341797,
+    "qualifiedOutputHash": "4af1ee5b3aad5ec41128f93684a93b78a059974afeef1a67b6229a7165f68e96",
+    "all18TimingAndProfileHashesMatchQualified": true,
+    "cpuSampledMs": {
+      "other setup/solver/harness": 340.46099999999984,
+      "garbage collection": 289.055,
+      "diagnostic observers": 38.01899999999999,
+      "splitting": 46.449999999999996,
+      "crossing minimization": 964.0469999999999,
+      "node placement": 140.2289999999999,
+      "orthogonal routing": 77.25,
+      "joining": 14.845
+    },
+    "cpuFractionPercent": {
+      "other setup/solver/harness": 17.821861475033966,
+      "garbage collection": 15.130949414664077,
+      "diagnostic observers": 1.9901526207680664,
+      "splitting": 2.431483974714661,
+      "crossing minimization": 50.46425901769095,
+      "node placement": 7.340464290425445,
+      "orthogonal routing": 4.043748913815018,
+      "joining": 0.777080292887818
+    },
+    "sampledAllocationBytes": {
+      "other setup/solver/harness": 70687320,
+      "diagnostic observers": 14854112,
+      "crossing minimization": 687008960,
+      "splitting": 54866776,
+      "joining": 7276568,
+      "orthogonal routing": 65250608,
+      "node placement": 78649000
+    },
+    "sampledAllocationTotalBytes": 978593344,
+    "largestSampledAllocatingFunctions": [
+      [
+        "calculatePortRanks",
+        167845032
+      ],
+      [
+        "initPositions",
+        153078344
+      ],
+      [
+        "next",
+        108062232
+      ],
+      [
+        "calculateBarycenter",
+        67452272
+      ],
+      [
+        "distributePorts",
+        47238864
+      ],
+      [
+        "sort",
+        45054552
+      ],
+      [
+        "processConstraints",
+        38917416
+      ],
+      [
+        "countAllCrossings",
+        25541104
+      ],
+      [
+        "countCrossingsOnPorts",
+        24595600
+      ],
+      [
+        "concat",
+        22688744
+      ],
+      [
+        "verticalSpacing",
+        19222912
+      ],
+      [
+        "",
+        17283728
+      ]
+    ],
+    "phaseCounters": {
+      "before-splitting": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 334,
+        "edges": 167,
+        "rankDelta": 1656,
+        "maximumLayerWidth": 1,
+        "heapUsed": 47824544
+      },
+      "after-splitting": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 54273776
+      },
+      "before-crossing": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 55979320
+      },
+      "after-crossing": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 65978904
+      },
+      "before-placement": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 69289656
+      },
+      "after-placement": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 44847840
+      },
+      "before-routing": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 44954944
+      },
+      "after-routing": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 51055280
+      },
+      "before-joining": {
+        "nodes": 1752,
+        "dummies": 1656,
+        "ports": 3646,
+        "edges": 1823,
+        "rankDelta": 0,
+        "maximumLayerWidth": 24,
+        "heapUsed": 51056480
+      },
+      "after-joining": {
+        "nodes": 96,
+        "dummies": 0,
+        "ports": 334,
+        "edges": 167,
+        "rankDelta": 1656,
+        "maximumLayerWidth": 1,
+        "heapUsed": 51881912
+      }
+    }
+  }
+]

@@ -1,0 +1,12 @@
+flowchart TB
+  subgraph Server["Node.js (Server)"]
+    direction TB
+    RpcServer["RPC Server"]
+    subgraph Context["DevTools Node Context"]
+      Docks["Docks Host"]
+      Views["Views Host"]
+      Rpc["RPC Host"]
+      State["State Host"]
+    end
+    RpcServer --> Context
+  end

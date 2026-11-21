@@ -1,0 +1,641 @@
+{
+  "baselineSource": "32b025bff14e3020fd709a08d84f8543f57cb0cd",
+  "archive": "/workspace/elk-layered-tools/issue619-sol-experiments-20261121/npm/agentic-mermaid-0.5.7.tgz",
+  "archiveSHA256": "d90732badf7c0761893fe993ed1d46e13f6bec9ae6974394cd1838755dc7a03c",
+  "shippedDistFiles": 158,
+  "allEqual": true,
+  "files": [
+    {
+      "file": "dist/elk-solver.cjs",
+      "match": true
+    },
+    {
+      "file": "dist/elk-solver.node.cjs",
+      "match": true
+    },
+    {
+      "file": "dist/inter-metrics-kernel.cjs",
+      "match": true
+    },
+    {
+      "file": "dist/layout-optimization.cjs",
+      "match": true
+    },
+    {
+      "file": "dist/agent-core.js",
+      "match": true
+    },
+    {
+      "file": "dist/agent.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/agentflow-KGOOSNQ3.js",
+      "match": true
+    },
+    {
+      "file": "dist/agentic-mermaid-mcp.js",
+      "match": true
+    },
+    {
+      "file": "dist/am.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/appearance-2M57IDZE.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/architecture-Y2TZYLBO.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/block-LK2O7XUH.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser.global.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/builtin-backends-ICPDFRXS.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/builtin-backends-JRDLCE44.js",
+      "match": true
+    },
+    {
+      "file": "dist/builtin-font-metrics.js",
+      "match": true
+    },
+    {
+      "file": "dist/builtin-font-metrics.node.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/c4-YVU73QFI.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-2BB46O73.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-2MY5D4AV.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-44RNRFS5.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-4A6RQ62R.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-5BYN55G4.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-5ECXV4ET.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-5R26VWPJ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-64SBUIAS.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-6AIXHD3O.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-7Z4LQJKS.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-84D6176A.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-A7GMFTAM.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-AGC4UE6R.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-AXAFUHZN.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-AYSBFRJD.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-B3OCWFFG.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-BM43LGMO.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-BUH5MW7M.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-BZIH6EPT.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-C3IVQDYX.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-CA65TZ4O.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-D6GHWX3F.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-DGTJPOBX.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-E5PAWVPY.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-EHJBJ7TT.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-EJJJZK7Y.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-EMDZNEUM.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-FD7YQSRK.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-FPICVA5P.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-G7LCIRLD.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-GHHCESWO.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-GMBAZMOP.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-GV5U4N2O.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-H7DVN7CQ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-II2C4P2T.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-ILJB6KKA.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-J4SDLXXZ.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-JIHZ3QQS.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-KLIMG47T.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-L66YNCJ3.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-L6KTG4XW.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-LBG2DTUX.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-MEPHTJ6I.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-MKPBN6DW.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-NICJO2HG.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-ORF4HJGP.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-PDWXWE4Q.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-PGHWKKTB.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-PSR3L7JZ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-Q2AQEBOE.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-Q2GBSNK4.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-SXGFW4B3.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-TM7USALT.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-TQQTD5HL.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-TRJWETLN.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-V4WS5APO.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-V5RFODN6.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-V5WG7DQJ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-VDKHJT6D.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/chunk-VVBPWZ7K.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-WOI3Z3QK.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-WQ35WEIW.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-X4JDR34Z.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-XEUOZMLN.js",
+      "match": true
+    },
+    {
+      "file": "dist/chunk-YIQD54XI.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-Z2G3GABA.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-ZI356IS3.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/chunk-ZK2Z73Q2.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/class-PUGVY3IH.js",
+      "match": true
+    },
+    {
+      "file": "dist/cli-OT4O4ZJV.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/cynefin-HJHMBRXX.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/decode-FL2SBZ3N.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/decode-NRJBELQI.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/edge-crossings-indexed-I6BJOVKB.js",
+      "match": true
+    },
+    {
+      "file": "dist/elk-solver.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/er-2OCWXLUQ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/eventmodeling-GEKVGULZ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/flowchart-CSVLDH5I.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/gantt-PUWBWI3M.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/gitgraph-EJE25JPD.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/index.js",
+      "match": true
+    },
+    {
+      "file": "dist/index.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/inter-metrics-kernel-7KGMPGQD.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/inter-metrics-kernel-ISBGZHXL.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/ishikawa-OIHDFOK2.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/journey-4HYKR72N.js",
+      "match": true
+    },
+    {
+      "file": "dist/jsonl-5N4DTV7P.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/kanban-GMNXEJRD.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/layout-BVL2PPME.js",
+      "match": true
+    },
+    {
+      "file": "dist/layout-optimization.js",
+      "match": true
+    },
+    {
+      "file": "dist/layout-optimization.node.js",
+      "match": true
+    },
+    {
+      "file": "dist/mcp-cli-6CTURTCY.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/mermaid-yaml-runtime-64ZJJTHB.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/mermaid-yaml-runtime-HUSTNIW7.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/mindmap-HIHMYASG.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/optimization-runtime-CSNIAGJF.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/optimization-runtime-HVZL4SPR.js",
+      "match": true
+    },
+    {
+      "file": "dist/optional-kernels.node.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/packet-NPILJ6PT.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/parser-source-E3IOQAAY.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/parser-source-FHXKZGJR.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/pie-DRGAUGFG.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/quadrant-65WRFF4A.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/radar-INCHHY37.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/railroad-6J252JCF.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/render-core-KKA3HYWK.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/render-core-Z533FU23.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/requirement-W4P6URYK.js",
+      "match": true
+    },
+    {
+      "file": "dist/run-entrypoint-3FB5KYSZ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/sankey-V7EK7ANL.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/sequence-Z3HCHGGJ.js",
+      "match": true
+    },
+    {
+      "file": "dist/server-IFVJPE2H.js",
+      "match": true
+    },
+    {
+      "file": "dist/source-supervisor.js",
+      "match": true
+    },
+    {
+      "file": "dist/source-worker.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/state-AV3DZG4K.js",
+      "match": true
+    },
+    {
+      "file": "dist/svg-styles.js",
+      "match": true
+    },
+    {
+      "file": "dist/svg.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/swimlane-PEVZFW7K.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/timeline-SK3BB4AA.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/treemap-G5665XT3.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/treeview-UPIWCRMQ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/usecase-CCUDRT4C.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/venn-6LBBLEHW.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/wardley-QARBLMIZ.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/xychart-LQSI5QK6.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml/chunks/zenuml-CJLDRZWX.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml-frame.global.js",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/chunks/zenuml-LCCDPVKN.js",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml.js",
+      "match": true
+    },
+    {
+      "file": "dist/agent-core.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/agent.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/index-ln3j3a0Y.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/browser-lazy/index.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/index.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/layout-cost-B2A5lBIv.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/paint-certification-D2hsbeUo.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/svg-styles-DyqmUixB.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/svg-styles.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/svg.d.ts",
+      "match": true
+    },
+    {
+      "file": "dist/zenuml.d.ts",
+      "match": true
+    }
+  ]
+}

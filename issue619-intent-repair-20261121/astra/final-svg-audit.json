@@ -1,0 +1,854 @@
+{
+  "baseline": "32b025bff14e3020fd709a08d84f8543f57cb0cd, archived same public product corpus",
+  "candidate": "Built implementation in root candidate/ from render-final.mjs; before and after are bound to actual SVG SHA-256 values below. Data obtained by static reads, without rendering.",
+  "outputs": [
+    {
+      "case": "bm52-wallet",
+      "mode": "balanced",
+      "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+      "beforeSHA256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "afterSHA256": "e90921bc294cbebcdbc63d64795140fed16ec5cbeb1f87824b7c9dc6d7cfbe2d",
+      "svgByteIdentical": false,
+      "beforeViewBox": "0 0 1165.877 340.025",
+      "afterViewBox": "0 0 1165.877 340.025",
+      "before": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 12,
+          "length": 857.9012979800127,
+          "area": 396427.326925
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 11,
+          "length": 999.613,
+          "area": 396427.326925
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "walletCurrentUpperArrivals": [
+        {
+          "from": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              595.881,
+              58.45
+            ],
+            [
+              595.881,
+              98.2416666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        },
+        {
+          "from": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              457.8955,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        },
+        {
+          "from": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              496.4845,
+              138.591666667
+            ],
+            [
+              508.8595,
+              138.591666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        }
+      ],
+      "walletCurrentUpperMinTipDistancePx": 13.450000000000003
+    },
+    {
+      "case": "bm52-wallet",
+      "mode": "default",
+      "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+      "beforeSHA256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "afterSHA256": "e90921bc294cbebcdbc63d64795140fed16ec5cbeb1f87824b7c9dc6d7cfbe2d",
+      "svgByteIdentical": false,
+      "beforeViewBox": "0 0 1165.877 340.025",
+      "afterViewBox": "0 0 1165.877 340.025",
+      "before": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 12,
+          "length": 857.9012979800127,
+          "area": 396427.326925
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 11,
+          "length": 999.613,
+          "area": 396427.326925
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "walletCurrentUpperArrivals": [
+        {
+          "from": "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              595.881,
+              58.45
+            ],
+            [
+              595.881,
+              98.2416666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        },
+        {
+          "from": "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              457.8955,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        },
+        {
+          "from": "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+          "to": "TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+          "lastTwoWrittenPoints": [
+            [
+              496.4845,
+              138.591666667
+            ],
+            [
+              508.8595,
+              138.591666667
+            ]
+          ],
+          "markerEnd": "url(#arrowhead)"
+        }
+      ],
+      "walletCurrentUpperMinTipDistancePx": 13.450000000000003
+    },
+    {
+      "case": "bm83-workflow",
+      "mode": "balanced",
+      "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+      "beforeSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "afterSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1074.186 3899.55",
+      "afterViewBox": "0 0 1074.186 3899.55",
+      "before": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 26,
+          "length": 19325.095500000003,
+          "area": 4188842.016300003
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 26,
+          "length": 19325.095500000003,
+          "area": 4188842.016300003
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "bm83-workflow",
+      "mode": "default",
+      "inputSHA256": "58f81e7c7d46db3b56881921e4630c1c0b710adfac0236bfc8b9eed4a14fd180",
+      "beforeSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "afterSHA256": "c4ab0873b83b61d6b8cbcda4bec0a4ad5245a66fe371a453a0521fb148900966",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1074.186 3899.55",
+      "afterViewBox": "0 0 1074.186 3899.55",
+      "before": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 26,
+          "length": 19325.095500000003,
+          "area": 4188842.016300003
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 26,
+          "length": 19325.095500000003,
+          "area": 4188842.016300003
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "duplicate",
+      "mode": "balanced",
+      "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+      "beforeSHA256": "806b6c2266ff171fa53a105065cdeeb6f02c4e84d6057789de682d8729e58a54",
+      "afterSHA256": "806b6c2266ff171fa53a105065cdeeb6f02c4e84d6057789de682d8729e58a54",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 258.59 201.8",
+      "afterViewBox": "0 0 258.59 201.8",
+      "before": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 0,
+          "length": 192,
+          "area": 52183.46200000001
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 0,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 0,
+          "length": 192,
+          "area": 52183.46200000001
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "duplicate",
+      "mode": "default",
+      "inputSHA256": "bf1d6ad8436610877a936981792a11ecd5cee6305dc3fae63fe6914df7134c50",
+      "beforeSHA256": "48db84e52d14814cb525a7ebbcef5a549dfcb0e0a1a92ebb0df9cce7e6b18c7c",
+      "afterSHA256": "48db84e52d14814cb525a7ebbcef5a549dfcb0e0a1a92ebb0df9cce7e6b18c7c",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 258.59 214.55",
+      "afterViewBox": "0 0 258.59 214.55",
+      "before": {
+        "crossings": 3,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 8,
+          "length": 644.324,
+          "area": 55480.48450000001
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 3,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 8,
+          "length": 644.324,
+          "area": 55480.48450000001
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "nineteen",
+      "mode": "balanced",
+      "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "beforeSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "afterSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1473.00115 1602.229",
+      "afterViewBox": "0 0 1473.00115 1602.229",
+      "before": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2360085.1595633496
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2360085.1595633496
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "nineteen-body",
+      "mode": "balanced",
+      "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+      "beforeSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "afterSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1473.00115 1566.829",
+      "afterViewBox": "0 0 1473.00115 1566.829",
+      "before": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2307940.9188533495
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2307940.9188533495
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "nineteen-body",
+      "mode": "default",
+      "inputSHA256": "4a33a6c95dffd9526e52168d1c3fbafd754d7580542461b246f5d07142d65092",
+      "beforeSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "afterSHA256": "3b4ac35d86de597a99b66b109da07801d5d379ca855033559029dac0447071e1",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1473.00115 1566.829",
+      "afterViewBox": "0 0 1473.00115 1566.829",
+      "before": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2307940.9188533495
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2307940.9188533495
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "nineteen",
+      "mode": "default",
+      "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+      "beforeSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "afterSHA256": "a441aa50fe327eae21ee4ca3dfb003913923bfdeb6ca5d0d920f29a51fa2cb3b",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1473.00115 1602.229",
+      "afterViewBox": "0 0 1473.00115 1602.229",
+      "before": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2360085.1595633496
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 37,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 112,
+          "length": 27374.17919570351,
+          "area": 2360085.1595633496
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "seed135",
+      "mode": "balanced",
+      "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+      "beforeSHA256": "c60c2dd878db35b06876507eabb19a710e4baa9d455b283bb8bce8748e6ffd76",
+      "afterSHA256": "6a3540f7920b3f1eb145e03d3a02269bc03ae5ecfc874b7630fd038c5ed66b81",
+      "svgByteIdentical": false,
+      "beforeViewBox": "0 0 1601.718 563.370833333",
+      "afterViewBox": "0 0 1601.718 563.370833333",
+      "before": {
+        "crossings": 10,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 63,
+          "length": 13710.830566430612,
+          "area": 902361.204425
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 8,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 60,
+          "length": 13729.038743586641,
+          "area": 902361.204425
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "seed135",
+      "mode": "default",
+      "inputSHA256": "07fd6a5b0e2822d1a210d69d42950bbd233c25e42e5cb46460b119225e3904df",
+      "beforeSHA256": "b295eb953a34475a54ae03c4dcd409c1e46657edc53296c07e45d89eea3c8473",
+      "afterSHA256": "b295eb953a34475a54ae03c4dcd409c1e46657edc53296c07e45d89eea3c8473",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1658.468 616.7795",
+      "afterViewBox": "0 0 1658.468 616.7795",
+      "before": {
+        "crossings": 13,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 66,
+          "length": 15438.815333067603,
+          "area": 1022909.0638059999
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      },
+      "after": {
+        "crossings": 13,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 66,
+          "length": 15438.815333067603,
+          "area": 1022909.0638059999
+        },
+        "paintStatus": "passed",
+        "paintIssues": []
+      }
+    },
+    {
+      "case": "seed139",
+      "mode": "balanced",
+      "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+      "beforeSHA256": "0da06245b0a3ceb4b8dfb12cb7b973b0b3107dbea3319b5f4f34b14e5da5ff5c",
+      "afterSHA256": "0da06245b0a3ceb4b8dfb12cb7b973b0b3107dbea3319b5f4f34b14e5da5ff5c",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1724.498 803.3585",
+      "afterViewBox": "0 0 1724.498 803.3585",
+      "before": {
+        "crossings": 24,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 104,
+          "length": 20183.030251277472,
+          "area": 1385390.1265329998
+        },
+        "paintStatus": "unverified",
+        "paintIssues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ]
+      },
+      "after": {
+        "crossings": 24,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 104,
+          "length": 20183.030251277472,
+          "area": 1385390.1265329998
+        },
+        "paintStatus": "unverified",
+        "paintIssues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ]
+      }
+    },
+    {
+      "case": "seed139",
+      "mode": "default",
+      "inputSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+      "beforeSHA256": "41c85c5e8a2ccc1cd15242b6f3e90635bbd36d875b59091a481b3359362a4af2",
+      "afterSHA256": "41c85c5e8a2ccc1cd15242b6f3e90635bbd36d875b59091a481b3359362a4af2",
+      "svgByteIdentical": true,
+      "beforeViewBox": "0 0 1868.866 854.8083",
+      "afterViewBox": "0 0 1868.866 854.8083",
+      "before": {
+        "crossings": 43,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 106,
+          "length": 24154.945879969993,
+          "area": 1597522.1683877995
+        },
+        "paintStatus": "unverified",
+        "paintIssues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ]
+      },
+      "after": {
+        "crossings": 43,
+        "labelConflicts": {
+          "total": 0,
+          "labelLabel": 0,
+          "labelNode": 0,
+          "labelEdge": 0
+        },
+        "overlaps": {
+          "parallel": 0,
+          "opposing": 0
+        },
+        "routeGeometry": {
+          "bends": 106,
+          "length": 24154.945879969993,
+          "area": 1597522.1683877995
+        },
+        "paintStatus": "unverified",
+        "paintIssues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n1->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n11->n16#0",
+            "by": "node-shape:n16",
+            "message": "Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified"
+          }
+        ]
+      }
+    }
+  ]
+}

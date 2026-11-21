@@ -1,0 +1,585 @@
+diff --git a/docs/design/system/layout-rubric.md b/docs/design/system/layout-rubric.md
+index 47237545..68b233b9 100644
+--- a/docs/design/system/layout-rubric.md
++++ b/docs/design/system/layout-rubric.md
+@@ -78,7 +78,7 @@ and ≤ 2 bends/edge for the whole simple battery):
+ | Metric | Definition | Grounding |
+ |---|---|---|
+ | `edgeCrossings` | visible proper incidences per logical edge pair/location; subdivision, shared nodes and hidden shafts use the shared production predicate | Purchase 1997 (strongest factor) |
+-| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; breaks crossing ties before bend and port preferences |
++| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; ordinary selection minimizes 4×crossings + 5×conflicts before bends and ports |
+ | `totalBends`, `maxBendsPerEdge` | visible interior vertices excluding declared bundle-owned convergence | Purchase 1997 |
+ | `portEndpointRate` | fraction of edge ends exactly on a canonical port | yFiles port candidates |
+ | `portAnchoredEdgeRate` | fraction of edges with ≥ 1 port end | static-glue policy |
+diff --git a/docs/quality.md b/docs/quality.md
+index 769b9201..e33d57d2 100644
+--- a/docs/quality.md
++++ b/docs/quality.md
+@@ -26,7 +26,7 @@ A diagram is considered **good looking** when it satisfies, in order:
+    | `labelLegibility` | fraction of measured visible labels whose retained text bounds fit their actual containing region | ≥ 85% |
+    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
+    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
+-   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
++   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | weighted with crossings in candidate selection; no default quality bound |
+    | `routeOverlaps` | Flowchart/State edge pairs sharing opposing-direction ink or same-endpoint parallel ink (parallel excludes self-loops) | reported separately from crossings; no default quality bound |
+    | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; authored coincident Quadrant points and XY/Radar data overlays are excluded | ≥ 8 px |
+    | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
+@@ -64,11 +64,12 @@ For automatic graph layout, apply the following order:
+    non-overlapping graph nodes, endpoints on the rendered outline, routes that
+    avoid unrelated nodes, and labels associated with their own route. Among
+    feasible candidates, prefer readable group titles.
+-2. **Crossings, then soft label conflicts:** reduce crossings within the feasible
+-   set. When crossing counts tie, prefer fewer padded label-conflict pairs.
+-   These counts keep distinguishing layouts after minimum clearance reaches zero,
+-   but reducing a soft overlap count cannot buy additional crossings. Hard
+-   node-avoidance and own-label-association requirements still apply first.
++2. **Crossings and soft label conflicts:** minimize `4 × edgeCrossings +
++   5 × labelConflicts` within the feasible set. Clearing one padded conflict can
++   pay for one additional crossing, but not two. Equal weighted costs prefer
++   fewer crossings, then fewer conflicts. These are product policy weights,
++   not coefficients established by a user study. Hard node avoidance and
++   own-label association still apply first; a soft score cannot excuse them.
+ 3. **Continuity and unnecessary bends:** prefer clear direct lanes; distinguish
+    unexplained detours from declared symmetric convergence.
+ 4. **Canonical ports:** prefer side midpoints or declared slots. An endpoint on
+@@ -119,8 +120,10 @@ content, throws `LAYOUT_CERTIFICATION_FAILED` ([details](api-advanced.md)). This
+ hard graph geometry, not minimum crossings or universal aesthetic quality.
+ Within 64 nodes/groups and 128 edges, a certified graph with crossings or label
+ conflicts may try one additional distinct strategy. Feasible candidates compare
+-readable group titles, crossings, label-conflict pairs, avoidable bends,
+-canonical endpoints, symmetry and area in that order.
++readable group titles, weighted crossing/label cost, avoidable bends,
++canonical endpoints, symmetry and area in that order. Receipts keep both raw
++counts and name a joint change in those counts `readabilityCost`. Balanced's
++extra ordering candidate still requires non-regression on every tracked axis.
+ 
+ The engine first chooses a certified bundled placement using those existing
+ strategies. Only the selected placement may then compare one completed generic
+@@ -130,6 +133,13 @@ certification score, including the final comparison: unchanged selected geometry
+ is not certified a second time. It does not explore an unbundled version of
+ every placement strategy.
+ Symmetric fan-in/fan-out routing remains enabled.
++For bounded, forward fan-ins whose peer senders share an approach rank and have different visible
++destinations, generic reconstruction and lane proofs retain independent arrival
++channels. A common arrowhead can obscure which sender owns a competing branch,
++even with zero crossings ([BM #52](https://github.com/lukilabs/beautiful-mermaid/issues/52)).
++Uniform joins, state terminators, invisible rank hints and self-loops retain their
++existing policy. Arrivals from different ranks keep their existing route owner;
++this local rule makes no traceability claim for them.
+ Graphs containing parallel edges keep their specialized route owners in both
+ proposals; only generic fan bundling is disabled. A smaller proper-crossing
+ count alone does not prove that duplicate endpoint lanes remain visibly distinct.
+diff --git a/src/__tests__/aesthetic-issue-regressions.test.ts b/src/__tests__/aesthetic-issue-regressions.test.ts
+index 4427de3e..bf34768f 100644
+--- a/src/__tests__/aesthetic-issue-regressions.test.ts
++++ b/src/__tests__/aesthetic-issue-regressions.test.ts
+@@ -17,6 +17,8 @@
+ // ============================================================================
+ 
+ import { describe, expect, test } from 'bun:test'
++import { readFileSync } from 'node:fs'
++import { scanSvgStartTags } from '../svg-structure.ts'
+ import { renderMermaidSVG } from '../index.ts'
+ import { detectSvg, parseSvg, type Finding, type Rendered } from '../../eval/ugly-detector/detect.ts'
+ import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, type QualityMetrics } from '../agent/index.ts'
+@@ -122,6 +124,71 @@ function expectLabelBoxesSeparated(labels: EdgeLabel[]): void {
+ }
+ 
+ describe('layout-aesthetic regression fixtures (issue-keyed)', () => {
++  // Exact reporter inputs, including styling and return edges. These protect
++  // authored relationships as well as appearance; zero crossings is insufficient.
++  test.each([
++    ...(['LR', 'RL', 'TB', 'BT'] as const).map(direction => ({ file: 'bm52-wallet', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/52', nodes: 10, edges: 11, captions: 0, direction })),
++    { file: 'bm83-approval-loops', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/83', nodes: 34, edges: 44, captions: 18 },
++    { file: 'bm111-labelled-fan', url: 'https://github.com/lukilabs/beautiful-mermaid/issues/111', nodes: 4, edges: 3, captions: 3 },
++    { file: 'zm629-round-trip', url: 'https://github.com/dfadler/zombie-mermaid/issues/629', nodes: 2, edges: 2, captions: 2 },
++  ])('$url preserves the complete richer diagram and readable relationships', fixture => {
++    const original = readFileSync(new URL(`./fixtures/aesthetic-intent/${fixture.file}.mmd`, import.meta.url), 'utf8')
++    const src = 'direction' in fixture ? original.replace('graph LR', `graph ${fixture.direction}`) : original
++    const svg = renderedSvg(src), r = parseSvg(svg)
++    expect(scanSvgStartTags(svg).filter(tag => tag.name === 'g' && tag.attributes.some(a => a.name === 'data-role' && a.value === 'node'))).toHaveLength(fixture.nodes)
++    expect(r.edges).toHaveLength(fixture.edges)
++    expect(edgeLabels(src)).toHaveLength(fixture.captions)
++    expect(detectSvg(svg).filter(f => f.severity === 'hard')).toEqual([])
++    if (fixture.file === 'bm52-wallet') {
++      const upper = 'TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf'
++      const lower = 'TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c'
++      const senders = ['TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW', 'TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb', 'TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy']
++      const incoming = r.edges.filter(edge => edge.to === upper)
++      expect(incoming.map(edge => edge.from).sort()).toEqual([...senders].sort())
++      expect(r.edges.filter(edge => edge.to === lower).map(edge => edge.from)).toEqual([senders[2]!])
++      // Three incoming relationships need three visible arrival positions;
++      // merging them hides the distinction requested by the wallet analyst.
++      expect(new Set(incoming.map(edge => JSON.stringify(edge.pts.at(-1)))).size).toBe(3)
++      for (let i = 0; i < incoming.length; i++) for (let j = i + 1; j < incoming.length; j++) {
++        const a = incoming[i]!.pts.at(-1)!, b = incoming[j]!.pts.at(-1)!
++        // The default 8×5 arrow resource needs more than a subpixel offset.
++        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(5)
++      }
++    } else if (fixture.file === 'bm83-approval-loops') {
++      const centers = new Map(r.nodes.map(node => [node.id, node.y + node.h / 2]))
++      expect(r.edges.filter(edge => centers.get(edge.from)! < centers.get(edge.to)!).length).toBe(33)
++      expect(r.edges.filter(edge => centers.get(edge.from)! > centers.get(edge.to)!).length).toBe(11)
++    } else if (fixture.file === 'bm111-labelled-fan') {
++      expect(edgeLabels(src).map(edge => [edge.from, edge.to, edge.label])).toEqual([
++        ['Src', 'Left', 'left*'], ['Src', 'Center', 'center*'], ['Src', 'Right', 'right*'],
++      ])
++    } else if (fixture.file === 'zm629-round-trip') {
++      const labels = edgeLabels(src)
++      expect(labels.map(edge => [edge.from, edge.to, edge.label])).toEqual([
++        ['Browser', 'Server', 'request'], ['Server', 'Browser', 'response'],
++      ])
++      expectLabelBoxesSeparated(labels)
++    }
++  })
++
++  test.each(['LR', 'RL', 'TB', 'BT'])('competing fan-outs retain independent arrivals in %s', direction => {
++    // Same failure class as BM #52, with both senders choosing a private branch.
++    const src = `flowchart ${direction}\nA --> H\nA --> X\nB --> H\nB --> Y`
++    const r = assertRendered(src, ['A', 'B', 'H', 'X', 'Y'], [['A', 'H'], ['A', 'X'], ['B', 'H'], ['B', 'Y']])
++    const arrivals = r.edges.filter(edge => edge.to === 'H')
++    expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
++    expect(hardFindings(src)).toEqual([])
++  })
++
++  test.each(['LR', 'RL', 'TB', 'BT'])('a mixed-label convergence keeps independent diamond contacts in %s', direction => {
++    const src = `flowchart ${direction}\nA -->|alpha| H{Hub}\nB --> H\nB --> Y`
++    const r = assertRendered(src, ['A', 'B', 'H', 'Y'], [['A', 'H'], ['B', 'H'], ['B', 'Y']])
++    const arrivals = r.edges.filter(edge => edge.to === 'H')
++    expect(arrivals[0]!.pts.at(-1)).not.toEqual(arrivals[1]!.pts.at(-1))
++    expectEdgeLabels(src, [['A', 'H', 'alpha']])
++    expect(hardFindings(src)).toEqual([])
++  })
++
+   // upstream: mermaid-js/mermaid#6476 — "Unnecessary crossing of edges between
+   // nodes": dagre crosses two edges that could be uncrossed by swapping
+   // endpoints. K2,2 is planar, so a faithful layout has zero crossings.
+diff --git a/src/__tests__/fixtures/aesthetic-intent/bm111-labelled-fan.mmd b/src/__tests__/fixtures/aesthetic-intent/bm111-labelled-fan.mmd
+new file mode 100644
+index 00000000..e676b728
+--- /dev/null
++++ b/src/__tests__/fixtures/aesthetic-intent/bm111-labelled-fan.mmd
+@@ -0,0 +1,8 @@
++flowchart TB
++    Src["Source"]
++    Left["Left Target"]
++    Center["Center Target"]
++    Right["Right Target"]
++    Src -->|left*| Left
++    Src -->|center*| Center
++    Src -->|right*| Right
+diff --git a/src/__tests__/fixtures/aesthetic-intent/bm52-wallet.mmd b/src/__tests__/fixtures/aesthetic-intent/bm52-wallet.mmd
+new file mode 100644
+index 00000000..23b392b2
+--- /dev/null
++++ b/src/__tests__/fixtures/aesthetic-intent/bm52-wallet.mmd
+@@ -0,0 +1,16 @@
++graph LR
++  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK(("📍 Current<br>Ξ TPRPxm...avvK")) --> TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW("Ξ TWnK4k...fBaW")
++  TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf["Ξ TL8TBp...SwEf<br><b>HuionePay</b>"]
++  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb("Ξ TQBb8D...Xotb")
++  TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf
++  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy("Ξ TUaYgu...RLVy")
++  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf
++  TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy --> TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c["Ξ TUaZjK...tZ8c<br><b>HuionePay</b>"]
++  TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK --> TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP("Ξ TUciXW...zDbP")
++  TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP --> TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ("Ξ TXTaap...fvGZ")
++  TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ --> TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu["Ξ TQBftm...FRTu<br><b>HuionePay</b>"]
++  TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu --> TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8["Ξ TNVaKW...4Ug8<br><b>HuionePay</b>"]
++  %% click TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 "copyAddress('TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8')"
++  classDef highRiskNode stroke:#ff0000,stroke-width:2px,color:#cc0000
++  classDef currentNode stroke:#6366f1,stroke-width:2px,color:#6366f1
++  class TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK,TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf,TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c,TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8 highRiskNode
+diff --git a/src/__tests__/fixtures/aesthetic-intent/bm83-approval-loops.mmd b/src/__tests__/fixtures/aesthetic-intent/bm83-approval-loops.mmd
+new file mode 100644
+index 00000000..7aa7d8f8
+--- /dev/null
++++ b/src/__tests__/fixtures/aesthetic-intent/bm83-approval-loops.mmd
+@@ -0,0 +1,41 @@
++flowchart TD
++    A[用户输入任务指令] --> B[目标深度解构：穿透商业本质，拆解可量化核心指标]
++    B --> C[模块1：前置市场与用户洞察]
++    C --> C1[自主细化调研维度：商圈/客群/竞品/商户全维度调研]
++    C1 --> C2[数据填充与洞察结论输出]
++    C2 --> C3[洞察报告合规性与有效性校验]
++    C3 -->|校验通过| D[模块2：非遗IP与内容策划]
++    C3 -->|校验不通过| C1
++    D --> D1[基于洞察结论筛选适配非遗项目]
++    D1 --> D2[IP打造、年轻化表达与商业化路径设计]
++    D2 --> D3[非遗内容合规性校验与授权规范确认]
++    D3 -->|校验通过| E[模块3：全案活动策划与执行]
++    D3 -->|校验不通过| D1
++    E --> E1[基于IP内容与客群洞察，拆分8周4阶段执行节奏]
++    E1 --> E2[线下场景、线上玩法、分层客群活动细化]
++    E2 --> E3[执行节点、落地标准与人员架构明确]
++    E3 --> E4[活动方案与IP内容、预算约束交叉适配校验]
++    E4 -->|校验通过| F[模块4：商业运营与成本管控]
++    E4 -->|校验不通过| E1
++    F --> F1[商户合作体系、招商方案设计]
++    F1 --> F2[全周期成本明细拆分、营收预估与ROI测算]
++    F2 --> F3[预算管控机制设计，总预算锁定780万内]
++    F3 --> F4[成本方案与活动策划方案双向适配校验]
++    F4 -->|校验通过| G[模块5：全渠道传播与舆情管理]
++    F4 -->|校验不通过| F1
++    G --> G1[匹配活动节奏，制定全周期传播策略与话题矩阵]
++    G1 --> G2[分层KOL/KOC投放矩阵设计与效果管控]
++    G2 --> G3[7*24h舆情监测体系与三级危机预案制定]
++    G3 --> G4[传播方案与IP合规要求、活动节点双向对齐校验]
++    G4 -->|校验通过| H[模块6：全案合规与风险防控]
++    G4 -->|校验不通过| G1
++    H --> H1[全案全模块合规性终审，设置一票否决权]
++    H1 --> H2[全场景风险点识别、分级与应对预案制定]
++    H2 --> H3[问题内容识别与退回修改]
++    H3 -->|修改闭环| I[模块7：全案整合与定稿]
++    H3 -->|校验不通过| C & D & E & F & G
++    I --> I1[全模块内容整合，解决冲突与矛盾]
++    I1 --> I2[全周期执行timeline与落地标准表制定]
++    I2 --> I3[全案与核心目标、硬性约束最终校验]
++    I3 -->|校验通过| J[最终可落地完整全案交付]
++    I3 -->|校验不通过| I1
+diff --git a/src/__tests__/fixtures/aesthetic-intent/zm629-round-trip.mmd b/src/__tests__/fixtures/aesthetic-intent/zm629-round-trip.mmd
+new file mode 100644
+index 00000000..c5766be2
+--- /dev/null
++++ b/src/__tests__/fixtures/aesthetic-intent/zm629-round-trip.mmd
+@@ -0,0 +1,3 @@
++graph LR
++  Browser -- request --> Server
++  Server -- response --> Browser
+diff --git a/src/__tests__/layout-certification.test.ts b/src/__tests__/layout-certification.test.ts
+index cca84cfa..31334b47 100644
+--- a/src/__tests__/layout-certification.test.ts
++++ b/src/__tests__/layout-certification.test.ts
+@@ -283,19 +283,32 @@ describe('bounded final layout certification', () => {
+     return { graph, positioned }
+   }
+ 
+-  test('a soft label-conflict reduction cannot buy another crossing', () => {
++  test('clearing a label conflict can buy one crossing between otherwise feasible routes', () => {
+     const { graph, positioned: occluded } = labelledWitness(false, true)
+     const { positioned: clear } = labelledWitness(true)
+     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+       { strategy: 'occluded-without-crossings', produce: () => occluded },
+       { strategy: 'readable-with-crossing', produce: () => clear },
+     ])
+-    expect(selected).toBe(occluded)
+-    expect(selected.certification?.preference).toMatchObject({ reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } })
+-    expect(selected.certification!.preference.selectedScore.labelConflicts).toBeGreaterThan(0)
++    expect(selected).toBe(clear)
++    expect(selected.certification?.preference).toMatchObject({ reason: 'readabilityCost', selectedScore: { edgeCrossings: 1, labelConflicts: 0 } })
+     expect(selected.certification!.preference.compared[1]!.score).toMatchObject({ labelConflicts: 0, edgeCrossings: 1 })
+   })
+ 
++  test('clearing one padded label conflict cannot buy two crossings', () => {
++    const { graph, positioned: occluded } = labelledWitness(false, true)
++    const { positioned: clear } = labelledWitness(true)
++    clear.edges[1]!.points = [
++      { x: 160, y: 60 }, { x: 160, y: 160 }, { x: 220, y: 160 },
++      { x: 220, y: 40 }, { x: 300, y: 40 }, { x: 300, y: 240 }, { x: 180, y: 240 },
++    ]
++    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
++      { strategy: 'one-conflict', produce: () => occluded }, { strategy: 'two-crossings', produce: () => clear },
++    ])
++    expect(selected).toBe(occluded)
++    expect(selected.certification?.preference.compared[1]?.score).toMatchObject({ edgeCrossings: 2, labelConflicts: 0 })
++  })
++
+   test('zero crossings do not suppress a bounded label-conflict comparison', () => {
+     const { graph, positioned: occluded } = labelledWitness(false, true)
+     const { positioned: clear } = labelledWitness(false)
+diff --git a/src/__tests__/layout-pass.test.ts b/src/__tests__/layout-pass.test.ts
+index 82b44d07..17a6959c 100644
+--- a/src/__tests__/layout-pass.test.ts
++++ b/src/__tests__/layout-pass.test.ts
+@@ -614,7 +614,12 @@ S1["same word ok"] --> D`],
+     const graph = parseMermaid('flowchart BT\nN0-->N3\nN3~~~N2\nN0-->N2\nN1-->N3\nN0-.-N2')
+     const positioned = layoutGraphSync(graph)
+     expect(positioned.certification?.status).toBe('passed')
+-    expect(positioned.edges.find(edge => edge.style === 'invisible')?.points).toHaveLength(2)
++    // Invisible rank constraints may take a dogleg as visible arrival slots
++    // separate. Their point count is not a property of the drawn diagram.
++    const assessment = assessLayout(graph, positioned)
++    expect(hardViolations(assessment)).toEqual([])
++    expect(assessment.metrics).toMatchObject({ edgeCrossings: 0, labelConflicts: 0 })
++    expect(positioned.edges.filter(edge => edge.style !== 'invisible')).toHaveLength(4)
+   })
+ 
+   test('canonical contacts may yield to separating actual opposing shared ink', () => {
+diff --git a/src/layout/certification.ts b/src/layout/certification.ts
+index c1d128a3..7174d8dd 100644
+--- a/src/layout/certification.ts
++++ b/src/layout/certification.ts
+@@ -40,7 +40,7 @@ export interface LayoutPreferenceEvidence {
+   /** Score of the returned geometry, including the optional final route choice. */
+   selectedScore: LayoutPreferenceScore
+   /** Placement-strategy decision, before the optional final route comparison. */
+-  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
++  reason: PreferenceCriterion | 'readabilityCost' | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
+   /** Certified placement scores before the optional final route comparison. */
+   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
+   /** Final bundled/unbundled decision using the selected placement's ELK result.
+@@ -410,6 +410,18 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
+   reason: LayoutPreferenceEvidence['reason']
+ } {
+   for (const criterion of PREFERENCE_ORDER) {
++    if (criterion === 'edgeCrossings') {
++      // A crowded caption can conceal which relationship it names. Crossings
++      // remain expensive, but no longer veto every label-clearance repair.
++      // These are product policy weights, not coefficients fitted by Purchase.
++      const cost = (score: LayoutPreferenceScore) => 4 * score.edgeCrossings + 5 * score.labelConflicts
++      const delta = cost(alternative.score) - cost(first.score)
++      if (delta !== 0) return { selected: delta < 0 ? alternative : first,
++        reason: first.score.labelConflicts !== alternative.score.labelConflicts
++          ? first.score.edgeCrossings !== alternative.score.edgeCrossings ? 'readabilityCost' : 'labelConflicts'
++          : 'edgeCrossings' }
++      // Equal weighted costs retain the former crossing-first tie rule.
++    }
+     if (alternative.score[criterion] < first.score[criterion]) return { selected: alternative, reason: criterion }
+     if (alternative.score[criterion] > first.score[criterion]) return { selected: first, reason: criterion }
+   }
+diff --git a/src/layout/geometry.ts b/src/layout/geometry.ts
+index 059559d7..2f5bd7b9 100644
+--- a/src/layout/geometry.ts
++++ b/src/layout/geometry.ts
+@@ -8,6 +8,13 @@
+ import type { Direction, MermaidSubgraph, Point, PositionedGroup, PositionedNode } from '../types.ts'
+ import { DEFAULT_LAYER_SPACING } from './link-rank-gap.ts'
+ 
++/** Whether peers occupy one approach rank, with the caller's existing tolerance. */
++export function sameFlowLayer(group: readonly PositionedNode[], direction: Direction, tolerance = 18): boolean {
++  if (group.length < 2) return false
++  const values = group.map(node => nodeMainStart(node, direction))
++  return Math.max(...values) - Math.min(...values) <= tolerance
++}
++
+ export const DEFAULTS = {
+   font: 'Inter',
+   padding: 40,
+diff --git a/src/layout/passes/edge-bundling.ts b/src/layout/passes/edge-bundling.ts
+index 7c18448d..3f3a4a11 100644
+--- a/src/layout/passes/edge-bundling.ts
++++ b/src/layout/passes/edge-bundling.ts
+@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../../shared/svg-number.ts'
+ import { edgesMayShareTerminal, opposingRoutesMislead, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+ import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+ import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
+-import { terminalHookLength } from '../route-geometry.ts'
++import { distinctArrivalTargets, terminalHookLength } from '../route-geometry.ts'
+ import { hookedElbow } from './shared.ts'
+ 
+ /**
+@@ -154,6 +154,7 @@ export function bundleEdgePaths(
+ ): Set<PositionedEdge> {
+   const nodeMap = new Map(nodes.map(n => [n.id, n]))
+   const processed = new Set<PositionedEdge>()
++  const independentArrivals = distinctArrivalTargets(nodes, edges, direction)
+   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
+     for (const [edge, points] of candidates) {
+       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
+@@ -216,7 +217,7 @@ export function bundleEdgePaths(
+ 
+     // Only bundle edges going in the forward direction
+     const forward = group.filter(e => {
+-      if (duplicateEdges.has(e)) return false
++      if (duplicateEdges.has(e) || independentArrivals.has(e.target)) return false
+       const t = nodeMap.get(e.target)
+       if (!t) return false
+       if (isLR) return t.x > source.x + source.width
+@@ -300,6 +301,7 @@ export function bundleEdgePaths(
+ 
+   for (const [targetId, group] of fanInGroups) {
+     if (group.length < 2) continue
++    if (independentArrivals.has(targetId)) continue
+ 
+     if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'end'))) continue
+ 
+diff --git a/src/layout/passes/peers.ts b/src/layout/passes/peers.ts
+index 91cebb8c..e982bb3c 100644
+--- a/src/layout/passes/peers.ts
++++ b/src/layout/passes/peers.ts
+@@ -15,7 +15,7 @@ import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../gr
+ import { nodePaintBounds } from '../../scene/bounds.ts'
+ import { formatSvgNumericAttribute } from '../../shared/svg-number.ts'
+ import { shapeOutline } from '../../shape-outline.ts'
+-import { withinLayoutPreferenceBudget, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../route-geometry.ts'
++import { distinctArrivalTargets, withinLayoutPreferenceBudget, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from '../route-geometry.ts'
+ 
+ /** Make room for a parent without changing any disconnected tree internally.
+  * This is a bounded cross-axis packing proposal over complete painted supports;
+@@ -599,6 +599,7 @@ export function markCorankFanInBundles(
+ ): void {
+   const nodeMap = new Map(nodes.map(n => [n.id, n]))
+   const f = layoutFlow(graph.direction)
++  let independentArrivals: ReadonlySet<string> | undefined
+   for (const [hubId, spokes] of corankFanInSpokes(nodes, edges, groups, graph)) {
+     const hub = nodeMap.get(hubId)!
+     // Order spokes by source cross position so the rebuilt doglegs nest without
+@@ -626,7 +627,12 @@ export function markCorankFanInBundles(
+     const entryAt = (offset: number): Point => f.isHorizontal
+       ? { x: entryMid.x, y: entryMid.y + offset }
+       : { x: entryMid.x + offset, y: entryMid.y }
+-    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) offsets = offsets.map(() => 0)
++    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) {
++      // Retain the already distinct native docks when a shared vertex would
++      // erase which peer sender owns a competing branch (BM #52).
++      if ((independentArrivals ??= distinctArrivalTargets(nodes, edges, graph.direction)).has(hubId)) continue
++      offsets = offsets.map(() => 0)
++    }
+ 
+     // Shared elbow on the main axis, midway between the rank of the (co-ranked)
+     // sources' forward edge and the hub's entry edge — the converging junction.
+diff --git a/src/layout/passes/shared.ts b/src/layout/passes/shared.ts
+index 80bde676..c945f9e5 100644
+--- a/src/layout/passes/shared.ts
++++ b/src/layout/passes/shared.ts
+@@ -14,11 +14,7 @@ export function positionedEdgeForwardish(edge: PositionedEdge, nodeMap: Map<stri
+   return ((f.isHorizontal ? t.x - s.x : t.y - s.y) * f.sign) > 8
+ }
+ 
+-export function sameFlowLayer(group: PositionedNode[], direction: Direction, tolerance = 18): boolean {
+-  if (group.length < 2) return false
+-  const values = group.map(n => nodeMainStart(n, direction))
+-  return Math.max(...values) - Math.min(...values) <= tolerance
+-}
++export { sameFlowLayer } from '../geometry.ts'
+ 
+ export function packFlowLayerCrossAxis(nodes: PositionedNode[], direction: Direction): void {
+   const f = layoutFlow(direction)
+diff --git a/src/layout/route-geometry.ts b/src/layout/route-geometry.ts
+index 4c6beda3..2fd0c0e1 100644
+--- a/src/layout/route-geometry.ts
++++ b/src/layout/route-geometry.ts
+@@ -8,6 +8,7 @@ import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../sh
+ import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
+ import { labelRect } from '../shared/edge-label-geometry.ts'
+ import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
++import { sameFlowLayer } from './geometry.ts'
+ 
+ // Quality exploration is deterministic and bounded independently of machine
+ // speed. Larger graphs keep the existing first-certified fallback behavior.
+@@ -421,6 +422,8 @@ export function anchorMain(node: PositionedNode, c: number, axis: Axis, facing:
+ // ============================================================================
+ 
+ export interface LaneContext {
++  /** Forward fan-in hubs whose senders have different visible destinations. */
++  distinctArrivalTargets?: ReadonlySet<string>
+   /** Caller-owned live frames; every lane proof reads current nested headers. */
+   groups?: readonly PositionedGroup[]
+   nodes: PositionedNode[]
+@@ -441,6 +444,44 @@ export interface LaneContext {
+   routeChannelGeometry?: RouteChannelGeometry
+ }
+ 
++/** A shared arrival conceals which branch belongs to which sender when their
++ * forward destinations differ (BM #52). Uniform joins may retain their trunk.
++ * Invisible rank hints, self-loops and returns do not change that reading. */
++export function distinctArrivalTargets(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], direction: Direction): ReadonlySet<string> {
++  if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return new Set()
++  const axis = axisFor(direction), byId = new Map(nodes.map(node => [node.id, node]))
++  const outgoing = new Map<string, Set<string>>(), incoming = new Map<string, Set<string>>()
++  for (const edge of edges) {
++    if (edge.style === 'invisible' || edge.source === edge.target) continue
++    const source = byId.get(edge.source), target = byId.get(edge.target)
++    if (!source || !target) continue
++    // A state terminator deliberately collects alternative transitions;
++    // it is not an entity whose individual incoming transfers must be counted.
++    if (target.shape === 'state-end' || target.shape === 'state-start') continue
++    const size = axis.main === 'x' ? 'width' : 'height'
++    if (axis.sign > 0 ? target[axis.main] <= source[axis.main] + source[size]
++      : source[axis.main] <= target[axis.main] + target[size]) continue
++    if (!outgoing.has(edge.source)) outgoing.set(edge.source, new Set())
++    outgoing.get(edge.source)!.add(edge.target)
++    if (!incoming.has(edge.target)) incoming.set(edge.target, new Set())
++    incoming.get(edge.target)!.add(edge.source)
++  }
++  const distinct = new Set<string>()
++  for (const [target, sources] of incoming) {
++    if (sources.size < 2) continue
++    // Match the existing peer-convergence owner: branches from different
++    // ranks are not interchangeable paths through a single apparent bus.
++    if (!sameFlowLayer([...sources].map(source => byId.get(source)!), direction, 28)) continue
++    const first = outgoing.get(sources.values().next().value!)!
++    if (![...sources].some(source => {
++      const targets = outgoing.get(source)!
++      return targets.size !== first.size || [...targets].some(id => !first.has(id))
++    })) continue
++    distinct.add(target)
++  }
++  return distinct
++}
++
+ /** The side of a node that faces along `axis` — facing=1 for the side an
+  *  edge leaves from, facing=-1 for the side it enters. */
+ export function facingSide(axis: Axis, facing: 1 | -1): PortSide {
+@@ -545,6 +586,7 @@ export function buildRouteLaneContext(
+   return {
+     axis,
+     ctx: { nodes: positioned.nodes, edges: positioned.edges, groups: positioned.groups, axis, style, classes, sideUse, finalLabelClearance,
++      distinctArrivalTargets: distinctArrivalTargets(positioned.nodes, positioned.edges, graph.direction),
+       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
+       routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
+   }
+diff --git a/src/layout/route-lanes.ts b/src/layout/route-lanes.ts
+index adbb97f4..d45069e3 100644
+--- a/src/layout/route-lanes.ts
++++ b/src/layout/route-lanes.ts
+@@ -293,7 +293,7 @@ function collectLaneBlockers(
+       const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
+       const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
+       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
+-        if (other.target === edge.target && other.source !== edge.source && edgesMayShareTerminal(edge, other) &&
++        if (other.target === edge.target && other.source !== edge.source && edgesMayShareTerminal(edge, other, ctx.distinctArrivalTargets) &&
+           Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
+           continue
+         }
+diff --git a/src/layout/route-marker-clearance.ts b/src/layout/route-marker-clearance.ts
+index e177c901..80ee2442 100644
+--- a/src/layout/route-marker-clearance.ts
++++ b/src/layout/route-marker-clearance.ts
+@@ -115,7 +115,8 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
+  * merged into it. That ink stands for each member only when the members paint
+  * identically and at most one of them is named: a different dash, width or
+  * colour would be painted over, and two labels cannot both own one arrowhead. */
+-export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
++export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge, distinctArrivalTargets?: ReadonlySet<string>): boolean {
++  if (a.target === b.target && a.source !== b.source && distinctArrivalTargets?.has(a.target)) return false
+   if (a.label && b.label) return false
+   if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
+   const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
+diff --git a/src/route-contracts.ts b/src/route-contracts.ts
+index 82185bf7..635aa170 100644
+--- a/src/route-contracts.ts
++++ b/src/route-contracts.ts
+@@ -289,12 +289,12 @@ export function applyRouteContracts(
+   /** Another terminal this route may not share already ends on `lane`. */
+   const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
+     peer !== edge && peer.target === edge.target && peer.points.length > 1
+-    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
++    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets))
+ 
+   /** A peer this route may not share a terminal with ends on the target's
+    * port lane, or emits on it and so can enter it straight. */
+   const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
+-    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
++    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
+     const emitter = sourceOf(peer)
+     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
+   })
+@@ -391,7 +391,7 @@ export function applyRouteContracts(
+       // port goes to it and this route keeps its own entry first.
+       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
+       const peerOwnsPort = someIncoming(edge, peer => {
+-        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
++        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer, ctx.distinctArrivalTargets)) return false
+         const emitter = sourceOf(peer)
+         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
+       })
+@@ -756,7 +756,7 @@ export function applyRouteContracts(
+     // settles is re-proved and downgraded on the next round.
+     const entryPort = shapePorts(target)[facingSide(axis, -1)]
+     const mergeAvailable = someIncoming(edge,
+-      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
++      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other, ctx.distinctArrivalTargets) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
+     )
+     if (mergeAvailable) return false
+     const portMain = shapePorts(target)[entrySide][axis.main]

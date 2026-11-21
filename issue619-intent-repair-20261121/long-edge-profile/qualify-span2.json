@@ -1,0 +1,14 @@
+{
+  "mode": "qualify",
+  "span": 2,
+  "node": "v24.19.0",
+  "sourceHead": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "authoredNodes": 96,
+  "authoredEdges": 189,
+  "dimensions": "40x30; external agent dimensions/options unknown",
+  "inputSHA256": "108a7d3999346feb47bad54bb0794d1b66913e3340702220944936eb46e1ce83",
+  "sourceCountsAreNotBytes": true,
+  "oraclePolicy": "Existing eval/elk-layered/comparison.ts excludes only output-added GWT numeric $H; authored fields, coordinates and ordering stay strict",
+  "strictOracleEqual": true,
+  "instrumentedEqual": true
+}

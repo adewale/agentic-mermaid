@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970.5300000000001 340.02500000000003" width="970.5300000000001" height="340.02500000000003" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="202,161.175 224.8885,161.175 224.8885,58.45 247.777,58.45" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="389.762,58.45 409.05875000000003,58.45 409.05875000000003,115.22500000000002 428.3555,115.22500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="202,161.175 224.8885,161.175 224.8885,123.35000000000001 247.777,123.35000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="385.316,123.35000000000001 409.05875000000003,123.35000000000001 409.05875000000003,115.22500000000002 428.3555,115.22500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="202,161.175 224.8885,161.175 224.8885,193.625 247.777,193.625" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="391.24399999999997,193.625 409.79975,193.625 409.79975,115.22500000000002 428.3555,115.22500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="391.24399999999997,193.625 409.79975,193.625 409.79975,199.77500000000003 428.3555,199.77500000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="202,161.175 224.8885,161.175 224.8885,273.125 247.777,273.125" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-to="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="389.021,273.125 428.3555,273.125" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-to="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="565.8945,273.125 600.783,273.125" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-to="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="736.84,273.125 784.84,273.125" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-label="📍 Current
+Ξ TPRPxm...avvK" data-shape="circle">
+  <circle cx="121" cy="161.175" r="81" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="121" y="161.175" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000"><tspan x="121" dy="-3.9000000000000012">📍 Current</tspan><tspan x="121" dy="16.900000000000002">Ξ TPRPxm...avvK</tspan></text>
+</g>
+<g class="node" data-id="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-label="Ξ TWnK4k...fBaW" data-shape="rounded">
+  <rect x="247.777" y="40" width="141.985" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="318.7695" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ξ TWnK4k...fBaW</text>
+</g>
+<g class="node" data-id="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-label="Ξ TL8TBp...SwEf
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="428.3555" y="88.32500000000002" width="140.503" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="498.60699999999997" y="115.22500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000"><tspan x="498.60699999999997" dy="-3.9000000000000012">Ξ TL8TBp...SwEf</tspan><tspan x="498.60699999999997" dy="16.900000000000002"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-label="Ξ TQBb8D...Xotb" data-shape="rounded">
+  <rect x="247.777" y="104.9" width="137.539" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="316.5465" y="123.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ξ TQBb8D...Xotb</text>
+</g>
+<g class="node" data-id="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-label="Ξ TUaYgu...RLVy" data-shape="rounded">
+  <rect x="247.777" y="175.175" width="143.46699999999998" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="319.5105" y="193.625" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ξ TUaYgu...RLVy</text>
+</g>
+<g class="node" data-id="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-label="Ξ TUaZjK...tZ8c
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="428.3555" y="172.87500000000003" width="133.09300000000002" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="494.90200000000004" y="199.77500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000"><tspan x="494.90200000000004" dy="-3.9000000000000012">Ξ TUaZjK...tZ8c</tspan><tspan x="494.90200000000004" dy="16.900000000000002"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-label="Ξ TUciXW...zDbP" data-shape="rounded">
+  <rect x="247.777" y="254.675" width="141.244" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="318.399" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ξ TUciXW...zDbP</text>
+</g>
+<g class="node" data-id="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-label="Ξ TXTaap...fvGZ" data-shape="rounded">
+  <rect x="428.3555" y="254.675" width="137.539" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="497.125" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ξ TXTaap...fvGZ</text>
+</g>
+<g class="node" data-id="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-label="Ξ TQBftm...FRTu
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="600.783" y="246.22500000000002" width="136.057" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="668.8115" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="668.8115" dy="-3.9000000000000012">Ξ TQBftm...FRTu</tspan><tspan x="668.8115" dy="16.900000000000002"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-label="Ξ TNVaKW...4Ug8
+&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle">
+  <rect x="784.84" y="246.22500000000002" width="145.69" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="#ff0000" stroke-width="2px" />
+  <text x="857.6850000000001" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000"><tspan x="857.6850000000001" dy="-3.9000000000000012">Ξ TNVaKW...4Ug8</tspan><tspan x="857.6850000000001" dy="16.900000000000002"><tspan font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+</svg>

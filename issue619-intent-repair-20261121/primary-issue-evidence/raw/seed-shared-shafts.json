@@ -1,0 +1,1914 @@
+{
+  "scope": "Read the emitted polylines and directed source and target attributes. Enforce original shaft direction. Permit switching logical routes at either boundary of every positive same-direction collinear span (axes agree to 1e-6 px), recursively, without crossing a node or jumping at a mere point contact. This models false directed joins on chains of shared ink. It does not capture stroke-width/anti-aliasing contact, label masking, point-only junctions, visual effort or ownership at a crowded tip. Primitive indices refer to successive points of the written polyline. SDK route invariant and caption are from the hash-bound public layout capture.",
+  "records": [
+    {
+      "product": "seed135-ours-default",
+      "svgSha256": "b295eb953a34475a54ae03c4dcd409c1e46657edc53296c07e45d89eea3c8473",
+      "primitivePairCount": 3,
+      "logicalPairCount": 3,
+      "logicalPairsByRelationship": {
+        "fan-out": 0,
+        "fan-in": 3,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 26,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 26,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "n9->n1",
+            "n5->n1#1"
+          ],
+          "segments": [
+            2,
+            4
+          ],
+          "lengthPx": 18.75,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 283.254083333,
+          "axis": "x",
+          "rangeOnAxis": [
+            164.123,
+            182.873
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              164.123,
+              283.254083333
+            ],
+            [
+              164.123,
+              283.254083333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n5->n3",
+            "n7->n3"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 263.0855,
+          "axis": "x",
+          "rangeOnAxis": [
+            449.561,
+            461.936
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            "edge 12 xxxxxxxxxxxxxxx",
+            null
+          ],
+          "endpoints": [
+            [
+              449.561,
+              263.0855
+            ],
+            [
+              449.561,
+              263.0855
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n0->n7",
+            "n4->n7"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 119.05,
+          "axis": "x",
+          "rangeOnAxis": [
+            913.089,
+            925.464
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              913.089,
+              119.05
+            ],
+            [
+              913.089,
+              119.05
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "seed135-ours-balanced",
+      "svgSha256": "c60c2dd878db35b06876507eabb19a710e4baa9d455b283bb8bce8748e6ffd76",
+      "primitivePairCount": 8,
+      "logicalPairCount": 8,
+      "logicalPairsByRelationship": {
+        "fan-out": 3,
+        "fan-in": 5,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 26,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 26,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "n12->n2",
+            "n12->n6"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 24.0,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 278.026833333,
+          "axis": "x",
+          "rangeOnAxis": [
+            1397.718,
+            1421.718
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1358.912,
+              114.062333333
+            ],
+            [
+              1373.718,
+              278.526833333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n12->n2",
+            "n10->n2"
+          ],
+          "segments": [
+            2,
+            0
+          ],
+          "lengthPx": 38.806,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 114.062333333,
+          "axis": "x",
+          "rangeOnAxis": [
+            1358.912,
+            1397.718
+          ],
+          "routeInvariants": [
+            "bundle",
+            "straight"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1358.912,
+              114.062333333
+            ],
+            [
+              1358.912,
+              114.062333333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n5->n8",
+            "n7->n8"
+          ],
+          "segments": [
+            4,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 364.278,
+          "axis": "x",
+          "rangeOnAxis": [
+            293.067,
+            305.442
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            "edge 4 xxxxxxx",
+            null
+          ],
+          "endpoints": [
+            [
+              293.067,
+              364.278
+            ],
+            [
+              293.067,
+              364.278
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n7->n8",
+            "n7->n3"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 179.667,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 267.621166667,
+          "axis": "x",
+          "rangeOnAxis": [
+            616.478,
+            796.145
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              293.067,
+              364.278
+            ],
+            [
+              436.811,
+              218.987333333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n5->n3",
+            "n7->n3"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 218.987333333,
+          "axis": "x",
+          "rangeOnAxis": [
+            436.811,
+            449.186
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            "edge 12 xxxxxxxxxxxxxxx",
+            null
+          ],
+          "endpoints": [
+            [
+              436.811,
+              218.987333333
+            ],
+            [
+              436.811,
+              218.987333333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n4->n0",
+            "n6->n0"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 267.621166667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1212.343,
+            1224.718
+          ],
+          "routeInvariants": [
+            "bundle",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1212.343,
+              267.621166667
+            ],
+            [
+              1212.343,
+              267.621166667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n4->n0",
+            "n4->n9"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 21.1875,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 430.123833333,
+          "axis": "x",
+          "rangeOnAxis": [
+            1233.5305,
+            1254.718
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1212.343,
+              267.621166667
+            ],
+            [
+              362.719,
+              474.172333333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n0->n7#1",
+            "n4->n7"
+          ],
+          "segments": [
+            4,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 267.621166667,
+          "axis": "x",
+          "rangeOnAxis": [
+            900.339,
+            912.714
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            "edge 24 xxxxxxxxxx",
+            null
+          ],
+          "endpoints": [
+            [
+              900.339,
+              267.621166667
+            ],
+            [
+              900.339,
+              267.621166667
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "seed139-ours-default",
+      "svgSha256": "41c85c5e8a2ccc1cd15242b6f3e90635bbd36d875b59091a481b3359362a4af2",
+      "primitivePairCount": 7,
+      "logicalPairCount": 7,
+      "logicalPairsByRelationship": {
+        "fan-out": 0,
+        "fan-in": 7,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 39,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 39,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "n10->n11",
+            "n15->n11"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 533.255666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1030.602,
+            1042.977
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1030.602,
+              533.255666667
+            ],
+            [
+              1030.602,
+              533.255666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n10->n11",
+            "n8->n11"
+          ],
+          "segments": [
+            2,
+            4
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 533.255666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1030.602,
+            1042.977
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1030.602,
+              533.255666667
+            ],
+            [
+              1030.602,
+              533.255666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n10->n13",
+            "n8->n13"
+          ],
+          "segments": [
+            2,
+            0
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 502.515666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1200.279,
+            1212.654
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "straight"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1200.279,
+              502.515666667
+            ],
+            [
+              1200.279,
+              502.515666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n15->n7",
+            "n13->n7"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 30.5185,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 676.722333333,
+          "axis": "x",
+          "rangeOnAxis": [
+            1032.084,
+            1062.6025
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1032.084,
+              676.722333333
+            ],
+            [
+              1032.084,
+              676.722333333
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n15->n11",
+            "n8->n11"
+          ],
+          "segments": [
+            2,
+            4
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 533.255666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1030.602,
+            1042.977
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1030.602,
+              533.255666667
+            ],
+            [
+              1030.602,
+              533.255666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n6->n9",
+            "n15->n9"
+          ],
+          "segments": [
+            3,
+            3
+          ],
+          "lengthPx": 59.43,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": false,
+          "position": 744.53,
+          "axis": "y",
+          "rangeOnAxis": [
+            105.887,
+            165.317
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              732.155,
+              172.697
+            ],
+            [
+              732.155,
+              165.317
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n5->n14",
+            "n9->n14"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 482.843166667,
+          "axis": "x",
+          "rangeOnAxis": [
+            450.642,
+            463.017
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              450.642,
+              482.843166667
+            ],
+            [
+              450.642,
+              482.843166667
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "seed139-ours-balanced",
+      "svgSha256": "0da06245b0a3ceb4b8dfb12cb7b973b0b3107dbea3319b5f4f34b14e5da5ff5c",
+      "primitivePairCount": 11,
+      "logicalPairCount": 8,
+      "logicalPairsByRelationship": {
+        "fan-out": 3,
+        "fan-in": 5,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 39,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 39,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "n10->n11",
+            "n15->n11"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 360.296,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 130.020966667,
+          "axis": "x",
+          "rangeOnAxis": [
+            908.567,
+            1268.863
+          ],
+          "routeInvariants": [
+            "bundle",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              908.567,
+              130.020966667
+            ],
+            [
+              908.567,
+              130.020966667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n10->n11",
+            "n8->n11"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 151.9135,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 130.020966667,
+          "axis": "x",
+          "rangeOnAxis": [
+            908.567,
+            1060.4805
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              908.567,
+              130.020966667
+            ],
+            [
+              908.567,
+              130.020966667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n10->n11",
+            "n10->n4"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 24.0,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 288.953166667,
+          "axis": "x",
+          "rangeOnAxis": [
+            1540.965,
+            1564.965
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              908.567,
+              130.020966667
+            ],
+            [
+              1516.965,
+              273.349
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n10->n11",
+            "n10->n4"
+          ],
+          "segments": [
+            1,
+            1
+          ],
+          "lengthPx": 15.60416667,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 1540.965,
+          "axis": "y",
+          "rangeOnAxis": [
+            273.349,
+            288.953166667
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              908.567,
+              130.020966667
+            ],
+            [
+              1516.965,
+              273.349
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n8->n13",
+            "n15->n13"
+          ],
+          "segments": [
+            2,
+            4
+          ],
+          "lengthPx": 26.9605,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 363.3623,
+          "axis": "x",
+          "rangeOnAxis": [
+            1033.52,
+            1060.4805
+          ],
+          "routeInvariants": [
+            "bundle",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            "edge 8 xxxxxxxxxxx"
+          ],
+          "endpoints": [
+            [
+              1033.52,
+              363.3623
+            ],
+            [
+              1033.52,
+              363.3623
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n8->n13",
+            "n8->n11"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 26.9605,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 450.3615,
+          "axis": "x",
+          "rangeOnAxis": [
+            1060.4805,
+            1087.441
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1033.52,
+              363.3623
+            ],
+            [
+              908.567,
+              130.020966667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n8->n13",
+            "n8->n11"
+          ],
+          "segments": [
+            1,
+            1
+          ],
+          "lengthPx": 86.9992,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 1060.4805,
+          "axis": "y",
+          "rangeOnAxis": [
+            363.3623,
+            450.3615
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              1033.52,
+              363.3623
+            ],
+            [
+              908.567,
+              130.020966667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n15->n11",
+            "n8->n11"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 151.9135,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 130.020966667,
+          "axis": "x",
+          "rangeOnAxis": [
+            908.567,
+            1060.4805
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              908.567,
+              130.020966667
+            ],
+            [
+              908.567,
+              130.020966667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n5->n14",
+            "n9->n14"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 514.119466667,
+          "axis": "x",
+          "rangeOnAxis": [
+            427.392,
+            439.767
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              427.392,
+              514.119466667
+            ],
+            [
+              427.392,
+              514.119466667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n9->n5",
+            "n9->n14"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 12.812,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 602.691833333,
+          "axis": "x",
+          "rangeOnAxis": [
+            604.023,
+            616.835
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              591.211,
+              536.919466667
+            ],
+            [
+              427.392,
+              514.119466667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "n9->n5",
+            "n9->n14"
+          ],
+          "segments": [
+            1,
+            1
+          ],
+          "lengthPx": 65.77236667,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 604.023,
+          "axis": "y",
+          "rangeOnAxis": [
+            536.919466667,
+            602.691833333
+          ],
+          "routeInvariants": [
+            "bundle",
+            "bundle"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              591.211,
+              536.919466667
+            ],
+            [
+              427.392,
+              514.119466667
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "bm52-wallet-ours-default",
+      "svgSha256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "primitivePairCount": 3,
+      "logicalPairCount": 3,
+      "logicalPairsByRelationship": {
+        "fan-out": 0,
+        "fan-in": 3,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 11,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 11,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            0
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "straight"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            0,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "straight",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "bm52-wallet-ours-balanced",
+      "svgSha256": "ab1faced18746f7e2b446f7e954f837d941366feee584bcb5a6426b1f661abcf",
+      "primitivePairCount": 3,
+      "logicalPairCount": 3,
+      "logicalPairsByRelationship": {
+        "fan-out": 0,
+        "fan-in": 3,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 11,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 11,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "sdkLabelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "spans": [
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            0
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "straight"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "explained-detour",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            0,
+            2
+          ],
+          "lengthPx": 12.375,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 125.141666667,
+          "axis": "x",
+          "rangeOnAxis": [
+            496.4845,
+            508.8595
+          ],
+          "routeInvariants": [
+            "straight",
+            "explained-detour"
+          ],
+          "edgeCaptions": [
+            null,
+            null
+          ],
+          "endpoints": [
+            [
+              508.8595,
+              125.141666667
+            ],
+            [
+              508.8595,
+              125.141666667
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "product": "bm52-wallet-bm",
+      "svgSha256": "59834dc3408653b62addd050460e64aff0060e12e94a795ba59a8609102929a9",
+      "primitivePairCount": 12,
+      "logicalPairCount": 10,
+      "logicalPairsByRelationship": {
+        "fan-out": 7,
+        "fan-in": 3,
+        "unrelated": 0
+      },
+      "reachability": {
+        "authoredDirectNodePairs": 11,
+        "reachableDirectNodePairsWithSameDirectionSharedInk": 11,
+        "falseNodePairs": []
+      },
+      "extraReachabilityByStartingOccurrence": [],
+      "sdkRouteOverlaps": null,
+      "sdkLabelConflicts": null,
+      "spans": [
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              58.45
+            ],
+            [
+              247.777,
+              123.35000000000001
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb"
+          ],
+          "segments": [
+            1,
+            1
+          ],
+          "lengthPx": 37.825,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 224.8885,
+          "axis": "y",
+          "rangeOnAxis": [
+            123.35000000000001,
+            161.175
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              58.45
+            ],
+            [
+              247.777,
+              123.35000000000001
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              58.45
+            ],
+            [
+              247.777,
+              193.625
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              58.45
+            ],
+            [
+              247.777,
+              273.125
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 19.29675,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 115.225,
+          "axis": "x",
+          "rangeOnAxis": [
+            409.05875000000003,
+            428.3555
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              428.3555,
+              115.22500000000002
+            ],
+            [
+              428.3555,
+              115.22500000000002
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 18.55575,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 115.225,
+          "axis": "x",
+          "rangeOnAxis": [
+            409.79975,
+            428.3555
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              428.3555,
+              115.22500000000002
+            ],
+            [
+              428.3555,
+              115.22500000000002
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              123.35000000000001
+            ],
+            [
+              247.777,
+              193.625
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              123.35000000000001
+            ],
+            [
+              247.777,
+              273.125
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf"
+          ],
+          "segments": [
+            2,
+            2
+          ],
+          "lengthPx": 18.55575,
+          "direction": "same",
+          "relationship": "fan-in",
+          "contiguousWithCommonEndpoint": true,
+          "position": 115.225,
+          "axis": "x",
+          "rangeOnAxis": [
+            409.79975,
+            428.3555
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              428.3555,
+              115.22500000000002
+            ],
+            [
+              428.3555,
+              115.22500000000002
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 22.8885,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 161.175,
+          "axis": "x",
+          "rangeOnAxis": [
+            202.0,
+            224.8885
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              193.625
+            ],
+            [
+              247.777,
+              273.125
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy",
+            "TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK->TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP"
+          ],
+          "segments": [
+            1,
+            1
+          ],
+          "lengthPx": 32.45,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 224.8885,
+          "axis": "y",
+          "rangeOnAxis": [
+            161.175,
+            193.625
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              247.777,
+              193.625
+            ],
+            [
+              247.777,
+              273.125
+            ]
+          ]
+        },
+        {
+          "edges": [
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf",
+            "TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy->TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c"
+          ],
+          "segments": [
+            0,
+            0
+          ],
+          "lengthPx": 18.55575,
+          "direction": "same",
+          "relationship": "fan-out",
+          "contiguousWithCommonEndpoint": true,
+          "position": 193.625,
+          "axis": "x",
+          "rangeOnAxis": [
+            391.24399999999997,
+            409.79975
+          ],
+          "routeInvariants": null,
+          "edgeCaptions": null,
+          "endpoints": [
+            [
+              428.3555,
+              115.22500000000002
+            ],
+            [
+              428.3555,
+              199.77500000000003
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

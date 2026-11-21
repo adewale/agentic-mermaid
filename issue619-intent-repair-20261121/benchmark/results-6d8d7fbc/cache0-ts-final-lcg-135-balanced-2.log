@@ -1,0 +1,11 @@
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat1","status":"returned","wallMs":125.74513200000001,"cpuMs":258.738}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat2","status":"returned","wallMs":114.87762800000007,"cpuMs":173.944}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat3","status":"returned","wallMs":108.177322,"cpuMs":192.799}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat4","status":"returned","wallMs":146.119151,"cpuMs":265.339}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat5","status":"returned","wallMs":124.78958200000011,"cpuMs":179.273}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat6","status":"returned","wallMs":133.05114099999992,"cpuMs":191.942}
+{"case":"lcg-135-balanced","backend":"elk","phase":"repeat7","status":"returned","wallMs":137.92380200000002,"cpuMs":222.708}
+{"case":"lcg-135-balanced","backend":"elk","phase":"edit1","status":"returned","wallMs":308.48305700000014,"cpuMs":415.223}
+{"case":"lcg-135-balanced","backend":"elk","phase":"edit2","status":"returned","wallMs":123.41216700000018,"cpuMs":190.813}
+{"case":"lcg-135-balanced","backend":"elk","phase":"edit3","status":"returned","wallMs":113.22038199999997,"cpuMs":176.401}
+{"case":"lcg-135-balanced","backend":"elk","phase":"edit4","status":"returned","wallMs":128.17438399999992,"cpuMs":227.432}

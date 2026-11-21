@@ -1,0 +1,16 @@
+{
+  "id": "bm52-wallet",
+  "product": "Pele npm",
+  "version": "1.13.0",
+  "inputSHA256": "9b6d7bfb7e08d821f3f7e329f5395a1baf197247f091387d0d4045b92f0bcd68",
+  "options": {},
+  "boundary": "Installed local public API; no source sent externally",
+  "ok": true,
+  "svgSHA256": "68152f4db91fe49b4b2dea2df8eab9d5ac73fd13f447a96339bef37986ab56fe",
+  "metadata": {
+    "type": "flowchart",
+    "width": 1025,
+    "height": 359,
+    "links": []
+  }
+}

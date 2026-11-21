@@ -1,0 +1,14 @@
+{
+  "id": "nineteen",
+  "product": "Mermaid",
+  "version": "12.3.0",
+  "layout": "default Dagre",
+  "inputSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "options": {
+    "startOnLoad": false
+  },
+  "boundary": "Installed browser ESM served on loopback only",
+  "ok": true,
+  "svgSHA256": "2aed205513732c398b83a24f2590ffa920c43571f319afbeba724611e73bfa33",
+  "viewBox": "4 -49 1882.9818115234375 2259.954345703125"
+}

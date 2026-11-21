@@ -1,0 +1,16 @@
+{
+  "arm": "bm",
+  "id": "nineteen",
+  "sourceSHA256": "f1d482325fb4f8c463b88269655bce30a02556b0b2a1990deae3cef6f0714e12",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "beautiful-mermaid",
+  "version": "1.1.3",
+  "elk": "0.11.1",
+  "ok": false,
+  "error": {
+    "name": "Error",
+    "message": "Invalid mermaid header: \"---\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc.",
+    "stack": "Error: Invalid mermaid header: \"---\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc.\n    at parseFlowchart (file:///workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/runtime/node_modules/beautiful-mermaid/dist/index.js:353:11)\n    at parseMermaid (file:///workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/runtime/node_modules/beautiful-mermaid/dist/index.js:348:10)\n    at Module.renderMermaidSVG (file:///workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/runtime/node_modules/beautiful-mermaid/dist/index.js:9273:21)\n    at file:///workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/render-one.mjs:4:673"
+  }
+}

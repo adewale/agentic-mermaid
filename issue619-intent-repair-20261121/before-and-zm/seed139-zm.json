@@ -1,0 +1,405 @@
+{
+  "arm": "zm",
+  "id": "seed139",
+  "sourceSHA256": "a212934e51aeb13f85474df59c6306e4f09f2a9690eae8e1ae221f3956a2cbd5",
+  "options": {},
+  "scope": "Exact input; unmodified public SVG API. No kernel or renderer hook.",
+  "package": "zombie-mermaid",
+  "version": "5.18.0",
+  "elk": "0.12.1",
+  "parsed": {
+    "direction": "RL",
+    "nodes": {
+      "n0": {
+        "id": "n0",
+        "label": "Node 139-0",
+        "shape": "diamond"
+      },
+      "n1": {
+        "id": "n1",
+        "label": "Node 139-1",
+        "shape": "rounded"
+      },
+      "n2": {
+        "id": "n2",
+        "label": "Node 139-2",
+        "shape": "circle"
+      },
+      "n3": {
+        "id": "n3",
+        "label": "Node 139-3",
+        "shape": "subroutine"
+      },
+      "n4": {
+        "id": "n4",
+        "label": "Node 139-4",
+        "shape": "cylinder"
+      },
+      "n5": {
+        "id": "n5",
+        "label": "Node 139-5",
+        "shape": "rectangle"
+      },
+      "n6": {
+        "id": "n6",
+        "label": "Node 139-6",
+        "shape": "diamond"
+      },
+      "n7": {
+        "id": "n7",
+        "label": "Node 139-7",
+        "shape": "rounded"
+      },
+      "n8": {
+        "id": "n8",
+        "label": "Node 139-8",
+        "shape": "circle"
+      },
+      "n9": {
+        "id": "n9",
+        "label": "Node 139-9",
+        "shape": "subroutine"
+      },
+      "n10": {
+        "id": "n10",
+        "label": "Node 139-10",
+        "shape": "cylinder"
+      },
+      "n11": {
+        "id": "n11",
+        "label": "Node 139-11",
+        "shape": "rectangle"
+      },
+      "n12": {
+        "id": "n12",
+        "label": "Node 139-12",
+        "shape": "diamond"
+      },
+      "n13": {
+        "id": "n13",
+        "label": "Node 139-13",
+        "shape": "rounded"
+      },
+      "n14": {
+        "id": "n14",
+        "label": "Node 139-14",
+        "shape": "circle"
+      },
+      "n15": {
+        "id": "n15",
+        "label": "Node 139-15",
+        "shape": "subroutine"
+      },
+      "n16": {
+        "id": "n16",
+        "label": "Node 139-16",
+        "shape": "cylinder"
+      }
+    },
+    "edges": [
+      {
+        "source": "n14",
+        "target": "n12",
+        "label": "edge 0 xxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n10",
+        "target": "n11",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n10",
+        "target": "n13",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n8",
+        "target": "n13",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n14",
+        "label": "edge 4 xxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n7",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n13",
+        "target": "n7",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n11",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n13",
+        "label": "edge 8 xxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n12",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n6",
+        "target": "n9",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n1",
+        "label": "edge 12 xxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n5",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n4",
+        "target": "n15",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n9",
+        "target": "n5",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n5",
+        "label": "edge 16 xxxxxxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n0",
+        "target": "n1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n8",
+        "target": "n11",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n12",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n9",
+        "label": "edge 20 xxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n1",
+        "target": "n10",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n15",
+        "target": "n9",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n1",
+        "label": "edge 24 xxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n16",
+        "target": "n0",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n1",
+        "target": "n4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n9",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n2",
+        "target": "n9",
+        "label": "edge 28 xxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n10",
+        "target": "n4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n6",
+        "target": "n2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n1",
+        "target": "n16",
+        "label": "edge 32 xxxxxxxxxxxxxxxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n7",
+        "target": "n8",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n5",
+        "target": "n8",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n11",
+        "target": "n16",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n13",
+        "target": "n3",
+        "label": "edge 36 xxxxx",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n12",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n3",
+        "target": "n14",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      },
+      {
+        "source": "n12",
+        "target": "n8",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true
+      }
+    ],
+    "subgraphs": [],
+    "classDefs": {},
+    "classAssignments": {},
+    "nodeStyles": {},
+    "linkStyles": {},
+    "interactions": {},
+    "initConfig": {
+      "ignored": []
+    }
+  },
+  "ok": true,
+  "svgSHA256": "5ff6c15886fd180f14e78e240357534ee9de9373a138634a2ba5f7eb7d59539f",
+  "svgBytes": 28341,
+  "viewBox": "0 0 4014.11 645.81"
+}

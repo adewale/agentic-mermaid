@@ -1,0 +1,21 @@
+{
+  "head": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "runtimeHead": "e459cd7c70d37bfd4afe9667fe91bf5827a5aa89",
+  "base": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+  "unit": {
+    "passed": 17073,
+    "skipped": 78,
+    "failed": 0,
+    "files": 608
+  },
+  "shards": {
+    "1": "unit-final-1.log",
+    "2": "unit-recovered-2.log",
+    "3": "unit-final-3.log"
+  },
+  "prepush": "pre-push-recovery.log",
+  "actualChromium": "website-payload-recovery.log",
+  "longEdgeProductionChanges": false,
+  "remoteCI": "not run per owner local-only instruction",
+  "noGlobalMetricWin": true
+}

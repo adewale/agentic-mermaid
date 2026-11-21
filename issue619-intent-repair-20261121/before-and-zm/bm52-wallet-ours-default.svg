@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1165.877" height="340.025" viewBox="0 0 1165.877 340.025" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1sm3rx809zd0j4">
+<style>
+  svg.am-1sm3rx809zd0j4 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1sm3rx809zd0j4 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="214.6,102.975 269.625,102.975 269.625,58.45 286.8165,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK-&gt;TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW#0" data-role="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" role="graphics-symbol" aria-roledescription="relation" aria-label="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK to TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="467.5285,58.45 496.4845,58.45 496.4845,125.141666667 508.8595,125.141666667" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW-&gt;TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf#0" data-role="edge" data-from="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" role="graphics-symbol" aria-roledescription="relation" aria-label="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW to TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="234,161.175 274.4415,161.175 274.4415,123.35 286.8165,123.35" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK-&gt;TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb#0" data-role="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" role="graphics-symbol" aria-roledescription="relation" aria-label="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK to TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="457.8955,125.141666667 508.8595,125.141666667" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb-&gt;TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf#0" data-role="edge" data-from="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" role="graphics-symbol" aria-roledescription="relation" aria-label="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb to TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="232.04020202,180.575 269.625,180.575 269.625,193.625 286.8165,193.625" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK-&gt;TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy#0" data-role="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" role="graphics-symbol" aria-roledescription="relation" aria-label="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK to TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="463.8235,193.625 496.4845,193.625 496.4845,125.141666667 508.8595,125.141666667" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy-&gt;TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf#0" data-role="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" role="graphics-symbol" aria-roledescription="relation" aria-label="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy to TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="463.8235,199.775 508.8595,199.775" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy-&gt;TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c#0" data-role="edge" data-from="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-to="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" role="graphics-symbol" aria-roledescription="relation" aria-label="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy to TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="214.6,219.375 269.625,219.375 269.625,273.125 286.8165,273.125" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK-&gt;TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP#0" data-role="edge" data-from="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-to="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" role="graphics-symbol" aria-roledescription="relation" aria-label="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK to TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="464.194,273.125 508.8595,273.125" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP-&gt;TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ#0" data-role="edge" data-from="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-to="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" role="graphics-symbol" aria-roledescription="relation" aria-label="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP to TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="679.9385,273.125 726.4565,273.125" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ-&gt;TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu#0" data-role="edge" data-from="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-to="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" role="graphics-symbol" aria-roledescription="relation" aria-label="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ to TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="896.0535,273.125 944.0535,273.125" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu-&gt;TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8#0" data-role="edge" data-from="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-to="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" role="graphics-symbol" aria-roledescription="relation" aria-label="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu to TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" />
+<g class="node highRiskNode" data-id="TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-label="📍 Current&#10;Ξ TPRPxm...avvK" data-shape="circle" data-role="node">
+  <circle cx="137" cy="161.175" r="97" fill="#f9f9f9" stroke="#ff0000" stroke-width="2px" data-id="node-shape:TPRPxmrDmcaBuucaK4d85RbwR28YeRavvK" data-role="node" />
+  <text x="137" y="161.175" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000" data-prepared-text="true"><tspan x="137" y="157.275"><tspan x="137" text-anchor="middle" data-text-fragment="true">📍 Current</tspan></tspan><tspan x="137" y="174.175"><tspan x="137" text-anchor="middle" data-text-fragment="true">Ξ TPRPxm...avvK</tspan></tspan></text>
+</g>
+<g class="node" data-id="TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-label="Ξ TWnK4k...fBaW" data-shape="rounded" data-role="node">
+  <rect x="286.8165" y="40" width="180.712" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TWnK4k15o7mtYNvLByLqKAP1rd2cxDfBaW" data-role="node" />
+  <text x="377.1725" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="377.1725" y="63" text-anchor="middle" data-text-fragment="true">Ξ TWnK4k...fBaW</tspan></text>
+</g>
+<g class="node" data-id="TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-label="Ξ TQBb8D...Xotb" data-shape="rounded" data-role="node">
+  <rect x="286.8165" y="104.9" width="171.079" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb" data-role="node" />
+  <text x="372.356" y="123.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="372.356" y="127.9" text-anchor="middle" data-text-fragment="true">Ξ TQBb8D...Xotb</tspan></text>
+</g>
+<g class="node" data-id="TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-label="Ξ TUaYgu...RLVy" data-shape="rounded" data-role="node">
+  <rect x="286.8165" y="175.175" width="177.007" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TUaYgu4goKEG5wxebEDgavSTs4TLXbRLVy" data-role="node" />
+  <text x="375.32" y="193.625" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="375.32" y="198.175" text-anchor="middle" data-text-fragment="true">Ξ TUaYgu...RLVy</tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-label="Ξ TL8TBp...SwEf&#10;&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle" data-role="node">
+  <rect x="508.8595" y="98.2416666667" width="174.043" height="53.8" rx="0" ry="0" fill="#f9f9f9" stroke="#ff0000" stroke-width="2px" data-id="node-shape:TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf" data-role="node" />
+  <text x="595.881" y="125.141666667" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000" data-prepared-text="true"><tspan x="595.881" y="121.241666667"><tspan x="595.881" text-anchor="middle" data-text-fragment="true">Ξ TL8TBp...SwEf</tspan></tspan><tspan x="595.881" y="138.141666667"><tspan x="560.586" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="70.59" lengthAdjust="spacingAndGlyphs" font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-label="Ξ TUaZjK...tZ8c&#10;&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle" data-role="node">
+  <rect x="508.8595" y="172.875" width="166.633" height="53.8" rx="0" ry="0" fill="#f9f9f9" stroke="#ff0000" stroke-width="2px" data-id="node-shape:TUaZjKM5ZivTt2XoWdy5QuqxCwrgyetZ8c" data-role="node" />
+  <text x="592.176" y="199.775" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000" data-prepared-text="true"><tspan x="592.176" y="195.875"><tspan x="592.176" text-anchor="middle" data-text-fragment="true">Ξ TUaZjK...tZ8c</tspan></tspan><tspan x="592.176" y="212.775"><tspan x="556.881" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="70.59" lengthAdjust="spacingAndGlyphs" font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node" data-id="TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-label="Ξ TUciXW...zDbP" data-shape="rounded" data-role="node">
+  <rect x="286.8165" y="254.675" width="177.3775" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TUciXWf5HqbBZV6i5S2z6ftmv6R9D1zDbP" data-role="node" />
+  <text x="375.50525" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="375.50525" y="277.675" text-anchor="middle" data-text-fragment="true">Ξ TUciXW...zDbP</tspan></text>
+</g>
+<g class="node" data-id="TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-label="Ξ TXTaap...fvGZ" data-shape="rounded" data-role="node">
+  <rect x="508.8595" y="254.675" width="171.079" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TXTaapKSKxdJcBYftFvk9EgLYCViHufvGZ" data-role="node" />
+  <text x="594.399" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="594.399" y="277.675" text-anchor="middle" data-text-fragment="true">Ξ TXTaap...fvGZ</tspan></text>
+</g>
+<g class="node" data-id="TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-label="Ξ TQBftm...FRTu&#10;&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle" data-role="node">
+  <rect x="726.4565" y="246.225" width="169.597" height="53.8" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:TQBftmTVBBZizCVzyhFpyEN4Cjgnh1FRTu" data-role="node" />
+  <text x="811.255" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="811.255" y="269.225"><tspan x="811.255" text-anchor="middle" data-text-fragment="true">Ξ TQBftm...FRTu</tspan></tspan><tspan x="811.255" y="286.125"><tspan x="775.96" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="70.59" lengthAdjust="spacingAndGlyphs" font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+<g class="node highRiskNode" data-id="TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-label="Ξ TNVaKW...4Ug8&#10;&lt;b&gt;HuionePay&lt;/b&gt;" data-shape="rectangle" data-role="node">
+  <rect x="944.0535" y="246.225" width="181.8235" height="53.8" rx="0" ry="0" fill="#f9f9f9" stroke="#ff0000" stroke-width="2px" data-id="node-shape:TNVaKWQzau7xL9bcnvLmF9KSEQkWEs4Ug8" data-role="node" />
+  <text x="1034.96525" y="273.125" text-anchor="middle" font-size="13" font-weight="500" fill="#cc0000" data-prepared-text="true"><tspan x="1034.96525" y="269.225"><tspan x="1034.96525" text-anchor="middle" data-text-fragment="true">Ξ TNVaKW...4Ug8</tspan></tspan><tspan x="1034.96525" y="286.125"><tspan x="999.67025" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="70.59" lengthAdjust="spacingAndGlyphs" font-weight="bold">HuionePay</tspan></tspan></text>
+</g>
+</svg>

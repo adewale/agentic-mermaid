@@ -1,0 +1,57 @@
+[
+  {
+    "arm": "before",
+    "original": "/workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/renders/bm52-wallet-ours-balanced.svg",
+    "viewBox": [
+      262.8164978027344,
+      16,
+      444.0859680175781,
+      234.6750030517578
+    ],
+    "annotation": "Shaft colors and surrounding opacity changed for inspection; original coordinates retained"
+  },
+  {
+    "arm": "after",
+    "original": "/workspace/elk-layered-tools/issue619-intent-repair-20261121/candidate/bm52-wallet-balanced.svg",
+    "viewBox": [
+      262.8164978027344,
+      16,
+      444.0859680175781,
+      234.6750030517578
+    ],
+    "annotation": "Shaft colors and surrounding opacity changed for inspection; original coordinates retained"
+  },
+  {
+    "arm": "zm",
+    "original": "/workspace/elk-layered-tools/issue619-bm-zm-examples-20261121/renders/bm52-wallet-zm.svg",
+    "viewBox": [
+      247.94000244140625,
+      16,
+      390,
+      372
+    ],
+    "annotation": "Shaft colors and surrounding opacity changed for inspection; original coordinates retained"
+  },
+  {
+    "arm": "mermaid",
+    "original": "/workspace/elk-layered-tools/issue619-intent-repair-20261121/peers/bm52-wallet-mermaid.svg",
+    "viewBox": [
+      199.41125488281256,
+      -12,
+      409.99999999999994,
+      298.5833282470703
+    ],
+    "annotation": "Shaft colors and surrounding opacity changed for inspection; original coordinates retained"
+  },
+  {
+    "arm": "pele",
+    "original": "/workspace/elk-layered-tools/issue619-intent-repair-20261121/peers/bm52-wallet-pele.svg",
+    "viewBox": [
+      201.42000579833984,
+      -16,
+      416.86998748779297,
+      294
+    ],
+    "annotation": "Shaft colors and surrounding opacity changed for inspection; original coordinates retained"
+  }
+]
