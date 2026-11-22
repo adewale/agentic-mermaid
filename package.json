@@ -237,6 +237,7 @@
     "gallery:sankey-comparison": "bun run scripts/pr-assets/sankey-mermaid-comparison.ts",
     "gallery:section-b": "bun run scripts/pr-assets/section-b-brand-evidence.ts",
     "track": "bun run eval/heuristic-tracker/run.ts",
+    "layout:gate": "bun run eval/layout-compare/gate.ts",
     "audit:ugly": "bun run eval/ugly-detector/audit.ts",
     "audit:dependencies": "bun audit --audit-level=high",
     "bench:all": "bun eval/benchmark/commands.ts bench:all",

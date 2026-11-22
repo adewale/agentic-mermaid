@@ -421,7 +421,7 @@ describe('canonical CI completion', () => {
   type Outcome = Record<string, { result: string }>
   function selected(full: boolean): Outcome {
     return { scope: { result: 'success' }, docs: { result: full ? 'skipped' : 'success' },
-      test: { result: full ? 'success' : 'skipped' }, 'expire-label-approvals': { result: 'skipped' } }
+      test: { result: full ? 'success' : 'skipped' }, 'expire-label-approvals': { result: 'skipped' }, 'layout-gate': { result: 'skipped' } }
   }
   function aggregate(full: string, results: Outcome) {
     return execute(complete, tempDir(), { FULL: full, RESULTS: JSON.stringify(results) })
@@ -449,6 +449,13 @@ describe('canonical CI completion', () => {
       const outcomes = selected(full)
       outcomes[full ? 'docs' : 'test'] = { result }
       expect(aggregate(String(full), outcomes).status).not.toBe(0)
+    }
+  })
+
+  test.each(['failure', 'cancelled'])('a paired layout gate that ends in %s fails completion in either mode', result => {
+    for (const full of [true, false]) {
+      expect(aggregate(String(full), { ...selected(full), 'layout-gate': { result: 'success' } }).status).toBe(0)
+      expect(aggregate(String(full), { ...selected(full), 'layout-gate': { result } }).status).not.toBe(0)
     }
   })
 
