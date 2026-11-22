@@ -10,6 +10,7 @@ import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, no
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { arrivalsMayMerge } from '../route-marker-clearance.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../graph-paint-support.ts'
 import { nodePaintBounds } from '../../scene/bounds.ts'
@@ -626,7 +627,12 @@ export function markCorankFanInBundles(
     const entryAt = (offset: number): Point => f.isHorizontal
       ? { x: entryMid.x, y: entryMid.y + offset }
       : { x: entryMid.x + offset, y: entryMid.y }
-    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) offsets = offsets.map(() => 0)
+    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) {
+      // One port means one arrowhead. Two captioned (or differently painted)
+      // spokes cannot share it; leave this hub to the ordinary route owners.
+      if (spokes.some((a, i) => spokes.some((b, j) => j > i && !arrivalsMayMerge(a, b)))) continue
+      offsets = offsets.map(() => 0)
+    }
 
     // Shared elbow on the main axis, midway between the rank of the (co-ranked)
     // sources' forward edge and the hub's entry edge — the converging junction.

@@ -15,14 +15,17 @@ import type { PositionedEdge, PositionedGraph } from '../types.ts'
 const LINKS = { solid: '-->', dotted: '-.->', thick: '==>' } as const
 type Link = keyof typeof LINKS
 
-interface Spec { direction: string; nodes: number; edges: { from: number; to: number; link: Link; label: boolean }[] }
+const SHAPES = { rect: ['[', ']'], diamond: ['{', '}'], round: ['((', '))'] } as const
+type Shape = keyof typeof SHAPES
+
+interface Spec { direction: string; shapes: Shape[]; edges: { from: number; to: number; link: Link; label: boolean }[] }
 
 // Small multigraphs: repeated pairs, reciprocal pairs, fan-ins with mixed
-// strokes and captions. Labels are short ASCII words so text measurement is
-// not what varies.
+// strokes and captions, into straight-sided and single-vertex/curved hubs.
+// Labels are short ASCII words so text measurement is not what varies.
 const spec: fc.Arbitrary<Spec> = fc.integer({ min: 3, max: 7 }).chain(nodes => fc.record({
   direction: fc.constantFrom('TD', 'LR', 'BT', 'RL'),
-  nodes: fc.constant(nodes),
+  shapes: fc.array(fc.constantFrom<Shape>('rect', 'rect', 'rect', 'diamond', 'round'), { minLength: nodes, maxLength: nodes }),
   edges: fc.array(fc.record({
     from: fc.integer({ min: 0, max: nodes - 1 }),
     to: fc.integer({ min: 0, max: nodes - 1 }),
@@ -31,9 +34,9 @@ const spec: fc.Arbitrary<Spec> = fc.integer({ min: 3, max: 7 }).chain(nodes => f
   }), { minLength: 2, maxLength: 10 }).map(edges => edges.filter(edge => edge.from !== edge.to)).filter(edges => edges.length >= 2),
 }))
 
-function source({ direction, nodes, edges }: Spec): string {
+function source({ direction, shapes, edges }: Spec): string {
   const lines = [`flowchart ${direction}`]
-  for (let i = 0; i < nodes; i++) lines.push(`  N${i}[Node ${i}]`)
+  shapes.forEach((shape, i) => lines.push(`  N${i}${SHAPES[shape][0]}Node ${i}${SHAPES[shape][1]}`))
   edges.forEach((edge, i) => lines.push(`  N${edge.from} ${LINKS[edge.link]}${edge.label ? `|e${i}|` : ''} N${edge.to}`))
   return lines.join('\n')
 }
@@ -62,6 +65,18 @@ function indistinct(positioned: PositionedGraph): string[] {
   return found
 }
 
+const rects = (count: number): Shape[] => Array.from({ length: count }, () => 'rect')
+const edge = (from: number, to: number, link: Link, label: boolean) => ({ from, to, link, label })
+// Reduced counterexamples: a port-lane slide rebuilt duplicates and mixed
+// strokes onto one hub arrowhead; a co-ranked fan-in into a diamond collapsed
+// two captioned spokes onto its single port.
+const REDUCED: [Spec][] = [
+  [{ direction: 'TD', shapes: rects(5), edges: [edge(0, 4, 'solid', false), edge(1, 4, 'solid', false), edge(1, 4, 'solid', true), edge(0, 4, 'solid', true)] }],
+  ...(['TD', 'LR'] as const).map((direction): [Spec] => [{ direction, shapes: rects(4),
+    edges: [edge(2, 0, 'dotted', true), edge(1, 0, 'dotted', false), edge(3, 0, 'solid', false), edge(3, 0, 'solid', true), edge(2, 0, 'dotted', false)] }]),
+  [{ direction: 'TD', shapes: ['rect', 'rect', 'rect', 'diamond'], edges: [edge(0, 3, 'solid', true), edge(1, 3, 'solid', true), edge(2, 3, 'solid', false)] }],
+]
+
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {
   fc.assert(fc.property(spec, value => {
     const text = source(value)
@@ -70,5 +85,5 @@ test('every visible edge occurrence keeps its own readable route and arrowhead',
     // Distinctness presupposes that every authored occurrence is present.
     expect(positioned.edges.map(edge => `${edge.source}->${edge.target}`).sort(), text).toEqual(graph.edges.map(edge => `${edge.source}->${edge.target}`).sort())
     expect(indistinct(positioned), text).toEqual([])
-  }), fcParameters({ numRuns: 60 }))
+  }), fcParameters({ numRuns: 60, examples: REDUCED }))
 })

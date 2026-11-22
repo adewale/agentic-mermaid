@@ -8,7 +8,7 @@ import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
 import { tryStraighten } from '../route-lanes.ts'
-import { ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
+import { misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
@@ -478,6 +478,11 @@ export function alignPortLanes(
       if (after > 0 && after > countEdgeCrossings(edges, moved)) return
     }
   }
+  // Rebuilt port-to-port runs can land different relationships on one
+  // arrowhead that cannot stand for both (mixed strokes, two captions). No
+  // later pass separates those; repeated occurrences have their own owner.
+  const strict = { duplicates: false }
+  if (misleadingSharedArrivals(candidateEdges, strict) > misleadingSharedArrivals(edges, strict)) return
   publishPortLaneCandidate(nodes, edges, candidateNodes, candidateEdges)
 }
 

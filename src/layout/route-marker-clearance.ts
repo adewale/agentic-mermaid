@@ -127,6 +127,34 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
   return true
 }
 
+/** Two arrivals at one target may meet in one arrowhead only when that glyph
+ * can stand for both: different relationships whose paint may merge. Repeated
+ * occurrences of one relationship stay countable, so they never share it. */
+export function arrivalsMayMerge(a: PositionedEdge, b: PositionedEdge): boolean {
+  return a.source !== b.source && edgesMayShareTerminal(a, b)
+}
+
+/** Visible arrowhead pairs drawn at one point although `arrivalsMayMerge`
+ * rejects them. Passes that move terminals may not increase this count.
+ * `duplicates: false` leaves repeated occurrences to the duplicate-lane owner,
+ * which separates them after earlier preparatory passes. */
+export function misleadingSharedArrivals(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): number {
+  const byTarget = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.style === 'invisible' || !edge.hasArrowEnd || edge.source === edge.target || edge.points.length < 2) continue
+    const group = byTarget.get(edge.target)
+    if (group) group.push(edge)
+    else byTarget.set(edge.target, [edge])
+  }
+  let count = 0
+  for (const group of byTarget.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+    const a = group[i]!.points.at(-1)!, b = group[j]!.points.at(-1)!
+    if (options.duplicates === false && group[i]!.source === group[j]!.source) continue
+    if (Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && !arrivalsMayMerge(group[i]!, group[j]!)) count++
+  }
+  return count
+}
+
 type MarkerView = ReturnType<typeof markerView>
 interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
 interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
