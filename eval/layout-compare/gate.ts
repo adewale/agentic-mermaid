@@ -203,7 +203,7 @@ export function markdown(summary: GateSummary, base: string, head: string): stri
   table('Unchanged objective with secondary tradeoffs', summary.results.filter(r => r.verdict === 'unchanged' && r.tradeoffs.length), true)
   const slow = summary.results.filter(r => r.baseMs && r.headMs && r.baseMs >= 5).sort((a, b) => b.headMs! / b.baseMs! - a.headMs! / a.baseMs!).slice(0, 8)
   if (slow.length) {
-    lines.push('### Largest layout-time ratios (samples ≥5 ms on base)', '', '| sample | base ms | head ms | ratio |', '|---|---:|---:|---:|')
+    lines.push('### Largest layout-time ratios (samples ≥5 ms on base)', '', 'Single-sample ratios are noisy at CI repetition counts; only the geometric mean above is gated.', '', '| sample | base ms | head ms | ratio |', '|---|---:|---:|---:|')
     for (const row of slow) lines.push(`| \`${row.key}\` | ${row.baseMs!.toFixed(1)} | ${row.headMs!.toFixed(1)} | ${(row.headMs! / row.baseMs!).toFixed(2)}× |`)
     lines.push('')
   }
