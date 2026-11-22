@@ -1,0 +1,573 @@
+{
+  "project": "zombie",
+  "cases": 1087,
+  "equal": 1083,
+  "different": 4,
+  "oldModels": 798,
+  "newModels": 798,
+  "byFamily": {
+    "gitgraph": 4
+  },
+  "paths": [
+    {
+      "family": "gitgraph",
+      "kind": "added",
+      "path": ".model.config.useMaxWidth",
+      "count": 4,
+      "example": {
+        "path": ".model.config.useMaxWidth",
+        "kind": "added",
+        "left": "undefined",
+        "right": "boolean",
+        "rightExample": true
+      }
+    }
+  ]
+}
+{
+  "project": "franken",
+  "cases": 1087,
+  "equal": 882,
+  "different": 205,
+  "oldModels": 1087,
+  "newModels": 1087,
+  "byFamily": {
+    "flowchart": 12,
+    "sequence": 23,
+    "class": 2,
+    "er": 1,
+    "state": 4,
+    "journey": 1,
+    "architecture": 1,
+    "pie": 5,
+    "quadrant": 5,
+    "gantt": 1,
+    "gitgraph": 3,
+    "radar": 1,
+    "sankey": 5,
+    "packet": 11,
+    "kanban": 47,
+    "requirement": 6,
+    "treemap": 33,
+    "ishikawa": 14,
+    "block": 9,
+    "venn": 1,
+    "treeview": 4,
+    "swimlane": 2,
+    "agentflow": 3,
+    "usecase": 11
+  },
+  "paths": [
+    {
+      "family": "flowchart",
+      "kind": "value",
+      "path": ".model.nodes[].span_primary.start.line",
+      "count": 2,
+      "example": {
+        "path": ".model.nodes[].span_primary.start.line",
+        "kind": "value",
+        "left": 2,
+        "right": 5
+      }
+    },
+    {
+      "family": "flowchart",
+      "kind": "value",
+      "path": ".model.nodes[].span_primary.end.line",
+      "count": 2,
+      "example": {
+        "path": ".model.nodes[].span_primary.end.line",
+        "kind": "value",
+        "left": 2,
+        "right": 5
+      }
+    },
+    {
+      "family": "flowchart",
+      "kind": "value",
+      "path": ".model.labels[].span.start.line",
+      "count": 1,
+      "example": {
+        "path": ".model.labels[].span.start.line",
+        "kind": "value",
+        "left": 2,
+        "right": 5
+      }
+    },
+    {
+      "family": "flowchart",
+      "kind": "value",
+      "path": ".model.labels[].span.end.line",
+      "count": 1,
+      "example": {
+        "path": ".model.labels[].span.end.line",
+        "kind": "value",
+        "left": 2,
+        "right": 5
+      }
+    },
+    {
+      "family": "flowchart",
+      "kind": "value",
+      "path": ".model.diagnostics[].severity",
+      "count": 10,
+      "example": {
+        "path": ".model.diagnostics[].severity",
+        "kind": "value",
+        "left": "Warning",
+        "right": "Info"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.labels[].text",
+      "count": 22,
+      "example": {
+        "path": ".model.labels[].text",
+        "kind": "value",
+        "left": "C@",
+        "right": "C"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "removed",
+      "path": ".model.nodes[]",
+      "count": 5,
+      "example": {
+        "path": ".model.nodes[]",
+        "kind": "removed",
+        "left": "object",
+        "right": "undefined",
+        "leftExample": {
+          "id": "alt",
+          "label": 1,
+          "shape": "Rect",
+          "classes": [],
+          "span_primary": {
+            "start": {
+              "line": 3,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 3,
+              "col": 34,
+              "byte": 0
+            }
+          },
+          "implicit": false
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.edges[].from.Node",
+      "count": 2,
+      "example": {
+        "path": ".model.edges[].from.Node",
+        "kind": "value",
+        "left": 2,
+        "right": 1
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.edges[].label",
+      "count": 6,
+      "example": {
+        "path": ".model.edges[].label",
+        "kind": "value",
+        "left": 2,
+        "right": 1
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "removed",
+      "path": ".model.graph.nodes[]",
+      "count": 5,
+      "example": {
+        "path": ".model.graph.nodes[]",
+        "kind": "removed",
+        "left": "object",
+        "right": "undefined",
+        "leftExample": {
+          "node_id": 2,
+          "kind": "Participant",
+          "clusters": [],
+          "subgraphs": []
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.graph.edges[].from.Node",
+      "count": 2,
+      "example": {
+        "path": ".model.graph.edges[].from.Node",
+        "kind": "value",
+        "left": 2,
+        "right": 1
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "removed",
+      "path": ".model.labels[]",
+      "count": 5,
+      "example": {
+        "path": ".model.labels[]",
+        "kind": "removed",
+        "left": "object",
+        "right": "undefined",
+        "leftExample": {
+          "text": "I am good thanks!",
+          "span": {
+            "start": {
+              "line": 3,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 3,
+              "col": 34,
+              "byte": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.sequence_meta",
+      "count": 3,
+      "example": {
+        "path": ".model.sequence_meta",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "autonumber": false,
+          "fragments": [
+            {
+              "kind": "Alt",
+              "label": "",
+              "start_edge": 1,
+              "end_edge": 2,
+              "alternatives": [
+                {
+                  "label": "# comment",
+                  "start_edge": 2,
+                  "end_edge": 2
+                }
+              ],
+              "children": []
+            }
+          ],
+          "timeline": [
+            "Message",
+            "Open",
+            "Message",
+            "Else",
+            "Message",
+            "Close"
+          ]
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.nodes[]",
+      "count": 2,
+      "example": {
+        "path": ".model.nodes[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "id": "Alice",
+          "shape": "Rect",
+          "classes": [],
+          "span_primary": {
+            "start": {
+              "line": 1,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 1,
+              "col": 113,
+              "byte": 0
+            }
+          },
+          "implicit": false
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.edges[]",
+      "count": 2,
+      "example": {
+        "path": ".model.edges[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "from": {
+            "Node": 0
+          },
+          "to": {
+            "Node": 1
+          },
+          "arrow": "Line",
+          "label": 0,
+          "span": {
+            "start": {
+              "line": 1,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 1,
+              "col": 113,
+              "byte": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.graph.nodes[]",
+      "count": 2,
+      "example": {
+        "path": ".model.graph.nodes[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "node_id": 0,
+          "kind": "Participant",
+          "clusters": [],
+          "subgraphs": []
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.graph.edges[]",
+      "count": 2,
+      "example": {
+        "path": ".model.graph.edges[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "edge_id": 0,
+          "kind": "Message",
+          "from": {
+            "Node": 0
+          },
+          "to": {
+            "Node": 1
+          },
+          "span": {
+            "start": {
+              "line": 1,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 1,
+              "col": 113,
+              "byte": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.labels[]",
+      "count": 2,
+      "example": {
+        "path": ".model.labels[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "object",
+        "rightExample": {
+          "text": "Hello Bob, how are you?",
+          "span": {
+            "start": {
+              "line": 1,
+              "col": 1,
+              "byte": 0
+            },
+            "end": {
+              "line": 1,
+              "col": 113,
+              "byte": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.sequence_meta.fragments[].label",
+      "count": 4,
+      "example": {
+        "path": ".model.sequence_meta.fragments[].label",
+        "kind": "value",
+        "left": "-:<>,;# comment",
+        "right": "-:<>,"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.sequence_meta.fragments[].alternatives[].label",
+      "count": 2,
+      "example": {
+        "path": ".model.sequence_meta.fragments[].alternatives[].label",
+        "kind": "value",
+        "left": ",<>:-#; comment",
+        "right": ",<>:-#"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.sequence_meta.notes[].text",
+      "count": 1,
+      "example": {
+        "path": ".model.sequence_meta.notes[].text",
+        "kind": "value",
+        "left": "-:<>,;# comment",
+        "right": "-:<>,"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].shape",
+      "count": 3,
+      "example": {
+        "path": ".model.nodes[].shape",
+        "kind": "value",
+        "left": "Stadium",
+        "right": "Cylinder"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].classes[]",
+      "count": 1,
+      "example": {
+        "path": ".model.nodes[].classes[]",
+        "kind": "value",
+        "left": "sequence-participant-actor",
+        "right": "sequence-participant-database"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "added",
+      "path": ".model.nodes[].classes[]",
+      "count": 2,
+      "example": {
+        "path": ".model.nodes[].classes[]",
+        "kind": "added",
+        "left": "undefined",
+        "right": "string",
+        "rightExample": "sequence-participant-boundary"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].id",
+      "count": 1,
+      "example": {
+        "path": ".model.nodes[].id",
+        "kind": "value",
+        "left": "Carl",
+        "right": "Favela"
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].span_primary.start.line",
+      "count": 1,
+      "example": {
+        "path": ".model.nodes[].span_primary.start.line",
+        "kind": "value",
+        "left": 4,
+        "right": 7
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].span_primary.end.line",
+      "count": 1,
+      "example": {
+        "path": ".model.nodes[].span_primary.end.line",
+        "kind": "value",
+        "left": 4,
+        "right": 7
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.nodes[].span_primary.end.col",
+      "count": 1,
+      "example": {
+        "path": ".model.nodes[].span_primary.end.col",
+        "kind": "value",
+        "left": 43,
+        "right": 51
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.labels[].span.start.line",
+      "count": 3,
+      "example": {
+        "path": ".model.labels[].span.start.line",
+        "kind": "value",
+        "left": 4,
+        "right": 7
+      }
+    },
+    {
+      "family": "sequence",
+      "kind": "value",
+      "path": ".model.labels[].span.end.line",
+      "count": 3,
+      "example": {
+        "path": ".model.labels[].span.end.line",
+        "kind": "value",
+        "left": 4,
+        "right": 7
+      }
+    }
+  ]
+}

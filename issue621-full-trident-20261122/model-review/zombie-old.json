@@ -1,0 +1,10 @@
+{
+  "project": "dfadler/zombie-mermaid",
+  "version": "5.17.0",
+  "observations": 1087,
+  "corpusSha256": "aa50de1e73f619c872e92b4a32716f8cec4ea24fb56d10406f462fd0275cb71a",
+  "outputSha256": "061fbb42baa81e71325221646f2c2a813f3b2808701f92c9d62dfb68354a1437",
+  "returnedModels": 798,
+  "exceptions": 289,
+  "method": "Existing Trident runtime.probeNative with each family initialized. No schema projection, expected model, score or performance measurement."
+}

@@ -1,0 +1,355 @@
+{
+  "protocol": "actual-node-canonical-fidelity-runtime-binding-v1",
+  "node": "v24.22.1",
+  "job": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default-runtime-job.json",
+  "targetEntry": "/tmp/issue621-trident-work/main-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff/node_modules/agentic-mermaid/dist/agent-core.js",
+  "sourceRevision": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+  "results": [
+    {
+      "family": "class",
+      "operation": "parseClassDiagram",
+      "source": "classDiagram\ndirection LR\nnamespace A.B {\nclass C~T~ {\n<<interface>>\n+String name\n+go(x: int) bool$\n}\n}\nclass D\nC \"1\" *-- \"many\" D : owns\nclassDef hot fill:red\ncssClass C hot\nstyle C stroke:blue\nnote for C \"a note\"",
+      "sourceViewObserved": true
+    },
+    {
+      "family": "sequence",
+      "operation": "parseSequenceDiagram",
+      "source": "sequenceDiagram\nparticipant A as Alice\nparticipant B as Bob\nbox red Team\nparticipant C\nend\nNote over A,B: hello\nA->>+B: request\nactivate C\nalt ok\nB-->>-A: yes\nelse no\nB--xA: no\nend\ndeactivate C",
+      "sourceViewObserved": true
+    },
+    {
+      "family": "er",
+      "operation": "parseErDiagram",
+      "source": "erDiagram\nA {\nstring id PK \"identifier\"\n}\nA ||--o{ B : owns\nclassDef hot fill:red\nclass A hot",
+      "sourceViewObserved": true
+    },
+    {
+      "family": "usecase",
+      "operation": "parseUsecaseModel",
+      "source": "usecase-beta\ndirection TB\nactor User\nBuy(\"Buy\")\nUser --> Buy",
+      "sourceViewObserved": true
+    },
+    {
+      "family": "agentflow",
+      "operation": "parseAgentflowModel",
+      "source": "agentflow-beta\nA@{shape: task, label: \"Do\"}\nA --> B@{shape: tool}",
+      "sourceViewObserved": true
+    }
+  ],
+  "sequence": [
+    {
+      "name": "nested-notes-and-empty-branches",
+      "source": "sequenceDiagram\nparticipant A\nparticipant B\nNote over A,B:wrap: before\nalt nowrap: outer\n  A->>B: first\n  loop wrap: nested\n    Note right of B:nowrap: inside\n    B->>A: inner\n  end\n  A->>B: last\n  Note left of A: tail\nelse wrap: otherwise\nend\nA->>B: after",
+      "projected": [
+        {
+          "from": "A",
+          "to": "B",
+          "message": "before",
+          "type": 2
+        },
+        {
+          "message": "outer",
+          "type": 12
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "first",
+          "type": 0
+        },
+        {
+          "message": "nested",
+          "type": 10
+        },
+        {
+          "from": "B",
+          "to": "B",
+          "message": "inside",
+          "type": 2
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "inner",
+          "type": 0
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "last",
+          "type": 0
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "tail",
+          "type": 2
+        },
+        {
+          "message": "otherwise",
+          "type": 13
+        },
+        {
+          "message": "",
+          "type": 14
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "after",
+          "type": 0
+        }
+      ],
+      "reference": [
+        {
+          "from": "A",
+          "to": "B",
+          "message": "before",
+          "type": 2
+        },
+        {
+          "message": "outer",
+          "type": 12
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "first",
+          "type": 0
+        },
+        {
+          "message": "nested",
+          "type": 10
+        },
+        {
+          "from": "B",
+          "to": "B",
+          "message": "inside",
+          "type": 2
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "inner",
+          "type": 0
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "last",
+          "type": 0
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "tail",
+          "type": 2
+        },
+        {
+          "message": "otherwise",
+          "type": 13
+        },
+        {
+          "message": "",
+          "type": 14
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "after",
+          "type": 0
+        }
+      ]
+    },
+    {
+      "name": "nested-lifecycle-and-branches",
+      "source": "sequenceDiagram\nparticipant A\nalt outer\n  create participant B\n  A->>B: born\n  loop nested\n    Note over B: inside\n    B-->>A: answer\n  end\n  destroy B\n  B->>A: gone\nelse otherwise\n  A->>A: alone\nend",
+      "projected": [
+        {
+          "message": "outer",
+          "type": 12
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "born",
+          "type": 0
+        },
+        {
+          "message": "nested",
+          "type": 10
+        },
+        {
+          "from": "B",
+          "to": "B",
+          "message": "inside",
+          "type": 2
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "answer",
+          "type": 1
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "gone",
+          "type": 0
+        },
+        {
+          "message": "otherwise",
+          "type": 13
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "alone",
+          "type": 0
+        },
+        {
+          "message": "",
+          "type": 14
+        }
+      ],
+      "reference": [
+        {
+          "message": "outer",
+          "type": 12
+        },
+        {
+          "from": "A",
+          "to": "B",
+          "message": "born",
+          "type": 0
+        },
+        {
+          "message": "nested",
+          "type": 10
+        },
+        {
+          "from": "B",
+          "to": "B",
+          "message": "inside",
+          "type": 2
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "answer",
+          "type": 1
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "B",
+          "to": "A",
+          "message": "gone",
+          "type": 0
+        },
+        {
+          "message": "otherwise",
+          "type": 13
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "alone",
+          "type": 0
+        },
+        {
+          "message": "",
+          "type": 14
+        }
+      ]
+    },
+    {
+      "name": "same-position-empty-fragments",
+      "source": "sequenceDiagram\nparticipant A\nloop outer\n  loop one\n  end\n  loop two\n  end\nend\nA->>A: after",
+      "projected": [
+        {
+          "message": "outer",
+          "type": 10
+        },
+        {
+          "message": "one",
+          "type": 10
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "message": "two",
+          "type": 10
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "after",
+          "type": 0
+        }
+      ],
+      "reference": [
+        {
+          "message": "outer",
+          "type": 10
+        },
+        {
+          "message": "one",
+          "type": 10
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "message": "two",
+          "type": 10
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "message": "",
+          "type": 11
+        },
+        {
+          "from": "A",
+          "to": "A",
+          "message": "after",
+          "type": 0
+        }
+      ]
+    }
+  ],
+  "retained": {
+    "path": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default-runtime-bindings.json.v8",
+    "bytes": 12147,
+    "sha256": "8f955a0f46b732962c073ec7ebf165a0e64739f6f6f373f0c2e0fb8e59ad8e65"
+  },
+  "note": "Real runtime.initialize/probeNative then owning schema views; no solver requested and no score assigned"
+}

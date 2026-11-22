@@ -1,0 +1,9 @@
+{
+  "id": "main-default",
+  "backend": "elk",
+  "quality": "default",
+  "source": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+  "tarball": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-archive/agentic-mermaid-0.5.7.tgz",
+  "sha256": "21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff",
+  "packedFrom": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004"
+}

@@ -1,0 +1,11 @@
+{
+  "complete": true,
+  "updatedAt": "2026-11-22T11:40:24.164Z",
+  "expectedIds": [
+    "Dicklesworthstone/frankenmermaid",
+    "dfadler/zombie-mermaid"
+  ],
+  "attempted": 2,
+  "ready": 2,
+  "failures": []
+}

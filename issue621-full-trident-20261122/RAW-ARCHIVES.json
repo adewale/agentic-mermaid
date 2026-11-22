@@ -1,0 +1,57 @@
+[
+  {
+    "path": "raw/current-default.tar.gz",
+    "bytes": 2437216,
+    "sha256": "732bc306fa176b6aa3b0ebe844799baf2e732f3e97f91d67f60b62be447214a2"
+  },
+  {
+    "path": "raw/current-balanced.tar.gz",
+    "bytes": 675560,
+    "sha256": "5d1bec8907fc8817bb54dd00db813dd39a8388bc07de3bbd72c2a40163911da2"
+  },
+  {
+    "path": "raw/main-default.tar.gz",
+    "bytes": 1779760,
+    "sha256": "51b146c17327093d828611b648cf73b7666ef9ca5182c71cb2e2f87ad241f146"
+  },
+  {
+    "path": "raw/main-balanced.tar.gz",
+    "bytes": 675247,
+    "sha256": "d96a40196f397a22dfe7851e0e5444937d7948afc6240ff692a2ac9c03b75edf"
+  },
+  {
+    "path": "raw/historical-default.tar.gz",
+    "bytes": 1782527,
+    "sha256": "fd13df59b0b23c735a6203dd0fb819939896a59efbc65edb4c12691a75e8b08f"
+  },
+  {
+    "path": "raw/historical-native.tar.gz",
+    "bytes": 668368,
+    "sha256": "9525eb8e426f54a745ffbd0150850ed6de9738e9f8cc17e0562daae2826e7fff"
+  },
+  {
+    "path": "raw/peers.tar.gz",
+    "bytes": 7519269,
+    "sha256": "9c5e26385df3f132049bbd2706b864dfabf9221c8ab81ec6bcf60b3eae0ea59c"
+  },
+  {
+    "path": "raw/consumed-main-pr.tar.gz",
+    "bytes": 9332883,
+    "sha256": "60252545d39f6c5c672e0498823617ce2b178d1e0b706a36ef6e45937b147fdd"
+  },
+  {
+    "path": "raw/consumed-event-recovery.tar.gz",
+    "bytes": 857379,
+    "sha256": "84f2dcde05a6832b3312816061538bf1e1046aa8cb6bc028aedbccfff3862424"
+  },
+  {
+    "path": "raw/model-review.tar.gz",
+    "bytes": 2722395,
+    "sha256": "7fcc4b1322adcb6d001f334daa3d8ab0f9b5c6b7ec8adc4d21188516a178162f"
+  },
+  {
+    "path": "raw/public-parser-qualification.tar.gz",
+    "bytes": 3545681,
+    "sha256": "c1b7c4a051080d909fa07856471382a1314e30e330ab0762eede3262328ed2a9"
+  }
+]

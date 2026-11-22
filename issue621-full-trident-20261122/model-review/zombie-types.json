@@ -1,0 +1,24 @@
+[
+  {
+    "package": "core",
+    "oldVersion": "5.17.0",
+    "newVersion": "5.18.0",
+    "oldPath": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/core/dist/shared/index.d.ts",
+    "newPath": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/core/dist/shared/index.d.ts",
+    "oldSHA256": "e89b3dc9bdc82f57572510c44c5a02001ca1ca870a281da85b0a1d81728d1bb7",
+    "newSHA256": "9481af1cbb8ebae2372222baeb45a6c7125ab44726dbcc4a16cd328affe1148a",
+    "identical": false,
+    "diffLines": 371
+  },
+  {
+    "package": "mermaid-parser",
+    "oldVersion": "5.17.0",
+    "newVersion": "5.18.0",
+    "oldPath": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/mermaid-parser/dist/shared/index.d.ts",
+    "newPath": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/mermaid-parser/dist/shared/index.d.ts",
+    "oldSHA256": "8610f6052fd727110f520715b74fba9698719a24fd0eb153813f7417dacc05ad",
+    "newSHA256": "154df1258f5c8549f39242b8678fa4a3850322481f1119ef8cdcef16ab4233ab",
+    "identical": false,
+    "diffLines": 764
+  }
+]

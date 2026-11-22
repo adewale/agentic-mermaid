@@ -1,0 +1,9 @@
+{
+  "kind": "Derived complete population, not a single timing session",
+  "freshProcessesInQualifiedPopulation": 336,
+  "allActuallyExecutedProcesses": 384,
+  "initialInvalidEditRenderErrorsRetained": 192,
+  "initial": "consumed-main-pr/run/identity.json",
+  "validEventEditRecovery": "consumed-event-recovery/run/identity.json",
+  "populationPolicy": "Keep all original non-Event measurements; replace the two invalid Event edit controls with fresh valid-edit controls. No case removed; all raw outcomes preserved."
+}

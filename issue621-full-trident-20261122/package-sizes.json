@@ -1,0 +1,16 @@
+[
+  {
+    "arm": "main",
+    "archiveBytes": 7096884,
+    "unpackedBytes": 21003201,
+    "files": 269,
+    "sha256": "21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff"
+  },
+  {
+    "arm": "current",
+    "archiveBytes": 7107924,
+    "unpackedBytes": 21024746,
+    "files": 270,
+    "sha256": "1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e"
+  }
+]

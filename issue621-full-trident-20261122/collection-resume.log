@@ -1,0 +1,3 @@
+START peers davebench
+END peers davebench 1
+Canonical collector failed; retain and repair /workspace/elk-layered-tools/issue621-full-trident-20261122/peers/davebench-recovery.log

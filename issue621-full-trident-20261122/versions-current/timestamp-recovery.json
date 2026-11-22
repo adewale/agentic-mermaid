@@ -1,0 +1,6 @@
+{
+  "before": "2026-11-02T14:35:41.361Z",
+  "after": "2026-11-22T10:03:07.915Z",
+  "reason": "Match the actual completed version lookup as Trident versions CLI stamps it; artifact and input selections unchanged",
+  "nodeDataChanged": false
+}

@@ -1,0 +1,25 @@
+45 |       return applyHandlers(handlers, emitter, args), !0;
+46 |   }
+47 |   let er;
+48 |   if (args.length > 0)
+49 |     er = args[0];
+50 |     throw er;
+                ^
+error: EPERM: operation not permitted, write
+      at emitError (node:events:50:13)
+      at emitErrorNT (internal:streams/destroy:88:12)
+      at emitErrorCloseNT (internal:streams/destroy:69:14)
+116 |     lines.on('line', line => {
+117 |       replies.push(JSON.parse(line))
+118 |       if (replies.length === sources.length) child.stdin.end()
+119 |     })
+120 |     child.once('error', reject)
+121 |     child.once('close', code => (replies.length === sources.length ? resolveDone() : reject(Error(`Mermaid oracle stopped after ${replies.length}/${sources.length} replies (exit ${code}): ${stderr}`))))
+                                                                                                  ^
+error: Mermaid oracle stopped after 0/1342 replies (exit 0): 
+      at <anonymous> (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/portable/mermaid-oracle.ts:121:93)
+      at emit (node:events:103:22)
+      at #maybeClose (node:child_process:841:16)
+      at #handleOnExit (node:child_process:571:72)
+
+Bun v1.4.4 (Linux x64)

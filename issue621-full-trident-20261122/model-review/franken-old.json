@@ -1,0 +1,11 @@
+{
+  "project": "Dicklesworthstone/frankenmermaid",
+  "version": "0.5.0",
+  "revision": "a5be33d9097af8b7c90fef7dd4a0c20a0bf55752",
+  "observations": 1087,
+  "corpusSha256": "aa50de1e73f619c872e92b4a32716f8cec4ea24fb56d10406f462fd0275cb71a",
+  "outputSha256": "8852abb3e91f64216083b19b65dbc4dcf52508982173e5c366b518e0b5057f7a",
+  "returnedModels": 1087,
+  "exceptions": 0,
+  "method": "Existing Trident runtime.probeNative with each family initialized. No schema projection, expected model, score or performance measurement."
+}

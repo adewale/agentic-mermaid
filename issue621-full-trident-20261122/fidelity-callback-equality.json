@@ -1,0 +1,17 @@
+{
+  "method": "Every file retains its ordered callback name, status and unsupported provenance, including repeated-title ordinals. File completion order is ignored.",
+  "comparisons": [
+    {
+      "left": "current-default",
+      "right": "main-default",
+      "exactStatusFingerprint": true,
+      "callbacks": 7364
+    },
+    {
+      "left": "current-default",
+      "right": "historical-default",
+      "exactStatusFingerprint": true,
+      "callbacks": 7364
+    }
+  ]
+}

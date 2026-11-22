@@ -1,0 +1,451 @@
+Dicklesworthstone/frankenmermaid svg run 1/3
+  100/1342: 100 completed, 0 failed, 0.23 s
+  200/1342: 176 completed, 24 failed, 0.37 s
+  300/1342: 259 completed, 41 failed, 0.45 s
+  400/1342: 310 completed, 90 failed, 0.58 s
+  500/1342: 404 completed, 96 failed, 0.68 s
+  600/1342: 504 completed, 96 failed, 0.72 s
+  700/1342: 604 completed, 96 failed, 0.75 s
+  800/1342: 704 completed, 96 failed, 0.81 s
+  900/1342: 797 completed, 103 failed, 0.85 s
+  1000/1342: 875 completed, 125 failed, 0.94 s
+  1100/1342: 969 completed, 131 failed, 1.01 s
+  1200/1342: 1047 completed, 153 failed, 1.05 s
+  1300/1342: 1145 completed, 155 failed, 1.10 s
+  done: 1181/1342, 1.115 s
+Dicklesworthstone/frankenmermaid svg run 2/3
+  100/1342: 100 completed, 0 failed, 0.20 s
+  200/1342: 176 completed, 24 failed, 0.34 s
+  300/1342: 259 completed, 41 failed, 0.41 s
+  400/1342: 310 completed, 90 failed, 0.53 s
+  500/1342: 404 completed, 96 failed, 0.64 s
+  600/1342: 504 completed, 96 failed, 0.68 s
+  700/1342: 604 completed, 96 failed, 0.71 s
+  800/1342: 704 completed, 96 failed, 0.76 s
+  900/1342: 797 completed, 103 failed, 0.81 s
+  1000/1342: 875 completed, 125 failed, 0.90 s
+  1100/1342: 969 completed, 131 failed, 0.96 s
+  1200/1342: 1047 completed, 153 failed, 1.01 s
+  1300/1342: 1145 completed, 155 failed, 1.06 s
+  done: 1181/1342, 1.076 s
+Dicklesworthstone/frankenmermaid svg run 3/3
+  100/1342: 100 completed, 0 failed, 0.19 s
+  200/1342: 176 completed, 24 failed, 0.33 s
+  300/1342: 259 completed, 41 failed, 0.40 s
+  400/1342: 310 completed, 90 failed, 0.53 s
+  500/1342: 404 completed, 96 failed, 0.65 s
+  600/1342: 504 completed, 96 failed, 0.69 s
+  700/1342: 604 completed, 96 failed, 0.72 s
+  800/1342: 704 completed, 96 failed, 0.78 s
+  900/1342: 797 completed, 103 failed, 0.83 s
+  1000/1342: 875 completed, 125 failed, 0.93 s
+  1100/1342: 969 completed, 131 failed, 0.99 s
+  1200/1342: 1047 completed, 153 failed, 1.04 s
+  1300/1342: 1145 completed, 155 failed, 1.10 s
+  done: 1181/1342, 1.115 s
+Dicklesworthstone/frankenmermaid png run 1/3
+  100/1342: 98 completed, 2 failed, 1.61 s
+  200/1342: 174 completed, 26 failed, 3.89 s
+  300/1342: 257 completed, 43 failed, 4.97 s
+  400/1342: 308 completed, 92 failed, 6.97 s
+  500/1342: 402 completed, 98 failed, 8.02 s
+  600/1342: 502 completed, 98 failed, 8.58 s
+  700/1342: 602 completed, 98 failed, 9.00 s
+  800/1342: 700 completed, 100 failed, 10.18 s
+  900/1342: 793 completed, 107 failed, 11.26 s
+  1000/1342: 871 completed, 129 failed, 12.13 s
+  1100/1342: 965 completed, 135 failed, 13.14 s
+  1200/1342: 1043 completed, 157 failed, 14.41 s
+  1300/1342: 1141 completed, 159 failed, 15.73 s
+  done: 1177/1342, 16.013 s
+Dicklesworthstone/frankenmermaid png run 2/3
+  100/1342: 98 completed, 2 failed, 1.52 s
+  200/1342: 174 completed, 26 failed, 3.74 s
+  300/1342: 257 completed, 43 failed, 4.71 s
+  400/1342: 308 completed, 92 failed, 6.75 s
+  500/1342: 402 completed, 98 failed, 7.74 s
+  600/1342: 502 completed, 98 failed, 8.25 s
+  700/1342: 602 completed, 98 failed, 8.66 s
+  800/1342: 700 completed, 100 failed, 9.82 s
+  900/1342: 793 completed, 107 failed, 10.74 s
+  1000/1342: 871 completed, 129 failed, 11.72 s
+  1100/1342: 965 completed, 135 failed, 12.76 s
+  1200/1342: 1043 completed, 157 failed, 13.88 s
+  1300/1342: 1141 completed, 159 failed, 15.32 s
+  done: 1177/1342, 15.700 s
+Dicklesworthstone/frankenmermaid png run 3/3
+  100/1342: 98 completed, 2 failed, 1.59 s
+  200/1342: 174 completed, 26 failed, 3.88 s
+  300/1342: 257 completed, 43 failed, 4.86 s
+  400/1342: 308 completed, 92 failed, 6.92 s
+  500/1342: 402 completed, 98 failed, 7.88 s
+  600/1342: 502 completed, 98 failed, 8.46 s
+  700/1342: 602 completed, 98 failed, 8.84 s
+  800/1342: 700 completed, 100 failed, 10.03 s
+  900/1342: 793 completed, 107 failed, 10.94 s
+  1000/1342: 871 completed, 129 failed, 11.80 s
+  1100/1342: 965 completed, 135 failed, 12.72 s
+  1200/1342: 1043 completed, 157 failed, 13.84 s
+  1300/1342: 1141 completed, 159 failed, 15.28 s
+  done: 1177/1342, 15.565 s
+dfadler/zombie-mermaid svg run 1/3
+  100/1342: 96 completed, 4 failed, 0.30 s
+  200/1342: 172 completed, 28 failed, 0.53 s
+  300/1342: 238 completed, 62 failed, 0.62 s
+  400/1342: 338 completed, 62 failed, 0.75 s
+  500/1342: 418 completed, 82 failed, 0.93 s
+  600/1342: 518 completed, 82 failed, 1.04 s
+  700/1342: 618 completed, 82 failed, 1.17 s
+  800/1342: 718 completed, 82 failed, 1.35 s
+  900/1342: 818 completed, 82 failed, 1.39 s
+  1000/1342: 890 completed, 110 failed, 1.45 s
+  1100/1342: 984 completed, 116 failed, 1.72 s
+  1200/1342: 1038 completed, 162 failed, 1.78 s
+  1300/1342: 1110 completed, 190 failed, 1.86 s
+  done: 1120/1342, 1.866 s
+dfadler/zombie-mermaid svg run 2/3
+  100/1342: 96 completed, 4 failed, 0.41 s
+  200/1342: 172 completed, 28 failed, 0.64 s
+  300/1342: 238 completed, 62 failed, 0.72 s
+  400/1342: 338 completed, 62 failed, 0.87 s
+  500/1342: 418 completed, 82 failed, 1.04 s
+  600/1342: 518 completed, 82 failed, 1.16 s
+  700/1342: 618 completed, 82 failed, 1.32 s
+  800/1342: 718 completed, 82 failed, 1.49 s
+  900/1342: 818 completed, 82 failed, 1.54 s
+  1000/1342: 890 completed, 110 failed, 1.61 s
+  1100/1342: 984 completed, 116 failed, 1.80 s
+  1200/1342: 1038 completed, 162 failed, 1.85 s
+  1300/1342: 1110 completed, 190 failed, 1.93 s
+  done: 1120/1342, 1.934 s
+dfadler/zombie-mermaid svg run 3/3
+  100/1342: 96 completed, 4 failed, 0.28 s
+  200/1342: 172 completed, 28 failed, 0.55 s
+  300/1342: 238 completed, 62 failed, 0.64 s
+  400/1342: 338 completed, 62 failed, 0.76 s
+  500/1342: 418 completed, 82 failed, 0.93 s
+  600/1342: 518 completed, 82 failed, 1.03 s
+  700/1342: 618 completed, 82 failed, 1.17 s
+  800/1342: 718 completed, 82 failed, 1.34 s
+  900/1342: 818 completed, 82 failed, 1.38 s
+  1000/1342: 890 completed, 110 failed, 1.43 s
+  1100/1342: 984 completed, 116 failed, 1.58 s
+  1200/1342: 1038 completed, 162 failed, 1.64 s
+  1300/1342: 1110 completed, 190 failed, 1.73 s
+  done: 1120/1342, 1.730 s
+dfadler/zombie-mermaid png run 1/3
+  100/1342: 96 completed, 4 failed, 0.83 s
+  200/1342: 172 completed, 28 failed, 1.84 s
+  300/1342: 238 completed, 62 failed, 2.40 s
+  400/1342: 338 completed, 62 failed, 3.24 s
+  500/1342: 418 completed, 82 failed, 4.01 s
+  600/1342: 518 completed, 82 failed, 4.65 s
+  700/1342: 618 completed, 82 failed, 5.23 s
+  800/1342: 718 completed, 82 failed, 5.90 s
+  900/1342: 818 completed, 82 failed, 6.53 s
+  1000/1342: 890 completed, 110 failed, 7.25 s
+  1100/1342: 984 completed, 116 failed, 8.03 s
+  1200/1342: 1038 completed, 162 failed, 8.58 s
+  1300/1342: 1110 completed, 190 failed, 9.29 s
+  done: 1120/1342, 9.390 s
+dfadler/zombie-mermaid png run 2/3
+  100/1342: 96 completed, 4 failed, 0.90 s
+  200/1342: 172 completed, 28 failed, 1.85 s
+  300/1342: 238 completed, 62 failed, 2.45 s
+  400/1342: 338 completed, 62 failed, 3.21 s
+  500/1342: 418 completed, 82 failed, 3.99 s
+  600/1342: 518 completed, 82 failed, 4.59 s
+  700/1342: 618 completed, 82 failed, 5.26 s
+  800/1342: 718 completed, 82 failed, 5.94 s
+  900/1342: 818 completed, 82 failed, 6.51 s
+  1000/1342: 890 completed, 110 failed, 7.12 s
+  1100/1342: 984 completed, 116 failed, 8.05 s
+  1200/1342: 1038 completed, 162 failed, 8.76 s
+  1300/1342: 1110 completed, 190 failed, 9.38 s
+  done: 1120/1342, 9.474 s
+dfadler/zombie-mermaid png run 3/3
+  100/1342: 96 completed, 4 failed, 0.95 s
+  200/1342: 172 completed, 28 failed, 1.92 s
+  300/1342: 238 completed, 62 failed, 2.64 s
+  400/1342: 338 completed, 62 failed, 3.44 s
+  500/1342: 418 completed, 82 failed, 4.30 s
+  600/1342: 518 completed, 82 failed, 4.99 s
+  700/1342: 618 completed, 82 failed, 5.54 s
+  800/1342: 718 completed, 82 failed, 6.36 s
+  900/1342: 818 completed, 82 failed, 7.01 s
+  1000/1342: 890 completed, 110 failed, 7.83 s
+  1100/1342: 984 completed, 116 failed, 8.91 s
+  1200/1342: 1038 completed, 162 failed, 9.45 s
+  1300/1342: 1110 completed, 190 failed, 10.09 s
+  done: 1120/1342, 10.179 s
+lukilabs/beautiful-mermaid svg run 1/3
+  100/1342: 55 completed, 45 failed, 0.21 s
+  200/1342: 85 completed, 115 failed, 0.39 s
+  300/1342: 85 completed, 215 failed, 0.39 s
+  400/1342: 105 completed, 295 failed, 0.47 s
+  500/1342: 173 completed, 327 failed, 0.61 s
+  600/1342: 238 completed, 362 failed, 0.71 s
+  700/1342: 338 completed, 362 failed, 0.83 s
+  800/1342: 393 completed, 407 failed, 0.99 s
+  900/1342: 393 completed, 507 failed, 1.00 s
+  1000/1342: 417 completed, 583 failed, 1.00 s
+  1100/1342: 505 completed, 595 failed, 1.22 s
+  1200/1342: 505 completed, 695 failed, 1.22 s
+  1300/1342: 509 completed, 791 failed, 1.23 s
+  done: 513/1342, 1.230 s
+lukilabs/beautiful-mermaid svg run 2/3
+  100/1342: 55 completed, 45 failed, 0.21 s
+  200/1342: 85 completed, 115 failed, 0.42 s
+  300/1342: 85 completed, 215 failed, 0.42 s
+  400/1342: 105 completed, 295 failed, 0.49 s
+  500/1342: 173 completed, 327 failed, 0.62 s
+  600/1342: 238 completed, 362 failed, 0.71 s
+  700/1342: 338 completed, 362 failed, 0.83 s
+  800/1342: 393 completed, 407 failed, 0.99 s
+  900/1342: 393 completed, 507 failed, 0.99 s
+  1000/1342: 417 completed, 583 failed, 1.00 s
+  1100/1342: 505 completed, 595 failed, 1.15 s
+  1200/1342: 505 completed, 695 failed, 1.15 s
+  1300/1342: 509 completed, 791 failed, 1.16 s
+  done: 513/1342, 1.163 s
+lukilabs/beautiful-mermaid svg run 3/3
+  100/1342: 55 completed, 45 failed, 0.21 s
+  200/1342: 85 completed, 115 failed, 0.39 s
+  300/1342: 85 completed, 215 failed, 0.39 s
+  400/1342: 105 completed, 295 failed, 0.46 s
+  500/1342: 173 completed, 327 failed, 0.59 s
+  600/1342: 238 completed, 362 failed, 0.70 s
+  700/1342: 338 completed, 362 failed, 0.81 s
+  800/1342: 393 completed, 407 failed, 0.97 s
+  900/1342: 393 completed, 507 failed, 0.97 s
+  1000/1342: 417 completed, 583 failed, 0.98 s
+  1100/1342: 505 completed, 595 failed, 1.13 s
+  1200/1342: 505 completed, 695 failed, 1.13 s
+  1300/1342: 509 completed, 791 failed, 1.14 s
+  done: 513/1342, 1.140 s
+lukilabs/beautiful-mermaid png run 1/3
+  100/1342: 55 completed, 45 failed, 0.46 s
+  200/1342: 85 completed, 115 failed, 0.88 s
+  300/1342: 85 completed, 215 failed, 0.89 s
+  400/1342: 105 completed, 295 failed, 1.07 s
+  500/1342: 173 completed, 327 failed, 1.63 s
+  600/1342: 238 completed, 362 failed, 1.89 s
+  700/1342: 338 completed, 362 failed, 2.27 s
+  800/1342: 393 completed, 407 failed, 2.66 s
+  900/1342: 393 completed, 507 failed, 2.67 s
+  1000/1342: 417 completed, 583 failed, 2.75 s
+  1100/1342: 505 completed, 595 failed, 3.34 s
+  1200/1342: 505 completed, 695 failed, 3.35 s
+  1300/1342: 509 completed, 791 failed, 3.43 s
+  done: 513/1342, 3.522 s
+lukilabs/beautiful-mermaid png run 2/3
+  100/1342: 55 completed, 45 failed, 0.44 s
+  200/1342: 85 completed, 115 failed, 0.85 s
+  300/1342: 85 completed, 215 failed, 0.86 s
+  400/1342: 105 completed, 295 failed, 1.02 s
+  500/1342: 173 completed, 327 failed, 1.58 s
+  600/1342: 238 completed, 362 failed, 1.90 s
+  700/1342: 338 completed, 362 failed, 2.19 s
+  800/1342: 393 completed, 407 failed, 2.55 s
+  900/1342: 393 completed, 507 failed, 2.56 s
+  1000/1342: 417 completed, 583 failed, 2.65 s
+  1100/1342: 505 completed, 595 failed, 3.23 s
+  1200/1342: 505 completed, 695 failed, 3.24 s
+  1300/1342: 509 completed, 791 failed, 3.33 s
+  done: 513/1342, 3.416 s
+lukilabs/beautiful-mermaid png run 3/3
+  100/1342: 55 completed, 45 failed, 0.53 s
+  200/1342: 85 completed, 115 failed, 0.92 s
+  300/1342: 85 completed, 215 failed, 0.92 s
+  400/1342: 105 completed, 295 failed, 1.12 s
+  500/1342: 173 completed, 327 failed, 1.64 s
+  600/1342: 238 completed, 362 failed, 1.93 s
+  700/1342: 338 completed, 362 failed, 2.25 s
+  800/1342: 393 completed, 407 failed, 2.63 s
+  900/1342: 393 completed, 507 failed, 2.64 s
+  1000/1342: 417 completed, 583 failed, 2.73 s
+  1100/1342: 505 completed, 595 failed, 3.28 s
+  1200/1342: 505 completed, 695 failed, 3.28 s
+  1300/1342: 509 completed, 791 failed, 3.34 s
+  done: 513/1342, 3.405 s
+obsidianmd/pele svg run 1/3
+  100/1342: 96 completed, 4 failed, 0.08 s
+  200/1342: 196 completed, 4 failed, 0.16 s
+  300/1342: 296 completed, 4 failed, 0.25 s
+  400/1342: 396 completed, 4 failed, 0.28 s
+  500/1342: 496 completed, 4 failed, 0.31 s
+  600/1342: 596 completed, 4 failed, 0.33 s
+  700/1342: 696 completed, 4 failed, 0.35 s
+  800/1342: 796 completed, 4 failed, 0.38 s
+  900/1342: 896 completed, 4 failed, 0.40 s
+  1000/1342: 996 completed, 4 failed, 0.44 s
+  1100/1342: 1096 completed, 4 failed, 0.49 s
+  1200/1342: 1196 completed, 4 failed, 0.53 s
+  1300/1342: 1296 completed, 4 failed, 0.57 s
+  done: 1306/1342, 0.571 s
+obsidianmd/pele svg run 2/3
+  100/1342: 96 completed, 4 failed, 0.08 s
+  200/1342: 196 completed, 4 failed, 0.16 s
+  300/1342: 296 completed, 4 failed, 0.27 s
+  400/1342: 396 completed, 4 failed, 0.31 s
+  500/1342: 496 completed, 4 failed, 0.34 s
+  600/1342: 596 completed, 4 failed, 0.36 s
+  700/1342: 696 completed, 4 failed, 0.38 s
+  800/1342: 796 completed, 4 failed, 0.41 s
+  900/1342: 896 completed, 4 failed, 0.43 s
+  1000/1342: 996 completed, 4 failed, 0.47 s
+  1100/1342: 1096 completed, 4 failed, 0.51 s
+  1200/1342: 1196 completed, 4 failed, 0.55 s
+  1300/1342: 1296 completed, 4 failed, 0.58 s
+  done: 1306/1342, 0.586 s
+obsidianmd/pele svg run 3/3
+  100/1342: 96 completed, 4 failed, 0.06 s
+  200/1342: 196 completed, 4 failed, 0.14 s
+  300/1342: 296 completed, 4 failed, 0.22 s
+  400/1342: 396 completed, 4 failed, 0.25 s
+  500/1342: 496 completed, 4 failed, 0.29 s
+  600/1342: 596 completed, 4 failed, 0.31 s
+  700/1342: 696 completed, 4 failed, 0.33 s
+  800/1342: 796 completed, 4 failed, 0.36 s
+  900/1342: 896 completed, 4 failed, 0.38 s
+  1000/1342: 996 completed, 4 failed, 0.41 s
+  1100/1342: 1096 completed, 4 failed, 0.45 s
+  1200/1342: 1196 completed, 4 failed, 0.48 s
+  1300/1342: 1296 completed, 4 failed, 0.51 s
+  done: 1306/1342, 0.516 s
+obsidianmd/pele png run 1/3
+  100/1342: 96 completed, 4 failed, 0.37 s
+  200/1342: 196 completed, 4 failed, 0.99 s
+  300/1342: 296 completed, 4 failed, 1.78 s
+  400/1342: 396 completed, 4 failed, 2.24 s
+  500/1342: 496 completed, 4 failed, 2.74 s
+  600/1342: 596 completed, 4 failed, 3.16 s
+  700/1342: 696 completed, 4 failed, 3.52 s
+  800/1342: 796 completed, 4 failed, 4.09 s
+  900/1342: 896 completed, 4 failed, 4.90 s
+  1000/1342: 996 completed, 4 failed, 5.47 s
+  1100/1342: 1096 completed, 4 failed, 6.05 s
+  1200/1342: 1196 completed, 4 failed, 6.59 s
+  1300/1342: 1296 completed, 4 failed, 7.32 s
+  done: 1306/1342, 7.470 s
+obsidianmd/pele png run 2/3
+  100/1342: 96 completed, 4 failed, 0.37 s
+  200/1342: 196 completed, 4 failed, 1.00 s
+  300/1342: 296 completed, 4 failed, 1.72 s
+  400/1342: 396 completed, 4 failed, 2.29 s
+  500/1342: 496 completed, 4 failed, 2.88 s
+  600/1342: 596 completed, 4 failed, 3.25 s
+  700/1342: 696 completed, 4 failed, 3.62 s
+  800/1342: 796 completed, 4 failed, 4.19 s
+  900/1342: 896 completed, 4 failed, 4.99 s
+  1000/1342: 996 completed, 4 failed, 5.63 s
+  1100/1342: 1096 completed, 4 failed, 6.14 s
+  1200/1342: 1196 completed, 4 failed, 6.71 s
+  1300/1342: 1296 completed, 4 failed, 7.48 s
+  done: 1306/1342, 7.553 s
+obsidianmd/pele png run 3/3
+  100/1342: 96 completed, 4 failed, 0.37 s
+  200/1342: 196 completed, 4 failed, 1.12 s
+  300/1342: 296 completed, 4 failed, 1.81 s
+  400/1342: 396 completed, 4 failed, 2.28 s
+  500/1342: 496 completed, 4 failed, 2.67 s
+  600/1342: 596 completed, 4 failed, 3.03 s
+  700/1342: 696 completed, 4 failed, 3.36 s
+  800/1342: 796 completed, 4 failed, 3.99 s
+  900/1342: 896 completed, 4 failed, 4.85 s
+  1000/1342: 996 completed, 4 failed, 5.55 s
+  1100/1342: 1096 completed, 4 failed, 6.05 s
+  1200/1342: 1196 completed, 4 failed, 6.64 s
+  1300/1342: 1296 completed, 4 failed, 7.38 s
+  done: 1306/1342, 7.457 s
+mermaid-js/mermaid svg run 1/3
+  100/1342: 96 completed, 4 failed, 3.40 s
+  200/1342: 196 completed, 4 failed, 8.17 s
+  300/1342: 296 completed, 4 failed, 10.44 s
+  400/1342: 396 completed, 4 failed, 14.32 s
+  500/1342: 496 completed, 4 failed, 17.93 s
+  600/1342: 596 completed, 4 failed, 19.62 s
+  700/1342: 696 completed, 4 failed, 21.68 s
+  800/1342: 796 completed, 4 failed, 23.93 s
+  900/1342: 896 completed, 4 failed, 26.62 s
+  1000/1342: 996 completed, 4 failed, 28.45 s
+  1100/1342: 1096 completed, 4 failed, 31.57 s
+  1200/1342: 1196 completed, 4 failed, 33.42 s
+  1300/1342: 1296 completed, 4 failed, 35.25 s
+  done: 1338/1342, 36.570 s
+mermaid-js/mermaid svg run 2/3
+  100/1342: 96 completed, 4 failed, 3.35 s
+  200/1342: 196 completed, 4 failed, 8.14 s
+  300/1342: 296 completed, 4 failed, 10.22 s
+  400/1342: 396 completed, 4 failed, 14.05 s
+  500/1342: 496 completed, 4 failed, 17.48 s
+  600/1342: 596 completed, 4 failed, 19.04 s
+  700/1342: 696 completed, 4 failed, 21.00 s
+  800/1342: 796 completed, 4 failed, 23.33 s
+  900/1342: 896 completed, 4 failed, 25.76 s
+  1000/1342: 996 completed, 4 failed, 27.47 s
+  1100/1342: 1096 completed, 4 failed, 30.64 s
+  1200/1342: 1196 completed, 4 failed, 32.38 s
+  1300/1342: 1296 completed, 4 failed, 34.08 s
+  done: 1338/1342, 35.381 s
+mermaid-js/mermaid svg run 3/3
+  100/1342: 96 completed, 4 failed, 3.25 s
+  200/1342: 196 completed, 4 failed, 7.71 s
+  300/1342: 296 completed, 4 failed, 9.80 s
+  400/1342: 396 completed, 4 failed, 13.64 s
+  500/1342: 496 completed, 4 failed, 17.14 s
+  600/1342: 596 completed, 4 failed, 18.88 s
+  700/1342: 696 completed, 4 failed, 20.88 s
+  800/1342: 796 completed, 4 failed, 22.98 s
+  900/1342: 896 completed, 4 failed, 25.37 s
+  1000/1342: 996 completed, 4 failed, 27.23 s
+  1100/1342: 1096 completed, 4 failed, 30.26 s
+  1200/1342: 1196 completed, 4 failed, 31.98 s
+  1300/1342: 1296 completed, 4 failed, 33.79 s
+  done: 1338/1342, 35.084 s
+mermaid-js/mermaid png run 1/3
+  100/1342: 96 completed, 4 failed, 4.63 s
+  200/1342: 196 completed, 4 failed, 11.12 s
+  300/1342: 296 completed, 4 failed, 14.53 s
+  400/1342: 396 completed, 4 failed, 19.68 s
+  500/1342: 496 completed, 4 failed, 24.99 s
+  600/1342: 596 completed, 4 failed, 27.95 s
+  700/1342: 696 completed, 4 failed, 31.65 s
+  800/1342: 796 completed, 4 failed, 35.06 s
+  900/1342: 896 completed, 4 failed, 38.96 s
+  1000/1342: 996 completed, 4 failed, 41.93 s
+  1100/1342: 1096 completed, 4 failed, 46.68 s
+  1200/1342: 1196 completed, 4 failed, 50.19 s
+  1300/1342: 1296 completed, 4 failed, 53.29 s
+  done: 1338/1342, 55.431 s
+mermaid-js/mermaid png run 2/3
+  100/1342: 96 completed, 4 failed, 4.51 s
+  200/1342: 196 completed, 4 failed, 11.01 s
+  300/1342: 296 completed, 4 failed, 14.40 s
+  400/1342: 396 completed, 4 failed, 19.54 s
+  500/1342: 496 completed, 4 failed, 24.30 s
+  600/1342: 596 completed, 4 failed, 27.45 s
+  700/1342: 696 completed, 4 failed, 30.71 s
+  800/1342: 796 completed, 4 failed, 34.32 s
+  900/1342: 896 completed, 4 failed, 37.79 s
+  1000/1342: 996 completed, 4 failed, 41.25 s
+  1100/1342: 1096 completed, 4 failed, 46.37 s
+  1200/1342: 1196 completed, 4 failed, 49.89 s
+  1300/1342: 1296 completed, 4 failed, 52.94 s
+  done: 1338/1342, 54.919 s
+mermaid-js/mermaid png run 3/3
+  100/1342: 96 completed, 4 failed, 4.57 s
+  200/1342: 196 completed, 4 failed, 10.69 s
+  300/1342: 296 completed, 4 failed, 14.14 s
+  400/1342: 396 completed, 4 failed, 19.58 s
+  500/1342: 496 completed, 4 failed, 24.59 s
+  600/1342: 596 completed, 4 failed, 27.81 s
+  700/1342: 696 completed, 4 failed, 31.10 s
+  800/1342: 796 completed, 4 failed, 34.93 s
+  900/1342: 896 completed, 4 failed, 38.44 s
+  1000/1342: 996 completed, 4 failed, 41.93 s
+  1100/1342: 1096 completed, 4 failed, 47.12 s
+  1200/1342: 1196 completed, 4 failed, 50.09 s
+  1300/1342: 1296 completed, 4 failed, 53.35 s
+  done: 1338/1342, 55.086 s
+{"out":"/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/dave-images-recovery2","runs":30,"blocked":0}

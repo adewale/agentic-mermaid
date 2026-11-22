@@ -1,0 +1,12 @@
+START peers davebench:terminal
+END peers davebench:terminal 0
+START current-default mermaid:fidelity
+END current-default mermaid:fidelity 0
+START main-default mermaid:fidelity
+END main-default mermaid:fidelity 0
+START historical-default mermaid:fidelity
+END historical-default mermaid:fidelity 0
+START peers mermaid:fidelity
+END peers mermaid:fidelity 0
+START fully consumed main-versus-PR
+ALL FULL CANONICAL SUITES COMPLETE

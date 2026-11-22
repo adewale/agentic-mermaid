@@ -1,0 +1,12 @@
+64 |   const all: PreparedCommunity[] = JSON.parse(readFileSync(options.get('--prepared')!, 'utf8'))
+65 |   const recorded = JSON.parse(readFileSync(options.get('--catalog') ?? communityCatalogFile, 'utf8'))
+66 |   // Only projects whose catalog binding declares terminal output take part, so the full list
+67 |   // that prepare writes can be passed unchanged.
+68 |   const ids = comparisonProjects(recorded, wanted ?? recorded.nodes.map((node: any) => node.id)).included.filter(id => communityDeclaresOutput(recorded.nodes.find((node: any) => node.id === id), 'terminal'))
+69 |   if (wanted) for (const id of wanted) if (!ids.includes(id)) throw Error(id + ' declares no terminal output')
+                                                                         ^
+error: obsidianmd/pele declares no terminal output
+      at main (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/unified/davebench-terminal.ts:69:69)
+      at /workspace/elk-layered-tools/issue621-full-trident-20261122/harness/unified/davebench-terminal.ts:126:29
+
+Bun v1.4.4 (Linux x64)

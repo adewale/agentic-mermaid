@@ -1,0 +1,2260 @@
+[
+  {
+    "node": {
+      "id": "Dicklesworthstone/frankenmermaid",
+      "categories": [
+        "renderer",
+        "parser"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/Dicklesworthstone/frankenmermaid",
+      "homepage": "https://frankenmermaid.com/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+      "lastCommit": "2026-10-19T21:51:40-04:00",
+      "rootCommits": [
+        "a4877939105eb405add227d48e0f5f5d054fcfec"
+      ],
+      "license": "MIT License (with OpenAI/Anthropic Rider)",
+      "runtime": "Rust 2024; distributed WASM in Node and browser; native CLI",
+      "outputs": [
+        "svg",
+        "ascii-unicode",
+        "ast",
+        "diagnostics",
+        "mermaid-text"
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer",
+        "parser-peer"
+      ],
+      "distribution": {
+        "kind": "github-directory",
+        "path": "pkg/",
+        "name": "@frankenmermaid/core",
+        "version": "0.6.0",
+        "revision": "0ddba9402355b2d484a8023f5e55afc69f614865",
+        "lastUpdatedCommit": "f85cf30d16918b5819f27e5eb1f962b324390c13"
+      },
+      "notes": "Separate git root; README describes a ground-up implementation. Checked-in pkg/ 0.4.0 distribution is pinned and individually hash-verified for Node/browser benchmarks. The advertised @frankenmermaid/core npm name returns 404. Distributed WASM predates current Rust source changes and differs from live-site JS/WASM bytes; no build-from-current-source or deployment parity is claimed. Public WASM exposes SVG, Canvas2D, parse/diagnostics, source-lens edits and deck manifests; native terminal rendering has no exported WASM terminal function. License includes the named restrictive rider and is not recorded as plain MIT. Published native v0.4.0 CLI was benchmarked separately, including startup; its release predates the measured WASM. Parser recovery returned SVG for the full browser inventory, with warnings/partial detections recorded separately from acceptance.",
+      "nativeRelease": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f",
+        "publishedAt": "2026-10-08T15:52:13Z",
+        "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.4.0",
+        "measuredArchive": "frankenmermaid-darwin-arm64.tar.xz",
+        "archiveSha256": "0fadb3939fcbe1760ba7278ef03ef96251127b88181a3f2abf2af704b0311909"
+      },
+      "benchmark": {
+        "adapter": "franken",
+        "outputs": [
+          "svg",
+          "parse",
+          "diagnostics",
+          "terminal"
+        ],
+        "moduleOutputs": [
+          "svg",
+          "parse",
+          "diagnostics"
+        ],
+        "cliRelease": {
+          "repository": "Dicklesworthstone/frankenmermaid",
+          "tag": "v0.6.0",
+          "version": "0.6.0",
+          "revision": "8a3b1e99b54dd9d42712c4fb0a202c24fdf26b64",
+          "outputs": {
+            "terminal": {
+              "args": [
+                "--quiet",
+                "render",
+                "-",
+                "--format",
+                "term",
+                "--width",
+                "120"
+              ],
+              "input": "stdin"
+            }
+          },
+          "platforms": {
+            "linux-x64": {
+              "asset": "frankenmermaid-linux-amd64.tar.xz",
+              "sha256": "724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10",
+              "executable": "frankenmermaid"
+            }
+          }
+        }
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, terminal, parse, diagnostics, source operations with adapter franken. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      },
+      "release": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f"
+      }
+    },
+    "artifact": {
+      "kind": "franken",
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg",
+      "module": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid.js",
+      "wasm": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid_bg.wasm",
+      "version": "0.6.0",
+      "revision": "0ddba9402355b2d484a8023f5e55afc69f614865",
+      "sha256": "8d88b3d5cf031e0bd983b83dad46e5206e0c24dc1fe8afa7b128bfe184fe2ea7",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/package.json",
+          "sha256": "61437291a8e486b17e2eab841e9624aa336a8405b1d05d33030240ec822e46bc"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid.js",
+          "sha256": "8d88b3d5cf031e0bd983b83dad46e5206e0c24dc1fe8afa7b128bfe184fe2ea7"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/LICENSE",
+          "sha256": "32a82e0a5754e72e51fae44b65a936c831c07376f21c90f5fb9e76897fcc3509"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/README.md",
+          "sha256": "518ef1a5ff22ec8c0aff76de1bd1adaaafcdf70e7ef540a65d92d4425a7eeacd"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid_bg.wasm",
+          "sha256": "9deb8f5df82b8ead387ad88d5ed4af24fc8e8df6fb2225ac6cf2e251b3e83bae"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid.d.ts",
+          "sha256": "55ecbe41b22ee13372dd24dc0585879fa901c2d9d7eb396d3c964d265738850a"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid_bg.wasm.d.ts",
+          "sha256": "8f4e88faa345da918e958c420bc94c2dcb58a9f5c84154e2abe2b1758af8f927"
+        }
+      ],
+      "runtime": "Rust/WASM public Node/browser distribution",
+      "detail": "Pinned checked-in distribution, not current native source or live-site deployment. Terminal output is not exported by this WASM API.; Version policy: recorded immutable source/distribution. Recorded catalog versions remain separately available on the node.",
+      "preparationIdentity": "a8db75887c47ab63fef58a5887e8d4321360416cd5a29f6e0cfc4b2feffae944",
+      "additionalCli": [
+        {
+          "id": "native-release",
+          "outputs": [
+            "terminal"
+          ],
+          "artifact": {
+            "kind": "cli",
+            "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/public-release-cli/Dicklesworthstone--frankenmermaid/v0.6.0/724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10",
+            "executable": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/public-release-cli/Dicklesworthstone--frankenmermaid/v0.6.0/724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10/frankenmermaid",
+            "args": [
+              "--quiet",
+              "render",
+              "-",
+              "--format",
+              "term",
+              "--width",
+              "120"
+            ],
+            "input": "stdin",
+            "outputBindings": {
+              "terminal": {
+                "args": [
+                  "--quiet",
+                  "render",
+                  "-",
+                  "--format",
+                  "term",
+                  "--width",
+                  "120"
+                ],
+                "input": "stdin"
+              }
+            },
+            "version": "0.6.0",
+            "versionSource": "command",
+            "revision": "8a3b1e99b54dd9d42712c4fb0a202c24fdf26b64",
+            "sha256": "bbf8e2fc5cdffe880d7c9da1bc6cbf2511d54065ebaa33723a9c18ac25a98308",
+            "files": [
+              {
+                "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/public-release-cli/Dicklesworthstone--frankenmermaid/v0.6.0/724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10/frankenmermaid",
+                "sha256": "bbf8e2fc5cdffe880d7c9da1bc6cbf2511d54065ebaa33723a9c18ac25a98308"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/public-release-cli/Dicklesworthstone--frankenmermaid/v0.6.0/724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10/frankenmermaid-linux-amd64.tar.xz",
+                "sha256": "724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10"
+              }
+            ],
+            "runtime": "linux-x64 public native CLI",
+            "apiBoundary": "public release executable; fresh process, stdin/file through drained output",
+            "detail": "Archive https://github.com/Dicklesworthstone/frankenmermaid/releases/download/v0.6.0/frankenmermaid-linux-amd64.tar.xz; SHA-256 724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10. Version identity: command. Source revision names the release tag, not a reproducible-build assertion."
+          }
+        }
+      ]
+    },
+    "browserStatus": "prepared",
+    "browser": {
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg",
+      "entry": "frankenmermaid.js",
+      "kind": "franken",
+      "wasm": "frankenmermaid_bg.wasm",
+      "version": "0.6.0",
+      "revision": "0ddba9402355b2d484a8023f5e55afc69f614865",
+      "artifactSha256": "8d88b3d5cf031e0bd983b83dad46e5206e0c24dc1fe8afa7b128bfe184fe2ea7",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid.js",
+          "sha256": "8d88b3d5cf031e0bd983b83dad46e5206e0c24dc1fe8afa7b128bfe184fe2ea7"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.6.0-a8db75887c47ab63/pkg/frankenmermaid_bg.wasm",
+          "sha256": "9deb8f5df82b8ead387ad88d5ed4af24fc8e8df6fb2225ac6cf2e251b3e83bae"
+        }
+      ]
+    }
+  },
+  {
+    "node": {
+      "id": "dfadler/zombie-mermaid",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "fork",
+      "parent": "lukilabs/beautiful-mermaid",
+      "repo": "https://github.com/dfadler/zombie-mermaid",
+      "branch": "main",
+      "head": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+      "lastCommit": "2026-10-18T14:19:47-05:00",
+      "rootCommits": [
+        "3185b9b6911e3b0a9f0d51fcebda5e0f69785ff0"
+      ],
+      "vsParent": {
+        "ahead": 4042,
+        "behind": 0
+      },
+      "license": "MIT",
+      "runtime": "TypeScript (Node, browser)",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "zombie-mermaid",
+          "version": "5.18.0",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer"
+      ],
+      "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md.",
+      "benchmark": {
+        "adapter": "beautiful",
+        "package": "zombie-mermaid",
+        "terminalSubpath": "ascii",
+        "outputs": [
+          "svg",
+          "terminal"
+        ],
+        "version": "5.18.0",
+        "versionPolicy": "recorded"
+      },
+      "benchmarkEligibility": {
+        "classification": "diverged-fork",
+        "engineScope": "unreviewed-fork-delta",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Recorded fork of lukilabs/beautiful-mermaid: 4042 commits ahead/0 behind; exact head 8cc982128bed11d976fb38164c4cdb47be7bd34d. A source delta requires actual renderer/API review; shared lineage does not establish output or artifact equivalence. README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
+      },
+      "comparisonBranding": {
+        "distinct": true,
+        "name": "Zombie Mermaid",
+        "evidence": "README calls this a maintained Beautiful fork; published zombie-mermaid packages."
+      }
+    },
+    "artifact": {
+      "kind": "node",
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid",
+      "module": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid/dist/index.js",
+      "version": "5.18.0",
+      "integrity": "sha512-q7FWGbVM2+cAF7rIywFx9NbjCE0p4Nc3aZUPmafMFgV6vYHiOmNk4JAvQlVVIsFQgp6aAvmVMsqt2gZJKD60hA==",
+      "installedClosureSha256": "516aac59cf8f4c206f8b423a6b40b4fd04f3944e6fb05c115070d5366e29a455",
+      "runtime": "Node",
+      "sha256": "b719ed888c02e820d6cdfe551776272c05ca5242610c6a40906a2fbc7a8f667d",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid/dist/index.js",
+          "sha256": "b719ed888c02e820d6cdfe551776272c05ca5242610c6a40906a2fbc7a8f667d"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "detail": "Version policy: recorded registry release. Recorded catalog versions remain separately available on the node."
+    },
+    "browserStatus": "prepared",
+    "browser": {
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community-browser/dfadler%2Fzombie-mermaid/5.18.0-recipe-4095798d0177d82a",
+      "entry": "bundle.js",
+      "kind": "beautiful",
+      "global": "unifiedPeer",
+      "version": "5.18.0",
+      "artifactSha256": "ae8185334549af868f974213f8f0b5bce8c2e0ac92983d499d092dbb8317dac1",
+      "integrity": "sha512-q7FWGbVM2+cAF7rIywFx9NbjCE0p4Nc3aZUPmafMFgV6vYHiOmNk4JAvQlVVIsFQgp6aAvmVMsqt2gZJKD60hA==",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community-browser/dfadler%2Fzombie-mermaid/5.18.0-recipe-4095798d0177d82a/bundle.js",
+          "sha256": "ae8185334549af868f974213f8f0b5bce8c2e0ac92983d499d092dbb8317dac1"
+        }
+      ]
+    }
+  },
+  {
+    "node": {
+      "id": "lukilabs/beautiful-mermaid",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "derivative",
+      "repo": "https://github.com/lukilabs/beautiful-mermaid",
+      "branch": "main",
+      "head": "2ac8bbbb060ca0a65a6a21f3200bd99b1587b488",
+      "lastCommit": "2026-05-06T12:53:19+02:00",
+      "rootCommits": [
+        "3185b9b6911e3b0a9f0d51fcebda5e0f69785ff0"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (Node, Bun, browser)",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "beautiful-mermaid",
+          "version": "1.1.3",
+          "license": "MIT",
+          "gitHead": "65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b"
+        }
+      ],
+      "roles": [
+        "ancestor",
+        "peer"
+      ],
+      "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges).",
+      "benchmark": {
+        "adapter": "beautiful",
+        "package": "beautiful-mermaid",
+        "outputs": [
+          "svg",
+          "terminal"
+        ],
+        "version": "1.1.3",
+        "versionPolicy": "recorded"
+      },
+      "benchmarkEligibility": {
+        "classification": "derivative-implementation",
+        "engineScope": "independently-rooted-derivative",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Maintainer correction 2026-10-28: Beautiful Mermaid is a derivative of Mermaid, not a Git fork. Its ASCII component separately ports Mermaid ASCII; SVG implementation and source root remain distinct."
+      },
+      "comparisonBranding": {
+        "distinct": true,
+        "name": "Beautiful Mermaid",
+        "evidence": "Catalog records beautiful-mermaid package; only its ASCII component is a port of Mermaid ASCII."
+      },
+      "parent": "mermaid-js/mermaid"
+    },
+    "artifact": {
+      "kind": "node",
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/beautiful-mermaid@1.1.3-recipe-d5b22dc11b300620/node_modules/beautiful-mermaid",
+      "module": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/beautiful-mermaid@1.1.3-recipe-d5b22dc11b300620/node_modules/beautiful-mermaid/dist/index.js",
+      "version": "1.1.3",
+      "integrity": "sha512-TItrtrAyHp1vwFfFVYauWGrquouk/6SS21Aq3RsxindSYZODcN4xYrPZD6BiZRU+o5mKJzDPz9MUSMvELdylyg==",
+      "installedClosureSha256": "b795c3b8334fd70722bbb77e1e625b5cd29f18dcb93df642fc7c88e76316a6c5",
+      "runtime": "Node",
+      "sha256": "54acbb8c0d458bfed51bd5e116eb64d475390ac1893bc25a31148646fd9a2c39",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/beautiful-mermaid@1.1.3-recipe-d5b22dc11b300620/node_modules/beautiful-mermaid/dist/index.js",
+          "sha256": "54acbb8c0d458bfed51bd5e116eb64d475390ac1893bc25a31148646fd9a2c39"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "detail": "Version policy: recorded registry release. Recorded catalog versions remain separately available on the node."
+    },
+    "browserStatus": "prepared",
+    "browser": {
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community-browser/lukilabs%2Fbeautiful-mermaid/1.1.3-recipe-6b25584a729ba14c",
+      "entry": "bundle.js",
+      "kind": "beautiful",
+      "global": "unifiedPeer",
+      "version": "1.1.3",
+      "artifactSha256": "db38c8152923d24ea59a893be24f602dfe0841aea36ca5b8c8f9c130564a1d43",
+      "integrity": "sha512-TItrtrAyHp1vwFfFVYauWGrquouk/6SS21Aq3RsxindSYZODcN4xYrPZD6BiZRU+o5mKJzDPz9MUSMvELdylyg==",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community-browser/lukilabs%2Fbeautiful-mermaid/1.1.3-recipe-6b25584a729ba14c/bundle.js",
+          "sha256": "db38c8152923d24ea59a893be24f602dfe0841aea36ca5b8c8f9c130564a1d43"
+        }
+      ]
+    }
+  },
+  {
+    "node": {
+      "id": "obsidianmd/pele",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/obsidianmd/pele",
+      "branch": "main",
+      "head": "44da152bbb79b91f03e68016f42499bb25bf6e82",
+      "lastCommit": "2026-10-18T09:34:29-07:00",
+      "rootCommits": [
+        "77647fe50695cf92f06ca3d1f8ecfe81cc0ff6c3"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (Node >=20, browser)",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "pele",
+          "version": "1.13.0",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded.",
+      "benchmark": {
+        "adapter": "pele",
+        "package": "pele",
+        "outputs": [
+          "svg"
+        ],
+        "version": "1.13.0",
+        "versionPolicy": "recorded"
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg operations with adapter pele. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    "artifact": {
+      "kind": "node",
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele",
+      "module": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/pele.js",
+      "version": "1.13.0",
+      "integrity": "sha512-Ie8UKY9x00MsuR3jO6AzUwzK2Z6MIV3Tf4EDdITiuk8Uaz8K7g0R082WqsqNaSU8DdgkrRvZThzhit83mi/uiw==",
+      "installedClosureSha256": "5da588bd832a2732a264b092828a39b4f386496fa861ef3e6c201e88f2a3ae4f",
+      "runtime": "Node",
+      "sha256": "37bea5005aa6d2dde929032ced5d2958cf642667cbc1fe675f9dfacf4ba15a51",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/pele.js",
+          "sha256": "37bea5005aa6d2dde929032ced5d2958cf642667cbc1fe675f9dfacf4ba15a51"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "detail": "Version policy: recorded registry release. Recorded catalog versions remain separately available on the node."
+    },
+    "browserStatus": "prepared",
+    "browser": {
+      "root": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele",
+      "entry": "dist/pele.global.js",
+      "kind": "pele",
+      "global": "pele",
+      "version": "1.13.0",
+      "artifactSha256": "0b0a46c57a5a6971670c09f5ec4066705bd78505f90fd11adf6260325efa0910",
+      "integrity": "sha512-Ie8UKY9x00MsuR3jO6AzUwzK2Z6MIV3Tf4EDdITiuk8Uaz8K7g0R082WqsqNaSU8DdgkrRvZThzhit83mi/uiw==",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/24BXRY42.js",
+          "sha256": "62fc3e04c9b3081ed5e0e5420e599db442e5efda191ca55ab69dd475289d9b23"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/364JUB4J.js",
+          "sha256": "cf4822954ef4b4ece72eef7ab8bdf08f5d77f577fc6a74d4c7341d17a3aa3aa8"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/4FHPYW2L.js",
+          "sha256": "76ae8a4c1a837a46b67f1445cb48b0ba0690e47e43a813c9c6601ba025b4201b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/4LWW3ZNH.js",
+          "sha256": "711c65fca1ecc27538eb41ca3f2c97ea0dd941898e64ef2e0930bbb0db7fb55c"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/4PMEDUI5.js",
+          "sha256": "0f2186dd831a3fb88bbea39ccdd04848684d7d7af5c292e3b97d65bae14386f4"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/55GM72UB.js",
+          "sha256": "adc90d0eb220b62188659527109d52b181cf64254fd7a4379242c4b1a1b635b2"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/5THPTBWS.js",
+          "sha256": "dc81c12df1149e9bb75d87b4cdb6ac5fe26b1255ac1e6435aa05ba0a520528dd"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/5UZQJI7R.js",
+          "sha256": "8dc7f286cc660ac844b62b816f5e99b429455a32ca0fc19e862a65ac6b95fb0d"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/5XYWFMKW.js",
+          "sha256": "810d03038f07399a89782e43188e4aec26400f1b7e8e8d77d531ff69ea48d4f7"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/64PMEAB3.js",
+          "sha256": "6d4958f283253a4c5656a81c2d873c8259412468239843ffc3f4d74403bcae55"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/6BEWHPQE.js",
+          "sha256": "0e640f2f4e1a8e6178beab37c43c36d4cc56672047e9c726968b2308796c842b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/6MYBBW5L.js",
+          "sha256": "8d9686f4bcce293563379dcd9e12a772de7cfc8bb93cd5e93ad6e8d34e770407"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/6PIGVMFT.js",
+          "sha256": "a92ce75df90aba7514ab37c4dbd1f639ac537e893129217f6b32ae42d03230e4"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/75JW6PN6.js",
+          "sha256": "5b7d4fc56155d32e9733a5b65cef7b2d9e0f5e99b578a6f177e732c4312a93b0"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7BIXWRJK.js",
+          "sha256": "c0f1e3ca413ca0a5fc2269195a4d3c52c15b7e86189bdabf88cdc72dd564c069"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7HRHJMFR.js",
+          "sha256": "12d7e83e29eaadc4022f285a38b92fd9d604e75dffc61488d53b43849dacb95a"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7OSFEMN5.js",
+          "sha256": "9b33ee5ff8ef7e0060cc2b9889c6b75b9e551441107b044e16e9c6d9f4799775"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7RQUDNOU.js",
+          "sha256": "039f1ab60dbcfb753657de694737f0e5165d23a4f839ca1dcc645ed52292cf16"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7WLXJQOR.js",
+          "sha256": "de9d710f8b23385f34ca8f5af3c508e087bb261eae602b593d7887849664d828"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/7XWI72E6.js",
+          "sha256": "18bc35e8a84ac7aa57485824b2ab1098c5916614a5ed08f5b180088e2f05ea26"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/A4UD2L5Z.js",
+          "sha256": "d313ae4983471e60b2fc5c6eb81fb518b3944f5ab570cb6b72927955773a968a"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/A5MCFC2X.js",
+          "sha256": "9877dfbe4c9ea1801bdb3695454808d258caa93ca6b6711ddc25cfd2b2f3ec19"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/BGW36YJW.js",
+          "sha256": "23149a915f2e102a73122ec9aabe9b161dfe13150233c83d9d64c087aabf4c7c"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/BJ5QVD2O.js",
+          "sha256": "56b85b6187f1815ab86924d561b0e9b8ddef338112dfee39dd4859f14721d80a"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/CGIZI67J.js",
+          "sha256": "55a7a0db9d34c340da7163da13a321c4267bce37d56b77e291285647d49bf414"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/D43T2ZFB.js",
+          "sha256": "f4cd035dc1ba190c23a12bc2582ae2a1fb0afb151e77fff4bc89621c8ef9a7a1"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/DD3DU3VP.js",
+          "sha256": "0724342cd8156e681cc592937bc7dd00a9149c0336a85755f7a399e8bc92a995"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/DKTLEL5E.js",
+          "sha256": "91864eed78a6a3cc9791d20fb9b61fd8f458c12101662883cd23e755fd2a4cb6"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/DKUZGKB3.js",
+          "sha256": "270946547e80238ea41637bab901f5e20d06476ef4d993b4eec61003288d77ea"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/DNNCRC2E.js",
+          "sha256": "8cdd2b0479e7d7e270d954069601bdb28ff665e5f1ac5a6e6d7f11b686a3305b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/DW6H72VB.js",
+          "sha256": "75676dfc0a787a1288cd94d277faacc7f1b99eddf4b2dcf887bca9e6b83d6e1b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/E67EBMDD.js",
+          "sha256": "a64231dcea6b2cd2777f938c8b97c5b51693c58d60a691b43f8b217d51e98045"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/EFYWJBJK.js",
+          "sha256": "e38d6bd20b44a98c3f37a518436fa2099c8d4699c77705647bfb550b24756a38"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/ETN4OMTN.js",
+          "sha256": "f9edd56c05c00345895eaf97b982cdf2d4d783e25848f2a91c6de284627912e8"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/EXE5EH6O.js",
+          "sha256": "c2780a76e84853e354364ff1a4f1b0007435ad4bd66375ee22a0a0941b29f9b3"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/FTXIJQGB.js",
+          "sha256": "d5a635ff4d5134d1e6600fea35c3add7ab4b7167475733b1b093b0a3d34e795b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/G3MDBVQH.js",
+          "sha256": "41619661f2539269b66fd5783497c4ee940fe1d1e32ae19ee52cde5d781049ad"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/G6GPDDNC.js",
+          "sha256": "18d1e25ca0413e457d95180b81b152a6c169315fcfad8789d6af7d676cc78662"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/G76NGGFM.js",
+          "sha256": "72fe3879b38c8ccc816217294e45a67e0cb6757176a884364aee8eb4b3dfa45d"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/GH6G3TJC.js",
+          "sha256": "954560d6bb529883dcc08e72f385789ba7e80afb02a19d1da8186c03fa0ddf40"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/HLWDZ5K4.js",
+          "sha256": "3fd4cb5f34d9ae1e52df21d1b28cef26311063f168f69cf6e3865538979e82dc"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/HPNUA7RO.js",
+          "sha256": "a57f909b409b2212c0c59e32a0c9ca5eadc2d766f650f96473e49ac1821c89bf"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/HQRGC5D7.js",
+          "sha256": "9b7618c9848b909ceaa25ab7a96e6f56299d32f056167409d93047b5dce35e1b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/IX6Z2TVR.js",
+          "sha256": "e57082b1c15bc8db34a00a5466881068a6431ffbb7a22786d8c9ec391553804a"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/IXUVDHIB.js",
+          "sha256": "ab15b12816b7555d86915a30b066c1fb3526913d28fe29cdfcb077e98fcd4de9"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/IYQVYKPI.js",
+          "sha256": "623323ff299d288720b730ee229052a8e0b7209a77a51795a0f4d20bd6becbdd"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/J77NQRCJ.js",
+          "sha256": "1187c66d0fdeac17a4a14bae5aa62af45b840904231117bf8119a73118857941"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/JAD36DTZ.js",
+          "sha256": "044632cd0b378e1cabfe55c4f5efef0367ef01c4e61c2333bd9c1e5d2a68e7f5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/LF3NJQAX.js",
+          "sha256": "a5deb18b697eabfac2b95e5811043e30ff159f00138ccfe35189989c3173f421"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/LRZCOFJZ.js",
+          "sha256": "7b7a1c46faeb4addd53ddef9853b85c0c0b0d194336a99ac2df26c13468de874"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/MMHMPOCX.js",
+          "sha256": "a43a866d10ac79f53feb4df047ecdbe9e4ecf91abc7f5df2f90f9687ac07b9dc"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/N5NF2FGY.js",
+          "sha256": "3c3fecc4c2bd06ac15fa4d744d34b2856fecc59ef5b341dfb3805f6376c8197b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/N7OWWQHY.js",
+          "sha256": "45edebd500ee0d95a3e2a11112b366a4d04f13f324520128a9ece5828db618e4"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/NEBLO7RK.js",
+          "sha256": "96e2ff40d205d437c1e449ff1f3379c3e12414127ee032cfa6f7720c00ece1d9"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/NT5JY5WP.js",
+          "sha256": "b7e298bdca93323d0ea453b40ba919f24fabd899e7e770d062452ee8b2d22769"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/OK3FC7DH.js",
+          "sha256": "dbac24e35750afabf0075d03fe6e4fd322a54803fcce620fb518916ccac74b77"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/OSSQZVZV.js",
+          "sha256": "d08402b18c610d656b0a0812acb3cf48fc0f085b7013bef23744796aaa9ea314"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/OT7W3RNY.js",
+          "sha256": "f65f1bf9c335a297c2f9e04d5d9beb9d8c5be4bb0ae934fbd6a846ce475aa738"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/P67P66DB.js",
+          "sha256": "645666e7598e17344f714868ca8eb8bf158e96a12e3400ed06960f2c61054ea8"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/PFLLLM7K.js",
+          "sha256": "567656578dd723a1be2a27ed70b3364c99d78d7e28f2ddd35bb70c816a575fc7"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/PUAMC4MJ.js",
+          "sha256": "da99ce034734565977601db961ba5c08f02fa0de301a5b58243bdf57032d0d66"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/PVFCHRLY.js",
+          "sha256": "63ea43669f9fa1b7b18ace297f30201fe9a6f6dff0263f4c9931bc1bde25dc77"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/QQW2P742.js",
+          "sha256": "d5e0a4cc58b90d40a5f8752064744e828876459053c6bc2c1ddd7ac3f3901438"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/QWQ4ALKV.js",
+          "sha256": "13f50fdc558dca9330383be2bf20cc21753d51a4bdb8fbb5c4e2a7bb76b8d9a2"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/RBAYS7HL.js",
+          "sha256": "0f67a7099c0d2cf9461e734e4bd8da7334434f241b60ec8709a5e2fe2ab03f13"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/RVARI57O.js",
+          "sha256": "3dc7661b060578920eab83aafd1fa261886e7e331d44f8f5d2f34bd0804027a3"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/RXENWAX6.js",
+          "sha256": "588d3ef17d5fd95492337ee6bb0357f3f240e1e3f745cc252dddba34b0703473"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/S5OQMTRX.js",
+          "sha256": "0368bdc3bdf05bab73cf50e77ada378b354b105e57ab7e6ca2dae2c01d7efc93"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/S63OEDPG.js",
+          "sha256": "f054b14cbec7488b32b9169651f81df1bdec993e220cf312ffc591c53b43820c"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/SG5TVYLW.js",
+          "sha256": "37dca878c2ed2edda61ae4814660620ad33d125079e82166bdf595896b55c40d"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/STHDNR4A.js",
+          "sha256": "e87941238268cfb54c88586ec7816615307504beb5a81ae61089c6114109064b"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/U7A35HE7.js",
+          "sha256": "397b28d36a130cd43153c0c920c6dac282063040004c0cf36b92dbbcd2c54899"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/UGRSUGA2.js",
+          "sha256": "0cc02ad777a45c63e8f4056eb8768489534fcf1477df2ace5920e88de1040d4f"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/V44WA6U7.js",
+          "sha256": "1624521b6484ad6942725143ffcc3f438415b84fb546183d69e0089e6375f4ea"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/V67O4WWV.js",
+          "sha256": "e7209a62976b4666889a65cf5f9fb54b3dd59e431d2eec51345e331d7b09f7b2"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/VBUCM3YD.js",
+          "sha256": "8b90e0e028083ecbbfb40b0b9c0ffd46d2808b1ff50e38dd35d42797ad09839e"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/VINGRCPA.js",
+          "sha256": "71555261bee7c52469048bf85bf344a55b50b05bd6a877b57c15640ae9fcfc91"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/W6CCQF2Z.js",
+          "sha256": "3ea51ed1706edabdebae39c398badd3b590854f069889bf36c662f5f66c0037c"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/WL6DNKX4.js",
+          "sha256": "0d5c8cd4932786c25de7736e4329de0655b4f0bd4010a1cbc4b59ffd468ec7a0"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/WQ63CJYP.js",
+          "sha256": "c6aeff44018be609701df981c71c384335456eb5a4a240a37f1f2bc16058c4ed"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/WZCH37XC.js",
+          "sha256": "613e85d8cbdc48612b22f759b2520f48e1f9c1d7572aa1533cf205624f13ad41"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/XC4YV6K4.js",
+          "sha256": "fdcbf1acf225d4e1107ab91bcf7559a987aeeb2d861ee39246644d187453e193"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/XDBMULRR.js",
+          "sha256": "978d48a00391e0ded8bbba736b7499cc125c7beca02c1528acfb893632ebeeb1"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/XOYAOB3S.js",
+          "sha256": "ed87a202186d9096b0d24c130759dd067f096856ca3bd087e22cf9a24b02d844"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/Y5LQLG3M.js",
+          "sha256": "9932011b235b0598961aa26d5a9c66b6a405d065cdd12fe264fe5e907d2038f5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/YIK6JTN6.js",
+          "sha256": "a4494dcccb06cf0af86285995fd82fc031c370a5ae150fa71842e832512f90ce"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/chunks/ZFVVEU3T.js",
+          "sha256": "79c6e05232763052d7e21f5507b70f858468b834180a8fdd3ff004d21caa35b5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/core.js",
+          "sha256": "6566c0ca9a713302114cc973f98fc34146d67d033a0b7a61679f606fffb9f084"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/agentflow.js",
+          "sha256": "e446d2a367de0ec692c70553f8dde9720cc5f152ac7911268213a1ca4af3c141"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/architecture.js",
+          "sha256": "656341dfcf2deec64cca7342ffbb7b1e2d0f1905996988dcf4c730814a4e11e1"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/block.js",
+          "sha256": "f83a22fbaf5d14f95c32416699c4af1d674604570368b26d448cc3dd99efc997"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/c4.js",
+          "sha256": "5b4796d4e54aa173f43866fadc3f864ca650fabce8baa300ceccade5e8aaf8d5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/class.js",
+          "sha256": "9c9b29e0dd5c7485381ce8b8ebdb151d634963c9a8e591f330923abdf7d994d4"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/cynefin.js",
+          "sha256": "b9711f634bca0d67d59c34cd49d6a1e78542e7c68a463495bedc0f0c7926d944"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/er.js",
+          "sha256": "eaa5d4252e460e8caac729f1095c823b7f5e6b1b94334143b7dd37e7a8bf279f"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/eventmodeling.js",
+          "sha256": "277c931c1257d0dd056d8f200ec7cf75d49a6fbbaf61630bede63e548e9b9bef"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/flowchart.js",
+          "sha256": "eecee05230d5e254f71a62b4c8a1597f15c13315c05c9b3d96d8880daa11e9e8"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/gantt.js",
+          "sha256": "e2c082e50fb800e9660b2b9d013a44298735587621e75cb2f2e91b11c12dc8ac"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/gitGraph.js",
+          "sha256": "61f4daff1d630c60b47e203b61324bae7ba3a480472e408dc078b38372bb6cd5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/info.js",
+          "sha256": "6e8ebd1b32c7b60a473c1cedf6294a3b1815743d2904e76dbda62c1d5e896be9"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/ishikawa.js",
+          "sha256": "52a90fc275e562c21f028f26a3ea42063038d5a824ab22c487398c5f1e501a42"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/journey.js",
+          "sha256": "d9dcc16dddce7b11df3afbc02367cbaf406bda52d31b5b707aa4448b36f7ee98"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/kanban.js",
+          "sha256": "c892b1a5ea0a8926f0e256235eeeb38472c32c0d2035ec1040e76531bd3fcec5"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/mindmap.js",
+          "sha256": "276b9e84c116144ea69434e4bf5649a7e254e7b979103870b165bb6fa0f985c2"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/packet.js",
+          "sha256": "20ca79e6679e6bf266bbcdbe9240ef5ef1ddec039f8743ba268fe5a3a47fdf1f"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/pie.js",
+          "sha256": "e59050ed324f3f1a2706ee4afab12038178eae9ecc1c025eebd1a65dcdb157f4"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/quadrantChart.js",
+          "sha256": "e166338708adf5af608fa6b201b89cc4b6c9569db1d89a28d8153edaaff65259"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/radar.js",
+          "sha256": "45352a4c19f4f9f51a549716ee44124bcc8ef2130e58b9b56e2b561a73c9e421"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/railroad.js",
+          "sha256": "c254787bbe6dcbdaa0d343cc3b1eb79681fc751b11c4e523c059dc6064d9d328"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/requirement.js",
+          "sha256": "5b97546e24e94705719f9bdc00e66abe66760d891657fbb51b35b9d1c97bc71d"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/sankey.js",
+          "sha256": "b95c4c63879c2947875c919d53e827958f5625371c7771805f09f1472b6a7150"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/sequence.js",
+          "sha256": "a60a76f57ec4d138bfd794edc6a45ff65c437c11478b7809a18b20b227a16ed3"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/state.js",
+          "sha256": "c3ed75fa6209810a6fe78acbde8f209a220335a460c3b1d6b0e7fc3fcc142eee"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/swimlane.js",
+          "sha256": "93ab1eefc9f93ba345161a63149530a41f08fea4cd4994c9ae99ecf1ada392ca"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/timeline.js",
+          "sha256": "9c77d320814f908c4148c7c9f55ad79a4100c26d0deb480287ceaf6109981f46"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/treeView.js",
+          "sha256": "eac97adcc2f85f289f077302f27c0acfae56ecbba283305036a779d1e0174f12"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/treemap.js",
+          "sha256": "18c979f6f9925606d4e663b2a70eacd864e7bde1ecf3381e28047c9f7a51798f"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/usecase.js",
+          "sha256": "ace6bdaa5ee39aa68c1280f8f13362e7deaef98224a2247b71feb8a95e509477"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/venn.js",
+          "sha256": "92ad79e2b28bd921608b73a54862a0f2e49bbbdde6693121171dad5414b30c0f"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/wardley.js",
+          "sha256": "c41b2fbed0292443d38f930270de9b91623bf7cab72c2b6ce780193501484827"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/diagrams/xychart.js",
+          "sha256": "363397113319e5cce258835569d0b4d51b89a047f58889bb89311a57c66a3067"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/esm/lazy.js",
+          "sha256": "6da59c87a72148c62836529e792f151569b304a64801c2d468c1332130286232"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/pele.global.js",
+          "sha256": "0b0a46c57a5a6971670c09f5ec4066705bd78505f90fd11adf6260325efa0910"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/pele@1.13.0-recipe-d5b22dc11b300620/node_modules/pele/dist/pele.js",
+          "sha256": "37bea5005aa6d2dde929032ced5d2958cf642667cbc1fe675f9dfacf4ba15a51"
+        }
+      ]
+    }
+  },
+  {
+    "node": {
+      "id": "mermaid-js/mermaid",
+      "categories": [
+        "renderer",
+        "parser"
+      ],
+      "relation": "root",
+      "repo": "https://github.com/mermaid-js/mermaid",
+      "branch": "develop",
+      "head": "e28fbd9ded0a07ba9569e51be4764c1ad4daa8f6",
+      "lastCommit": "2026-10-14T08:44:56+00:00",
+      "rootCommits": [
+        "e26c2a252789a456a30f1f150f1c513b49454363"
+      ],
+      "license": "MIT",
+      "runtime": "TypeScript (browser DOM)",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "mermaid",
+          "version": "12.3.0",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "language-reference"
+      ],
+      "notes": "knsv/mermaid resolves to the same head (legacy name). Default branch is develop; 12.2.0 provenance names master.",
+      "benchmark": {
+        "adapter": "mermaid",
+        "package": "mermaid",
+        "outputs": [
+          "svg",
+          "parse"
+        ],
+        "version": "12.3.0",
+        "versionPolicy": "recorded"
+      },
+      "benchmarkEligibility": {
+        "classification": "language-reference",
+        "engineScope": "pinned-reference-version",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg operations with adapter mermaid. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      }
+    },
+    "artifact": {
+      "kind": "node",
+      "root": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid",
+      "module": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.core.mjs",
+      "version": "12.3.0",
+      "integrity": "sha512-4113TdXeLAsMruJ79OpFL5O8+LTFXhQqZ260rF3tgUmiNAtRm4Uume04I+65PRN6yZ69J4f8rVYWW8zRk65UYw==",
+      "installedClosureSha256": "69b198feca0b7b794ecda9cc4da9d25d9c9439b70d5162652a26c42543f8a864",
+      "runtime": "Node",
+      "sha256": "fafa28691baf87948a63ec13009437278f25d43ca7d85e74b71f3b53897e1738",
+      "files": [
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.core.mjs",
+          "sha256": "fafa28691baf87948a63ec13009437278f25d43ca7d85e74b71f3b53897e1738"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "detail": "Version policy: pinned current Mermaid. Recorded catalog versions remain separately available on the node."
+    },
+    "browserStatus": "prepared",
+    "browser": {
+      "root": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid",
+      "entry": "dist/mermaid.min.js",
+      "kind": "mermaid",
+      "global": "mermaid",
+      "version": "12.3.0",
+      "artifactSha256": "336df803d87a38b70a01e736e666c8f7601d2ce42f5e47c8fafe5d721074b9a3",
+      "integrity": "sha512-4113TdXeLAsMruJ79OpFL5O8+LTFXhQqZ260rF3tgUmiNAtRm4Uume04I+65PRN6yZ69J4f8rVYWW8zRk65UYw==",
+      "legacyMermaid": false,
+      "synchronousLegacyRender": false,
+      "zenuml": {
+        "root": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml",
+        "entry": "dist/mermaid-zenuml.esm.min.mjs",
+        "version": "1.0.1"
+      },
+      "files": [
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.core/chunk-CJCKSLXZ.mjs",
+          "sha256": "6a2c8d25ef67f1f94daea2c5df4f047293e8bcf9c932d45ae8973e9c1d89a061"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.core/zenuml-definition-ZCSB3OVJ.mjs",
+          "sha256": "a35dcd19858a47d4c4b18814feb42228d1380c0157faf123c6a1ada3094ed035"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm.min/chunk-VDOFMJQL.mjs",
+          "sha256": "128f1bf83ab6a17a4bd83b0abecb0c2f762fa905cc229aebe3cb3494faa97886"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm.min/chunk-YT4XVR7J.mjs",
+          "sha256": "673f9af3eb6ef48cf35e443e20b956cbcd9a98d8a9c39d5d6883bb8a76e7641b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm.min/cloud-icons-eHuugVSv-B2J7Q3FT.mjs",
+          "sha256": "262bda1416957ef7e2d0ae8aacd7a4ee4bf9a7a5c6ed848c8e284559fa24d44c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm.min/zenuml-definition-MT6PIYM6.mjs",
+          "sha256": "4c53e86b0727930d85c79221ea7ebb67cb47d7daafa31aefcd72074b798b102d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm/chunk-LWGTU67T.mjs",
+          "sha256": "bd1f13541ec5ff56d044380223da0d382d0a5b387f07e0b08b1e8c9806762539"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm/chunk-OS44DIFC.mjs",
+          "sha256": "6a2c8d25ef67f1f94daea2c5df4f047293e8bcf9c932d45ae8973e9c1d89a061"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm/cloud-icons-eHuugVSv-MUX6BOS5.mjs",
+          "sha256": "0e9efdd8f4bcb58cf3a949a9137ea1faaf3daadce8950e0a36f17c4e0ad643ff"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/chunks/mermaid-zenuml.esm/zenuml-definition-2HQTZJMR.mjs",
+          "sha256": "653dd9a403c5ccab2ecb170a34655514a13eb3469e62df998f4dac4662136f13"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/mermaid-zenuml.core.mjs",
+          "sha256": "90b99ea966ee4d55c6269d2088e3931a397084326d73a2078a352c78bdb6db97"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/mermaid-zenuml.esm.min.mjs",
+          "sha256": "fc59028d2d425c25c4a9f40d932f5a89424a90571a716461c4abe7fe9b013a19"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/mermaid-zenuml.esm.mjs",
+          "sha256": "1ff708cc8e31658d528903621f045f0983975d11a118cc5bc04956ab126e5450"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/mermaid-zenuml.js",
+          "sha256": "2b05041b344c01c5241c199c2e1076806c0078297601e3d3ec83992cc739e831"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/@mermaid-js/mermaid-zenuml/dist/mermaid-zenuml.min.js",
+          "sha256": "f75662869d22aac58870e52370fe4c46b89b9710bf4b03df93b3227b5e18e730"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-S7VZAUFO.mjs",
+          "sha256": "2b146e9c35aefb28bf73d4962bcb8b93c5888a24fd844e6df5f0ba1c72432bf4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-YGSQEFNW.mjs",
+          "sha256": "ccb69b7fbbd1c97f414dc220a1d9b98b4e83c731819f5f4f10e229b75b4fcb00"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-APKKGZFW.mjs",
+          "sha256": "e168d7b976b42c723aea98dff530ff41ac17cf4b944a684fde69dc46a2fbb145"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/bpmnIcons-APHXDYXF.mjs",
+          "sha256": "eb6dff752d28f1cb7945af35122d987501ac71fe50b0c4f8db3d8cb869c89850"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-KJ2TOQU5.mjs",
+          "sha256": "20697a96c387b226d7d8255428b8f5fd310e5c80a1a4566da1896426045417d6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-2Q5K7J3B.mjs",
+          "sha256": "c2447ceacdaca8f5e9465d685f94c6d7faa17607e1003e9acdae4bd6039a63e5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-5VM5RSS4.mjs",
+          "sha256": "6be3efa5a806cb791e2d3aa585f1a6088408cfd76617800555a1bdb994a45d96"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-6MUBBAK2.mjs",
+          "sha256": "4ef3c237e2b362c94dc346de6e7c01974b14732fdecda9188bf133c0aa4890ef"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-AXFCVDMN.mjs",
+          "sha256": "677c671e22fd64f8b270d31f12331af3b314e4e0196252dcc995d0b8c8200ce9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-BG4553SI.mjs",
+          "sha256": "673fcd7b9224566875ad14570fe89061dd3dff98bc39960bf2000e805abd8c94"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-CFHHFPVC.mjs",
+          "sha256": "0445dafa1fb1750897b83bcce15a8d3c094b74c26416e09f050a901be759b3d1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-DQASFODM.mjs",
+          "sha256": "bfd974213d33643c12544768e4c0b9cc7e4b92d34695d4faaae1910a94411ef1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-DUW6YSOI.mjs",
+          "sha256": "a4fa07e6484bf4a07d495f1bf473b1c5fad688265ed7a5ba8fec56fd15b2865c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-HFQBQIA3.mjs",
+          "sha256": "beaa4028665bd8822612cfb5fc8529498945dc829a319a06198db41249804974"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-HPSUCWAI.mjs",
+          "sha256": "e5f2effb362757cea7a79ff93a62dc84ba41ed953e342b58f5742c2058aa9d15"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-J5ZVWO5B.mjs",
+          "sha256": "1f7aa46bb41a26047ed597de34f398460d3413c6f18372afaff0e5913c452000"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-JWPE2WC7.mjs",
+          "sha256": "ed3c527e00bbcc3269ab785592ad532993fca6f729637f3e43bb67d19675d913"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-KQLB2F66.mjs",
+          "sha256": "769a403bfa7b38be344940f5ab221af0379a6eed6f08e227574e78fb69841e5f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-KS47KZWR.mjs",
+          "sha256": "d71e05535adbf24db159a6611eacf2aabc59667a1447c6acf2c858b7089279af"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-LEVMRMFU.mjs",
+          "sha256": "bc2b12c337ce22cb14d32650ce6bfd976e1d31c779c70ec628fe106e435fdcc8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-M57EVK23.mjs",
+          "sha256": "e86d7bb401590f4c3c0896cb4cee70b51f0da3942d27446e8601bd929654b666"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-OHR5NZHT.mjs",
+          "sha256": "0bb47b45d0ad9bb52ba7185ba646a2fc48858a2de1fe69b088699fefe27b6fa1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-OY52VR5R.mjs",
+          "sha256": "d3a760f82bc0f21defd46e13c3dd71082c68db35634dd6da2a36c29760df731c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-QB3YPZ4I.mjs",
+          "sha256": "91a6f905ceebafbcc145dd7c0e2e8d80f2bd204c6aa7c70d1e35b37d6f0ace79"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-R3KSYZAL.mjs",
+          "sha256": "0baf9c0cc313fa87ec51238efa3956fc1a37e754d9ee8e054b37716becce2d4e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-STOXU5M4.mjs",
+          "sha256": "b7170138aeac7e16ef6d7c8ae0a6c5d8093fcaad879193f34531f82e48f3f6f1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-TU62E6Q5.mjs",
+          "sha256": "b726715fdc3286e7cc1dcfd08faa9e2d2ea22ced3048e341cbb130e0248438e3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-X3CZISLH.mjs",
+          "sha256": "c40f3fa34ad3d0fca6a61ba4c08e65a0ff9e44cdc795f21887410620611264f9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-X4PVCEUW.mjs",
+          "sha256": "af7f83ea5377b2291f5520dc945d4b7201ee9c574026983c09c4506ed1aa451a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-XXDRQBXY.mjs",
+          "sha256": "3165b632d5cc432eebb9cf5e6d02b4f30bcbeb3efaa296563d7b4328f173f3fb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/chunk-Y2CYZVJY.mjs",
+          "sha256": "c77ed863f0c084dfc41b31574fc9e964fa293718de14213ad82f1d646857b590"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-L25IHNXF.mjs",
+          "sha256": "1f77e633acc04b612d10d6ff40fc91ce886301a3754e2ae508f7d6ff337ff5bb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
+          "sha256": "7193a61dd37e04cd902b9942b51dcd814e3e869ad64ed8556a326775bd43f76d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-L36ESFBY.mjs",
+          "sha256": "f674dbfb7f65a7257dbd10ce0c6d1dc5718ffffabbcd41ba8e0e1639c65f7538"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/dagre-SPEB5RXH.mjs",
+          "sha256": "732a863709058a85857da1c0b1da0b9319a617d3e6d10061321e0a3d715c1c8f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-3B7GL73J.mjs",
+          "sha256": "71367f5bdcca52126b51fc0fa54dbd8bfc1b2b6622ec99cd3a1c6ea1c329dc2f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-DNEMPZML.mjs",
+          "sha256": "8bedb98b4e286317e95a0999db1d5ede1e472cf20975af05a4664276107a6261"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-L3MUGCDN.mjs",
+          "sha256": "72a2de57b9fa33c7dac3b71e2dbb8bbb0d60eb4849e341be0c01f8091be8f745"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-LA4NIPWU.mjs",
+          "sha256": "75b56674674cc7ae27f9fdb7278314e7e33ad094c255f5c3d3fad9551d8c73c7"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-MHCOC4E2.mjs",
+          "sha256": "ac29f7c6ceae0612ec1039ddefa035c2d527f18c6cb72aea6d0313f0fe7a08a6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/diagram-XPFHEONP.mjs",
+          "sha256": "223016d37cd98ef342351bfffb85796f4489373fac16a6f604dd827da49836bb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-UZSYDL2S.mjs",
+          "sha256": "f0b1e9ea25d63653803b50f46a9a73deb32431c5dc64aabac84a067a3cfff2c3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/elk-XV6XMXQE.mjs",
+          "sha256": "727e080c44d169f9e2212bfc30a77aa2c823c5c9b4406aed23b3c9f6bd354ba0"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-EYBAPDEH.mjs",
+          "sha256": "5478acc2f26b8943566d51cf658b636e4ed4f4a8870c0bb8ee4906555775c47b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/flowDiagram-MALGAFMO.mjs",
+          "sha256": "790868930a1cc8af018a0aa9c147564df8c997fb1215ad34a496787df5973ea4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-23REXITY.mjs",
+          "sha256": "35dad558bb1263665fb8d314f0463b028f9499a3d8965ac31ded49dc550a1c1a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-STJD7YCW.mjs",
+          "sha256": "c7928b4a5d5b0840ab8820039b0fe6e9f8da7f8be7e88ed0a8a4c45559b39ce4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-KBXO4MBG.mjs",
+          "sha256": "83f70ab82ea4f4cb01d8117b062d07060b048030e79cd83c9907a13cbeffabf8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-M35NCXHK.mjs",
+          "sha256": "dc8280ce1a1ce116fadc970216ae99235545879ff8f1da24f7f0aa5a770d3420"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-OPLOXDXO.mjs",
+          "sha256": "d2d534c96526e9b71e7ae228afadd3580b3305d07411527aeb85d6e0214660af"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-BZKZHSQY.mjs",
+          "sha256": "0e6d8af858e3b2bc535a665cc51455ae3eed94b4b1e23e8bbbbe91dceaa09ef1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-I2QAS2VK.mjs",
+          "sha256": "18f117ea5957073782d42b54330e1c15c543e63f1eef75853bded7c8e9b87c37"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-FD4XPPHP.mjs",
+          "sha256": "1db3b54a1327471de0d4a36c488d2db7ae06f8e541725e080d98edf1e1ffb889"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-J4AKIIQI.mjs",
+          "sha256": "068b6c2c8f0397e7b1a14cdd37297a5d7ccb50ae24dd2def964ee2dd0e32864d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-XTYBLID2.mjs",
+          "sha256": "8be4ebdb2fc35168c5b743578150825870085f5755ced3a1ad63a21657da1090"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-MRQ6NCDL.mjs",
+          "sha256": "f4de5220a61ae1a41fdd704f1d0acb07823ce73cef816d3c63c914ef33595b37"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-Y7LWUY3S.mjs",
+          "sha256": "7e76f8297e423275331247b46c587f2f42970c30539ec522958e86f4139168d0"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-WGJFYUXA.mjs",
+          "sha256": "7755295d31147825c25852ffcf0efbd63873b1b08636ca0b5fcb6cb4a95a1e6a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-5NDRBG5M.mjs",
+          "sha256": "07d24d51599f5c9c358468b9cbf9759d41c5d376b7af599d3f3e32a600e6296c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
+          "sha256": "43f37c9b46d4165baa36b1180a0c14172f30f85e41330cf104081cbd09b26e1b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-FJ4FJNEA.mjs",
+          "sha256": "8f25eceb851c25425d2e1fc5e0c3252fbb91edf758577183d6e4d691a14acaf3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-UMQ2AFYF.mjs",
+          "sha256": "8e87fe53f6c27b75d61c019f3514b696681e808e7c1631e0efe9fd2f1f60e9da"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-OMPLPG4O.mjs",
+          "sha256": "c501024e8fa6983b7180af588474f89fe7551b709b73b7f5a7b113eba540ec5b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-SEUHKTQE.mjs",
+          "sha256": "ca4d2d631be8b8280bcf6950d3767305bd73ad286b284fdae8bc37297212a65f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/usecaseDiagram-AFA6YXN4.mjs",
+          "sha256": "3cbb9dd83f0b693cc059f6af2ff0a9be50ca23622ef9e6154d42fbf3742c5108"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-NNMJR3RB.mjs",
+          "sha256": "db9290470e6e9ab383822f77b6f0841bfe652a8bf585cd514ffcc2903d992a86"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-S7YFUSEH.mjs",
+          "sha256": "ae392381520b42c484a71cdb6f682c48f6e7ae77ee4ee6073ec330cf796fa6d6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-GGNKY7IX.mjs",
+          "sha256": "366131dd59d2ad54f6cc5e42ad668c863b7f9a1c6c766b557346d425b3947d49"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/abnfDiagram-7WIW2FYK.mjs",
+          "sha256": "95ea5d8681a3c4bea14f38a02f378583757359a6498ed0ca63ea03fcfbae617f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/architecture-LC7QOZUM-5NGVVLDI.mjs",
+          "sha256": "b6532fee8c0bb0e9fafeca26b483979f6d3f4693ad8d73cbe4a45ec18109548b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/architectureDiagram-K7MV6ERW.mjs",
+          "sha256": "277cd135cf6558ed6687a38a203dbc7ce32e6da0d67cd7fd476187b4e935e900"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/blockDiagram-O3Z2S55I.mjs",
+          "sha256": "316177423a443181f3163dd163e6ff612bf2ed31c635ceb574856f073fd8a661"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/bpmnIcons-YJSSVMIT.mjs",
+          "sha256": "185164f50d5b6ca2e2b4b99cd13fdc63faa0ea209cc00f59d314aaeca6a740be"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/c4Diagram-7J26TYSL.mjs",
+          "sha256": "a74430f85857cea25d7e737d83f7c6f15550cbc68e15465d9753a286c1322f16"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-3DCBE5TA.mjs",
+          "sha256": "eb500a4d627942cced3faed23276edfd14af317fe0d924a1eadb4385b19d1ed5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-3NO356PZ.mjs",
+          "sha256": "956e6f67c3d51b1c064e26bacfb8c9f28ab84b4056c449a7ed4bd0c9a509279e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-4J7XMMR5.mjs",
+          "sha256": "66ec428c21c8a9f5ef62b5bc824d02443f1bcf11e65f3ed68f75a56001e1f62b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-5LJW3EUZ.mjs",
+          "sha256": "38bcc0ce372e2f92a618f4c4498a47fb61603a7e44711d511e58085130890ba4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-6GTQGJNM.mjs",
+          "sha256": "057cb16b19004e6115cad6de5e6314f06e2186e93fb630149a8f7a786abf17af"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-767MNKTJ.mjs",
+          "sha256": "fc489e5817149b535119c6b6935f1108429f148fc84ff1bc6603d74dbf59997a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-A3LLD7C6.mjs",
+          "sha256": "6875efa0bd8da71daacdf1f1ce7c103ee6f009d8f6e93e03ae203a7fbe5721a8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-AD2K7U72.mjs",
+          "sha256": "b76b983df603d49f4c0ac99d6081d0018eaf737f58fce7ca0e0684e070e76307"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-AEP47HME.mjs",
+          "sha256": "6c4601d48fe74d66c567c476531a2fb5e10bb4f01a1acf244ed6e98131cfc84c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-C7QCCU7L.mjs",
+          "sha256": "74083b3f53d061e629f6027972b79bf0050d85a1f5d8bd6c1bbeec05e4560651"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-CG7VIXT6.mjs",
+          "sha256": "9007f17811827a6f3b2edd7a0dd4f7d10c83a2d38dcc765e85576fe8048aab4a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-CPAW7BRR.mjs",
+          "sha256": "cf4c622dd2568d16b5fac8b656b2bd75726de80b3024aec9f3920d78bd87480a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-DJPHBUKM.mjs",
+          "sha256": "b8b960190bc5e960dcdfe0d3be4611bea9975b3d943c876cb75c2ef5312f7f7e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-EB7S5WDG.mjs",
+          "sha256": "c9f8ebe7deb31faf6ccdca976d23370fbc29f51ef624accbb41c9b1a75379b35"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-EKDPPX6U.mjs",
+          "sha256": "edec6803a546fa1cad52d5d14214c26aa5d1dbe7797df3b236e29888f251e817"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-ETFDQZFQ.mjs",
+          "sha256": "6f99706825a3b0a395da3ec1a053baecc644dcf7815b57be7103e7322ab63e81"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-FB4HB4A2.mjs",
+          "sha256": "6f0096aeecc703e6cdc0c12d4febfb3294e4df3bbf74fdcde35f75a98fa491ad"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-FCGY7WDG.mjs",
+          "sha256": "c5d82b2107a2a42a5f8c7dea971545d1afc46b7d2965d4c91c23984d45eb1171"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-FRYFDGAD.mjs",
+          "sha256": "ea78aea23f41e1706cd22bf40183aa0401f6c83561fbd418f9fd1af59a88e5c9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-G35KUZXD.mjs",
+          "sha256": "a58e375e29c87a483137d805af451ed7d5c8ad911505def69016bd9359aa7d7f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-H3Y7VZGV.mjs",
+          "sha256": "eadd924ab02fd29ecf1f88f40b266e62876b8be3759b21cbd6c762535ccaf86c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-IJTDMCXQ.mjs",
+          "sha256": "c4b493138700060a3cebd9edd00350c8c81501d550f18e77c81b98d9e01e44ba"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-JENJ2NYI.mjs",
+          "sha256": "1698aaf962283fd21b0b617977ab5ddc4daf8cc4f8cfbd0296dbbc457329021c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-KNGDTZMA.mjs",
+          "sha256": "7d0dad943ed12a07dc7505942e81ce2c05138c5059a0ccd0748bde4f706618d1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-MWUZ53VY.mjs",
+          "sha256": "83b7915cba49d48f7e4e66884f5595de49ebcc51b2741b21fa3803bb9ff9d68a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-N3CUNPOK.mjs",
+          "sha256": "a0f3e40121969ece41fc33a1941b9b8b9b8c1bda7eadff9066d5f2e1f9eb7e1f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-NXZFCOWJ.mjs",
+          "sha256": "8260d2a7c20ac4c353114f407215cffae82d8a0f1d0565566376690d8b6b5cdc"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-NYALJP3A.mjs",
+          "sha256": "08b09cb8a7a9d8d279bf9c2d2dcfca255cd1da52386966f4a1947d056506035f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-OO6OXEJO.mjs",
+          "sha256": "b79cb180916c9bb343f99a017bd7255374bf3e7c45c610f5b9278ad0a0f2acf5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-OWKPCAA4.mjs",
+          "sha256": "d9a1362e9746bb6894c11be810a538b182387069ee6944c68b40b61a5348d3d8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-PHMQW7SG.mjs",
+          "sha256": "16d95e0e1241c3821bf494052e5dd4dd8640b8be4b4d503ca46a873b57837c91"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-PNVTB6QF.mjs",
+          "sha256": "72edd915f0bad161850b7bcc24120e56a2a426a4b700d5b278723a1de3c7ad7e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-Q7AU6FSL.mjs",
+          "sha256": "d3b8c6bc644d146c1abf96c8da885b451c4fb20183b734846df069803d6e7067"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-QQ4VTD2Z.mjs",
+          "sha256": "e1a61308cf3d0674b7d7a07510ed9460501ea321e57fc1d019461df75d58c6f4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-QQEUQRS4.mjs",
+          "sha256": "552b199680b7174988ca3633208cf687d753c67bf965f1361a960ec83658421b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-S2SV4DS7.mjs",
+          "sha256": "3ae061956bf21281234b59a8005b2a4b127189c49d995b4c479c6dc6d3ebbc79"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-SQB72GJH.mjs",
+          "sha256": "9ed96ff6057adc28bdeee37e2775db5ae8b6001b283c53f416bdc28b318b0a32"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-SVHOGJPR.mjs",
+          "sha256": "0f77b45afaa6dac051e01fa7df8baa4baef8850e39b1ae6ab2aea20837a0f9f4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-UCIVM6JH.mjs",
+          "sha256": "88904f47c77e700d06ce62e393e99ef854dec7679e9aab0ed359a14d88d2de2f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-UGEUIIAL.mjs",
+          "sha256": "edbb31fb80c9c33063c02a2eeed6bf434f198172c3dc26cda9dee64a384bdbdd"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-V3YWWTDH.mjs",
+          "sha256": "b2b4c78815b6611811d324dd0fce8f765d4e5778d0af4e9f7a65804b5b4e07f7"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-VHEAKMU3.mjs",
+          "sha256": "b6057af86f6b44594321399ae0863c7bb120abd9b5c8fd4a9ed615582e5c24f2"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-VLFMOWSA.mjs",
+          "sha256": "5c6a2e5a90b03d333426f42c383842c17d75d845dd2a97731dc83fe130d150fd"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-XU3RQ3PZ.mjs",
+          "sha256": "e76ced1ebd9dad574d8d7e0c4d0994158e611f31bec4963f9d1a1032189cd046"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-XWQP5P3V.mjs",
+          "sha256": "9a58aca94e1565197668e6a845221b762319498072d3c7477c1fa9768ea97984"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-Z2IEFKAF.mjs",
+          "sha256": "57b5977d324fba755d3c0ff8d8b3d0955be514424e0a9054771d4605db4127d5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/chunk-ZJBQKVUR.mjs",
+          "sha256": "03d1c96eb76a82040ca1261c369aa22809ef4c773bea0640ce540c34f0a9786e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/classDiagram-v2-OX5G5VGB.mjs",
+          "sha256": "2cc345485915684fff411ad7b8596004810a41f395602bbbd1e80abfdb2631d3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/cose-bilkent-U4P6ZWTA.mjs",
+          "sha256": "481cc611124c32311195c4b953205a1d90bed51e2432b6724ca67398caa64b89"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/cynefin-SQZ4V6AE-EBUGBJB2.mjs",
+          "sha256": "9c8973c3c412d844d38bac026f2d295f4d8a662c3fcd56529ed65ec8bc95bee8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/cynefinDiagram-IQ4ZJOH3.mjs",
+          "sha256": "3ac10bd067156b8a26fb509eb772ed96aea36e29eaa3b15ec260458b548360e1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/dagre-75NMZP4T.mjs",
+          "sha256": "9a247fdb41ac6fdbdae6830225dcb113d7dc81a2bb6782638f26cedfe7e1fa80"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-5EDX5UH3.mjs",
+          "sha256": "d4208c7b5aeb430b505cc8e276c7cd4d9e22ad340abc0a2053a3dddd179c613a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-733GHHTT.mjs",
+          "sha256": "44af7ce47c19d9398aa0d8fab5ff39b684e87689c4669b89f4e700f07aa65306"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-A5NIFI4L.mjs",
+          "sha256": "aaa7b95122ed34dd50faa47473ad6367f0c04a9bcf984d21fa019a419ca557b1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-G5JTDQRA.mjs",
+          "sha256": "21792451b45028966a52fa464e1b487845e2350cfc490fd6651e3f0675edf5e5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-KC4HS2L5.mjs",
+          "sha256": "564ecc2cb7ca5e3295f0699b43806318282aeb9b91745be3ff704d14c92ed379"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/diagram-LXLKFC5Q.mjs",
+          "sha256": "8de598a6b0fc1e91ffa96798a356f106d73a056a95e707371fc76e90d6a6ad89"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/ebnfDiagram-R2OZYWV5.mjs",
+          "sha256": "88448ac1d3690766fc538e9aface0823c3dccbd438c7f2dcc7cae25c72cb8a38"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/elk-VW7CPVO3.mjs",
+          "sha256": "98d7a164cf17b94abbd72abec35613f807c3da24709d3b6aea794d5bbd3d73b3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/erDiagram-EZESABAN.mjs",
+          "sha256": "b4061b14d9e4174d770509a568006fd67bf6737a8e551b6b3c91d09e28e07c6c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/eventmodeling-QR7CT3BE-GD4POLK5.mjs",
+          "sha256": "e81741503fd80a1c677f4e11148eb5c5b3c75f5dad6c3da40962ab3d7edd2f23"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/flowDiagram-MIYXRJYK.mjs",
+          "sha256": "332dbde9adb8bb27c90c49be982bd15ac5a518309b7031b8a5f8a3452b50b9bf"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/ganttDiagram-KOIEMFUK.mjs",
+          "sha256": "baf36a3cd597a0b589044418b7d91ff871ba8467e5d985962697ae0443535245"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/gitGraph-S4SDYQ5E-BX3VVCOW.mjs",
+          "sha256": "20800b9142fa711f94fd52d4e95b2ccb2f4badcbd0b632a478ba2986b74f9ca9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/gitGraphDiagram-A2SMY64T.mjs",
+          "sha256": "07c128242be1f39f146033c705dc11d89eefe92008d901f1be301eec6aeb3f27"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/info-5BNCTR6C-ODGUMPAX.mjs",
+          "sha256": "723712a059fdc232998a6b5acf7e4eac5e1b1e7bbd340046c4486450840e48e4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/infoDiagram-CVPKPPGR.mjs",
+          "sha256": "3c87d80ef61b75039c37cf9c215f362ad71a31d3b9bee209d4489c33bdeb224e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/ishikawaDiagram-EMHLID2X.mjs",
+          "sha256": "d630b92ae61b3ceacb5f9c90d72fc519f3c22ee974571ad28540334fc4290696"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/journeyDiagram-34ETIHJA.mjs",
+          "sha256": "5cb0deeecb52b2888f5b3a1c4d9fd393622f514cd926151f7c6b34bb3fd421e7"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/kanban-definition-3VVCP34E.mjs",
+          "sha256": "e180483283e2ac4dc7f8717897da8c4afe8a7c85f41e5b6ed39c841dc0c1edf3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/katex-HEAVHIDR.mjs",
+          "sha256": "36d46ba10d0f1019cc44f758fe78b2c54462cf679c3a0abf1f430a96e01c551f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/mindmap-definition-QGXWIBFW.mjs",
+          "sha256": "4a76dcaaf1b022a326b29f670d5e2a2d772fe122ddbd95b986ad3e34a0add007"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/packet-FDJJNMMN-G7IL4JUV.mjs",
+          "sha256": "fd7ecf57e4300239008bb8d776c457b77170faeeff92a03a351fd4b78ae573fe"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/pegDiagram-TMXEBKVO.mjs",
+          "sha256": "971b9ce520e6d6ad0e8242f18cfc10eed7151ab3af147e6dc40f826a34a6d670"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/pie-BMGGJ4DP-PPLMLEAI.mjs",
+          "sha256": "8f6327706a1d1dc47594396dc29852e97a9f89cb9491ee279e97ab97c1a0fc55"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/pieDiagram-A4ONI7YG.mjs",
+          "sha256": "322b3c70c050515b8d3a356aa6436eebd565262fd0eef6678f5c8ccd51521396"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/quadrantDiagram-SUBAGY5T.mjs",
+          "sha256": "0d5729d290c13634d34252f3b97066fd584f0f0e2a9a3f9593dc9730c042356a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/radar-4MYH26CV-J7F73TLN.mjs",
+          "sha256": "a61a5ac5fc1469c4543c18c514be255f0874a5cf60f3494aa2e07e3a6c246cb0"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/railroad-UC74YYTJ-NDW2JIG3.mjs",
+          "sha256": "0c521740289b4f6618e2154b4ea03f9a0f9f61b498f9bf80e3fc6bbcd72fa693"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/railroad-abnf-63ZTAFXO-CNIYIKXO.mjs",
+          "sha256": "b91fa78418a954d2dcf275e950084a25e7661bef1530205dc1d037fd6157b742"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/railroad-ebnf-WVTJNEEQ-DSHHJI4S.mjs",
+          "sha256": "b08cc71032026bcc9974554b7736d6dab214d5b8bafdea23cec7514c38eca077"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/railroad-peg-W4VBZIEU-7RBE7FRH.mjs",
+          "sha256": "26954bcf990892b07453724d98c0fac876ea0d02990f68fd034ef2686802768d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/railroadDiagram-LDGO7TFH.mjs",
+          "sha256": "9a8bd292c83af8f6197e883a93ad6ca70969f3de9b7aea715f7179c640e6e0e8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/requirementDiagram-AGPKMLJZ.mjs",
+          "sha256": "12f2388c478207909b4c4adb6feaa8250a1379a8d137b7b07c820d722dc72368"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/sankeyDiagram-BSWYR3MM.mjs",
+          "sha256": "4cbe1518713304e730e5fb9b6d41f9a1f891d9b28ce71c2ee929ff780c82e7c9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/sequenceDiagram-7K4MKO6P.mjs",
+          "sha256": "f180d70c33ef7ce61660f78ae1e406af3131fe0b75ba6d9ee80a8febcfac8463"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/sizeCapture-56ELNSSC.mjs",
+          "sha256": "84c15eca7943b7f1c9516489a30e4fd3a6241a8c585a23f52a81825a4e1517e4"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/stateDiagram-v2-7EDNTZT3.mjs",
+          "sha256": "918a1ffe24de5590f05d080e257fa9c67cc1b25c096df63a70379eab7db8e126"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/swimlanes-VL4ZZWC5.mjs",
+          "sha256": "d8fc916baafc0d69db64b5cf3c3c4c927f3898b42ccfea7814e35c55df42a8ac"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/swimlanesDiagram-6D5TTVIN.mjs",
+          "sha256": "eec6cf0a467824cd02621f7503ab65b4245bdb3e3602527eda30a11d0c415fc9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/timeline-definition-RSFCTRKZ.mjs",
+          "sha256": "8fa059b78c5cf0044b4e2426548307975be1d2dbd76f4d0e54385705ed388030"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/treeView-OWB7PY5U-RUKUIZU4.mjs",
+          "sha256": "542cddb4e03242a964467d0fc74174c0e0c37ebd22297c47ea1f6984b2386b08"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/treemap-B4MHVWJL-DHMOZ63S.mjs",
+          "sha256": "af975f8ba549587b280688225cd18ef20dc8e50e4b2e27f0713aee14ffc2f01b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/usecaseDiagram-KXV27WTT.mjs",
+          "sha256": "bc794919a61a258527b3a8e0c3a16a003f565fc023abb42a3ee4b289255de853"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/vennDiagram-WTUZ5ZZJ.mjs",
+          "sha256": "e8b68c96a1cac34e93933bf7f1ed530ef724a444bcdbb63fbaf3d053afb4394c"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/wardley-ZOP5H4X3-LCQ4757O.mjs",
+          "sha256": "dded7712627011e703a8a388fd43197fd594f1fd471fc5c3b131d80279101e65"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/wardleyDiagram-KARA5GED.mjs",
+          "sha256": "de9f603cecae366a0680f096dfd90d905d65f1e7f9295aa4370c659efee9a77d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm.min/xychartDiagram-IFGWRUGB.mjs",
+          "sha256": "990bf7eb328f9fa48d6f604667aff2f090a465b10f6b01bcd5282974103162cb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/abnfDiagram-MZF4QCR4.mjs",
+          "sha256": "1f69a509e21d4bc6fc6336b07aae5ef5516919d7d24f70afb51cb79c273ec773"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/architecture-LC7QOZUM-TNXEJX5V.mjs",
+          "sha256": "40272f499ae79245546cd123969e65e9216c16d8ad9d5b203cfb12cd77e3a2a6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/architectureDiagram-3P7FEQTY.mjs",
+          "sha256": "0a045e9b3d68ad9552a83d967a6296212dac06804b85fefb9b468ddf7bc260c2"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/blockDiagram-SJH5MVRQ.mjs",
+          "sha256": "c9e95320cc4daeb6a03dfbb61068717167fa1751790413effc0e59e00b4280ac"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/bpmnIcons-BMM5BRJG.mjs",
+          "sha256": "1b64dd63fbc6cb5151d1a656be1f46cf2f0add18a44f016dfe7d6e58e266779a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/c4Diagram-R2GKZSVY.mjs",
+          "sha256": "c9ccc6127241075d8f747cbdd1f6d18b1f2ba804dc93505cf90c1ce39794687b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-2FCTELGL.mjs",
+          "sha256": "3d745eeb9948406d43627ab4adb03c233d3484d23faa6724f213aa33db927139"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-2RP5QIEU.mjs",
+          "sha256": "05b9526ded524375a535be61c2485488da093d98295554b3a130e8f0d7775e19"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-2WV7RJYK.mjs",
+          "sha256": "e0433bf8680005900ff2f32a6b25e9ea3936fec38e216646829a3667b523abfa"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-42YUCIBL.mjs",
+          "sha256": "c44966cb88fcd896e49265100b038e1a2e13a5546277415376c8529ddfd205e5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-46A7OBX7.mjs",
+          "sha256": "e5a6600a9da84b5519e10965c2ede509551800b447b8e1088f046368f5527155"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-4QNPMWDU.mjs",
+          "sha256": "9043d21ef12e86476364d1aec3867c9317edf2e7de14340216cb4f35299907da"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-5H5NAWTY.mjs",
+          "sha256": "912180bce9c58d21bb7714f0b773c1ea81a5b6406192897a58d469cd5a6ebab0"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-5KIEVVVU.mjs",
+          "sha256": "f35febbd5c4b8782104c49a4b5a591ae2151c3fc78af63cb0862a8583217d106"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-6GPO2DTZ.mjs",
+          "sha256": "e6bb0ec46cfb824eea96040c5d59e5781977cce542f17bdcf0e73e6f36c3afd8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-6GVICLKL.mjs",
+          "sha256": "4b70ab473fa1ab955bcbf2ecce54b27bcb43d0ff24b1313fc89b7633b17987c8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-6WQHHANH.mjs",
+          "sha256": "db8734b22e73b8e750b749b188c31eb36b6e07e6ab520170a024a0a591ff9aca"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-7VMYC3L4.mjs",
+          "sha256": "a3b0e2e031e4664a25b7cb0423d6005f4904039419a7feedb8f8b9c78e97e7f6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-BNYFOFJ6.mjs",
+          "sha256": "1712c29202b942d98384f942dad9354fb59527a062e3b1c8bcf83419f911d760"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-BZ4PQW6L.mjs",
+          "sha256": "f6cf3654814a588c78a57d422924583413e8418e9e28d98c6717af644e4528f6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-BZIORBR4.mjs",
+          "sha256": "0ce6499d27af22b92e3bc5082c4763fc07fd5434a1f1b70d9e7ff4c316ad8951"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-D647UUFR.mjs",
+          "sha256": "b8b257db193889a71c950455ae20a474e7d257aecf8f3e4a59b7a82c2f7ec206"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-DCGTWG2P.mjs",
+          "sha256": "537f9c98c594002702665af7a4ebc281fe39fe57dc3ce367a60314e117d40405"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-DJJ2HIRT.mjs",
+          "sha256": "4f80d5c56ba5e901cf2eb76cd29a7a4d060c66c08b4201ba6fc1bbb16330843f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-DX7VINTE.mjs",
+          "sha256": "d61e1294c6cf97a1dc67349cc740769da861a8726497fec15b2e4b9fcba78ce6"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-E5HCKRCG.mjs",
+          "sha256": "72dd1baf6be2b436d0ce9374762b551a9cf35335db64e289340b41a13a762884"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-EGU2BUMN.mjs",
+          "sha256": "2e6256f57aa2e0406a110fb35b9425f162f7e8c92fca225baed69405009b9d36"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-FT2GS4ES.mjs",
+          "sha256": "836905fe1956e64946c849ec6b8567ae1b2928baa09aa178588c36656a5f3c16"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-FWNJ5EAJ.mjs",
+          "sha256": "7b908d927c25aae30bbd982d526b08f5123ec0768bfdcf1fe5994688a2a39710"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-FWUIELN6.mjs",
+          "sha256": "cb8b01a6105bf4f8624bf7e3d98d42be28509d881615a5be66e6922d260e26d8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-GKB7ML42.mjs",
+          "sha256": "3a5353f47c4b33a6c0547df0b51691c5934e3913e61f26e9837eca26ea965c7d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-I4NTJHXF.mjs",
+          "sha256": "aad643a676bcb0d8ad398c0d7c17e0c34755c80f16eaee2f82da785de171a855"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-IBR26KL2.mjs",
+          "sha256": "ca426432f7e77d71249cd77125c9ef041d2ed679307b338d14839e3b201b5b14"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-IGSNJQD5.mjs",
+          "sha256": "1ad77fe3b05cd67ae91b8961284765091b8d30239ceb5562caeb1385f6def8f9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-KCEAOOXO.mjs",
+          "sha256": "cbd5542162a405f6c7aef7ecfb18596fd42a86a53f27a269b10832e2a222126f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-KUV5H3GH.mjs",
+          "sha256": "0e0ad1923d4db9b5751ee3025937b0d8589212962e53b34b7c3d6dd613de5e6e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-MQLPJEA3.mjs",
+          "sha256": "0a905172da42b813596f8ba179182edb35378009e34f18208754c1a1815adf98"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-N6MTY76Y.mjs",
+          "sha256": "f862e3948c36ebeae77d7b5594bfe7009f679383aa5ecb74fe001dc6f7723577"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-NBCTWQX4.mjs",
+          "sha256": "fd4ac8819d02172ba3ca0ab81af16e44c3467751d0b0ee532eaddf2869a9432b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-O3SCTQZL.mjs",
+          "sha256": "7a239d34ccf42d527ced30087b574d39fcdfee6515b210bfda5ce88e0a1a8791"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-OMSUSS74.mjs",
+          "sha256": "a931b69ce3fbf4eefedfdc65aca64593e7ce255bff1192b928191b81702752b9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-PWRPXRNR.mjs",
+          "sha256": "c86d5870f0e9b2165cde8111ec8db6955008606c6af69b40c139dbb2ced53632"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-ROCK7MPB.mjs",
+          "sha256": "17bc7ba2a0602f42ddec92c9306f6d5d1cd751f83752dfa3d183a78693200d21"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-RXMY7EUA.mjs",
+          "sha256": "90ef3d6ca34e35620c7ffd656bd0bdb06a4fb9f2f0a42b7319674414aa66084d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-SABO3QHY.mjs",
+          "sha256": "b4c3327c1b0ce9b832355c7fcdee162fc5843a60cbd89560544019fa0cd8e2a1"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-SRUNA2I5.mjs",
+          "sha256": "22e027c1dc2e377d8f07f21ea031636bf1b6202ecd24dba004b674bc095c1e23"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-TB6STKVJ.mjs",
+          "sha256": "8c02ca8d811de6d89212d5528e2afae65284375af568105ee0aa831f926ae975"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-TZ7DUYEA.mjs",
+          "sha256": "e7e913414b1835225101b944a28a266fb69037fb97d11f147d78ac21ebe8dbcc"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-UVJ2HR4M.mjs",
+          "sha256": "b634c4281764bd7e723fd77214866695f6e398832eb4e9080324ba4ba12993ac"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-VSULCTJ3.mjs",
+          "sha256": "6b7d48d4d8ce7124d1d1d8ced53d2c3e2d7accd6be86e064f503cfd531c4b373"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-VZ55BDUP.mjs",
+          "sha256": "de51d146a960f57a31d44deea3c4a74739d3a0c7dda1a3e9e8740ff387d5d1ca"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-YMNL5UXF.mjs",
+          "sha256": "b6e27f08d27e484c31684126870cf4dab309862c499cbe9dce68be0d4523a411"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/chunk-YWW7ENDJ.mjs",
+          "sha256": "4b70d5b0b105d7a547c079daebdd4f62774750e2344989ded2089afa5f305356"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/classDiagram-v2-VIXIN2NZ.mjs",
+          "sha256": "295b918beff152dfb3327bb4d4a6cca504b6b94e087c685cfa5013704c458373"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/cose-bilkent-B4NFDV4E.mjs",
+          "sha256": "13f311bdc093e3690aeef0f9f4febbc2e99a22c4263c8754e055b8c199afa4ef"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/cynefin-SQZ4V6AE-JRBRXATP.mjs",
+          "sha256": "55fcebc90c3fd325939d18c135af9c47384dd392a79785452a49404dd1a9ee86"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/cynefinDiagram-LTRKOZOX.mjs",
+          "sha256": "30a2cd0ede9b9c80fb384de3ed2bfdc289f39a0b5b1f2ebd11374b6c3d4e9440"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/dagre-L3NOKUY5.mjs",
+          "sha256": "ebaf491e354071a52a0544a6557052c8d2fb935e3e6ccfd404e634c48e980aec"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-AIXSHS4Z.mjs",
+          "sha256": "dd6131a420871d09226d6a3ce47db7aa831d1fc1cbeab79326dc0d8b09a61b8b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-AUTP675M.mjs",
+          "sha256": "1302fc87336eacdd1d57f6fca30c9e2c06de65d41ba8393e48925c495f58ff91"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-GIQNOS5E.mjs",
+          "sha256": "90352a81aa59191d8bd3e49be3fee434833e4c2a2ee971075a1532af18cbaa0f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-VBI5Y4SX.mjs",
+          "sha256": "a8c70d12fee6ef78495c7f94f4b004e30399c522d98882b5346632ae1d37119a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-YK2JUCQT.mjs",
+          "sha256": "3c79762b03cd12ccbea570763d68d5a6ac61f29a525ead87c5c45085b103a187"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/diagram-ZPBTP4M6.mjs",
+          "sha256": "d4dbfd8dff0da4c950abfb39ddaa5ae13b71e7555042a2a93ebd12c9764b544b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/ebnfDiagram-I2WDAM26.mjs",
+          "sha256": "356e786123e9bee3634f314ebf35e4d03c76162bffae060fce436de13f64f7ac"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/elk-JD43GPKC.mjs",
+          "sha256": "2f0077726d6e1995bad328abb2fa4c580ba6df5b3d116d337915bdeb908743e2"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/erDiagram-UF53PHK4.mjs",
+          "sha256": "678903eb410d92d40c74f4424f3a404cf7e46088617c7a4f8e97489975209245"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/eventmodeling-QR7CT3BE-XZ27I2MB.mjs",
+          "sha256": "86b85470e369879899119d2f236c2c78c07a2e06836d086676647ea82cf5c2fb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/flowDiagram-AHKBWH2O.mjs",
+          "sha256": "c80243121efd61f371b23dc47f64355f5062956d09a7630c5250997387aa70d3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/ganttDiagram-S6AIVQGQ.mjs",
+          "sha256": "0b7cad66cde0e38a9f0b189a256bcc19d7fef7294f2b23a4ab231ffbecb5b60f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/gitGraph-S4SDYQ5E-FQZAANP3.mjs",
+          "sha256": "5fb4c4accba09a75d1093ed1865ab6724b1db19f3f172f8eca78e4ac4646714e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/gitGraphDiagram-FPID63QN.mjs",
+          "sha256": "4f89b38bd9dc2a539a3285632f2922141d60b40541a66511e56ad87097dd505a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/info-5BNCTR6C-7QCBR4J4.mjs",
+          "sha256": "688a6d8d2f2d038554ce98565ceff5ea3891c32c526b61342bd0b59663505a67"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/infoDiagram-3WZR43KA.mjs",
+          "sha256": "a556d97d7643951a0bed0cbc3c437fd47ae34c04616ba578f36f423c847a62eb"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/ishikawaDiagram-5QSVRJKN.mjs",
+          "sha256": "8e24ef4e9706712d2a403e5c54834c336785a2f2814b79951acf228f3819fe2e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/journeyDiagram-WTJII5VG.mjs",
+          "sha256": "b42fde9f31fa0bd9d0c741b3f16f57dc198e021f25ae439792ce7fd0a827034d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/kanban-definition-EFYN6XY2.mjs",
+          "sha256": "2aa08124710004efcf8f478633d36f34a3170a0cf62c6e5dcd7e24087409bc98"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/katex-FPMQW4R3.mjs",
+          "sha256": "ead583cba2b3c9f00ee6916e753db8e351db66a03fb99eb3eba01d030f2bfb82"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/mindmap-definition-YEJIPLQF.mjs",
+          "sha256": "5c9531696b64b9632f401b7ff23da80d99abf82f3f44aea181f6e249911cbe2a"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/packet-FDJJNMMN-54A5SFJN.mjs",
+          "sha256": "52069a985b72ba445af0333eb0bae8128f850595171fffdcbafcc774b29fc8e8"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/pegDiagram-JJHEZWRQ.mjs",
+          "sha256": "2485d8545ad997b7d479680c9084d3048b94cbd9ccd31d7e03c573b3514b6a51"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/pie-BMGGJ4DP-A7RGNFP6.mjs",
+          "sha256": "27d3652a19784a626c8f02f683ffeb78504e4e6a8e9ca8550ccca0d0a5ce682e"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/pieDiagram-6THGDAF7.mjs",
+          "sha256": "4d89606e6748113ae7ea2d79a8bef3d3a645c09b826581b2cfbb3bd31dbbed94"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/quadrantDiagram-ISEKWZEO.mjs",
+          "sha256": "4b740171f6b19330399532645af51d6e601d005dda524898de33482738adb377"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/radar-4MYH26CV-IW4QM5CU.mjs",
+          "sha256": "4afe50d6b6793ac70598a8bcac84edeb528c6f96414fd57f2eaf59def56c3021"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/railroad-UC74YYTJ-DLPIJMWF.mjs",
+          "sha256": "7eb9560d7e117d28e002d7df2f0814168f1f42371cb1f2e4589c401628d7ebc7"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/railroad-abnf-63ZTAFXO-SISHGAXA.mjs",
+          "sha256": "81060e1c537cc87c72ab7cd57b8cdc519871d8bdf4d630be1b78af04f8fe0549"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/railroad-ebnf-WVTJNEEQ-WATDX3CZ.mjs",
+          "sha256": "5e08101f651077fc041f7911fcaa1322460dd9796e77c7f69ce19a6d962034ec"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/railroad-peg-W4VBZIEU-BX62DKHI.mjs",
+          "sha256": "04091f1a35c121a8c732fe51300b3aba397b250f27fef29889b26363dd93e52f"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/railroadDiagram-43TTCP7Y.mjs",
+          "sha256": "ffbb555ea246da8f43c4f728297018087c2b84b6ed1da42c16507547a40490ec"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/requirementDiagram-B3SC3GNW.mjs",
+          "sha256": "6c418cfe8b833bb76dc749e3ac82becdc6ac95a5a5e6a3c86c82d944ad79f504"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/sankeyDiagram-MQZYHTH2.mjs",
+          "sha256": "21fe8dbda930c7997c4fee25dd4c20df2dd7a1397b1ccd5f5ed8d44ff41cec14"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/sequenceDiagram-YUTGG2KN.mjs",
+          "sha256": "783ca6c789b2cfd87725db49579e7de3a6906b397c688f6a8966b662c6af1859"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/sizeCapture-L444JYSH.mjs",
+          "sha256": "dfdd546d54f71cb33266b5e78accfa73a48f39279d60a36fde8cbf7e3f49cc1b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/stateDiagram-v2-JL6P27WA.mjs",
+          "sha256": "01353481a21069e1464ead3aa2a4f6b5449e433291a64a3ebd821c5cad3d33f3"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/swimlanes-2NVYGPNL.mjs",
+          "sha256": "1bb7f2f7b5a43cb97735383188a2752870107f7aeb3b3b31d1ebafba8d588452"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/swimlanesDiagram-OWUBGFIA.mjs",
+          "sha256": "2cf006f24491602a18ee0e552dea8b434f0c77dfe69bf7052ba1cf2eb4317669"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/timeline-definition-H7OFN73R.mjs",
+          "sha256": "a61a052964facebaf01c8828b3f16e90125bd85f9cbcab8869aa56d96cab4ce5"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/treeView-OWB7PY5U-C2AXSKLA.mjs",
+          "sha256": "8fa0718fe4f86ef64f52f0e239ad294c2c67bf0ceb4aa80fefef5766221f74b9"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/treemap-B4MHVWJL-JEPGK2Q7.mjs",
+          "sha256": "55dd0143d434e32150c21d0f45ca450c725793dd6b5823f1a2973c7ccb2e5b78"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/usecaseDiagram-UVUTOZN2.mjs",
+          "sha256": "5816c8caf61681d78f2ee043a2f80b8b431c86923c61ed9ace261d0876db2373"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/vennDiagram-GAMLVG2V.mjs",
+          "sha256": "6bd36377e669fc385bd2ce44724ddcd22b4aaa0a266524b23b8af3874a328e33"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/wardley-ZOP5H4X3-IGLOND33.mjs",
+          "sha256": "af71465d6f1e8e3f771a496ac80e5c3b65a29024c5f363b92c82f3eca3da64ea"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/wardleyDiagram-4ZMAINO6.mjs",
+          "sha256": "ddccfd0b6ac46134299e6411005eb377d5e7871f3fcc155141d89b64f515ad8d"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/chunks/mermaid.esm/xychartDiagram-VNKBLJFS.mjs",
+          "sha256": "ea142ecde16f953212250f5f3805f82988f25713c33de558f464c9941daaf792"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.core.mjs",
+          "sha256": "fafa28691baf87948a63ec13009437278f25d43ca7d85e74b71f3b53897e1738"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.esm.min.mjs",
+          "sha256": "7825d4f50b7725798246bddd67ea229d12e0bd1a0e9edc67ba0c9ca9ff2e4e2b"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.esm.mjs",
+          "sha256": "729810febbb66f740dc7cfca0a60b219c1209025d592ac57a9da076d639f43e0"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.js",
+          "sha256": "48c0174f187e24c62102e4f7dda911f9b498feb81a73260e0fcbf2ead873f6bc"
+        },
+        {
+          "path": "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.min.js",
+          "sha256": "336df803d87a38b70a01e736e666c8f7601d2ce42f5e47c8fafe5d721074b9a3"
+        }
+      ]
+    }
+  }
+]

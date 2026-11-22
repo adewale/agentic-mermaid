@@ -1,0 +1,29 @@
+START current-default drawing:correctness
+END current-default drawing:correctness 0
+START current-balanced drawing:correctness
+END current-balanced drawing:correctness 0
+START main-default drawing:correctness
+END main-default drawing:correctness 0
+START main-balanced drawing:correctness
+END main-balanced drawing:correctness 0
+START historical-default drawing:correctness
+END historical-default drawing:correctness 0
+START historical-native drawing:correctness
+END historical-native drawing:correctness 0
+START peers drawing:correctness
+END peers drawing:correctness 0
+START current-default davebench
+END current-default davebench 0
+START current-balanced davebench
+END current-balanced davebench 0
+START main-default davebench
+END main-default davebench 0
+START main-balanced davebench
+END main-balanced davebench 0
+START historical-default davebench
+END historical-default davebench 0
+START historical-native davebench
+END historical-native davebench 0
+START peers davebench
+END peers davebench 1
+Canonical collector failed; retain and repair /workspace/elk-layered-tools/issue621-full-trident-20261122/peers/davebench.log

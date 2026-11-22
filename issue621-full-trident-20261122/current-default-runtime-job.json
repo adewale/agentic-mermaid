@@ -1,0 +1,15 @@
+{
+  "upstream": "/workspace/elk-layered-tools/trident-040-mermaid",
+  "reference": "/workspace/elk-layered-tools/trident-040-reference",
+  "runtime": "/workspace/elk-layered-tools/trident-040-fidelity-runtime",
+  "files": [],
+  "audit": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default-runtime-audit.jsonl",
+  "qualificationSourceRevision": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "target": {
+    "project": "adewale/agentic-mermaid",
+    "version": "0.5.7",
+    "tool": "agentic",
+    "root": "/tmp/issue621-trident-work/current-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e/node_modules/agentic-mermaid",
+    "entry": "/tmp/issue621-trident-work/current-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e/node_modules/agentic-mermaid/dist/agent-core.js"
+  }
+}

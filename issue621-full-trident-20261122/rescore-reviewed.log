@@ -1,0 +1,82 @@
+[
+ {
+  "project": "mermaid-js/mermaid",
+  "passed": 7346,
+  "failed": 0,
+  "unsupported": 0,
+  "trident-blocked": 0,
+  "reference-unqualified": 0,
+  "upstream-skipped": 18,
+  "upstream-expected-failure": 0,
+  "scored": {
+   "passed": 4844,
+   "failed": 0,
+   "unsupported": 0,
+   "trident-blocked": 0
+  }
+ },
+ {
+  "project": "Dicklesworthstone/frankenmermaid",
+  "passed": 0,
+  "failed": 0,
+  "unsupported": 0,
+  "trident-blocked": 7346,
+  "reference-unqualified": 0,
+  "upstream-skipped": 18,
+  "upstream-expected-failure": 0,
+  "scored": {
+   "passed": 0,
+   "failed": 0,
+   "unsupported": 0,
+   "trident-blocked": 4844
+  }
+ },
+ {
+  "project": "dfadler/zombie-mermaid",
+  "passed": 1233,
+  "failed": 1264,
+  "unsupported": 1321,
+  "trident-blocked": 3528,
+  "reference-unqualified": 0,
+  "upstream-skipped": 18,
+  "upstream-expected-failure": 0,
+  "scored": {
+   "passed": 1233,
+   "failed": 1264,
+   "unsupported": 1281,
+   "trident-blocked": 1066
+  }
+ },
+ {
+  "project": "lukilabs/beautiful-mermaid",
+  "passed": 237,
+  "failed": 1656,
+  "unsupported": 1933,
+  "trident-blocked": 3520,
+  "reference-unqualified": 0,
+  "upstream-skipped": 18,
+  "upstream-expected-failure": 0,
+  "scored": {
+   "passed": 237,
+   "failed": 1656,
+   "unsupported": 1893,
+   "trident-blocked": 1058
+  }
+ },
+ {
+  "project": "obsidianmd/pele",
+  "passed": 3402,
+  "failed": 94,
+  "unsupported": 266,
+  "trident-blocked": 3584,
+  "reference-unqualified": 0,
+  "upstream-skipped": 18,
+  "upstream-expected-failure": 0,
+  "scored": {
+   "passed": 3392,
+   "failed": 94,
+   "unsupported": 243,
+   "trident-blocked": 1115
+  }
+ }
+]

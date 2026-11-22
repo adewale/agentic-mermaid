@@ -1,0 +1,54 @@
+[
+  {
+    "arm": "current-default",
+    "exit": 0,
+    "command": [
+      "node",
+      "/workspace/elk-layered-tools/optimization-20261116/fidelity/qualify-public-api.mjs",
+      "--adapters",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/harness",
+      "--left",
+      "/tmp/issue621-trident-work/historical-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.js",
+      "--right",
+      "/tmp/issue621-trident-work/current-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e/node_modules/agentic-mermaid/dist/index.js",
+      "--left-revision",
+      "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+      "--right-revision",
+      "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+      "--corpus",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/corpus/community-corpus.json",
+      "--reference",
+      "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.core.mjs",
+      "--dom",
+      "/workspace/elk-layered-tools/trident-040-fidelity-runtime/node_modules/jsdom/lib/api.js",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default-parser-qualification.json"
+    ]
+  },
+  {
+    "arm": "main-default",
+    "exit": 0,
+    "command": [
+      "node",
+      "/workspace/elk-layered-tools/optimization-20261116/fidelity/qualify-public-api.mjs",
+      "--adapters",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/harness",
+      "--left",
+      "/tmp/issue621-trident-work/historical-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.js",
+      "--right",
+      "/tmp/issue621-trident-work/main-default/node_modules/.cache/unified-community/candidates/agentic-mermaid/21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff/node_modules/agentic-mermaid/dist/index.js",
+      "--left-revision",
+      "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+      "--right-revision",
+      "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+      "--corpus",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/corpus/community-corpus.json",
+      "--reference",
+      "/workspace/elk-layered-tools/trident-040-reference/node_modules/mermaid/dist/mermaid.core.mjs",
+      "--dom",
+      "/workspace/elk-layered-tools/trident-040-fidelity-runtime/node_modules/jsdom/lib/api.js",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default-parser-qualification.json"
+    ]
+  }
+]

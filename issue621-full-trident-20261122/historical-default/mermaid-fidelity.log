@@ -1,0 +1,2 @@
+Original Vitest tests: adewale/agentic-mermaid 352 files
+[{"project":"mermaid-js/mermaid","passed":7346,"failed":0,"unsupported":0,"trident-blocked":0,"reference-unqualified":0,"upstream-skipped":18,"upstream-expected-failure":0,"missingFiles":0},{"project":"adewale/agentic-mermaid","passed":2874,"failed":132,"unsupported":719,"trident-blocked":3621,"reference-unqualified":0,"upstream-skipped":18,"upstream-expected-failure":0,"missingFiles":20}]

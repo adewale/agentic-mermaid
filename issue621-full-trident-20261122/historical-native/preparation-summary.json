@@ -1,0 +1,1158 @@
+[
+  {
+    "id": "adewale/agentic-mermaid",
+    "browser": "prepared",
+    "artifact": {
+      "kind": "node",
+      "root": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid",
+      "module": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.js",
+      "version": "0.5.7",
+      "integrity": "sha512-7r0tLo6rrTmfbsYPHqY63MAY+VBLvDyvdMbkuytUST51c4bDHW7f8GXfboBsR+ujbFYjMPQ6IfaV8DgmlnPFrg==",
+      "installedClosureSha256": "94e88dd4192617b03e1ce15bc3f28f4c51c3c0115977d80d462ab0bc8dde44b9",
+      "runtime": "Node",
+      "sha256": "a8e2ef987deb143b998649e639b47adb8df315a2a74b04bba91dbca616ce7480",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.js",
+          "sha256": "a8e2ef987deb143b998649e639b47adb8df315a2a74b04bba91dbca616ce7480"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "revision": "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+      "candidate": {
+        "sha256": "ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc",
+        "tarball": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/candidate.tgz",
+        "packedFrom": "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e"
+      },
+      "additionalCli": [
+        {
+          "id": "node-cli",
+          "outputs": [
+            "svg",
+            "terminal"
+          ],
+          "artifact": {
+            "kind": "cli",
+            "root": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid",
+            "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+            "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+            "args": [
+              "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/am.js",
+              "render",
+              "-",
+              "--format",
+              "{format}"
+            ],
+            "input": "stdin",
+            "version": "0.5.7",
+            "runtime": "node:24.19.0 installed public CLI",
+            "files": [
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/zenuml-core-MIT.txt",
+                "sha256": "d4a77cbf1dc0975cd4be7266972dc6d3a6c6d68d43235384d6e4b6f12934e978"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/pele-MIT.txt",
+                "sha256": "311bccc30de6f7b9cbfb64232bb0c911ccb2191abe316550813ae25b2c7925b9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/Mermaid-MIT.txt",
+                "sha256": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/Khroma-MIT.txt",
+                "sha256": "66b333b0f66759a0b710459e03f7029abe17f4358114a128d2c972e642961b49"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/es-toolkit-MIT.txt",
+                "sha256": "51f3674294d988d89dbebd31273baaeb3c697a15482d9699b14d1fded2e132a7"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSES/Apache-2.0.txt",
+                "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/THIRD_PARTY_NOTICES.md",
+                "sha256": "2b25545323780714024aaff17424373565f8c6ffd637ffbfc47d4fd7369a3ea9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/SECURITY.md",
+                "sha256": "23cca204d7a97c55aac4a0ebbefa712ca33a249e58875c9db640a2bf9f651601"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/README.md",
+                "sha256": "a7a6b12353ad33f134cb84b8bf7cd0bc21f9b484548a648c16be7686829734b3"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/Instructions_for_agents.md",
+                "sha256": "cda2b256f5ae049c414247343121e8ddae225ea22ba9f50d70debd5902736d09"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/hero.png",
+                "sha256": "b81fd85e45559065d54a72a4d3180f21b61e2195ebbfbbdda669cf912332d88a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/ShareTechMono.ttf",
+                "sha256": "9ceab1f87414829af259c0f537573ae03ef7dd3147c0b27a36a1a0beb6732677"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/Inter-SemiBold.ttf",
+                "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/Inter-Regular.ttf",
+                "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/Inter-Medium.ttf",
+                "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/Inter-Bold.ttf",
+                "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/EBGaramond.ttf",
+                "sha256": "ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/DejaVuSans.ttf",
+                "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/DejaVuSans-Bold.ttf",
+                "sha256": "5c1247acef7f2b8522a31742c76d6adcb5569bacc0be7ceaa4dc39dd252ce895"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/Caveat.ttf",
+                "sha256": "0bdb6b660482d31531b3945849fba5916b3ef8695da7024a9e6b9ee3c4157988"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/ArchitectsDaughter.ttf",
+                "sha256": "6159718a08898e34bc1cb7354086141a5f9a70b73e54dbec27ead0d59a697359"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/assets/fonts/FONT-LICENSES.md",
+                "sha256": "8807f61d88872332dc72c4eae6d6434368f8e0ac59b0307478b35af259a8f472"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/CHANGELOG.md",
+                "sha256": "cf136cbf07578633be0879fb2149666036ec18dacd0c32b3f01104567003f8a5"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-live-editor/SKILL.md",
+                "sha256": "c2a0f2854399bc9843a59aa7ce45f5019ecfad0c89053d1d25f940edeeb1fb32"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/README.md",
+                "sha256": "6782050ba84e24c411609fdafb8efa19cc47f0f4626632efc022fffc09fe4a5f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/SKILL.md",
+                "sha256": "de4cc5006eb3cac4039f0486df218d06424765d5b3c73d7ef58cea228a1ac525"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/timeline.md",
+                "sha256": "545cbfff34c4f9738833c853a2b32f39b4dc27b4198a9f7f230c5b1c6c93352a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/sequence.md",
+                "sha256": "083f20c03acbb1102bcaca7a415b0833c7d73c04a197474179967e44a02ed328"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/hosted-mcp.md",
+                "sha256": "243641b53faeff56dc76d9769a765a8c5928329dc0b4d929780112a0cc9644b8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/flowchart.md",
+                "sha256": "2efc01c0cb9129fc875c2d78728b0899cec79861954ed6f36fd924a5343cc0eb"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/code-mode.md",
+                "sha256": "527c1cd55aa2bdfa96e98cd52a9114ab8991cb476339b2240410e1f2dd5a25a4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/cli.md",
+                "sha256": "e91bd1c8ddea97ee6ee69d98dd3291c44576d365fe1dc6b96a1b5b00e876abc2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/zenuml.md",
+                "sha256": "2db6da951451717f3de2f22370bb4a0c89a826970f71969bce8586891a61e4c8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/xyChart.md",
+                "sha256": "ff076061a5ae1561c25ff008ed86e9e82d1296b5325bec870b2d5cdbe4e9c4c4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/wardley.md",
+                "sha256": "1a346388c7e84d1566650c383f43dbf769590c7d22e81cc4ac86235749677118"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/venn.md",
+                "sha256": "c1cdba8151b6e61db912e1a14d9b11187099d75169c5505adf4f82ce087bf0de"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/userJourney.md",
+                "sha256": "6dd8531973c855733938f9df064c0f5d4a402978bae250e5b0f143f2500a0df9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/usecase.md",
+                "sha256": "4cab97f32727d7dc1851e0ca058f8f233ebd2323ef00238f07ad945ad0e45462"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/treeView.md",
+                "sha256": "c3d6bc4111a1d80e305bd5b69555a8804fefdfbcc6f6be978c4b02877c33fc5c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/treemap.md",
+                "sha256": "9754cf6a29e373ff9f5c43ea2b03e3e7330c4f0bc0056c51aa174b92eefa443e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/timeline.md",
+                "sha256": "ea805c96b2626296ad520246aab376c0965fa150f8f0d7a8b8b4a174c49b4e7b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/swimlanes.md",
+                "sha256": "82bce7e2bfa0caf8664c29d9ebdf955ade754a4babc0a0c374115f1858af955c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/stateDiagram.md",
+                "sha256": "5576bca92b91a241d192d4cfc2f97ae4ff9531d6ef33763cd8a37ebba285d97d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/sequenceDiagram.md",
+                "sha256": "aec144216c37faa43ba3f76032147afd97785ca3392c610cf95b45b31a9ffd7a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/sankey.md",
+                "sha256": "26f097e48cc1d2289b52043d756201df6298dbcd8c7abf8678b24f3332547502"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/requirementDiagram.md",
+                "sha256": "48d71636ce594f3461c018588ff0e9b1f5f4cbfd9a8219c73288cc420d498eae"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/railroad.md",
+                "sha256": "24e70804e588b2a8e0dd6253dbd275390ed5b8810b8c4a4701aec1c0109b760e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/radar.md",
+                "sha256": "fc8f477b64ff2ffea8cd0a1e553df3e05cc04bf9512a4860cd441344c4c0a267"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/quadrantChart.md",
+                "sha256": "6beef7a8950f651aafc83295051398e1ca08715e89ac261efcb3e2daed4d2cab"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/pie.md",
+                "sha256": "0e21ba69d9946c98aec1846f22f6c699414f8cd49d4e50a3753714bf4c48aa1d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/packet.md",
+                "sha256": "924d150ed964362d651528315bdfe42841d366d55232cccb98585615dbab7d40"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/mindmap.md",
+                "sha256": "6927efced65de2666c7bf9aaaaf153f32e223d8abeb79d35316885e36d3974f6"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/kanban.md",
+                "sha256": "77a3966aee10b313694178ef835818b42da5c7e358ac3073d14a05c5850771c2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/ishikawa.md",
+                "sha256": "146435981aae5e448262be2a54640bdcac3a61d46b7c0cbd9d49aaf35d6a5889"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md",
+                "sha256": "c6671dc54ee5cc1ff621e6aa88e301260febc690eb4d956a2209588a6fd3eb02"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/gantt.md",
+                "sha256": "8f77fca811ebc1978fa094bf3a464d7ffc7520ac30b05cf86534ab1d673a9448"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/flowchart.md",
+                "sha256": "50490edd656dcded37ffbecd9d6c9dd0ca06bdf7fce6c1518cd81e7fd9d986fd"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/examples.md",
+                "sha256": "ecc783fd48ca132bb0440ff4891aaca254d25166554a1ebef3d2e8975576a48b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/eventmodeling.md",
+                "sha256": "4cc6e324ee8c57971b0e984b3dbe15ea0452a578b63e2193aff13538644a266e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/entityRelationshipDiagram.md",
+                "sha256": "8ff78a8839266a26975cb31bc57906ed76591a7eddd53b1b69619a6370022d11"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/cynefin.md",
+                "sha256": "6f7466fc3a2ba8ad4170f60b6fad9d92841a94ad8e49ec16c99c90ba3c87d3f8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/classDiagram.md",
+                "sha256": "fa8e3d6444ae33f2f06fc26d35a18e70f4e61c9ad92f37150f19db308b6b0a1c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/c4.md",
+                "sha256": "c1219b1518e2a3f9d5156b83bde5126ae475b9529a927c2df8529fc362a51461"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/block.md",
+                "sha256": "803a2975a94d25e1bcb41ff60d9d9653514e2a833df360c36382cca804809e7f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/architecture.md",
+                "sha256": "a64ce7e7156abfd1cb0ef7144ca2cdbaef2a4400d8f78911ae163deeac54c7ed"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/skills/agentic-mermaid-diagram-workflow/references/upstream/agentflow.md",
+                "sha256": "8f9fd81b404af51396215b45d0f45d0e320cda88e5f67d778e6e1a90aa345732"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/AGENT_NATIVE.md",
+                "sha256": "20b46188e24c8690bbed46388ff32120a11b5822005ea86bb35d25b62fb32572"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/theming.md",
+                "sha256": "5b893733f9cd22d6dd5c5ce8cb2398156956b26539d383c9053bfea43e300ce8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/svg-semantic-contract.md",
+                "sha256": "5f022b15160046c56ad395527c2b0eb2172a4dd5709ae77c832c942ba07e0ad5"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/style-authoring.md",
+                "sha256": "f1c4299728bd9f90bb4190cd2ab49227b92729a4e73e97f8b8ab202f4842fb64"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/README.md",
+                "sha256": "3b9adcc41342107e29993afb2b24370f5539ffb9a276554b64c31042cb4f6a53"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/react.md",
+                "sha256": "1e8514141d7643f0df808d890ab6ff0e6ac4afded43b199e1abdb15b9c9ecd00"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/quality.md",
+                "sha256": "ee39f1e3d8bfd568559e4a0ab5ecdeeb4a5a76bf3055c565b1c09c091f685a4b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/MCP-PRIVACY.md",
+                "sha256": "71cf7b3aacd03573eb3b9ebd167cd2c8185bda3a768b1773bbdfbdd15c6fb2ac"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/mcp-http-transport.md",
+                "sha256": "413b0710ace96c821e35fca86e7e75d58887ad34cc2ca272d035c40bc2aff72e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/mcp-code-mode-rationale.md",
+                "sha256": "0fb2fa7a62ce9fbbb257b89a617c4471bc79df94a655b7c5d5a9f65c4a598275"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/layout-certification.md",
+                "sha256": "830f9192bd60e2eeee5678d75fc35f0773604208191e46f86080106625a2df48"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/getting-started.md",
+                "sha256": "227dc8533dc9dc227ba9aca2b8f7aeedfbf840fec48465b016090ffc92aa589a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/fork-differences.md",
+                "sha256": "b5aad3ab88982757bf774b84004a1cf852082a8a5211d47c931e161085d07715"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/features.md",
+                "sha256": "478de74ca35a6f5a3b4fd95fa225555341f2b44b2c4f9a221483dca24e145735"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/eventmodeling-and-zenuml.md",
+                "sha256": "76ebbeda45e3ea1d3d14e135340a485b3c7ae35221808c6bfb87bfd1bedaf463"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/diagram-families.md",
+                "sha256": "6e395677e880cc2655767082e13975c3cd3afd96ae99af52cfd799c48fe87c92"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/custom-style-cookbook.md",
+                "sha256": "57f55139326bffb9aa6234d9ed17dbea09557bc17eb07251013d2bb0208d7a13"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/custom-fonts.md",
+                "sha256": "60a67b2ee844528839579347cb3815ecd93cf72b5da6bc13a3e906e6d642fa24"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/config.md",
+                "sha256": "5202cc0a5d9d5a893ef36e3b5250e0f5dce3cc343c798093b4f945ec052c5918"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/comparison.md",
+                "sha256": "96499716c9afc78e5243ea58f808693973f36d006bffecd19990b1edaffdc216"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/choosing-a-diagram.md",
+                "sha256": "ef9e7404a97ce65400c69599adcf157c439b8483d9c681579dd36486cfa0cbad"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/browser.md",
+                "sha256": "048a5f0eb222db894c94c00a228c9a2135ef34df3d9140c9b2f8eaaa5f73e4b2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/ascii.md",
+                "sha256": "ffb4b5e0679fe5359f26cf5fa056d95bc11479498597311b88a10df0ed7b33aa"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/api.md",
+                "sha256": "cc4794c508e939fd4e7660cab515fb65cbd0977184170d966ab351147814b411"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/api-advanced.md",
+                "sha256": "3bc61d84f14a6a24e2f20c5acc48aec12c1af9e04cd24df2910e837c0a1b66aa"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/agent-workflow-examples.md",
+                "sha256": "c5be2829707f6d8f46be5378aff00590fd0fd3fa5034ff0edbff4ebac7a5d1db"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/agent-mutation-policy.md",
+                "sha256": "65998b3becccdb68564464e6a168c8c14b7f52726f8c9a00853b32503ec7fe40"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/agent-api-cookbook.md",
+                "sha256": "377063f587b97e0b7ee456fe1a0f48e1ca5ead6883e1f916133a021f9d7ad955"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/docs/schemas/style-spec.schema.json",
+                "sha256": "c250629413c83c8c5d6b0c37bf1e454ff334f58687fbd673f1489cd667913c88"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/server.json",
+                "sha256": "46b569538fd5a899a509c5943813d0fed6b1ecd376e91f083df7e25c0608bf7c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/package.json",
+                "sha256": "3c501e341e2343a4f533645f14bd5421394e7681c2ef02ede385918a725338e8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/vercel-inspired-prototype.mmd",
+                "sha256": "cbf34369efc7e284b653e18696888d4f383b46f37953c9762acd4fede8b4f9c2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/readme-hero.mmd",
+                "sha256": "f638be63ce398a4026bb974bee5d8ad4423a33943711e9d1bc78790258adaa02"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/cupertino-prototype.mmd",
+                "sha256": "dc4e5019ae01ab196fc9b3c4323020d0fcd7f7ca743ead96cb31ee6f42b03026"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/cloudflare-workers-inspired-prototype.mmd",
+                "sha256": "aa32a96b2b1326a422d921c388d065a428f932bc3e05541ef4423cbee7fec557"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/readme-hero.md",
+                "sha256": "7e1d1ebacc339ff46508d23a1da1d2df1b535180e8033ff71e0d41065938f482"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/vercel-inspired-prototype.style.json",
+                "sha256": "bb69c555cad57895f5f29a6ccd71d4f9e222439953cedc36ca8a577e1334d9e5"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/transit-route-map.style.json",
+                "sha256": "f36be65d20a2f489b605fa9ee6ecae044a54b62f37f4f0ae2e1ce408a7ff7322"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/star-chart-atlas.style.json",
+                "sha256": "96a7ef08fe3469c7c58e1d141770c9a426ddd89b11c6ff44d9e0d01cf0f49524"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/readme-hero.style.json",
+                "sha256": "ef77b08becebd057470f1fc6b928ec71eb665c887602613bb465f16e66a78a60"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/mid-century-report.style.json",
+                "sha256": "0c6ac884690457b006bdc64c6b90b22b6eef3c9c868be92bd47dc5abb6511c22"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/cupertino-prototype.style.json",
+                "sha256": "74719239f52c815642ac7cf830d3a763e08aa3687fedfeec56cf88316a33892d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/cloudflare-workers-inspired-prototype.style.json",
+                "sha256": "23b3b3bcb95d51278f26290b79ac496f9875dd985228a12790b5060d55431688"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/examples/styles/catalog.json",
+                "sha256": "ee8f18a52a8c19ab5a8ba425c2293103a5106eb196ef6ba7d197235e24176f91"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml.d.ts",
+                "sha256": "b170f8b63e2c3f3ac10c24fca75fed88ac87b35fca726c335379ac8f1610492a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/svg.d.ts",
+                "sha256": "bcb6d92df0dc3acdadf7590155d635d17281d488133a09d68cb8381a38449548"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/svg-styles.d.ts",
+                "sha256": "389f018531e71401841aee2d93cf67f08399469c03faa3430baad97f5bb14a81"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/svg-styles-DyqmUixB.d.ts",
+                "sha256": "810682614ab30c12f6a5a4c26c6619b6db75536477ec812ca3e7c47ea742d9c1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/paint-certification-f-pdCO_v.d.ts",
+                "sha256": "bd7d17cbadbbc067fd57d7969bcdb0e69d603c78f3ea546844a28af6a2fd210a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/layout-cost-BDP3sNfH.d.ts",
+                "sha256": "0a3acb3764b7fa05d5aefcb63cb5bd5a52568d4e0e5432fd3969f801c29167df"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.d.ts",
+                "sha256": "f504db5a85e8c14f57cfda9ee8f70cb63764128ae7b67c8dd49693209fc8920d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index-CuVq_nAP.d.ts",
+                "sha256": "e944b943c2d88623d6ec27e4c602a6795f2542a23e326ce76db11c51cf2f7c4c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/agent.d.ts",
+                "sha256": "f21b56f29d7326676c7cbd290c547baca0fd5da18c5e9f1ec59f6b2521bad2cc"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/agent-core.d.ts",
+                "sha256": "7ae2e9b7b5a34ccbe260a4dd7802396e31701fcf4d03275c45d07766c667453f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml.js",
+                "sha256": "26c97eb1ce2ff97022d701a924872e626c2d0866120c2c047a23235dcb01774e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml-frame.global.js",
+                "sha256": "1f665c842ff6bc5509c26c25582cd1ca4a48084249c4c3b2dbd9dc8e77cff17b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/svg.js",
+                "sha256": "7f453fb8acd14600d59e9ac9a0bd4a46a013ecf5f1d10abb7d7ca5e626a2f827"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/svg-styles.js",
+                "sha256": "97a4dd7f19035f29ab66959ad64bee056026890f206f6d9f6ecba2ceb5a62da8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/source-worker.js",
+                "sha256": "747a139cb73d417b11dbe57d6d164934ae402f255d4f588a547a7c6886dbed94"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/source-supervisor.js",
+                "sha256": "e7ddd0661c9bd46610a115fa097dc4b3d414790e356dd412b0a6e3edf169123a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/server-WCQ4YI2W.js",
+                "sha256": "68778f4c2bcafdea5ef692f69cd40d41146614be65458bd765d6105cdd2e99f1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/run-entrypoint-Y5A53MRO.js",
+                "sha256": "af7e0e449728f74e96f8d28d9a39a3e58a961f5ace183c6ebd3fa84e07709228"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/optional-kernels.node.js",
+                "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/mcp-cli-5UHKOGCI.js",
+                "sha256": "59956da5df3c95fc631197792c5031c19c2f28bf58972720c8485d9dffb5f9c0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/layout-optimization.node.js",
+                "sha256": "8e0008b99fd530361a4893d05421a81f80a94789ed75fff623bed4c5ca6bcd60"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/layout-optimization.js",
+                "sha256": "f826cb3b94fbd2abd926df47828946f691c6cef4db4824521e16b76757f51cd1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/jsonl-5N4DTV7P.js",
+                "sha256": "7305d1498c52dca85195d014a4e0c039c16573caa958153108f41ba250b4a1c8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/index.js",
+                "sha256": "a8e2ef987deb143b998649e639b47adb8df315a2a74b04bba91dbca616ce7480"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/elk-constructor.node.js",
+                "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/elk-constructor.js",
+                "sha256": "0e391afef9451dfe54ce38715d029a176ca8b594f3e37631eb3b0c5eae8afe30"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/cli-ARLYHEDM.js",
+                "sha256": "8133225e641376bbe374cc16c28d7fc774f3e87952adf1d84ccdc778ae5dcda4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-ZJMFT3UJ.js",
+                "sha256": "cdc02386f093a75c3fa533cfd03d5bb22a486dde58f9da01fda2e4d824a9c416"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-Z3AB7SPR.js",
+                "sha256": "035dcd39c402a0813222a8c618ec2dccf24f6c7ef3fdfdd4869e58a0833e10dd"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-YIQD54XI.js",
+                "sha256": "f489c40aa4a3b32c35cf3107643585481763812cb60605414a902cebe9d7ba8d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-X4JDR34Z.js",
+                "sha256": "d8d0de99cf83098ed9ebae004539e3e3a530744a4da6019009b41896141ba603"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-VJNXSF6Q.js",
+                "sha256": "70a6b71c91c6f296852c2a0b0c96079b5b527ba718d1590729373b6583ccad4b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-V5WG7DQJ.js",
+                "sha256": "12a4f6fb48c760f3b1591dc33358f5c9e63bb62979320c148d2065eacf96b504"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-V5RFODN6.js",
+                "sha256": "1651373b017f8fa28bbea08f9243372f1782b761ae82929739838577e2c25f40"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-QEIUNHJN.js",
+                "sha256": "b1ab0510fb902c722674e017a545da9822ef92c3f910e3f0b3cd9c34413890e7"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-PDWXWE4Q.js",
+                "sha256": "b9a8c78347ddd06f65c406c4b2afcc943483b519c43e55921430a219994ca5c1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-OXE24H2U.js",
+                "sha256": "2e2e7f26b96c0fa98a7ee10a2d394d670e2884ba99684f7843cd84a592f0048c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-LMJETBLW.js",
+                "sha256": "99d30e9cb3dc451e743ddd274a11eba552982a18df322056b766dcdde122c918"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-L2ETQ3VH.js",
+                "sha256": "a3ab5e3dbcfdff60838040a0487da97b701f9abd657bb55211912e394c238d31"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-JIHZ3QQS.js",
+                "sha256": "836492be4a43b14c31bede593b76689912abc22a8dc114130edb2d4d872b313a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-H7DVN7CQ.js",
+                "sha256": "6286771df438778789f9bcd8db9e52f4971493221a5a1059697b564dff669206"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-G7LCIRLD.js",
+                "sha256": "cedd506d3cffd76f0e7800a82810b035f6648a600a096e853b2ec275b65d2f67"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-DKPJHZEU.js",
+                "sha256": "90df79a5ad44e7941243d845caa00b0b9ea0ca0a508f1d231180dcb4d87cc2bf"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-C3IVQDYX.js",
+                "sha256": "5f9b860f43e16a7cba913d54ec98fd71e3a5b65ca920d5590d87e90eac9af1ef"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-7WP4TQRK.js",
+                "sha256": "cdf9f0f04eddf594ef9cafd8afe1490b297838ef4770c4316246be3225ecc1f8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-5BYN55G4.js",
+                "sha256": "91c317a307b237573cbe12e64cc0c67a8c1ea75aea0806f6ea643ce1542cf83a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-4VNCUPHV.js",
+                "sha256": "89fa8f00eb1c8c5c3eebb103e4d8e80448ecf8cdffa3a15d519403c0db081aaa"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/chunk-44RNRFS5.js",
+                "sha256": "b69f65383e49dfab7a40cb2e2e74c1d4e7630626c3a57dbdf6c759ea3d4ee7fd"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/builtin-font-metrics.node.js",
+                "sha256": "0499cf328d847481accb46ad650aded60b1bb3345ec23dc011f10f729ef1eaba"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/builtin-font-metrics.js",
+                "sha256": "e5a890d9e6e6c521da766d5f854b97bd2c9229b5d4d5c879b4822a602b9d0e06"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser.global.js",
+                "sha256": "84e651eb1b4f03e4f24055ce92dc298ad78694c0d99ec359f10277a112158fe1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/zenuml-GZMKDIW6.js",
+                "sha256": "be6ebef91a2acf39664f903de84751e6f9e1e8399afbf83d6972607a20425921"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/render-core-GCPDQQMI.js",
+                "sha256": "e2ec5b75eb6e447202f1bdf0a223bb8570687c5b0bb70a6a8e4e4d4091a425bf"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/parser-source-SFIC272N.js",
+                "sha256": "535cd1678fbb0776335fa2f3a4f758c0874499fab0b04a2f7cccccf1ebede282"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/optimization-runtime-CSNIAGJF.js",
+                "sha256": "a986602cecb8f17403095d231ee156ab50f244a543e0e6a17b4341bedee0e03b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/mermaid-yaml-runtime-CVCISO7L.js",
+                "sha256": "16506b82bdf5ac441de4330930e5943b91af00657b0adca3a0e52877b554b951"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/inter-metrics-kernel-7KGMPGQD.js",
+                "sha256": "73337ebb63c88d2b718d540cbeeb0bbecf98d2592a0971ea2a36ebc88cbbbb18"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/decode-K5N4UTKZ.js",
+                "sha256": "714448673059127d3b721125f06936d3dc1a60855c7066f629ba242b76b8fb9b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-UTQPLYG4.js",
+                "sha256": "e9e6866e31b1366d0595a237808f06e3db013a1193cfe8f352bbb4dfa4a468f0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-UQS6ETTC.js",
+                "sha256": "86a914bdb478dc4a19e04681b37fba0482cf95d7e836a4c16865535a0a2cd50d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-U7NOS2AR.js",
+                "sha256": "8ff82926fc77a62aec97e909948ba1a50d12829eccd8fcbe76d4d84b4192c0e2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-Q2GBSNK4.js",
+                "sha256": "b80889d3b1f85ae3b4be62c0aa2225f9b2cedb82955ffe8d2d2c291ea895481d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-MICE6RZ2.js",
+                "sha256": "b29ebf35d3feae4a4c8e8b59a690edcb0c1c492a4506d64cdca5462405d9f92c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-KLIMG47T.js",
+                "sha256": "2422501d6161ec257f71644ebd77e0b6f86f040ccaa2942de31c87df501c7be8"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-HBSORT2A.js",
+                "sha256": "58ebc036e28f40566c235b3661416fa342429ddcc2b36c15601e6f68d31af0a0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-AKE2GTRK.js",
+                "sha256": "1409bdf996c42f54bda73b7cb6f0fdcba0ec8eb121d5c4c63b82e7439d51ccba"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-7CK3WDDG.js",
+                "sha256": "b90bc40fa1b688054c2f5190449f1c2e7fc908968fa23d680b129a1b243a712e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-5R4PT7PY.js",
+                "sha256": "7a72ff5e697582cc5b27fd5f093b18b30d2feccf72111338ee128b9e279ad1d5"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/chunk-42RVJDFP.js",
+                "sha256": "1232f4c072ae2b0d9c81a5962651307f349626fcebf96195ea3f2aaa702b26d4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/builtin-backends-DP5JEMUX.js",
+                "sha256": "bb9cef2ad3568b8c5d35c1c59a3b269ce183ba2506061561ec24dd99bc8922b0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/zenuml/chunks/appearance-OYCLWKZC.js",
+                "sha256": "8144a75281b65e2e361800dcf0d82dcac67327d820baa5cd53ced2f4ad8a726b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/am.js",
+                "sha256": "29c4911a686e848d746e18cb6238553d462bab9715ac2b16adb0278194584341"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/agentic-mermaid-mcp.js",
+                "sha256": "baee43af3b35b742df0909e6d2bdd4dbc64b546270e25b9123aa28027701f261"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/index.d.ts",
+                "sha256": "6789e04bdacfe980394117202ffd8140b090f4f9c30b69c738c69b2a834f5ba3"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/index.js",
+                "sha256": "55088e83b938d828e3fa18687253d6a511bf8bdf30bb8317b2d3519ef46e2081"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/zenuml-N6NMFRSE.js",
+                "sha256": "bd5a9cc95ae8ea2a0e49f0201009b6c99294de10e9c9297b191ea9309ffcbae1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/xychart-EZOA7QYY.js",
+                "sha256": "9acf8065daaebc23e95acd18095fd29b5e23a390762cfaf41a4d8f59c42e6237"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/wardley-2IZJ7L5J.js",
+                "sha256": "f157b1382add4b9e379f1dd17d0c3bec6b6ba65f0489df2f901dc4961ba8a7c3"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/venn-GZA63KME.js",
+                "sha256": "ce78143e77e930751cc39b166de009595ecdea102e03719d040a6feedb08e2dd"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/usecase-WBZPZJAQ.js",
+                "sha256": "06b15e8cee914230e7f1dffd46355d21f5b6bad9f34fd394251f4879b4849c1d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/treeview-RKJNSH36.js",
+                "sha256": "c2299292663e778bcf18f8d59ff0430a4ca90443df7aadd6d8a8cb597f9d4a78"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/treemap-KZMNEHJP.js",
+                "sha256": "d2dce0bf5c821bce28da9b23305fd3195bd8e4279aaa10d4dac63892b875cd74"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/timeline-4TJKW6UY.js",
+                "sha256": "fde79952eddc7d4610ef25606101efbe2cdbf98cab2914cd7142cf1eeb84b2c9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/swimlane-E3RSMRYL.js",
+                "sha256": "a763a1d41c673b9bcee050c7723bc0acb0bcf70c7daf65ab31e8229a9f5dc30c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/state-Q6UJFNZ3.js",
+                "sha256": "8b83649827a46d380d1ed11495aeec865f12f496313f44967124ddcba821ccf3"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/sequence-BG6GU5YN.js",
+                "sha256": "de1db6527335e29543d6f7d0a29ff2f9055db96c79bd0ab498248b91ee142c4e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/sankey-4ZRT7KN6.js",
+                "sha256": "190a749e1c00fa44376364649df16326f52876cec7a46fa01066626af542756e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/requirement-CCIAMBAH.js",
+                "sha256": "04e96f393f1000038edbfd256a26db9d0f5054715de60612644a1a56cd41293b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/render-core-2UHORFCT.js",
+                "sha256": "e3284583f09aeca6dc5588436664d0db3119aed8f580e1313ba6b3290e8fe01f"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/railroad-WR3YVIN5.js",
+                "sha256": "031992925334e5f7eaec178fd8dd121221d9bc8c681c6ef6668687424e97001b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/radar-KPUAMDIS.js",
+                "sha256": "a3f98caf81bb31434758f668d0e0b9ae805b8523f7fbe38ef7be26e46e8e238b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/quadrant-CI2DPWX3.js",
+                "sha256": "f3b3a00fafa5cb74e9abd710fa40159fdb859ba57290434a9769f9e547958627"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/pie-L3WZCXZY.js",
+                "sha256": "3a1dc04c34827b0a1f0db80094357d1bf59e027a53be91f8bdfcec256c330716"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/parser-source-YNXXBVY2.js",
+                "sha256": "f933be32a041b2f0bea8400e97d0524648398f45fffd68205bdeb6f4ab0c9d9e"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/packet-JULRXARU.js",
+                "sha256": "35c701724cd35ce83b27586a2af3bbc33cf5acecebbc85f36decee075b267a85"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/optimization-runtime-BND2VT5Q.js",
+                "sha256": "61edcc5960d4a673ea18ba89bffd3cdbc3f46d3f07fd4470ac87e3e15385504c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/mindmap-OVYPUCKY.js",
+                "sha256": "019fe735b12cbdee4f2a3e4c5fa0509ecd637f43c3c59f278684e80b339a6ff2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/mermaid-yaml-runtime-YOOFDIV7.js",
+                "sha256": "e1a7cc7d0d8dc102932e686f3eec9a77d1c7e8978759dc6d8ed45e9b6c1a551c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/kanban-GC6DYL6A.js",
+                "sha256": "4145c897f67526cee712e56b44d99af1eaa560da41802e1c189b28942b022a73"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/journey-KFOAYJDM.js",
+                "sha256": "a4975a33d26a22702861a23d6f69c5f1befe6b0301e40a6d4ebd928e5cf9b044"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/ishikawa-4AQFONMM.js",
+                "sha256": "597c0858f01c330c9d3af37f2c51c4e33fe200255f28966b26f520e799b07dee"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/inter-metrics-kernel-EXRYN7X3.js",
+                "sha256": "26374f5ea47fc4def00a2921e72197beaa76b907a6194fd0c7ac9b5f7f2f2591"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/gitgraph-VXZZPH6Q.js",
+                "sha256": "3f75b5c7b8f8e7f473ebc2f1ebda5924b6829c80c8b51dc7592b0b9f2c0f053a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/gantt-2CHVNLSA.js",
+                "sha256": "5d384b69d245adfcf4905058e26f8664266bfc9522e7ba27c09a9649ff865ca1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/forest-implementation-SN7LF2DC.js",
+                "sha256": "a74a57300b831b91921d216074703e8cc9a0b3b8ba06425389fcb3353a5ee2b9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/flowchart-FJFB4UDC.js",
+                "sha256": "ab440b6dc3f66c552d42a7e08f047e384f4127855b826af0136e8f82b3799187"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/eventmodeling-UVX5TCZK.js",
+                "sha256": "a514f691ed09b79708648b567f3428bc5931c24f49633deb6c8035d0c9199bec"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/er-IPUI3TAW.js",
+                "sha256": "515d9b758b34b2cc132c25277690d1d61020251c966361f87f69da16d26af0a2"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/elk.bundled-ABZNQRTE.js",
+                "sha256": "ab43ab214567f43b165551bb8ecc0c985aba3834fd98c767cb6f6519018eddb6"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/edge-crossings-indexed-S6HEJLB5.js",
+                "sha256": "b1686ee0f30a1531e97b485127bbd7d80efedf2d1e28569105e63d32e02b5b97"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/decode-FRXELODK.js",
+                "sha256": "be0c244e820575f7019c78bc9efbf9723e1e40a2580834bb19b870569f4e97dd"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/cynefin-EV3HAIUS.js",
+                "sha256": "c82a51cc32b8e480e978e1f6f89df2a2188da160aec30a9e5f2e727bc8a6f4d4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/class-TPMZMMWW.js",
+                "sha256": "267e9ce45775ccc3dabd351fc31302111af0381f4224ed8969fc3818512f4b41"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-Z3THBXMZ.js",
+                "sha256": "8fd906c1530e9fe0914d81b6d0798ff37b22976e985126329c3b475324af6833"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-XDTR4BCT.js",
+                "sha256": "7b2cc7e5f281e89fb2e287a51bd206c6f88da9e0f8f44bb5045f1ded0c18a2f0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-WOI3Z3QK.js",
+                "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-V4WS5APO.js",
+                "sha256": "e5217dd800ee578837918ca5767317c7174a0be9335ea9acc72f425d3252a0fc"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-U3YREATI.js",
+                "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-TM7USALT.js",
+                "sha256": "931b6f436f68856d4e24deb1028adb9f263d4ea810f624fcbc1c9e72ba263827"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-RW2M66BX.js",
+                "sha256": "4bcae71d779f5b79d5d6d4f6a5524c6eddbe1a418ed243f3a4e6d9a424af6941"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-RLPWP4U4.js",
+                "sha256": "ce12b2ecb195342b9167ebb09cd94ff5d1c3af7aaa62d9bb9fa02957e1a61982"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-QVI2L4GB.js",
+                "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-QRVCCGSG.js",
+                "sha256": "fa5f9d1d0107a7020d5d7ae3e5b21a41abdaee0c1f9247ae9d2a6ddca4f2f78c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-QG576SKO.js",
+                "sha256": "3e63cf0eb7a91c71117f743c05803b7e3b8092e9b13d6e5b96e90677c249dec0"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-PRKPIK4H.js",
+                "sha256": "c49206501b8dbf24b368a2b607ff2885afb2a5161ad0651e0a8e0d64cbce62b1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-PGHWKKTB.js",
+                "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-LMGYBDCL.js",
+                "sha256": "03303aed42c7804647c72e908ff11fd52aec8c546bae96556f50abb5bf47ad19"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-LEVWSLCG.js",
+                "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-JRXRDC5T.js",
+                "sha256": "19796b7561130ba2e58a727eeab287b5a1fdb481684d52f49fa8219ebbc48d41"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-EM55OAXJ.js",
+                "sha256": "83346514f52188b626668ef1b659e42780e262e5e80305ff02e063dc692a18cc"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-EJ4GZJXV.js",
+                "sha256": "964773d51e6b7029542090beac0d5f1bc47c60b58724b8234c069e634ad4eb15"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-E3SDOTG2.js",
+                "sha256": "7823d038ae14f647e2744c9d1839392efeaf1978e70ba6e48bd41f59bdf0f32c"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-DMHX4WEC.js",
+                "sha256": "1a886771c8cf168994d98acdaaf281ccddef388c14bce0c14110564bc2f125a5"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-DGTJPOBX.js",
+                "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-CXRDIDIW.js",
+                "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-CAAX733D.js",
+                "sha256": "a4d3d089c6f76da766a7628a8e0e48f388ad1e9a465659586bb730575e293442"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-C3N43IZS.js",
+                "sha256": "af6b77006a41415096ed9e30283972bb088aae3622762ee339aacdb8c3fd5109"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-BGZ5XFKM.js",
+                "sha256": "43839816b2a8fae39291ab49df5e1592883243104faff925dbf6e0199a44da45"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-APE2CAFN.js",
+                "sha256": "c2ac4e9a28771186b49cc573904b5acce5cd0e587dfa2602e3a91c16bd7892ce"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-AJAQ7ZVV.js",
+                "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-6URSRJID.js",
+                "sha256": "1e8dfcf2e7e7785324bd9561e5c1fb0aa8ee3a1acfe48b6e007fe6c27cd7cac3"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-5R26VWPJ.js",
+                "sha256": "5e92b31f8e4ce6b136af353fe098677d86350035bd7d8fa0bd1089d5393675bc"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-5IU3OUD5.js",
+                "sha256": "83c1fa6d244540f5602d63779f080cc90203ad91760b9ce9d43aee3e30863d7a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-5DDRUPJH.js",
+                "sha256": "6574243e110122654a4c62de76713a3725ad7c632d7e4415b550d475b16871d1"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-4TPW3S6L.js",
+                "sha256": "4f4f07dfb1c663ae1ee561f6b70907ecd7ceae922d496960dfb0c04c37096efe"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-4NSKEDGY.js",
+                "sha256": "93d20c3272068996da946ed4740efb6e1555edcf13f569dd108e44e73c2c1570"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-3RZFCN7B.js",
+                "sha256": "6368655df6a2e1e03f05e6a6942a6fc7f7c6dc342172699444f99f5fe4481182"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-3L4W2UY5.js",
+                "sha256": "81d31cd42bf0e80030eb573a1aec89a26967cd944c0e0190ba58abd30bc20664"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-3FQKSPGD.js",
+                "sha256": "073adbfb4c3d232dc9d7b13e6e8947edd67244695b61e49f115e565932304833"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-2XBA4B5I.js",
+                "sha256": "bde8248e7190aa695c360ae29f05187242732143acb2028754834ee338209269"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-2BZ7RXAU.js",
+                "sha256": "9742a3d8dabb687e97b308d8b00a2e172ec7be446842489b9437481eb28579d7"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/chunk-29EECC04.js",
+                "sha256": "1d9e906bd34740daa3a98097dd452bb6a0011a56118b6880d17c79ead9828cd4"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/c4-KKUBUWNY.js",
+                "sha256": "0a2c89226e98d2477210fd358a1d0ef052d163992bdc067d1fe1087bd7f6979d"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/builtin-backends-G7MHLPJR.js",
+                "sha256": "c58e5403c19fe7cd706a3a90e9a744053f0f3d84fc94b2c29adcadfdf335b58b"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/block-PWCFSS3I.js",
+                "sha256": "a2033c42bbb37a23c85f1185adc13778cedcf81dafb183d3b60e42979d471f1a"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/architecture-6FNSZFAP.js",
+                "sha256": "2ddcbae1678abab9b5ed4cdcd5b8e63fde57d08c1c4c538e76d5331335126ba6"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/agentic-producer-core-VTSFNFVW.js",
+                "sha256": "6d6919eca31b2b27ec5738357fbfbd8a8c07f4d3d611e9039ea56597521cf264"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/browser-lazy/chunks/agentflow-P64EM7VO.js",
+                "sha256": "d6f63b669a9e3875f71cdd29ae05c8efd9c41a0fad83ec6f491c9a352c498a18"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/agent.js",
+                "sha256": "c5b16bd7805e1f8d3351059676bb6a95df7bfbd5970fe67bfb10ecde2bb468a9"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/agent-core.js",
+                "sha256": "21e59518b87ed09728bb849a13493667e75b94aad21cdc481c067d2a5d74b954"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/layout-optimization.cjs",
+                "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/dist/inter-metrics-kernel.cjs",
+                "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+              },
+              {
+                "path": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid/LICENSE",
+                "sha256": "f05f5a4009eae7fadfd4a55f77ffe10948f621982d56076667e68afbb54de894"
+              }
+            ],
+            "adapterCompanions": [
+              {
+                "root": "/tmp/issue621-trident-work/historical-native/node_modules/.cache/unified-community/candidates/agentic-mermaid/ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc/node_modules/agentic-mermaid",
+                "name": "agentic-mermaid",
+                "version": "0.5.7",
+                "integrity": "sha512-7r0tLo6rrTmfbsYPHqY63MAY+VBLvDyvdMbkuytUST51c4bDHW7f8GXfboBsR+ujbFYjMPQ6IfaV8DgmlnPFrg==",
+                "closureSha256": "63c1559207a2081a699ffd6ea3fa33fd28c8afd9d226b6d0f80fdf3b5ef09c38"
+              }
+            ]
+          }
+        }
+      ],
+      "detail": "Version policy: unreleased candidate tarball; the catalog version pin does not apply. Recorded catalog versions remain separately available on the node."
+    }
+  }
+]

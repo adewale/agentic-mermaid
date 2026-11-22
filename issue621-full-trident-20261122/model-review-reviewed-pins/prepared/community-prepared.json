@@ -1,0 +1,195 @@
+[
+  {
+    "node": {
+      "id": "Dicklesworthstone/frankenmermaid",
+      "categories": [
+        "renderer",
+        "parser"
+      ],
+      "relation": "independent",
+      "repo": "https://github.com/Dicklesworthstone/frankenmermaid",
+      "homepage": "https://frankenmermaid.com/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+      "lastCommit": "2026-10-19T21:51:40-04:00",
+      "rootCommits": [
+        "a4877939105eb405add227d48e0f5f5d054fcfec"
+      ],
+      "license": "MIT License (with OpenAI/Anthropic Rider)",
+      "runtime": "Rust 2024; distributed WASM in Node and browser; native CLI",
+      "outputs": [
+        "svg",
+        "ascii-unicode",
+        "ast",
+        "diagnostics",
+        "mermaid-text"
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer",
+        "parser-peer"
+      ],
+      "distribution": {
+        "kind": "github-directory",
+        "path": "pkg/",
+        "name": "@frankenmermaid/core",
+        "version": "0.5.0",
+        "revision": "a5be33d9097af8b7c90fef7dd4a0c20a0bf55752",
+        "lastUpdatedCommit": "f85cf30d16918b5819f27e5eb1f962b324390c13"
+      },
+      "notes": "Separate git root; README describes a ground-up implementation. Checked-in pkg/ 0.4.0 distribution is pinned and individually hash-verified for Node/browser benchmarks. The advertised @frankenmermaid/core npm name returns 404. Distributed WASM predates current Rust source changes and differs from live-site JS/WASM bytes; no build-from-current-source or deployment parity is claimed. Public WASM exposes SVG, Canvas2D, parse/diagnostics, source-lens edits and deck manifests; native terminal rendering has no exported WASM terminal function. License includes the named restrictive rider and is not recorded as plain MIT. Published native v0.4.0 CLI was benchmarked separately, including startup; its release predates the measured WASM. Parser recovery returned SVG for the full browser inventory, with warnings/partial detections recorded separately from acceptance.",
+      "nativeRelease": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f",
+        "publishedAt": "2026-10-08T15:52:13Z",
+        "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.4.0",
+        "measuredArchive": "frankenmermaid-darwin-arm64.tar.xz",
+        "archiveSha256": "0fadb3939fcbe1760ba7278ef03ef96251127b88181a3f2abf2af704b0311909"
+      },
+      "benchmark": {
+        "adapter": "franken",
+        "outputs": [
+          "parse"
+        ],
+        "moduleOutputs": [
+          "parse"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "independently-rooted-implementation",
+        "engineScope": "independent-engine-candidate",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Catalog declares svg, terminal, parse, diagnostics, source operations with adapter franken. Actual artifact/API availability, family coverage, correctness and timing are determined by execution, not role selection or configuration."
+      },
+      "release": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f"
+      }
+    },
+    "artifact": {
+      "kind": "franken",
+      "root": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg",
+      "module": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid.js",
+      "wasm": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid_bg.wasm",
+      "version": "0.5.0",
+      "revision": "a5be33d9097af8b7c90fef7dd4a0c20a0bf55752",
+      "sha256": "06a334b1bb34c1d39a7d6a0077f0dd65341d6c6752853d38a531ee79ad1c4930",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/package.json",
+          "sha256": "08966a16c35840380c1cd617c86e73195bac5e1c2905f4ba25d513bb06e59ceb"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid.js",
+          "sha256": "06a334b1bb34c1d39a7d6a0077f0dd65341d6c6752853d38a531ee79ad1c4930"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/LICENSE",
+          "sha256": "32a82e0a5754e72e51fae44b65a936c831c07376f21c90f5fb9e76897fcc3509"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/README.md",
+          "sha256": "b16cd992f493b248cbe0b523cc686b99eea31342e9bc8da21a1abf8ac08bf510"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid_bg.wasm",
+          "sha256": "948a2f44fc8201d4aafcd50ea05a1e1896822918efa66b7a41246d4d32258c34"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid.d.ts",
+          "sha256": "29929b9d6998a2abf54cb8a21d936575671b659b06561f9105cfe89e0eeb1b99"
+        },
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/Dicklesworthstone--frankenmermaid@0.5.0-91788500a805fb29/pkg/frankenmermaid_bg.wasm.d.ts",
+          "sha256": "153f789a4857ad06550212915cfc201a4a6c763661d2d1859c1dd72b0ac10ef8"
+        }
+      ],
+      "runtime": "Rust/WASM public Node/browser distribution",
+      "detail": "Pinned checked-in distribution, not current native source or live-site deployment. Terminal output is not exported by this WASM API.; Version policy: recorded immutable source/distribution. Recorded catalog versions remain separately available on the node.",
+      "preparationIdentity": "91788500a805fb29c4d839e80588cd4ef0a78db97ec5e7db9d54ffa0c52313d3"
+    }
+  },
+  {
+    "node": {
+      "id": "dfadler/zombie-mermaid",
+      "categories": [
+        "renderer"
+      ],
+      "relation": "fork",
+      "parent": "lukilabs/beautiful-mermaid",
+      "repo": "https://github.com/dfadler/zombie-mermaid",
+      "branch": "main",
+      "head": "8cc982128bed11d976fb38164c4cdb47be7bd34d",
+      "lastCommit": "2026-10-18T14:19:47-05:00",
+      "rootCommits": [
+        "3185b9b6911e3b0a9f0d51fcebda5e0f69785ff0"
+      ],
+      "vsParent": {
+        "ahead": 4042,
+        "behind": 0
+      },
+      "license": "MIT",
+      "runtime": "TypeScript (Node, browser)",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "zombie-mermaid",
+          "version": "5.17.0",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer"
+      ],
+      "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md.",
+      "benchmark": {
+        "adapter": "beautiful",
+        "package": "zombie-mermaid",
+        "terminalSubpath": "ascii",
+        "outputs": [
+          "parse"
+        ],
+        "version": "5.17.0",
+        "versionPolicy": "recorded",
+        "moduleOutputs": [
+          "parse"
+        ]
+      },
+      "benchmarkEligibility": {
+        "classification": "diverged-fork",
+        "engineScope": "unreviewed-fork-delta",
+        "adapterReview": "existing-adapter; outcomes remain independent",
+        "reason": "Recorded fork of lukilabs/beautiful-mermaid: 4042 commits ahead/0 behind; exact head 8cc982128bed11d976fb38164c4cdb47be7bd34d. A source delta requires actual renderer/API review; shared lineage does not establish output or artifact equivalence. README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
+      },
+      "comparisonBranding": {
+        "distinct": true,
+        "name": "Zombie Mermaid",
+        "evidence": "README calls this a maintained Beautiful fork; published zombie-mermaid packages."
+      }
+    },
+    "artifact": {
+      "kind": "node",
+      "root": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid",
+      "module": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid/dist/index.js",
+      "version": "5.17.0",
+      "integrity": "sha512-/L31e8A0rpFUzrE9e45K0kV3ylo9COOz1Prmt7r7+Cb2k0a+wEVBcoQRfUzuQsdT6u3UCXP9NFGvsTQvtXyyJg==",
+      "installedClosureSha256": "424dc2de0fc9e853a5f17052f63f0ab45a2f2489f5a3681ab1fa1d7d55b5c994",
+      "runtime": "Node",
+      "sha256": "4e04f8c1163de071cbcceb62ddb2ce6107b98df3038ac456e6d16dea121d46d9",
+      "files": [
+        {
+          "path": "/tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/zombie-mermaid/dist/index.js",
+          "sha256": "4e04f8c1163de071cbcceb62ddb2ce6107b98df3038ac456e6d16dea121d46d9"
+        }
+      ],
+      "apiBoundary": "published package API",
+      "detail": "Version policy: recorded registry release. Recorded catalog versions remain separately available on the node."
+    }
+  }
+]

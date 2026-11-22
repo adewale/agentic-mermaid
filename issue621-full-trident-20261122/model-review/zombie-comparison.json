@@ -1,0 +1,80 @@
+{
+  "project": "zombie",
+  "cases": 1087,
+  "equal": 1083,
+  "different": 4,
+  "oldModels": 798,
+  "newModels": 798,
+  "byFamily": {
+    "gitgraph": 4
+  },
+  "paths": [
+    {
+      "family": "gitgraph",
+      "kind": "added",
+      "path": ".model.config.useMaxWidth",
+      "count": 4,
+      "example": {
+        "path": ".model.config.useMaxWidth",
+        "kind": "added",
+        "left": "undefined",
+        "right": "boolean",
+        "rightExample": true
+      }
+    }
+  ],
+  "differences": [
+    {
+      "id": "registry:gitgraph",
+      "family": "gitgraph",
+      "differences": [
+        {
+          "path": ".model.config.useMaxWidth",
+          "kind": "added",
+          "left": "undefined",
+          "right": "boolean",
+          "rightExample": true
+        }
+      ]
+    },
+    {
+      "id": "portfolio:gitgraph:28",
+      "family": "gitgraph",
+      "differences": [
+        {
+          "path": ".model.config.useMaxWidth",
+          "kind": "added",
+          "left": "undefined",
+          "right": "boolean",
+          "rightExample": true
+        }
+      ]
+    },
+    {
+      "id": "portfolio:gitgraph:29",
+      "family": "gitgraph",
+      "differences": [
+        {
+          "path": ".model.config.useMaxWidth",
+          "kind": "added",
+          "left": "undefined",
+          "right": "boolean",
+          "rightExample": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:gitgraph:200-commits",
+      "family": "gitgraph",
+      "differences": [
+        {
+          "path": ".model.config.useMaxWidth",
+          "kind": "added",
+          "left": "undefined",
+          "right": "boolean",
+          "rightExample": true
+        }
+      ]
+    }
+  ]
+}

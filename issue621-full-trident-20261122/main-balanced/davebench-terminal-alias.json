@@ -1,0 +1,5 @@
+{
+  "freshRun": "main-default",
+  "suite": "davebench:terminal",
+  "reason": "Identical artifact parser and terminal public entry; SVG-only backend/mode option does not enter these calls. Not a historical reuse or independent solver win."
+}

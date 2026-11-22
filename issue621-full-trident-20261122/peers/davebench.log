@@ -1,0 +1,12 @@
+255 |   reserveResultDirectory(out)
+256 |   const inventory = davebenchInputs(upstream), recorded = JSON.parse(readFileSync(options.get('--catalog') ?? communityCatalogFile, 'utf8'))
+257 |   const enrolled = comparisonProjects(recorded, options.get('--projects')?.split(',') ?? recorded.nodes.map((node: any) => node.id))
+258 |   const applicable = recorded.nodes.filter((node: any) => enrolled.included.includes(node.id) && node.benchmark?.outputs.some((format: string) => ['svg', 'png'].includes(format))).map((node: any) => node.id)
+259 |   const frozenAudit = options.has('--catalog') ? JSON.parse(readFileSync(join(dirname(resolve(options.get('--catalog')!)), 'versions.json'), 'utf8')) : undefined
+260 |   if (frozenAudit && (!frozenAudit.complete || frozenAudit.checkedAt !== recorded.benchmarkVersionsCheckedAt || applicable.some((id: string) => !frozenAudit.rows.some((row: any) => row.project === id && row.component === 'primary' && !row.error)))) throw Error('Frozen catalog has no matching complete version selection')
+                                                                                                                                                                                                                                                                     ^
+error: Frozen catalog has no matching complete version selection
+      at main (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/unified/davebench.ts:260:256)
+      at /workspace/elk-layered-tools/issue621-full-trident-20261122/harness/unified/davebench.ts:352:29
+
+Bun v1.4.4 (Linux x64)

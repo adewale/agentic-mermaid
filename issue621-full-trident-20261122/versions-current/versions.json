@@ -1,0 +1,85 @@
+{
+  "schema": "trident-benchmark-versions-v1",
+  "checkedAt": "2026-11-22T10:03:07.915Z",
+  "policy": "Registry current stable latest; latest stable version tag for native releases; current default-branch HEAD for source-only components and repository-hosted distributions. Freeze exact selections before preparation. No fallback to stale artifacts.",
+  "projects": 6,
+  "complete": true,
+  "rows": [
+    {
+      "project": "adewale/agentic-mermaid",
+      "component": "primary",
+      "registry": "npm",
+      "package": "agentic-mermaid",
+      "version": "0.5.6",
+      "previousVersion": "0.5.6",
+      "source": "https://registry.npmjs.org/agentic-mermaid",
+      "integrity": "sha512-fHA2btF+GZ6s+AInzOJFzQQOCRX1ntFG94fpmu68TECTXg5iTOeDiVvhT6AhyALXtcDCpr51EfJFGipjq642TQ==",
+      "publishedAt": "2026-11-02T15:05:50.613Z"
+    },
+    {
+      "project": "dfadler/zombie-mermaid",
+      "component": "primary",
+      "registry": "npm",
+      "package": "zombie-mermaid",
+      "version": "5.18.0",
+      "previousVersion": "5.14.1",
+      "source": "https://registry.npmjs.org/zombie-mermaid",
+      "integrity": "sha512-q7FWGbVM2+cAF7rIywFx9NbjCE0p4Nc3aZUPmafMFgV6vYHiOmNk4JAvQlVVIsFQgp6aAvmVMsqt2gZJKD60hA==",
+      "publishedAt": "2026-11-18T17:25:09.320Z"
+    },
+    {
+      "project": "Dicklesworthstone/frankenmermaid",
+      "component": "native-cli",
+      "registry": "git-tag",
+      "version": "0.6.0",
+      "revision": "8a3b1e99b54dd9d42712c4fb0a202c24fdf26b64",
+      "previousVersion": "0.6.0",
+      "previousRevision": "8a3b1e99b54dd9d42712c4fb0a202c24fdf26b64",
+      "source": "https://github.com/Dicklesworthstone/frankenmermaid"
+    },
+    {
+      "project": "Dicklesworthstone/frankenmermaid",
+      "component": "primary",
+      "registry": "source-distribution",
+      "version": "0.6.0",
+      "revision": "0ddba9402355b2d484a8023f5e55afc69f614865",
+      "previousVersion": "0.4.0",
+      "previousRevision": "3d338ff26022e448a26e6a9d5a4127a315d27fe7",
+      "source": "https://raw.githubusercontent.com/Dicklesworthstone/frankenmermaid/0ddba9402355b2d484a8023f5e55afc69f614865/pkg/package.json"
+    },
+    {
+      "project": "lukilabs/beautiful-mermaid",
+      "component": "primary",
+      "registry": "npm",
+      "package": "beautiful-mermaid",
+      "version": "1.1.3",
+      "previousVersion": "1.1.3",
+      "source": "https://registry.npmjs.org/beautiful-mermaid",
+      "integrity": "sha512-TItrtrAyHp1vwFfFVYauWGrquouk/6SS21Aq3RsxindSYZODcN4xYrPZD6BiZRU+o5mKJzDPz9MUSMvELdylyg==",
+      "publishedAt": "2026-02-26T14:23:06.116Z"
+    },
+    {
+      "project": "mermaid-js/mermaid",
+      "component": "primary",
+      "registry": "oracle-pin",
+      "package": "mermaid",
+      "version": "12.3.0",
+      "previousVersion": "12.2.0",
+      "source": "https://registry.npmjs.org/mermaid",
+      "integrity": "sha512-4113TdXeLAsMruJ79OpFL5O8+LTFXhQqZ260rF3tgUmiNAtRm4Uume04I+65PRN6yZ69J4f8rVYWW8zRk65UYw==",
+      "publishedAt": "2026-11-03T13:18:31.144Z",
+      "latestPublished": "12.3.0"
+    },
+    {
+      "project": "obsidianmd/pele",
+      "component": "primary",
+      "registry": "npm",
+      "package": "pele",
+      "version": "1.13.0",
+      "previousVersion": "1.13.0",
+      "source": "https://registry.npmjs.org/pele",
+      "integrity": "sha512-Ie8UKY9x00MsuR3jO6AzUwzK2Z6MIV3Tf4EDdITiuk8Uaz8K7g0R082WqsqNaSU8DdgkrRvZThzhit83mi/uiw==",
+      "publishedAt": "2026-10-31T00:24:29.976Z"
+    }
+  ]
+}

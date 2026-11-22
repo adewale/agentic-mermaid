@@ -1,0 +1,924 @@
+{
+  "protocol": "fidelity-capability-review-v1",
+  "reviewed": "2026-11-14",
+  "subject": "Mermaid Fidelity unsupported verdicts that are Trident's capability assessments (outcome kind `capability-assessment`, unified/mermaid-fidelity/outcome-kinds.ts), checked against the installed candidate artifacts of the 0.4.0 campaign (prepared artifacts: the campaign's community-prepared.json; packages under node_modules/.cache/unified-community/ and node_modules/.cache/fidelity-bridges/).",
+  "baseline": "The 2026-11-14 jsdom campaign's per-callback results (all 7,346 reference-qualified callbacks per project), classified by unified/mermaid-fidelity/outcome-kinds.ts. baselineCallbacks counts callbacks whose first unsupported reason has that basis.",
+  "method": "A confirmed assessment is one the installed artifact's own public code agrees with (its detector, validator, renderer or CLI refuses the source, or its public types and exports have no such member), cited by file:line or by a probe result. A disproved one is withdrawn: bound so the candidate's real behaviour is measured, or turned into an adapter limitation (a Trident gap) whose reason names the native evidence. Probes call each project's own public entry on the runtime's example source for the family (runtime.ts `examples`).",
+  "assessments": [
+    {
+      "basis": "jison-callback",
+      "scope": "timeline.spec.js: 11 callbacks for every candidate",
+      "projects": "all 23 applicable",
+      "baselineCallbacks": 253,
+      "verdict": "disproved",
+      "evidence": "The test sets `timeline.yy = timelineDB`, where timelineDB is `import * as timelineDB from './timelineDb.js'`: Mermaid's own timeline database module, which Trident already binds to the candidate's model (its getters read the candidate's parse). It is not a caller-supplied database, so no callback protocol is involved.",
+      "action": "Bound: runtime.ts treats a family's bound database module set as yy as that family's database (databaseModules), so the candidate's own timeline parse and getters are measured. A reviewed ports timeline view (views/ports.mjs timelineView) reads Pele's and Bezel's periods and Latias94/merman's tasks; without a reviewed view, timeline values pass through only in Mermaid's shapes (upstream-fidelity-projection.mjs), so section records or 'LeftRight' are gaps, not failures."
+    },
+    {
+      "basis": "jison-callback",
+      "scope": "xychart.jison.spec.ts and quadrant.jison.spec.ts (a test-supplied mockDB of vi.fn members)",
+      "projects": [
+        "obsidianmd/pele"
+      ],
+      "baselineCallbacks": 82,
+      "verdict": "disproved",
+      "evidence": "Pele 1.13.0's public `pele/diagrams/xychart` and `pele/diagrams/quadrantChart` Diagram objects (package.json exports './diagrams/*') parse by building their own database: dist/esm/chunks/364JUB4J.js `parse(e,t,i){let c=new $t;...;Ue(e,c);return c}`; the database class XyChartDb (dist/diagrams/xychart/db.d.ts) declares setOrientation, setXAxisTitle, setXAxisRangeData, setXAxisBand, setYAxisTitle, setYAxisRangeData, setLineData, setBarData, setDiagramTitle, setAccTitle, setAccDescription, the same callbacks Mermaid's jison grammar makes on yy, and parse() returns that instance. Partial collection with the binding: 74 of the 82 xychart/quadrant callbacks pass and 1 fails natively (Pele rejects `classDef` style `fill`); 7 quadrant callbacks are Pele's own refusal of a mixed-case `QuadRantChart` header ('No diagram type detected for the given text.').",
+      "action": "Bound: runtime.ts forwardNativeCalls delivers each outermost call Pele's parser makes on its own database class, with Pele's arguments, to the test's yy (and to a vi.spyOn spy on the test's database). Applies to any candidate whose parse result is an instance of its own database class."
+    },
+    {
+      "basis": "jison-callback",
+      "scope": "xychart.jison.spec.ts and quadrant.jison.spec.ts",
+      "projects": [
+        "crabtalk/bezel"
+      ],
+      "baselineCallbacks": 82,
+      "verdict": "disproved",
+      "evidence": "bezel-mermaid 0.2.26 crate as the bridge extracts it (node_modules/.cache/fidelity-bridges/crabtalk-bezel/source/bezel-mermaid-0.2.26): src/lib.rs:20 `pub mod diagrams`; src/diagrams/xychart/parser.rs:11 `pub fn parse_xy_chart(src: &str, db: &mut XyChartModel)` and src/diagrams/quadrant/parser.rs:13 `pub fn parse_quadrant(src: &str, db: &mut QuadrantModel)` drive a caller-supplied database through its set_*/add_* methods (src/diagrams/xychart/db.rs:133-224, src/diagrams/quadrant/db.rs:159-198).",
+      "action": "Adapter limitation: native-capabilities.mjs records the evidence; once the candidate's own parser accepts the source, the callback is a Trident gap ('implements a xychart parser that drives a caller-supplied database natively ...; Trident does not bind it yet'). A Rust database is a concrete type, so binding it needs a bridge that relays each call; not done here. Native-first parsing now measures the candidate's own rejections: 15 of the 82 pass, 1 fails natively, 1 is Bezel's own refusal, and 65 are adapter limitations. Still unbound after the stateful bridge (see amendments): the parsers take a concrete database type, so their calls happen inside the crate and cannot reach a test's JavaScript database."
+    },
+    {
+      "basis": "jison-callback",
+      "scope": "xychart.jison.spec.ts and quadrant.jison.spec.ts",
+      "projects": [
+        "Dicklesworthstone/frankenmermaid",
+        "wevm/ondine",
+        "orestesgaolin/mermaid",
+        "pub:mermaid_flutter",
+        "adewale/agentic-mermaid",
+        "dfadler/zombie-mermaid",
+        "1jehuang/mermaid-rs-renderer",
+        "AlexanderGrooff/mermaid-ascii",
+        "anomalyco/opencode",
+        "crafter-station/mermaid",
+        "emtyty/merslim",
+        "evangwt/xmermaid",
+        "fasouto/termaid",
+        "kitlangton/merman",
+        "KlangHaus/vitepress-plugin-diagram",
+        "Latias94/merman",
+        "lukilabs/beautiful-mermaid",
+        "Mootikins/figurehead-rs",
+        "sandyyst/dsh-plugin-mermaid-gb-svg",
+        "tariqshams/mermaidtui",
+        "kais-radwan/ascii-mermaid"
+      ],
+      "baselineCallbacks": {
+        "Dicklesworthstone/frankenmermaid": 82,
+        "wevm/ondine": 82,
+        "orestesgaolin/mermaid": 82,
+        "pub:mermaid_flutter": 82,
+        "adewale/agentic-mermaid": 82,
+        "dfadler/zombie-mermaid": 82,
+        "1jehuang/mermaid-rs-renderer": 82,
+        "AlexanderGrooff/mermaid-ascii": 82,
+        "anomalyco/opencode": 82,
+        "crafter-station/mermaid": 82,
+        "emtyty/merslim": 82,
+        "evangwt/xmermaid": 82,
+        "fasouto/termaid": 82,
+        "kitlangton/merman": 82,
+        "KlangHaus/vitepress-plugin-diagram": 82,
+        "Latias94/merman": 82,
+        "lukilabs/beautiful-mermaid": 82,
+        "Mootikins/figurehead-rs": 82,
+        "sandyyst/dsh-plugin-mermaid-gb-svg": 82,
+        "tariqshams/mermaidtui": 82,
+        "kais-radwan/ascii-mermaid": 82
+      },
+      "verdict": "confirmed",
+      "evidence": "Every other candidate's public parse returns plain data with no database class: bridged models arrive as JSON (bridges.ts protocol), Agentic's editing parser and Frankenmermaid's WASM IR return object literals, and a grep of each installed package (zombie, beautiful, ascii-mermaid, vitepress, opencode merman, crafter, merslim, kitlangton merman, xmermaid, ondine, agentic, frankenmermaid, mermaid_core 0.3.2 lib/, mmdr, mermaid-ascii, termaid, figurehead) finds none of Mermaid's xychart/quadrant/flowchart database member names (setXAxisTitle/set_x_axis_title, addVertex/add_vertex, setDateFormat, setClickEvent). Latias94/merman's diagram modules are crate-private (merman-core 0.10.0 src/lib.rs:58 `mod diagrams`; src/diagrams/mod.rs:47-156 `pub(crate) mod`).",
+      "action": "Kept as a capability assessment, but the runtime now asks the candidate's own parser first: a rejection or refusal of the source is measured natively (e.g. 12 xychart callbacks pass for most candidates whose parser rejects the invalid sources the tests expect to throw; candidates without the family record their own refusal, MermaidTUI's 'Unsupported diagram type')."
+    },
+    {
+      "basis": "database-protocol",
+      "scope": "vi.spyOn on a database member (flow-interactions.spec.js, classDiagram.spec.ts, gantt, sequence, state): 35 callbacks per candidate",
+      "projects": [
+        "obsidianmd/pele"
+      ],
+      "baselineCallbacks": 35,
+      "verdict": "disproved for the members Pele implements (setClickEvent, setLink on class and flowchart databases); confirmed for the rest",
+      "evidence": "Pele's parse result is its database class instance (e.g. dist/diagrams/sequence/db.d.ts SeqDb declares apply, addActor, addMessage, addSignal, addNote; flowchart and class databases declare setLink and setClickEvent). Partial collection with the binding: 31 of Pele's 35 spy callbacks pass; the other 4 (class addRelation, flowchart setDirection, sequence apply, state setRootDoc) inspect Mermaid's own-property layout and stay Trident gaps.",
+      "action": "Bound: the runtime offers a spy on a member the candidate's own database class implements (getOwnPropertyDescriptor/defineProperty) and forwardNativeCalls delivers the parser's calls to it; a member the class lacks stays a capability assessment, now checked against the class itself."
+    },
+    {
+      "basis": "database-protocol",
+      "projects": [
+        "crabtalk/bezel"
+      ],
+      "baselineCallbacks": 35,
+      "verdict": "disproved for the members Bezel implements; confirmed for flowchart setDirection",
+      "evidence": "bezel-mermaid 0.2.26 crate as the bridge extracts it (node_modules/.cache/fidelity-bridges/crabtalk-bezel/source/bezel-mermaid-0.2.26): class/db.rs:260 set_click_event, :245 set_link, :124 add_relation; flowchart/store.rs:392 set_link, :405 set_click_event; gantt/db.rs:374 set_click_event, :259 set_today_marker; sequence/db.rs:427 apply; state/db.rs:36 set_root_doc (all `pub fn` in public modules). No set_direction on the flowchart store.",
+      "action": "Adapter limitation (native-capabilities.mjs) for the implemented members. Amended the same day: the stateful Bezel bridge binds these members for direct calls (see amendments). A spy that expects the parser's calls on them stays an adapter limitation, now under the family's parser -> database callback evidence (native-capabilities.mjs callback: flowchart, class, gantt); state setRootDoc and sequence apply take parsed statements and stay unbound."
+    },
+    {
+      "basis": "database-protocol",
+      "projects": [
+        "Dicklesworthstone/frankenmermaid",
+        "wevm/ondine",
+        "orestesgaolin/mermaid",
+        "pub:mermaid_flutter",
+        "adewale/agentic-mermaid",
+        "dfadler/zombie-mermaid",
+        "1jehuang/mermaid-rs-renderer",
+        "AlexanderGrooff/mermaid-ascii",
+        "anomalyco/opencode",
+        "crafter-station/mermaid",
+        "emtyty/merslim",
+        "evangwt/xmermaid",
+        "fasouto/termaid",
+        "kitlangton/merman",
+        "KlangHaus/vitepress-plugin-diagram",
+        "Latias94/merman",
+        "lukilabs/beautiful-mermaid",
+        "Mootikins/figurehead-rs",
+        "sandyyst/dsh-plugin-mermaid-gb-svg",
+        "tariqshams/mermaidtui",
+        "kais-radwan/ascii-mermaid"
+      ],
+      "baselineCallbacks": 35,
+      "verdict": "confirmed",
+      "evidence": "No other candidate's public interface has a database the test could spy on: see the jison-callback evidence (plain data models; no Mermaid database member names in the installed packages; Latias94/merman's diagram modules are crate-private).",
+      "action": "Kept as a capability assessment."
+    },
+    {
+      "basis": "database-api",
+      "projects": [
+        "obsidianmd/pele"
+      ],
+      "baselineCallbacks": 90,
+      "verdict": "confirmed",
+      "evidence": "Natively probed by construction: for Pele the runtime's database is a fresh instance of Pele's own database class (`new Constructor()` from the parse result), and a member is called natively when the class has it (runtime.ts `view[key] ?? raw?.[key]`). The verdict fires only for members the class lacks (treeview addNode, gantt setDisplayMode/parseDuration, usecase createModel, flowchart setDiagramId, getConfig*).",
+      "action": "Kept."
+    },
+    {
+      "basis": "database-api",
+      "projects": [
+        "crabtalk/bezel"
+      ],
+      "baselineCallbacks": 232,
+      "verdict": "disproved for the members listed in unified/mermaid-fidelity/native-capabilities.mjs; confirmed for getConfig, getConfigField, usecase createModel, flowchart makeUniq/exists/setDirection/setDiagramId, agentflow setFrontmatterLineOffset, block edgeStrTo*, requirement setDirection, preserveCommentsWhenParsing",
+      "disprovedMembers": {
+        "gantt": [
+          "setDateFormat",
+          "parseDuration",
+          "setExcludes",
+          "setIncludes",
+          "setTodayMarker",
+          "setAccTitle"
+        ],
+        "flowchart": [
+          "addVertex",
+          "addClass",
+          "updateLinkInterpolate",
+          "updateLink"
+        ],
+        "agentflow": [
+          "emitWarning",
+          "addVertex",
+          "updateLink",
+          "updateLinkInterpolate"
+        ],
+        "treeview": [
+          "addNode",
+          "setAccTitle",
+          "setAccDescription",
+          "setDiagramTitle"
+        ],
+        "mindmap": [
+          "addNode"
+        ],
+        "class": [
+          "addClass",
+          "addNamespace"
+        ],
+        "er": [
+          "addSubGraph"
+        ],
+        "journey": [
+          "addSection",
+          "setAccTitle"
+        ],
+        "xychart": [
+          "setXAxisBand"
+        ],
+        "quadrant": [
+          "parseStyles"
+        ],
+        "cynefin": [
+          "setDomains",
+          "setTransitions"
+        ],
+        "requirement": [
+          "addRequirement",
+          "addElement",
+          "addRelationship",
+          "defineClass"
+        ],
+        "state": [
+          "addState",
+          "addStyleClass"
+        ],
+        "architecture": [
+          "addService",
+          "addJunction",
+          "addGroup",
+          "addLayoutHint"
+        ],
+        "railroad": [
+          "addRule",
+          "setTitle",
+          "setDiagramTitle",
+          "setAccTitle",
+          "setAccDescription"
+        ]
+      },
+      "evidence": "bezel-mermaid 0.2.26 crate as the bridge extracts it (node_modules/.cache/fidelity-bridges/crabtalk-bezel/source/bezel-mermaid-0.2.26): each listed member is a `pub fn` on the family's public database type (file:line per member in native-capabilities.mjs), e.g. gantt/db.rs:237 set_date_format, flowchart/store.rs:87 add_vertex, treeview/model.rs:87 add_node, common/outline.rs:113 OutlineDb::add_node (mindmap), er/db.rs:173 add_sub_graph; titles through `pub titles: Titles` (common/db.rs:37-45). A grep of the crate finds no get_config, create_model, make_uniq, exists, set_direction, set_diagram_id or edge_str_to_* function.",
+      "action": "Adapter limitation: the runtime reports a test that needs one of these members as a Trident gap naming the evidence ('crabtalk/bezel 0.2.26 implements gantt database setDateFormat natively (...); Trident does not bind it yet'). Binding needs a stateful bridge that calls the crate's database methods; not done here. Amended the same day: the stateful Bezel bridge binds most of these members (see amendments). treeview addNode is withdrawn from the disproved list: TreeViewDb is in the private module treeview::model (src/diagrams/treeview/mod.rs:5 `mod model`, re-exporting only NodeType, TreeNode and TreeViewModel), so a test that needs it is the candidate's unsupported operation."
+    },
+    {
+      "basis": "database-api",
+      "projects": [
+        "Dicklesworthstone/frankenmermaid",
+        "wevm/ondine",
+        "orestesgaolin/mermaid",
+        "pub:mermaid_flutter",
+        "adewale/agentic-mermaid",
+        "dfadler/zombie-mermaid",
+        "1jehuang/mermaid-rs-renderer",
+        "AlexanderGrooff/mermaid-ascii",
+        "anomalyco/opencode",
+        "crafter-station/mermaid",
+        "emtyty/merslim",
+        "evangwt/xmermaid",
+        "fasouto/termaid",
+        "kitlangton/merman",
+        "KlangHaus/vitepress-plugin-diagram",
+        "Latias94/merman",
+        "lukilabs/beautiful-mermaid",
+        "Mootikins/figurehead-rs",
+        "sandyyst/dsh-plugin-mermaid-gb-svg",
+        "tariqshams/mermaidtui",
+        "kais-radwan/ascii-mermaid"
+      ],
+      "baselineCallbacks": {
+        "Dicklesworthstone/frankenmermaid": 233,
+        "wevm/ondine": 217,
+        "orestesgaolin/mermaid": 152,
+        "pub:mermaid_flutter": 152,
+        "adewale/agentic-mermaid": 167,
+        "dfadler/zombie-mermaid": 167,
+        "1jehuang/mermaid-rs-renderer": 170,
+        "AlexanderGrooff/mermaid-ascii": 48,
+        "anomalyco/opencode": 101,
+        "crafter-station/mermaid": 114,
+        "emtyty/merslim": 151,
+        "evangwt/xmermaid": 227,
+        "fasouto/termaid": 160,
+        "kitlangton/merman": 48,
+        "KlangHaus/vitepress-plugin-diagram": 41,
+        "Latias94/merman": 232,
+        "lukilabs/beautiful-mermaid": 69,
+        "Mootikins/figurehead-rs": 60,
+        "sandyyst/dsh-plugin-mermaid-gb-svg": 34,
+        "tariqshams/mermaidtui": 2,
+        "kais-radwan/ascii-mermaid": 112
+      },
+      "verdict": "confirmed",
+      "evidence": "No Mermaid database API in the public interface: plain-data models (bridged JSON, object literals) and no Mermaid database member names in any installed package (grep, see jison-callback); Latias94/merman's diagram modules are crate-private (merman-core 0.10.0 src/diagrams/mod.rs:47-156 `pub(crate) mod`).",
+      "action": "Kept."
+    },
+    {
+      "basis": "family-table",
+      "projects": [],
+      "baselineCallbacks": 675,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-*/node_modules/zombie-mermaid/dist/index.js validateMermaid(source) throws \"Invalid mermaid header ... Supported headers: graph/flowchart, stateDiagram-v2, sequenceDiagram, classDiagram, erDiagram, ...\" for every listed family; renderMermaidASCII throws the same",
+      "nativeAnswers": {
+        "info": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"info\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagram\\\", \\\"cla\"}, \"renderMermaid",
+        "railroad": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"railroad-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagr\"}, \"renderMermaidAS",
+        "treeview": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"treeView-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagr\"}, \"renderMermaidAS",
+        "treemap": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"treemap-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagra\"}, \"renderMermaidAS",
+        "agentflow": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"agentflow-beta TB\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceD\"}, \"renderMermaidAS",
+        "block": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"block-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagram\\\"\"}, \"renderMermaidA",
+        "cynefin": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"cynefin-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagra\"}, \"renderMermaidAS",
+        "eventmodeling": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"eventmodeling\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagr\"}, \"renderMermaidAS",
+        "ishikawa": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"ishikawa-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagr\"}, \"renderMermaidAS",
+        "usecase": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"usecase-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagra\"}, \"renderMermaidAS",
+        "wardley": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"wardley-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagra\"}, \"renderMermaidAS",
+        "venn": "{\"validateMermaid\": {\"threw\": \"Line 1: Invalid mermaid header: \\\"venn-beta\\\". Supported headers: \\\"graph <dir>\\\"/\\\"flowchart <dir>\\\" (dir: TD, TB, LR, BT, RL), \\\"stateDiagram-v2\\\", \\\"sequenceDiagram\\\",\"}, \"renderMermaidA"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "1jehuang/mermaid-rs-renderer"
+      ],
+      "baselineCallbacks": 627,
+      "verdict": "confirmed",
+      "evidence": "mermaid-rs-renderer 0.3.1 src/ir.rs:12-36 DiagramKind has no Agentflow, Railroad, TreeView, Usecase, Cynefin, Wardley, Venn, Ishikawa, EventModeling or Info variant; src/parser.rs:109-210 detect_diagram_kind returns None for those headers or falls back to Flowchart when the text looks like flowchart edges. The public mmdr CLI fails with \"unknown or missing Mermaid diagram header\" (info, eventmodeling) or renders the source as a flowchart (railroad, treeview, agentflow, cynefin, ishikawa, usecase, wardley, venn: exit 0, flowchart SVG)",
+      "nativeAnswers": {
+        "info": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"error: unknown or missing Mermaid diagram header\"}}",
+        "railroad": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"182.87772\\\" height=\\\"372.65765\\\" viewBox=\\\"0 0 182.87772 372.65765\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"182.87772\\\" height=\\\"372.65765\\\" fill=\\\"#",
+        "treeview": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"182.87772\\\" height=\\\"382.97266\\\" viewBox=\\\"0 0 182.87772 382.97266\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"182.87772\\\" height=\\\"382.97266\\\" fill=\\\"#",
+        "agentflow": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"172.98993\\\" height=\\\"353.7118\\\" viewBox=\\\"0 0 172.98993 353.7118\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"172.98993\\\" height=\\\"353.7118\\\" fill=\\\"#FFF",
+        "cynefin": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"153.21439\\\" height=\\\"368.141\\\" viewBox=\\\"0 0 153.21439 368.141\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"153.21439\\\" height=\\\"368.141\\\" fill=\\\"#FFFFFF",
+        "eventmodeling": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"error: unknown or missing Mermaid diagram header\"}}",
+        "ishikawa": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"163.10217\\\" height=\\\"351.85785\\\" viewBox=\\\"0 0 163.10217 351.85785\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"163.10217\\\" height=\\\"351.85785\\\" fill=\\\"#",
+        "usecase": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"153.21442\\\" height=\\\"457.43884\\\" viewBox=\\\"0 0 153.21442 457.43884\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"153.21442\\\" height=\\\"457.43884\\\" fill=\\\"#",
+        "wardley": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"172.98993\\\" height=\\\"275.95923\\\" viewBox=\\\"0 0 172.98993 275.95923\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"172.98993\\\" height=\\\"275.95923\\\" fill=\\\"#",
+        "venn": "{\"cli\": {\"status\": 0, \"out\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"133.43886\\\" height=\\\"357.02527\\\" viewBox=\\\"0 0 133.43886 357.02527\\\"><rect x=\\\"0\\\" y=\\\"0\\\" width=\\\"133.43886\\\" height=\\\"357.02527\\\" fill=\\\"#"
+      },
+      "action": "Kept. Superseded for the families the candidate's own public parse answers: the bridge now relays that answer (another kind, or its own refusal) as native-unsupported; see fidelity-model-concept-review-2026-11-14.json bridgeFallbacks."
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "AlexanderGrooff/mermaid-ascii"
+      ],
+      "baselineCallbacks": 1893,
+      "verdict": "confirmed",
+      "evidence": "mermaid-ascii 1.6.1 public CLI exits 1 for every listed family: \"failed to parse graph diagram: unsupported graph type ... Supported types: graph or flowchart\" (it parses graph/flowchart, sequenceDiagram and erDiagram only)",
+      "nativeAnswers": {
+        "architecture": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'architecture-beta'. Supported types: 'graph' or 'flowchart' with an optional",
+        "gitgraph": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'gitGraph'. Supported types: 'graph' or 'flowchart' with an optional directio",
+        "info": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'info'. Supported types: 'graph' or 'flowchart' with an optional direction (T",
+        "packet": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'packet-beta'. Supported types: 'graph' or 'flowchart' with an optional direc",
+        "pie": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'pie'. Supported types: 'graph' or 'flowchart' with an optional direction (TD",
+        "radar": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'radar-beta'. Supported types: 'graph' or 'flowchart' with an optional direct",
+        "railroad": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'railroad-beta'. Supported types: 'graph' or 'flowchart' with an optional dir",
+        "treeview": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'treeView-beta'. Supported types: 'graph' or 'flowchart' with an optional dir",
+        "treemap": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'treemap-beta'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "agentflow": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'agentflow-beta TB'. Supported types: 'graph' or 'flowchart' with an optional",
+        "class": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'classDiagram'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "block": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'block-beta'. Supported types: 'graph' or 'flowchart' with an optional direct",
+        "cynefin": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'cynefin-beta'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "eventmodeling": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'eventmodeling'. Supported types: 'graph' or 'flowchart' with an optional dir",
+        "gantt": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'gantt'. Supported types: 'graph' or 'flowchart' with an optional direction (",
+        "ishikawa": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:55Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'ishikawa-beta'. Supported types: 'graph' or 'flowchart' with an optional dir",
+        "kanban": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'kanban'. Supported types: 'graph' or 'flowchart' with an optional direction ",
+        "mindmap": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'mindmap'. Supported types: 'graph' or 'flowchart' with an optional direction",
+        "quadrant": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'quadrantChart'. Supported types: 'graph' or 'flowchart' with an optional dir",
+        "requirement": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'requirementDiagram'. Supported types: 'graph' or 'flowchart' with an optiona",
+        "state": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'stateDiagram-v2'. Supported types: 'graph' or 'flowchart' with an optional d",
+        "usecase": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'usecase-beta'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "journey": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'journey'. Supported types: 'graph' or 'flowchart' with an optional direction",
+        "wardley": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'wardley-beta'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "xychart": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'xychart-beta'. Supported types: 'graph' or 'flowchart' with an optional dire",
+        "c4": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'C4Context'. Supported types: 'graph' or 'flowchart' with an optional directi",
+        "venn": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"time=\\\"2026-11-14T08:08:56Z\\\" level=fatal msg=\\\"failed to parse graph diagram: unsupported graph type 'venn-beta'. Supported types: 'graph' or 'flowchart' with an optional directi"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "anomalyco/opencode"
+      ],
+      "baselineCallbacks": 2259,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/extra-source/opencode-source@83960f8a.../source/packages/merman/src/detect.ts detectMermaidDiagram(source) returns null for every listed family (it names flowchart, gantt, gitgraph, sequence, state, timeline)",
+      "nativeAnswers": {
+        "architecture": "{\"detectMermaidDiagram\": null}",
+        "info": "{\"detectMermaidDiagram\": null}",
+        "packet": "{\"detectMermaidDiagram\": null}",
+        "pie": "{\"detectMermaidDiagram\": null}",
+        "radar": "{\"detectMermaidDiagram\": null}",
+        "railroad": "{\"detectMermaidDiagram\": null}",
+        "treeview": "{\"detectMermaidDiagram\": null}",
+        "treemap": "{\"detectMermaidDiagram\": null}",
+        "agentflow": "{\"detectMermaidDiagram\": null}",
+        "class": "{\"detectMermaidDiagram\": null}",
+        "block": "{\"detectMermaidDiagram\": null}",
+        "cynefin": "{\"detectMermaidDiagram\": null}",
+        "er": "{\"detectMermaidDiagram\": null}",
+        "eventmodeling": "{\"detectMermaidDiagram\": null}",
+        "ishikawa": "{\"detectMermaidDiagram\": null}",
+        "kanban": "{\"detectMermaidDiagram\": null}",
+        "mindmap": "{\"detectMermaidDiagram\": null}",
+        "quadrant": "{\"detectMermaidDiagram\": null}",
+        "requirement": "{\"detectMermaidDiagram\": null}",
+        "usecase": "{\"detectMermaidDiagram\": null}",
+        "journey": "{\"detectMermaidDiagram\": null}",
+        "wardley": "{\"detectMermaidDiagram\": null}",
+        "xychart": "{\"detectMermaidDiagram\": null}",
+        "c4": "{\"detectMermaidDiagram\": null}",
+        "venn": "{\"detectMermaidDiagram\": null}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "fasouto/termaid"
+      ],
+      "baselineCallbacks": 949,
+      "verdict": "confirmed",
+      "evidence": "termaid 0.12.0 termaid/__init__.py:63-189 dispatches on the header (stateDiagram, sequenceDiagram, classDiagram, erDiagram, block, gitGraph, gantt, pie, treemap, mindmap, packet, xychart, journey, timeline, kanban, quadrantChart, architecture); any other header falls through to parse() (flowchart). termaid.render() of each listed family exits 0 by drawing the text as a flowchart (node boxes labelled with the source words), not as that diagram",
+      "nativeAnswers": {
+        "info": "{\"render\": {\"status\": 0, \"out\": \"OK \\n\", \"err\": \"\"}}",
+        "radar": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u25c7\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510",
+        "railroad": "{\"render\": {\"status\": 0, \"out\": \"OK \\u256d\\u2500\\u2500\\u2500\\u2500\\u2500\\u256e \\u2502     \\u2502 \\u2502  a  \\u2502 \\u2502     \\u2502 \\u2570\\u2500\\u2500\\u2500\\u2500\\u2500\\u256f\\n\", \"err\": \"\"}}",
+        "treeview": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510 \\u2502     ",
+        "agentflow": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510 \\u2502     \\u2502 \\u2502  A  \\u2502 \\u2502     \\u2502 \\u2514\\u2500\\u2500\\u252c\\u2500\\u2500\\u2518    \\u2502    \\u2502    \\u25bc \\u250c\\u2500\\u",
+        "cynefin": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510 \\u2502           \\u2502",
+        "eventmodeling": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500",
+        "ishikawa": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510 \\u2502     \\u2502    \\u2502     \\u2502 \\u2502  A  \\u2502    \\u2502  B  \\u2502 \\u2502     \\u2502",
+        "requirement": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500",
+        "usecase": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500",
+        "wardley": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510",
+        "c4": "{\"render\": {\"status\": 0, \"out\": \"OK \\u256d\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u256e \\u2502         \\u2502 \\u2502  a,\\\"A\\\"  \\u2502 \\u2502         \\u2502 \\u2570\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\",
+        "venn": "{\"render\": {\"status\": 0, \"out\": \"OK \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510    \\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510 \\u2502         \\u2502    \\u2502         \\u2502 "
+      },
+      "action": "Kept. Superseded for the families the candidate's own public parse answers: the bridge now relays that answer (another kind, or its own refusal) as native-unsupported; see fidelity-model-concept-review-2026-11-14.json bridgeFallbacks."
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "KlangHaus/vitepress-plugin-diagram"
+      ],
+      "baselineCallbacks": 2165,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/vitepress-plugin-mermaid-diagram@0.3.2-recipe-*/.../dist/index.js exported detectDiagramType(source) returns null for every listed family (it accepts flowchart, sequence and classDiagram headers)",
+      "nativeAnswers": {
+        "architecture": "{\"detectDiagramType\": null}",
+        "gitgraph": "{\"detectDiagramType\": null}",
+        "info": "{\"detectDiagramType\": null}",
+        "packet": "{\"detectDiagramType\": null}",
+        "pie": "{\"detectDiagramType\": null}",
+        "radar": "{\"detectDiagramType\": null}",
+        "railroad": "{\"detectDiagramType\": null}",
+        "treeview": "{\"detectDiagramType\": null}",
+        "treemap": "{\"detectDiagramType\": null}",
+        "agentflow": "{\"detectDiagramType\": null}",
+        "block": "{\"detectDiagramType\": null}",
+        "cynefin": "{\"detectDiagramType\": null}",
+        "er": "{\"detectDiagramType\": null}",
+        "eventmodeling": "{\"detectDiagramType\": null}",
+        "gantt": "{\"detectDiagramType\": null}",
+        "ishikawa": "{\"detectDiagramType\": null}",
+        "kanban": "{\"detectDiagramType\": null}",
+        "mindmap": "{\"detectDiagramType\": null}",
+        "quadrant": "{\"detectDiagramType\": null}",
+        "requirement": "{\"detectDiagramType\": null}",
+        "state": "{\"detectDiagramType\": null}",
+        "usecase": "{\"detectDiagramType\": null}",
+        "journey": "{\"detectDiagramType\": null}",
+        "wardley": "{\"detectDiagramType\": null}",
+        "xychart": "{\"detectDiagramType\": null}",
+        "c4": "{\"detectDiagramType\": null}",
+        "venn": "{\"detectDiagramType\": null}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "lukilabs/beautiful-mermaid"
+      ],
+      "baselineCallbacks": 1380,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/beautiful-mermaid@1.1.3-recipe-*/.../dist/index.js renderMermaidASCII(source) throws \"Invalid mermaid header ... Expected graph TD, flowchart LR, stateDiagram-v2, etc.\" for every listed family",
+      "nativeAnswers": {
+        "architecture": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"architecture-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "gitgraph": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"gitGraph\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "info": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"info\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "packet": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"packet-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "pie": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"pie\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "radar": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"radar-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "railroad": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"railroad-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "treeview": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"treeView-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "treemap": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"treemap-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "agentflow": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"agentflow-beta TB\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "block": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"block-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "cynefin": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"cynefin-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "eventmodeling": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"eventmodeling\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "gantt": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"gantt\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "ishikawa": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"ishikawa-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "kanban": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"kanban\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "mindmap": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"mindmap\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "quadrant": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"quadrantChart\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "requirement": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"requirementDiagram\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "usecase": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"usecase-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "journey": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"journey\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "wardley": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"wardley-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "c4": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"C4Context\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "venn": "{\"renderMermaidASCII\": {\"threw\": \"Invalid mermaid header: \\\"venn-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "Mootikins/figurehead-rs"
+      ],
+      "baselineCallbacks": 1947,
+      "verdict": "confirmed",
+      "evidence": "figurehead v0.4.3 public CLI (bin/figurehead convert) exits 1 with \"No suitable detector found for input\" for every listed family",
+      "nativeAnswers": {
+        "architecture": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "info": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "packet": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "pie": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "radar": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "railroad": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "treeview": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "treemap": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "agentflow": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "block": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "cynefin": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "er": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "eventmodeling": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "gantt": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "ishikawa": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "kanban": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "mindmap": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "quadrant": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "requirement": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "usecase": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "journey": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "wardley": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "xychart": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "c4": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}",
+        "venn": "{\"cli\": {\"status\": 1, \"out\": \"\", \"err\": \"Error: No suitable detector found for input\"}}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "sandyyst/dsh-plugin-mermaid-gb-svg"
+      ],
+      "baselineCallbacks": 2696,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/dsh-plugin-mermaid-gb-svg@0.1.5-recipe-*/.../lib/engine.js:377-398 parseMermaid recognises only graph/flowchart headers and reads every other line as flowchart statements: an ER, class or sequence source returns a flowchart Graph (nodes named after source words), never that diagram. It has no parser for the listed families",
+      "nativeAnswers": {
+        "architecture": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "gitgraph": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "info": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "packet": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "pie": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "radar": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "railroad": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "treeview": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "treemap": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "agentflow": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 1, \"direction\": \"td\"}}",
+        "class": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "block": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "cynefin": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "er": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "eventmodeling": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "gantt": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "ishikawa": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "kanban": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "mindmap": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "quadrant": "{\"parseMermaid\": {\"nodes\": 4, \"edges\": 0, \"direction\": \"td\"}}",
+        "requirement": "{\"parseMermaid\": {\"nodes\": 6, \"edges\": 0, \"direction\": \"td\"}}",
+        "sequence": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "state": "{\"parseMermaid\": {\"nodes\": 1, \"edges\": 0, \"direction\": \"td\"}}",
+        "usecase": "{\"parseMermaid\": {\"nodes\": 4, \"edges\": 1, \"direction\": \"td\"}}",
+        "journey": "{\"parseMermaid\": {\"nodes\": 3, \"edges\": 0, \"direction\": \"td\"}}",
+        "wardley": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "xychart": "{\"parseMermaid\": {\"nodes\": 4, \"edges\": 0, \"direction\": \"td\"}}",
+        "c4": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}",
+        "venn": "{\"parseMermaid\": {\"nodes\": 2, \"edges\": 0, \"direction\": \"td\"}}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "kais-radwan/ascii-mermaid"
+      ],
+      "baselineCallbacks": 1265,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/extra-source/ascii-mermaid-source@a91a0c7b.../source/ts/dist/index.js renderMermaidAscii(source) throws \"Invalid mermaid header ... Expected graph TD, flowchart LR, stateDiagram-v2, etc.\" for every listed family",
+      "nativeAnswers": {
+        "architecture": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"architecture-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "gitgraph": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"gitGraph\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "info": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"info\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "packet": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"packet-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "radar": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"radar-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "railroad": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"railroad-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "treeview": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"treeView-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "treemap": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"treemap-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "agentflow": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"agentflow-beta TB\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "block": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"block-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "cynefin": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"cynefin-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "eventmodeling": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"eventmodeling\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "ishikawa": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"ishikawa-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "kanban": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"kanban\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "mindmap": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"mindmap\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "quadrant": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"quadrantChart\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "requirement": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"requirementDiagram\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "usecase": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"usecase-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "journey": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"journey\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "wardley": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"wardley-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "xychart": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"xychart-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "c4": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"C4Context\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}",
+        "venn": "{\"renderMermaidAscii\": {\"threw\": \"Invalid mermaid header: \\\"venn-beta\\\". Expected \\\"graph TD\\\", \\\"flowchart LR\\\", \\\"stateDiagram-v2\\\", etc.\"}}"
+      }
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "tariqshams/mermaidtui"
+      ],
+      "baselineCallbacks": 2696,
+      "verdict": "confirmed that it cannot parse them, but the verdict was Trident's table rather than the candidate's own answer",
+      "evidence": "node_modules/.cache/unified-community/mermaidtui@0.0.6-recipe-*/node_modules/mermaidtui/dist/src/index.js: renderMermaidToTui passes every source to parseMermaid, its one public parser; dist/src/parser/index.js:33-36 throws ParseError('Unsupported diagram type or missing direction') for any header other than `flowchart <direction>`. Probe: parseMermaid throws that error for every listed family.",
+      "nativeAnswers": {
+        "architecture": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "gitgraph": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "info": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "packet": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "pie": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "radar": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "railroad": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "treeview": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "treemap": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "agentflow": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "class": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "block": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "cynefin": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "er": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "eventmodeling": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "gantt": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "ishikawa": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "kanban": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "mindmap": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "quadrant": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "requirement": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "sequence": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "state": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "usecase": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "journey": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "wardley": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "xychart": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "c4": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}",
+        "venn": "{\"parseMermaid\": {\"threw\": \"Line 1: Unsupported diagram type or missing direction (Suggestion: Use 'flowchart LR', 'flowchart RL', 'flowchart TB', or 'flowchart BT')\"}}"
+      },
+      "action": "Withdrawn from Trident's table: bridges/javascript.mjs now sends every family to parseMermaid, so the refusal is MermaidTUI's own (native unsupported), as its renderer would answer."
+    },
+    {
+      "basis": "family-table",
+      "projects": [
+        "orestesgaolin/mermaid",
+        "pub:mermaid_flutter"
+      ],
+      "baselineCallbacks": 461,
+      "verdict": "confirmed",
+      "evidence": "mermaid_core 0.3.2 (both the Mermaid Dart package config's copy and the copy Mermaid Flutter's native app resolves, /root/.pub-cache/hosted/pub.dev/mermaid_core-0.3.2, byte-identical by `diff -r`) contains no agentflow, usecase or treeview parser or model (grep -ri of lib/).",
+      "action": "Kept."
+    },
+    {
+      "basis": "public-library",
+      "projects": [
+        "orestesgaolin/mermaid",
+        "pub:mermaid_flutter"
+      ],
+      "baselineCallbacks": 496,
+      "verdict": "confirmed",
+      "evidence": "mermaid_core 0.3.2 lib/mermaid_core.dart exports parseC4Diagram, parseClassDiagram, parseErDiagram, parseFlowchart, parseGanttChart, parseJourney, parseMindmap, parsePacket, parsePieChart, parseQuadrantChart, parseRequirementDiagram, parseSankey, parseSequence, parseStateDiagram, parseTimeline, parseXyChart (bridges/dart/build.ts publicCoreParsers). parseRadar, parseGitGraph, parseRailroad, parseArchitecture, parseBlock, parseKanban exist in lib/src/diagrams/* but are not exported, so under SCOPE.md's public-interface rule they are not part of the candidate's parse interface.",
+      "action": "Kept (the capability exists only in private code)."
+    },
+    {
+      "basis": "no-model",
+      "projects": [
+        "wevm/ondine"
+      ],
+      "baselineCallbacks": 3076,
+      "verdict": "confirmed",
+      "evidence": "node_modules/.cache/unified-community/ondine@0.0.3-recipe-*/node_modules/ondine/dist/compiler/index.js exports only Render, RenderError, create and render; render() returns the rendered SVG and its type (dist/compiler/index.d.ts), no parsed model. The per-family './compiler/wasm/*' exports are the WASM render modules.",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "class notes (\"<project>'s class model keeps no notes\": 200 callbacks each, 100 for XMermaid)",
+      "projects": [
+        "1jehuang/mermaid-rs-renderer",
+        "crafter-station/mermaid",
+        "emtyty/merslim",
+        "KlangHaus/vitepress-plugin-diagram",
+        "lukilabs/beautiful-mermaid",
+        "kais-radwan/ascii-mermaid",
+        "evangwt/xmermaid"
+      ],
+      "verdict": "confirmed",
+      "evidence": "Probe (scripts/fidelity-probe.ts against the campaign's prepared artifacts) of `classDiagram / class Alpha / note for Alpha \"NOTEONE\" / note \"NOTETWO\"`: neither note text appears anywhere in any of the seven native models.",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "edge ids (\"<project>'s edge model keeps no edge ids\")",
+      "projects": [
+        "dfadler/zombie-mermaid"
+      ],
+      "baselineCallbacks": 62,
+      "verdict": "disproved",
+      "evidence": "node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-*/node_modules/@zombie-mermaid/core/dist/shared/index.d.ts MermaidEdge declares `id?: string` (\"Edge id from `A e1@--> B`\") and `animate?: boolean` (\"Set by `e1@{ animate: true }`\"), also in 5.16.0. Probe of `flowchart TD / A --> B / B e2@--> C / e2@{ animate: true }` returns the second edge with id 'e2' and animate true, the first with neither.",
+      "action": "View fixed (view-core.mjs mermaidGraphView edgeIds): a written id is Mermaid's user-defined id (isUserDefinedId true) and a written animate is read; an edge written without an id has Mermaid's generated L_<start>_<end>_<n> id declared absent for that edge only. reviewed-versions.mjs 5.17.0 note records the review."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "edge ids",
+      "projects": [
+        "Dicklesworthstone/frankenmermaid",
+        "1jehuang/mermaid-rs-renderer",
+        "evangwt/xmermaid",
+        "kitlangton/merman"
+      ],
+      "verdict": "confirmed",
+      "evidence": "Probe of `flowchart TD / A EDGEID@--> B`: no edge carries 'EDGEID' (kitlangton merman reads 'AEDGEID@' as a node id; the others drop it).",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "participant and actor recorded the same way",
+      "projects": [
+        "1jehuang/mermaid-rs-renderer",
+        "emtyty/merslim",
+        "Mootikins/figurehead-rs"
+      ],
+      "verdict": "confirmed",
+      "evidence": "Probe of `sequenceDiagram / participant PA / actor AB`: mmdr gives both shape 'ActorBox'; merslim and figurehead keep no kind for either.",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "C4 text wrapping per element",
+      "projects": [
+        "obsidianmd/pele",
+        "crabtalk/bezel",
+        "adewale/agentic-mermaid",
+        "dfadler/zombie-mermaid"
+      ],
+      "verdict": "confirmed",
+      "evidence": "Probe of `C4Context / Person(customerA, ...)`: no 'wrap' key in any element record.",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "git graph checked-out branch",
+      "projects": [
+        "fasouto/termaid",
+        "evangwt/xmermaid",
+        "1jehuang/mermaid-rs-renderer"
+      ],
+      "verdict": "confirmed",
+      "evidence": "Probe of `gitGraph / commit / branch develop / checkout develop / commit / checkout main`: the models keep commits with their branch and the branch list, with no field for the branch checked out last.",
+      "action": "Kept."
+    },
+    {
+      "basis": "model-concept",
+      "scope": "every other declared-absent concept",
+      "projects": "all with reviewed views",
+      "baselineCallbacks": {
+        "Dicklesworthstone/frankenmermaid": 447,
+        "orestesgaolin/mermaid": 175,
+        "pub:mermaid_flutter": 175,
+        "adewale/agentic-mermaid": 223,
+        "dfadler/zombie-mermaid": 304,
+        "1jehuang/mermaid-rs-renderer": 870,
+        "AlexanderGrooff/mermaid-ascii": 80,
+        "anomalyco/opencode": 88,
+        "crafter-station/mermaid": 291,
+        "emtyty/merslim": 564,
+        "evangwt/xmermaid": 335,
+        "fasouto/termaid": 317,
+        "kitlangton/merman": 30,
+        "KlangHaus/vitepress-plugin-diagram": 258,
+        "Latias94/merman": 132,
+        "lukilabs/beautiful-mermaid": 355,
+        "Mootikins/figurehead-rs": 195,
+        "obsidianmd/pele": 101,
+        "sandyyst/dsh-plugin-mermaid-gb-svg": 184,
+        "kais-radwan/ascii-mermaid": 386,
+        "crabtalk/bezel": 103
+      },
+      "verdict": "not individually probed in this review",
+      "evidence": "Each is declared by a reviewed view against the project's types or parser source at the reviewed version (views/reviewed-versions.mjs). The spot checks above, which cover the largest declarations, found one wrong declaration (zombie-mermaid edge ids, added to its types in 5.16.0 after the view was written against 5.14).",
+      "action": "Kept; a later review should probe the rest the same way. Probed one by one in fidelity-model-concept-review-2026-11-14.json: 631 project reasons confirmed and 26 disproved (12 concepts; views fixed)."
+    },
+    {
+      "basis": "renderer-layout",
+      "projects": "all",
+      "baselineCallbacks": {
+        "Dicklesworthstone/frankenmermaid": 12,
+        "wevm/ondine": 3,
+        "orestesgaolin/mermaid": 16,
+        "pub:mermaid_flutter": 16,
+        "adewale/agentic-mermaid": 20,
+        "dfadler/zombie-mermaid": 12,
+        "1jehuang/mermaid-rs-renderer": 12,
+        "AlexanderGrooff/mermaid-ascii": 1,
+        "anomalyco/opencode": 5,
+        "crafter-station/mermaid": 1,
+        "emtyty/merslim": 3,
+        "evangwt/xmermaid": 12,
+        "fasouto/termaid": 19,
+        "kitlangton/merman": 5,
+        "KlangHaus/vitepress-plugin-diagram": 2,
+        "Latias94/merman": 19,
+        "lukilabs/beautiful-mermaid": 2,
+        "Mootikins/figurehead-rs": 1,
+        "obsidianmd/pele": 42,
+        "sandyyst/dsh-plugin-mermaid-gb-svg": 1,
+        "tariqshams/mermaidtui": 1,
+        "kais-radwan/ascii-mermaid": 2,
+        "crabtalk/bezel": 19
+      },
+      "verdict": "not a capability claim",
+      "evidence": "Mermaid's renderer layout data and host configuration (4 November policy): decided by Mermaid's renderer, not a parse result, for every candidate alike.",
+      "action": "Kept."
+    },
+    {
+      "basis": "mermaid-pipeline",
+      "projects": "all",
+      "baselineCallbacks": {
+        "Dicklesworthstone/frankenmermaid": 8,
+        "wevm/ondine": 8,
+        "orestesgaolin/mermaid": 8,
+        "pub:mermaid_flutter": 8,
+        "adewale/agentic-mermaid": 8,
+        "dfadler/zombie-mermaid": 8,
+        "1jehuang/mermaid-rs-renderer": 8,
+        "AlexanderGrooff/mermaid-ascii": 8,
+        "anomalyco/opencode": 8,
+        "crafter-station/mermaid": 8,
+        "emtyty/merslim": 8,
+        "evangwt/xmermaid": 8,
+        "fasouto/termaid": 8,
+        "kitlangton/merman": 8,
+        "KlangHaus/vitepress-plugin-diagram": 8,
+        "Latias94/merman": 8,
+        "lukilabs/beautiful-mermaid": 8,
+        "Mootikins/figurehead-rs": 8,
+        "obsidianmd/pele": 8,
+        "sandyyst/dsh-plugin-mermaid-gb-svg": 8,
+        "tariqshams/mermaidtui": 8,
+        "kais-radwan/ascii-mermaid": 8,
+        "crabtalk/bezel": 8
+      },
+      "verdict": "not a capability claim",
+      "evidence": "Diagram.fromText in a shared test drives Mermaid's own detection, type ids and registry; preserveCommentsWhenParsing is a Mermaid pipeline flag (5 November policy).",
+      "action": "Kept."
+    }
+  ],
+  "amendments": [
+    {
+      "date": "2026-11-14",
+      "subject": "crabtalk/bezel 0.2.26 stateful database binding",
+      "binding": "unified/mermaid-fidelity/bridges/bezel/src/database.rs, built from the checksum-verified bezel-mermaid 0.2.26 crate. A test's database is Bezel's own model: a fresh database is the family database type's public constructor (as its Diagram::parse makes it) or, where it has none, Bezel's parse of the header-only diagram; a parse starts it from Bezel's model of that source. Each Mermaid database member call runs the model type's public method, replayed in order on each request, and the test reads the model Bezel returns through the reviewed views. Arguments are passed only when they convert exactly (a native enum by its own name or serialization, a struct only when it serializes back to the test's object); anything else is an adapter limitation. runtime.ts binds it the way it binds Pele's database class: members the candidate's database implements are callable and spyable, and a spy that expects the parser's calls is the parser -> database protocol.",
+      "bound": {
+        "gantt": "setDateFormat, enableInclusiveEndDates, setAxisFormat, setTickInterval, setTodayMarker, setIncludes, setExcludes, setWeekday (Weekday::from_name), addSection, addTask, setLink, setClickEvent, setClass, setDiagramTitle, setAccTitle, setAccDescription (gantt/db.rs:237-378; common/db.rs:37-45)",
+        "journey": "addSection, addTask, setDiagramTitle, setAccTitle, setAccDescription (journey/db.rs:51-58)",
+        "requirement": "addRequirement, setNewReqId, setNewReqText, setNewReqRisk, setNewReqVerifyMethod, addElement, setNewElementType, setNewElementDocRef, addRelationship, setCssStyle, setClass, defineClass, text setters (requirement/db.rs:87-205)",
+        "railroad": "setTitle, setDiagramTitle, setAccTitle, setAccDescription (railroad/db.rs:21 pub titles)",
+        "state": "addState (id and type only), addDescription, addStyleClass, setCssClass, addLink, text setters (state/db.rs:166-280)",
+        "mindmap": "addNode, decorateNode (common/outline.rs:113 OutlineDb, implemented by MindmapModel)",
+        "class": "addClass, setClassLabel, addAnnotation, addMember, addNote, setCssClass, defineClass, setTooltip, setLink, setClickEvent, addNamespace, addClassesToNamespace, setCssStyle, text setters (class/db.rs:77-371)",
+        "flowchart": "addClass, setClass, setTooltip, setLink, setClickEvent, updateLinkInterpolate, updateLink, text setters (flowchart/store.rs:310-405)",
+        "agentflow": "emitWarning and emitError (with the context nodeId Bezel requires), updateLinkInterpolate, updateLink (agentflow/db.rs:781-785; store)",
+        "quadrant": "parseStyles (PointStyle::parse), setXAxisLeftText, setXAxisRightText, setYAxisBottomText, setYAxisTopText, addClass, text setters (quadrant/db.rs:116-198)",
+        "architecture": "addService, addJunction, addGroup, addLayoutHint, text setters (architecture/db.rs:161-234)",
+        "treeview": "setDiagramTitle, setAccTitle, setAccDescription (TreeViewModel pub titles)"
+      },
+      "stillUnbound": "unified/mermaid-fidelity/native-capabilities.mjs lists each remaining member with its reason (argument translation, parsed-statement parameters, or a parser's calls on a concrete database type).",
+      "measured": {
+        "run": "jsdom, all 352 selected files, crabtalk/bezel only, against a fresh control (7,346 reference-qualified callbacks, unchanged)",
+        "scored": {
+          "before": {
+            "passed": 3218,
+            "failed": 90,
+            "unsupported": 174,
+            "trident-blocked": 1362
+          },
+          "after": {
+            "passed": 3265,
+            "failed": 96,
+            "unsupported": 209,
+            "trident-blocked": 1274
+          }
+        },
+        "adapterLimitationsNamingNativeCapability": {
+          "before": 288,
+          "after": 160
+        },
+        "moves": {
+          "adapter limitation -> passed": 46,
+          "adapter limitation -> unsupported (capability assessment)": 41,
+          "adapter limitation -> other Trident gap": 35,
+          "adapter limitation -> failed": 6,
+          "unsupported (capability assessment) -> passed": 1,
+          "unsupported (capability assessment) -> Trident gap": 1,
+          "passed -> anything else": 0
+        }
+      }
+    }
+  ],
+  "versionReview20261122": {
+    "appliesTo": "dfadler/zombie-mermaid 5.18.0 only; other measured projects keep the unchanged review inputs",
+    "withdrawn": [
+      "dfadler/zombie-mermaid family-table: the old list omits six public 5.18 parsers; no old family-table absence confirmation reused. Missing bindings remain unassessed, not passed."
+    ],
+    "evidence": [
+      "model-review/zombie-types.json",
+      "model-review/zombie-comparison.json"
+    ],
+    "allRawOutcomesPreserved": true
+  }
+}

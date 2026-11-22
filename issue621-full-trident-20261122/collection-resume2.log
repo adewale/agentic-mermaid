@@ -1,0 +1,11 @@
+START peers davebench
+END peers davebench 0
+START current-default davebench:terminal
+END current-default davebench:terminal 0
+START main-default davebench:terminal
+END main-default davebench:terminal 0
+START historical-default davebench:terminal
+END historical-default davebench:terminal 0
+START peers davebench:terminal
+END peers davebench:terminal 1
+Canonical collector failed; retain and repair /workspace/elk-layered-tools/issue621-full-trident-20261122/peers/davebench-terminal.log

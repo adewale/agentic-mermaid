@@ -1,0 +1,27 @@
+{
+  "purpose": "Large raw qualification JSONs and actual Node v8 snapshots are retained losslessly in the raw archive. Original local copies remain intact.",
+  "movedDirectCopies": [
+    {
+      "original": "current-default-parser-qualification.json",
+      "sha256": "d32b4f42db0badc2ad265619b951d9218eb16a62e392635574e2defabd822b75",
+      "retainedIn": "raw/public-parser-qualification.tar.gz",
+      "member": "current-default-parser-qualification.json"
+    },
+    {
+      "original": "main-default-parser-qualification.json",
+      "sha256": "10d004606e91d9cde0a9fd3fac8aa05f7311cfc590deed9dd62b11b46936cbe1",
+      "retainedIn": "raw/public-parser-qualification.tar.gz",
+      "member": "main-default-parser-qualification.json"
+    }
+  ],
+  "archiveSources": [
+    "current-default-parser-qualification.json",
+    "current-default-parser-qualification.json.left.v8",
+    "current-default-parser-qualification.json.right.v8",
+    "current-default-parser-qualification.log",
+    "main-default-parser-qualification.json",
+    "main-default-parser-qualification.json.left.v8",
+    "main-default-parser-qualification.json.right.v8",
+    "main-default-parser-qualification.log"
+  ]
+}

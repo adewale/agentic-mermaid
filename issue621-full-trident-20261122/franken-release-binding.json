@@ -1,0 +1,12 @@
+{
+  "tag": "v0.6.0",
+  "published": "2026-11-22T00:28:53Z",
+  "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.6.0",
+  "asset": {
+    "name": "frankenmermaid-linux-amd64.tar.xz",
+    "sha256": "sha256:724f3a7c87450cfba6cb9335de15228d4b366e65c6f1d0dc2d1ebe9049fded10",
+    "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/download/v0.6.0/frankenmermaid-linux-amd64.tar.xz"
+  },
+  "sourceRevision": "8a3b1e99b54dd9d42712c4fb0a202c24fdf26b64",
+  "moduleRevision": "0ddba9402355b2d484a8023f5e55afc69f614865"
+}

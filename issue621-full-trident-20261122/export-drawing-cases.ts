@@ -1,0 +1,1 @@
+import {writeFileSync} from 'node:fs';import {drawingCases} from './harness/fidelity/drawing/corpus.ts';writeFileSync(import.meta.dirname+'/drawing-inputs.json',JSON.stringify(drawingCases(),null,2));

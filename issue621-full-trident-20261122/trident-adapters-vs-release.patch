@@ -1,0 +1,420 @@
+diff --git a/tests/community-candidate-provenance.test.ts b/tests/community-candidate-provenance.test.ts
+new file mode 100644
+index 0000000..34d8a28
+--- /dev/null
++++ b/tests/community-candidate-provenance.test.ts
+@@ -0,0 +1,37 @@
++import { expect, test } from 'bun:test'
++import { execFileSync } from 'node:child_process'
++import { createHash } from 'node:crypto'
++import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
++import { join } from 'node:path'
++import { prepareCommunity, verifyProvidedCommunityArtifact } from '../unified/community.ts'
++import { useTempDirs } from './helpers/temp-dir.ts'
++
++const temp = useTempDirs('trident-candidate-source-')
++test('npm preparation retains declared packed source provenance and frozen loading rejects another source claim for the same bytes', async () => {
++  const root = temp.dir(), contents = join(root, 'contents'), tarball = join(root, 'candidate.tgz')
++  mkdirSync(join(contents, 'package'), { recursive: true })
++  writeFileSync(join(contents, 'package/package.json'), JSON.stringify({ name: 'trident-local-source-fixture', version: '1.0.0', type: 'module', exports: './index.js' }))
++  writeFileSync(join(contents, 'package/index.js'), 'export const parse = source => ({ source })\n')
++  execFileSync('tar', ['-czf', tarball, '-C', contents, 'package'])
++  const sha256 = createHash('sha256').update(readFileSync(tarball)).digest('hex')
++  const project = 'fixture/local-source', packedFrom = '1234567890abcdef1234567890abcdef12345678', catalog = join(root, 'catalog.json')
++  writeFileSync(catalog, JSON.stringify({ nodes: [{ id: project, head: 'abcdef1234567890abcdef1234567890abcdef12', roles: [], outputs: ['parse'], benchmark: { adapter: 'declared', package: 'trident-local-source-fixture', version: '1.0.0', entry: 'index.js', outputs: ['parse'], api: { parse: { export: 'parse' } } } }] }))
++  const options = { root, out: join(root, 'prepared'), rounds: 1, profile: 'smoke' as const, communityCatalogFile: catalog, communityProjects: [project], communityCandidate: { project, tarball, sha256, packedFrom } }
++  const [prepared] = await prepareCommunity(options)
++  expect(prepared?.error).toBeUndefined()
++  expect(prepared?.artifact?.revision).toBe(packedFrom)
++  expect(prepared?.artifact?.candidate).toMatchObject({ sha256, packedFrom })
++  expect(() => verifyProvidedCommunityArtifact({ ...prepared!.artifact!, revision: 'fedcba0987654321fedcba0987654321fedcba09' })).toThrow('source provenance')
++  const communityPreparedFile = join(options.out, 'community-prepared.json')
++  const [frozen] = await prepareCommunity({ ...options, out: join(root, 'frozen'), communityPreparedFile })
++  expect(frozen?.artifact?.revision).toBe(packedFrom)
++  const [changed] = await prepareCommunity({ ...options, out: join(root, 'changed'), communityPreparedFile, communityCandidate: { ...options.communityCandidate, packedFrom: 'fedcba0987654321fedcba0987654321fedcba09' } })
++  expect(changed?.artifact).toBeUndefined()
++  expect(changed?.error).toContain('source provenance')
++  const [invalid] = await prepareCommunity({ ...options, out: join(root, 'invalid'), communityCandidate: { ...options.communityCandidate, packedFrom: 'mutable-branch' } })
++  expect(invalid?.artifact).toBeUndefined()
++  expect(invalid?.error).toContain('full source revision')
++  const [unclaimed] = await prepareCommunity({ ...options, out: join(root, 'unclaimed'), communityCandidate: { project, tarball, sha256 } })
++  expect(unclaimed?.error).toBeUndefined()
++  expect(unclaimed?.artifact?.revision).toBeUndefined()
++})
+diff --git a/tests/fidelity-agentic-source.test.ts b/tests/fidelity-agentic-source.test.ts
+index 2ddf2fd..02c4333 100644
+--- a/tests/fidelity-agentic-source.test.ts
++++ b/tests/fidelity-agentic-source.test.ts
+@@ -93,10 +93,172 @@ test('Agentic source sequence interleaves unambiguous notes and activation marke
+   expect(() => view.getNotes()[0].wrap).toThrow('unsupported:')
+ })
+ 
+-test('Agentic source sequence preserves exact editing-model order where semantic records exist', () => {
++test('Agentic source sequence uses exact editing order only for fully semantic bodies, otherwise unambiguous render indexes', () => {
+   const editingModel = { kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'fragment', fragment: { fragmentKind: 'loop', label: 'Empty', branches: [{ messages: [] }] } }] }
+   const view = sourceView('sequence', { notes: [], activationEvents: [], editingModel })
+   expect(view.getMessages().map((m: any) => m.message)).toEqual(['Empty', ''])
++
++  // Public main6f models retained for the pinned Mermaid 12.3.0 sequence tests:
++  // special characters in alt/par/loop/opt and no-label alt/par/opt. Shared
++  // records are factored below; unused fragment.rawLines alone are omitted.
++  const actors = ['Alice', 'Bob'].map(id => ({ id, label: id, type: 'participant' }))
++  const first = { from: 'Alice', to: 'Bob', label: 'Hello Bob, how are you?', lineStyle: 'solid', startHead: 'none', endHead: 'none', centralStart: false, centralEnd: false }
++  const reply = { from: 'Bob', to: 'Alice', label: 'I am good thanks!', lineStyle: 'dashed', startHead: 'none', endHead: 'none', centralStart: false, centralEnd: false }
++  const branchMessage = { from: 'Bob', to: 'Alice', text: reply.label, style: 'line-dashed', arrow: '-->' }
++  const opaque = (line: string) => ({ before: 0, statement: { kind: 'opaque-block', lines: [line] } })
++  for (const [kind, labelled, start, section, end] of [
++    ['alt', true, 12, 13, 14], ['par', true, 19, 20, 21],
++    ['alt', false, 12, 13, 14], ['par', false, 19, 20, 21],
++    ['loop', true, 10, undefined, 11], ['opt', true, 15, undefined, 16], ['opt', false, 15, undefined, 16],
++  ] as const) {
++    const sectioned = section !== undefined
++    const label = labelled ? '-:<>,' : '', sectionLabel = labelled ? ',<>:-' : ''
++    const branches = [
++      { messages: [branchMessage], ...(labelled || !sectioned ? { statements: [opaque('# comment')] } : {}) },
++      ...(sectioned ? [{ ...(labelled ? { label: sectionLabel } : {}), messages: [branchMessage], statements: [opaque(labelled ? '#; comment' : '# comment')] }] : []),
++    ]
++    const fragment = { kind: 'fragment', fragment: { fragmentKind: kind, ...(labelled ? { label } : {}), branches } }
++    const body = {
++      kind: 'sequence', participants: actors.map(({ type, ...actor }) => ({ ...actor, kind: type })),
++      messages: [{ from: first.from, to: first.to, text: first.label, style: 'line', arrow: '->' }],
++      statements: [{ kind: 'message', ref: 0 }, fragment],
++    }
++    const model = {
++      actors, messages: [first, reply, ...(sectioned ? [reply] : [])], notes: [], activationEvents: [], boxes: [],
++      blocks: [{ type: kind, label, startIndex: 1, endIndex: sectioned ? 2 : 1, dividers: sectioned ? [{ index: 2, label: sectionLabel }] : [] }],
++      editingModel: body,
++    }
++    const original = structuredClone(model)
++    const publicView = sourceView('sequence', model)
++    if (sectioned) {
++      const entries = publicView.getMessages()
++      // These positions and labels are asserted by the pinned upstream tests.
++      expect(entries.map((m: any) => [m.message, m.type])).toEqual([
++        [first.label, 5], [label, start], [reply.label, 6], [sectionLabel, section], [reply.label, 6], ['', end],
++      ])
++      expect(entries.map((m: any) => m.id)).toEqual(['0', '1', '2', '3', '4', '5'])
++      expect(() => entries[1].wrap).toThrow('unsupported:')
++      const note = { actorIds: ['Alice'], text: 'meaningful', position: 'over', afterIndex: 0 }
++      const ambiguous = sourceView('sequence', { ...model, notes: [note] })
++      expect(ambiguous.getNotes()[0].message).toBe('meaningful')
++      expect(() => ambiguous.getMessages()).toThrow('order of the note and block marker')
++      expect(() => sourceView('sequence', { ...model, messages: model.messages.map(m => ({ ...m, number: 1 })) }).getMessages()).toThrow('autonumber')
++      expect(() => sourceView('sequence', { ...model, messages: model.messages.map(m => ({ ...m, startHead: 'unknown' })) }).getMessages()).toThrow('gap:')
++      if (kind === 'alt' && labelled) {
++        // Actual public main6f parse of the same source with `loop outer` / `end`
++        // around alt; independently checked against pinned Mermaid getMessages.
++        const nested = {
++          ...model, blocks: [...model.blocks, { type: 'loop', label: 'outer', startIndex: 1, endIndex: 2, dividers: [] }],
++          editingModel: { ...body, statements: [body.statements[0], { kind: 'fragment', fragment: {
++            fragmentKind: 'loop', label: 'outer', branches: [{ messages: [], statements: [{ before: 0, statement: fragment }] }],
++          } }] },
++        }
++        const nestedOriginal = structuredClone(nested)
++        const entries = sourceView('sequence', nested).getMessages()
++        expect(entries.map((m: any) => [m.message, m.type])).toEqual([
++          [first.label, 5], ['outer', 10], [label, 12], [reply.label, 6], [sectionLabel, 13], [reply.label, 6], ['', 14], ['', 11],
++        ])
++        expect(() => entries[1].wrap).toThrow('unsupported:')
++        expect(() => sourceView('sequence', { ...nested, notes: [note] }).getMessages()).toThrow('order of the note and block marker')
++        expect(nested).toEqual(nestedOriginal)
++      }
++    } else {
++      // The three existing unknown cases retain their render-index ambiguity.
++      expect(() => publicView.getMessages()).toThrow('empty block and a block holding one message')
++    }
++    // Opaque editing content itself is still unsupported without a render model.
++    expect(() => nativeSchemaView('adewale/agentic-mermaid', 'sequence', body, hooks).getMessages()).toThrow('unparsed source lines')
++    expect(model).toEqual(original)
++  }
++})
++
++test('Agentic typed sequence retains notes, lifecycle declarations and nested fragments at their branch positions', () => {
++  const message = (text: string) => ({ from: 'A', to: 'B', text, arrow: '->>', style: 'solid', wrap: false })
++  const editingModel = {
++    kind: 'sequence', participants: [], messages: [message('after')], statements: [
++      { kind: 'note', position: 'over', actorIds: ['A', 'B'], text: 'before', wrap: true },
++      { kind: 'fragment', fragment: { fragmentKind: 'alt', label: 'outer', wrap: false, branches: [
++        { messages: [message('first'), message('last')], statements: [
++          { before: 0, statement: { kind: 'create', id: 'B', declaration: 'participant', label: 'B' } },
++          { before: 1, statement: { kind: 'fragment', fragment: { fragmentKind: 'loop', label: 'nested', wrap: true, branches: [{ messages: [message('inner')], statements: [
++            { before: 0, statement: { kind: 'note', position: 'right', actorIds: ['B'], text: 'inside', wrap: false } },
++            { before: 1, statement: { kind: 'destroy', actorId: 'B' } },
++          ] }] } } },
++          { before: 2, statement: { kind: 'note', position: 'left', actorIds: ['A'], text: 'tail' } },
++        ] },
++        { label: 'otherwise', wrap: true, messages: [] },
++      ] } },
++      { kind: 'message', ref: 0 },
++    ],
++  }
++  const view = sourceView('sequence', { notes: [], activationEvents: [], editingModel })
++  const entries = view.getMessages()
++  expect(entries.map((m: any) => [m.message, m.type])).toEqual([
++    ['before', 2], ['outer', 12], ['first', 0], ['nested', 10], ['inside', 2],
++    ['inner', 0], ['', 11], ['last', 0], ['tail', 2], ['otherwise', 13], ['', 14], ['after', 0],
++  ])
++  expect(entries.map((m: any) => m.id)).toEqual(Array.from({ length: 12 }, (_, i) => String(i)))
++  expect([entries[0].wrap, entries[1].wrap, entries[3].wrap, entries[4].wrap, entries[9].wrap]).toEqual([true, false, true, false, true])
++  expect(() => entries[8].wrap).toThrow('unsupported:')
++  const direct = nativeSchemaView('adewale/agentic-mermaid', 'sequence', editingModel, hooks)
++  expect(direct.getNotes().map((n: any) => n.actor)).toEqual([['A', 'B'], 'B', 'A'])
++  expect(() => direct.getCreatedActors()).toThrow('unsupported:')
++})
++
++test('Agentic typed activations retain top-level and nested statement order without inventing wrapping', () => {
++  // Public agent/core model at 6f11d6d; message order independently read from
++  // Mermaid 12.3.0 getMessages for the same source. Only unused raw lines omitted.
++  const editingModel = {
++    kind: 'sequence', participants: [{ id: 'A', label: 'A', kind: 'participant' }, { id: 'B', label: 'B', kind: 'participant' }],
++    messages: [{ from: 'A', to: 'B', text: 'after', style: 'sync', arrow: '->>' }],
++    statements: [
++      { kind: 'participant', ref: 0 }, { kind: 'participant', ref: 1 },
++      { kind: 'activation', actorId: 'A', activate: true, rawLine: 'activate A' },
++      { kind: 'fragment', fragment: { fragmentKind: 'loop', label: 'outer', branches: [{
++        messages: [{ from: 'A', to: 'B', text: 'first', style: 'sync', arrow: '->>' }],
++        statements: [
++          { before: 0, statement: { kind: 'note', position: 'over', actorIds: ['A'], text: 'before' } },
++          { before: 0, statement: { kind: 'activation', actorId: 'B', activate: true, rawLine: '  activate B' } },
++          { before: 1, statement: { kind: 'fragment', fragment: { fragmentKind: 'opt', label: 'inner', branches: [{
++            messages: [{ from: 'B', to: 'A', text: 'reply', style: 'reply', arrow: '-->>' }],
++            statements: [
++              { before: 0, statement: { kind: 'activation', actorId: 'B', activate: false, rawLine: '    deactivate B' } },
++              { before: 0, statement: { kind: 'activation', actorId: 'B', activate: true, rawLine: '    activate B' } },
++            ],
++          }] } } },
++          { before: 1, statement: { kind: 'activation', actorId: 'B', activate: false, rawLine: '  deactivate B' } },
++        ],
++      }] } },
++      { kind: 'activation', actorId: 'A', activate: false, rawLine: 'deactivate A' },
++      { kind: 'message', ref: 0 },
++    ],
++  }
++  const original = structuredClone(editingModel)
++  for (const view of [sourceView('sequence', { editingModel }), nativeSchemaView('adewale/agentic-mermaid', 'sequence', editingModel, hooks)]) {
++    const entries = view.getMessages()
++    expect(entries.map((m: any) => [m.from, m.to, m.message, m.type])).toEqual([
++      ['A', undefined, '', 17], [undefined, undefined, 'outer', 10], ['A', 'A', 'before', 2],
++      ['B', undefined, '', 17], ['A', 'B', 'first', 0], [undefined, undefined, 'inner', 15],
++      ['B', undefined, '', 18], ['B', undefined, '', 17], ['B', 'A', 'reply', 1],
++      [undefined, undefined, '', 16], ['B', undefined, '', 18], [undefined, undefined, '', 11],
++      ['A', undefined, '', 18], ['A', 'B', 'after', 0],
++    ])
++    expect(entries.map((m: any) => m.id)).toEqual(Array.from({ length: 14 }, (_, i) => String(i)))
++    for (const index of [0, 3, 6, 7, 10, 12]) {
++      expect([entries[index].activate, entries[index].centralConnection]).toEqual([false, 0])
++      expect(() => entries[index].wrap).toThrow('unsupported:')
++    }
++  }
++  expect(editingModel).toEqual(original)
++})
++
++test('Agentic sequence preserves same-slot empty fragments and refuses an unbound native branch index', () => {
++  const fragment = (label: string) => ({ kind: 'fragment', fragment: { fragmentKind: 'loop', label, branches: [{ messages: [] }] } })
++  const branch = { messages: [], statements: [{ before: 0, statement: fragment('one') }, { before: 0, statement: fragment('two') }] }
++  const editingModel = { kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'fragment', fragment: { fragmentKind: 'loop', label: 'outer', branches: [branch] } }] }
++  expect(sourceView('sequence', { editingModel }).getMessages().map((m: any) => m.message)).toEqual(['outer', 'one', '', 'two', '', ''])
++  branch.statements[0]!.before = 1
++  expect(() => sourceView('sequence', { editingModel }).getMessages()).toThrow('gap:')
+ })
+ 
+ test('Agentic public ER model exposes typed attributes, cardinalities and class definitions', () => {
+diff --git a/unified/candidate-packages.ts b/unified/candidate-packages.ts
+index b4b4ca9..abc0f6d 100644
+--- a/unified/candidate-packages.ts
++++ b/unified/candidate-packages.ts
+@@ -4,7 +4,11 @@ import { readdirSync, readFileSync } from 'node:fs'
+ import { dirname, join, resolve } from 'node:path'
+ 
+ export interface CandidateArchive { tarball: string; sha256: string }
+-export interface NpmCandidate extends CandidateArchive { dependencies?: CandidateArchive[] }
++export interface NpmCandidate extends CandidateArchive {
++  /** Caller-declared immutable source commit used to pack this unreleased build. */
++  packedFrom?: string
++  dependencies?: CandidateArchive[]
++}
+ const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
+ 
+ /** Check path safety, not registry naming policy: scoped leaves may start with _. */
+diff --git a/unified/community.ts b/unified/community.ts
+index 5fef6ca..a7c85c9 100644
+--- a/unified/community.ts
++++ b/unified/community.ts
+@@ -104,6 +104,7 @@ async function npmArtifact(node: CommunityNode, cache: string, pinned = false, c
+   let version = recorded
+   if (candidate) {
+     if (node.id === 'mermaid-js/mermaid') throw new Error('Mermaid is the pinned oracle; it takes no candidate')
++    if (candidate.packedFrom !== undefined && !/^[a-f0-9]{40}$/.test(candidate.packedFrom)) throw new Error('Candidate packedFrom must be a full source revision')
+     if (artifactDigest(candidate.tarball) !== candidate.sha256) throw new Error('Candidate tarball differs from its supplied SHA-256')
+     const pkg = candidatePackage(candidate.tarball)
+     if (pkg.name !== name) throw new Error(`Candidate tarball holds ${pkg.name}; ${node.id} benchmarks ${name}`)
+@@ -200,11 +201,12 @@ async function npmArtifact(node: CommunityNode, cache: string, pinned = false, c
+       adapterCompanions.push({ root: dependencyRoot, name: pkg.name, version: pkg.version, integrity, closureSha256: createHash('sha256').update(JSON.stringify(adapterCompanionIdentity(dependencyRoot))).digest('hex') })
+     }
+   }
+-  const prepared: CommunityArtifact = { kind: 'node', root, module, version, integrity, installedClosureSha256: evidenceDigest(adapterCompanionIdentity(root)), runtime, sha256: moduleSha256, files: wasmFiles, ...(plan.wasmRelativePath ? { wasm: join(root, plan.wasmRelativePath) } : {}), apiBoundary: plan.boundary, ...(adapterCompanions.length ? { adapterCompanions } : {}), ...(plan.overrides ? { dependencyOverrides: plan.overrides } : {}), ...(candidate ? { candidate: { sha256: candidate.sha256, tarball: copy, ...(retainedDependencies.length ? { dependencies: retainedDependencies.map(({ tarball, sha256 }) => ({ tarball, sha256 })) } : {}) } } : {}) }
++  const prepared: CommunityArtifact = { kind: 'node', root, module, version, integrity, installedClosureSha256: evidenceDigest(adapterCompanionIdentity(root)), runtime, sha256: moduleSha256, files: wasmFiles, ...(plan.wasmRelativePath ? { wasm: join(root, plan.wasmRelativePath) } : {}), apiBoundary: plan.boundary, ...(adapterCompanions.length ? { adapterCompanions } : {}), ...(plan.overrides ? { dependencyOverrides: plan.overrides } : {}), ...(candidate ? { ...(candidate.packedFrom ? { revision: candidate.packedFrom } : {}), candidate: { sha256: candidate.sha256, tarball: copy, ...(candidate.packedFrom ? { packedFrom: candidate.packedFrom } : {}), ...(retainedDependencies.length ? { dependencies: retainedDependencies.map(({ tarball, sha256 }) => ({ tarball, sha256 })) } : {}) } } : {}) }
+   return extra.prepareExtraPublishedArtifact(prepared, { installedIntegrity: (nativeRoot: string, packageName: string, packageVersion: string) => installedNpmIntegrity(prefix, nativeRoot, packageName, packageVersion) })
+ }
+ 
+ export function verifyProvidedCommunityArtifact(artifact: CommunityArtifact): void {
++  if (artifact.candidate && 'tarball' in artifact.candidate && artifact.candidate.packedFrom !== undefined && (!/^[a-f0-9]{40}$/.test(artifact.candidate.packedFrom) || artifact.revision !== artifact.candidate.packedFrom)) throw Error('Candidate source provenance differs from its artifact revision')
+   if (artifact.candidate && 'tarball' in artifact.candidate) for (const archive of [artifact.candidate, ...(artifact.candidate.dependencies ?? [])]) verifyCandidateArchive(archive)
+   for (const variant of artifact.additionalCli ?? []) if (variant.artifact) verifyProvidedCommunityArtifact(variant.artifact)
+   const entry = artifact.kind === 'cli' || artifact.kind === 'jsonl-worker' ? artifact.executable : artifact.kind === 'python' ? (artifact.python ?? artifact.executable) : (artifact.module ?? artifact.executable)
+@@ -261,6 +263,7 @@ function validateFrozenCommunityEntry(entry: PreparedCommunity, node: CommunityN
+     if (node.benchmark?.adapter === 'source-cli' && artifact.revision !== (revision ?? node.release?.commit ?? node.head)) throw Error('Native artifact revision differs from recorded source pin')
+     if (node.benchmark?.adapter === 'franken' && artifact.revision !== node.distribution?.revision) throw Error('WASM artifact revision differs from frozen distribution')
+     if (!!artifact.candidate !== !!candidate || (candidate && artifact.candidate && candidateKey(artifact.candidate) !== candidateKey(candidate))) throw Error('Frozen artifact and the requested candidate differ')
++    if (candidate && 'tarball' in candidate && artifact.candidate && 'tarball' in artifact.candidate && candidate.packedFrom !== artifact.candidate.packedFrom) throw Error('Frozen candidate source provenance differs from the requested candidate')
+     if (artifact.candidate && 'tarball' in artifact.candidate && (!existsSync(artifact.candidate.tarball) || artifactDigest(artifact.candidate.tarball) !== artifact.candidate.sha256)) throw Error('Frozen candidate tarball differs from its SHA-256')
+     if (node.benchmark?.package) {
+       if (!artifact.root) throw Error('Frozen npm artifact has no installed package root')
+diff --git a/unified/mermaid-fidelity/agentic-parser.mjs b/unified/mermaid-fidelity/agentic-parser.mjs
+index 1e51e7c..d3f8fbb 100644
+--- a/unified/mermaid-fidelity/agentic-parser.mjs
++++ b/unified/mermaid-fidelity/agentic-parser.mjs
+@@ -1,4 +1,7 @@
+ // These public APIs parse the source model consumed by Agentic's renderers.
++// They perform no layout: an ELK, Native or TypeScript solver configuration
++// shares this semantic evidence. Other families reach parseRegisteredMermaid
++// through runtime.ts; no internal parser path is a substitute for a missing API.
+ // Older packages expose only the source-preserving editing API; keep that
+ // binding when the reviewed source parser is absent, never after it rejects.
+ const SOURCE_PARSERS = { class: 'parseClassDiagram', sequence: 'parseSequenceDiagram', er: 'parseErDiagram', usecase: 'parseUsecaseModel', agentflow: 'parseAgentflowModel' }
+diff --git a/unified/mermaid-fidelity/views/reviewed-versions.mjs b/unified/mermaid-fidelity/views/reviewed-versions.mjs
+index 1c33643..ff90976 100644
+--- a/unified/mermaid-fidelity/views/reviewed-versions.mjs
++++ b/unified/mermaid-fidelity/views/reviewed-versions.mjs
+@@ -41,6 +41,7 @@ export const REVIEWED_VIEW_VERSIONS = {
+     },
+   },
+   'dfadler/zombie-mermaid': {
++    '5.18.0': '2026-11-22: exact installed core and mermaid-parser 5.17.0/5.18.0 type declarations and all 1087 native corpus probes reviewed. 1083 complete ordered models/refusals are identical; four gitgraph models add config.useMaxWidth, which no view reads. Existing parser model fields keep their encodings; added shape/marker words belong to the new usecase family. The six new parser families are not bound by the unchanged bridge and retain gaps; old family-table absence confirmations are withheld for this version. Evidence: model-review/zombie-comparison.json, zombie-types.json, type diffs and complete old/new native models. No source synthesis or score waiver.',
+     '5.14.4': 'views written against the 5.14 MermaidGraph, class, sequence and ER types',
+     '5.16.0': 'shared/index.d.ts of @zombie-mermaid/core and mermaid-parser 5.14.4 and 5.16.0 compared, and 1,080 corpus sources captured from both: no field removed. Changes the views read: a left-of state note is joined note -> state (the state view no longer reads that edge as a transition), messages and notes record a written wrap (now translated), a dotted lollipop records dashed (still declared absent: conservative). 5.16.0 also exports gantt, gitgraph, journey, kanban, mindmap, packet, radar, requirement, sankey and timeline parsers with no reviewed binding: the bridge reports those families as Trident gaps',
+     '5.17.0': '2026-11-14: MermaidEdge.id (written `A e1@--> B`) and .animate (written `e1@{ animate: true }`), declared in core dist/shared/index.d.ts since 5.16.0, are now read by the flowchart view (they were declared absent); checked against parses with and without both. shared/index.d.ts of @zombie-mermaid/core and mermaid-parser 5.16.0 and 5.17.0 compared: no field removed; a participant now records a written wrap:/nowrap: (and drops the prefix from its label), which the sequence view now translates; gantt gains config sizes and git graph gains positioned look fields, which no view reads. 1,080 corpus sources captured from both: 1,072 identical, the other 8 differ only in state note node ids, which no view reads (Mermaid note ids are declared absent). 2026-11-14 model-concept review (docs/evidence/fidelity-model-concept-review-2026-11-14.json): the sequence title, class link / dashed-link / association types and dashed relations, an ER entity alias (label differing from its id), subgraph class assignments and the state note side (note edge direction, also in 5.16.0) are now read; they had been declared absent. 2026-11-15: the text parsers parseGitGraph, parseRadar, parsePacket, parseKanban, parseMindmap, parseTimeline, parseJourney, parseGantt and parseRequirementDiagram are bound (from 5.17.0 on; parseSankey stays unbound) and read by new views, each checked against the mermaid-parser dist/shared/index.d.ts types and the output of the installed 5.17.0 parser for the sources in docs/evidence/fidelity-zombie-text-parsers-probe-2026-11-15.json: git commits (generated ids, merge customType / customId by omission, CHERRY_PICK), branch drawing order, heads derived from commit branch and seq; radar axes, curves and title; packet rows (words) and title; kanban columns and cards; mindmap text, shape, level, icon and className; timeline periods, sections and direction; journey tasks, sections and actors; gantt tasks (UTC wall-clock start / end read as local Dates), weekday and excludes; requirement nodes, relationships, classDefs, nodeClasses, styleLayers and direction. Declared absent, each shown by a probe in that file: the checked-out branch and head, the fork point of a branch without commits, the creation order of branches, the git statement list, written radar labels equal to their name, written curve entries and options, written packet blocks and row bit counts, kanban column metadata and icons, the id written before a delimited mindmap label, timeline task id and score, and accessibility text in every one of these families',
+@@ -52,7 +53,24 @@ export const REVIEWED_VIEW_VERSIONS = {
+   'wevm/ondine': { '0.0.3': '0.3.0 release' },
+   'orestesgaolin/mermaid': { '0.3.2': '0.3.0 release (mermaid_core 0.3.2). 2026-11-14 model-concept review (docs/evidence/fidelity-model-concept-review-2026-11-14.json): an ER entity label that differs from its id is its alias, now read' },
+   'pub:mermaid_flutter': { '0.3.2': '0.3.0 release (calls mermaid_core 0.3.2 unchanged). 2026-11-14 model-concept review: as Mermaid Dart' },
+-  'adewale/agentic-mermaid': { '0.5.6': '0.3.0 release. 2026-11-14 model-concept review (docs/evidence/fidelity-model-concept-review-2026-11-14.json): meta.accessibility descr (flowchart, ER, gantt, class, radar), class style objects, a written edge animate and subgraph class assignments are now read' },
++  'adewale/agentic-mermaid': {
++    '0.5.6': '0.3.0 release. 2026-11-14 model-concept review (docs/evidence/fidelity-model-concept-review-2026-11-14.json): meta.accessibility descr (flowchart, ER, gantt, class, radar), class style objects, a written edge animate and subgraph class assignments are now read',
++    '0.5.7': {
++      note: '2026-11-16: reviewed canonical public agent/core parseRegisteredMermaid bodies and the five exported source parsers bound in agentic-parser.mjs against their owning types and views; the main entry was also checked at 2c689fad and 96cf5cbe. Class/ER/source-order supplements, source UseCase/AgentFlow and existing family views remain public-API projections. Sequence now reads typed notes and recursively interleaves branch.statements at native before indexes, including create/destroy declarations and empty nested fragments; authored fragment/branch wrap is retained. Complete selected public models and structured refusals of all 1,087 unchanged community-corpus sources agree across the four installed revisions under native deep equality plus ordered lossless encoding equality (including Map/Set insertion order); native exceptions compare every own data field except runtime-dependent stack, with class identity named across installed copies. Three nested-sequence sources from each installed package match the pinned Mermaid 12.3.0 public database message order. Real Node 24 Fidelity runtime.initialize/probeNative reaches all five source-parser markers and their owning views, including those three nested sequences, at every revision. Missing fields, opaque source, unsupported internal imports and setup failures retain their existing unavailable/unsupported outcomes; this is shared parser evidence, not a layout-solver result. Revision is required because these are local builds under the same package version',
++      revisions: {
++        "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b": "2026-11-22 exact installed public parser qualification:1087 full native/ordered models, structured refusals and Error own data match reviewed6f11d6d0; six source/view/reference sequence comparisons pass. See current-default-parser-qualification.json; no layout or score equivalence inferred. All existing gaps/unsupported outcomes retained.",
++        "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004": "2026-11-22 exact installed public parser qualification:1087 full native/ordered models, structured refusals and Error own data match reviewed6f11d6d0; six source/view/reference sequence comparisons pass. See main-default-parser-qualification.json; no layout or score equivalence inferred. All existing gaps/unsupported outcomes retained.",
++        '2c689fad4e21d284a6e9c5190489754e97300b78': 'installed main build checked through its public main entry; the 2026-11-16 review above',
++        '96cf5cbe6396d243792e529321c1887910ece7fc': 'installed TypeScript-port build checked through its public main entry; every captured public model/refusal matches main in the review above',
++        f7a703aa76629775e10e3a503b264ff7b28307a9: 'actual sealed npm archive SHA-256 d8867cb99d995e2671f5352970544b2d7e6f1981159535bc515f874d905a6409, all 275 SDK files freshly unpacked and byte-verified. External dependency execution inputs match 96cf5cbe (11 actual installed packages, 586 files, resolution graph and package import/export maps). Canonical public agent/core models/refusals match main for all 1,087 sources; independent pinned-Mermaid sequence comparisons and real Node Fidelity runtime/view probes pass as described above',
++        fdb66d6b49451d159340e5a42fd5c14ec7d01606: 'actual sealed npm archive SHA-256 08500168cc6a39d5164a35cedb83fa72d06e16dd46d9797632f9255f70b2e8a3 is byte-identical to the retained 96cf5cbe archive; all 275 SDK files freshly unpacked and byte-verified. External dependency execution inputs match 96cf5cbe (11 actual installed packages, 586 files, resolution graph and package import/export maps). Fresh canonical public agent/core qualification matches main for all 1,087 models/refusals; independent pinned-Mermaid sequence comparisons and real Node Fidelity runtime/view probes pass as described above. This review follows the selected final source revision; the separate f7 review remains historical parser evidence',
++        '6f11d6d095c61f63c89bb558ba66b3bf519f2a9e': '2026-11-17 separate review of current main: actual sealed npm archive SHA-256 ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc, all 273 files unpacked and byte-verified. The public main and canonical agent/core entries were both executed. All 1,087 unchanged corpus models/refusals agree with matched-before 368c8a68 and the qualified final archive under native deep equality plus ordered lossless encoding; exception own-data comparison excludes only stack and names the Error subclass across module copies. This revision adds typed activation statements: the view reads actorId/activate in authored order, including branch.before positions, while wrapping remains unsupported when absent. Four sequence sources per package, including standalone and nested same-slot activations, match pinned Mermaid 12.3.0 public database message order. Real Node 24 runtime.initialize/probeNative reaches all five source parsers and their owning views, plus those four sequences. This is shared parser qualification, not a layout-solver result; opaque source, missing fields and refusals remain observed limitations',
++        '368c8a681f8527154faa8cbaac00aa87878a1e78': '2026-11-17 matched pre-retirement package: actual sealed npm archive SHA-256 26f360babca7c98c3ebbd550270cddb740efbb2de0dd5b3fa9fb7fdd31877379, all 275 files unpacked and byte-verified. Direct qualification through both public main and canonical agent/core entries matches main 6f11d6d0 for all 1,087 complete models/refusals with native and ordered equality. The same four independent Mermaid 12.3.0 sequence comparisons and five real Node runtime source-parser/view bindings pass. This is the later typed-activation model reviewed with 6f11d6d0, not a claim of equality to the older 2026-11-16 models or a separate Native/ELK solver win',
++        "ad0d4039e94cf513c7a72b44fac2584f4883e2a8": "2026-11-17: actual SDK packed from ad0d4039, 269 files, archive SHA-256 0664a239e5a45dc8eea5c68a176fb1c5da9fb7ac9f30481d0121d067299ed4f8; final CI pack byte-identical. Both public index and canonical agent-core retain all 1,087 complete native models, structured refusals and exception own-data snapshots in raw and ordered comparison with qualified c083. Actual Node 24.19 runtime initializes all five source-parser bindings and matches five independent pinned Mermaid 12.3.0 sequence references. All 17 loaded Node SDK parser/import/provider modules are byte-identical; the solver provider function has zero calls and neither changed ELK kernel file loads. The actual canonical NPM install separately matches all 269 SDK files and the complete 11-package, 586-file dependency execution graph. This revision moves only the ELK algorithm guard; the proof is parser-only. Existing 761 Fidelity observations retain their original measured source/archive/control identity; no ad0d callback execution or browser/layout equivalence is claimed.",
++        c083908749ee2eff2645fd63504aa68faa14ca51: '2026-11-17 final retirement source: actual c0839087-packed archive SHA-256 7c2afe72a26b851d7954c154455f6c63c2c07f54141ed8bce1d46b5e7dac0296 is byte-identical to the actual d7b2db92 archive; all 269 archive files also byte-match the SDK executed for qualification. Those executions are retained under d7b2db92: both public main and canonical agent/core entries match main 6f11d6d0 for all 1,087 complete models/refusals with native and ordered equality; four pinned-Mermaid sequence comparisons per entry and all five real Node runtime source-parser/view bindings pass. Source-build provenance records the completed 4691b242 runtime build followed only by excluded tests/golden changes and the actual c0839087 pack; no new runtime build is claimed. This exact archive identity qualifies the final revision for the same typed-activation view while retaining all opaque/missing/refusal outcomes; parser evidence is shared across layout arms',
++      },
++    },
++  },
+   '1jehuang/mermaid-rs-renderer': { '0.3.1': '0.3.0 release' },
+   'AlexanderGrooff/mermaid-ascii': { '1.6.1': '0.3.0 release' },
+   'crafter-station/mermaid': { '0.0.3': '0.3.0 release. 2026-11-14 model-concept review (docs/evidence/fidelity-model-concept-review-2026-11-14.json): subgraph class assignments are now read' },
+diff --git a/unified/mermaid-fidelity/views/sequence.mjs b/unified/mermaid-fidelity/views/sequence.mjs
+index adca85b..0ac4c94 100644
+--- a/unified/mermaid-fidelity/views/sequence.mjs
++++ b/unified/mermaid-fidelity/views/sequence.mjs
+@@ -464,10 +464,10 @@ function vitepress(raw, hooks) {
+ 
+ // ---------------------------------------------------------------------------------------
+ // agentic-mermaid SequenceBody: statements in order (participant, message, actor-links,
+-// fragment, opaque-block). A message keeps its exact arrow operator, an authored wrap flag,
+-// centralStart / centralEnd and activate / deactivate. Notes, activate lines, critical,
+-// break and rect blocks, title, box, create, destroy and properties lines are kept only as
+-// opaque-block source lines, which a view does not read. accTitle and accDescr are fields.
++// fragment, note, activation, create, destroy, opaque-block). A branch's statements carry `before`
++// indexes into its own messages, including nested fragments. Older bodies have only
++// branch.messages. Reviewed 0.5.7 bodies carry typed notes, lifecycle declarations
++// and, in later revisions, activations. Opaque source is never reparsed here.
+ const AGENTIC_ARROW = {
+   '->>': 'SOLID', '-->>': 'DOTTED', '->': 'SOLID_OPEN', '-->': 'DOTTED_OPEN', '-x': 'SOLID_CROSS', '--x': 'DOTTED_CROSS', '-)': 'SOLID_POINT', '--)': 'DOTTED_POINT', '<<->>': 'BIDIRECTIONAL_SOLID', '<<-->>': 'BIDIRECTIONAL_DOTTED',
+   '-|\\': 'SOLID_TOP', '-|/': 'SOLID_BOTTOM', '-\\\\': 'STICK_TOP', '-//': 'STICK_BOTTOM', '/|-': 'SOLID_ARROW_TOP_REVERSE', '\\|-': 'SOLID_ARROW_BOTTOM_REVERSE', '//-': 'STICK_ARROW_TOP_REVERSE', '\\\\-': 'STICK_ARROW_BOTTOM_REVERSE',
+@@ -491,22 +491,40 @@ function agentic(raw, hooks) {
+       ...(m.centralStart ? [withAbsent(marker(CENTRAL.from, '', m.from), noWrap)] : []),
+     ]
+   }
+-  const entries = () =>
+-    raw.statements.flatMap(statement => {
+-      if (statement.kind === 'participant' || statement.kind === 'actor-links') return []
+-      if (statement.kind === 'message') return message(raw.messages[statement.ref])
+-      if (statement.kind === 'opaque-block') return hooks.unsupported(`${name} keeps these statements only as unparsed source lines: ${statement.lines.map(line => JSON.stringify(line)).join(', ').slice(0, 160)}`)
+-      if (statement.kind === 'fragment') {
+-        const fragment = statement.fragment
+-        const block = blockTypes(fragment.fragmentKind, fragment.branches.length > 1, hooks, name)
+-        return [
+-          withAbsent(marker(block[0], fragment.label ?? ''), noWrap),
+-          ...fragment.branches.flatMap((branch, index) => [...(index ? [withAbsent(marker(block[1], branch.label ?? ''), noWrap)] : []), ...branch.messages.flatMap(message)]),
+-          withAbsent(marker(block[2]), noWrap),
+-        ]
+-      }
+-      return hooks.unavailable(`${name} sequence statement ${statement.kind}`)
+-    })
++  const wrappedMarker = (type, label, item) => typeof item.wrap === 'boolean' ? { ...marker(type, label), wrap: item.wrap } : withAbsent(marker(type, label), noWrap)
++  const branchEntries = branch => {
++    const pending = branch.statements ?? []
++    if (pending.some(item => !Number.isInteger(item.before) || item.before < 0 || item.before > branch.messages.length)) return hooks.unavailable('Agentic sequence branch statement has an invalid message index')
++    return Array.from({ length: branch.messages.length + 1 }, (_, before) => [
++      ...pending.filter(item => item.before === before).flatMap(item => statementEntries(item.statement)),
++      ...(before < branch.messages.length ? message(branch.messages[before]) : []),
++    ]).flat()
++  }
++  const statementEntries = statement => {
++    if (statement.kind === 'participant' || statement.kind === 'actor-links') return []
++    if (statement.kind === 'message') return message(raw.messages[statement.ref])
++    if (statement.kind === 'activation') return [withAbsent(marker(statement.activate ? views.SEQ.ACTIVE_START : views.SEQ.ACTIVE_END, '', statement.actorId), noWrap)]
++    // Mermaid's message list has no lifecycle entry. The source-model view
++    // below reads its actual bound message indexes separately.
++    if (statement.kind === 'create' || statement.kind === 'destroy') return []
++    if (statement.kind === 'note') {
++      const [from, to] = noteEnds(statement.actorIds)
++      const note = { from, to, message: statement.text, type: views.SEQ.NOTE, placement: placementOf(statement.position) }
++      return [typeof statement.wrap === 'boolean' ? { ...note, wrap: statement.wrap } : withAbsent(note, noWrap)]
++    }
++    if (statement.kind === 'opaque-block') return hooks.unsupported(`${name} keeps these statements only as unparsed source lines: ${statement.lines.map(line => JSON.stringify(line)).join(', ').slice(0, 160)}`)
++    if (statement.kind === 'fragment') {
++      const fragment = statement.fragment
++      const block = blockTypes(fragment.fragmentKind, fragment.branches.length > 1, hooks, name)
++      return [
++        wrappedMarker(block[0], fragment.label ?? '', fragment),
++        ...fragment.branches.flatMap((branch, index) => [...(index ? [wrappedMarker(block[1], branch.label ?? '', branch)] : []), ...branchEntries(branch)]),
++        withAbsent(marker(block[2]), noWrap),
++      ]
++    }
++    return hooks.unavailable(`${name} sequence statement ${statement.kind}`)
++  }
++  const entries = () => raw.statements.flatMap(statementEntries)
+   const opaque = what => `${name} keeps ${what} only as unparsed source lines`
+   return {
+     ...messageView(entries, {}, hooks),
+@@ -515,7 +533,7 @@ function agentic(raw, hooks) {
+     }, hooks),
+     getAccTitle: () => raw.accessibilityTitle ?? '',
+     getAccDescription: () => raw.accessibilityDescription ?? '',
+-    ...unsupported(hooks, { getDiagramTitle: opaque('a title line'), getBoxes: opaque('box blocks'), getCreatedActors: opaque('create statements'), getDestroyedActors: opaque('destroy statements') }),
++    ...unsupported(hooks, { getDiagramTitle: opaque('a title line'), getBoxes: opaque('box blocks'), getCreatedActors: `${name}'s editing body keeps declarations, not their bound render-message indexes`, getDestroyedActors: `${name}'s editing body keeps declarations, not their bound render-message indexes` }),
+   }
+ }
+ 
+@@ -564,7 +582,11 @@ function agenticSource(raw, hooks) {
+       return [a.id, messageAt[a[field]]]
+     }))
+   }
+-  const ordered = raw.editingModel && !raw.editingModel.statements.some(s => s.kind === 'opaque-block') ? agentic(raw.editingModel, hooks) : undefined
++  // An opaque line anywhere in the editing tree prevents that tree from proving
++  // the complete message order. Use the render model's existing index checks;
++  // neither discard nor interpret the opaque source to fill its missing facts.
++  const hasOpaque = statement => statement.kind === 'opaque-block' || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => (branch.statements ?? []).some(item => hasOpaque(item.statement))))
++  const ordered = raw.editingModel && !raw.editingModel.statements.some(hasOpaque) ? agentic(raw.editingModel, hooks) : undefined
+   return {
+     ...messageView(() => layout().list, noWrap, hooks),
+     ...(ordered ? { getMessages: ordered.getMessages } : {}),

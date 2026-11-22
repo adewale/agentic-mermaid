@@ -1,0 +1,212 @@
+[
+  {
+    "arm": "current-default",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/layout-observe.log"
+  },
+  {
+    "arm": "current-default",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-default/drawing-structure.log"
+  },
+  {
+    "arm": "current-balanced",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/layout-observe.log"
+  },
+  {
+    "arm": "current-balanced",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-balanced/drawing-structure.log"
+  },
+  {
+    "arm": "main-default",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/layout-observe.log"
+  },
+  {
+    "arm": "main-default",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-default/drawing-structure.log"
+  },
+  {
+    "arm": "main-balanced",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/layout-observe.log"
+  },
+  {
+    "arm": "main-balanced",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-balanced/drawing-structure.log"
+  },
+  {
+    "arm": "historical-default",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/layout-observe.log"
+  },
+  {
+    "arm": "historical-default",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-default/drawing-structure.log"
+  },
+  {
+    "arm": "historical-native",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/layout-observe.log"
+  },
+  {
+    "arm": "historical-native",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/historical-native/drawing-structure.log"
+  },
+  {
+    "arm": "peers",
+    "suite": "layout:observe",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "layout:observe",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/layout-observe"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/layout-observe.log"
+  },
+  {
+    "arm": "peers",
+    "suite": "drawing:structure",
+    "exitCode": 0,
+    "command": [
+      "bun",
+      "commands.ts",
+      "drawing:structure",
+      "--run",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/drawing",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/drawing-structure"
+    ],
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/drawing-structure.log"
+  }
+]

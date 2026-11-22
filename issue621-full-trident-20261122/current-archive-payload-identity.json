@@ -1,0 +1,13 @@
+{
+  "before": "/workspace/elk-layered-tools/issue619-intent-repair-20261121/npm/agentic-mermaid-0.5.7.tgz",
+  "fresh": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-archive/agentic-mermaid-0.5.7.tgz",
+  "files": [
+    270,
+    270
+  ],
+  "added": [],
+  "removed": [],
+  "changedBytes": [],
+  "changedModes": 0,
+  "freshArchiveSha256": "1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e"
+}

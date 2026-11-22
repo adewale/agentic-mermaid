@@ -1,0 +1,764 @@
+--- /tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/mermaid-parser/dist/shared/index.d.ts
++++ /tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/mermaid-parser/dist/shared/index.d.ts
+@@ -3,6 +3,7 @@
+ import { ClassInitLayout } from '@zombie-mermaid/core';
+ import { Direction } from '@zombie-mermaid/core';
+ import { ErInitLayout } from '@zombie-mermaid/core';
++import { InitConfig } from '@zombie-mermaid/core';
+ import { JourneyInitConfig } from '@zombie-mermaid/core';
+ import { MermaidGraph } from '@zombie-mermaid/core';
+ import { NodeInteraction } from '@zombie-mermaid/core';
+@@ -18,6 +19,7 @@
+ import { StyleDirectives } from '@zombie-mermaid/core';
+ import { ThemeVariables } from '@zombie-mermaid/core';
+ import { toDirection } from '@zombie-mermaid/core';
++import { TreemapInitConfig } from '@zombie-mermaid/core';
+ import { XyChartInitConfig } from '@zombie-mermaid/core';
+ 
+ /** Narrow rectangle on a lifeline showing active processing */
+@@ -181,6 +183,10 @@
+     labelY: number;
+     /** Text anchor for label */
+     textAnchor: 'start' | 'middle' | 'end';
++    /** `labelRotation`: turn the label by this many degrees about (labelX, labelY), its top centre. */
++    rotate?: number;
++    /** Tick label font size in px, when `labelFontSize` sets one. */
++    fontSize?: number;
+ }
+ 
+ export declare interface Block {
+@@ -208,6 +214,107 @@
+     /** Index one past the last note inside this block */
+     noteEndIndex: number;
+ }
++
++/** The end of an edge: Mermaid's `arrow_point` / `arrow_cross` / `arrow_circle`, `''` for a plain end. */
++export declare type BlockArrow = '' | 'arrow_point' | 'arrow_cross' | 'arrow_circle';
++
++/** A parsed Mermaid block diagram. */
++export declare interface BlockDiagram {
++    /** The top level: Mermaid's invisible `root` block. */
++    root: BlockNode;
++    /** Links, in the order they are written. */
++    edges: BlockEdge[];
++    /** `classDef name fill:#f9f,...`: each class's `property:value` items. */
++    classDefs: Record<string, string[]>;
++    /** Space between cells and inside each block: `block.padding` from front matter or `%%{init}%%` (default 8). */
++    padding: number;
++}
++
++/** A link between two blocks: `A --> B`, `A -- "text" ==> B`, `A -.- B`. */
++export declare interface BlockEdge {
++    /** Mermaid's `<n>-<start>-<end>`, `n` counting links between the same two ids. */
++    id: string;
++    start: string;
++    end: string;
++    label: string;
++    thickness: 'normal' | 'thick';
++    pattern: 'solid' | 'dotted';
++    /** `arrow_open` (no marker) when the start has none. */
++    arrowTypeStart: BlockArrow | 'arrow_open';
++    arrowTypeEnd: BlockArrow;
++}
++
++/**
++ * How a shape other than a rectangle is drawn, relative to the block's centre
++ * (Mermaid's shape functions, see `fitShape` in `@zombie-mermaid/svg-renderer`).
++ */
++export declare interface BlockGeometry {
++    kind: 'circle' | 'doublecircle' | 'polygon' | 'cylinder';
++    /** `circle`: its radius; `doublecircle`: the outer radius. */
++    r?: number;
++    /** `doublecircle`: the inner radius. */
++    inner?: number;
++    /** `polygon`: the corners as drawn; `cylinder`: the two corners of the path's bounding box. */
++    points?: {
++        x: number;
++        y: number;
++    }[];
++    /** `cylinder`: the path, in its own coordinates (its box starts at `points[0]`). */
++    d?: string;
++    /** What an edge clips against (Mermaid's `intersect`): the shape's bounding box size and its own outline. */
++    clip: {
++        width: number;
++        height: number;
++        points?: {
++            x: number;
++            y: number;
++        }[];
++        r?: number;
++        rx?: number;
++        ry?: number;
++    };
++    /** Where the label's centre sits, relative to the block's centre. */
++    labelDx: number;
++    labelDy: number;
++    /** The bounding box of what is drawn, relative to the block's centre. */
++    extent: {
++        minX: number;
++        minY: number;
++        maxX: number;
++        maxY: number;
++    };
++}
++
++/** A leaf block, a `space` cell, or a `block ... end` group (`composite`). */
++export declare interface BlockNode {
++    /** Mermaid's block id; anonymous groups and spaces get `block-N` / `space-N`. */
++    id: string;
++    type: 'node' | 'space' | 'composite';
++    /** The label as written (`<br>` breaks kept); `''` for spaces and groups. */
++    label: string;
++    shape: BlockShape;
++    /** A block arrow's directions as written (`right`, `left`, `up`, `down`, `x`, `y`; a name with a stray space counts for nothing); `[]` otherwise. */
++    directions: string[];
++    /** `a:2`, `block:id:2`: how many columns the block spans (1 when absent). */
++    widthInColumns: number;
++    /** A group's `columns N` (`-1`: no limit, one row). Absent on leaves. */
++    columns?: number;
++    /** A group's blocks, in order. */
++    children: BlockNode[];
++    /** `class a name`: the class names, in the order applied. */
++    classes: string[];
++    /** `style a fill:#f9f,stroke:#333`: the `property:value` items, trimmed. */
++    styles: string[];
++}
++
++/**
++ * Mermaid's block types, by delimiters: `id` / `id["x"]` square, `id("x")` round (5px
++ * corners), `(("x"))` circle, `((("x")))` doublecircle, `{"x"}` diamond, `{{"x"}}`
++ * hexagon, `(["x"])` stadium, `[["x"]]` subroutine, `[("x")]` cylinder, `>"x"]`
++ * rect_left_inv_arrow (asymmetric), `[/"x"/]` lean_right, `[\"x"\]` lean_left,
++ * `[/"x"\]` trapezoid, `[\"x"/]` inv_trapezoid, `<["x"]>(right)` block_arrow.
++ */
++export declare type BlockShape = 'square' | 'round' | 'circle' | 'doublecircle' | 'diamond' | 'hexagon' | 'stadium' | 'subroutine' | 'cylinder' | 'rect_left_inv_arrow' | 'lean_right' | 'lean_left' | 'trapezoid' | 'inv_trapezoid' | 'block_arrow';
+ 
+ export declare interface C4Boundary {
+     alias: string;
+@@ -443,6 +550,16 @@
+     toCardinality?: string;
+ }
+ 
++/** A bar's value printed on it (`showDataLabel`), as mermaid 12.3.0 places it. */
++export declare interface DataLabel {
++    x: number;
++    y: number;
++    text: string;
++    fontSize: number;
++    textAnchor: 'start' | 'middle' | 'end';
++    baseline: 'middle' | 'hanging' | 'auto';
++}
++
+ export declare interface ErAttribute {
+     /** Data type (string, int, varchar, etc.) */
+     type: string;
+@@ -495,6 +612,43 @@
+     label: string;
+     /** Whether the relationship is identifying (solid line) or non-identifying (dashed) */
+     identifying: boolean;
++}
++
++/** A parsed Mermaid event modeling diagram. */
++export declare interface EventModeling {
++    frames: EventModelingFrame[];
++    dataBlocks: EventModelingDataBlock[];
++}
++
++/** A `data Name { ... }` block, referenced from a frame with `[[Name]]`. */
++export declare interface EventModelingDataBlock {
++    name: string;
++    /** The block as written, braces included. */
++    value: string;
++}
++
++/** The five entity kinds (`ui`, `pcr`/`processor`, `cmd`/`command`, `rmo`/`readmodel`, `evt`/`event`). */
++export declare type EventModelingEntityType = 'ui' | 'processor' | 'command' | 'readmodel' | 'event';
++
++/** One time frame (`tf` / `timeframe`) or reset frame (`rf` / `resetframe`). */
++export declare interface EventModelingFrame {
++    /** The frame number as written (`'01'`): its identity, unique in the diagram. */
++    id: string;
++    /** A reset frame draws no implicit relation from the frame before it. */
++    reset: boolean;
++    entityType: EventModelingEntityType;
++    /** The identifier as written, `Namespace.Name` or `Name`. */
++    identifier: string;
++    /** The part before the first `.` of a two-part identifier: it opens a swimlane of its own. */
++    namespace?: string;
++    /** The drawn name (the part after the `.`). */
++    name: string;
++    /** Ids of the frames written after `->>` that exist, in order (unknown ids are ignored, as Mermaid does). */
++    sources: string[];
++    /** Inline data as written, including its braces or quotes. */
++    dataInline?: string;
++    /** `[[Name]]`, the data block this frame points at. */
++    dataRef?: string;
+ }
+ 
+ /** The metadata a `@{ ... }` block can carry. */
+@@ -537,6 +691,9 @@
+ 
+ /** `date.format(fmt)` for the dayjs tokens Mermaid's gantt uses. */
+ export declare function formatDayjs(ms: number, fmt: string): string;
++
++/** The result of d3's `format(",")`: 12 significant digits, no trailing zeros, thousands separators. */
++export declare function formatTreemapValue(v: number): string;
+ 
+ /** A parsed Mermaid gantt chart. */
+ export declare interface GanttChart {
+@@ -665,6 +822,8 @@
+     parallelCommits: boolean;
+     titleTopMargin: number;
+     diagramPadding: number;
++    /** `true` (Mermaid's default): `width="100%"` plus `max-width`; `false`: fixed `width` and `height`. */
++    useMaxWidth: boolean;
+     /** `theme` as written (`redux`, `neo-dark`, ...): picks Mermaid's geometry and font; colours stay the caller's. */
+     theme?: string;
+     /** `look` as written; `neo` adds a drop shadow to the branch label boxes. */
+@@ -705,6 +864,23 @@
+  * wins over `excludes`; `weekends` follows the chart's `weekend` setting.
+  */
+ export declare function isExcludedDate(chart: Pick<GanttChart, 'includes' | 'excludes' | 'weekend' | 'dateFormat'>, ms: number): boolean;
++
++/** A parsed Mermaid ishikawa diagram; `root` is absent when no line follows the header. */
++export declare interface Ishikawa {
++    root?: IshikawaNode;
++    /** `ishikawa.diagramPadding` from `%%{init}%%` or front matter; the layout's default is 20. */
++    diagramPadding?: number;
++    /** `look: handDrawn` from `%%{init}%%` or front matter, with `handDrawnSeed` (0 when unset). */
++    handDrawn?: {
++        seed: number;
++    };
++}
++
++/** One bone: a category or a cause, with the causes under it. */
++export declare interface IshikawaNode {
++    text: string;
++    children: IshikawaNode[];
++}
+ 
+ /** ISO weekday: Monday 1 .. Sunday 7. */
+ export declare function isoWeekday(ms: number): number;
+@@ -980,6 +1156,14 @@
+ export declare function parseArchitecture(lines: Statement[]): ArchitectureDiagram;
+ 
+ /**
++ * Parse Mermaid `block` / `block-beta` source into a {@link BlockDiagram}.
++ *
++ * @throws MermaidParseError when Mermaid 12.3.0 would fail to parse the text,
++ *   or the text uses syntax this port does not draw yet (named in the message).
++ */
++export declare function parseBlock(text: string): BlockDiagram;
++
++/**
+  * Split the text after the `box` keyword into a colour and a label, per
+  * Mermaid's `parseBoxData`: the leading word (or function call) is the
+  * colour if it is one, otherwise the whole header is the label. An explicit
+@@ -1017,6 +1201,9 @@
+  * Expects the first line to be "erDiagram".
+  */
+ export declare function parseErDiagram(lines: Statement[]): ErDiagram;
++
++/** Parse Mermaid `eventmodeling` source into a typed {@link EventModeling}. */
++export declare function parseEventModeling(text: string): EventModeling;
+ 
+ /**
+  * Parse the body of a `@{ ... }` block into key/value pairs.
+@@ -1050,6 +1237,9 @@
+ /** Parse Mermaid `gitGraph` source into a typed {@link GitGraph}. */
+ export declare function parseGitGraph(text: string): GitGraph;
+ 
++/** Parse Mermaid `ishikawa` source text. */
++export declare function parseIshikawa(text: string): Ishikawa;
++
+ /** Parse Mermaid `journey` source into a typed {@link Journey}. */
+ export declare function parseJourney(text: string): Journey;
+ 
+@@ -1106,6 +1296,14 @@
+ 
+ /** Parse Mermaid `timeline` source into a typed {@link Timeline}. */
+ export declare function parseTimeline(text: string): Timeline;
++
++/** Parse Mermaid `treemap` / `treemap-beta` source into a typed {@link Treemap}. */
++export declare function parseTreemap(text: string): Treemap;
++
++export declare function parseUsecase(source: string): UsecaseDiagram;
++
++/** Parse Mermaid `wardley-beta` source into a typed {@link WardleyMap}. */
++export declare function parseWardley(text: string): WardleyMap;
+ 
+ /**
+  * Parse a Mermaid xychart-beta diagram from preprocessed lines.
+@@ -1205,6 +1403,8 @@
+         x: number;
+         y: number;
+         rotate?: number;
++        /** Font size in px, when the axis' `titleFontSize` sets one. */
++        fontSize?: number;
+     };
+     /** Tick positions along the axis */
+     ticks: AxisTick[];
+@@ -1247,6 +1447,66 @@
+         y: number;
+         label: string;
+     }>;
++}
++
++/** A laid-out block diagram. */
++export declare interface PositionedBlockDiagram {
++    /** Every drawn block, parents before children (spaces are not drawn). */
++    nodes: PositionedBlockNode[];
++    edges: PositionedBlockEdge[];
++    /** The SVG viewBox: the blocks' bounds plus 5px each side, as Mermaid does. */
++    viewBox: {
++        x: number;
++        y: number;
++        width: number;
++        height: number;
++    };
++}
++
++/** An edge with its path points and label place (Mermaid's space). */
++export declare interface PositionedBlockEdge {
++    id: string;
++    /** Start, midpoint, end after clipping to the blocks, before marker offsets. */
++    points: {
++        x: number;
++        y: number;
++    }[];
++    /** The SVG path `d`, a basis curve through `points` with Mermaid's marker offsets. */
++    path: string;
++    label: string;
++    /** Centre of the label, when there is one. */
++    labelX: number;
++    labelY: number;
++    labelWidth: number;
++    thickness: 'normal' | 'thick';
++    pattern: 'solid' | 'dotted';
++    arrowTypeStart: BlockEdge['arrowTypeStart'];
++    arrowTypeEnd: BlockArrow;
++}
++
++/** A block with its place, ready to draw. `x`, `y` are the centre. */
++export declare interface PositionedBlockNode {
++    id: string;
++    type: 'node' | 'composite';
++    shape: BlockShape;
++    x: number;
++    y: number;
++    width: number;
++    height: number;
++    text: PositionedBlockText;
++    /** The drawing of a shape other than a rectangle (`square`, `round`, groups); `width`/`height` are then the block's grid cell. */
++    geometry?: BlockGeometry;
++    /** The block's classes (`class a name`), on the node group. */
++    classes: string[];
++    /** Style properties after merging `classDef` items (in class order) and `style` items, `color` included. */
++    css: [string, string][];
++}
++
++/** A line of a block's label. */
++export declare interface PositionedBlockText {
++    lines: string[];
++    /** Width of the widest line in px (Trebuchet MS, 16px). */
++    width: number;
+ }
+ 
+ export declare interface PositionedC4Boundary {
+@@ -1454,6 +1714,55 @@
+     };
+ }
+ 
++/** A diagram ready to draw, in Mermaid's own coordinates (see `viewBox`). */
++export declare interface PositionedEventModeling {
++    viewBox: {
++        x: number;
++        y: number;
++        width: number;
++        height: number;
++    };
++    lanes: PositionedEventModelingLane[];
++    /** Width of every lane band. */
++    laneWidth: number;
++    boxes: PositionedEventModelingBox[];
++    relations: PositionedEventModelingRelation[];
++}
++
++/** A frame, ready to draw. */
++export declare interface PositionedEventModelingBox {
++    frame: EventModelingFrame;
++    x: number;
++    y: number;
++    width: number;
++    height: number;
++    /** Index into `PositionedEventModeling.lanes`. */
++    lane: number;
++    /** The bold name (wrapped) then the data lines, centred as a block. */
++    nameLines: string[];
++    dataLines: string[];
++}
++
++/** A swimlane: a band over the whole timeline holding the frames of one entity group. */
++export declare interface PositionedEventModelingLane {
++    /** Sort key: 0-99 UI/processor lanes, 100-199 command/read model, 200-299 events. */
++    index: number;
++    label: string;
++    y: number;
++    height: number;
++}
++
++/** An arrow from one box to another. */
++export declare interface PositionedEventModelingRelation {
++    x1: number;
++    y1: number;
++    x2: number;
++    y2: number;
++    /** Index into `boxes`. */
++    from: number;
++    to: number;
++}
++
+ export declare interface PositionedGanttAxis {
+     /** Where the axis group sits, `translate(x, y)`. */
+     x: number;
+@@ -1618,6 +1927,7 @@
+         y: number;
+     };
+     showBranches: boolean;
++    useMaxWidth: boolean;
+     look: PositionedGitLook;
+ }
+ 
+@@ -2299,6 +2609,68 @@
+     text: string;
+     x: number;
+     y: number;
++    /** Font size in px, when `titleFontSize` sets one. */
++    fontSize?: number;
++}
++
++/** A treemap ready to draw; all coordinates are relative to the viewBox origin. */
++export declare interface PositionedTreemap {
++    width: number;
++    height: number;
++    title?: {
++        text: string;
++        x: number;
++        y: number;
++    };
++    /** Translation that puts the drawn content 8px inside the viewBox. */
++    offsetX: number;
++    offsetY: number;
++    /** Extra drop of the tree below the title (0 without one). */
++    treeOffsetY: number;
++    sections: PositionedTreemapSection[];
++    leaves: PositionedTreemapLeaf[];
++}
++
++/** A section header or a leaf cell, in the `TreemapLayout` order. */
++export declare interface PositionedTreemapLabel {
++    text: string;
++    x: number;
++    y: number;
++    fontSize: number;
++}
++
++/** A leaf cell. */
++export declare interface PositionedTreemapLeaf {
++    name: string;
++    x: number;
++    y: number;
++    width: number;
++    height: number;
++    color: number;
++    value: number;
++    styles: TreemapStyle[];
++    /** Absent when the name does not fit the cell. */
++    label?: PositionedTreemapLabel;
++    /** Absent when the value does not fit under the label. */
++    valueLabel?: PositionedTreemapLabel;
++}
++
++/** A section (a node with children). */
++export declare interface PositionedTreemapSection {
++    name: string;
++    depth: number;
++    x: number;
++    y: number;
++    width: number;
++    height: number;
++    /** Index into the colour scale; 0 is transparent. */
++    color: number;
++    value: number;
++    styles: TreemapStyle[];
++    /** The (possibly truncated) header label, empty when none fits. */
++    label: PositionedTreemapLabel;
++    /** The formatted total, absent with `showValues: false` or a zero total. */
++    valueLabel?: PositionedTreemapLabel;
+ }
+ 
+ export declare interface PositionedXYChart {
+@@ -2322,6 +2694,8 @@
+     gridLines: GridLine[];
+     /** Legend items (shown when multiple series) */
+     legend: LegendItem[];
++    /** Bar value labels (`showDataLabel`). */
++    dataLabels?: DataLabel[];
+     /** The chart's `xyChart` init block; the renderer reads the per-axis `show*` switches. */
+     config?: XyChartInitConfig;
+ }
+@@ -2592,6 +2966,254 @@
+ 
+ export { toDirection }
+ 
++/** A parsed Mermaid treemap diagram. */
++export declare interface Treemap {
++    /** `config: treemap:` / `%%{init: {"treemap": {...}}}%%` keys mermaid reads. */
++    config?: TreemapInitConfig;
++    /** The top-level rows (Mermaid's root is an unnamed node holding these). */
++    roots: TreemapNode[];
++    title?: string;
++}
++
++/**
++ * A node of the treemap. A node with `value` is a leaf (`"name": 12`); one
++ * without is a section whose indented rows are its children (a section with
++ * no children draws as a leaf of value 0, as in Mermaid).
++ */
++export declare interface TreemapNode {
++    name: string;
++    /** Leaves only; a section's value is the sum of its leaves. */
++    value?: number;
++    /** The `:::class` name, when it names a `classDef`. */
++    classSelector?: string;
++    /** The styles of that class (empty when the class is undefined). */
++    styles: TreemapStyle[];
++    /** Sections only. */
++    children?: TreemapNode[];
++}
++
++/** One `classDef` style item, e.g. `fill:#f96`. */
++export declare interface TreemapStyle {
++    key: string;
++    value: string;
++}
++
++/**
++ * Mermaid's `valueFormat` handling: `$0,0` and other `$`-led specifiers prefix
++ * a `$` to the rest; an invalid specifier (or an empty one) formats as `,`.
++ */
++export declare function treemapValueFormatter(spec?: string): (v: number) => string;
++
++/** Separates a json row's key from its value in the node label. */
++export declare const USECASE_JSON_SEP = "\u2063";
++
++/** An `actor` — drawn as a stick figure. */
++export declare interface UsecaseActor {
++    id: string;
++    label: string;
++    /** The `systemBoundary` it is declared in. */
++    parentId?: string;
++    /** `<<stereotype>>`, drawn as «stereotype» above the label. */
++    stereotype?: string;
++    /** `:::class` / `class` names, and `style` declarations. */
++    classes?: string[];
++    styles?: string[];
++    /** `@{ type: hollow|awesome }` or `@{ icon: name }` (`icon`); absent for the plain stick figure. */
++    type?: 'hollow' | 'awesome' | 'icon';
++    /** The `@{ icon: name }` name. */
++    icon?: string;
++    /** `@{ business: true }`: a slash through the figure. */
++    business?: true;
++}
++
++/** `systemBoundary Name … end`. */
++export declare interface UsecaseBoundary {
++    id: string;
++    label: string;
++    /** Ids of the actors and use cases declared inside, in source order. */
++    members: string[];
++    /** `@{ type: package }`: drawn with a tab holding the title; absent for the plain frame (`rect`). */
++    type?: 'package';
++}
++
++/** Any other named element: a use case. `Name(label)` / `Name` is an ellipse, `Name[label]` a rectangle. */
++export declare interface UsecaseCase {
++    id: string;
++    label: string;
++    shape: 'ellipse' | 'rect';
++    parentId?: string;
++    stereotype?: string;
++    classes?: string[];
++    styles?: string[];
++    /** `@{ business: true }` (ellipses only): a slash through the ellipse. */
++    business?: true;
++}
++
++/** `classDef name fill:#f00,stroke:#333`; `styles` are the `prop:value` declarations. */
++export declare interface UsecaseClassDef {
++    id: string;
++    styles: string[];
++}
++
++export declare interface UsecaseDiagram {
++    direction: UsecaseDirection;
++    actors: UsecaseActor[];
++    useCases: UsecaseCase[];
++    boundaries: UsecaseBoundary[];
++    relationships: UsecaseRelationship[];
++    notes: UsecaseNote[];
++    classDefs: UsecaseClassDef[];
++    jsonNodes: UsecaseJson[];
++}
++
++export declare type UsecaseDirection = 'TB' | 'TD' | 'BT' | 'LR' | 'RL';
++
++/** `json Name @ { ... }`: a table of the JSON object's keys and values. */
++export declare interface UsecaseJson {
++    id: string;
++    /** One row per scalar, `a.b[0]` style paths for keys, as mermaid flattens them. */
++    rows: Array<{
++        key: string;
++        value: string;
++    }>;
++    classes?: string[];
++    styles?: string[];
++}
++
++/** A json node's label: its name, then one `key<SEP>value` line per row (line breaks in a cell become spaces). */
++export declare const usecaseJsonLabel: (j: UsecaseJson) => string;
++
++/** `note for Id "text"`. */
++export declare interface UsecaseNote {
++    target: string;
++    label: string;
++}
++
++/** The node id of the note drawn for `note for <target>`, the nth in the source. */
++export declare const usecaseNoteId: (n: number) => string;
++
++export declare interface UsecaseRelationship {
++    source: string;
++    target: string;
++    type: UsecaseRelationshipType;
++    /**
++     * An association's line: `-->` (`forward`), `<--` (`backward`) or `--`
++     * (`none`). The other types always draw an arrowhead at the target.
++     */
++    arrow: 'forward' | 'backward' | 'none' | 'circleEnd' | 'crossEnd' | 'circleStart' | 'crossStart';
++    label?: string;
++    /** `A e1@--> B`; set by the edge id, so `e1@{ animate: true }` can name it. */
++    id?: string;
++    animate?: boolean;
++    animation?: string;
++}
++
++export declare type UsecaseRelationshipType = 'association' | 'include' | 'extend' | 'generalization';
++
++/**
++ * Lower a use case diagram to the flowchart model, as mermaid does (its
++ * `getData` hands the same nodes, edges and clusters to the dagre layout a
++ * flowchart uses): actors, use cases and notes are nodes, a system boundary is
++ * a subgraph, a note joins its target with a dotted line.
++ */
++export declare function usecaseToGraph(diagram: UsecaseDiagram): MermaidGraph;
++
++/** Mermaid's default stage names for the evolution axis. */
++export declare const WARDLEY_DEFAULT_STAGES: readonly ["Genesis", "Custom Built", "Product", "Commodity"];
++
++export declare interface WardleyAnnotation {
++    number: number;
++    x: number;
++    y: number;
++    text: string;
++}
++
++/** An accelerator or deaccelerator arrow. */
++export declare interface WardleyArrow {
++    name: string;
++    x: number;
++    y: number;
++}
++
++export declare type WardleyFlow = 'forward' | 'backward' | 'bidirectional';
++
++export declare interface WardleyLink {
++    /** Node ids (a name that matches no id but a label is resolved to the id). */
++    source: string;
++    target: string;
++    dashed: boolean;
++    label?: string;
++    flow?: WardleyFlow;
++}
++
++/** A parsed Mermaid Wardley map. */
++export declare interface WardleyMap {
++    /** `title …`; the last one wins. */
++    title?: string;
++    /** `size [w, h]`; mermaid's default is 900 x 600. */
++    size?: {
++        width: number;
++        height: number;
++    };
++    /** `evolution` stage names (`A / B` for a stage with two names); the default four are applied by the renderers. */
++    stages?: string[];
++    /** `@<fraction>` ends of the stages, only when every stage has one. */
++    stageBoundaries?: number[];
++    nodes: WardleyNode[];
++    links: WardleyLink[];
++    trends: WardleyTrend[];
++    pipelines: WardleyPipeline[];
++    annotations: WardleyAnnotation[];
++    /** Where the numbered annotation texts are listed (`annotations [x, y]`). */
++    annotationsBox?: {
++        x: number;
++        y: number;
++    };
++    notes: WardleyNote[];
++    accelerators: WardleyArrow[];
++    deaccelerators: WardleyArrow[];
++    /** `%%{init: {"themeVariables": {"wardley": {...}}}}%%` colours. */
++    theme?: InitConfig['wardleyTheme'];
++}
++
++export declare interface WardleyNode {
++    /** The name; a pipeline component's is `<parent>_<name>`. */
++    id: string;
++    label: string;
++    x: number;
++    y: number;
++    kind: WardleyNodeKind;
++    /** `label [x, y]`: where the label sits relative to the default spot. */
++    labelOffsetX?: number;
++    labelOffsetY?: number;
++    inertia?: boolean;
++    strategy?: WardleyStrategy;
++    /** A pipeline's parent: drawn as a square above the pipeline box. */
++    isPipelineParent?: boolean;
++}
++
++export declare type WardleyNodeKind = 'anchor' | 'component' | 'pipeline-component';
++
++export declare interface WardleyNote {
++    text: string;
++    x: number;
++    y: number;
++}
++
++export declare interface WardleyPipeline {
++    nodeId: string;
++    componentIds: string[];
++}
++
++export declare type WardleyStrategy = 'build' | 'buy' | 'outsource' | 'market';
++
++/** `evolve <component> <target>`: an arrow from the component to the target evolution, same visibility. */
++export declare interface WardleyTrend {
++    nodeId: string;
++    targetX: number;
++    targetY: number;
++}
++
+ /** `dayjs(d).format('dddd')`, lowercased, for `excludes monday`-style entries. */
+ export declare function weekdayName(ms: number): string;
+ 

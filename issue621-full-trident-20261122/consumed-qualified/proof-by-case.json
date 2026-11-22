@@ -1,0 +1,396 @@
+[
+  {
+    "arm": "ts-control",
+    "case": "winning-duplicate-return-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "winning-duplicate-return-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "winning-duplicate-return-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "winning-duplicate-return-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "lcg-135-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "lcg-135-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "lcg-135-balanced",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "lcg-135-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "lcg-139-balanced",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "lcg-139-balanced",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "lcg-139-balanced",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "lcg-139-balanced",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "cyclic19-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "cyclic19-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "cyclic19-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "cyclic19-balanced",
+    "proofs": {
+      "passed": 48,
+      "unverified": 24
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "cyclic19-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "cyclic19-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "cyclic19-default",
+    "proofs": {
+      "passed": 48,
+      "unverified": 24
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "cyclic19-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "dense24-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "dense24-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "dense24-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "dense24-balanced",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "dense24-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "dense24-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "dense24-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "dense24-default",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "bm52-wallet",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "bm52-wallet",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "bm52-wallet",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "bm52-wallet",
+    "proofs": {
+      "unverified": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "bm83-workflow",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "bm83-workflow",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "bm83-workflow",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "bm83-workflow",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "diagnostic:chain100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "diagnostic:chain100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "diagnostic:chain100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "diagnostic:chain100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "diagnostic:fanin100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "diagnostic:fanin100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "diagnostic:fanin100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "diagnostic:fanin100",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "diagnostic:chain300",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "diagnostic:chain300",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "diagnostic:chain300",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "diagnostic:chain300",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "event-clear",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "event-clear",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "event-clear",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "event-clear",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-final",
+    "case": "event-card-blocked",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-elkjs",
+    "case": "event-card-blocked",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "historical-native",
+    "case": "event-card-blocked",
+    "proofs": {
+      "passed": 72
+    }
+  },
+  {
+    "arm": "ts-control",
+    "case": "event-card-blocked",
+    "proofs": {
+      "passed": 72
+    }
+  }
+]

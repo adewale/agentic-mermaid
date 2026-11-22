@@ -1,0 +1,44 @@
+[
+  {
+    "file": "unified/overall-score.ts",
+    "releaseSHA256": "b32280e4d7fba73506d25ed0ac156543afed52f601eb5b802b65f2fec4fe9597",
+    "measuredSHA256": "b32280e4d7fba73506d25ed0ac156543afed52f601eb5b802b65f2fec4fe9597",
+    "identical": true
+  },
+  {
+    "file": "unified/davebench-model.ts",
+    "releaseSHA256": "c223f39c287a8631675659f3612c98d0b4d998f88df3ab66e586907daf76f9bb",
+    "measuredSHA256": "c223f39c287a8631675659f3612c98d0b4d998f88df3ab66e586907daf76f9bb",
+    "identical": true
+  },
+  {
+    "file": "unified/davebench-report.ts",
+    "releaseSHA256": "59b010b66a33f0c9d53ca583144ff513e98fa6908515b044ce751f689f882426",
+    "measuredSHA256": "59b010b66a33f0c9d53ca583144ff513e98fa6908515b044ce751f689f882426",
+    "identical": true
+  },
+  {
+    "file": "unified/drawing-report.ts",
+    "releaseSHA256": "99432e493504601ace9fcd315a78aae8684dac7a7adffbdf44f91161edf07187",
+    "measuredSHA256": "99432e493504601ace9fcd315a78aae8684dac7a7adffbdf44f91161edf07187",
+    "identical": true
+  },
+  {
+    "file": "unified/mermaid-fidelity/scoring.ts",
+    "releaseSHA256": "5ad4843490aca1b5a0d9a8415b85776b65705b53bacc0ab21bf857dcf9725e8f",
+    "measuredSHA256": "5ad4843490aca1b5a0d9a8415b85776b65705b53bacc0ab21bf857dcf9725e8f",
+    "identical": true
+  },
+  {
+    "file": "fidelity/drawing/corpus.ts",
+    "releaseSHA256": "df88c0147964238533b7217b5a820964873e256350f6bce8eecf1a6268e43b5a",
+    "measuredSHA256": "df88c0147964238533b7217b5a820964873e256350f6bce8eecf1a6268e43b5a",
+    "identical": true
+  },
+  {
+    "file": "corpus/community-corpus.json",
+    "releaseSHA256": "aa50de1e73f619c872e92b4a32716f8cec4ea24fb56d10406f462fd0275cb71a",
+    "measuredSHA256": "aa50de1e73f619c872e92b4a32716f8cec4ea24fb56d10406f462fd0275cb71a",
+    "identical": true
+  }
+]

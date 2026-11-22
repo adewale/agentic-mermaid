@@ -1,0 +1,85 @@
+{
+  "measuredAt": "2026-11-22",
+  "sourceHead": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+  "main": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+  "historicalAm": "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+  "tridentRelease": "ceb42fa47215f5349cbe96ed56ef48a7b90095b4",
+  "tridentAdapters": "43ac1128f67ab5674d0c303084bc1503f96ec249",
+  "tridentCurrentAdmissionPatch": "adapter-review-additions.patch",
+  "fullReproducibleAdapterPatch": "trident-adapters-vs-release.patch",
+  "node": "24.19.0",
+  "bun": "1.4.4",
+  "chromium": "156",
+  "localCI": "Existing exact-head local checks from 2026-11-21; no production source changes in this task, no new CI claimed",
+  "remoteCI": "workflow_runs=[] verified on exact head 6d8; owner requested local CI only",
+  "pr": 621,
+  "sourceChanged": false,
+  "benchmarks": {
+    "daveOccurrences": 1342,
+    "referenceAcceptedOccurrences": 1338,
+    "uniqueDaveSources": 658,
+    "renderingRunsPerFormat": 3,
+    "drawingInputs": 127,
+    "originalFidelityFiles": 352,
+    "qualifiedReferenceCallbacks": 7346,
+    "scoredPublicParseCallbacks": 3405,
+    "inventoryCallbacks": 3941
+  },
+  "arms": [
+    {
+      "id": "current-default",
+      "source": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+      "archive": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-archive/agentic-mermaid-0.5.7.tgz",
+      "backend": "elk",
+      "quality": "default",
+      "sha256": "1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e"
+    },
+    {
+      "id": "current-balanced",
+      "source": "6d8d7fbc835b2767b83a3bbdfca5e7b7d9f8e19b",
+      "archive": "/workspace/elk-layered-tools/issue621-full-trident-20261122/current-archive/agentic-mermaid-0.5.7.tgz",
+      "backend": "elk",
+      "quality": "balanced",
+      "sha256": "1fc109fd0e957585a6f5e3a79586958cb520c04d9bef53ce4cd16c8fb538518e"
+    },
+    {
+      "id": "main-default",
+      "source": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+      "archive": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-archive/agentic-mermaid-0.5.7.tgz",
+      "backend": "elk",
+      "quality": "default",
+      "sha256": "21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff"
+    },
+    {
+      "id": "main-balanced",
+      "source": "f49196e7f5d6d2f0970a4a76fe62644ee5e9d004",
+      "archive": "/workspace/elk-layered-tools/issue621-full-trident-20261122/main-archive/agentic-mermaid-0.5.7.tgz",
+      "backend": "elk",
+      "quality": "balanced",
+      "sha256": "21dab05ac04c65f60cf5ef44daa178f7a74919273345d1235a768e243ddbdaff"
+    },
+    {
+      "id": "historical-default",
+      "source": "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+      "archive": "/workspace/elk-layered-tools/native-retirement-20261116/main6f/release-artifact/package.tgz",
+      "backend": "elk",
+      "quality": "default",
+      "sha256": "ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc"
+    },
+    {
+      "id": "historical-native",
+      "source": "6f11d6d095c61f63c89bb558ba66b3bf519f2a9e",
+      "archive": "/workspace/elk-layered-tools/native-retirement-20261116/main6f/release-artifact/package.tgz",
+      "backend": "agentic",
+      "quality": "native",
+      "sha256": "ae351f2c86051d4a80a448baa7118b97df2f0d8917bb532ec4568c142d6d1fdc"
+    }
+  ],
+  "limits": [
+    "Pele is the public SDK, not the hosted playground; nine hosted comparisons remain separately published.",
+    "Historical Native and ELK.js use a different shared consumer revision from current/main.",
+    "Native owns eight backend families; the other 25 are shared paths.",
+    "Trident overall measures completion, labels and parser fidelity; crossings, paint certification, memory and speed are separate.",
+    "No new source optimization, universal metric win, full peer paint proof or issue #619 closure is claimed."
+  ]
+}

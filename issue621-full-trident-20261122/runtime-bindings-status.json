@@ -1,0 +1,10 @@
+[
+  {
+    "arm": "current-default",
+    "exit": 0
+  },
+  {
+    "arm": "main-default",
+    "exit": 0
+  }
+]

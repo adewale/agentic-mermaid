@@ -1,0 +1,371 @@
+--- /tmp/issue621-trident-work/reviewed-models2/node_modules/.cache/unified-community/zombie-mermaid@5.17.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/core/dist/shared/index.d.ts
++++ /tmp/issue621-trident-work/peers/node_modules/.cache/unified-community/zombie-mermaid@5.18.0-recipe-d5b22dc11b300620/node_modules/@zombie-mermaid/core/dist/shared/index.d.ts
+@@ -54,6 +54,24 @@
+     iconSize?: number;
+     fontSize?: number;
+     idealEdgeLengthMultiplier?: number;
++}
++
++/**
++ * Throw like mermaid@12.3.0 when a `themeVariables` colour it derives other
++ * colours from cannot be parsed: `Unsupported color format: "<value>"`
++ * (#3163). Measured on 12.3.0, flowchart: `primaryColor` throws under every
++ * theme, including an empty string and `var()`; `lineColor` and
++ * `primaryTextColor` only under `theme: base`, where an empty string, `var()`
++ * and a value mermaid's own sanitiser drops (`;`, `{`, `}`) render.
++ * `primaryBorderColor` and the pie and other per-diagram colours never throw
++ * here. Call it only when the caller honours theme variables.
++ */
++export declare function assertThemeVariableColors(text: string): void;
++
++/** The `block.*` init keys that change mermaid's output. */
++export declare interface BlockInitConfig {
++    /** Space between cells and inside each block (mermaid's `block.padding`, default 8). */
++    padding?: number;
+ }
+ 
+ /**
+@@ -328,6 +346,22 @@
+     muted: string;
+ }>;
+ 
++/**
++ * Mermaid's `theme: base` node border when `primaryBorderColor` is unset:
++ * `mkBorder(primaryColor)` = khroma `adjust(color, { s: -40, l: -10 })`
++ * (mermaid 12.3.0, light mode). Returns `#rrggbb`, or null when `value` is
++ * not a hex, `rgb()` or `hsl()` colour (named colours are not resolved).
++ */
++export declare function deriveBorderColor(value: string): string | null;
++
++/**
++ * The end stop of mermaid's `theme: base` node-border gradient (the start
++ * stop is the border): `adjust(primaryColor, { h: -120, s: -40, l: -10 })`,
++ * measured on mermaid 12.3.0. Returns `#rrggbb`, or null like
++ * {@link deriveBorderColor}.
++ */
++export declare function deriveBorderGradientEnd(value: string): string | null;
++
+ /** Human-readable note about directive keys that were parsed but not applied. */
+ export declare function describeIgnored(config: InitConfig): string[];
+ 
+@@ -348,7 +382,7 @@
+  * need to enumerate the types (e.g. the MCP `list_diagram_types` tool) never
+  * keep a duplicate list that could drift.
+  */
+-export declare const DIAGRAM_TYPES: readonly ["flowchart", "sequence", "class", "er", "xychart", "architecture", "c4", "pie", "quadrant", "mindmap", "gantt", "kanban", "timeline", "gitgraph", "packet", "radar", "journey", "sankey", "requirement"];
++export declare const DIAGRAM_TYPES: readonly ["flowchart", "sequence", "class", "er", "xychart", "architecture", "c4", "pie", "quadrant", "mindmap", "gantt", "kanban", "timeline", "gitgraph", "packet", "radar", "journey", "sankey", "requirement", "eventmodeling", "usecase", "block", "treemap", "ishikawa", "wardley"];
+ 
+ /**
+  * Diagram color configuration.
+@@ -540,6 +574,8 @@
+     target: string;
+ }>, walkOrder: Iterable<string>): Set<number>;
+ 
++export declare const FLOWCHART_WRAP_WIDTH = 120;
++
+ /**
+  * Options applicable to flowchart (`graph` / `flowchart`) and state
+  * (`stateDiagram-v2`) diagrams — both share `DiagramType: 'flowchart'` and
+@@ -621,6 +657,7 @@
+     parallelCommits?: boolean;
+     titleTopMargin?: number;
+     diagramPadding?: number;
++    useMaxWidth?: boolean;
+ }
+ 
+ /** `{ inlineStyle }` for a subgraph cluster, or `{}` when nothing styles it (#2550). */
+@@ -642,6 +679,8 @@
+     theme?: string;
+     /** `look` (`classic`, `neo`, ...), kept as written; only gitGraph reads it (the neo drop shadow). */
+     look?: string;
++    /** `handDrawnSeed` (an integer): the rough.js seed of `look: handDrawn`; only ishikawa reads it. */
++    handDrawnSeed?: number;
+     /** `pie.textPosition`: slice label distance as a fraction of the radius. */
+     pieTextPosition?: number;
+     /** `pie.donutHole`: inner radius as a fraction of the radius. */
+@@ -662,6 +701,8 @@
+     timeline?: TimelineInitConfig;
+     /** `radar.*` keys ({@link RadarInitConfig}); other keys and bad values are dropped. */
+     radar?: RadarInitConfig;
++    /** `ishikawa.diagramPadding` (a number or numeric string, negative allowed, as mermaid 12.3.0 takes it). */
++    ishikawaPadding?: number;
+     /** `themeVariables.radar` sizes and opacities ({@link RadarStyleConfig}); 0 is kept, as mermaid does. */
+     radarTheme?: RadarStyleConfig;
+     /** `journey.*` geometry keys ({@link JourneyInitConfig}); other keys and bad values are dropped. */
+@@ -670,10 +711,16 @@
+     gitGraph?: GitGraphInitConfig;
+     /** `kanban.sectionWidth` (a number in 1..1e5) and `kanban.ticketBaseUrl`; other keys and bad values are dropped. */
+     kanban?: KanbanInitConfig;
++    /** `block.padding` (a number in 0..1e4); other keys and bad values are dropped. */
++    block?: BlockInitConfig;
+     /** `packet.*` layout keys (numbers or numeric strings 0..1e5, `bitsPerRow` an integer >= 1), `showBits` (by truthiness) and `bitOrder` (anything but `descending` is ascending); other keys and bad values are dropped. */
+     packet?: PacketInitConfig;
+     /** The `sankey` block (see {@link SankeyInitConfig}). */
+     sankey?: SankeyInitConfig;
++    /** `themeVariables.wardley` colours (see {@link WARDLEY_THEME_KEYS}); a value that is not a safe colour is dropped. */
++    wardleyTheme?: Partial<Record<WardleyThemeKey, string>>;
++    /** The `treemap` block (see {@link TreemapInitConfig}); a bad value is dropped. */
++    treemap?: TreemapInitConfig;
+     /** The `class` block: `padding` and `hideEmptyMembersBox` (a bad value is dropped). */
+     classLayout?: ClassInitLayout;
+     /** The `er` block: `diagramPadding`, `entityPadding` and `minEntityWidth` (numbers >= 0). */
+@@ -693,6 +740,11 @@
+      * merged config says `theme: base`, as in Mermaid.
+      */
+     themeVariables?: ThemeVariables;
++    /**
++     * `primaryColor`, `lineColor` and `primaryTextColor` as written (strings
++     * only, later directives win), for {@link assertThemeVariableColors}.
++     */
++    rawThemeColors?: Partial<Record<RawThemeColor, string>>;
+     /** Recognized but not acted on — see `IGNORED_KEYS`. */
+     ignored: string[];
+ }
+@@ -712,8 +764,21 @@
+ /** True if `line` is an init directive. */
+ export declare function isInitDirective(line: string): boolean;
+ 
++/**
++ * Whether mermaid@12.3.0's theme code (khroma) can parse `value`, measured:
++ * a hex literal (3, 4, 6 or 8 digits), `rgb()`/`rgba()`/`hsl()`/`hsla()`, a
++ * CSS colour name (any case) or `transparent`. Stricter than
++ * {@link isValidCssColor}: `oklch()`, `lab()`, `hwb()`, `currentColor`,
++ * `var()` and a value with surrounding spaces all make mermaid throw
++ * `Unsupported color format` where it derives a colour from them.
++ */
++export declare function isMermaidThemeColor(value: string): boolean;
++
+ /** Fonts whose glyphs all share one advance width. */
+ export declare function isMonospaceFont(font: string): boolean;
++
++/** Whether `font` is mermaid's own label stack (or names Trebuchet MS first). */
++export declare function isTrebuchetFont(font: string): boolean;
+ 
+ /**
+  * Whether `value` is something a browser accepts for a `fill`, `stroke` or
+@@ -806,6 +871,12 @@
+ 
+ export declare function measureTextWidth(text: string, fontSize: number, fontWeight: number): number;
+ 
++/**
++ * Mermaid 12.3.0's label font stack. Its headless Chromium measures labels in this stack, so it
++ * is this library's default font and the one `measureTextWidth` has a measured table for.
++ */
++export declare const MERMAID_FONT_STACK = "\"trebuchet ms\", verdana, arial, sans-serif";
++
+ export declare interface MermaidEdge {
+     source: string;
+     target: string;
+@@ -822,9 +893,9 @@
+      * governs whether anything is drawn there. Drawn by the ASCII
+      * renderer (issue #330) and the SVG renderer.
+      */
+-    startMarker?: 'circle' | 'cross';
+-    /** Terminator shape at the target end (`--o`/`--x`). See `startMarker`. */
+-    endMarker?: 'circle' | 'cross';
++    startMarker?: 'circle' | 'cross' | 'triangle';
++    /** Terminator shape at the target end (`--o`/`--x`; `triangle` is a use case diagram's hollow generalization head). See `startMarker`. */
++    endMarker?: 'circle' | 'cross' | 'triangle';
+     /** Edge id from `A e1@--> B` (Mermaid v11.10.0+), for `e1@{ ... }` and CSS targeting */
+     id?: string;
+     /** Set by `e1@{ animate: true }` — renders as a marching-ants dash */
+@@ -875,6 +946,8 @@
+      * `shape`; the ASCII renderer ignores it (#2518).
+      */
+     icon?: string;
++    /** Use case diagram `@{ business: true }`: a slash through the actor or ellipse. */
++    business?: boolean;
+ }
+ 
+ export declare class MermaidParseError extends Error {
+@@ -913,6 +986,8 @@
+     icon?: string;
+     /** An `architecture-beta` group: the SVG renderer draws Mermaid's dashed box instead of a header band. */
+     architecture?: boolean;
++    /** A use case `systemBoundary S@{ type: package }`: drawn with a tab holding the title. */
++    package?: boolean;
+ }
+ 
+ export declare const MIX: {
+@@ -1023,7 +1098,7 @@
+     callback?: string;
+ }
+ 
+-export declare type NodeShape = 'rectangle' | 'rounded' | 'diamond' | 'stadium' | 'circle' | 'subroutine' | 'doublecircle' | 'hexagon' | 'cylinder' | 'asymmetric' | 'trapezoid' | 'trapezoid-alt' | 'parallelogram' | 'parallelogram-alt' | 'state-start' | 'state-end' | 'document' | 'stacked-document' | 'stacked-process' | 'card' | 'lined-process' | 'divided-process' | 'window-pane' | 'triangle' | 'flipped-triangle' | 'filled-circle' | 'junction' | 'crossed-circle' | 'fork-join' | 'notched-pentagon' | 'sloped-rectangle' | 'flag' | 'bow-tie-rectangle' | 'half-rounded-rectangle' | 'brace' | 'brace-right' | 'braces' | 'bolt' | 'cloud' | 'horizontal-cylinder' | 'tagged-rectangle' | 'small-circle' | 'fork-bar' | 'text' | 'anchor' | 'note';
++export declare type NodeShape = 'rectangle' | 'rounded' | 'diamond' | 'stadium' | 'circle' | 'subroutine' | 'doublecircle' | 'hexagon' | 'cylinder' | 'asymmetric' | 'trapezoid' | 'trapezoid-alt' | 'parallelogram' | 'parallelogram-alt' | 'state-start' | 'state-end' | 'document' | 'stacked-document' | 'stacked-process' | 'card' | 'lined-process' | 'divided-process' | 'window-pane' | 'triangle' | 'flipped-triangle' | 'filled-circle' | 'junction' | 'crossed-circle' | 'fork-join' | 'notched-pentagon' | 'sloped-rectangle' | 'flag' | 'bow-tie-rectangle' | 'half-rounded-rectangle' | 'brace' | 'brace-right' | 'braces' | 'bolt' | 'cloud' | 'horizontal-cylinder' | 'tagged-rectangle' | 'small-circle' | 'fork-bar' | 'text' | 'anchor' | 'note' | 'usecase-actor' | 'usecase-actor-hollow' | 'usecase-actor-awesome' | 'usecase-actor-icon' | 'usecase-ellipse' | 'usecase-rect' | 'usecase-note' | 'usecase-json';
+ 
+ /**
+  * Normalize label text: strip surrounding quotes, convert <br> tags and
+@@ -1101,8 +1176,8 @@
+     hasArrowStart: boolean;
+     hasArrowEnd: boolean;
+     /** Circle/cross terminator at the source or target end (`o--`, `--x`), drawn by the SVG renderer instead of an arrowhead */
+-    startMarker?: 'circle' | 'cross' | undefined;
+-    endMarker?: 'circle' | 'cross' | undefined;
++    startMarker?: 'circle' | 'cross' | 'triangle' | undefined;
++    endMarker?: 'circle' | 'cross' | 'triangle' | undefined;
+     /** Full path including bends — array of {x, y} points */
+     points: Point[];
+     /** Layout-computed label center position (avoids label-label collisions) */
+@@ -1153,6 +1228,8 @@
+     icon?: string;
+     /** See `MermaidSubgraph.architecture`. */
+     architecture?: boolean;
++    /** See `MermaidSubgraph.package`. */
++    package?: boolean;
+     /** Edge of an architecture group's corner icon in px: `architecture.padding * 0.75` (30 by default; none is drawn at 0). */
+     iconSize?: number;
+ }
+@@ -1167,6 +1244,8 @@
+     height: number;
+     /** Architecture service icon tile; see `MermaidNode.icon`. `shape` is then `rectangle`. */
+     icon?: string;
++    /** See `MermaidNode.business`. */
++    business?: boolean;
+     /** Inline styles resolved from classDef + explicit `style` statements — override theme defaults */
+     inlineStyle?: Record<string, string>;
+     /** Custom class name assigned via `class A className` or `:::className` shorthand — emitted onto the rendered element's `class` attribute so external CSS can target it */
+@@ -1214,6 +1293,8 @@
+     graticuleStrokeWidth?: number;
+     legendFontSize?: number;
+ }
++
++declare type RawThemeColor = 'primaryColor' | 'lineColor' | 'primaryTextColor';
+ 
+ /** The top-level `title:` of a leading front matter block; empty means none. */
+ export declare function readFrontMatterTitle(text: string): string | undefined;
+@@ -1286,7 +1367,7 @@
+     surface?: string;
+     /** Node/group stroke color → CSS variable --border */
+     border?: string;
+-    /** Font family for all text. Default: 'Inter' */
++    /** Font family for all text. Default: mermaid's stack, `"trebuchet ms", verdana, arial, sans-serif` */
+     font?: string;
+     /**
+      * Inline the font as a base64 `woff2` `@font-face` in the SVG's own
+@@ -1297,8 +1378,9 @@
+      * also makes a per-viewer request to Google. `'subset'` embeds Basic Latin
+      * (U+0020-007E) of Inter 4.1 (SIL OFL 1.1, weights 400-700) at about 14.7
+      * KB of base64 per SVG; other characters fall back to `system-ui`. It takes
+-     * effect only when `font` is `'Inter'` (the default); for any other `font`
+-     * it is ignored.
++     * effect only when `font` is `'Inter'` (set `font: 'Inter'`, or leave `font`
++     * unset: `embedFont: 'subset'` alone selects Inter; the default is otherwise
++     * mermaid's own stack); for any other `font` it is ignored.
+      *
+      * The data is not in the default bundle. `renderMermaidSVGAsync()` loads it
+      * on demand; the synchronous `renderMermaidSVG()` needs `await
+@@ -1705,6 +1787,9 @@
+ /** Select the metrics model for subsequent measurements. Called once per render. */
+ export declare function setMonospaceMetrics(monospace: boolean): void;
+ 
++/** Select Trebuchet MS metrics for subsequent measurements. Called once per render. */
++export declare function setTrebuchetMetrics(trebuchet: boolean): void;
++
+ /**
+  * Minimal subset of Shiki's ThemeRegistrationResolved that we need.
+  * We don't import from shiki to avoid a hard dependency.
+@@ -1972,7 +2057,8 @@
+  * The `themeVariables` subset this renderer can map onto its own colour
+  * tokens (see `RenderOptions.honorThemeVariables`). Every value has passed
+  * `isValidCssColor` and a stricter safe-character check; invalid ones are
+- * dropped, never thrown.
++ * dropped. A `primaryColor`, `lineColor` or `primaryTextColor` mermaid cannot
++ * parse throws instead, see {@link assertThemeVariableColors}.
+  */
+ export declare interface ThemeVariables {
+     /** → `surface` (node fill). Mermaid reads it under `theme: base` only. */
+@@ -2012,6 +2098,25 @@
+ export declare function toDirection(raw: string | undefined): Direction;
+ 
+ /**
++ * The `treemap.*` init keys mermaid@12.3.0 reads that change the drawing. Not
++ * listed: `useMaxWidth` (only the root `width`/`max-width`, which this renderer
++ * sizes by its viewBox) and `borderWidth`, `valueFontSize`, `labelFontSize`
++ * (mermaid never reads them: its inline sizes win).
++ */
++export declare interface TreemapInitConfig {
++    /** Gap between siblings. */
++    padding?: number;
++    /** The canvas is `nodeWidth` x 10 wide (960 when 0). */
++    nodeWidth?: number;
++    /** The canvas is `nodeHeight` x 10 tall (500 when 0). */
++    nodeHeight?: number;
++    showValues?: boolean;
++    /** A d3-format specifier (`,`, `$0,0`, `.1%`...); a bad one falls back to `,`. */
++    valueFormat?: string;
++    diagramPadding?: number;
++}
++
++/**
+  * `class A,B className` — attach a style class to one or more nodes.
+  *
+  * Whitespace around commas is allowed (`class A, B foo`) — the state-diagram
+@@ -2053,6 +2158,11 @@
+  * Returns true when `line` was a style statement.
+  */
+ export declare function tryApplyStyleStatement(line: string, target: StyleDirectives): boolean;
++
++/** The `themeVariables.wardley` colours mermaid 12.3.0 reads (`gridColor` only matters with the site-config `showGrid`, which is not read). */
++export declare const WARDLEY_THEME_KEYS: readonly ["backgroundColor", "axisColor", "axisTextColor", "componentFill", "componentStroke", "componentLabelColor", "linkStroke", "evolutionStroke", "annotationStroke", "annotationTextColor", "annotationFill"];
++
++export declare type WardleyThemeKey = (typeof WARDLEY_THEME_KEYS)[number];
+ 
+ /**
+  * Return `diagram` with its top-level `direction` replaced by `override`,
+@@ -2088,6 +2198,15 @@
+ export declare function withRootClass(openTag: string, cls: string): string;
+ 
+ /**
++ * Greedy word wrap of `label` at 120px. Returns the label with `\n` at each
++ * line break, and whether any paragraph (a `\n`-separated line) had to wrap.
++ */
++export declare function wrapFlowchartLabel(label: string, fontSize: number, fontWeight: number): {
++    text: string;
++    wrapped: boolean;
++};
++
++/**
+  * Greedy word wrap by estimated pixel width. Mermaid decides where to break
+  * with the text at regular weight and draws a name in bold afterwards, so a
+  * bold name can come out wider than the limit.
+@@ -2100,6 +2219,22 @@
+     showTitle?: boolean;
+     showTick?: boolean;
+     showAxisLine?: boolean;
++    /** Font size in px of the tick labels (mermaid default 14). */
++    labelFontSize?: number;
++    /** Space in px around a tick label (mermaid default 5). */
++    labelPadding?: number;
++    /** Font size in px of the axis title (mermaid default 16). */
++    titleFontSize?: number;
++    /** Space in px around the axis title (mermaid default 5). */
++    titlePadding?: number;
++    /** Tick length in px (mermaid default 5). */
++    tickLength?: number;
++    /** Tick stroke width in px (mermaid default 2). */
++    tickWidth?: number;
++    /** Axis line stroke width in px (mermaid default 2). */
++    axisLineWidth?: number;
++    /** Rotation of the bottom axis' tick labels, -90 to 90 degrees (default 0). */
++    labelRotation?: number;
+ }
+ 
+ /**
+@@ -2114,6 +2249,16 @@
+     height?: number;
+     showTitle?: boolean;
+     chartOrientation?: 'vertical' | 'horizontal';
++    /** Chart title font size in px (mermaid default 20). */
++    titleFontSize?: number;
++    /** Space in px above and below the chart title (mermaid default 10). */
++    titlePadding?: number;
++    /** Percent of the canvas the plot reserves before the axes and title claim room (mermaid default 70). */
++    plotReservedSpacePercent?: number;
++    /** Print each bar's value on it. */
++    showDataLabel?: boolean;
++    /** With `showDataLabel`, print the value beyond the bar's end instead of inside it. */
++    showDataLabelOutsideBar?: boolean;
+     xAxis?: XyChartAxisInitConfig;
+     yAxis?: XyChartAxisInitConfig;
+ }

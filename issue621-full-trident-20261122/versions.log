@@ -1,0 +1,16 @@
+52 | 
+53 | /** Verify the installed oracle is exactly the pin; throw an actionable refusal otherwise. */
+54 | export function admitMermaidOracle(directory: string, environment: NodeJS.ProcessEnv = process.env): MermaidOracle {
+55 |   const pin = MERMAID_ORACLE_PIN
+56 |   const refuse = (problem: string): never => {
+57 |     throw Error(`Trident needs the pinned Mermaid oracle (mermaid ${pin.version}, @mermaid-js/parser ${pin.parser}, jsdom ${pin.dom}) at ${directory}: ${problem}. ${installHint(environment)}`)
+               ^
+error: Trident needs the pinned Mermaid oracle (mermaid 12.3.0, @mermaid-js/parser 2.0.1, jsdom 26.1.0) at /workspace/elk-layered-tools/issue621-full-trident-20261122/mermaid-reference: no install exists. Install it with `node commands.ts mermaid:install`, or set MERMAID_REFERENCE_DIR to an existing install.
+      at refuse (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/portable/mermaid-oracle.ts:57:11)
+      at admitMermaidOracle (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/portable/mermaid-oracle.ts:62:53)
+      at assertMermaidOracle (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/portable/mermaid-oracle.ts:78:18)
+      at assertBenchmarkExecutionAllowed (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/portable/ci-policy.ts:11:43)
+      at main (/workspace/elk-layered-tools/issue621-full-trident-20261122/harness/commands.ts:87:95)
+      at /workspace/elk-layered-tools/issue621-full-trident-20261122/harness/commands.ts:92:7
+
+Bun v1.4.4 (Linux x64)

@@ -1,0 +1,26 @@
+[
+  {
+    "arm": "peers",
+    "suite": "davebench",
+    "startedAt": "2026-11-22T10:38:03.644292+00:00",
+    "command": [
+      "bun",
+      "commands.ts",
+      "davebench",
+      "--catalog",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/versions-current/catalog.json",
+      "--projects",
+      "dfadler/zombie-mermaid,lukilabs/beautiful-mermaid,obsidianmd/pele,mermaid-js/mermaid,Dicklesworthstone/frankenmermaid",
+      "--prepared",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/prepared/community-browser-prepared.json",
+      "--upstream",
+      "/workspace/elk-layered-tools/trident-040-mermaid",
+      "--out",
+      "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/dave-images-recovery"
+    ],
+    "status": "failed",
+    "log": "/workspace/elk-layered-tools/issue621-full-trident-20261122/peers/davebench-recovery.log",
+    "exitCode": 1,
+    "finishedAt": "2026-11-22T10:38:07.852946+00:00"
+  }
+]

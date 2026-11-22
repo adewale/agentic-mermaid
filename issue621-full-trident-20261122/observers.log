@@ -1,0 +1,28 @@
+START current-default layout:observe
+END current-default layout:observe 0
+START current-default drawing:structure
+END current-default drawing:structure 0
+START current-balanced layout:observe
+END current-balanced layout:observe 0
+START current-balanced drawing:structure
+END current-balanced drawing:structure 0
+START main-default layout:observe
+END main-default layout:observe 0
+START main-default drawing:structure
+END main-default drawing:structure 0
+START main-balanced layout:observe
+END main-balanced layout:observe 0
+START main-balanced drawing:structure
+END main-balanced drawing:structure 0
+START historical-default layout:observe
+END historical-default layout:observe 0
+START historical-default drawing:structure
+END historical-default drawing:structure 0
+START historical-native layout:observe
+END historical-native layout:observe 0
+START historical-native drawing:structure
+END historical-native drawing:structure 0
+START peers layout:observe
+END peers layout:observe 0
+START peers drawing:structure
+END peers drawing:structure 0
