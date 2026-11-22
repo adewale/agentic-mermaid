@@ -283,6 +283,16 @@ describe('bounded final layout certification', () => {
     return { graph, positioned }
   }
 
+  test.each([
+    { name: 'a duplicate drawn on its twin', source: 'flowchart LR\nA --> B\nA --> B', routes: [[[60, 120], [260, 120]], [[60, 120], [260, 120]]] },
+    { name: 'one arrowhead for a dotted and a solid arrival', source: 'flowchart LR\nA --> B\nC -.-> B', routes: [[[60, 120], [260, 120]], [[160, 40], [160, 120], [260, 120]]] },
+  ] as const)('$name is not certified', ({ source, routes }) => {
+    const graph = parseMermaid(source)
+    const positions: Record<string, [number, number]> = { A: [20, 100], B: [260, 100], C: [140, 0] }
+    const witness = routeWitness(graph, positions, routes.map(route => route.map(point => [...point] as [number, number])))
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'only', produce: () => witness }])).toThrow(/indistinctOccurrences/)
+  })
+
   test('a soft label-conflict reduction cannot buy another crossing', () => {
     const { graph, positioned: occluded } = labelledWitness(false, true)
     const { positioned: clear } = labelledWitness(true)
@@ -374,8 +384,9 @@ describe('bounded final layout certification', () => {
       graph.nodes.set(`N${i}`, { id: `N${i}`, label: `N${i}`, shape: 'rectangle' })
       positions[`N${i}`] = [500 + i % 8 * 60, Math.floor(i / 8) * 60]
     }
+    // Padding edges count toward the bound; invisible ones draw no twin ink.
     if (kind === 'edges') while (graph.edges.length < size) {
-      graph.edges.push({ ...graph.edges[0]! })
+      graph.edges.push({ ...graph.edges[0]!, style: 'invisible' })
       routes.push([[60, 120], [260, 120]])
     }
     const first = routeWitness(graph, positions, routes, 1100, 1000), next = structuredClone(first)

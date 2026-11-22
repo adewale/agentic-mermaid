@@ -134,25 +134,34 @@ export function arrivalsMayMerge(a: PositionedEdge, b: PositionedEdge): boolean 
   return a.source !== b.source && edgesMayShareTerminal(a, b)
 }
 
-/** Visible arrowhead pairs drawn at one point although `arrivalsMayMerge`
- * rejects them. Passes that move terminals may not increase this count.
- * `duplicates: false` leaves repeated occurrences to the duplicate-lane owner,
- * which separates them after earlier preparatory passes. */
-export function misleadingSharedArrivals(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): number {
+/** Visible occurrence pairs the final drawing cannot tell apart: a repeated
+ * occurrence drawn exactly on its twin, or one arrowhead standing for arrivals
+ * `arrivalsMayMerge` rejects. `duplicates: false` leaves repeated occurrences
+ * to the duplicate-lane owner, which separates the transient collapses earlier
+ * preparatory passes create. */
+export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> {
   const byTarget = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
-    if (edge.style === 'invisible' || !edge.hasArrowEnd || edge.source === edge.target || edge.points.length < 2) continue
+    if (edge.style === 'invisible' || edge.source === edge.target || edge.points.length < 2) continue
     const group = byTarget.get(edge.target)
     if (group) group.push(edge)
     else byTarget.set(edge.target, [edge])
   }
-  let count = 0
+  const near = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5
+  const pairs: Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> = []
   for (const group of byTarget.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
-    const a = group[i]!.points.at(-1)!, b = group[j]!.points.at(-1)!
-    if (options.duplicates === false && group[i]!.source === group[j]!.source) continue
-    if (Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && !arrivalsMayMerge(group[i]!, group[j]!)) count++
+    const a = group[i]!, b = group[j]!, repeated = a.source === b.source
+    if (repeated && options.duplicates === false) continue
+    if (repeated && a.points.length === b.points.length && a.points.every((point, k) => near(point, b.points[k]!))) pairs.push({ a, b, reason: 'twin' })
+    else if (a.hasArrowEnd && b.hasArrowEnd && near(a.points.at(-1)!, b.points.at(-1)!) && !arrivalsMayMerge(a, b)) pairs.push({ a, b, reason: 'arrowhead' })
   }
-  return count
+  return pairs
+}
+
+/** Count of `indistinctOccurrencePairs`; passes that move terminals may not
+ * increase it. */
+export function misleadingSharedArrivals(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): number {
+  return indistinctOccurrencePairs(edges, options).length
 }
 
 type MarkerView = ReturnType<typeof markerView>

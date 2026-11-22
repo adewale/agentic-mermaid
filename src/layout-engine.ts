@@ -7,6 +7,7 @@ import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt 
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
+import { separateIndistinctArrivals } from './layout/passes/arrival-slots.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -1513,8 +1514,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
-    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
+    id: 'separateIndistinctArrivals', doc: 'give every arrival class that may not share an arrowhead its own slot on the entry face, whichever pass merged it (edge-only, freeze-safe)',
     after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
+    run: c => { separateIndistinctArrivals(c.nodes, c.edges, c.style) },
+  },
+  {
+    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
+    after: ['separateIndistinctArrivals'], mutates: ['edges'],
     run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {

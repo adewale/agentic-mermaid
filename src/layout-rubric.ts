@@ -28,6 +28,7 @@ import { countPolylineCrossings } from './shared/edge-crossings.ts'
 import { graphReachability } from './layout/geometry.ts'
 import { hasConstructedBundleRoute } from './layout/bundle-routes.ts'
 import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
+import { indistinctOccurrencePairs } from './layout/route-marker-clearance.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -60,6 +61,7 @@ const RUBRIC_SEVERITY: Record<string, RubricSeverity> = {
   offOutlineEndpoints: 'cosmetic',
   endpointApproaches: 'primary',
   labelOffRoute: 'cosmetic',
+  indistinctOccurrences: 'primary',
 }
 
 const RUBRIC_SEVERITY_ORDER: Record<RubricSeverity, number> = { primary: 0, secondary: 1, cosmetic: 2 }
@@ -95,6 +97,12 @@ export interface RubricMetrics {
   labelOffRoute: number
   /** HARD (0): edge segments through a non-incident node's interior. */
   edgeThroughNode: number
+  /** HARD (0, final assessment only): every authored occurrence stays
+   *  distinguishable — no duplicate drawn on its twin, and no arrowhead
+   *  standing for arrivals it misstates (different paint, two captions, or
+   *  repeated occurrences). Pass contracts skip it: earlier preparatory passes
+   *  may collapse duplicates that the duplicate-lane owner then separates. */
+  indistinctOccurrences: number
   /** Padded label/label, label/node and label/visible-route conflict pairs. */
   labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
@@ -651,6 +659,12 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
   const hitchList = findRouteHitches(positioned, graph, style)
   for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane`, targets: [h.edge] })
 
+  const indistinct = withSoftMetrics ? indistinctOccurrencePairs(positioned.edges) : []
+  for (const { a, b, reason } of indistinct) {
+    const name = (edge: PositionedEdge) => `${edge.source}->${edge.target}${edge.label ? ` "${edge.label}"` : ''}`
+    violations.push({ metric: 'indistinctOccurrences', detail: `${name(a)} and ${name(b)} ${reason === 'twin' ? 'share one complete route' : 'share one arrowhead that cannot stand for both'}`, targets: [`${a.source}->${a.target}`, `${b.source}->${b.target}`] })
+  }
+
   return {
     metrics: {
       edges: positioned.edges.length,
@@ -662,6 +676,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       nodeOverlaps,
       labelOffRoute,
       edgeThroughNode,
+      indistinctOccurrences: indistinct.length,
       labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
       totalBends,
@@ -710,7 +725,7 @@ export function measureRubricMetrics(
 /** The hard rubric metrics — must be zero for every diagram, always. */
 export const HARD_METRICS = [
   'offOutlineEndpoints', 'endpointApproaches', 'diagonalSegments', 'unexplainedBends',
-  'hitches', 'nodeOverlaps', 'labelOffRoute', 'edgeThroughNode',
+  'hitches', 'nodeOverlaps', 'labelOffRoute', 'edgeThroughNode', 'indistinctOccurrences',
 ] as const
 
 export function hardViolations(result: RubricResult): RubricViolation[] {

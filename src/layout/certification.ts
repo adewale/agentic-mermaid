@@ -373,7 +373,7 @@ interface UncertifiedSelection {
 /** Violation classes that can misstate structure rather than only look
  * imperfect: wrong containment, hidden nodes, an edge drawn through or away
  * from a node, a label away from its edge. */
-const MISLEADING_VIOLATIONS: ReadonlySet<string> = new Set(['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'edgeThroughNode', 'offOutlineEndpoints', 'labelOffRoute'])
+const MISLEADING_VIOLATIONS: ReadonlySet<string> = new Set(['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'edgeThroughNode', 'offOutlineEndpoints', 'labelOffRoute', 'indistinctOccurrences'])
 
 const rubricViolation = (violation: { metric: string; detail: string; targets?: readonly string[] }): LayoutCertificationViolation =>
   ({ kind: violation.metric, targets: violation.targets ?? [], detail: violation.detail })

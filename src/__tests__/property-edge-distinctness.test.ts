@@ -75,6 +75,13 @@ const REDUCED: [Spec][] = [
   ...(['TD', 'LR'] as const).map((direction): [Spec] => [{ direction, shapes: rects(4),
     edges: [edge(2, 0, 'dotted', true), edge(1, 0, 'dotted', false), edge(3, 0, 'solid', false), edge(3, 0, 'solid', true), edge(2, 0, 'dotted', false)] }]),
   [{ direction: 'TD', shapes: ['rect', 'rect', 'rect', 'diamond'], edges: [edge(0, 3, 'solid', true), edge(1, 3, 'solid', true), edge(2, 3, 'solid', false)] }],
+  // One per producer that could still merge arrivals after those fixes: diamond
+  // facet alignment, a port-lane slide onto a twin's port, and two flow-port
+  // rebuilds that ignored who already arrived there.
+  [{ direction: 'TD', shapes: ['diamond', 'rect', 'rect'], edges: [edge(0, 2, 'solid', false), edge(1, 2, 'solid', true), edge(0, 2, 'solid', false), edge(1, 2, 'solid', false)] }],
+  [{ direction: 'LR', shapes: ['rect', 'round', 'round', 'rect'], edges: [edge(0, 3, 'solid', false), edge(2, 3, 'solid', false), edge(2, 3, 'solid', false)] }],
+  [{ direction: 'LR', shapes: rects(3), edges: [edge(1, 0, 'solid', false), edge(1, 0, 'thick', false), edge(2, 0, 'solid', true)] }],
+  [{ direction: 'TD', shapes: rects(4), edges: [edge(1, 2, 'solid', false), edge(3, 2, 'solid', false), edge(3, 2, 'solid', false), edge(0, 2, 'solid', false)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {
