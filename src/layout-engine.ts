@@ -8,6 +8,7 @@ import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { separateIndistinctArrivals } from './layout/passes/arrival-slots.ts'
+import { reseatConflictedLabels } from './layout/passes/label-reseat.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -1533,6 +1534,11 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
     after: ['closeRouteContracts'], mutates: ['edges'],
     run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
+  },
+  {
+    id: 'reseatConflictedLabels', doc: 'move a caption still crossed by a foreign shaft to the clearest seat on its own final route (label-only, freeze-safe)',
+    after: ['repairResidualDiagonals'], mutates: ['labels'],
+    run: c => { reseatConflictedLabels(c.nodes, c.edges, c.style) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
