@@ -11,8 +11,9 @@
 // committed heuristic-tracker baseline from being a CI gate.
 //
 // Per sample:
-//   broken     support lost, authored nodes/edges lost, paint certification
-//              lost, label measurement lost, or head nondeterministic.
+//   broken     support lost, authored nodes/edges lost, graph geometry or
+//              paint certification lost, label measurement lost, or head
+//              nondeterministic.
 //   regressed  the declared objective prefers base.
 //   improved   the declared objective prefers head (or head fixed a break).
 //   unchanged  objective tie; secondary metric moves are listed as tradeoffs.
@@ -39,7 +40,9 @@ const HEAD_ROOT = resolve(import.meta.dir, '..', '..')
 const GRAPH_FAMILIES = new Set(['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'])
 
 export interface GateInput { key: string; family: string; source: string; options: Record<string, unknown> }
-export interface CapturedSample { key: string; ok: boolean; error?: string; layout?: unknown; digest?: string; ms: number[] }
+export interface CapturedSample { key: string; ok: boolean; error?: string; layout?: unknown; digest?: string; ms: number[]
+  /** Graph geometry certification from the receipt; absent when certified or not reported. */
+  geometry?: { status: string; kinds: string[] } }
 
 export type GateVerdict = 'broken' | 'regressed' | 'improved' | 'unchanged'
 export interface GateResult {
@@ -65,16 +68,18 @@ const reps = Number(process.env.GATE_REPS)
 const out = []
 for (const input of inputs) {
   const ms = []
-  let layout, error
+  let layout, receipt, error
   for (let i = 0; i <= reps; i++) {
     const start = performance.now()
-    try { layout = api.layoutMermaidWithReceipt(input.source, input.options).layout } catch (e) { error = String(e && e.message || e); break }
+    try { ({ layout, receipt } = api.layoutMermaidWithReceipt(input.source, input.options)) } catch (e) { error = String(e && e.message || e); break }
     if (i > 0) ms.push(performance.now() - start)
   }
   if (error !== undefined) { out.push({ key: input.key, ok: false, error, ms }); continue }
   const json = JSON.stringify(layout)
+  const geometry = receipt && receipt.layoutCertification && receipt.layoutCertification.geometry
   out.push({ key: input.key, ok: true, layout: process.env.GATE_KEEP_LAYOUT === '1' ? JSON.parse(json) : undefined,
-    digest: createHash('sha256').update(json).digest('hex'), ms })
+    digest: createHash('sha256').update(json).digest('hex'), ms,
+    ...(geometry && geometry.status !== 'passed' ? { geometry: { status: geometry.status, kinds: (geometry.violations || []).map(v => v.kind) } } : {}) })
 }
 await Bun.write(process.env.GATE_OUT, JSON.stringify(out))
 `
@@ -155,6 +160,9 @@ export function classify(input: GateInput, base: readonly CapturedSample[], head
   }
   if (!h.ok) return { ...result, verdict: b.ok ? 'broken' : 'unchanged', notes: [b.ok ? `support lost: ${h.error}` : 'both error'] }
   if (!b.ok) return { ...result, verdict: 'improved', notes: ['support gained: error → layout'] }
+  // Drawn but no longer certified is a lost hard guarantee, whatever it scores.
+  if (h.geometry && !b.geometry) return { ...result, verdict: 'broken', notes: [`geometry certification lost: ${h.geometry.kinds.join(', ') || h.geometry.status}`] }
+  if (b.geometry && !h.geometry) return { ...result, verdict: 'improved', notes: [`geometry certification regained: ${b.geometry.kinds.join(', ') || b.geometry.status}`] }
   if (b.digest === h.digest) return result
   let headMetrics: QualityMetrics
   try { headMetrics = score(h.layout) } catch (error) {

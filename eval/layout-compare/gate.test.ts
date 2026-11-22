@@ -28,6 +28,8 @@ test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdic
   { name: 'support gained', base: [sample('a', undefined)], head: [sample('b', metrics())], verdict: 'improved' },
   { name: 'head differs between identical runs', base: [sample('a', metrics())], head: [sample('b', metrics()), sample('c', metrics())], verdict: 'broken' },
   { name: 'authored node lost despite fewer crossings', base: [sample('a', metrics())], head: [sample('b', metrics({ nodes: 4, crossings: 0 }))], verdict: 'broken' },
+  { name: 'geometry certification lost despite an identical score', base: [sample('a', metrics())], head: [{ ...sample('b', metrics()), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences'] } }], verdict: 'broken' },
+  { name: 'geometry certification regained outranks one more crossing', base: [{ ...sample('a', metrics()), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences'] } }], head: [sample('b', metrics({ crossings: 3 }))], verdict: 'improved' },
   { name: 'paint certification lost', base: [sample('a', metrics())], head: [sample('b', metrics({ paint: 'unverified' }))], verdict: 'broken' },
   { name: 'paint certification regained outranks one more crossing', base: [sample('a', metrics({ paint: 'unverified' }))], head: [sample('b', metrics({ crossings: 3 }))], verdict: 'improved' },
   { name: 'one more crossing outranks fewer bends', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 3, bends: 2 }))], verdict: 'regressed', criterion: 'edgeCrossings' },
