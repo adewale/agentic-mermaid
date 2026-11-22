@@ -17,7 +17,7 @@ const edge = (source: string, target: string, points: [number, number][], extra:
 function scene(extraEdges: PositionedEdge[] = []) {
   const nodes = [node('A', 0, 0), node('B', 400, 300), node('C', 70, 0), node('D', 70, 360)]
   const labelled = edge('A', 'B', [[20, 40], [20, 320], [400, 320]], { label: 'handoff', labelPosition: { x: 20, y: 120 } })
-  const foreign = edge('C', 'D', [[90, 40], [90, 360]].map(([x, y]) => [x - 62, y]) as [number, number][])
+  const foreign = edge('C', 'D', [[28, 40], [28, 360]])
   return { nodes, edges: [labelled, foreign, ...extraEdges] }
 }
 
