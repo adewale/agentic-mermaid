@@ -2111,7 +2111,11 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, undefined, allowUncertified), layoutCost)
-  const certification = selected.certification!, before = certification.preference.selectedScore
+  // Report safety may return a drawable graph no candidate certified; it has no
+  // preference score for the optional balanced search to improve on.
+  const certification = selected.certification
+  if (!certification) return selected
+  const before = certification.preference.selectedScore
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
