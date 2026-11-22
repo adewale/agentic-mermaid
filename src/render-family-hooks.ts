@@ -97,7 +97,7 @@ export const ZENUML_RENDER_HOOKS = { ...ZENUML_SVG_HOOKS, renderAscii: nativeTer
 
 export const EVENTMODELING_RENDER_HOOKS = { ...EVENTMODELING_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderEventModelingTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme)) }
 
-type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>
+type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'layoutReadsPaintBackend' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>
 
 function renderFlowchartTerminal(ctx: AsciiContext, model = terminalInputModel(ctx.source.originalText, ctx.source.familyBody)): TerminalArtifact {
   const parsed = model.graph()

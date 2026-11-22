@@ -10,7 +10,7 @@ import type { PositionedDiagram, RenderContext } from '../types.ts'
 
 export type BrowserSvgFamilyHooks = Pick<
   FamilyDescriptor,
-  'normalizeRequest' | 'configDiagnostics' | 'statementEnds' | 'layout' | 'lowerScene'
+  'normalizeRequest' | 'configDiagnostics' | 'statementEnds' | 'layout' | 'layoutReadsPaintBackend' | 'lowerScene'
 > & Required<Pick<FamilyDescriptor, 'projectPositioned'>>
 
 type BrowserFamilyDescriptorData = Omit<

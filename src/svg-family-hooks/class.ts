@@ -25,6 +25,8 @@ export const CLASS_SVG_HOOKS = {
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
     return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace, ctx.paintBackendId))
   },
+  // Rough and hybrid markers can leave canonical clearances around notes.
+  layoutReadsPaintBackend: true,
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
 } satisfies BrowserSvgFamilyHooks

@@ -14,6 +14,7 @@ import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // silently reconstruct a smaller option object.
 
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './agent/families.ts'
+import type { FamilyLayoutContext } from './agent/family-registry.ts'
 import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
@@ -87,6 +88,22 @@ export function positionedForSceneLowering(layout: FamilyLayoutResult): Position
   return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
+/** The request values a family layouter's inputs are derived from. */
+type LayoutInputRoot = 'source' | 'renderOptions' | 'appearance' | 'familyConfig' | 'paintBackend'
+/** Every field a layouter receives names the root it is derived from, and the
+ * position-cache key holds every root. A new FamilyLayoutContext field without
+ * an entry fails typechecking, so the key cannot silently forget a layout input.
+ * The paint backend reaches only layouts that declare layoutReadsPaintBackend. */
+const LAYOUT_INPUT_SOURCES: { readonly [K in keyof FamilyLayoutContext]-?: LayoutInputRoot } = {
+  source: 'source',
+  renderOptions: 'renderOptions',
+  styleFace: 'appearance',
+  familyAppearance: 'appearance',
+  familyConfig: 'familyConfig',
+  paintBackendId: 'paintBackend',
+}
+const LAYOUT_INPUT_ROOTS = [...new Set(Object.values(LAYOUT_INPUT_SOURCES))]
+
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const descriptor = executionPlan.family
@@ -119,7 +136,15 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // model, 20-30x the authored text) from the source alone, which the key
   // already holds. Every other family config stays keyed.
   const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  const roots: Record<LayoutInputRoot, unknown> = {
+    source: cacheSource,
+    renderOptions: request.renderOptions,
+    appearance: request.appearance,
+    familyConfig: sourceDerivedConfig ? undefined : request.familyConfig,
+    // A family that reads no paint shares one entry across backends and outputs.
+    paintBackend: descriptor.layoutReadsPaintBackend ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  }
+  const cacheParts = cacheEnabled ? [...LAYOUT_INPUT_ROOTS.map(root => roots[root]), projectionOptions,
     layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
@@ -152,7 +177,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         source,
         renderOptions: resolved.renderOptions,
         ...(resolved.styleFace ? { styleFace: resolved.styleFace } : {}),
-        ...(resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
+        ...(descriptor.layoutReadsPaintBackend && resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
         ...(resolved.familyConfig ? { familyConfig: resolved.familyConfig } : {}),
         ...(resolved.familyAppearance ? { familyAppearance: resolved.familyAppearance } : {}),
       })),
