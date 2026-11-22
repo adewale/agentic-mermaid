@@ -30,11 +30,23 @@ export interface LayoutPreferenceScore {
   area: number
 }
 
-type PreferenceCriterion = keyof LayoutPreferenceScore
-const PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
+export type PreferenceCriterion = keyof LayoutPreferenceScore
+/** The declared soft objective among hard-feasible graph layouts. Candidate
+ * selection and offline paired comparisons both read this one ordering. */
+export const LAYOUT_PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
   'unreadableTitles', 'edgeCrossings', 'labelConflicts', 'totalBends',
   'nonCanonicalEndpointRate', 'peerBarycenterDelta', 'area',
 ]
+
+/** Negative when `alternative` is preferred, positive when `first` is, zero on
+ * a complete tie. `criterion` names the first axis that decided. */
+export function compareLayoutPreference(first: Readonly<LayoutPreferenceScore>, alternative: Readonly<LayoutPreferenceScore>): { order: -1 | 0 | 1; criterion?: PreferenceCriterion } {
+  for (const criterion of LAYOUT_PREFERENCE_ORDER) {
+    if (alternative[criterion] < first[criterion]) return { order: -1, criterion }
+    if (alternative[criterion] > first[criterion]) return { order: 1, criterion }
+  }
+  return { order: 0 }
+}
 
 export interface LayoutPreferenceEvidence {
   /** Score of the returned geometry, including the optional final route choice. */
@@ -409,11 +421,8 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
   selected: CertifiedCandidate
   reason: LayoutPreferenceEvidence['reason']
 } {
-  for (const criterion of PREFERENCE_ORDER) {
-    if (alternative.score[criterion] < first.score[criterion]) return { selected: alternative, reason: criterion }
-    if (alternative.score[criterion] > first.score[criterion]) return { selected: first, reason: criterion }
-  }
-  return { selected: first, reason: 'candidate-order' }
+  const { order, criterion } = compareLayoutPreference(first.score, alternative.score)
+  return criterion === undefined ? { selected: first, reason: 'candidate-order' } : { selected: order < 0 ? alternative : first, reason: criterion }
 }
 
 /** Report-mode fallback when no candidate certifies. Deterministic: fewest
