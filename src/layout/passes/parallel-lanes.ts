@@ -509,22 +509,7 @@ export function applyParallelDuplicateLanes(
     // Lay out each lane (source exit slot, target entry slot, riser column),
     // then order the riser columns so duplicate lanes NEST instead of crossing.
     const lanes: Array<{ edge: PositionedEdge; source: PositionedNode; exitMain: number; sCross: number; tCross: number }> = []
-    const col: number[] = []
-    // Riser columns step by the lane separation. When the flow gap cannot hold
-    // every step, a column past it falls back to the gap's midpoint, the
-    // staircase no longer nests, and the proposal is refused. That is harmless
-    // while the current routes still reach both ends at distinct points; when
-    // they do not (a node moved after routing, or two arrivals merged), tighten
-    // the step so each column keeps a BASE_GAP run at both ends, while that
-    // still leaves a readable pitch.
-    const gaps = bucket.map(edge => Math.abs(entryMain - exitSide(nodeMap.get(edge.source)!, back)))
-    const fits = (step: number) => gaps.every((gap, i) => BASE_GAP + i * step < gap - 4)
-    const tightened = Math.min(...gaps.map((gap, i) => (i === 0 ? Infinity : (gap - 2 * BASE_GAP) / i)))
-    const sameEnd = (a: Point, b: Point) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5
-    const unreadable = () => bucket.some((edge, i) => edge.points.length < 2
-      || !onShapeOutline(nodeMap.get(edge.source)!, edge.points[0]!) || !onShapeOutline(target, edge.points.at(-1)!)
-      || bucket.some((other, j) => j < i && other.points.length > 1 && sameEnd(other.points.at(-1)!, edge.points.at(-1)!)))
-    const step = fits(sep) || tightened < 4 || !unreadable() ? sep : tightened
+    const steps: Array<{ exitMain: number; offset: number }> = []
     for (let i = 0; i < k; i++) {
       const edge = bucket[i]!
       const source = nodeMap.get(edge.source)!
@@ -537,30 +522,38 @@ export function applyParallelDuplicateLanes(
         : 0
       const sCross = source[f.cross] + crossSize(source) / 2 + (sibs.indexOf(edge) - (sibs.length - 1) / 2) * sSep
 
-      // Each edge jogs at its own column, staggered by the lane separation, so
-      // the cross-axis segments stay parallel rather than overlapping. Feedback
-      // edges run against the flow, so their jog steps the other way.
-      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * step)
-      const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
-      if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
       lanes.push({ edge, source, exitMain, sCross, tCross })
-      col.push(jog)
+      steps.push({ exitMain, offset: i })
     }
 
-    // Nest riser columns within each run of duplicate lanes (same source, hence
-    // same directed pair in this target bucket). When the pair bends across the
-    // flow, the UPPER lane's riser must sit farther out so the lower lane's exit
-    // run does not cut across it (an upward bend is the mirror, handled by the
-    // reversal below). Endpoints are untouched, so separation/order is preserved.
-    for (let a = 0; a < k;) {
-      let b = a
-      while (b + 1 < k && bucket[b + 1]!.source === bucket[a]!.source) b++
-      if (b > a && lanes[a]!.tCross - lanes[a]!.sCross > 0) {
-        const slice = col.slice(a, b + 1).reverse()
-        for (let r = a; r <= b; r++) col[r] = slice[r - a]!
+    // Each edge jogs at its own column, staggered by `step` (the lane
+    // separation), so the cross-axis segments stay parallel rather than
+    // overlapping. Feedback edges run against the flow, so their jog steps the
+    // other way.
+    const columns = (step: number): number[] => {
+      const col = steps.map(({ exitMain, offset }) => {
+        const jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + offset * step)
+        const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
+        return jog <= lo + 4 || jog >= hi - 4 ? (exitMain + entryMain) / 2 : jog
+      })
+      // Nest riser columns within each run of duplicate lanes (same source,
+      // hence same directed pair in this target bucket). When the pair bends
+      // across the flow, the UPPER lane's riser must sit farther out so the
+      // lower lane's exit run does not cut across it (an upward bend is the
+      // mirror, handled by the reversal below). Endpoints are untouched, so
+      // separation/order is preserved.
+      for (let a = 0; a < k;) {
+        let b = a
+        while (b + 1 < k && bucket[b + 1]!.source === bucket[a]!.source) b++
+        if (b > a && lanes[a]!.tCross - lanes[a]!.sCross > 0) {
+          const slice = col.slice(a, b + 1).reverse()
+          for (let r = a; r <= b; r++) col[r] = slice[r - a]!
+        }
+        a = b + 1
       }
-      a = b + 1
+      return col
     }
+    let col = columns(sep)
 
     const proposalFor = (offset: number): ParallelLaneProposal[] | undefined => {
       const proposed: ParallelLaneProposal[] = []
@@ -589,8 +582,29 @@ export function applyParallelDuplicateLanes(
       return proposed
     }
     let proposed = proposalFor(0)
+    let firstAdmission = proposed ? parallelLaneProposalAllowed(edges, proposed, style, proposalOptions) : false
+    // When the flow gap cannot hold every full step, a column past it falls
+    // back to the gap's midpoint and the staircase may no longer nest. A
+    // refused proposal is harmless while the current routes still reach both
+    // ends at distinct points; when they do not (a node moved after routing,
+    // or two arrivals merged), retry with the step tightened so each column
+    // keeps a BASE_GAP run at both ends, while that leaves a readable pitch.
+    if (firstAdmission !== true) {
+      const gaps = steps.map(({ exitMain }) => Math.abs(entryMain - exitMain))
+      const tightened = Math.min(...gaps.map((gap, i) => (i === 0 ? Infinity : (gap - 2 * BASE_GAP) / i)))
+      const sameEnd = (a: Point, b: Point) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5
+      const unreadable = bucket.some((edge, i) => edge.points.length < 2
+        || !onShapeOutline(nodeMap.get(edge.source)!, edge.points[0]!) || !onShapeOutline(target, edge.points.at(-1)!)
+        || bucket.some((other, j) => j < i && other.points.length > 1 && sameEnd(other.points.at(-1)!, edge.points.at(-1)!)))
+      if (unreadable && tightened >= 4 && gaps.some((gap, i) => BASE_GAP + i * sep >= gap - 4)) {
+        const full = col
+        col = columns(tightened)
+        const retry = proposalFor(0)
+        if (retry && parallelLaneProposalAllowed(edges, retry, style, proposalOptions) === true) { proposed = retry; firstAdmission = true }
+        else col = full
+      }
+    }
     if (!proposed) return
-    const firstAdmission = parallelLaneProposalAllowed(edges, proposed, style, proposalOptions)
     if (firstAdmission !== true) {
       if (firstAdmission !== 'marker-blocked' || !withinPortLaneBudget(nodes, edges, groups)) return
       // The existing five-pixel face margins bound a common translation of
