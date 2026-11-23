@@ -485,3 +485,43 @@ test('long authored indentation retains frame offsets with bounded scanning work
   expect(result).toBe(1)
   expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
+
+// Relations route through the shared orthogonal router in the gutters and
+// lane gaps. A clear lane needs no detour; no route enters a card, leaves its
+// card contacts, or shares a line with an unrelated relationship.
+test.each<{ name: string; source: string; straight: string[] }>([
+  { name: 'a same-lane relation skipping an empty column', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems ->> 02\ntf 05 ui CartUI', straight: ['02->04'] },
+  { name: 'return flows across lanes', source: 'eventmodeling\ntf 01 cmd Pay\ntf 02 evt Paid\ntf 03 rmo Ledger\ntf 04 ui Receipt ->> 02\ntf 05 cmd Refund ->> 03', straight: ['03->05'] },
+  { name: 'a relation skipping three columns', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems\ntf 05 ui CartUI ->> 02', straight: [] },
+])('$name routes through clear corridors', ({ source, straight }) => {
+  const body = parseEventModeling(source)
+  const layout = layoutEventModeling(body)
+  const cards = new Map(layout.nodes.map(node => [node.id, node]))
+  const key = (edge: { from: string; to: string }) => `${edge.from}->${edge.to}`
+  expect(layout.edges.map(key).sort()).toEqual(eventRelations(body).map(key).sort())
+  for (const edge of layout.edges) {
+    const from = cards.get(edge.from)!, to = cards.get(edge.to)!, points = edge.points
+    // Orthogonal, leaving the source's right side and entering the target's left.
+    for (let i = 1; i < points.length; i++) expect(points[i]!.x === points[i - 1]!.x || points[i]!.y === points[i - 1]!.y).toBe(true)
+    expect(points[0]!.x).toBeGreaterThanOrEqual(from.x + from.width)
+    expect(points.at(-1)!.x).toBeLessThanOrEqual(to.x)
+    // No segment passes through any card's interior.
+    for (const card of layout.nodes) for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const inside = Math.max(a.x, b.x) > card.x + 1 && Math.min(a.x, b.x) < card.x + card.width - 1 && Math.max(a.y, b.y) > card.y + 1 && Math.min(a.y, b.y) < card.y + card.height - 1
+      expect(inside, `${key(edge)} through ${card.id}`).toBe(false)
+    }
+    if (straight.includes(key(edge))) expect(points, key(edge)).toHaveLength(2)
+  }
+  // Unrelated relationships never run on one line where they overlap.
+  for (const a of layout.edges) for (const b of layout.edges) {
+    if (a === b || a.from === b.from || a.to === b.to || a.from === b.to || a.to === b.from) continue
+    for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
+      const [p, q] = [a.points[i - 1]!, a.points[i]!], [r, s] = [b.points[j - 1]!, b.points[j]!]
+      const vertical = p.x === q.x && r.x === s.x && p.x === r.x, horizontal = p.y === q.y && r.y === s.y && p.y === r.y
+      if (!vertical && !horizontal) continue
+      const [lo, hi, rlo, rhi] = vertical ? [Math.min(p.y, q.y), Math.max(p.y, q.y), Math.min(r.y, s.y), Math.max(r.y, s.y)] : [Math.min(p.x, q.x), Math.max(p.x, q.x), Math.min(r.x, s.x), Math.max(r.x, s.x)]
+      expect(Math.min(hi, rhi) - Math.max(lo, rlo), `${key(a)} along ${key(b)}`).toBeLessThanOrEqual(0)
+    }
+  }
+})
