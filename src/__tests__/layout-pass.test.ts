@@ -3,7 +3,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
-import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
+import type { LayoutPass, MetricBudget, PassContextBase, PassEffect, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
@@ -694,7 +694,7 @@ describe('runPipeline invariant enforcement', () => {
     })
     const requested: RubricMetric[][] = []
     const context: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
-    runPipeline(context, [mkPass({ id: 'live-budget', mayChangeMetrics: budgets, run: c => {
+    runPipeline(context, [mkPass({ id: 'live-budget', mutates: ['positions'], mayChangeMetrics: budgets, run: c => {
       c.nodes[0]!.x = 1
       budget.worsenBy = 1
       budget.whenImproves = 'crossings'
@@ -750,6 +750,18 @@ describe('runPipeline invariant enforcement', () => {
   test('a positions pass moving a frozen node always fails', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'move', mutates: ['positions'], run: moveFirstNode })])).toThrow(/freeze/)
+  })
+
+  test('before the freeze, under assertions, boxes change only as a pass declares', () => {
+    const run = (mutates: PassEffect[], change: (ctx: TestCtx) => void) => () =>
+      runPipeline({ frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }, [mkPass({ id: 'p', mutates, run: change })])
+    const move = (ctx: TestCtx) => { ctx.nodes[0]!.x = 3 }
+    const resize = (ctx: TestCtx) => { ctx.nodes[0]!.width = 3 }
+    expect(run(['edges'], move)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['positions'], resize)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['dimensions'], move)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['positions'], move)).not.toThrow()
+    expect(run(['dimensions'], resize)).not.toThrow()
   })
 
   test('a whole-graph translate after the freeze is allowed', () => {
@@ -994,6 +1006,7 @@ describe('runPipeline invariant enforcement', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     const pass = mkPass({
       id: 'attach',
+      mutates: ['positions'],
       mayChangeMetrics: { portRate: 'improve-only' },
       run: c => {
         c.nodes[0]!.x = 1
@@ -1009,6 +1022,7 @@ describe('runPipeline invariant enforcement', () => {
     const pass = (removeBends: boolean) =>
       mkPass({
         id: 'straighten',
+        mutates: ['positions'],
         mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'bends' } },
         run: c => {
           c.nodes[0]!.x = 0
@@ -1022,7 +1036,7 @@ describe('runPipeline invariant enforcement', () => {
   test('each extra crossing needs a separately repaired parallel overlap, rather than bend reduction', () => {
     const make = (): TestCtx => ({ frozen: false, nodes: [{ x: 0, y: 2, width: 5, height: 1 }], log: [] })
     const measureMetrics = (context: TestCtx) => ({ crossings: context.nodes[0]!.x, parallelOverlaps: context.nodes[0]!.y, bends: context.nodes[0]!.width })
-    const pass = (crossings: number, overlaps: number) => mkPass({ id: 'separate', mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true } }, run: c => { c.nodes[0]!.x = crossings; c.nodes[0]!.y = overlaps; c.nodes[0]!.width = 0 } })
+    const pass = (crossings: number, overlaps: number) => mkPass({ id: 'separate', mutates: ['positions', 'dimensions'], mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true } }, run: c => { c.nodes[0]!.x = crossings; c.nodes[0]!.y = overlaps; c.nodes[0]!.width = 0 } })
     expect(() => runPipeline(make(), [pass(2, 0)], { measureMetrics })).not.toThrow()
     expect(() => runPipeline(make(), [pass(2, 1)], { measureMetrics })).toThrow(/crossings.*allowance 1/)
     expect(() => runPipeline(make(), [pass(1, 2)], { measureMetrics })).toThrow(/crossings.*allowance 0/)

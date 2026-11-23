@@ -25,7 +25,7 @@ export type PassMetrics = Partial<Record<RubricMetric, number>>
 /** A broken pass contract must escape candidate fallback unchanged. */
 export class LayoutPassContractError extends Error {
   readonly code: string = 'LAYOUT_PASS_CONTRACT_VIOLATION'
-  constructor(readonly pass: string, readonly contract: 'ordering' | 'freeze' | 'certificate' | 'measurement' | 'metric-budget', message: string) {
+  constructor(readonly pass: string, readonly contract: 'ordering' | 'freeze' | 'effects' | 'certificate' | 'measurement' | 'metric-budget', message: string) {
     super(message)
     this.name = 'LayoutPassContractError'
   }
@@ -96,6 +96,23 @@ const frozenBoxes = (ctx: PassContextBase): PassBox[] => {
   }
   visit(ctx.groups ?? [])
   return boxes
+}
+
+/** Snapshot box geometry a pass has not declared it may change; the returned
+ * check throws when the pass changed it anyway. */
+function undeclaredBoxEffects(ctx: PassContextBase, mutates: readonly PassEffect[]): ((pass: string) => void) | undefined {
+  const moves = mutates.includes('positions') || mutates.includes('translate') || mutates.includes('extract')
+  const resizes = mutates.includes('dimensions') || mutates.includes('extract')
+  if (moves && resizes) return undefined
+  const before = frozenBoxes(ctx).map(({ id, x, y, width, height }) => ({ id, x, y, width, height }))
+  return pass => {
+    const after = frozenBoxes(ctx)
+    const changed = after.length !== before.length || after.some((box, i) => {
+      const old = before[i]!
+      return box.id !== old.id || (!moves && (box.x !== old.x || box.y !== old.y)) || (!resizes && (box.width !== old.width || box.height !== old.height))
+    })
+    if (changed) throw new LayoutPassContractError(pass, 'effects', `LayoutPass effects: '${pass}' changed node or group geometry outside its declared effects [${mutates.join(', ')}]`)
+  }
 }
 
 /**
@@ -213,6 +230,11 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
       }
     }
 
+    // Under assertions, node and group boxes move only in passes that declare
+    // it. A box's geometry is plain numbers on an object the passes share by
+    // identity, so this declared-effect check is what stands for the frozen
+    // values routes get (after the route-contract freeze, the check above).
+    const undeclared = valueAssertions && !frozen ? undeclaredBoxEffects(ctx, pass.mutates) : undefined
     const rollback = pass.run(ctx)
     if (rollback && !pass.proposal) throw new LayoutPassContractError(pass.id, 'metric-budget', `Layout pass '${pass.id}' returned a rollback without declaring a cosmetic proposal`)
     const metricFailure = checkMetrics()
@@ -225,6 +247,7 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
       checkFrozenGeometry()
     }
 
+    undeclared?.(pass.id)
     if (pass.freezesNodes) ctx.frozen = true
     frozen ||= ctx.frozen
     ran.add(pass.id)

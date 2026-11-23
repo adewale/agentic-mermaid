@@ -1393,7 +1393,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   },
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
-    after: ['centerPeerBarycenters'], mutates: ['positions', 'edges'],
+    after: ['centerPeerBarycenters'], mutates: ['positions', 'dimensions', 'edges'],
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
