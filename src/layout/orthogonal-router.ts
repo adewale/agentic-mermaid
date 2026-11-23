@@ -13,10 +13,12 @@ export type RouterDirection = 'E' | 'W' | 'N' | 'S'
 export interface OrthogonalRouteRequest {
   readonly start: RouterPoint
   readonly end: RouterPoint
-  /** Direction of the first segment, leaving `start`. */
-  readonly exit: RouterDirection
-  /** Direction of travel of the last segment, arriving at `end`. */
-  readonly entry: RouterDirection
+  /** Direction of the first segment, leaving `start`; a list admits any of
+   * them, for an endpoint that is already clear of its own box. */
+  readonly exit: RouterDirection | readonly RouterDirection[]
+  /** Direction of travel of the last segment, arriving at `end`; a list
+   * admits any of them. */
+  readonly entry: RouterDirection | readonly RouterDirection[]
   readonly obstacles: readonly RouterBox[]
   /** Distance every segment keeps from every obstacle. */
   readonly clearance: number
@@ -36,6 +38,18 @@ export interface OrthogonalRouteRequest {
    * line within `gap` of one (it would read as one line turning), nor beside
    * one closer than `separation` where their spans overlap. */
   readonly avoid?: { readonly segments: readonly (readonly [RouterPoint, RouterPoint])[]; readonly separation: number; readonly gap: number }
+  /** The direction the drawn line already travels as it reaches `start` (a
+   * lead the caller draws). Leaving in another listed direction is a bend and
+   * costs one; turning back is never allowed. */
+  readonly startHeading?: RouterDirection
+  /** The direction the drawn line continues in after `end`. Arriving in
+   * another listed direction is a bend and costs one; arriving head-on
+   * against it is never allowed. */
+  readonly endHeading?: RouterDirection
+  /** Segments of routes already drawn that a new route should not cross.
+   * Each crossing adds `cost`; below one bend, a crossing still wins over a
+   * detour that needs another bend. */
+  readonly crossings?: { readonly segments: readonly (readonly [RouterPoint, RouterPoint])[]; readonly cost: number }
 }
 
 const STEP: Record<RouterDirection, RouterPoint> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
@@ -54,6 +68,25 @@ function sortedUnique(values: readonly number[]): number[] {
 }
 
 /** Whether segment a-b runs too close alongside an existing segment. */
+/** Drawn segments a grid step a-b crosses. A crossing exactly at `a` belongs
+ * to the step that arrived there, so a route through one point pays once; one
+ * exactly at a route's own endpoint (`b` when `open`) is a shared contact, not
+ * a crossing. */
+function crossedSegments(a: RouterPoint, b: RouterPoint, segments: readonly (readonly [RouterPoint, RouterPoint])[], open: boolean): number {
+  const vertical = Math.abs(a.x - b.x) <= EPS
+  const fixed = vertical ? a.x : a.y, from = vertical ? a.y : a.x, to = vertical ? b.y : b.x
+  let count = 0
+  for (const [p, q] of segments) {
+    if ((Math.abs(p.x - q.x) <= EPS) === vertical) continue
+    const at = vertical ? p.y : p.x
+    const lo = vertical ? Math.min(p.x, q.x) : Math.min(p.y, q.y), hi = vertical ? Math.max(p.x, q.x) : Math.max(p.y, q.y)
+    if (fixed <= lo + EPS || fixed >= hi - EPS) continue
+    const past = (at - from) * Math.sign(to - from), span = Math.abs(to - from)
+    if (past > EPS && (open ? past < span - EPS : past <= span + EPS)) count++
+  }
+  return count
+}
+
 function crowds(a: RouterPoint, b: RouterPoint, avoid: NonNullable<OrthogonalRouteRequest['avoid']>): boolean {
   const vertical = Math.abs(a.x - b.x) <= EPS
   const lo = vertical ? Math.min(a.y, b.y) : Math.min(a.x, b.x), hi = vertical ? Math.max(a.y, b.y) : Math.max(a.x, b.x)
@@ -116,40 +149,55 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const minRun = request.minRun ?? 0
   const inflated = request.obstacles.map(box => ({ x0: box.x0 - clearance, y0: box.y0 - clearance, x1: box.x1 + clearance, y1: box.y1 + clearance }))
   // Leave and arrive along the required directions for at least the stub.
-  const out = { x: start.x + STEP[exit].x * stub, y: start.y + STEP[exit].y * stub }
-  const into = { x: end.x - STEP[entry].x * stub, y: end.y - STEP[entry].y * stub }
+  const exits = typeof exit === 'string' ? [exit] : exit, entries = typeof entry === 'string' ? [entry] : entry
+  const outs = exits.map(d => ({ d, point: { x: start.x + STEP[d].x * stub, y: start.y + STEP[d].y * stub } }))
+  const intos = entries.map(d => ({ d, point: { x: end.x - STEP[d].x * stub, y: end.y - STEP[d].y * stub } }))
+  if (!outs.length || !intos.length) return undefined
+  const out = outs[0]!.point, into = intos[0]!.point
   // Without mandated corridors, obstacle edges and the midpoints between the
   // endpoints are candidates too, so an offset target can be reached directly.
   const edgesX = request.channelsOnly ? [] : [...inflated.flatMap(box => [box.x0, box.x1]), (out.x + into.x) / 2]
   const edgesY = request.channelsOnly ? [] : [...inflated.flatMap(box => [box.y0, box.y1]), (out.y + into.y) / 2]
-  const xs = sortedUnique([out.x, into.x, ...edgesX, ...(request.channels?.x ?? [])])
-  const ys = sortedUnique([out.y, into.y, ...edgesY, ...(request.channels?.y ?? [])])
+  const ends = [...outs, ...intos].map(({ point }) => point)
+  const xs = sortedUnique([...ends.map(point => point.x), ...edgesX, ...(request.channels?.x ?? [])])
+  const ys = sortedUnique([...ends.map(point => point.y), ...edgesY, ...(request.channels?.y ?? [])])
   const clear = (a: RouterPoint, b: RouterPoint) => !inflated.some(box => segmentHits(a, b, box)) && !(request.avoid && crowds(a, b, request.avoid))
   const inside = (p: RouterPoint) => inflated.some(box => p.x > box.x0 + EPS && p.x < box.x1 - EPS && p.y > box.y0 + EPS && p.y < box.y1 - EPS)
-  if (inside(out) || inside(into)) return undefined
   const index = (p: RouterPoint) => {
     const i = xs.findIndex(x => Math.abs(x - p.x) <= EPS), j = ys.findIndex(y => Math.abs(y - p.y) <= EPS)
     return i < 0 || j < 0 ? undefined : { i, j }
   }
-  const from = index(out), to = index(into)
-  if (!from || !to) return undefined
+  const heading = (d?: RouterDirection) => (d === undefined ? -1 : DIRECTIONS.indexOf(d))
+  const startHeading = heading(request.startHeading), endHeading = heading(request.endHeading)
+  const reverses = (d: number, h: number) => h >= 0 && (d + 2) % 4 === h
+  const sources = outs.filter(({ d, point }) => !inside(point) && !reverses(DIRECTIONS.indexOf(d), startHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
+  const targets = intos.filter(({ d, point }) => !inside(point) && !reverses(DIRECTIONS.indexOf(d), endHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
+  if (!sources.length || !targets.length) return undefined
   // Dijkstra over (grid point, heading). Neighbours are adjacent grid points.
-  type State = { i: number; j: number; d: number; cost: number; bends: number; length: number; run: number; seq: number; previous?: State }
+  type State = { i: number; j: number; d: number; cost: number; bends: number; length: number; run: number; seq: number; previous?: State; final?: true }
   // With minRun, a short current run can block a turn a longer one allows,
   // so the search distinguishes the two.
   const key = (i: number, j: number, d: number, run = Infinity) => ((i * ys.length + j) * 4 + d) * 2 + (run < minRun - EPS ? 1 : 0)
   const best = new Map<number, number>()
-  const exitIndex = DIRECTIONS.indexOf(exit)
   const open = new StateHeap<State>()
   let pushed = 0
-  open.push({ i: from.i, j: from.j, d: exitIndex, cost: 0, bends: 0, length: 0, run: Infinity, seq: pushed++ })
-  best.set(key(from.i, from.j, exitIndex), 0)
-  const entryIndex = DIRECTIONS.indexOf(entry)
+  for (const { i, j, d } of sources) {
+    const turned = startHeading >= 0 && d !== startHeading
+    const cost = turned ? bendCost : 0, run = turned ? 0 : Infinity
+    open.push({ i, j, d, cost, bends: turned ? 1 : 0, length: 0, run, seq: pushed++ })
+    best.set(key(i, j, d, run), cost)
+  }
   let found: State | undefined
   while (open.size) {
     const state = open.pop()!
+    if (state.final) { found = state; break }
     if ((best.get(key(state.i, state.j, state.d, state.run)) ?? Infinity) < state.cost - EPS) continue
-    if (state.i === to.i && state.j === to.j && state.d === entryIndex) { found = state; break }
+    if (targets.some(({ i, j, d }) => state.i === i && state.j === j && state.d === d)) {
+      // Arriving off the end heading is one more bend, charged before it can
+      // win, and like any turn it needs a minimum run before it.
+      if (endHeading < 0 || state.d === endHeading) { found = state; break }
+      if (state.run >= minRun - EPS) open.push({ ...state, cost: state.cost + bendCost, bends: state.bends + 1, seq: pushed++, final: true })
+    }
     for (let d = 0; d < 4; d++) {
       if ((d + 2) % 4 === state.d) continue // no reversal
       if (!state.previous && d !== state.d) continue // the first move follows the exit direction
@@ -160,7 +208,8 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const turned = d !== state.d
       const length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
       if (turned && state.run < minRun - EPS) continue
-      const cost = state.cost + length + (turned ? bendCost : 0)
+      const crossed = request.crossings ? crossedSegments(a, b, request.crossings.segments, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
+      const cost = state.cost + length + (turned ? bendCost : 0) + crossed
       const k = key(ni, nj, d, turned ? length : state.run + length)
       if ((best.get(k) ?? Infinity) <= cost + EPS) continue
       best.set(k, cost)

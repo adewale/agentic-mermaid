@@ -1,6 +1,7 @@
 // The shared orthogonal router: fewest bends, then shortest; never through an
-// obstacle; honours required exit/entry directions, corridor-only routing, a
-// minimum run between turns, and the lines of routes already drawn.
+// obstacle; honours required (or listed) exit/entry directions, lead headings,
+// corridor-only routing, a minimum run between turns, and the lines of routes
+// already drawn, which it neither crowds nor, when an equal route exists, crosses.
 
 import { expect, test } from 'bun:test'
 import { routeOrthogonal, type OrthogonalRouteRequest, type RouterPoint } from '../layout/orthogonal-router.ts'
@@ -18,11 +19,21 @@ test.each([
   { name: 'a clear line stays straight', request: base, bends: 0 },
   { name: 'an obstacle on the line costs the fewest bends around it', request: { ...base, obstacles: [box] }, bends: 4 },
   { name: 'an offset target with a clear corridor needs two bends', request: { ...base, end: { x: 300, y: 200 } }, bends: 2 },
-])('$name', ({ request, bends: expected }) => {
+  // Leaving north must turn twice; listing east as well needs one turn.
+  { name: 'listed exit and entry directions admit the cheapest pairing', request: { ...base, end: { x: 300, y: 200 }, stub: 20, channels: { y: [0] }, exit: ['N', 'E'], entry: ['W', 'S'] }, bends: 1 },
+  // Straight back west would turn back along both leads. Every detour turns
+  // four times counting the turns off and onto the leads; the shortest leaves
+  // south and arrives north, turning onto the end lead.
+  { name: 'headings forbid turning back along a lead and count turning off it', request: { ...base, start: { x: 0, y: 0 }, end: { x: -100, y: 0 }, exit: ['E', 'S', 'W', 'N'], entry: ['E', 'S', 'W', 'N'], startHeading: 'E', endHeading: 'E', channels: { x: [60, -160], y: [40] } }, bends: 2, corner: { x: 0, y: 40 } },
+  // Both Zs are equally long; the one the search would take, at the channel,
+  // crosses a drawn segment, so the one at the midpoint wins.
+  { name: 'an equal route avoids crossing a drawn segment', request: { ...base, end: { x: 300, y: 150 }, channels: { x: [250] }, crossings: { segments: [[{ x: 220, y: 100 }, { x: 280, y: 100 }]], cost: 5000 } }, bends: 2, corner: { x: 150, y: 50 } },
+] as { name: string; request: OrthogonalRouteRequest; bends: number; corner?: RouterPoint }[])('$name', ({ request, bends: expected, corner }) => {
   const route = routeOrthogonal(request)!
   expect(route[0]).toEqual(request.start)
   expect(route.at(-1)).toEqual(request.end)
   expect(bends(route)).toBe(expected)
+  if (corner) expect(route).toContainEqual(corner)
   for (const obstacle of request.obstacles) expect(hits(route, obstacle)).toBe(false)
   for (let i = 1; i < route.length; i++) expect(route[i]!.x === route[i - 1]!.x || route[i]!.y === route[i - 1]!.y).toBe(true)
 })
