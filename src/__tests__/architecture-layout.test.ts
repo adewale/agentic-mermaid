@@ -74,9 +74,9 @@ function routeCrossesBoxInterior(
 }
 
 /**
- * The card side, group frame side or header divider a route runs along, if
- * any: a segment parallel to one of them, nearer than a few px, over a shared
- * span. Such a route reads as part of the outline, not as a relationship.
+ * The group frame side or header divider a route runs along, if any: a
+ * segment parallel to one of them, nearer than a few px, over a shared span.
+ * Such a route reads as part of the container outline, not as a relationship.
  */
 function groupLineRunAlong(
   points: Array<{ x: number; y: number }>,
@@ -293,9 +293,9 @@ describe('layoutArchitectureDiagram', () => {
           violations.push(`route through card: ${id} crosses ${service.id}`)
         }
       }
-      for (const box of [...result.groups, ...result.services]) {
-        const line = groupLineRunAlong(edge.points, box)
-        if (line) violations.push(`route on outline: ${id} runs along ${box.id} ${line}`)
+      for (const group of result.groups) {
+        const line = groupLineRunAlong(edge.points, group)
+        if (line) violations.push(`route on group line: ${id} runs along ${group.id} ${line}`)
       }
       for (const [endpoint, contact, adjacent] of [
         [edge.source, edge.points[0]!, edge.points[1]!],

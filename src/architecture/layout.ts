@@ -976,10 +976,8 @@ function routeArchitectureEdge(
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
-  const frames = [
-    ...ancestorFrameLines(edge, servicesById, groups, junctionsById),
-    ...[edge.source.id, edge.target.id].flatMap(id => { const card = serviceBounds.get(id); return card ? boxLines(card) : [] }),
-  ]
+  const groupFrames = ancestorFrameLines(edge, servicesById, groups, junctionsById)
+  const cardFrames = [edge.source.id, edge.target.id].flatMap(id => { const card = serviceBounds.get(id); return card ? boxLines(card) : [] })
   // Only the anchor-to-exit lead may touch its incident card. The middle
   // route must remain outside both endpoints so it cannot reverse through
   // the target and hide an arrowhead under the card's paint.
@@ -1004,35 +1002,30 @@ function routeArchitectureEdge(
       const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
       if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
     }
-    // A lead that would end on (or just short of) a frame line it meets
-    // head-on stops a clearance before it, so the route does not turn onto it.
-    for (const [p, q] of frames) {
-      if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== horizontal) continue
-      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
-      if (cross < Math.min(horizontal ? p.y : p.x, horizontal ? q.y : q.x) - ROUTE_EPSILON || cross > Math.max(horizontal ? p.y : p.x, horizontal ? q.y : q.x) + ROUTE_EPSILON) continue
-      const face = ((horizontal ? p.x : p.y) - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
-      if (face > ROUTE_CLEARANCE + ROUTE_EPSILON && Math.abs(distance - face) < ROUTE_CLEARANCE - ROUTE_EPSILON) distance = face - ROUTE_CLEARANCE
-    }
     endpoint.exit = movePoint(endpoint.anchor, side, distance)
   }
-  const directMiddle = simplifyOrthogonalPoints([
-    source.exit,
-    ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),
-    target.exit,
-  ])
-  const startHeading = headingOf(source.anchor, source.exit), endHeading = headingOf(target.exit, target.anchor)
+  const route = (frames: readonly FrameLine[] | undefined): Point[] | null => {
+    // Leads stop a clearance short of a line they would end on head-on.
+    const exits = frames ? { start: leadShortOfFrames(source, edge.source.side, frames), end: leadShortOfFrames(target, edge.target.side, frames) } : { start: source.exit, end: target.exit }
+    const directMiddle = simplifyOrthogonalPoints([
+      exits.start,
+      ...routeBetween(exits.start, exits.end, edge.source.side, edge.target.side),
+      exits.end,
+    ])
+    const direct = routeClearsObstacles(directMiddle, obstacles)
+    const startHeading = headingOf(source.anchor, exits.start), endHeading = headingOf(exits.end, target.anchor)
+    const middle = frames
+      ? (direct && !runsAlongFrame(directMiddle, frames) ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn, frames, [...groupFrames, ...cardFrames]))
+      : (direct ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn) ?? directMiddle)
+    return middle && simplifyOrthogonalPoints([source.anchor, ...middle, target.anchor])
+  }
   // A route on its own group's frame or header divider reads as part of the
-  // container outline, so prefer routes that keep off those lines.
-  const middle = routeClearsObstacles(directMiddle, obstacles) && !runsAlongFrame(directMiddle, frames)
-    ? directMiddle
-    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, startHeading, endHeading, drawn, frames)
-      ?? (routeClearsObstacles(directMiddle, obstacles) ? directMiddle : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, startHeading, endHeading, drawn))
-      ?? directMiddle
-  let points = simplifyOrthogonalPoints([
-    source.anchor,
-    ...middle,
-    target.anchor,
-  ])
+  // container outline: keep off those lines whenever a clear route exists.
+  // Running beside an endpoint's own card side is milder: keep off it too,
+  // unless that costs a bend.
+  const offGroups = route(groupFrames) ?? route(undefined)!
+  const offAll = runsAlongFrame(offGroups, cardFrames) ? route([...groupFrames, ...cardFrames]) : null
+  let points = offAll && offAll.length <= offGroups.length ? offAll : offGroups
   const extended = extendTerminalRuns(points, terminal)
   if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
   const sourceFacesTarget = sideFacesPoint(source.anchor, edge.source.side, target.anchor)
@@ -1111,6 +1104,24 @@ function architectureRouteObstacles(
     } else obstacles.push(inflate(group.id, 'group', group))
   }
   return obstacles
+}
+
+/**
+ * The lead's exit, stopped a clearance short of a frame line it would end on
+ * (or just short of) when meeting it head-on, so the route does not turn onto it.
+ */
+function leadShortOfFrames(endpoint: { anchor: Point; exit: Point }, side: ArchitectureEndpoint['side'], frames: readonly FrameLine[]): Point {
+  const horizontal = side === 'L' || side === 'R'
+  const forward = side === 'R' || side === 'B'
+  let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+  for (const [p, q] of frames) {
+    if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== horizontal) continue
+    const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+    if (cross < Math.min(horizontal ? p.y : p.x, horizontal ? q.y : q.x) - ROUTE_EPSILON || cross > Math.max(horizontal ? p.y : p.x, horizontal ? q.y : q.x) + ROUTE_EPSILON) continue
+    const face = ((horizontal ? p.x : p.y) - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+    if (face > ROUTE_CLEARANCE + ROUTE_EPSILON && Math.abs(distance - face) < ROUTE_CLEARANCE - ROUTE_EPSILON) distance = face - ROUTE_CLEARANCE
+  }
+  return movePoint(endpoint.anchor, side, distance)
 }
 
 /** Groups that contain either endpoint, innermost first per endpoint. */
@@ -1230,11 +1241,12 @@ function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObsta
  * unless that needs another bend; no turn follows the last by less than
  * ROUTE_MIN_RUN, so a detour never makes a visible tiny jog.
  */
-function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][], frames?: readonly FrameLine[]): Point[] | null {
-  // Lanes a clearance either side of each frame line, so a route keeping off
-  // the frame still has somewhere to run.
-  const frameX = (frames ?? []).filter(([p, q]) => p.x === q.x).flatMap(([p]) => [p.x - ROUTE_CLEARANCE, p.x + ROUTE_CLEARANCE])
-  const frameY = (frames ?? []).filter(([p, q]) => p.y === q.y).flatMap(([p]) => [p.y - ROUTE_CLEARANCE, p.y + ROUTE_CLEARANCE])
+function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][], frames?: readonly FrameLine[], lanes: readonly FrameLine[] = frames ?? []): Point[] | null {
+  // Lanes a clearance either side of each outline line (`lanes`, every frame
+  // and endpoint card side), so a route keeping off `frames` still has
+  // somewhere to run.
+  const frameX = lanes.filter(([p, q]) => p.x === q.x).flatMap(([p]) => [p.x - ROUTE_CLEARANCE, p.x + ROUTE_CLEARANCE])
+  const frameY = lanes.filter(([p, q]) => p.y === q.y).flatMap(([p]) => [p.y - ROUTE_CLEARANCE, p.y + ROUTE_CLEARANCE])
   const route = routeOrthogonal({
     start, end, exit: ANY_DIRECTION, entry: ANY_DIRECTION, startHeading, endHeading, clearance: 0, channelsOnly: true,
     bendCost: ROUTE_BEND_COST, minRun: ROUTE_MIN_RUN,
