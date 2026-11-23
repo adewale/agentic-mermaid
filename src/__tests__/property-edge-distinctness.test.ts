@@ -82,6 +82,10 @@ const REDUCED: [Spec][] = [
   [{ direction: 'LR', shapes: ['rect', 'round', 'round', 'rect'], edges: [edge(0, 3, 'solid', false), edge(2, 3, 'solid', false), edge(2, 3, 'solid', false)] }],
   [{ direction: 'LR', shapes: rects(3), edges: [edge(1, 0, 'solid', false), edge(1, 0, 'thick', false), edge(2, 0, 'solid', true)] }],
   [{ direction: 'TD', shapes: rects(4), edges: [edge(1, 2, 'solid', false), edge(3, 2, 'solid', false), edge(3, 2, 'solid', false), edge(0, 2, 'solid', false)] }],
+  // Three duplicates across a flow gap too short for their full riser step:
+  // the last riser fell back to the gap's midpoint, the lanes could not nest,
+  // and the stale routes were extended to one corner of the target.
+  [{ direction: 'TD', shapes: rects(5), edges: [edge(1, 4, 'solid', false), edge(2, 3, 'solid', false), edge(2, 3, 'solid', false), edge(1, 4, 'solid', false), edge(3, 4, 'solid', false), edge(2, 3, 'solid', false)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {

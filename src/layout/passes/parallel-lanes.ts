@@ -510,6 +510,21 @@ export function applyParallelDuplicateLanes(
     // then order the riser columns so duplicate lanes NEST instead of crossing.
     const lanes: Array<{ edge: PositionedEdge; source: PositionedNode; exitMain: number; sCross: number; tCross: number }> = []
     const col: number[] = []
+    // Riser columns step by the lane separation. When the flow gap cannot hold
+    // every step, a column past it falls back to the gap's midpoint, the
+    // staircase no longer nests, and the proposal is refused. That is harmless
+    // while the current routes still reach both ends at distinct points; when
+    // they do not (a node moved after routing, or two arrivals merged), tighten
+    // the step so each column keeps a BASE_GAP run at both ends, while that
+    // still leaves a readable pitch.
+    const gaps = bucket.map(edge => Math.abs(entryMain - exitSide(nodeMap.get(edge.source)!, back)))
+    const fits = (step: number) => gaps.every((gap, i) => BASE_GAP + i * step < gap - 4)
+    const tightened = Math.min(...gaps.map((gap, i) => (i === 0 ? Infinity : (gap - 2 * BASE_GAP) / i)))
+    const sameEnd = (a: Point, b: Point) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5
+    const unreadable = () => bucket.some((edge, i) => edge.points.length < 2
+      || !onShapeOutline(nodeMap.get(edge.source)!, edge.points[0]!) || !onShapeOutline(target, edge.points.at(-1)!)
+      || bucket.some((other, j) => j < i && other.points.length > 1 && sameEnd(other.points.at(-1)!, edge.points.at(-1)!)))
+    const step = fits(sep) || tightened < 4 || !unreadable() ? sep : tightened
     for (let i = 0; i < k; i++) {
       const edge = bucket[i]!
       const source = nodeMap.get(edge.source)!
@@ -525,7 +540,7 @@ export function applyParallelDuplicateLanes(
       // Each edge jogs at its own column, staggered by the lane separation, so
       // the cross-axis segments stay parallel rather than overlapping. Feedback
       // edges run against the flow, so their jog steps the other way.
-      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * sep)
+      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * step)
       const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
       if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
       lanes.push({ edge, source, exitMain, sCross, tCross })
