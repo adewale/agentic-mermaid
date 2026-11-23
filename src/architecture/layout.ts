@@ -1,4 +1,5 @@
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
+import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { architectureMarkerTerminal } from './markers.ts'
 import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
@@ -249,7 +250,7 @@ export function layoutArchitectureDiagram(
       if (alignmentFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-alignments', violations: alignmentFailures }])
     }
 
-    const routeEdges = () => diagram.edges.map((edge) =>
+    const routeOnce = (drawnFor: (index: number) => readonly Point[][]) => diagram.edges.map((edge, index) =>
       routeArchitectureEdge(
         edge,
         servicesById,
@@ -260,8 +261,17 @@ export function layoutArchitectureDiagram(
         junctionBounds,
         { start: edge.hasArrowStart ? architectureMarkerTerminal('architecture-arrow-start', typography.edgeLineWidth, 'start') : 0, end: edge.hasArrowEnd ? architectureMarkerTerminal('architecture-arrow-end', typography.edgeLineWidth, 'end') : 0 },
         typography.edgeBendRadius,
+        drawnFor(index),
       )
     )
+    // A detour should not cross the other relations. Route once without them,
+    // then route again knowing every other relation's route: only detours
+    // read them, and direct routes come out the same.
+    const routeEdges = () => {
+      const first = routeOnce(() => [])
+      const others = first.map(edge => edge.points)
+      return routeOnce(index => others.filter((_, other) => other !== index))
+    }
     const edges = routeEdges()
     edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
     separateEdgeLabels(edges, services, metrics)
@@ -961,6 +971,7 @@ function routeArchitectureEdge(
   junctionsById: Map<string, PositionedArchitectureJunction>,
   terminal: { start: number; end: number },
   radius: number,
+  drawn: readonly Point[][],
 ): PositionedArchitectureEdge {
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
@@ -998,7 +1009,7 @@ function routeArchitectureEdge(
   ])
   const middle = routeClearsObstacles(directMiddle, obstacles)
     ? directMiddle
-    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles) ?? directMiddle
+    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, headingOf(source.anchor, source.exit), headingOf(target.exit, target.anchor), drawn) ?? directMiddle
   let points = simplifyOrthogonalPoints([
     source.anchor,
     ...middle,
@@ -1030,6 +1041,8 @@ interface RouteObstacle extends Bounds {
 }
 
 const ROUTE_CLEARANCE = 6
+const ROUTE_BEND_COST = 1e4
+const ROUTE_MIN_RUN = 8
 const ROUTE_EPSILON = 0.001
 
 /** The family renderer uses this retained measured band verbatim. */
@@ -1138,143 +1151,31 @@ function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObsta
   return true
 }
 
-interface RouteQueueEntry {
-  state: number
-  cost: number
-}
-
-/** Deterministic binary min-heap used by the continuous-grid router. */
-class RouteMinHeap {
-  private entries: RouteQueueEntry[] = []
-
-  push(entry: RouteQueueEntry): void {
-    this.entries.push(entry)
-    let index = this.entries.length - 1
-    while (index > 0) {
-      const parent = Math.floor((index - 1) / 2)
-      if (!this.before(entry, this.entries[parent]!)) break
-      this.entries[index] = this.entries[parent]!
-      index = parent
-    }
-    this.entries[index] = entry
-  }
-
-  pop(): RouteQueueEntry | undefined {
-    const first = this.entries[0]
-    const last = this.entries.pop()
-    if (!first || !last || this.entries.length === 0) return first
-    let index = 0
-    this.entries[0] = last
-    while (true) {
-      const left = index * 2 + 1
-      const right = left + 1
-      if (left >= this.entries.length) break
-      let child = left
-      if (right < this.entries.length && this.before(this.entries[right]!, this.entries[left]!)) child = right
-      if (!this.before(this.entries[child]!, this.entries[index]!)) break
-      const swap = this.entries[index]!
-      this.entries[index] = this.entries[child]!
-      this.entries[child] = swap
-      index = child
-    }
-    return first
-  }
-
-  private before(a: RouteQueueEntry, b: RouteQueueEntry): boolean {
-    return a.cost < b.cost || (a.cost === b.cost && a.state < b.state)
-  }
-}
-
 /**
- * Visibility-grid Manhattan router. Candidate coordinates are endpoint lanes
- * and inflated obstacle faces; Dijkstra minimizes length, then bends, with
- * stable numeric tie-breaking. No randomness or object iteration order enters
- * the route.
+ * The shared orthogonal router over the obstacle faces and endpoint lanes,
+ * never through an obstacle's interior. Turning off an anchor lead counts as
+ * a bend; crossing another relation costs half a bend, so a detour avoids it
+ * unless that needs another bend; no turn follows the last by less than
+ * ROUTE_MIN_RUN, so a detour never makes a visible tiny jog.
  */
-function routeOrthogonalAroundObstacles(
-  start: Point,
-  end: Point,
-  obstacles: RouteObstacle[],
-): Point[] | null {
-  const xs = [...new Set([start.x, end.x, ...obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width])])].sort((a, b) => a - b)
-  const ys = [...new Set([start.y, end.y, ...obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height])])].sort((a, b) => a - b)
-  const points: Point[] = []
-  const indexByCoordinate = new Map<string, number>()
-  const key = (x: number, y: number): string => `${x}\u0000${y}`
-  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle => {
-    const inset = obstacle.kind === 'group-header' ? 0 : ROUTE_EPSILON
-    return x > obstacle.x + inset && x < obstacle.x + obstacle.width - inset
-      && y > obstacle.y + inset && y < obstacle.y + obstacle.height - inset
+function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][]): Point[] | null {
+  const route = routeOrthogonal({
+    start, end, exit: ANY_DIRECTION, entry: ANY_DIRECTION, startHeading, endHeading, clearance: 0, channelsOnly: true,
+    bendCost: ROUTE_BEND_COST, minRun: ROUTE_MIN_RUN,
+    crossings: { segments: drawn.flatMap(points => points.slice(1).map((point, index) => [points[index]!, point] as const)), cost: ROUTE_BEND_COST / 2 },
+    obstacles: obstacles.map(obstacle => ({ x0: obstacle.x, y0: obstacle.y, x1: obstacle.x + obstacle.width, y1: obstacle.y + obstacle.height })),
+    channels: { x: obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width]), y: obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height]) },
   })
-
-  for (const y of ys) {
-    for (const x of xs) {
-      if (insideObstacle(x, y) && !(x === start.x && y === start.y) && !(x === end.x && y === end.y)) continue
-      indexByCoordinate.set(key(x, y), points.length)
-      points.push({ x, y })
-    }
-  }
-  const startIndex = indexByCoordinate.get(key(start.x, start.y))
-  const endIndex = indexByCoordinate.get(key(end.x, end.y))
-  if (startIndex === undefined || endIndex === undefined) return null
-
-  const adjacency: Array<Array<{ point: number; direction: 1 | 2; length: number }>> = points.map(() => [])
-  const connectVisible = (indices: number[], direction: 1 | 2): void => {
-    for (let i = 1; i < indices.length; i++) {
-      const aIndex = indices[i - 1]!
-      const bIndex = indices[i]!
-      const a = points[aIndex]!
-      const b = points[bIndex]!
-      if (obstacles.some(obstacle => segmentCrossesObstacleInterior(a, b, obstacle))) continue
-      const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-      adjacency[aIndex]!.push({ point: bIndex, direction, length })
-      adjacency[bIndex]!.push({ point: aIndex, direction, length })
-    }
-  }
-  for (const y of ys) {
-    const row = points.map((point, index) => ({ point, index })).filter(entry => entry.point.y === y).sort((a, b) => a.point.x - b.point.x).map(entry => entry.index)
-    connectVisible(row, 1)
-  }
-  for (const x of xs) {
-    const column = points.map((point, index) => ({ point, index })).filter(entry => entry.point.x === x).sort((a, b) => a.point.y - b.point.y).map(entry => entry.index)
-    connectVisible(column, 2)
-  }
-
-  // Direction states: 0 = none/start, 1 = horizontal, 2 = vertical.
-  const stateCount = points.length * 3
-  const distance = new Array<number>(stateCount).fill(Infinity)
-  const previous = new Array<number>(stateCount).fill(-1)
-  const startState = startIndex * 3
-  distance[startState] = 0
-  const queue = new RouteMinHeap()
-  queue.push({ state: startState, cost: 0 })
-  let finalState = -1
-  while (true) {
-    const current = queue.pop()
-    if (!current) break
-    if (current.cost !== distance[current.state]) continue
-    const pointIndex = Math.floor(current.state / 3)
-    const previousDirection = current.state % 3
-    if (pointIndex === endIndex) { finalState = current.state; break }
-    for (const neighbor of adjacency[pointIndex]!) {
-      const nextState = neighbor.point * 3 + neighbor.direction
-      const bendPenalty = previousDirection !== 0 && previousDirection !== neighbor.direction ? 8 : 0
-      const nextCost = current.cost + neighbor.length + bendPenalty
-      if (nextCost >= distance[nextState]!) continue
-      distance[nextState] = nextCost
-      previous[nextState] = current.state
-      queue.push({ state: nextState, cost: nextCost })
-    }
-  }
-  if (finalState < 0) return null
-
-  const reversed: Point[] = []
-  for (let state = finalState; state >= 0; state = previous[state]!) {
-    reversed.push(points[Math.floor(state / 3)]!)
-    if (state === startState) break
-  }
-  return simplifyOrthogonalPoints(reversed.reverse())
+  return route ? route.map(point => ({ x: point.x, y: point.y })) : null
 }
+const ANY_DIRECTION = ['E', 'S', 'W', 'N'] as const
+/** Direction of an axis-aligned lead from `from` to `to`, when it has length. */
+function headingOf(from: Point, to: Point): RouterDirection | undefined {
+  if (from.x === to.x && from.y === to.y) return undefined
+  if (from.y === to.y) return to.x > from.x ? 'E' : 'W'
+  return from.x === to.x ? (to.y > from.y ? 'S' : 'N') : undefined
+}
+
 
 /**
  * Edge labels default to their route midpoints; two edges running the same
