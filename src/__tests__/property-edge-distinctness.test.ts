@@ -86,6 +86,9 @@ const REDUCED: [Spec][] = [
   // the last riser fell back to the gap's midpoint, the lanes could not nest,
   // and the stale routes were extended to one corner of the target.
   [{ direction: 'TD', shapes: rects(5), edges: [edge(1, 4, 'solid', false), edge(2, 3, 'solid', false), edge(2, 3, 'solid', false), edge(1, 4, 'solid', false), edge(3, 4, 'solid', false), edge(2, 3, 'solid', false)] }],
+  // A port-lane slide re-anchored a straight duplicate onto the centre port
+  // where its twin already arrived, on a face too crowded to re-slot either.
+  [{ direction: 'RL', shapes: rects(3), edges: [edge(1, 2, 'solid', false), edge(1, 2, 'thick', false), edge(1, 2, 'solid', false), edge(1, 2, 'solid', false), edge(2, 0, 'solid', false), edge(1, 0, 'solid', false), edge(1, 2, 'solid', false)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {
