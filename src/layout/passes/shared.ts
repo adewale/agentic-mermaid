@@ -1,4 +1,5 @@
 import type { DiamondFacet, Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { shiftRoute, shiftTerminalRun } from '../route-values.ts'
 import { diamondFacetPorts, labelRect, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { layoutFlow, nodeCrossSize, nodeCrossStart, nodeMainStart, positionedNodeCenter, rectsOverlap } from '../geometry.ts'
@@ -184,25 +185,7 @@ export function routeClearOfNodes(points: Point[], nodes: PositionedNode[], excl
 }
 
 export function shiftTerminalRunCross(edge: PositionedEdge, direction: Direction, fromEnd: boolean, delta: number): void {
-  if (edge.points.length === 0) return
-  const f = layoutFlow(direction)
-  const idx = fromEnd ? edge.points.length - 1 : 0
-  const step = fromEnd ? -1 : 1
-  const ref = edge.points[idx]![f.cross]
-  let mainLo = Infinity
-  let mainHi = -Infinity
-  for (let i = idx; i >= 0 && i < edge.points.length; i += step) {
-    if (Math.abs(edge.points[i]![f.cross] - ref) > 0.5) break
-    mainLo = Math.min(mainLo, edge.points[i]![f.main])
-    mainHi = Math.max(mainHi, edge.points[i]![f.main])
-    edge.points[i]![f.cross] += delta
-  }
-  if (edge.labelPosition &&
-    Math.abs(edge.labelPosition[f.cross] - ref) <= 12 &&
-    edge.labelPosition[f.main] >= mainLo - 0.5 &&
-    edge.labelPosition[f.main] <= mainHi + 0.5) {
-    edge.labelPosition[f.cross] += delta
-  }
+  shiftTerminalRun(edge, fromEnd, layoutFlow(direction).cross, delta)
 }
 
 export function shiftNodeSetCross(
@@ -221,8 +204,7 @@ export function shiftNodeSetCross(
     const srcMoved = movedIds.has(edge.source)
     const tgtMoved = movedIds.has(edge.target)
     if (srcMoved && tgtMoved) {
-      for (const point of edge.points) point[f.cross] += delta
-      if (edge.labelPosition) edge.labelPosition[f.cross] += delta
+      shiftRoute(edge, f.cross, delta)
     } else if (tgtMoved) {
       shiftTerminalRunCross(edge, direction, true, delta)
     } else if (srcMoved) {

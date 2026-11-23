@@ -1,4 +1,5 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { replaceRoutePoint, setLabelAxis, shiftRoute, shiftTerminalRun } from '../route-values.ts'
 import { countEdgeCrossings, portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
@@ -388,12 +389,12 @@ function alignLabeledSourcePortCandidate(
     for (const n of chainNodes) { if (isHorizontal) n.y += delta; else n.x += delta }
     for (const o of edges) {
       if (!chain.has(o.source) || !chain.has(o.target)) continue
-      for (const p of o.points) p[cross] += delta
       // A label rides with its rigidly translated route (a chain self-loop's
       // pill would otherwise be left beside where its loop used to be).
-      if (o.labelPosition) o.labelPosition = { ...o.labelPosition, [cross]: o.labelPosition[cross] + delta }
+      shiftRoute(o, cross, delta)
     }
-    const port = e.points[0] = shapePorts(S)[exitSide]
+    const port = { ...shapePorts(S)[exitSide] }
+    replaceRoutePoint(e, 0, port)
     // The slide puts the exit on the predicted lane. When the old first bend
     // is off that lane, rejoin the route where it first reaches the lane, so
     // the moved exit never leaves a diagonal first segment.
@@ -658,28 +659,8 @@ export function alignPortLaneCandidate(
   // far end leaves a diagonal stub that applyRouteContracts re-anchors onto the
   // merged port lane. Staircase runs never reach the far endpoint, so the flag
   // is a no-op for them.
-  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number, anchorFar = false): void => {
-    const pts = e.points
-    const idx = fromEnd ? pts.length - 1 : 0
-    const step = fromEnd ? -1 : 1
-    const farIdx = fromEnd ? 0 : pts.length - 1
-    const ref = pts[idx]![cross]
-    let mainLo = Infinity
-    let mainHi = -Infinity
-    for (let i = idx; i >= 0 && i < pts.length; i += step) {
-      if (Math.abs(pts[i]![cross] - ref) > 0.5) break
-      if (anchorFar && i === farIdx) break
-      mainLo = Math.min(mainLo, pts[i]![main])
-      mainHi = Math.max(mainHi, pts[i]![main])
-      pts[i]![cross] += delta
-    }
-    // A label pill riding the shifted run must follow its lane.
-    if (e.labelPosition &&
-      Math.abs(e.labelPosition[cross] - ref) <= 12 &&
-      e.labelPosition[main] >= mainLo - 0.5 && e.labelPosition[main] <= mainHi + 0.5) {
-      e.labelPosition[cross] += delta
-    }
-  }
+  // A label pill riding the shifted run follows its lane.
+  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number, anchorFar = false): void => shiftTerminalRun(e, fromEnd, cross, delta, anchorFar)
 
   const apply = (node: PositionedNode, delta: number, aligned: PositionedEdge): void => {
     if (isHorizontal) node.y += delta
@@ -689,8 +670,7 @@ export function alignPortLaneCandidate(
       const srcTouch = e.source === node.id
       const tgtTouch = e.target === node.id
       if (srcTouch && tgtTouch) {
-        for (const p of e.points) p[cross] += delta
-        if (e.labelPosition) e.labelPosition[cross] += delta
+        shiftRoute(e, cross, delta)
         continue
       }
       if (tgtTouch) shiftRun(e, true, delta)
@@ -710,7 +690,7 @@ export function alignPortLaneCandidate(
         shapePorts(nodeMap.get(aligned.source)!)[exitSide as 'N' | 'E' | 'S' | 'W'],
         shapePorts(nodeMap.get(aligned.target)!)[entrySide as 'N' | 'E' | 'S' | 'W'],
       ]
-      if (aligned.labelPosition) aligned.labelPosition[cross] = portCross(nodeMap.get(aligned.source)!)
+      setLabelAxis(aligned, cross, portCross(nodeMap.get(aligned.source)!))
     } else {
       // A staircase: translate the moved end's terminal run and let the
       // certifying straightener collapse it onto the (now shared) port lane
@@ -848,11 +828,10 @@ export function alignPortLaneCandidate(
       const srcTouch = ids.has(e.source)
       const tgtTouch = ids.has(e.target)
       if (srcTouch && tgtTouch) {
-        for (const p of e.points) p[cross] += delta
-        if (e.labelPosition) e.labelPosition[cross] += delta
+        shiftRoute(e, cross, delta)
       } else if (straight.has(e)) {
         e.points = straight.get(e)!
-        if (e.labelPosition) e.labelPosition[cross] = e.points[0]![cross]
+        setLabelAxis(e, cross, e.points[0]![cross])
       } else if (tgtTouch) {
         shiftRun(e, true, delta, /* anchorFar */ true)
       } else if (srcTouch) {
@@ -1009,7 +988,7 @@ export function alignPortLaneCandidate(
           for (const o of edges) {
             if (o === e) continue
             const sT = o.source === tgt.id, tT = o.target === tgt.id
-            if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+            if (sT && tT) shiftRoute(o, cross, delta)
             else if (tT) shiftRun(o, true, delta)
             else if (sT) shiftRun(o, false, delta)
           }
@@ -1020,7 +999,7 @@ export function alignPortLaneCandidate(
           { x: l.src.x, y: l.src.y },
           shapePorts(tgt)[entrySide as 'N' | 'E' | 'S' | 'W'],
         ]
-        if (e.labelPosition) e.labelPosition[cross] = l.cross
+        setLabelAxis(e, cross, l.cross)
         facetAligned.add(e)
         frozen.add(e.target)
       }
@@ -1089,7 +1068,7 @@ export function alignPortLaneCandidate(
         for (const o of edges) {
           if (o === e) continue
           const sT = o.source === src.id, tT = o.target === src.id
-          if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+          if (sT && tT) shiftRoute(o, cross, delta)
           else if (tT) shiftRun(o, true, delta)
           else if (sT) shiftRun(o, false, delta)
         }

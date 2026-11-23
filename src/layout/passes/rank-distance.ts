@@ -1,4 +1,5 @@
 import type { MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { shiftLabel } from '../route-values.ts'
 import { classifyRoutes, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { DEFAULTS, calculatePathMidpoint, findSubgraph, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeMainCenter, nodeMainSize } from '../geometry.ts'
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
@@ -439,7 +440,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (cls === 'self-loop') {
       const delta = mainDelta.get(edge.source) ?? 0
       if (delta !== 0) edge.points = edge.points.map(point => ({ ...point, [f.main]: point[f.main] + delta }))
-      if (delta !== 0 && edge.labelPosition) edge.labelPosition[f.main] += delta
+      if (delta !== 0) shiftLabel(edge, f.main, delta)
       continue
     }
     const preserveContacts = groupMap.size > 0 && (cls === 'cross-hierarchy' || cls === 'container')

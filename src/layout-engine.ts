@@ -1,5 +1,6 @@
 import { estimateNodeSize, groupHeaderHeight, groupTitleWidth, retainGraphText } from './layout/graph-measurement.ts'
 export { estimateNodeSize, retainGraphText } from './layout/graph-measurement.ts'
+import { translateRoute } from './layout/route-values.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { contractBipartiteBlocks, expandJunctionLayout, JUNCTION_SIZE } from './layout/junction-contraction.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
@@ -1664,10 +1665,7 @@ function placeStateNotes(
     const moveGroup = (g: PositionedGroup): void => { g.x += dx; g.y += dy; g.children.forEach(moveGroup) }
     for (const n of nodes) { n.x += dx; n.y += dy }
     for (const g of groups) moveGroup(g)
-    for (const e of edges) {
-      for (const p of e.points) { p.x += dx; p.y += dy }
-      if (e.labelPosition) { e.labelPosition.x += dx; e.labelPosition.y += dy }
-    }
+    for (const e of edges) translateRoute(e, dx, dy)
     for (const p of placed) { p.x += dx; p.y += dy }
   }
   return placed
@@ -1972,10 +1970,7 @@ export function translatePositionedGraph(positioned: PositionedGraph, dy: number
   }
   for (const node of positioned.nodes) node.y += dy
   for (const group of positioned.groups) moveGroup(group)
-  for (const edge of positioned.edges) {
-    for (const point of edge.points) point.y += dy
-    if (edge.labelPosition) edge.labelPosition.y += dy
-  }
+  for (const edge of positioned.edges) translateRoute(edge, 0, dy)
   for (const note of positioned.notes ?? []) note.y += dy
 }
 

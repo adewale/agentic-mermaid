@@ -1,5 +1,8 @@
 export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './route-geometry.ts'
 import { DeferredDependencyError } from './certification-error.ts'
+import { sceneAssertionsEnabled } from '../scene/assertions.ts'
+import { freezeRoutes, thawRoutes } from './route-values.ts'
+import type { PositionedEdge } from '../types.ts'
 
 // The LayoutPass abstraction — see docs/design/system/route-contracts.md.
 //
@@ -101,6 +104,10 @@ const frozenBoxes = (ctx: PassContextBase): PassBox[] => {
 export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyArray<LayoutPass<C>>, opts: RunOptions<C> = {}): void {
   const ran = new Set<string>()
   let frozen = ctx.frozen
+  // Under assertions, routes are values between passes: an in-place edit of a
+  // published points array or caption position throws where it happens.
+  const valueAssertions = sceneAssertionsEnabled()
+  if (valueAssertions) freezeRoutes(ctx.edges as readonly PositionedEdge[] | undefined)
   for (const pass of passes) {
     if (pass.enabled && !pass.enabled(ctx)) {
       ran.add(pass.id)
@@ -221,8 +228,10 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
     if (pass.freezesNodes) ctx.frozen = true
     frozen ||= ctx.frozen
     ran.add(pass.id)
+    if (valueAssertions) freezeRoutes(ctx.edges as readonly PositionedEdge[] | undefined)
     opts.onAfterPass?.(pass, ctx)
   }
+  if (valueAssertions) thawRoutes(ctx.edges as readonly PositionedEdge[] | undefined)
 }
 
 /** A pipeline is well-formed iff its array order is a topological order of `after`. */

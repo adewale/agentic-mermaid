@@ -1,4 +1,5 @@
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import { translateRoute } from './route-values.ts'
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
@@ -692,16 +693,7 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
     node.y += dy
   }
   for (const group of groups) moveGroup(group)
-  for (const edge of edges) {
-    for (const point of edge.points) {
-      point.x += dx
-      point.y += dy
-    }
-    if (edge.labelPosition) {
-      edge.labelPosition.x += dx
-      edge.labelPosition.y += dy
-    }
-  }
+  for (const edge of edges) translateRoute(edge, dx, dy)
 }
 
 /** Proper crossings and positive-length collinear overlap; endpoint touching stays legal. */

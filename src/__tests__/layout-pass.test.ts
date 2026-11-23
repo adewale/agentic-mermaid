@@ -660,6 +660,16 @@ describe('runPipeline invariant enforcement', () => {
     log: string[]
     edges?: Array<{ points: Array<{ x: number; y: number }>; labelPosition?: { x: number; y: number }; routeCertificate?: unknown }>
   }
+  // Routes are values between passes (frozen under test assertions): a fake
+  // pass publishes a new points array or label position, as real passes do.
+  const movePoint = (c: TestCtx, index: number, y: number): void => {
+    const edge = c.edges![0]!
+    edge.points = edge.points.map((point, at) => (at === index ? { ...point, y } : point))
+  }
+  const moveLabel = (c: TestCtx, y: number): void => {
+    const edge = c.edges![0]!
+    edge.labelPosition = { ...edge.labelPosition!, y }
+  }
   const mkPass = (over: Partial<LayoutPass<TestCtx>> & { id: string }): LayoutPass<TestCtx> => ({
     doc: '',
     after: [],
@@ -845,14 +855,26 @@ describe('runPipeline invariant enforcement', () => {
     expect(() => runPipeline(ctx, [mkPass({ id: 'complete-translate', mutates: ['translate'], run: c => {
       c.nodes[0]!.x += 9
       c.groups![0]!.x += 9
-      for (const point of c.edges![0]!.points) point.x += 9
-      c.edges![0]!.labelPosition!.x += 9
+      const edge = c.edges![0]!
+      edge.points = edge.points.map(point => ({ ...point, x: point.x + 9 }))
+      edge.labelPosition = { ...edge.labelPosition!, x: edge.labelPosition!.x + 9 }
     } })])).not.toThrow()
+  })
+
+  test('routes are values between passes: an in-place edit throws and the caller gets editable copies back', () => {
+    const edges = [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], labelPosition: { x: 5, y: 0 } }]
+    expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-point', run: c => { c.edges![0]!.points[1]!.x = 20 } })])).toThrow(TypeError)
+    expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-label', run: c => { c.edges![0]!.labelPosition!.x = 6 } })])).toThrow(TypeError)
+    const ctx: TestCtx = { frozen: false, nodes: [], log: [], edges: structuredClone(edges) }
+    runPipeline(ctx, [mkPass({ id: 'publishes', run: c => movePoint(c, 1, 3) })])
+    expect(ctx.edges![0]!.points[1]).toEqual({ x: 10, y: 3 })
+    ctx.edges![0]!.points[1]!.x = 11
+    expect(ctx.edges![0]!.points[1]!.x).toBe(11)
   })
 
   test('an existing certificate is stale after a post-freeze route rewrite', () => {
     const ctx: TestCtx = { frozen: true, nodes: [], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], routeCertificate: { invariant: 'straight' } }] }
-    expect(() => runPipeline(ctx, [mkPass({ id: 'stale-certificate', run: c => { c.edges![0]!.points.splice(1, 0, { x: 5, y: 5 }) } })])).toThrow(/re-issuing routeCertificate/)
+    expect(() => runPipeline(ctx, [mkPass({ id: 'stale-certificate', run: c => { const edge = c.edges![0]!; edge.points = [edge.points[0]!, { x: 5, y: 5 }, ...edge.points.slice(1)] } })])).toThrow(/re-issuing routeCertificate/)
   })
 
   test('onAfterPass fires only for passes that actually ran', () => {
@@ -924,8 +946,8 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot introduce an undeclared hard regression', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.points[1]!.y = 1
-      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+      movePoint(c, 1, 1)
+      return () => { movePoint(c, 1, 0); c.nodes[0]!.x = 99 }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: c.nodes[0]!.x }) }))
       .toThrow(/invalid-restore.*hard.*99/)
@@ -934,9 +956,9 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot invalidate frozen geometry after repairing its score', () => {
     const ctx: TestCtx = { frozen: true, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], routeCertificate: {} }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.points[1]!.y = 1
+      movePoint(c, 1, 1)
       c.edges![0]!.routeCertificate = {}
-      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+      return () => { movePoint(c, 1, 0); c.nodes[0]!.x = 99 }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: 0 }) }))
       .toThrow(/invalid-restore.*frozen geometry/)
@@ -945,8 +967,8 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot leave a stale frozen route certificate', () => {
     const ctx: TestCtx = { frozen: true, nodes: [], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], labelPosition: { x: 0.5, y: 0 }, routeCertificate: {} }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.labelPosition!.y = 1
-      return () => { c.edges![0]!.labelPosition!.y = 0; c.edges![0]!.points[1]!.y = 2 }
+      moveLabel(c, 1)
+      return () => { moveLabel(c, 0); movePoint(c, 1, 2) }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.labelPosition!.y, hard: 0 }) }))
       .toThrow(/re-issuing routeCertificate/)
