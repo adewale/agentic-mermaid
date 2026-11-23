@@ -67,6 +67,47 @@ function crowds(a: RouterPoint, b: RouterPoint, avoid: NonNullable<OrthogonalRou
   return false
 }
 
+interface Queued { readonly i: number; readonly j: number; readonly d: number; readonly cost: number; readonly seq: number }
+
+/** The search order: cheaper first (costs within EPS tie), then the earlier
+ * grid column, row and heading, then the earlier push. Deterministic. */
+function before(a: Queued, b: Queued): boolean {
+  if (Math.abs(a.cost - b.cost) > EPS) return a.cost < b.cost
+  return a.i !== b.i ? a.i < b.i : a.j !== b.j ? a.j < b.j : a.d !== b.d ? a.d < b.d : a.seq < b.seq
+}
+
+/** Binary min-heap over `before`. */
+class StateHeap<T extends Queued> {
+  private readonly items: T[] = []
+  get size(): number { return this.items.length }
+  push(item: T): void {
+    const items = this.items
+    let index = items.push(item) - 1
+    while (index > 0) {
+      const parent = (index - 1) >> 1
+      if (!before(item, items[parent]!)) break
+      items[index] = items[parent]!
+      index = parent
+    }
+    items[index] = item
+  }
+  pop(): T | undefined {
+    const items = this.items, first = items[0], last = items.pop()
+    if (first === undefined || last === undefined || items.length === 0) return first
+    let index = 0
+    for (;;) {
+      const left = index * 2 + 1, right = left + 1
+      if (left >= items.length) break
+      const child = right < items.length && before(items[right]!, items[left]!) ? right : left
+      if (!before(items[child]!, last)) break
+      items[index] = items[child]!
+      index = child
+    }
+    items[index] = last
+    return first
+  }
+}
+
 /** Fewest bends, then shortest; undefined when no clear route exists. */
 export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] | undefined {
   const { start, end, exit, entry, clearance } = request
@@ -93,24 +134,20 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const from = index(out), to = index(into)
   if (!from || !to) return undefined
   // Dijkstra over (grid point, heading). Neighbours are adjacent grid points.
-  type State = { i: number; j: number; d: number; cost: number; bends: number; length: number; run: number; previous?: State }
+  type State = { i: number; j: number; d: number; cost: number; bends: number; length: number; run: number; seq: number; previous?: State }
   // With minRun, a short current run can block a turn a longer one allows,
   // so the search distinguishes the two.
   const key = (i: number, j: number, d: number, run = Infinity) => ((i * ys.length + j) * 4 + d) * 2 + (run < minRun - EPS ? 1 : 0)
   const best = new Map<number, number>()
   const exitIndex = DIRECTIONS.indexOf(exit)
-  const open: State[] = [{ i: from.i, j: from.j, d: exitIndex, cost: 0, bends: 0, length: 0, run: Infinity }]
+  const open = new StateHeap<State>()
+  let pushed = 0
+  open.push({ i: from.i, j: from.j, d: exitIndex, cost: 0, bends: 0, length: 0, run: Infinity, seq: pushed++ })
   best.set(key(from.i, from.j, exitIndex), 0)
   const entryIndex = DIRECTIONS.indexOf(entry)
   let found: State | undefined
-  while (open.length) {
-    // Small grids: a linear scan keeps the order explicit and deterministic.
-    let at = 0
-    for (let k = 1; k < open.length; k++) {
-      const a = open[k]!, b = open[at]!
-      if (a.cost < b.cost - EPS || (Math.abs(a.cost - b.cost) <= EPS && (a.i < b.i || (a.i === b.i && (a.j < b.j || (a.j === b.j && a.d < b.d)))))) at = k
-    }
-    const state = open.splice(at, 1)[0]!
+  while (open.size) {
+    const state = open.pop()!
     if ((best.get(key(state.i, state.j, state.d, state.run)) ?? Infinity) < state.cost - EPS) continue
     if (state.i === to.i && state.j === to.j && state.d === entryIndex) { found = state; break }
     for (let d = 0; d < 4; d++) {
@@ -127,7 +164,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const k = key(ni, nj, d, turned ? length : state.run + length)
       if ((best.get(k) ?? Infinity) <= cost + EPS) continue
       best.set(k, cost)
-      open.push({ i: ni, j: nj, d, cost, bends: state.bends + (turned ? 1 : 0), length: state.length + length, run: turned ? length : state.run + length, previous: state })
+      open.push({ i: ni, j: nj, d, cost, bends: state.bends + (turned ? 1 : 0), length: state.length + length, run: turned ? length : state.run + length, previous: state, seq: pushed++ })
     }
   }
   if (!found) return undefined
