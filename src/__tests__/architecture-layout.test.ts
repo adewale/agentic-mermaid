@@ -73,6 +73,38 @@ function routeCrossesBoxInterior(
   return points.slice(1).some((point, index) => segmentCrossesBoxInterior(points[index]!, point, box))
 }
 
+/**
+ * The card side, group frame side or header divider a route runs along, if
+ * any: a segment parallel to one of them, nearer than a few px, over a shared
+ * span. Such a route reads as part of the outline, not as a relationship.
+ */
+function groupLineRunAlong(
+  points: Array<{ x: number; y: number }>,
+  group: { x: number; y: number; width: number; height: number; headerHeight?: number },
+): string | undefined {
+  const NEAR = 3, SHARED = 1
+  const lines = [
+    { name: 'left border', vertical: true, at: group.x, lo: group.y, hi: group.y + group.height },
+    { name: 'right border', vertical: true, at: group.x + group.width, lo: group.y, hi: group.y + group.height },
+    { name: 'top border', vertical: false, at: group.y, lo: group.x, hi: group.x + group.width },
+    { name: 'bottom border', vertical: false, at: group.y + group.height, lo: group.x, hi: group.x + group.width },
+    ...(group.headerHeight ? [{ name: 'header divider', vertical: false, at: group.y + group.headerHeight, lo: group.x, hi: group.x + group.width }] : []),
+  ]
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const vertical = Math.abs(a.x - b.x) <= 0.001
+    if (!vertical && Math.abs(a.y - b.y) > 0.001) continue
+    for (const line of lines) {
+      if (line.vertical !== vertical) continue
+      const offset = Math.abs((vertical ? a.x : a.y) - line.at)
+      const lo = Math.max(line.lo, Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x))
+      const hi = Math.min(line.hi, Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x))
+      if (offset < NEAR && hi - lo > SHARED) return line.name
+    }
+  }
+  return undefined
+}
+
 function boxesOverlap(
   a: { x: number; y: number; width: number; height: number },
   b: { x: number; y: number; width: number; height: number },
@@ -261,6 +293,10 @@ describe('layoutArchitectureDiagram', () => {
           violations.push(`route through card: ${id} crosses ${service.id}`)
         }
       }
+      for (const box of [...result.groups, ...result.services]) {
+        const line = groupLineRunAlong(edge.points, box)
+        if (line) violations.push(`route on outline: ${id} runs along ${box.id} ${line}`)
+      }
       for (const [endpoint, contact, adjacent] of [
         [edge.source, edge.points[0]!, edge.points[1]!],
         [edge.target, edge.points.at(-1)!, edge.points.at(-2)!],
@@ -295,7 +331,9 @@ describe('layoutArchitectureDiagram', () => {
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:L --> L:s0_0\n  s0_0:L --> L:s1_1\n  s1_2:B --> B:s1_0\n  s1_2:L --> L:s0_0\n  s1_2:L --> L:s1_1"],
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:T --> T:s0_1"],
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_2:B --> B:s0_1"],
-          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0']],
+          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0'],
+          // Column-aligned cross-group drops once ran along Storage's top border and Output's header divider.
+          ['architecture-beta\n  group sources(cloud)[Sources]\n  service src_a(server)[Source A] in sources\n  service src_b(server)[Source B] in sources\n  service src_c(server)[Source C] in sources\n  group storage(database)[Storage]\n  service db_one(database)[DB One] in storage\n  service db_two(database)[DB Two] in storage\n  service db_three(database)[DB Three] in storage\n  group output(disk)[Output]\n  service brief(disk)[Brief] in output\n  service analyst(server)[Analyst] in output\n  service delivery(cloud)[Delivery] in output\n  src_a:B --> T:db_one\n  src_b:B --> T:db_two\n  src_c:B --> T:db_three\n  db_two:B --> T:brief\n  brief:R --> L:analyst\n  analyst:R --> L:delivery\n  align row src_a src_b src_c\n  align row db_one db_two db_three\n  align row brief analyst delivery\n  align column src_a db_one\n  align column src_b db_two brief\n  align column src_c db_three']],
       }),
     )
   })
@@ -536,7 +574,8 @@ it.each(['elk'] as const)('keeps %s item-side shafts outside their own ancestor 
       && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
     expect(entersLiteralBand).toBe(false)
   }
-  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
+  // The shaft turns a route clearance below the header divider (y 152), not on it.
+  expect(edge.points[1]).toEqual({ x: 116, y: 158 })
   expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
 })
 

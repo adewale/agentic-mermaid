@@ -976,6 +976,10 @@ function routeArchitectureEdge(
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  const frames = [
+    ...ancestorFrameLines(edge, servicesById, groups, junctionsById),
+    ...[edge.source.id, edge.target.id].flatMap(id => { const card = serviceBounds.get(id); return card ? boxLines(card) : [] }),
+  ]
   // Only the anchor-to-exit lead may touch its incident card. The middle
   // route must remain outside both endpoints so it cannot reverse through
   // the target and hide an arrowhead under the card's paint.
@@ -1000,6 +1004,15 @@ function routeArchitectureEdge(
       const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
       if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
     }
+    // A lead that would end on (or just short of) a frame line it meets
+    // head-on stops a clearance before it, so the route does not turn onto it.
+    for (const [p, q] of frames) {
+      if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== horizontal) continue
+      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+      if (cross < Math.min(horizontal ? p.y : p.x, horizontal ? q.y : q.x) - ROUTE_EPSILON || cross > Math.max(horizontal ? p.y : p.x, horizontal ? q.y : q.x) + ROUTE_EPSILON) continue
+      const face = ((horizontal ? p.x : p.y) - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+      if (face > ROUTE_CLEARANCE + ROUTE_EPSILON && Math.abs(distance - face) < ROUTE_CLEARANCE - ROUTE_EPSILON) distance = face - ROUTE_CLEARANCE
+    }
     endpoint.exit = movePoint(endpoint.anchor, side, distance)
   }
   const directMiddle = simplifyOrthogonalPoints([
@@ -1007,9 +1020,14 @@ function routeArchitectureEdge(
     ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),
     target.exit,
   ])
-  const middle = routeClearsObstacles(directMiddle, obstacles)
+  const startHeading = headingOf(source.anchor, source.exit), endHeading = headingOf(target.exit, target.anchor)
+  // A route on its own group's frame or header divider reads as part of the
+  // container outline, so prefer routes that keep off those lines.
+  const middle = routeClearsObstacles(directMiddle, obstacles) && !runsAlongFrame(directMiddle, frames)
     ? directMiddle
-    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, headingOf(source.anchor, source.exit), headingOf(target.exit, target.anchor), drawn) ?? directMiddle
+    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, startHeading, endHeading, drawn, frames)
+      ?? (routeClearsObstacles(directMiddle, obstacles) ? directMiddle : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles, startHeading, endHeading, drawn))
+      ?? directMiddle
   let points = simplifyOrthogonalPoints([
     source.anchor,
     ...middle,
@@ -1068,18 +1086,7 @@ function architectureRouteObstacles(
   services: PositionedArchitectureService[],
   junctionsById: Map<string, PositionedArchitectureJunction>,
 ): RouteObstacle[] {
-  const excludedGroups = new Set<string>()
-  const addAncestors = (parentId: string | undefined): void => {
-    let current = parentId
-    while (current) {
-      if (excludedGroups.has(current)) break
-      excludedGroups.add(current)
-      current = groups.get(current)?.parentId
-    }
-  }
-  addAncestors(servicesById.get(edge.source.id)?.parentId ?? junctionsById.get(edge.source.id)?.parentId)
-  addAncestors(servicesById.get(edge.target.id)?.parentId ?? junctionsById.get(edge.target.id)?.parentId)
-
+  const excludedGroups = endpointAncestorGroups(edge, servicesById, groups, junctionsById)
   const inflate = (id: string, kind: RouteObstacle['kind'], bounds: Bounds): RouteObstacle => ({
     id,
     kind,
@@ -1104,6 +1111,71 @@ function architectureRouteObstacles(
     } else obstacles.push(inflate(group.id, 'group', group))
   }
   return obstacles
+}
+
+/** Groups that contain either endpoint, innermost first per endpoint. */
+function endpointAncestorGroups(
+  edge: ArchitectureDiagram['edges'][number],
+  servicesById: Map<string, ArchitectureService>,
+  groups: Map<string, PositionedArchitectureGroup>,
+  junctionsById: Map<string, PositionedArchitectureJunction>,
+): Set<string> {
+  const ancestors = new Set<string>()
+  for (const endpoint of [edge.source, edge.target]) {
+    let current = servicesById.get(endpoint.id)?.parentId ?? junctionsById.get(endpoint.id)?.parentId
+    while (current && !ancestors.has(current)) {
+      ancestors.add(current)
+      current = groups.get(current)?.parentId
+    }
+  }
+  return ancestors
+}
+
+type FrameLine = readonly [Point, Point]
+
+/**
+ * The drawn frame sides and header divider of every group that contains an
+ * endpoint. A route may cross these lines but should not run along them.
+ * (Unrelated groups and cards are already obstacles inflated by the route
+ * clearance; the endpoints' own cards are added by the caller.)
+ */
+function ancestorFrameLines(
+  edge: ArchitectureDiagram['edges'][number],
+  servicesById: Map<string, ArchitectureService>,
+  groups: Map<string, PositionedArchitectureGroup>,
+  junctionsById: Map<string, PositionedArchitectureJunction>,
+): FrameLine[] {
+  const lines: FrameLine[] = []
+  for (const id of endpointAncestorGroups(edge, servicesById, groups, junctionsById)) {
+    const group = groups.get(id)
+    if (!group) continue
+    lines.push(...boxLines(group))
+    if (group.headerHeight) lines.push([{ x: group.x, y: group.y + group.headerHeight }, { x: group.x + group.width, y: group.y + group.headerHeight }])
+  }
+  return lines
+}
+
+/** The four sides of a drawn box. */
+function boxLines(box: Bounds): FrameLine[] {
+  const x0 = box.x, y0 = box.y, x1 = box.x + box.width, y1 = box.y + box.height
+  return [[{ x: x0, y: y0 }, { x: x1, y: y0 }], [{ x: x0, y: y1 }, { x: x1, y: y1 }], [{ x: x0, y: y0 }, { x: x0, y: y1 }], [{ x: x1, y: y0 }, { x: x1, y: y1 }]]
+}
+
+/** Whether a segment runs on, or within ROUTE_CLEARANCE beside, a frame line. */
+function runsAlongFrame(points: readonly Point[], frames: readonly FrameLine[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const vertical = Math.abs(a.x - b.x) <= ROUTE_EPSILON
+    if (!vertical && Math.abs(a.y - b.y) > ROUTE_EPSILON) continue
+    for (const [p, q] of frames) {
+      if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== vertical) continue
+      const offset = vertical ? Math.abs(p.x - a.x) : Math.abs(p.y - a.y)
+      const lo = Math.max(Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.min(vertical ? p.y : p.x, vertical ? q.y : q.x))
+      const hi = Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.max(vertical ? p.y : p.x, vertical ? q.y : q.x))
+      if (offset < ROUTE_CLEARANCE - ROUTE_EPSILON && hi - lo > ROUTE_EPSILON) return true
+    }
+  }
+  return false
 }
 
 function sideFacesPoint(anchor: Point, side: ArchitectureEndpoint['side'], other: Point): boolean {
@@ -1158,13 +1230,18 @@ function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObsta
  * unless that needs another bend; no turn follows the last by less than
  * ROUTE_MIN_RUN, so a detour never makes a visible tiny jog.
  */
-function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][]): Point[] | null {
+function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][], frames?: readonly FrameLine[]): Point[] | null {
+  // Lanes a clearance either side of each frame line, so a route keeping off
+  // the frame still has somewhere to run.
+  const frameX = (frames ?? []).filter(([p, q]) => p.x === q.x).flatMap(([p]) => [p.x - ROUTE_CLEARANCE, p.x + ROUTE_CLEARANCE])
+  const frameY = (frames ?? []).filter(([p, q]) => p.y === q.y).flatMap(([p]) => [p.y - ROUTE_CLEARANCE, p.y + ROUTE_CLEARANCE])
   const route = routeOrthogonal({
     start, end, exit: ANY_DIRECTION, entry: ANY_DIRECTION, startHeading, endHeading, clearance: 0, channelsOnly: true,
     bendCost: ROUTE_BEND_COST, minRun: ROUTE_MIN_RUN,
     crossings: { segments: drawn.flatMap(points => points.slice(1).map((point, index) => [points[index]!, point] as const)), cost: ROUTE_BEND_COST / 2 },
     obstacles: obstacles.map(obstacle => ({ x0: obstacle.x, y0: obstacle.y, x1: obstacle.x + obstacle.width, y1: obstacle.y + obstacle.height })),
-    channels: { x: obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width]), y: obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height]) },
+    channels: { x: [...obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width]), ...frameX], y: [...obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height]), ...frameY] },
+    ...(frames ? { avoid: { segments: frames, separation: ROUTE_CLEARANCE, gap: 0 } } : {}),
   })
   return route ? route.map(point => ({ x: point.x, y: point.y })) : null
 }
