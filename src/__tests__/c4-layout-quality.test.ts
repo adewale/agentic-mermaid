@@ -261,6 +261,11 @@ describe('C4 measured pixel layout quality', () => {
       }
     }
     expect(renderMermaidSVG(DENSE)).toBe(renderMermaidSVG(DENSE))
+    // Its routes leave every label a seat whose painted halo covers no other
+    // label's text.
+    const parsed = parseRegisteredMermaid(DENSE)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    expect(layoutMermaid(parsed.value, { debug: true }).paintCertification?.issues ?? []).toEqual([])
   })
 
   test('a pixel width budget reflows rows without scaling or rewriting the authored model', () => {
