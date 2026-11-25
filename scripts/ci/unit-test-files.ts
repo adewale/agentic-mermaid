@@ -6,6 +6,7 @@ const patterns = [
   'eval/family-usage/count.test.ts',
   'eval/endpoint-marker/architecture-metrics.test.ts',
   'eval/layout-compare/gate.test.ts',
+  'eval/layout-compare/run.test.ts',
 ]
 
 /** Canonical collection, shared by the unit runner and order diagnostics. */
