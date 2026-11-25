@@ -179,6 +179,10 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // so the search distinguishes the two.
   const key = (i: number, j: number, d: number, run = Infinity) => ((i * ys.length + j) * 4 + d) * 2 + (run < minRun - EPS ? 1 : 0)
   const best = new Map<number, number>()
+  // Clearance and crossing cost belong to a grid edge, not to the state that
+  // reaches it: each edge is checked once, however many headings arrive.
+  // NaN = unchecked, -1 = blocked, otherwise the crossing cost.
+  const edgeCost = new Float64Array(xs.length * ys.length * 4).fill(Number.NaN)
   const open = new StateHeap<State>()
   let pushed = 0
   for (const { i, j, d } of sources) {
@@ -203,12 +207,17 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       if (!state.previous && d !== state.d) continue // the first move follows the exit direction
       const ni = state.i + Math.sign(STEP[DIRECTIONS[d]!].x), nj = state.j + Math.sign(STEP[DIRECTIONS[d]!].y)
       if (ni < 0 || nj < 0 || ni >= xs.length || nj >= ys.length) continue
-      const a = { x: xs[state.i]!, y: ys[state.j]! }, b = { x: xs[ni]!, y: ys[nj]! }
-      if (!clear(a, b)) continue
       const turned = d !== state.d
-      const length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
       if (turned && state.run < minRun - EPS) continue
-      const crossed = request.crossings ? crossedSegments(a, b, request.crossings.segments, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
+      const a = { x: xs[state.i]!, y: ys[state.j]! }, b = { x: xs[ni]!, y: ys[nj]! }
+      const edge = (state.i * ys.length + state.j) * 4 + d
+      let crossed = edgeCost[edge]!
+      if (Number.isNaN(crossed)) {
+        crossed = !clear(a, b) ? -1 : request.crossings ? crossedSegments(a, b, request.crossings.segments, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
+        edgeCost[edge] = crossed
+      }
+      if (crossed < 0) continue
+      const length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
       const cost = state.cost + length + (turned ? bendCost : 0) + crossed
       const k = key(ni, nj, d, turned ? length : state.run + length)
       if ((best.get(k) ?? Infinity) <= cost + EPS) continue
