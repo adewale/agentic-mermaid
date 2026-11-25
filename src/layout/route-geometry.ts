@@ -1,4 +1,5 @@
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import type { TerminalAssignment } from './terminal-assignment.ts'
 import { translateRoute } from './route-values.ts'
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
@@ -441,6 +442,8 @@ export interface LaneContext {
   nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
   /** Owner invalidation follows every route write; labels remain live. */
   routeChannelGeometry?: RouteChannelGeometry
+  /** The caller's terminal assignment; otherwise the one recorded for `edges`. */
+  terminals?: TerminalAssignment
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an

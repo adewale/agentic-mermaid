@@ -10,7 +10,7 @@ import { countEdgeCrossings, onShapeOutline } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge } from '../../route-contracts.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { indistinctOccurrencePairs, routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
-import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
+import type { TerminalAssignment } from '../terminal-assignment.ts'
 import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES, type LabelMetricsStyle } from '../route-geometry.ts'
 import { routeClearOfNodes } from './shared.ts'
 
@@ -55,7 +55,7 @@ function mergeClasses(cluster: readonly PositionedEdge[], terminals: TerminalAss
   return classes
 }
 
-export function separateIndistinctArrivals(nodes: PositionedNode[], edges: PositionedEdge[], style: LabelMetricsStyle): void {
+export function separateIndistinctArrivals(nodes: PositionedNode[], edges: PositionedEdge[], style: LabelMetricsStyle, terminals: TerminalAssignment): void {
   if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return
   const pairs = indistinctOccurrencePairs(edges)
   if (pairs.length === 0) return
@@ -71,7 +71,7 @@ export function separateIndistinctArrivals(nodes: PositionedNode[], edges: Posit
   for (const cluster of clusters) {
     const target = nodeMap.get(cluster[0]!.target)
     if (!target) continue
-    const classes = mergeClasses(cluster, terminalAssignment(edges))
+    const classes = mergeClasses(cluster, terminals)
     // Any one class may keep the shared point; the others need free slots.
     // Try each keeper in turn and keep the first complete placement.
     for (let keeper = 0; keeper < classes.length; keeper++) {

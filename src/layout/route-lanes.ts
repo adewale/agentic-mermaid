@@ -294,7 +294,7 @@ function collectLaneBlockers(
       const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
-        if (terminalAssignment(ctx.edges).shares(edge, other, 'end') &&
+        if ((ctx.terminals ?? terminalAssignment(ctx.edges)).shares(edge, other, 'end') &&
           Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }

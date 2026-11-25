@@ -6,7 +6,7 @@ import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
-import { paintsAlike, terminalAssignment, type TerminalEnd } from '../terminal-assignment.ts'
+import { paintsAlike, terminalAssignment, type TerminalAssignment, type TerminalEnd } from '../terminal-assignment.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
@@ -143,12 +143,12 @@ export function bundleEdgePaths(
   groups: PositionedGroup[],
   direction: Direction,
   style: ResolvedRenderStyle,
+  terminals: TerminalAssignment = terminalAssignment(edges),
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
   // A shared trunk also shares its endpoint glyph: every two members' shared
   // ends must be allowed to share one terminal. Repeated pairs are never members.
-  const terminals = terminalAssignment(edges)
   const unshareable = (group: readonly PositionedEdge[], end: TerminalEnd, duplicates: ReadonlySet<PositionedEdge>): boolean => {
     const members = group.filter(edge => !duplicates.has(edge))
     return group.some(edge => edge.label) || members.some((a, i) => members.some((b, j) => j > i && !terminals.shares(a, b, end)))

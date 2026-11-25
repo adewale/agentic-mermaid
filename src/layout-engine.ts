@@ -1311,9 +1311,9 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
-  /** Which edge ends may share one terminal, recorded once after extraction.
-   * Every route producer reads it through `terminalAssignment(edges)`. */
-  terminals?: TerminalAssignment
+  /** Which edge ends may share one terminal: the one decision every pass that
+   * places a terminal reads. */
+  readonly terminals: TerminalAssignment
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1358,11 +1358,10 @@ const SETTLE_EDGE_LABEL_STEPS: ReadonlyArray<LayoutPassStep<LayoutPassContext>> 
 // lanes depend on symmetric parallel lanes, and fanout commutativity is unproved.
 export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
-    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy); record terminal merge classes',
+    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
     after: [], mutates: ['extract'],
     run: c => {
       extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
-      c.terminals = terminalAssignment(c.edges)
       retainGraphText(c, c.style)
     },
   },
@@ -1383,7 +1382,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
     after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'],
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
-    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
+    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style, c.terminals) },
   },
   {
     id: 'centerPeerBarycenters', proposal: true, doc: 'center fork/rejoin hubs and peer fan-in/fan-out trunks over their peer barycenters (#57/#61)',
@@ -1410,8 +1409,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges); re-route + mark co-ranked mixed-label fan-in spokes bundle-owned',
     after: ['honorLinkRankDistance'], mutates: ['edges'],
     run: c => {
-      if (c.mergeEdges) c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
-      markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style)
+      if (c.mergeEdges) c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style, c.terminals)
+      markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style, c.terminals)
     },
   },
   {
@@ -1472,7 +1471,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, undefined) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups, terminals: c.terminals }, c.graph, c.bundled, c.style, undefined) },
   },
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, give every arrival class that may not share an arrowhead its own slot, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
@@ -1483,7 +1482,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
-      separateIndistinctArrivals(c.nodes, c.edges, c.style)
+      separateIndistinctArrivals(c.nodes, c.edges, c.style, c.terminals)
       repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
     },
   },
@@ -1687,6 +1686,7 @@ function finishGraphGeometry(
     notes: [],
     margins,
     bundled: new Set<PositionedEdge>(),
+    terminals: terminalAssignment(edges),
     mergeEdges,
     style,
     layoutPadding,

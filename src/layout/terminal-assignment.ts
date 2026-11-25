@@ -44,11 +44,21 @@ export interface TerminalAssignment {
   shares(a: PositionedEdge, b: PositionedEdge, end: TerminalEnd): boolean
 }
 
-/** Record the sharing decision for every end of `edges`. */
+/** Record the sharing decision for every end of `edges`. The roster is read
+ * when first queried, so a layout can create its assignment before
+ * extraction fills the roster. */
 export function assignTerminals(edges: readonly PositionedEdge[]): TerminalAssignment {
   const authored = new Map<number, PositionedEdge>()
-  for (const edge of edges) if (edge.edgeIndex !== undefined && !authored.has(edge.edgeIndex)) authored.set(edge.edgeIndex, edge)
-  const resolve = (edge: PositionedEdge): PositionedEdge => edge.edgeIndex === undefined ? edge : authored.get(edge.edgeIndex) ?? edge
+  let indexed = -1
+  const resolve = (edge: PositionedEdge): PositionedEdge => {
+    if (edge.edgeIndex === undefined) return edge
+    if (indexed !== edges.length) {
+      authored.clear()
+      for (const member of edges) if (member.edgeIndex !== undefined && !authored.has(member.edgeIndex)) authored.set(member.edgeIndex, member)
+      indexed = edges.length
+    }
+    return authored.get(edge.edgeIndex) ?? edge
+  }
   return {
     shares(a, b, end) {
       if (end === 'end' ? a.target !== b.target : a.source !== b.source) return false
@@ -58,14 +68,13 @@ export function assignTerminals(edges: readonly PositionedEdge[]): TerminalAssig
   }
 }
 
-const recorded = new WeakMap<readonly PositionedEdge[], { size: number; assignment: TerminalAssignment }>()
+const recorded = new WeakMap<readonly PositionedEdge[], TerminalAssignment>()
 
-/** The assignment recorded for `edges`, assigned on first read. Every layout
- * consumer of one roster reads this one decision. */
+/** The assignment recorded for `edges`. The graph pipeline records one on its
+ * pass context and hands it to its passes; shared helpers that only see a
+ * roster (lane proofs, marker clearance, the rubric) read the same record. */
 export function terminalAssignment(edges: readonly PositionedEdge[]): TerminalAssignment {
-  const entry = recorded.get(edges)
-  if (entry && entry.size === edges.length) return entry.assignment
-  const assignment = assignTerminals(edges)
-  recorded.set(edges, { size: edges.length, assignment })
+  let assignment = recorded.get(edges)
+  if (!assignment) recorded.set(edges, assignment = assignTerminals(edges))
   return assignment
 }

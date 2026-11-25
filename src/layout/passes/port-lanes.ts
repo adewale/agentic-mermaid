@@ -8,7 +8,7 @@ import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
 import { misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
-import { terminalAssignment } from '../terminal-assignment.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
@@ -181,10 +181,11 @@ export function alignPortLanes(
   groups: PositionedGroup[],
   direction: Direction,
   style: PortLaneStyle,
+  terminals: TerminalAssignment = terminalAssignment(edges),
 ): void {
   if (!withinPortLaneBudget(nodes, edges, groups)) return
   const { nodes: candidateNodes, edges: candidateEdges } = portLaneCandidate(nodes, edges)
-  alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
+  alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style, terminals)
   // Admit the actual transformed geometry, including every incident run and
   // stretched hop. A node-only lane proof cannot see a reserved header band.
   const budget = portLaneInkWork()
@@ -219,6 +220,7 @@ export function alignPortLanes(
 
 export function alignPortLaneCandidate(
   nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], direction: Direction, style: LabelMetricsStyle,
+  terminals: TerminalAssignment = terminalAssignment(edges),
 ): void {
   const isHorizontal = direction === 'LR' || direction === 'RL'
   const cross = isHorizontal ? ('y' as const) : ('x' as const)
@@ -844,7 +846,7 @@ export function alignPortLaneCandidate(
     // second caption) already ends there, the slide would merge them.
     const entry = shapePorts(tgt)[isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')]
     if (e.points.length === 2 && Math.abs(e.points[0]![cross] - e.points[1]![cross]) <= 0.5 && e.hasArrowEnd && edges.some(o => o !== e && o.target === e.target
-      && o.hasArrowEnd && o.points.length >= 2 && Math.hypot(o.points.at(-1)!.x - entry.x, o.points.at(-1)!.y - entry.y) <= 0.5 && !terminalAssignment(edges).shares(e, o, 'end'))) continue
+      && o.hasArrowEnd && o.points.length >= 2 && Math.hypot(o.points.at(-1)!.x - entry.x, o.points.at(-1)!.y - entry.y) <= 0.5 && !terminals.shares(e, o, 'end'))) continue
     // A fan-out the symmetric emitter owns stays where it is: sliding its
     // source over one child leaves the other branch carrying the whole
     // offset, so only the child may move onto the source's lane.

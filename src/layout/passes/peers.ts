@@ -10,7 +10,7 @@ import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, no
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
-import { terminalAssignment } from '../terminal-assignment.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { edgeInk, finiteBox, type GraphPaintStyle } from '../graph-paint-support.ts'
 import { nodePaintBounds } from '../../scene/bounds.ts'
@@ -596,6 +596,7 @@ export function markCorankFanInBundles(
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
+  terminals: TerminalAssignment = terminalAssignment(edges),
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
@@ -629,7 +630,7 @@ export function markCorankFanInBundles(
     if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) {
       // One port means one arrowhead. Two captioned (or differently painted)
       // spokes cannot share it; leave this hub to the ordinary route owners.
-      if (spokes.some((a, i) => spokes.some((b, j) => j > i && !terminalAssignment(edges).shares(a, b, 'end')))) continue
+      if (spokes.some((a, i) => spokes.some((b, j) => j > i && !terminals.shares(a, b, 'end')))) continue
       offsets = offsets.map(() => 0)
     }
 

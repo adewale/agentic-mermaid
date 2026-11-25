@@ -75,7 +75,7 @@ import {
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
 import { ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
-import { terminalAssignment } from './layout/terminal-assignment.ts'
+import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -114,7 +114,7 @@ function markStraightDraft(cert: DraftRouteCertificate, mutated = false): void {
  * Attaches the certificate to the edge and returns all certificates.
  */
 export function applyRouteContracts(
-  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[]; terminals?: TerminalAssignment },
   graph: MermaidGraph,
   bundled: ReadonlySet<PositionedEdge>,
   style: LabelMetricsStyle,
@@ -153,7 +153,8 @@ export function applyRouteContracts(
     ? positioned.nodes[sources[edge.edgeIndex]!] : nodeMap.get(edge.source)
   const targetOf = (edge: PositionedEdge) => edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge
     ? positioned.nodes[targets[edge.edgeIndex]!] : nodeMap.get(edge.target)
-  const terminals = terminalAssignment(positioned.edges)
+  const terminals = positioned.terminals ?? terminalAssignment(positioned.edges)
+  ctx.terminals = terminals
   const someIncoming = (edge: PositionedEdge, test: (peer: PositionedEdge) => boolean): boolean => {
     const target = edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge ? targets[edge.edgeIndex]! : -1
     if (target < 0) return positioned.edges.some(test)
