@@ -1,5 +1,5 @@
 import { blockMarkers, blockMarkerTerminal } from './markers.ts'
-import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
+import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'
@@ -12,6 +12,11 @@ import { arrowMask, arrowSize, blockArrowPoints } from './arrows.ts'
 import { type Cell, layout as layoutGrid } from './grid.ts'
 import { blockTextPlan } from './text.ts'
 import type { Block, BlockBody, PositionedBlock, PositionedBlockDiagram } from './types.ts'
+
+/** Length of a connector's first and last runs, where the cells leave room. */
+const BLOCK_STUB = 8
+/** Distance a connector keeps from the cells it passes. */
+const BLOCK_CLEARANCE = 6
 
 export const BLOCK_SHAPES: Record<string, NodeShape> = {
   na: 'rectangle',
@@ -164,7 +169,6 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       lane = occurrence - (count - 1) / 2,
       s = ports.get(source.id) ?? shapeCardinalPorts(blockShapeNode(source)),
       t = ports.get(target.id) ?? shapeCardinalPorts(blockShapeNode(target))
-    let points: Point[]
     const sc = { x: source.x + source.width / 2, y: source.y + source.height / 2 },
       tc = { x: target.x + target.width / 2, y: target.y + target.height / 2 }
     let horizontal = Math.abs(tc.x - sc.x) >= Math.abs(tc.y - sc.y)
@@ -174,46 +178,52 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     // Keep an arriving and departing route from counterflowing through one
     // physical contact when the other axis has a free pair of ports.
     if (count === 1 && source !== target && opposing(horizontal ? horizontalPorts : verticalPorts) && !opposing(horizontal ? verticalPorts : horizontalPorts)) horizontal = !horizontal
+    // Block owns the faces, the ports and the corridor it prefers; the shared
+    // router finds the route around every other cell. `exit` and `entry` are
+    // directions of travel, leaving the source face and arriving at the
+    // target face.
+    let exit: RouterDirection, entry: RouterDirection, from: Point, to: Point, via: Point[] = []
+    const channels: { x: number[]; y: number[] } = { x: [], y: [] }
     if (source === target) {
+      // A self-link loops out past the label's room.
       const r = 28 + occurrence * (Math.max(labelWidth, labelHeight) + 24)
-      points = [s.E, { x: s.E.x + r, y: s.E.y }, { x: s.E.x + r, y: source.y - r }, { x: s.N.x, y: source.y - r }, s.N]
+      ;[from, to, exit, entry] = [s.E, s.N, 'E', 'S']
+      via = [{ x: s.E.x + r, y: source.y - r }]
     } else if (count > 1 && lane !== 0) {
       // Reciprocal and duplicate links share one allocation. Outer corridors
-      // keep labels readable without changing the author's grid or shapes.
+      // keep labels readable without changing the author's grid or shapes;
+      // the route passes through the corridor's middle.
       const separation = (horizontal ? labelHeight : labelWidth) + 24
       if (horizontal) {
-        const y = lane < 0 ? Math.min(source.y, target.y) + lane * separation : Math.max(source.y + source.height, target.y + target.height) + lane * separation
-        const from = lane < 0 ? s.N : s.S,
-          to = lane < 0 ? t.N : t.S
-        points = [from, { x: from.x, y }, { x: to.x, y }, to]
+        ;[from, to, exit, entry] = lane < 0 ? [s.N, t.N, 'N', 'S'] : [s.S, t.S, 'S', 'N']
+        via = [{ x: (from.x + to.x) / 2, y: lane < 0 ? Math.min(source.y, target.y) + lane * separation : Math.max(source.y + source.height, target.y + target.height) + lane * separation }]
       } else {
-        const x = lane < 0 ? Math.min(source.x, target.x) + lane * separation : Math.max(source.x + source.width, target.x + target.width) + lane * separation
-        const from = lane < 0 ? s.W : s.E,
-          to = lane < 0 ? t.W : t.E
-        points = [from, { x, y: from.y }, { x, y: to.y }, to]
+        ;[from, to, exit, entry] = lane < 0 ? [s.W, t.W, 'W', 'E'] : [s.E, t.E, 'E', 'W']
+        via = [{ x: lane < 0 ? Math.min(source.x, target.x) + lane * separation : Math.max(source.x + source.width, target.x + target.width) + lane * separation, y: (from.y + to.y) / 2 }]
       }
     } else if (horizontal) {
       // Diagonal cells still use their nearer cardinal faces. Preferring a
       // vertical port merely because rows are disjoint can make an input share
       // the opposite direction of an outgoing edge at the same contact.
-      const from = tc.x >= sc.x ? s.E : s.W,
-        to = tc.x >= sc.x ? t.W : t.E,
-        mid = (from.x + to.x) / 2 + occurrence * 12
-      points = [from, { x: mid, y: from.y }, { x: mid, y: to.y }, to]
+      ;[from, to, exit, entry] = tc.x >= sc.x ? [s.E, t.W, 'E', 'E'] : [s.W, t.E, 'W', 'W']
+      channels.x.push((from.x + to.x) / 2 + occurrence * 12)
     } else {
-      const from = tc.y >= sc.y ? s.S : s.N,
-        to = tc.y >= sc.y ? t.N : t.S,
-        mid = (from.y + to.y) / 2 + occurrence * 12
-      points = [from, { x: from.x, y: mid }, { x: to.x, y: mid }, to]
+      ;[from, to, exit, entry] = tc.y >= sc.y ? [s.S, t.N, 'S', 'S'] : [s.N, t.S, 'N', 'N']
+      channels.y.push((from.y + to.y) / 2 + occurrence * 12)
     }
+    // Authored grid cells remain fixed. Composite cells are frames around
+    // their children: only leaf cells, and the two endpoints themselves,
+    // block the route.
+    const obstacles = (source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles)
+      .map(node => { const margin = node.id === source.id || node.id === target.id ? 0 : BLOCK_CLEARANCE; return { x0: node.x - margin, y0: node.y - margin, x1: node.x + node.width + margin, y1: node.y + node.height + margin } })
+    const request = { start: from, end: to, exit, entry, obstacles, clearance: 0, channels, offChannelCost: 0.05, via }
+    // A stub keeps the first and last runs visible; cells packed closer than
+    // that still route, from the faces themselves.
+    let points: Point[] = (routeOrthogonal({ ...request, stub: BLOCK_STUB }) ?? routeOrthogonal(request)
+      ?? routeOrthogonal({ ...request, obstacles: [] }) ?? routeOrthogonal({ ...request, obstacles: [], via: [] }) ?? [from, to]).map(point => ({ x: point.x, y: point.y }))
     outgoingContacts.add(contactKey(source.id, points[0]!))
     incomingContacts.add(contactKey(target.id, points.at(-1)!))
-    const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: edge.arrowTypeStart !== 'none', hasArrowEnd: edge.arrowTypeEnd !== 'none', points: simplifyPolyline(points.map(point => ({ ...point }))) }
-    // Authored grid cells remain fixed. Shared shape-aware repair owns only the
-    // connector interior, including skip links across an occupied grid cell.
-    const obstacles = source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles
-    rerouteEdgesThroughNodes(obstacles, [route], { direction: horizontal ? 'LR' : 'TB' })
-    points = route.points
+    points = simplifyPolyline(points)
     // Conservative box repair owns the corridor. Pull only an arrow's final
     // terminal run onto its painted polygon; the run stays axis-aligned and
     // extends inside its own envelope, so foreign-obstacle clearance is kept.
