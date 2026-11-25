@@ -163,7 +163,9 @@ function renderBody(body: FamilyParsedBody, kind: ParsedDiagram['kind'], meta: V
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
   // state descriptor emits the stateDiagram-v2 header.
   if (body.kind === 'opaque' && (body.family === 'eventmodeling' || body.family === 'zenuml')) return body.source
-  if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
+  // A final newline completes the last row; after a bare CR it would instead
+  // turn that CR into a CRLF and change how the source reads back.
+  if (body.kind === 'opaque') return /[\r\n]$/.test(body.source) ? body.source : body.source + '\n'
   if (body.kind === 'preserved') return body.source
   const plugin = getFamily(kind)
   // Descriptor-owned `data` is meaningful only to the exact registration

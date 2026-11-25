@@ -416,17 +416,25 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       }])
     }
     attachUniversalAccessibility(parsed.value, meta)
-    const sourceMap = tracedSourceMap(
-      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource, Object.freeze({
+    // The typed body is read from line views; its spans are read from the
+    // authored text. A grammar that refuses the authored text (a bare CR after
+    // a comment, which Mermaid's own lexer also rejects) leaves the source
+    // opaque instead of escaping the reader as an exception.
+    let body: typeof parsed.value = parsed.value, built: ReturnType<NonNullable<typeof plugin.buildSourceMap>> | undefined
+    try {
+      built = plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource, Object.freeze({
         originalText: authoredEnvelope.originalText,
         wrapperSource: authoredEnvelope.wrapperSource,
         authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
         cleanup: authoredEnvelope.cleanup,
         canonicalSource,
-      })) ?? emptySourceMap(),
-      plugin.sourceMapGrammar ?? 'generic',
-    )
-    let diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
+      }))
+    } catch (error) {
+      if (!(error instanceof MermaidSyntaxError)) throw error
+      body = { kind: 'opaque', family: kind, source: opaqueSource }
+    }
+    const sourceMap = tracedSourceMap(built ?? emptySourceMap(), plugin.sourceMapGrammar ?? 'generic')
+    let diagram: ValidDiagram = { kind, meta, body, source: sourceMap, canonicalSource }
     if ([meta.accessibility.title, meta.accessibility.descr].some(text => text?.includes('%%{'))) {
       try { serializeMermaid(diagram) } catch (error) {
         if (!(error instanceof AccessibilityTextError)) throw error

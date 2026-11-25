@@ -99,7 +99,7 @@ describe('crash-freedom: parseRegisteredMermaid over every family header', () =>
       const again = parseRegisteredMermaid(written)
       expect(again.ok && again.value.body.kind).toBe(parsed.value.body.kind)
       if (parsed.value.body.kind === 'opaque') expect([source, `${source}\n`]).toContain(written)
-    }), fcParameters({ numRuns: 40 }))
+    }), fcParameters({ numRuns: 40, examples: [['%%\r']] }))
   })
 })
 

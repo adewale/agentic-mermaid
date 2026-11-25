@@ -160,7 +160,9 @@ function stateCommentStatements(source: string): CommentStatement[] {
 /** Only comments the owning parser identified as comments enter this sidecar. */
 export function retainBodyComments(diagram: ParsedDiagram, authored: string): void {
   if (!diagram.meta.droppedComments?.length) return
-  const lines = authored.split(/\r?\n/)
+  // The same line breaks markDroppedComments numbers comments by: CRLF, LF or
+  // a bare CR. Splitting on fewer would keep a CR inside a retained comment.
+  const lines = authored.split(/\r\n?|\n/)
   const stateLines = diagram.kind === 'state' ? scanStateComments(lines) : undefined
   const statements = (diagram.kind === 'state' ? stateCommentStatements(authored)
     : diagram.kind !== 'flowchart' ? [] : (['nodes', 'edges', 'groups'] as const).flatMap(collection =>
