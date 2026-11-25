@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 
 import { knownStyles, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
-import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
+import { convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
+import { elkLayoutSync } from '../elk-instance.ts'
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
@@ -12,7 +13,7 @@ import { resolveRenderStyle } from '../styles.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { extractEdgesRecursively, type ElkHierarchySegment } from '../layout/passes/elk-edges.ts'
-import type { PositionedEdge } from '../types.ts'
+import type { MermaidGraph, PositionedEdge } from '../types.ts'
 
 beforeAll(renderedTextReady)
 
@@ -381,56 +382,37 @@ function hierarchyScope(root: ElkNode, id: string): ElkNode {
   throw new Error(`Missing scope ${id}`)
 }
 
-function observeHierarchyPorts<T>(produce: () => T) {
-  const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'extractEdgesRecursively')!, run = pass.run
-  const snapshots: Array<{ hierarchy: string | undefined; portCount: number; incidences: Array<{ edge: string; port: string; expected: { x: number; y: number }; actual: { x: number; y: number } }> }> = []
-  let observationError: unknown
-  pass.run = context => {
-    if (context.elkResult) try {
-      const ports = new Map<string, { x: number; y: number }>()
-      const hosted: Array<{ host: ElkNode; x: number; y: number }> = []
-      const visit = (node: ElkNode, x: number, y: number) => {
-        x += node.x ?? 0; y += node.y ?? 0
-        hosted.push({ host: node, x, y })
-        for (const port of node.ports ?? []) ports.set(port.id, { x: x + (port.x ?? 0), y: y + (port.y ?? 0) })
-        for (const child of node.children ?? []) visit(child, x, y)
-      }
-      visit(context.elkResult, 0, 0)
-      const incidences: typeof snapshots[number]['incidences'] = []
-      for (const { host, x, y } of hosted) for (const candidate of host.edges ?? []) {
-        const edge = candidate as ElkExtendedEdge
-        for (const [ids, key] of [[edge.sources, 'startPoint'], [edge.targets, 'endPoint']] as const) {
-          for (const id of ids) {
-            const port = ports.get(id)
-            if (!port) continue
-            // Each retained occurrence in these two fixtures has one section.
-            if (edge.sections?.length !== 1) throw new Error(`Unexpected section topology for ${edge.id}`)
-            const point = edge.sections[0]![key]
-            incidences.push({ edge: edge.id, port: id, expected: port, actual: { x: point.x + x, y: point.y + y } })
-          }
-        }
-      }
-      snapshots.push({ hierarchy: context.elkResult.layoutOptions?.['elk.hierarchyHandling'], portCount: ports.size, incidences })
-    } catch (error) { observationError = error }
-    return run(context)
+/** In a separate-hierarchy ELK result, each section that meets a synthetic
+ * boundary port starts or ends exactly on it, so inner and outer pieces join. */
+function expectSharedHierarchyPorts(graph: MermaidGraph, options: NonNullable<Parameters<typeof convertToElkFormat>[1]>, ports: number) {
+  const elkResult = elkLayoutSync(convertToElkFormat(graph, { ...options, separateHierarchy: true }))
+  expect(elkResult.layoutOptions?.['elk.hierarchyHandling']).toBe('SEPARATE')
+  const located = new Map<string, { x: number; y: number }>()
+  const hosted: Array<{ host: ElkNode; x: number; y: number }> = []
+  const visit = (node: ElkNode, x: number, y: number) => {
+    x += node.x ?? 0; y += node.y ?? 0
+    hosted.push({ host: node, x, y })
+    for (const port of node.ports ?? []) located.set(port.id, { x: x + (port.x ?? 0), y: y + (port.y ?? 0) })
+    for (const child of node.children ?? []) visit(child, x, y)
   }
-  let value: T
-  try { value = produce() } finally { pass.run = run }
-  // Observation errors fail as test-harness errors outside canonical fallback.
-  expect(observationError, 'raw boundary observation failed').toBeUndefined()
-  return { value, snapshots }
-}
-
-function expectSharedHierarchyPorts(snapshots: ReturnType<typeof observeHierarchyPorts>['snapshots'], ports: number) {
-  const separate = snapshots.filter(snapshot => snapshot.hierarchy === 'SEPARATE')
-  expect(separate.length).toBeGreaterThan(0)
-  for (const snapshot of separate) {
-    expect(snapshot.portCount).toBe(ports)
-    expect(snapshot.incidences).toHaveLength(2 * ports)
-    for (const incidence of snapshot.incidences) {
-      expect(incidence.actual, `${incidence.edge} shares ${incidence.port}`).toEqual(incidence.expected)
+  visit(elkResult, 0, 0)
+  const incidences: Array<{ edge: string; port: string; expected: { x: number; y: number }; actual: { x: number; y: number } }> = []
+  for (const { host, x, y } of hosted) for (const candidate of host.edges ?? []) {
+    const edge = candidate as ElkExtendedEdge
+    for (const [ids, key] of [[edge.sources, 'startPoint'], [edge.targets, 'endPoint']] as const) {
+      for (const id of ids) {
+        const port = located.get(id)
+        if (!port) continue
+        // Each retained occurrence in these fixtures has one section.
+        expect(edge.sections, edge.id).toHaveLength(1)
+        const point = edge.sections![0]![key]
+        incidences.push({ edge: edge.id, port: id, expected: port, actual: { x: point.x + x, y: point.y + y } })
+      }
     }
   }
+  expect(located.size).toBe(ports)
+  expect(incidences).toHaveLength(2 * ports)
+  for (const incidence of incidences) expect(incidence.actual, `${incidence.edge} shares ${incidence.port}`).toEqual(incidence.expected)
 }
 
 describe('hierarchy parameter compatibility', () => {
@@ -504,8 +486,8 @@ describe('hierarchy parameter compatibility', () => {
     expect(outer.edges!.find(edge => edge.id === 'e3')!.layoutOptions!['elk.layered.priority.shortness']).toBe('100')
     expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('true')
 
-    const { value: positioned, snapshots } = observeHierarchyPorts(() => layoutGraphSync(graph, { layoutHints }))
-    expectSharedHierarchyPorts(snapshots, 1)
+    expectSharedHierarchyPorts(graph, { layoutHints }, 1)
+    const positioned = layoutGraphSync(graph, { layoutHints })
     const node = (id: string) => positioned.nodes.find(candidate => candidate.id === id)!
     // This connected same-rank fan-in is a feasible preference witness, not an
     // absolute adjacency guarantee for arbitrary hinted diagrams.
@@ -543,8 +525,8 @@ describe('hierarchy parameter compatibility', () => {
   })
 
   test('the actual Cloud SVG retains four arrows without an opposing shared shaft', () => {
-    const { value: { svg, receipt }, snapshots } = observeHierarchyPorts(() => renderMermaidSVGWithReceipt(HIERARCHY_PARAMETER_CLOUD, { embedFontImport: false }))
-    expectSharedHierarchyPorts(snapshots, 4)
+    expectSharedHierarchyPorts(parseMermaid(HIERARCHY_PARAMETER_CLOUD), {}, 4)
+    const { svg, receipt } = renderMermaidSVGWithReceipt(HIERARCHY_PARAMETER_CLOUD, { embedFontImport: false })
     expect(receipt.layoutCertification?.status).toBe('passed')
     const carriers = scanSvgStartTags(svg).filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
     expect(carriers).toHaveLength(4)
@@ -663,8 +645,8 @@ describe('protected UP synthetic boundary ports', () => {
 
   test('the actual base BT SVG keeps coherent ports, upward flow and clear full headers', () => {
     const source = 'flowchart BT\nsubgraph S1\nA[One]\nend\nsubgraph S2\nB[Two]\nend\nA --> B'
-    const {value: {svg, receipt}, snapshots} = observeHierarchyPorts(() => renderMermaidSVGWithReceipt(source, {embedFontImport: false}))
-    expectSharedHierarchyPorts(snapshots, 2)
+    expectSharedHierarchyPorts(parseMermaid(source), {}, 2)
+    const {svg, receipt} = renderMermaidSVGWithReceipt(source, {embedFontImport: false})
     expect(receipt.layoutCertification?.status).toBe('passed')
     const tags = scanSvgStartTags(svg), carriers = tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
     expect(carriers).toHaveLength(1)
