@@ -8,6 +8,7 @@ import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
+import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
 import { terminalHookLength } from '../route-geometry.ts'
 import { hookedElbow } from './shared.ts'
 
@@ -191,6 +192,21 @@ export function bundleEdgePaths(
   const memberHook = (members: ReadonlyArray<{ edge: PositionedEdge }>, end: 'start' | 'end'): number =>
     Math.max(...members.map(({ edge }) => terminalHookLength(style, edge, end)))
 
+  // A bundle trades separate shafts for one trunk. It is worth publishing only
+  // when the trunk crosses no more foreign shafts than the routes it replaces.
+  const addsCrossings = (members: ReadonlyArray<{ edge: PositionedEdge }>, candidates: ReadonlyMap<PositionedEdge, Point[]>): boolean => {
+    const own = new Set(members.map(member => member.edge))
+    const foreign = edges.filter(edge => !own.has(edge) && edge.style !== 'invisible')
+    let delta = 0
+    for (const { edge } of members) {
+      for (const other of foreign) delta += countPointPairCrossings(candidates.get(edge)!, other.points) - countPointPairCrossings(edge.points, other.points)
+    }
+    for (let i = 0; i < members.length; i++) for (let j = i + 1; j < members.length; j++) {
+      delta -= countPointPairCrossings(members[i]!.edge.points, members[j]!.edge.points)
+    }
+    return delta > 0
+  }
+
   // --- Fan-out: group edges by shared source ---
   const fanOutGroups = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
@@ -286,6 +302,7 @@ export function bundleEdgePaths(
 
       const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
+        if (addsCrossings(members, candidates)) break
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
         }
@@ -375,6 +392,7 @@ export function bundleEdgePaths(
 
       const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
+        if (addsCrossings(members, candidates)) break
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
         }

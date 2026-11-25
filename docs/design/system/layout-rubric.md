@@ -101,18 +101,14 @@ allowances for hard occlusion and duplicate-lane repairs. Feedback must not shar
 the forward lane; flow consistency is the classifier's definition of `feedback`
 itself. Soft label-conflict counts do not replace hard own-route association or
 node-avoidance checks and cannot buy additional crossings during final selection.
-Generic bundling is a bounded proposal: the engine first chooses a certified
-bundled placement, then may compare one completed unbundled route proposal from
-that selected placement's same ELK result. Its existing certification score and
-successful checks are reused; only the new proposal is certified. The total
-bound is three placement pipelines plus one unbundled route
-pipeline, with at most 12 ELK attempts; routing alternatives are not multiplied
-across placement strategies. The receipt retains bundled placement scores in
-`preference.compared`, the actual final route score in `preference.selectedScore`,
-and the selected placement's route comparison in `preference.routing`.
-Parallel-edge graphs retain their specialized route owners in both proposals;
-only generic fan bundling is disabled. Endpoint contacts and lane ambiguity are
-not proper crossings.
+Generic bundling decides locally: a fan-in or fan-out trunk is published only
+when its rebuilt routes cross no more foreign shafts than the routes they
+replace; otherwise the fan keeps its separate routes. Each placement runs the
+route pipeline once, so the bound is three placement pipelines with at most 12
+ELK attempts. The receipt retains placement scores in `preference.compared` and
+the final route score in `preference.selectedScore`. Parallel-edge graphs keep
+their specialized route owners. Endpoint contacts and lane ambiguity are not
+proper crossings.
 
 ## 3. Harness
 

@@ -64,7 +64,10 @@ describe('bundle complete foreign ink admission', () => {
       const edges: PositionedEdge[] = ['B', 'B', 'C', 'D'].map((id, i) => {
         const a = nodes[0]!, b = nodes.find(node => node.id === id)!
         const top = fanIn ? b : a, bottom = fanIn ? a : b
-        const sx = top.x + (i === 0 ? 10 : 30), tx = bottom.x + (i === 0 ? 10 : 30)
+        // Both duplicate lanes stay on the side away from the fan's trunk, so
+        // bundling the fan crosses neither of them.
+        const lane = i === 0 ? 10 : i === 1 ? 4 : 30
+        const sx = top.x + lane, tx = bottom.x + lane
         return { source: top.id, target: bottom.id, edgeIndex: i,
           points: [{ x: sx, y: top.y + 40 }, { x: sx, y: 75 + i * 10 }, { x: tx, y: 75 + i * 10 }, { x: tx, y: bottom.y }].map(p => project(p.x, p.y)),
           style: 'solid', hasArrowStart: false, hasArrowEnd: true }
@@ -119,6 +122,18 @@ describe('bundle complete foreign ink admission', () => {
     if (width !== '1px') for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
   })
 
+  test.each([false, true])('a fan keeps its separate routes when the trunk would cross a foreign shaft they avoid (foreign=%s)', foreign => {
+    const box = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 20 })
+    const nodes = [box('A', 40, 0), box('B', 40, 120), box('C', 240, 120), box('F', 140, 30), box('G', 140, 100)]
+    const edge = (source: string, target: string, points: Array<{ x: number; y: number }>): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
+    // A -> C leaves above F; the bundled trunk would run between F and G.
+    const fan = [edge('A', 'B', [{ x: 60, y: 20 }, { x: 60, y: 120 }]), edge('A', 'C', [{ x: 80, y: 10 }, { x: 260, y: 10 }, { x: 260, y: 120 }])]
+    const edges = foreign ? [...fan, edge('F', 'G', [{ x: 160, y: 50 }, { x: 160, y: 100 }])] : fan
+    const before = fan.map(e => e.points)
+    const bundled = bundleEdgePaths(edges, nodes, [], 'TB', resolveRenderStyle())
+    expect(bundled.size).toBe(foreign ? 0 : 2)
+    if (foreign) fan.forEach((e, i) => expect(e.points).toBe(before[i]!))
+  })
   test('a shaft touching the full header by its stroke retains its old route', () => {
     const nodes: PositionedNode[] = [
       { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 0, width: 40, height: 40 },
@@ -145,15 +160,15 @@ describe('bounded generic bundle proposals', () => {
   ])('preserves the measured quality gain and authored meaning: $name', fixture => {
     const graph = parseMermaid(fixture.source)
     const first = LAYOUT_PIPELINE[0]!, run = first.run
-    let routeProposals = 0
-    first.run = context => { if (!context.mergeEdges) routeProposals++; run(context) }
+    let unbundledRuns = 0
+    first.run = context => { if (!context.mergeEdges) unbundledRuns++; run(context) }
     let selected: ReturnType<typeof layoutGraphSync>
     try { selected = layoutGraphSync(graph) } finally { first.run = run }
     const assessment = assessLayout(graph, selected)
     expect(hardViolations(assessment)).toEqual([])
     expect(assessment.metrics.edgeCrossings).toBeLessThanOrEqual(fixture.maxCrossings)
     expect(assessment.metrics.labelConflicts).toBeLessThanOrEqual(fixture.maxLabelConflicts)
-    expect(routeProposals).toBeLessThanOrEqual(1)
+    expect(unbundledRuns).toBe(0)
     expect(selected.nodes.map(node => [node.id, node.label]).sort()).toEqual(
       [...graph.nodes.values()].map(node => [node.id, node.label]).sort())
     expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label, edge.style, edge.hasArrowStart, edge.hasArrowEnd])).toEqual(
@@ -161,63 +176,6 @@ describe('bounded generic bundle proposals', () => {
     expect(selected.certification?.preference.selectedScore).toMatchObject({
       edgeCrossings: assessment.metrics.edgeCrossings, labelConflicts: assessment.metrics.labelConflicts,
     })
-  })
-
-  test('only the selected placement compares an unbundled proposal and it reuses that ELK result', () => {
-    const baseline = layoutGraphSync(parseMermaid(source), { compareRoutePreferences: false })
-    const first = LAYOUT_PIPELINE[0]!, run = first.run
-    const pipelines: Array<{ elkResult: unknown; bundled: boolean }> = []
-    first.run = context => { pipelines.push({ elkResult: context.elkResult, bundled: context.mergeEdges }); run(context) }
-    let elkCalls = 0
-    let selected: ReturnType<typeof layoutGraphSync>
-    try {
-      selected = withRenderStageObserver(sample => { if (sample.stage === 'elk') elkCalls++ },
-        () => layoutGraphSync(parseMermaid(source)))
-    } finally {
-      first.run = run
-    }
-    const placements = pipelines.filter(pipeline => pipeline.bundled)
-    const routeProposals = pipelines.filter(pipeline => !pipeline.bundled)
-    expect(placements).toHaveLength(2)
-    expect(routeProposals).toHaveLength(1)
-    expect(elkCalls).toBe(placements.length)
-    expect(pipelines.at(-1)).toBe(routeProposals[0])
-    expect(placements.some(placement => placement.elkResult === routeProposals[0]!.elkResult)).toBe(true)
-    expect(selected.certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
-    expect(selected.certification!.preference.selectedScore.edgeCrossings).toBeLessThan(
-      baseline.certification!.preference.selectedScore.edgeCrossings)
-    expect(selected.certification?.preference.routing).toMatchObject({
-      strategy: 'without-generic-bundling',
-      preference: { reason: 'edgeCrossings' },
-    })
-    const alternatives = selected.certification!.preference.routing!.preference.compared
-    expect(alternatives).toHaveLength(2)
-    expect(alternatives[1]!.score.totalBends).toBeGreaterThan(alternatives[0]!.score.totalBends)
-    expect(alternatives[1]!.score.nonCanonicalEndpointRate).toBeGreaterThan(alternatives[0]!.score.nonCanonicalEndpointRate)
-  })
-
-  test('an ordinary alternative failure retains the certified bundled proposal', () => {
-    const first = LAYOUT_PIPELINE[0]!, run = first.run
-    let rejected = 0
-    first.run = context => {
-      if (!context.mergeEdges) { rejected++; throw new Error('unbundled geometry producer failed') }
-      run(context)
-    }
-    try {
-      const graph = parseMermaid(source), selected = layoutGraphSync(graph)
-      expect(rejected).toBe(1)
-      expect(selected.certification).toMatchObject({ status: 'passed', hardViolations: 0 })
-      expect(selected.certification?.preference.routing).toMatchObject({
-        strategy: 'bundled',
-        preference: { reason: 'alternative-invalid' },
-      })
-      expect(hardViolations(assessLayout(graph, selected))).toEqual([])
-      expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
-        graph.edges.map((edge, index) => [index, edge.source, edge.target]))
-      expect(selected.edges.every(edge => edge.points.length >= 2)).toBe(true)
-    } finally {
-      first.run = run
-    }
   })
 
   test('parallel edges keep their specialized lanes instead of buying fewer proper crossings with ambiguous contacts', () => {
@@ -241,7 +199,6 @@ describe('bounded generic bundle proposals', () => {
     try {
       const graph = parseMermaid(parallelSource), selected = layoutGraphSync(graph)
       expect(calls).toBe(1)
-      expect(selected.certification?.preference.routing).toBeUndefined()
       expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
         graph.edges.map((edge, index) => [index, edge.source, edge.target]))
       expect(selected.edges.map(edge => edge.points)).toEqual(baseline.edges.map(edge => edge.points))
@@ -257,24 +214,15 @@ describe('bounded generic bundle proposals', () => {
     }
   })
 
-  test('clean symmetric fans, placement-only calls and graphs over the work bound skip the second pipeline', () => {
+  test('each certified placement runs the route pipeline once, bundled', () => {
     const first = LAYOUT_PIPELINE[0]!, run = first.run
-    let calls = 0
-    first.run = context => { calls++; run(context) }
+    const pipelines: Array<{ elkResult: unknown; bundled: boolean }> = []
+    first.run = context => { pipelines.push({ elkResult: context.elkResult, bundled: context.mergeEdges }); run(context) }
     try {
-      const symmetric = layoutGraphSync(parseMermaid('flowchart TD\nA --> B\nA --> C\nA --> D'))
-      expect(calls).toBe(1)
-      expect(symmetric.certification?.preference.routing).toBeUndefined()
-      calls = 0
-      const placement = layoutGraphSync(parseMermaid(source), { compareRoutePreferences: false })
-      expect(calls).toBe(1)
-      expect(placement.certification?.preference.routing).toBeUndefined()
-      calls = 0
-      const large = parseMermaid(source)
-      for (let i = large.nodes.size; i < 65; i++) large.nodes.set(`N${i}`, { id: `N${i}`, label: `N${i}`, shape: 'rectangle' })
-      const bounded = layoutGraphSync(large)
-      expect(calls).toBe(1)
-      expect(bounded.certification?.preference.routing).toBeUndefined()
+      const selected = layoutGraphSync(parseMermaid(source))
+      expect(pipelines.every(pipeline => pipeline.bundled)).toBe(true)
+      expect(pipelines).toHaveLength(selected.certification!.attempts)
+      expect(new Set(pipelines.map(pipeline => pipeline.elkResult)).size).toBe(pipelines.length)
     } finally {
       first.run = run
     }

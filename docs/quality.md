@@ -122,28 +122,23 @@ conflicts may try one additional distinct strategy. Feasible candidates compare
 readable group titles, crossings, label-conflict pairs, avoidable bends,
 canonical endpoints, symmetry and area in that order.
 
-The engine first chooses a certified bundled placement using those existing
-strategies. Only the selected placement may then compare one completed generic
-unbundled route proposal, using the same ELK result and the same preference
-order. The decision to try this proposal reuses the selected placement's existing
-certification score, including the final comparison: unchanged selected geometry
-is not certified a second time. It does not explore an unbundled version of
-every placement strategy.
+The engine chooses a certified placement using those existing strategies, and
+each placement runs the route pipeline once. Generic fan bundling declines a
+trunk whose rebuilt routes would cross more foreign shafts than the separate
+routes they replace; there is no second, unbundled pipeline. This local rule
+costs some drawings bends that a full unbundled comparison used to recover, in
+exchange for one pipeline per placement.
 Symmetric fan-in/fan-out routing remains enabled.
-Graphs containing parallel edges keep their specialized route owners in both
-proposals; only generic fan bundling is disabled. A smaller proper-crossing
-count alone does not prove that duplicate endpoint lanes remain visibly distinct.
+Graphs containing parallel edges keep their specialized route owners. A smaller
+proper-crossing count alone does not prove that duplicate endpoint lanes remain
+visibly distinct.
 
-The receipt's `preference.compared` entries retain the certified bundled
-placement scores. `preference.selectedScore` describes the actual final routes,
-and `preference.routing` records the selected placement's bundled/unbundled
-comparison, scores and deciding criterion.
-The receipt's `attempts` counts placement productions; the optional final route
-comparison is recorded separately.
-Clean graphs, equivalent strategies and larger inputs skip these comparisons;
-the upper bound is three placement pipelines plus one unbundled route pipeline,
-with at most 12 ELK attempts. The unbundled proposal reuses the
-selected placement's ELK result. Search decisions use graph
+The receipt's `preference.compared` entries retain the certified placement
+scores, and `preference.selectedScore` describes the actual final routes.
+The receipt's `attempts` counts placement productions.
+Clean graphs, equivalent strategies and larger inputs skip the placement
+comparisons; the upper bound is three placement pipelines with at most 12 ELK
+attempts. Search decisions use graph
 work counts, never elapsed time, so machine speed cannot change the drawing.
 These route comparisons apply to Flowchart and State, which retain the scored
 routes. Architecture uses the graph engine for placement and keeps its existing

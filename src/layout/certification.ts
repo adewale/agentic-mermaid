@@ -49,24 +49,18 @@ export function compareLayoutPreference(first: Readonly<LayoutPreferenceScore>, 
 }
 
 export interface LayoutPreferenceEvidence {
-  /** Score of the returned geometry, including the optional final route choice. */
+  /** Score of the returned geometry. */
   selectedScore: LayoutPreferenceScore
-  /** Placement-strategy decision, before the optional final route comparison. */
+  /** Placement-strategy decision. */
   reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
-  /** Certified placement scores before the optional final route comparison. */
+  /** Certified placement scores. */
   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
-  /** Final bundled/unbundled decision using the selected placement's ELK result.
-   * Its selected score describes the same final geometry as selectedScore above. */
-  routing?: {
-    strategy: 'bundled' | 'without-generic-bundling'
-    preference: Omit<LayoutPreferenceEvidence, 'routing'>
-  }
 }
 
 export interface LayoutCertificationReceipt {
   status: 'passed'
   strategy: string
-  /** Placement-production attempts; an optional final routing comparison is separate. */
+  /** Placement-production attempts. */
   attempts: number
   hardViolations: 0
   preference: LayoutPreferenceEvidence
@@ -535,44 +529,4 @@ export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: Res
 export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, allowUncertified = false): PositionedGraph {
   const selection = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
   return 'uncertified' in selection ? retainUncertified(graph, selection) : retainSelection(graph, selection)
-}
-
-/** Select placement, then optionally certify one new route proposal. The baseline
- * and score stay private to this invocation; an attached public receipt is never
- * accepted as proof that caller-owned geometry was already checked. */
-export function certifyLayoutWithRouteAlternative(
-  graph: MermaidGraph,
-  style: ResolvedRenderStyle,
-  candidates: readonly LayoutCertificationCandidate[],
-  routeFor: (placed: PositionedGraph, score: Readonly<LayoutPreferenceScore>) =>
-    (LayoutCertificationCandidate & { strategy: 'without-generic-bundling' }) | undefined,
-  preliminary?: LayoutCertificationCandidate,
-  allowUncertified = false,
-): PositionedGraph {
-  const placement = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
-  // An uncertified placement has no certified score to compare a route against.
-  if ('uncertified' in placement) return retainUncertified(graph, placement)
-  const placed = retainSelection(graph, placement)
-  const alternative = routeFor(placed, placement.selected.score)
-  if (!alternative) return placed
-  const baseline = { ...placement.selected, strategy: 'bundled' }
-  const result = certifyCandidate(graph, style, alternative)
-  const compared = [{ strategy: baseline.strategy, score: baseline.score }]
-  if (result.certified) compared.push({ strategy: result.certified.strategy, score: result.certified.score })
-  const choice = result.certified ? preferredCandidate(baseline, result.certified)
-    : { selected: baseline, reason: 'alternative-invalid' as const }
-  const routed = choice.selected.positioned
-  retainAuthoredMembership(graph, routed)
-  routed.certification = {
-    ...placed.certification!,
-    preference: {
-      ...placed.certification!.preference,
-      selectedScore: choice.selected.score,
-      routing: {
-        strategy: choice.selected === baseline ? 'bundled' : alternative.strategy,
-        preference: { selectedScore: choice.selected.score, reason: choice.reason, compared },
-      },
-    },
-  }
-  return routed
 }
