@@ -7,6 +7,7 @@ import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
 import { isImmutablePixelTextPart, isRetainedPixelText, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { estimatedResidency } from './cache-residency.ts'
 import { WeightedLru } from './weighted-lru.ts'
+import { freezePositionedGraph, isFinishedPositionedGraph } from '../layout/positioned-values.ts'
 
 const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
@@ -352,9 +353,15 @@ export function cachedPositioned(family: object, key: string, alreadyObserved = 
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   if (!value) return undefined
   // The cache's own snapshot: copied here, or an original producer's result.
-  const copy = clonePositioned(value.result, immutableText, true)
+  // A finished graph is immutable and shared; only its wrapper is the caller's.
+  const copy = sharesPositioned(value.result) ? { ...value.result } : clonePositioned(value.result, immutableText, true)
   transferGraphLayoutDecisions(value.result, copy)
   return copy
+}
+/** A finished graph layout result needs no private copy: nothing edits it, so
+ * every consumer may share it (layout/positioned-values.ts). */
+export function sharesPositioned(result: FamilyLayoutResult): boolean {
+  return isFinishedPositionedGraph(result.positioned)
 }
 /** Only the private native renderer may borrow this certified snapshot. */
 export function borrowedPositioned(family: object, key: string, nativeSvgRequest?: object, reuseCapturedDrawing = false): PositionedSnapshot | undefined {
@@ -388,9 +395,15 @@ export function retainOwnedNativeSvgPositioned(family: object, key: string, valu
   retainSnapshot(family, key, value, projection, false, true)
 }
 function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean, ownedProducer: boolean): void {
-  const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
+  // A finished graph is frozen and shared; the cache copies only the
+  // request's wrapper and its public projection view, which callers may edit.
+  const finishedGraph = sharesPositioned(value)
+  if (finishedGraph) freezePositionedGraph(value.positioned)
+  const shared = copy && finishedGraph
+  const snapshot: PositionedSnapshot = shared ? { result: { ...value }, ...(projection ? { projection: clonePositioned(projection, true, ownedProducer) } : {}) }
+    : { result: value, ...(projection ? { projection } : {}) }
   const fixedWeight = key.length * 2 + estimatedResidency(graphLayoutDecisionsOf(value), MAX_WEIGHT) + 1024
-  const owned = copy && ownedProducer ? ownedPositionedSnapshot(snapshot, MAX_WEIGHT - fixedWeight) : undefined
+  const owned = copy && ownedProducer && !shared ? ownedPositionedSnapshot(snapshot, MAX_WEIGHT - fixedWeight) : undefined
   // C4 identity planners carry callbacks. Keep the complete authoritative
   // artifact uncached when a private snapshot cannot preserve its evidence.
   if (owned?.kind === 'uncloneable') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
@@ -399,7 +412,7 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
   if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let retained = snapshot
   if (owned?.kind === 'copied') retained = owned.value
-  else if (copy) {
+  else if (copy && !shared) {
     try { retained = clonePositioned(snapshot, true) } catch (error) {
       if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
       throw error

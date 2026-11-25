@@ -42,7 +42,7 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { AuthoredStyleColorError } from '../shared/style-props.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { positionResolvedFamily, retainedFamilyProjection } from '../positioning.ts'
-import { clonePositioned, isRetainedPositionedSnapshot } from '../experimental/position-cache.ts'
+import { clonePositioned, isRetainedPositionedSnapshot, sharesPositioned } from '../experimental/position-cache.ts'
 import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
 import { RenderConfigError, resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
@@ -153,7 +153,7 @@ export function projectResolvedFamilyLayout(request: ResolvedRenderRequest, resu
   assertFamilyLayoutProjection(request)
   const retained = retainedFamilyProjection(result)
   if (retained) return stampFamilyKind(descriptor.id, isRetainedPositionedSnapshot(result) ? clonePositioned(retained) : retained)
-  const snapshot = isRetainedPositionedSnapshot(result) ? clonePositioned(result) : result
+  const snapshot = isRetainedPositionedSnapshot(result) && !sharesPositioned(result) ? clonePositioned(result) : result
   try {
     const view = withTextMeasurementExecution(plan.textMeasurement, () =>
       descriptor.projectPositioned!({ positioned: snapshot.positioned, options }))

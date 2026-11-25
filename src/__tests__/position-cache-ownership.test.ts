@@ -658,11 +658,16 @@ for (const family of ['flowchart', 'state'] as const) {
       assert.deepEqual(first, reference)
       assert.equal(first.receipt.layoutDecisions[0].selected, ${JSON.stringify(backend === 'long-link' ? 'elk' : backend)})
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      // A finished graph is frozen and shared by every render that reuses it,
+      // so no request can edit it and poison another. The projection view is
+      // the caller's own.
       const poison = result => {
-        result.positioned.width = NaN
-        result.positioned.nodes[0].label = 'poisoned public node'
-        result.positioned.edges[0].points[0].x = NaN
-        result.positioned.groups[0].children.length = 0
+        for (const edit of [
+          () => { result.positioned.width = NaN },
+          () => { result.positioned.nodes[0].label = 'poisoned public node' },
+          () => { result.positioned.edges[0].points[0].x = NaN },
+          () => { result.positioned.groups[0].children.length = 0 },
+        ]) assert.throws(edit, TypeError)
         const projection = retainedFamilyProjection(result)
         projection.edges[0].path[0][0] = NaN
         projection.groups[0].members.push('poisoned')
@@ -703,8 +708,8 @@ for (const family of ['flowchart', 'state'] as const) {
       })
       try {
         assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
-        callerOwned.positioned.nodes[0].label = 'poisoned replacement node'
-        callerOwned.positioned.edges[0].points[0].x = NaN
+        assert.throws(() => { callerOwned.positioned.nodes[0].label = 'poisoned replacement node' }, TypeError)
+        assert.throws(() => { callerOwned.positioned.edges[0].points[0].x = NaN }, TypeError)
         assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
         assert.equal(projections, 2)
         invalid = true

@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned, sharesPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // Canonical resolved-request -> positioned-artifact seam.
@@ -81,12 +81,13 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+  return original && !sharesPositioned(layout) && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
-/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+/** Scene lowering can retain aliases; never hand it borrowed mutable cache
+ * geometry. A finished graph is immutable, so its aliases are harmless. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) && !sharesPositioned(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
 /** The request values a family layouter's inputs are derived from. */

@@ -96,7 +96,7 @@ describe('bounded final layout certification', () => {
 
   test('a rejected conditional solver preserves all four fallbacks', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     const invalid = structuredClone(clean)
     invalid.edges[0]!.points = []
     const candidates = [
@@ -175,7 +175,7 @@ describe('bounded final layout certification', () => {
 
   test('an invalid first route yields to a certified deterministic alternative', () => {
     const graph = parseMermaid(source)
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     const invalid = structuredClone(clean)
     invalid.edges[0]!.points = []
     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
@@ -575,7 +575,7 @@ describe('bounded final layout certification', () => {
     const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
     const options = { styleFace: request.appearance.face }
     const style = resolveRenderStyle(options)
-    const clean = layoutGraphSync(graph, options)
+    const clean = { ...layoutGraphSync(graph, options) }
     expect(clean.nodes[0]!.labelBlock!.prepared.source).toBe('<i>Alpha</i>')
     expect(clean.nodes[0]!.labelBlock!.text).not.toBe(clean.nodes[0]!.label)
     expect(certifyLayoutCandidates(graph, style, [{ strategy: 'styled', produce: () => clean }]).certification?.status).toBe('passed')
@@ -586,7 +586,7 @@ describe('bounded final layout certification', () => {
     const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
     const options = { styleFace: request.appearance.face }
     const style = resolveRenderStyle(options)
-    const clean = layoutGraphSync(graph, options)
+    const clean = { ...layoutGraphSync(graph, options) }
     const owner = kind === 'node' ? clean.nodes[0]! : kind === 'group' ? clean.groups[0]! : clean.edges[0]!
     const expected = kind === 'node' ? '<I>ALPHA</I>' : kind === 'group' ? '<b>outer</b>' : '<B>Mixed Case</B>'
     expect(owner.labelBlock!.text).toBe(expected)
@@ -646,7 +646,7 @@ describe('bounded final layout certification', () => {
 
   test('a title preference preflight exception stays inside its candidate attempt', () => {
     const graph = parseMermaid(source)
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     let calls = 0
     const positioned = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
       {
