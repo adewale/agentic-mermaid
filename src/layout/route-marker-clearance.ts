@@ -5,6 +5,7 @@ import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 import { recordRevision, sameRevision, type RecordRevision } from '../shared/record-revision.ts'
+import { terminalAssignment } from './terminal-assignment.ts'
 
 type MarkerRegion = ReturnType<typeof graphEdgeMarkerPaintRegions>[number]
 
@@ -112,33 +113,10 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
   return Number.isFinite(error) && (x.x1 + error < y.x0 || y.x1 + error < x.x0 || x.y1 + error < y.y0 || y.y1 + error < x.y0)
 }
 
-/** One shared terminal paints a single final shaft and glyph for every edge
- * merged into it. That ink stands for each member only when the members paint
- * identically and at most one of them is named: a different dash, width or
- * colour would be painted over, and two labels cannot both own one arrowhead. */
-export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
-  if (a.label && b.label) return false
-  if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
-  const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
-  for (const key in styleA) if (!(key in styleB) || styleB[key] !== styleA[key]) return false
-  for (const key in styleB) if (!(key in styleA)) return false
-  const classesA = a.classNames ?? [], classesB = b.classNames ?? []
-  if (classesA.length !== classesB.length) return false
-  for (let index = 0; index < classesA.length; index++) if (classesA[index] !== classesB[index]) return false
-  return true
-}
-
-/** Two arrivals at one target may meet in one arrowhead only when that glyph
- * can stand for both: different relationships whose paint may merge. Repeated
- * occurrences of one relationship stay countable, so they never share it. */
-export function arrivalsMayMerge(a: PositionedEdge, b: PositionedEdge): boolean {
-  return a.source !== b.source && edgesMayShareTerminal(a, b)
-}
-
 /** Visible occurrence pairs the final drawing cannot tell apart: a repeated
  * occurrence drawn exactly on its twin, or one arrowhead standing for arrivals
- * `arrivalsMayMerge` rejects. `duplicates: false` leaves repeated occurrences
- * to the duplicate-lane owner, which separates the transient collapses earlier
+ * the terminal assignment does not let share it. `duplicates: false` leaves
+ * repeated occurrences to the duplicate-lane owner, which separates the transient collapses earlier
  * preparatory passes create. */
 export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> {
   const byTarget = new Map<string, PositionedEdge[]>()
@@ -150,11 +128,12 @@ export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], opti
   }
   const near = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5
   const pairs: Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> = []
+  const terminals = terminalAssignment(edges)
   for (const group of byTarget.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
     const a = group[i]!, b = group[j]!, repeated = a.source === b.source
     if (repeated && options.duplicates === false) continue
     if (repeated && a.points.length === b.points.length && a.points.every((point, k) => near(point, b.points[k]!))) pairs.push({ a, b, reason: 'twin' })
-    else if (a.hasArrowEnd && b.hasArrowEnd && near(a.points.at(-1)!, b.points.at(-1)!) && !arrivalsMayMerge(a, b)) pairs.push({ a, b, reason: 'arrowhead' })
+    else if (a.hasArrowEnd && b.hasArrowEnd && near(a.points.at(-1)!, b.points.at(-1)!) && !terminals.shares(a, b, 'end')) pairs.push({ a, b, reason: 'arrowhead' })
   }
   return pairs
 }
@@ -289,7 +268,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
         if (newView.directional && peerView.directional && measured(occurrence) && marker.position === occurrence.position
           && ownNode === peerNode && marker.resource === occurrence.resource && marker.repaint === occurrence.repaint
           && marker.anchor.x === occurrence.anchor.x && marker.anchor.y === occurrence.anchor.y
-          && sameEndpointRay(newView.points, peerView.points, marker.position) && edgesMayShareTerminal(edge, peer)) continue
+          && sameEndpointRay(newView.points, peerView.points, marker.position) && marker.position !== 'mid' && terminalAssignment(peers).shares(edge, peer, marker.position)) continue
         if (!separated(marker, occurrence)) return blocker(peer, occurrence.position, 'peer-marker')
       }
     }

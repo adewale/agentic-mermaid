@@ -7,7 +7,8 @@ import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geom
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
-import { arrivalsMayMerge, misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
+import { misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
+import { terminalAssignment } from '../terminal-assignment.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
@@ -843,7 +844,7 @@ export function alignPortLaneCandidate(
     // second caption) already ends there, the slide would merge them.
     const entry = shapePorts(tgt)[isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')]
     if (e.points.length === 2 && Math.abs(e.points[0]![cross] - e.points[1]![cross]) <= 0.5 && e.hasArrowEnd && edges.some(o => o !== e && o.target === e.target
-      && o.hasArrowEnd && o.points.length >= 2 && Math.hypot(o.points.at(-1)!.x - entry.x, o.points.at(-1)!.y - entry.y) <= 0.5 && !arrivalsMayMerge(e, o))) continue
+      && o.hasArrowEnd && o.points.length >= 2 && Math.hypot(o.points.at(-1)!.x - entry.x, o.points.at(-1)!.y - entry.y) <= 0.5 && !terminalAssignment(edges).shares(e, o, 'end'))) continue
     // A fan-out the symmetric emitter owns stays where it is: sliding its
     // source over one child leaves the other branch carrying the whole
     // offset, so only the child may move onto the source's lane.

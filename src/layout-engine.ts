@@ -9,6 +9,7 @@ import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { separateIndistinctArrivals } from './layout/passes/arrival-slots.ts'
+import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 import { reseatConflictedLabels } from './layout/passes/label-reseat.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
@@ -1310,6 +1311,9 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
+  /** Which edge ends may share one terminal, recorded once after extraction.
+   * Every route producer reads it through `terminalAssignment(edges)`. */
+  terminals?: TerminalAssignment
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1354,10 +1358,11 @@ const SETTLE_EDGE_LABEL_STEPS: ReadonlyArray<LayoutPassStep<LayoutPassContext>> 
 // lanes depend on symmetric parallel lanes, and fanout commutativity is unproved.
 export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
-    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
+    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy); record terminal merge classes',
     after: [], mutates: ['extract'],
     run: c => {
       extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
+      c.terminals = terminalAssignment(c.edges)
       retainGraphText(c, c.style)
     },
   },

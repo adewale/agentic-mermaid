@@ -74,7 +74,8 @@ import {
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
-import { edgesMayShareTerminal, ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { terminalAssignment } from './layout/terminal-assignment.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -152,6 +153,7 @@ export function applyRouteContracts(
     ? positioned.nodes[sources[edge.edgeIndex]!] : nodeMap.get(edge.source)
   const targetOf = (edge: PositionedEdge) => edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge
     ? positioned.nodes[targets[edge.edgeIndex]!] : nodeMap.get(edge.target)
+  const terminals = terminalAssignment(positioned.edges)
   const someIncoming = (edge: PositionedEdge, test: (peer: PositionedEdge) => boolean): boolean => {
     const target = edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge ? targets[edge.edgeIndex]! : -1
     if (target < 0) return positioned.edges.some(test)
@@ -289,12 +291,12 @@ export function applyRouteContracts(
   /** Another terminal this route may not share already ends on `lane`. */
   const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
     peer !== edge && peer.target === edge.target && peer.points.length > 1
-    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
+    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !terminals.shares(edge, peer, 'end'))
 
   /** A peer this route may not share a terminal with ends on the target's
    * port lane, or emits on it and so can enter it straight. */
   const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
-    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || terminals.shares(edge, peer, 'end')) return false
     const emitter = sourceOf(peer)
     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
   })
@@ -391,7 +393,7 @@ export function applyRouteContracts(
       // port goes to it and this route keeps its own entry first.
       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
       const peerOwnsPort = someIncoming(edge, peer => {
-        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || terminals.shares(edge, peer, 'end')) return false
         const emitter = sourceOf(peer)
         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
       })
@@ -756,7 +758,7 @@ export function applyRouteContracts(
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
     const mergeAvailable = someIncoming(edge,
-      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
+      other => other !== edge && other.points.length > 0 && terminals.shares(edge, other, 'end') && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
     )
     if (mergeAvailable) return false
     const portMain = shapePorts(target)[entrySide][axis.main]

@@ -5,7 +5,8 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { paintsAlike, terminalAssignment, type TerminalEnd } from '../terminal-assignment.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
@@ -120,16 +121,6 @@ function adjustJunctionForGroups(
   return crossingGroup.y - GAP // TD
 }
 
-/** A shared trunk also shares its endpoint glyph. A start marker on one
- * fan-out member cannot stand for an unmarked sibling (and vice versa at a
- * fan-in target); markers at the independent ends may still differ. */
-function sharesBundleTerminal(a: PositionedEdge, b: PositionedEdge, end: 'start' | 'end'): boolean {
-  if (!edgesMayShareTerminal(a, b)) return false
-  return end === 'start'
-    ? a.hasArrowStart === b.hasArrowStart && (!a.hasArrowStart || (a.startMarker ?? 'arrow') === (b.startMarker ?? 'arrow'))
-    : a.hasArrowEnd === b.hasArrowEnd && (!a.hasArrowEnd || (a.endMarker ?? 'arrow') === (b.endMarker ?? 'arrow'))
-}
-
 /**
  * Bundle fan-out and fan-in edge paths so they share a common trunk segment.
  *
@@ -155,6 +146,13 @@ export function bundleEdgePaths(
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
+  // A shared trunk also shares its endpoint glyph: every two members' shared
+  // ends must be allowed to share one terminal. Repeated pairs are never members.
+  const terminals = terminalAssignment(edges)
+  const unshareable = (group: readonly PositionedEdge[], end: TerminalEnd, duplicates: ReadonlySet<PositionedEdge>): boolean => {
+    const members = group.filter(edge => !duplicates.has(edge))
+    return group.some(edge => edge.label) || members.some((a, i) => members.some((b, j) => j > i && !terminals.shares(a, b, end)))
+  }
   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
     for (const [edge, points] of candidates) {
       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
@@ -166,10 +164,10 @@ export function bundleEdgePaths(
     // where both readings are real edges painted alike (a complete bipartite
     // join), never along e.g. the reverse route leaving the same port.
     const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
-      && edge.style !== 'invisible' && edgesMayShareTerminal(paint, edge)
+      && edge.style !== 'invisible' && paintsAlike(paint, edge)
       && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
       && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
-    const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
+    const misleads = (member: PositionedEdge, other: PositionedEdge) => !paintsAlike(member, other)
       || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
@@ -231,7 +229,7 @@ export function bundleEdgePaths(
   for (const [sourceId, group] of fanOutGroups) {
     if (group.length < 2) continue
 
-    if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'start'))) continue
+    if (unshareable(group, 'start', duplicateEdges)) continue
 
     const source = nodeMap.get(sourceId)
     if (!source) continue
@@ -324,7 +322,7 @@ export function bundleEdgePaths(
   for (const [targetId, group] of fanInGroups) {
     if (group.length < 2) continue
 
-    if (group.some(edge => edge.label || !sharesBundleTerminal(group[0]!, edge, 'end'))) continue
+    if (unshareable(group, 'end', duplicateEdges)) continue
 
     const target = nodeMap.get(targetId)
     if (!target) continue

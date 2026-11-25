@@ -10,9 +10,10 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { assignTerminals } from '../layout/terminal-assignment.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
 
-const LINKS = { solid: '-->', dotted: '-.->', thick: '==>' } as const
+const LINKS = { solid: '-->', dotted: '-.->', thick: '==>', circle: '--o' } as const
 type Link = keyof typeof LINKS
 
 const SHAPES = { rect: ['[', ']'], diamond: ['{', '}'], round: ['((', '))'] } as const
@@ -29,7 +30,7 @@ const spec: fc.Arbitrary<Spec> = fc.integer({ min: 3, max: 7 }).chain(nodes => f
   edges: fc.array(fc.record({
     from: fc.integer({ min: 0, max: nodes - 1 }),
     to: fc.integer({ min: 0, max: nodes - 1 }),
-    link: fc.constantFrom<Link>('solid', 'solid', 'dotted', 'thick'),
+    link: fc.constantFrom<Link>('solid', 'solid', 'dotted', 'thick', 'circle'),
     label: fc.boolean(),
   }), { minLength: 2, maxLength: 10 }).map(edges => edges.filter(edge => edge.from !== edge.to)).filter(edges => edges.length >= 2),
 }))
@@ -60,7 +61,22 @@ function indistinct(positioned: PositionedGraph): string[] {
     // One painted arrowhead may stand for several arrivals only when it
     // cannot misstate any of them.
     if (a.style !== b.style) found.push(`${name}: one arrowhead for different strokes`)
+    else if ((a.endMarker ?? 'arrow') !== (b.endMarker ?? 'arrow')) found.push(`${name}: one glyph painted over a different one`)
     else if (a.label && b.label) found.push(`${name}: one arrowhead for two captions`)
+  }
+  return found
+}
+
+/** Arrivals that meet in one published arrowhead although the one terminal
+ * assignment every route producer reads does not let them share it: evidence
+ * that some producer or repair decided sharing on its own. */
+function unassignedShares(positioned: PositionedGraph): string[] {
+  const terminals = assignTerminals(positioned.edges)
+  const arrivals = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.source !== edge.target && edge.hasArrowEnd && edge.points.length >= 2)
+  const found: string[] = []
+  for (let i = 0; i < arrivals.length; i++) for (let j = i + 1; j < arrivals.length; j++) {
+    const a = arrivals[i]!, b = arrivals[j]!
+    if (a.target === b.target && near(a.points.at(-1)!, b.points.at(-1)!) && !terminals.shares(a, b, 'end')) found.push(`${a.source}->${a.target} / ${b.source}->${b.target}`)
   }
   return found
 }
@@ -89,6 +105,9 @@ const REDUCED: [Spec][] = [
   // A port-lane slide re-anchored a straight duplicate onto the centre port
   // where its twin already arrived, on a face too crowded to re-slot either.
   [{ direction: 'RL', shapes: rects(3), edges: [edge(1, 2, 'solid', false), edge(1, 2, 'thick', false), edge(1, 2, 'solid', false), edge(1, 2, 'solid', false), edge(2, 0, 'solid', false), edge(1, 0, 'solid', false), edge(1, 2, 'solid', false)] }],
+  // A circle-marked arrival ended on the diamond vertex an arrow already
+  // held: one glyph painted over the other.
+  [{ direction: 'LR', shapes: ['rect', 'diamond', 'rect'], edges: [edge(0, 1, 'solid', true), edge(2, 1, 'circle', false)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {
@@ -99,5 +118,6 @@ test('every visible edge occurrence keeps its own readable route and arrowhead',
     // Distinctness presupposes that every authored occurrence is present.
     expect(positioned.edges.map(edge => `${edge.source}->${edge.target}`).sort(), text).toEqual(graph.edges.map(edge => `${edge.source}->${edge.target}`).sort())
     expect(indistinct(positioned), text).toEqual([])
+    expect(unassignedShares(positioned), text).toEqual([])
   }), fcParameters({ numRuns: 60, examples: REDUCED }))
 })

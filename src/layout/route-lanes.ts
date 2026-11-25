@@ -7,7 +7,8 @@ import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
-import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { terminalAssignment } from './terminal-assignment.ts'
 import { LABEL_PILL_PADDING, labelEndpointClearance, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
 import {
   EPS,
@@ -293,7 +294,7 @@ function collectLaneBlockers(
       const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
-        if (other.target === edge.target && other.source !== edge.source && edgesMayShareTerminal(edge, other) &&
+        if (terminalAssignment(ctx.edges).shares(edge, other, 'end') &&
           Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }

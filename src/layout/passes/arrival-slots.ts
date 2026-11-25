@@ -1,7 +1,6 @@
 // One owner for arrival slots. Earlier passes may land several arrivals on one
 // point of a target's outline; that single arrowhead may stand for them only
-// when `arrivalsMayMerge` allows it (different relationships whose paint may
-// merge). Whichever pass produced a misleading merge, this owner gives every
+// when the terminal assignment lets them share it. Whichever pass produced a misleading merge, this owner gives every
 // other class of arrivals its own slot on the same entry face, then proves the
 // moved routes against the final contracts. A cluster with no proven slot is
 // left as is, and certification reports it.
@@ -10,7 +9,8 @@ import type { Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { countEdgeCrossings, onShapeOutline } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge } from '../../route-contracts.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
-import { arrivalsMayMerge, indistinctOccurrencePairs, routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
+import { indistinctOccurrencePairs, routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES, type LabelMetricsStyle } from '../route-geometry.ts'
 import { routeClearOfNodes } from './shared.ts'
 
@@ -45,10 +45,10 @@ export function shiftedArrival(points: readonly Point[], delta: number): Point[]
 }
 
 /** Partition a cluster into classes whose members may all share one arrowhead. */
-function mergeClasses(cluster: readonly PositionedEdge[]): PositionedEdge[][] {
+function mergeClasses(cluster: readonly PositionedEdge[], terminals: TerminalAssignment): PositionedEdge[][] {
   const classes: PositionedEdge[][] = []
   for (const edge of cluster) {
-    const home = classes.find(members => members.every(member => arrivalsMayMerge(member, edge)))
+    const home = classes.find(members => members.every(member => terminals.shares(member, edge, 'end')))
     if (home) home.push(edge)
     else classes.push([edge])
   }
@@ -71,7 +71,7 @@ export function separateIndistinctArrivals(nodes: PositionedNode[], edges: Posit
   for (const cluster of clusters) {
     const target = nodeMap.get(cluster[0]!.target)
     if (!target) continue
-    const classes = mergeClasses(cluster)
+    const classes = mergeClasses(cluster, terminalAssignment(edges))
     // Any one class may keep the shared point; the others need free slots.
     // Try each keeper in turn and keep the first complete placement.
     for (let keeper = 0; keeper < classes.length; keeper++) {
