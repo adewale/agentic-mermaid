@@ -10,6 +10,8 @@ const box = { x0: 100, y0: 0, x1: 200, y1: 100 }
 const base: OrthogonalRouteRequest = { start: { x: 0, y: 50 }, end: { x: 300, y: 50 }, exit: 'E', entry: 'E', obstacles: [], clearance: 10 }
 const bends = (route: readonly RouterPoint[]) => route.length - 2
 const length = (route: readonly RouterPoint[]) => route.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - route[i]!.x) + Math.abs(p.y - route[i]!.y), 0)
+const on = (point: RouterPoint, a: RouterPoint, b: RouterPoint) => (a.x === b.x ? point.x === a.x : point.y === a.y)
+  && point.x >= Math.min(a.x, b.x) && point.x <= Math.max(a.x, b.x) && point.y >= Math.min(a.y, b.y) && point.y <= Math.max(a.y, b.y)
 const hits = (route: readonly RouterPoint[], b: typeof box) => route.slice(1).some((p, i) => {
   const a = route[i]!
   return Math.max(a.x, p.x) > b.x0 && Math.min(a.x, p.x) < b.x1 && Math.max(a.y, p.y) > b.y0 && Math.min(a.y, p.y) < b.y1
@@ -28,6 +30,14 @@ test.each([
   // Both Zs are equally long; the one the search would take, at the channel,
   // crosses a drawn segment, so the one at the midpoint wins.
   { name: 'an equal route avoids crossing a drawn segment', request: { ...base, end: { x: 300, y: 150 }, channels: { x: [250] }, crossings: { segments: [[{ x: 220, y: 100 }, { x: 280, y: 100 }]], cost: 5000 } }, bends: 2, corner: { x: 150, y: 50 } },
+  // The band blocks the straight run along it; crossing it is free.
+  { name: 'a one-axis obstacle blocks runs along it', request: { ...base, channels: { x: [50, 250], y: [150] }, axisObstacles: { horizontal: [box] } }, bends: 4 },
+  { name: 'a one-axis obstacle lets a route cross it', request: { ...base, start: { x: 150, y: -50 }, end: { x: 150, y: 150 }, exit: 'S', entry: 'S', axisObstacles: { horizontal: [box] } }, bends: 0 },
+  // A stub already leaves along the exit direction, so the route may turn at
+  // its end; per-end stubs leave the arrival free.
+  { name: 'a route may turn where its start stub ends', request: { ...base, end: { x: 20, y: -100 }, entry: 'N', stub: [20, 0], clearance: 0 }, bends: 1, corner: { x: 20, y: 50 } },
+  // Via points are passed in order, under the same rules (no turning back).
+  { name: 'via points are passed in order', request: { ...base, via: [{ x: 150, y: 200 }, { x: 250, y: 200 }] }, bends: 4 },
 ] as { name: string; request: OrthogonalRouteRequest; bends: number; corner?: RouterPoint }[])('$name', ({ request, bends: expected, corner }) => {
   const route = routeOrthogonal(request)!
   expect(route[0]).toEqual(request.start)
@@ -35,6 +45,7 @@ test.each([
   expect(bends(route)).toBe(expected)
   if (corner) expect(route).toContainEqual(corner)
   for (const obstacle of request.obstacles) expect(hits(route, obstacle)).toBe(false)
+  for (const point of request.via ?? []) expect(route.slice(1).some((p, i) => on(point, route[i]!, p))).toBe(true)
   for (let i = 1; i < route.length; i++) expect(route[i]!.x === route[i - 1]!.x || route[i]!.y === route[i - 1]!.y).toBe(true)
 })
 
@@ -67,4 +78,15 @@ test('a route does not share a line with one already drawn', () => {
   const route = routeOrthogonal({ ...request, avoid: { segments: drawn, separation: 6, gap: 24 } })!
   expect(route.some(point => point.x === used)).toBe(false)
   expect(bends(route)).toBe(2)
+})
+
+test('a route keeps off a drawn line by running beside it', () => {
+  // The midpoint row is the only place to step across, and a drawn segment
+  // runs along it; the lines a separation beside it are candidates too.
+  const request: OrthogonalRouteRequest = { start: { x: 0, y: 0 }, end: { x: 100, y: 300 }, exit: 'S', entry: 'S', obstacles: [], clearance: 0 }
+  const drawn = [[{ x: -50, y: 150 }, { x: 150, y: 150 }]] as const
+  const route = routeOrthogonal({ ...request, avoid: { segments: drawn, separation: 6, gap: 24 } })!
+  expect(bends(route)).toBe(2)
+  expect(route.map(point => point.y)).not.toContain(150)
+  expect([144, 156]).toContain(route[1]!.y)
 })
