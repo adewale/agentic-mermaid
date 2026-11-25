@@ -4,10 +4,10 @@
 // `run.ts report` lists every metric that moved. This gate decides. Both
 // revisions lay out the same inputs on the same machine with the same Bun, in
 // separate processes, interleaved over several rounds, and with the position
-// and ELK caches off. Head's own `measureQuality` then scores BOTH layouts, so
-// a scorer change cannot flatter one side, and the engine's declared objective
-// (`compareLayoutPreference`, the comparator candidate selection uses) ranks
-// them. Same-host pairing removes the cross-machine float drift that keeps the
+// and ELK caches off. Head's own `measureQuality` and rubric then score BOTH
+// layouts, so a scorer change cannot flatter one side, and the engine's
+// declared objective (`compareLayoutPreference`, the comparator candidate
+// selection uses) ranks them on every axis the published layout shows. Same-host pairing removes the cross-machine float drift that keeps the
 // committed heuristic-tracker baseline from being a CI gate.
 //
 // Per sample:
@@ -32,7 +32,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { measureQuality, type QualityMetrics } from '../../src/agent/index.ts'
+import type { RenderedLayout } from '../../src/agent/types.ts'
 import { compareLayoutPreference, type LayoutPreferenceScore, type PreferenceCriterion } from '../../src/layout/certification.ts'
+import { measureRubricMetrics, portEndpointRate } from '../../src/layout-rubric.ts'
+import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { parseMermaid } from '../../src/parser.ts'
+import { resolveRenderStyle } from '../../src/styles.ts'
+import type { PositionedGraph, PositionedGroup } from '../../src/types.ts'
 import { collectSamples } from './run.ts'
 import { generatedFlowchartSamples, graphStressSamples } from './generated.ts'
 
@@ -98,19 +104,39 @@ function capture(root: string, inputsPath: string, outPath: string, reps: number
 
 // ---- Classification (pure; head's scorer for both sides) ---------------------
 
-/** The declared objective, read from the published projection. Criteria the
- * projection cannot observe (title readability, canonical ports, peer
- * barycentre) tie on both sides. Area is compared at 1% resolution: the drawn
- * canvas includes bands the engine's candidate area excludes. */
-export function projectedPreferenceScore(metrics: QualityMetrics): LayoutPreferenceScore {
+/** The objective axes the quality metrics do not carry: canonical-port rate
+ * and peer-barycentre offset, measured on the published layout with the
+ * rubric predicates candidate selection scores. Only families laid out by the
+ * graph pipeline rank them; elsewhere they tie. */
+export type ObjectiveGeometry = Pick<LayoutPreferenceScore, 'nonCanonicalEndpointRate' | 'peerBarycenterDelta'>
+const PIPELINE_FAMILIES = new Set(['flowchart', 'state'])
+
+export function objectiveGeometry(input: GateInput, layout: RenderedLayout): ObjectiveGeometry | undefined {
+  if (!PIPELINE_FAMILIES.has(input.family)) return undefined
+  const groups: PositionedGroup[] = layout.groups.map(group => ({ id: group.id, label: group.label ?? '', x: group.x, y: group.y, width: group.w, height: group.h, children: [] }))
+  const positioned = {
+    width: layout.bounds.w, height: layout.bounds.h, groups,
+    nodes: layout.nodes.map(node => ({ id: node.id, label: node.label ?? '', shape: node.shape, x: node.x, y: node.y, width: node.w, height: node.h })),
+    edges: layout.edges.map(edge => ({ source: edge.from, target: edge.to, style: edge.visibility === 'hidden' ? 'invisible' : 'solid', points: edge.path.map(([x, y]) => ({ x, y })) })),
+  } as unknown as PositionedGraph
+  const symmetry = measureRubricMetrics(parseMermaid(normalizeMermaidSource(input.source).text), positioned, ['symErr'], resolveRenderStyle({})).symErr ?? 0
+  return { nonCanonicalEndpointRate: 1 - portEndpointRate(positioned), peerBarycenterDelta: Math.round(symmetry * 1000) / 1000 }
+}
+
+/** The declared objective, read from the published projection in the
+ * objective's own order. Title readability cannot be observed and ties on
+ * both sides; so do the port and barycentre axes when `objective` is absent.
+ * Area is compared at 1% resolution: the drawn canvas includes bands the
+ * engine's candidate area excludes. */
+export function projectedPreferenceScore(metrics: QualityMetrics, objective?: ObjectiveGeometry): LayoutPreferenceScore {
   const area = metrics.routeGeometry?.area ?? 0
   return {
     unreadableTitles: 0,
     edgeCrossings: metrics.edgeCrossings,
     labelConflicts: metrics.labelConflicts?.total ?? 0,
     totalBends: metrics.routeGeometry?.bends ?? 0,
-    nonCanonicalEndpointRate: 0,
-    peerBarycenterDelta: 0,
+    nonCanonicalEndpointRate: objective?.nonCanonicalEndpointRate ?? 0,
+    peerBarycenterDelta: objective?.peerBarycenterDelta ?? 0,
     area: area > 0 ? Math.round(Math.log(area) / Math.log(1.01)) : 0,
   }
 }
@@ -149,7 +175,9 @@ const median = (values: readonly number[]) => {
 }
 
 /** `base`/`head` hold one capture per round; round 0 carries the layout. */
-export function classify(input: GateInput, base: readonly CapturedSample[], head: readonly CapturedSample[], score: (layout: unknown) => QualityMetrics = layout => measureQuality(layout as never)): GateResult {
+export function classify(input: GateInput, base: readonly CapturedSample[], head: readonly CapturedSample[],
+  score: (layout: unknown) => QualityMetrics = layout => measureQuality(layout as never),
+  objective: (layout: unknown) => ObjectiveGeometry | undefined = layout => objectiveGeometry(input, layout as RenderedLayout)): GateResult {
   const result: GateResult = { key: input.key, family: input.family, verdict: 'unchanged', notes: [], tradeoffs: [] }
   const timing = (rounds: readonly CapturedSample[]) => median(rounds.map(round => median(round.ms)).filter((value): value is number => value !== undefined))
   result.baseMs = timing(base)
@@ -164,22 +192,23 @@ export function classify(input: GateInput, base: readonly CapturedSample[], head
   if (h.geometry && !b.geometry) return { ...result, verdict: 'broken', notes: [`geometry certification lost: ${h.geometry.kinds.join(', ') || h.geometry.status}`] }
   if (b.geometry && !h.geometry) return { ...result, verdict: 'improved', notes: [`geometry certification regained: ${b.geometry.kinds.join(', ') || b.geometry.status}`] }
   if (b.digest === h.digest) return result
-  let headMetrics: QualityMetrics
-  try { headMetrics = score(h.layout) } catch (error) {
+  let headMetrics: QualityMetrics, headObjective: ObjectiveGeometry | undefined
+  try { headMetrics = score(h.layout); headObjective = objective(h.layout) } catch (error) {
     return { ...result, verdict: 'broken', notes: [`head layout cannot be scored: ${error instanceof Error ? error.message : String(error)}`] }
   }
-  let baseMetrics: QualityMetrics
-  try { baseMetrics = score(b.layout) } catch (error) {
+  let baseMetrics: QualityMetrics, baseObjective: ObjectiveGeometry | undefined
+  try { baseMetrics = score(b.layout); baseObjective = objective(b.layout) } catch (error) {
     return { ...result, notes: [`base layout cannot be scored by head; no comparison: ${error instanceof Error ? error.message : String(error)}`] }
   }
   const broken = losses(baseMetrics, headMetrics)
   if (broken.length) return { ...result, verdict: 'broken', notes: broken.map(loss => `${loss.axis} ${loss.from} → ${loss.to}`) }
   const fixed = losses(headMetrics, baseMetrics)
-  const decision = compareLayoutPreference(projectedPreferenceScore(baseMetrics), projectedPreferenceScore(headMetrics))
   result.tradeoffs = tradeoffNotes(baseMetrics, headMetrics)
   if (fixed.length) return { ...result, verdict: 'improved', notes: fixed.map(gain => `${gain.axis} ${gain.to} → ${gain.from}`) }
+  const [baseScore, headScore] = [projectedPreferenceScore(baseMetrics, baseObjective), projectedPreferenceScore(headMetrics, headObjective)]
+  const decision = compareLayoutPreference(baseScore, headScore)
   if (decision.criterion === undefined) return { ...result, notes: ['geometry changed; objective tied'] }
-  const pair = `${decision.criterion} ${fmt(projectedPreferenceScore(baseMetrics)[decision.criterion])} → ${fmt(projectedPreferenceScore(headMetrics)[decision.criterion])}`
+  const pair = `${decision.criterion} ${fmt(baseScore[decision.criterion])} → ${fmt(headScore[decision.criterion])}`
   return { ...result, verdict: decision.order < 0 ? 'improved' : 'regressed', criterion: decision.criterion, notes: [decision.criterion === 'area' ? 'canvas area changed by ≥1%' : pair] }
 }
 

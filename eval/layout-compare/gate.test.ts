@@ -3,7 +3,7 @@
 // regression, and secondary moves are reported without deciding.
 
 import { expect, test } from 'bun:test'
-import type { QualityMetrics } from '../../src/agent/index.ts'
+import { layoutMermaidWithReceipt, type QualityMetrics } from '../../src/agent/index.ts'
 import { classify, summarize, type CapturedSample, type GateVerdict } from './gate.ts'
 
 const metrics = (patch: Partial<Record<'crossings' | 'conflicts' | 'bends' | 'area' | 'nodes' | 'opposing', number>> & { paint?: string } = {}) => ({
@@ -21,7 +21,7 @@ const sample = (digest: string, layout: QualityMetrics | undefined, ms = [10]): 
   layout ? { key: 'k', ok: true, digest, layout, ms } : { key: 'k', ok: false, error: 'boom', ms }
 
 const input = { key: 'k', family: 'flowchart', source: '', options: {} }
-const run = (base: CapturedSample[], head: CapturedSample[]) => classify(input, base, head, layout => layout as QualityMetrics)
+const run = (base: CapturedSample[], head: CapturedSample[]) => classify(input, base, head, layout => layout as QualityMetrics, () => undefined)
 
 test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdict: GateVerdict; criterion?: string }>([
   { name: 'support lost', base: [sample('a', metrics())], head: [sample('b', undefined)], verdict: 'broken' },
@@ -53,4 +53,29 @@ test('layout time is the geometric mean of per-sample median ratios', () => {
   const half = { ...twice, baseMs: 20, headMs: 10 }
   expect(twice).toMatchObject({ baseMs: 10, headMs: 20 })
   expect(summarize([twice, half]).slowdown).toBeCloseTo(1)
+})
+
+// The quality metrics carry no port or barycentre axis, so the projection
+// measures them on the published layout. A symmetry or port change must decide
+// in the objective's own order: before area, after bends.
+const fanout = { key: 'fanout', family: 'flowchart', source: 'flowchart TD\n  A[Hub] --> B[Left]\n  A --> C[Right]\n', options: {} }
+const drawn = layoutMermaidWithReceipt(fanout.source).layout
+type Editable = { nodes: { id: string; x: number }[]; edges: { to: string; path: [number, number][] }[]; bounds: { w: number } }
+const variant = (digest: string, change: (layout: Editable) => void): CapturedSample => {
+  const layout = structuredClone(drawn) as unknown as Editable
+  change(layout)
+  return { key: 'fanout', ok: true, digest, layout, ms: [10] }
+}
+// Moves the hub and the shared-x lead of each of its routes across the flow.
+const offCentre = (layout: Editable) => {
+  layout.nodes.find(node => node.id === 'A')!.x += 12
+  for (const edge of layout.edges) for (const point of edge.path.slice(0, 2)) point[0] += 12
+}
+
+test.each<{ name: string; base: CapturedSample; head: CapturedSample; verdict: GateVerdict; criterion: string }>([
+  { name: 'hub moved off its peer barycentre', base: variant('a', () => {}), head: variant('b', offCentre), verdict: 'regressed', criterion: 'peerBarycenterDelta' },
+  { name: 'centred hub outranks a wider canvas', base: variant('a', offCentre), head: variant('b', layout => { layout.bounds.w *= 1.05 }), verdict: 'improved', criterion: 'peerBarycenterDelta' },
+  { name: 'arrival slid off its port', base: variant('a', () => {}), head: variant('b', layout => { for (const point of layout.edges.find(edge => edge.to === 'B')!.path.slice(-2)) point[0] += 6 }), verdict: 'regressed', criterion: 'nonCanonicalEndpointRate' },
+])('$name', ({ base, head, verdict, criterion }) => {
+  expect(classify(fanout, [base], [head])).toMatchObject({ verdict, criterion })
 })

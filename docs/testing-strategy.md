@@ -589,9 +589,10 @@ This is where we approximate aesthetics deterministically:
   tracker cannot make portably. Base and head lay out the same corpus (docs
   corpus, fixtures, stress and generated graphs, default and balanced) on one
   runner with one Bun, caches off, interleaved over rounds. Head's
-  `measureQuality` scores both layouts and the engine's declared objective
-  (`compareLayoutPreference` in `src/layout/certification.ts`, the comparator
-  candidate selection uses) ranks them. Lost support, nodes, edges, paint
+  `measureQuality` and rubric score both layouts and the engine's declared
+  objective (`compareLayoutPreference` in `src/layout/certification.ts`, the
+  comparator candidate selection uses) ranks them in its own order, port rate
+  and peer symmetry included. Lost support, nodes, edges, paint
   certification or label measurement, and head nondeterminism, always fail.
   An objective regression or a geometric-mean slowdown above 1.25× fails
   unless the `layout-tradeoff-approved` label approves that head. Secondary
