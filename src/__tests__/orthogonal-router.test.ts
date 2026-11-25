@@ -84,13 +84,14 @@ test('a route does not share a line with one already drawn', () => {
 
 test('a route keeps off a drawn line by running beside it', () => {
   // The midpoint row is the only place to step across, and a drawn segment
-  // runs along it; the lines a separation beside it are candidates too.
-  const request: OrthogonalRouteRequest = { start: { x: 0, y: 0 }, end: { x: 100, y: 300 }, exit: 'S', entry: 'S', obstacles: [], clearance: 0 }
-  const drawn = [[{ x: -50, y: 150 }, { x: 150, y: 150 }]] as const
-  const route = routeOrthogonal({ ...request, avoid: { segments: drawn, separation: 6, gap: 24 } })!
+  // runs along it near the start; the lines a separation beside it are
+  // candidates too.
+  const request: OrthogonalRouteRequest = { start: { x: 0, y: 0 }, end: { x: 100, y: 60 }, exit: 'S', entry: 'S', obstacles: [], clearance: 0 }
+  const drawn = [[{ x: -50, y: 30 }, { x: 150, y: 30 }]] as const
+  const route = routeOrthogonal({ ...request, avoid: { segments: drawn, separation: 8, gap: 24 } })!
   expect(bends(route)).toBe(2)
-  expect(route.map(point => point.y)).not.toContain(150)
-  expect([144, 156]).toContain(route[1]!.y)
+  expect(route.map(point => point.y)).not.toContain(30)
+  expect([22, 38]).toContain(route[1]!.y)
 })
 
 test('a caller bounds the search work by throwing from charge', () => {

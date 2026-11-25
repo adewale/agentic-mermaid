@@ -246,6 +246,40 @@ B return@-->|please reconsider the rejected submission| ${endpoint}`
   }
 })
 
+test('captions still find seats where hand-offs share a port with occurrence channels', () => {
+  // A labelled hand-off arrives at the port another one leaves from, beside
+  // self-loops: routes that keep off each other too strictly leave the
+  // caption no clear seat, so routing relaxes until every caption seats.
+  const input = `swimlane-beta BT
+subgraph L0[Lane 0]
+  n0_0((Event))
+  n0_1{Check 1?}
+end
+subgraph L1[Lane 1]
+  n1_0{Check 0?}
+  n1_1[Task n1_1]
+end
+subgraph L2[Lane 2]
+  n2_0[Task n2_0]
+  n2_1[Task n2_1]
+end
+subgraph L3[Lane 3]
+  n3_0{Check 0?}
+  n3_1{Check 1?}
+end
+n3_1 --> n2_1
+n3_0 -->|send it| n1_1
+n0_0 --> n0_0
+n1_1 -->|ok| n2_1
+n0_0 --> n2_0
+n0_0 -->|ok| n1_0
+n0_0 -->|retry| n3_0
+n3_1 --> n3_1`
+  const chart = layoutSwimlane(parseSwimlane(input))
+  for (const edge of chart.edges) if (edge.label) expect(edge.labelPosition, edge.label).toBeDefined()
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('send it')
+})
+
 test('unrelated Swimlane occurrence pairs cannot reuse the same outside caption channel', () => {
   const input = `swimlane-beta TD
 subgraph Requests

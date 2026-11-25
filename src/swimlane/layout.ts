@@ -161,50 +161,70 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   groups.forEach(addHeader)
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
   const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap)
-  // Each occurrence keeps its caption stretch clear of every other route.
-  const reserved = new Map<PositionedEdge, RouterBox>()
-  for (const [owner, channel] of channels) if (channel.runs[0]!.caption) reserved.set(owner, routerBox(channel.runs[0]!.caption))
   // Occurrence detours run outside the content, so they keep painted
   // clearance from every card they pass on the way.
   const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes, ...headers].map(box => routerBox(box))
   // A route crosses a painted header band, stroke included, only
   // perpendicularly.
   const across = { horizontal: bands.map(box => routerBox(box, style.lineWidth / 2)) }
-  // A route keeps off the lines of routes already drawn where it can, so
-  // independent connectors do not read as one shared bus.
-  const drawn: (readonly [Point, Point])[] = []
-  // Crossing one costs as much as a modest detour, never a bend.
-  const spacing = { segments: drawn, separation: Math.max(6, clearance), gap: stubGap }, crossings = { segments: drawn, cost: 400 }
-  for (const edge of edges) {
-    const channel = channels.get(edge)
-    const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
-    const request = {
-      start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub] as const, clearance: 0, axisObstacles: across,
-      obstacles: [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])],
-    }
-    // Preferences relax in order: keeping off drawn lines, then the longer
-    // leads. Under each, the channel stretch whose route has the fewest bends,
-    // then the shortest, wins; ties keep the earlier stretch.
-    let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['runs'][number] | undefined, best = Infinity
-    const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, request.stub] : [request.stub]
-    search: for (const avoid of drawn.length ? [spacing, undefined] : [undefined]) for (const stub of stubs) {
-      for (const run of channel?.runs ?? [undefined]) {
-        const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings })
-        const cost = candidate ? routeCost(candidate) : Infinity
-        if (cost < best) { route = candidate; chosen = run; best = cost }
+  // Every caption must find a clear seat on its own route. Where the routes
+  // leave one no room, route again keeping less strictly off the routes
+  // already drawn: first only off lines that do not meet a route's own
+  // ports, then off every line or none, then off none.
+  for (let policy = 0; ; policy++) {
+    // Each occurrence keeps its caption stretch clear of every other route.
+    const reserved = new Map<PositionedEdge, RouterBox>()
+    for (const [owner, channel] of channels) if (channel.stretches[0]![0]!.caption) reserved.set(owner, routerBox(channel.stretches[0]![0]!.caption))
+    // A route keeps off the lines of routes already drawn where it can, so
+    // independent connectors do not read as one shared bus.
+    const drawn: (readonly [Point, Point])[] = []
+    // Crossing one costs as much as a modest detour, never a bend.
+    const spacing = { segments: drawn, separation: Math.max(6, clearance), gap: stubGap }, crossings = { segments: drawn, cost: 400 }
+    for (const edge of edges) {
+      const channel = channels.get(edge)
+      const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
+      const request = {
+        start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub] as const, clearance: 0, axisObstacles: across,
+        obstacles: [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])],
       }
-      if (route) break search
+      // Preferences relax in order: keeping off drawn lines as far as the
+      // policy asks (a port two routes share cannot keep them apart), then
+      // the longer leads, then the channel stretch. For each stretch the
+      // variant whose route has the fewest bends, then the shortest, wins;
+      // ties keep the earlier variant.
+      const sharesPort = ([a, b]: readonly [Point, Point]) => [a, b].some(point => [source.port, target.port].some(port => Math.abs(point.x - port.x) < 1e-6 && Math.abs(point.y - port.y) < 1e-6))
+      const avoids = !drawn.length ? [undefined] : policy === 0 ? [spacing, { ...spacing, segments: drawn.filter(segment => !sharesPort(segment)) }, undefined] : policy === 1 ? [spacing, undefined] : [undefined]
+      const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, request.stub] : [request.stub]
+      let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['stretches'][number][number] | undefined, best = Infinity
+      search: for (const avoid of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
+        for (const run of variants) {
+          const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings, guided: true })
+          const cost = candidate ? routeCost(candidate) : Infinity
+          if (cost < best) { route = candidate; chosen = run; best = cost }
+          // Four turns (out to the channel, along it, back) is as few as an
+          // outside channel allows; a later variant could save only length,
+          // not worth another search.
+          if (candidate && candidate.length - 2 <= 4) break
+        }
+        if (route) break search
+      }
+      if (chosen?.caption) reserved.set(edge, routerBox(chosen.caption))
+      edge.points = (route ?? fail(`${edge.source} -> ${edge.target} has no clear route`)).map(point => ({ x: point.x, y: point.y }))
+      for (let index = 1; index < edge.points.length; index++) drawn.push([edge.points[index - 1]!, edge.points[index]!])
+      if (!channel && edge.label) {
+        const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
+          .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
+        if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
+      }
     }
-    if (chosen?.caption) reserved.set(edge, routerBox(chosen.caption))
-    edge.points = (route ?? fail(`${edge.source} -> ${edge.target} has no clear route`)).map(point => ({ x: point.x, y: point.y }))
-    for (let index = 1; index < edge.points.length; index++) drawn.push([edge.points[index - 1]!, edge.points[index]!])
-    if (!channel && edge.label) {
-      const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
-        .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
-      if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
+    if (!channels.size) break
+    try {
+      seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
+      break
+    } catch (error) {
+      if (policy === 2) throw error
     }
   }
-  if (channels.size) seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
   if (channels.size) {
     let halo = 0
     for (const edge of edges) if (edge.label) halo = Math.max(halo, labelHaloExtension(edge, style.lineWidth))
@@ -299,7 +319,7 @@ function routerBox(box: MeasuredBox, margin = 0): RouterBox {
  * their own channel outside the content, alternating sides, with a straight
  * stretch long enough for the complete caption. The shared router reaches the
  * channel from each port around every card, header and other caption. */
-type HandoffChannel = { source: Terminal; target: Terminal; runs: { via: Point[]; caption?: MeasuredBox }[]; direction: Direction }
+type HandoffChannel = { source: Terminal; target: Terminal; stretches: { via: Point[]; caption?: MeasuredBox }[][]; direction: Direction }
 
 function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
@@ -362,14 +382,14 @@ function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGr
       // Each stretch is first tried reaching the channel level with each lead,
       // so the route turns straight out to it and back, then anywhere.
       const halo = labelHaloExtension(edge, style.lineWidth) + 4
-      const runs = stretches.flatMap(([first, last]) => {
+      const variants = stretches.map(([first, last]) => {
         const pill = edge.label ? labelBoxAt(edge, alongX ? { x: (first! + last!) / 2, y: lane } : { x: lane, y: (first! + last!) / 2 }, style) : undefined
         const caption = pill ? { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 } : undefined
         const point = (along: number) => alongX ? { x: along, y: lane } : { x: lane, y: along }
         const leads = [...(sign * (first! - from) > 0 ? [from] : []), first!, last!, ...(sign * (to - last!) > 0 ? [to] : [])]
         return [...(leads.length > 2 ? [{ via: leads.map(point), caption }] : []), { via: [first!, last!].map(point), caption }]
       })
-      channels.set(edge, { source: start, target: end, runs, direction })
+      channels.set(edge, { source: start, target: end, stretches: variants, direction })
     }
   }
   return channels

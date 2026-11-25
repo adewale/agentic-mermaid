@@ -67,10 +67,17 @@ export interface OrthogonalRouteRequest {
   /** Called once for every grid step the search checks, so a caller can
    * bound the routing work of a whole diagram by throwing. */
   readonly charge?: () => void
+  /** Order the search by a lower bound on the cost still to come. The route
+   * is as cheap as without it, but among equally cheap routes it may find a
+   * different one, and it explores far less of a large grid. Always on with
+   * via points. */
+  readonly guided?: boolean
 }
 
 const STEP: Record<RouterDirection, RouterPoint> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
 const DIRECTIONS: readonly RouterDirection[] = ['E', 'S', 'W', 'N']
+/** Grid index steps per heading, in DIRECTIONS order. */
+const DI = [1, 0, -1, 0], DJ = [0, 1, 0, -1]
 const EPS = 1e-6
 
 /** Whether an axis-aligned segment passes through an obstacle's interior. */
@@ -196,13 +203,14 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // along (that would trace the band's own outline).
   const stops = [out, ...via, into]
   const middles = stops.slice(1).map((point, k) => ({ x: (point.x + stops[k]!.x) / 2, y: (point.y + stops[k]!.y) / 2 }))
-  // Lines a separation beside each avoided segment within the stops' extent
-  // let a route run next to one rather than only along obstacle edges.
-  const span = { x0: Math.min(...stops.map(p => p.x)), y0: Math.min(...stops.map(p => p.y)), x1: Math.max(...stops.map(p => p.x)), y1: Math.max(...stops.map(p => p.y)) }
-  const beside = (vertical: boolean) => (request.avoid?.segments ?? []).flatMap(([p, q]) => {
-    const near = Math.max(p.x, q.x) >= span.x0 && Math.min(p.x, q.x) <= span.x1 && Math.max(p.y, q.y) >= span.y0 && Math.min(p.y, q.y) <= span.y1
-    if (!near || (Math.abs(p.x - q.x) <= EPS) !== vertical) return []
-    const at = vertical ? p.x : p.y, separation = request.avoid!.separation
+  // Lines a separation beside each avoided segment that passes near a stop
+  // (where routes meet at ports and leads) let a route run next to one
+  // rather than only along obstacle edges.
+  const separation = request.avoid?.separation ?? 0, reach = 4 * separation
+  const nearStop = ([p, q]: readonly [RouterPoint, RouterPoint]) => stops.some(stop => stop.x >= Math.min(p.x, q.x) - reach && stop.x <= Math.max(p.x, q.x) + reach && stop.y >= Math.min(p.y, q.y) - reach && stop.y <= Math.max(p.y, q.y) + reach)
+  const beside = (vertical: boolean) => (request.avoid?.segments ?? []).flatMap(segment => {
+    if ((Math.abs(segment[0].x - segment[1].x) <= EPS) !== vertical || !nearStop(segment)) return []
+    const at = vertical ? segment[0].x : segment[0].y
     return [at - separation, at + separation]
   })
   const edgesX = request.channelsOnly ? [] : [...inflated.flatMap(box => [box.x0, box.x1]), ...middles.map(point => point.x), ...beside(true)]
@@ -258,9 +266,9 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   }
   // Dijkstra over (grid point, heading, via points passed). Neighbours are
   // adjacent grid points.
-  type State = { i: number; j: number; d: number; k: number; cost: number; rank: number; bends: number; length: number; run: number; seq: number; previous?: State; final?: true }
-  // The least cost still to come, for a search that a route through via
-  // points would otherwise spread over the whole grid: the length through
+  type State = { i: number; j: number; d: number; k: number; cost: number; rank: number; run: number; seq: number; previous?: State; final?: true }
+  // The least cost still to come, for a guided search (one through via
+  // points would otherwise spread over the whole grid): the length through
   // the remaining stops plus the turns the next stop needs at least. It never
   // overestimates and never drops by more than a step costs, so the first
   // route found is still the cheapest.
@@ -274,12 +282,16 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     const ahead = dx * step.x + dy * step.y, aside = Math.abs(dx * step.y - dy * step.x)
     return Math.abs(dx) + Math.abs(dy) + (aside <= EPS ? (ahead >= -EPS ? 0 : 2) : ahead >= -EPS ? 1 : 2) * bendCost
   }
-  const guide = (i: number, j: number, d: number, k: number) => !via.length ? 0
-    : k < via.length ? toward(i, j, d, via[k]!) + rest[k]! : Math.min(...arrivals.map(end => toward(i, j, d, end)))
+  const guided = request.guided || via.length > 0
+  const guide = (i: number, j: number, d: number, k: number) => !guided ? 0 : k < via.length ? toward(i, j, d, via[k]!) + rest[k]! : Math.min(...arrivals.map(end => toward(i, j, d, end)))
   // With minRun, a short current run can block a turn a longer one allows,
   // so the search distinguishes the two.
   const key = (i: number, j: number, d: number, k: number, run = Infinity) => (((i * ys.length + j) * 4 + d) * 2 + (run < minRun - EPS ? 1 : 0)) * (via.length + 1) + k
-  const best = new Map<number, number>()
+  // The cheapest cost found per search state, densely where the state space
+  // is small enough.
+  const states = xs.length * ys.length * 8 * (via.length + 1)
+  const table = states <= DENSE_EDGE_CACHE ? new Float64Array(states).fill(Infinity) : undefined, map = table ? undefined : new Map<number, number>()
+  const best = { get: (k: number) => table ? table[k]! : map!.get(k) ?? Infinity, set: (k: number, cost: number) => { if (table) table[k] = cost; else map!.set(k, cost) } }
   // Clearance and extra cost belong to a grid edge, not to the state that
   // reaches it: each edge is checked once, however many headings arrive.
   // NaN = unchecked, -1 = blocked, otherwise its extra cost (crossings, off
@@ -291,14 +303,14 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   for (const { i, j, d } of sources) {
     const turned = startHeading >= 0 && d !== startHeading
     const cost = turned ? bendCost : 0, run = turned ? 0 : Infinity, k = advance(0, i, j)
-    open.push({ i, j, d, k, cost, rank: cost + guide(i, j, d, k), bends: turned ? 1 : 0, length: 0, run, seq: pushed++ })
+    open.push({ i, j, d, k, cost, rank: cost + guide(i, j, d, k), run, seq: pushed++ })
     best.set(key(i, j, d, k, run), cost)
   }
   let found: State | undefined
   while (open.size) {
     const state = open.pop()!
     if (state.final) { found = state; break }
-    if ((best.get(key(state.i, state.j, state.d, state.k, state.run)) ?? Infinity) < state.cost - EPS) continue
+    if (best.get(key(state.i, state.j, state.d, state.k, state.run)) < state.cost - EPS) continue
     if (state.k === via.length) {
       // Turning onto the end stub, or off it against the end heading, is one
       // more bend each, charged before the route can win; like any turn it
@@ -310,35 +322,35 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
         extra = Math.min(extra, (d !== state.d ? 1 : 0) + (endHeading >= 0 && d !== endHeading ? 1 : 0))
       }
       if (extra === 0) { found = state; break }
-      if (extra < Infinity && state.run >= minRun - EPS) open.push({ ...state, cost: state.cost + extra * bendCost, rank: state.cost + extra * bendCost, bends: state.bends + extra, seq: pushed++, final: true })
+      if (extra < Infinity && state.run >= minRun - EPS) open.push({ ...state, cost: state.cost + extra * bendCost, rank: state.cost + extra * bendCost, seq: pushed++, final: true })
     }
     for (let d = 0; d < 4; d++) {
       if ((d + 2) % 4 === state.d) continue // no reversal
       // The route leaves along the exit direction: by the stub when it has
       // one, otherwise by its first move.
       if (!state.previous && d !== state.d && startStub <= EPS) continue
-      const ni = state.i + Math.sign(STEP[DIRECTIONS[d]!].x), nj = state.j + Math.sign(STEP[DIRECTIONS[d]!].y)
+      const ni = state.i + DI[d]!, nj = state.j + DJ[d]!
       if (ni < 0 || nj < 0 || ni >= xs.length || nj >= ys.length) continue
       const turned = d !== state.d
       if (turned && state.run < minRun - EPS) continue
-      const a = { x: xs[state.i]!, y: ys[state.j]! }, b = { x: xs[ni]!, y: ys[nj]! }
+      const length = Math.abs(xs[ni]! - xs[state.i]!) + Math.abs(ys[nj]! - ys[state.j]!)
       const edge = (state.i * ys.length + state.j) * 4 + d
       let crossed = dense ? dense[edge]! : sparse!.get(edge) ?? Number.NaN
       if (Number.isNaN(crossed)) {
         request.charge?.()
+        const a = { x: xs[state.i]!, y: ys[state.j]! }, b = { x: xs[ni]!, y: ys[nj]! }
         const vertical = d % 2 === 1, line = vertical ? lineAt(true, state.i) : lineAt(false, state.j)
         crossed = !clear(a, b, line) ? -1 : request.crossings ? crossedSegments(a, b, line.cross, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
-        if (crossed >= 0 && offChannel && !(vertical ? onChannelX[state.i] : onChannelY[state.j])) crossed += offChannel * (Math.abs(b.x - a.x) + Math.abs(b.y - a.y))
+        if (crossed >= 0 && offChannel && !(vertical ? onChannelX[state.i] : onChannelY[state.j])) crossed += offChannel * length
         if (dense) dense[edge] = crossed
         else sparse!.set(edge, crossed)
       }
       if (crossed < 0) continue
-      const length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
       const cost = state.cost + length + (turned ? bendCost : 0) + crossed
       const passed = advance(state.k, ni, nj), k = key(ni, nj, d, passed, turned ? length : state.run + length)
-      if ((best.get(k) ?? Infinity) <= cost + EPS) continue
+      if (best.get(k) <= cost + EPS) continue
       best.set(k, cost)
-      open.push({ i: ni, j: nj, d, k: passed, cost, rank: cost + guide(ni, nj, d, passed), bends: state.bends + (turned ? 1 : 0), length: state.length + length, run: turned ? length : state.run + length, previous: state, seq: pushed++ })
+      open.push({ i: ni, j: nj, d, k: passed, cost, rank: cost + guide(ni, nj, d, passed), run: turned ? length : state.run + length, previous: state, seq: pushed++ })
     }
   }
   if (!found) return undefined
