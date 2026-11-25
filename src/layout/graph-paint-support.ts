@@ -12,15 +12,13 @@ import { labelRect, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect } fro
 import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, type LabelMetricsStyle } from './route-geometry.ts'
 import { recordRevision, sameRevision, type RecordRevision } from '../shared/record-revision.ts'
 export type GraphPaintStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
-// Shape arithmetic precedes numeric emission in the renderer. Normalize the
-// resulting geometry, not the input node, before asking the shared ink owner.
-export function writtenGeometry(geometry: Geometry): Geometry {
-  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
-  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
-  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
-  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
-}
-
+// An optional move needs a sufficient separator, and boxesMeet's error term
+// already covers the renderer's decimal emission, so body and header ink is
+// measured on layout numbers. A route's points still need their written
+// values here: whether a segment is axis-aligned (and so has the
+// orthogonal-shaft ink model) is decided on the coordinates the renderer
+// emits, and two raw coordinates that differ only past twelve significant
+// digits are written as one.
 const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
 export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
 export const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
@@ -173,7 +171,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     if (!pay(512 + width.length * 6 + node.id.length)) return undefined
     const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
     if (!geometryWork(piece.geometry)) return undefined
-    const box = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+    const box = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: piece.geometry, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
     if (!finiteBox(box)) return undefined
     bodies.push(box)
   }
@@ -184,7 +182,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
       const width = group.inlineStyle?.['stroke-width'] ?? String(style.groupLineWidth ?? STROKE_WIDTHS.innerBox)
       if (!pay(8 * 384 + width.length * 6 + 88) || !Number.isFinite(height) || height < 0 || style.groupCornerRadius !== undefined && !(Number.isFinite(style.groupCornerRadius) && style.groupCornerRadius >= 0)) return false
       if (height > 0) {
-        const geometry = writtenGeometry({ kind: 'rect', x: group.x, y: group.y, width: group.width, height })
+        const geometry: Geometry = { kind: 'rect', x: group.x, y: group.y, width: group.width, height }
         const paint: MarkPaint = { fill: 'black', stroke: group.inlineStyle?.stroke ?? 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }
         // A known sharp header has only right-angle joins, whose per-axis
         // reach is half the stroke width. Separately written rounded arcs can

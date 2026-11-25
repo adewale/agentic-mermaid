@@ -9,13 +9,13 @@ import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
 import { arrivalsMayMerge, misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
 import { shapeOutline } from '../../shape-outline.ts'
-import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
+import { nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from '../route-geometry.ts'
 import { STROKE_WIDTHS } from '../../styles.ts'
 
-import { writtenGeometry, finiteBox, boxesMeet, edgeInk, type GraphPaintStyle as PortLaneStyle } from '../graph-paint-support.ts'
+import { finiteBox, boxesMeet, edgeInk, type GraphPaintStyle as PortLaneStyle } from '../graph-paint-support.ts'
 
 export function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
   if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return false
@@ -50,7 +50,7 @@ export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readon
       const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
         stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
         strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
-      cards.set(node, nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) }))
+      cards.set(node, nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: piece.geometry, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) }))
     }
     return cards.get(node)
   }
@@ -129,10 +129,9 @@ function portLaneHeadersClear(nodes: readonly PositionedNode[], edges: readonly 
       const height = group.headerHeight ?? group.height
       if (!Number.isFinite(group.width) || group.width < 0 || !Number.isFinite(height) || height < 0) return false
       if (height > 0 && group.width > 0) {
-        // The semantic reservation stays live. Include its written rectangle
-        // as well, so decimal emission cannot shrink the clearance proof.
-        const band = unionSceneBounds({ x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + height },
-          geometryBounds(writtenGeometry({ kind: 'rect', x: group.x, y: group.y, width: group.width, height })))
+        // The semantic reservation stays live; boxesMeet's error term covers
+        // its decimal emission.
+        const band = { x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + height }
         if (!finiteBox(band)) return false
         for (const node of changedNodes) {
           if (!work()) return false

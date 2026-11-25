@@ -12,7 +12,7 @@ import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { arrivalsMayMerge } from '../route-marker-clearance.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
-import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { edgeInk, finiteBox, type GraphPaintStyle } from '../graph-paint-support.ts'
 import { nodePaintBounds } from '../../scene/bounds.ts'
 import { formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { shapeOutline } from '../../shape-outline.ts'
@@ -64,7 +64,7 @@ function makeRoomForPeerCenter(
       const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
         stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
         strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
-      const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+      const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: piece.geometry, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
       if (!finiteBox(bounds)) return false
       components[componentOf.get(node.id)!]!.supports.push(bounds)
     }
