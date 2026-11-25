@@ -9,6 +9,7 @@ import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../sh
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
+import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -654,8 +655,8 @@ function allocateRoutePortsImpl(
 /** Translate all positioned geometry together so the public canvas origin is non-negative.
  * Optional label paint padding retains opaque halos beyond the measured pill. */
 export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle, labelPaintPadding = 0): void {
-  let minX = 0
-  let minY = 0
+  let minX = Infinity
+  let minY = Infinity
   const visitGroup = (group: PositionedGroup): void => {
     minX = Math.min(minX, group.x)
     minY = Math.min(minY, group.y)
@@ -680,9 +681,12 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
       minY = Math.min(minY, edge.labelPosition.y)
     }
   }
-  if (minX >= 0 && minY >= 0) return
-  const dx = minX < 0 ? -minX + padding : 0
-  const dy = minY < 0 ? -minY + padding : 0
+  // A pass may move geometry toward the origin after the padding was laid
+  // out; it still keeps the paint backends' margin from the canvas edge.
+  if (minX >= PAINT_MARGIN && minY >= PAINT_MARGIN) return
+  const dx = minX < 0 ? -minX + Math.max(padding, PAINT_MARGIN) : Math.max(0, PAINT_MARGIN - minX)
+  const dy = minY < 0 ? -minY + Math.max(padding, PAINT_MARGIN) : Math.max(0, PAINT_MARGIN - minY)
+  if (dx === 0 && dy === 0) return
   const moveGroup = (group: PositionedGroup): void => {
     group.x += dx
     group.y += dy

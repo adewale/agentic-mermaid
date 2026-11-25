@@ -32,6 +32,9 @@ import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, ShapeMar
 import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { composeGroup, pageRectFor } from './backend.ts'
+import { PAINT_MARGIN } from './paint-margin.ts'
+import { expandSceneBounds, geometryBounds, unionSceneBounds, visitTypedPathSegments } from './bounds.ts'
+import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { StyleSpec } from './style-registry.ts'
@@ -268,11 +271,36 @@ function sketchGeometryVia(
   strokeProjection?: SketchStrokeProjection,
   opacity?: SketchOpacity,
 ): string {
+  const canonical = geometryBounds(geom)
+  // Canonical paint is the geometry widened by half its own stroke.
+  const allowed = canonical && expandSceneBounds(canonical, width / 2 + PAINT_MARGIN)
+  const fits = (sketched: string): boolean => !allowed || sketchInkWithin(sketched, allowed)
   if (walk.sketcher) {
     const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection, opacity })
-    if (out !== null) return out
+    if (out !== null && fits(out)) return out
   }
-  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash, strokeProjection, opacity)
+  // Bowing and jitter grow with a mark's size. A sketch that would ink past
+  // the paint margin is redrawn tamer; if none fits, the caller draws it crisp.
+  for (const tame of [1, 0.5, 0.25]) {
+    const p = tame === 1 ? walk.p : { ...walk.p, roughness: walk.p.roughness * tame, bowing: walk.p.bowing * tame }
+    const out = sketchGeometry(geom, seed, stroke, width, fill, p, dash, strokeProjection, opacity)
+    if (!out || fits(out)) return out
+  }
+  return ''
+}
+
+/** Whether every path a sketcher emitted, widened by half its stroke, stays
+ * inside `allowed`. A path whose data cannot be read does not fit. */
+function sketchInkWithin(sketched: string, allowed: AxisAlignedBox): boolean {
+  for (const [, d, attrs] of sketched.matchAll(/<path d="([^"]*)"([^>]*)>/g)) {
+    let ink: AxisAlignedBox | undefined
+    if (!visitTypedPathSegments(d!, segment => { ink = unionSceneBounds(ink, segment.bounds); return true }) || !ink) return false
+    const stroked = !/\sstroke="none"/.test(attrs!)
+    const half = stroked ? Number(/\sstroke-width="([^"]+)"/.exec(attrs!)?.[1] ?? 1) / 2 : 0
+    const box = expandSceneBounds(ink, half)
+    if (box.x0 < allowed.x0 || box.y0 < allowed.y0 || box.x1 > allowed.x1 || box.y1 > allowed.y1) return false
+  }
+  return true
 }
 
 /** Inject attributes right after the opening tag of an owned-format element.

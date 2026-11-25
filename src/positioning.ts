@@ -25,6 +25,7 @@ import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
 import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
+import { reservePaintMargin } from './scene/paint-margin.ts'
 
 // A certification and its consumers use one projection of the same final
 // artifact. Keep this internal evidence outside descriptor-owned return data.
@@ -175,7 +176,8 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         retainRequestGraphLayoutDecision(request, decision, role)
       }, () => descriptor.layout!({
         source,
-        renderOptions: resolved.renderOptions,
+        // Every family's canvas padding keeps the paint backends' margin.
+        renderOptions: reservePaintMargin(resolved.renderOptions),
         ...(resolved.styleFace ? { styleFace: resolved.styleFace } : {}),
         ...(descriptor.layoutReadsPaintBackend && resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
         ...(resolved.familyConfig ? { familyConfig: resolved.familyConfig } : {}),
