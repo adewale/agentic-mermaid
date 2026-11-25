@@ -3,8 +3,9 @@
 // of editing the old ones, so object identity can stand for content: a cache
 // keyed by a points array, or a candidate copied before a proposal, can never
 // observe a later edit. Under unit-test assertions the pipeline freezes routes
-// after every pass, so an in-place edit fails at its source; callers get
-// unfrozen copies back when the pipeline ends.
+// after every pass, so an in-place edit fails at its source. Routes stay
+// values after the pipeline: the finished graph is immutable
+// (positioned-values.ts).
 
 import type { Point, PositionedEdge } from '../types.ts'
 
@@ -71,14 +72,5 @@ export function freezeRoutes(edges: readonly PositionedEdge[] | undefined): void
       Object.freeze(edge.points)
     }
     if (edge.labelPosition) Object.freeze(edge.labelPosition)
-  }
-}
-
-/** Hand back unfrozen copies once a pipeline ends, so callers may still edit
- * their own result. Edge identity and route content are unchanged. */
-export function thawRoutes(edges: readonly PositionedEdge[] | undefined): void {
-  for (const edge of edges ?? []) {
-    if (Object.isFrozen(edge.points)) edge.points = edge.points.map(point => ({ ...point }))
-    if (edge.labelPosition && Object.isFrozen(edge.labelPosition)) edge.labelPosition = { ...edge.labelPosition }
   }
 }

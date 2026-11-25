@@ -212,7 +212,9 @@ function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGra
   collect(graph.subgraphs)
   const retain = (groups: PositionedGroup[]): void => {
     for (const group of groups) {
-      group.nodeIds = authored.get(group.id)!.nodeIds.filter(id => graph.nodes.has(id) && !authored.has(id))
+      // A finished (immutable) graph already carries its membership.
+      const nodeIds = authored.get(group.id)!.nodeIds.filter(id => graph.nodes.has(id) && !authored.has(id))
+      if (!group.nodeIds || group.nodeIds.length !== nodeIds.length || group.nodeIds.some((id, index) => id !== nodeIds[index])) group.nodeIds = nodeIds
       retain(group.children)
     }
   }

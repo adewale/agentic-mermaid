@@ -48,7 +48,7 @@ describe('final route-contract closer invariants (issue #88)', () => {
 
   test('closing a synthetic hitch conserves identity and renews its certificate', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B')
-    const positioned = layoutGraphSync(graph)
+    const positioned = structuredClone(layoutGraphSync(graph))
     const edge = positioned.edges[0]!
     const [start, end] = edge.points
     const middle = (start!.x + end!.x) / 2

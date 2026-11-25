@@ -485,7 +485,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
 describe('rubric violations name edges by their operation ids', () => {
   it('targets the second of two parallel edges and an authored edge id', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  A --> B\n  A e1@--> C')
-    const positioned = layoutGraphSync(graph)
+    const positioned = structuredClone(layoutGraphSync(graph))
     for (const edge of positioned.edges) {
       if (edge.edgeIndex === 0) continue
       const a = edge.points[0]!, b = edge.points.at(-1)!

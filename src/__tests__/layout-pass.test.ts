@@ -875,15 +875,14 @@ describe('runPipeline invariant enforcement', () => {
     } })])).not.toThrow()
   })
 
-  test('routes are values between passes: an in-place edit throws and the caller gets editable copies back', () => {
+  test('routes are values between passes and after them: an in-place edit throws', () => {
     const edges = [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], labelPosition: { x: 5, y: 0 } }]
     expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-point', run: c => { c.edges![0]!.points[1]!.x = 20 } })])).toThrow(TypeError)
     expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-label', run: c => { c.edges![0]!.labelPosition!.x = 6 } })])).toThrow(TypeError)
     const ctx: TestCtx = { frozen: false, nodes: [], log: [], edges: structuredClone(edges) }
     runPipeline(ctx, [mkPass({ id: 'publishes', run: c => movePoint(c, 1, 3) })])
     expect(ctx.edges![0]!.points[1]).toEqual({ x: 10, y: 3 })
-    ctx.edges![0]!.points[1]!.x = 11
-    expect(ctx.edges![0]!.points[1]!.x).toBe(11)
+    expect(() => { ctx.edges![0]!.points[1]!.x = 11 }).toThrow(TypeError)
   })
 
   test('an existing certificate is stale after a post-freeze route rewrite', () => {
@@ -1070,5 +1069,24 @@ describe('requested production budget metrics', () => {
     expect(measureRubricMetrics(graph, positioned, ['crossings'], resolveRenderStyle({}))).toEqual({ crossings: 1 })
     positioned.edges.push({ ...graph.edges[0]!, points: [{ x: 10, y: 5 }, { x: 15, y: 0 }] })
     expect(measureRubricMetrics(graph, positioned, ['crossings'], resolveRenderStyle({}))).toEqual({ crossings: 1 })
+  })
+})
+
+// A finished layout is a value: a consumer that needs other geometry builds
+// new objects, so object identity stands for content (positioned-values.ts).
+describe('the finished positioned graph', () => {
+  test('is immutable: an edit of a node, group, route or caption throws (assertions)', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\nsubgraph S\nA -- go --> B\nend'))
+    const node = positioned.nodes[0]!, group = positioned.groups[0]!, edge = positioned.edges[0]!
+    const edits: Array<() => void> = [
+      () => { node.x += 1 },
+      () => { group.width += 1 },
+      () => { group.children.push(group) },
+      () => { edge.points = [] },
+      () => { edge.points[0]!.y += 1 },
+      () => { edge.labelPosition!.x += 1 },
+      () => { positioned.edges.pop() },
+    ]
+    for (const edit of edits) expect(edit).toThrow(TypeError)
   })
 })

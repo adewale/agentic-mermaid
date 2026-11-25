@@ -29,12 +29,6 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
   const byId = new Map(positioned.nodes.map(node => [node.id, node]))
   const actors = new Map(body.nodes.filter(node => node.kind === 'actor').map(node => [node.id, usecaseActorGlyph(byId.get(node.id)!, style.nodePaddingY, style.nodeLineWidth)]))
   const actorAttachments: PositionedUsecase['actorAttachments'] = new Map()
-  const actorEnds = positioned.edges.flatMap(edge => ([['start', edge.source, edge.points[0]], ['end', edge.target, edge.points.at(-1)]] as const).flatMap(([end, id, point]) => {
-    const node = byId.get(id)
-    return node && point && actors.has(id) ? [{ edge, end, node, side: actorEnvelopeSide(node, point) }] : []
-  }))
-  const totals = new Map<string, number>(), used = new Map<string, number>()
-  for (const end of actorEnds) { const key = `${end.node.id}\0${end.side}`; totals.set(key, (totals.get(key) ?? 0) + 1) }
   const contact = (id: string, endpoint: Point, adjacent: Point) => {
     const node = byId.get(id)
     if (!node || !ellipses.has(id)) return endpoint
@@ -49,18 +43,25 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
     const dx = Math.max(-1, Math.min(1, (endpoint.x - cx) / rx))
     return { x: endpoint.x, y: cy + (endpoint.y >= cy ? 1 : -1) * ry * Math.sqrt(Math.max(0, 1 - dx * dx)) }
   }
-  for (const node of positioned.nodes) if (ellipses.has(node.id)) node.shape = 'ellipse'
-  for (const edge of positioned.edges) {
+  // The finished layout is immutable: the family's contacts and silhouettes
+  // are drawn on new nodes and edges.
+  const nodes = positioned.nodes.map(node => ellipses.has(node.id) ? { ...node, shape: 'ellipse' as const } : node)
+  // Placement certificates describe the rectangular envelopes, and cannot
+  // certify this family's final ellipse and actor silhouettes.
+  const edges = positioned.edges.map(({ routeCertificate: _placementRoute, ...edge }) => {
     const points = edge.points.map(point => ({ ...point }))
     if (points.length >= 2) {
       points[0] = contact(edge.source, points[0]!, points[1]!)
       points[points.length - 1] = contact(edge.target, points.at(-1)!, points.at(-2)!)
     }
-    edge.points = points
-    // Placement certificates describe the rectangular envelopes, and cannot
-    // certify this family's final ellipse and actor silhouettes.
-    delete edge.routeCertificate
-  }
+    return { ...edge, points }
+  })
+  const actorEnds = edges.flatMap(edge => ([['start', edge.source, edge.points[0]], ['end', edge.target, edge.points.at(-1)]] as const).flatMap(([end, id, point]) => {
+    const node = byId.get(id)
+    return node && point && actors.has(id) ? [{ edge, end, node, side: actorEnvelopeSide(node, point) }] : []
+  }))
+  const totals = new Map<string, number>(), used = new Map<string, number>()
+  for (const end of actorEnds) { const key = `${end.node.id}\0${end.side}`; totals.set(key, (totals.get(key) ?? 0) + 1) }
   for (const end of actorEnds) {
     const key = `${end.node.id}\0${end.side}`, index = used.get(key) ?? 0
     used.set(key, index + 1)
@@ -70,5 +71,5 @@ export function layoutUsecaseDiagram(body: UsecaseBody, options: RenderOptions =
     attachments[end.end] = attached.attachment
     actorAttachments.set(end.edge.id!, attachments)
   }
-  return { ...positioned, body, actors, actorAttachments }
+  return { ...positioned, nodes, edges, body, actors, actorAttachments }
 }

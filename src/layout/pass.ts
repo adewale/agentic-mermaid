@@ -1,7 +1,7 @@
 export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './route-geometry.ts'
 import { DeferredDependencyError } from './certification-error.ts'
 import { sceneAssertionsEnabled } from '../scene/assertions.ts'
-import { freezeRoutes, thawRoutes } from './route-values.ts'
+import { freezeRoutes } from './route-values.ts'
 import type { PositionedEdge } from '../types.ts'
 
 // The LayoutPass abstraction — see docs/design/system/route-contracts.md.
@@ -284,7 +284,6 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
     if (valueAssertions) freezeRoutes(ctx.edges as readonly PositionedEdge[] | undefined)
     opts.onAfterPass?.(pass, ctx)
   }
-  if (valueAssertions) thawRoutes(ctx.edges as readonly PositionedEdge[] | undefined)
 }
 
 /** A pipeline is well-formed iff its array order is a topological order of `after`. */

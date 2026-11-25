@@ -80,14 +80,14 @@ describe('bounded final layout certification', () => {
 
   test('strict candidate correspondence failures remain engine defects', () => {
     const graph = parseMermaid('flowchart TD\nA --> B')
-    const changed = layoutGraphSync(graph)
+    const changed = structuredClone(layoutGraphSync(graph))
     changed.nodes[0]!.label = 'changed meaning'
     expect(() => certifyCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => changed }, true)).toThrow(TypeError)
   })
 
   test('strict candidate geometry rejection stays classified', () => {
     const graph = parseMermaid('flowchart TD\nA --> B')
-    const rejected = layoutGraphSync(graph)
+    const rejected = structuredClone(layoutGraphSync(graph))
     rejected.edges[0]!.points = []
     const actual = certifyCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => rejected }, true)
     expect(actual.certified).toBeUndefined()
@@ -443,21 +443,21 @@ describe('bounded final layout certification', () => {
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     invalid.nodes[0]!.x = Number.NaN
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'invalid', produce: () => invalid }])).toThrow(LayoutCertificationError)
   })
 
   test.each(['labelBlock', 'labelPosition'] as const)('a visible edge label requires retained %s before certification', field => {
     const graph = parseMermaid(source)
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     delete invalid.edges[0]![field]
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'missing-label-geometry', produce: () => invalid }])).toThrow(/missing retained geometry/)
   })
 
   test.each(['node', 'edge', 'marker', 'label', 'node-label', 'group-label', 'parent'] as const)('a candidate cannot pass by losing or changing an authored %s', field => {
     const graph = parseMermaid('flowchart LR\nsubgraph S\nA -- meaningful --> B\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     if (field === 'node') invalid.nodes.pop()
     if (field === 'edge') invalid.edges.pop()
     if (field === 'marker') invalid.edges[0]!.hasArrowEnd = false
@@ -536,7 +536,7 @@ describe('bounded final layout certification', () => {
 
   test('a candidate cannot exchange authored members between intact group frames', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const a = invalid.nodes.find(node => node.id === 'A')!
     const b = invalid.nodes.find(node => node.id === 'B')!
     const { x, y } = a
@@ -549,7 +549,7 @@ describe('bounded final layout certification', () => {
 
   test('public group membership retains authored identities instead of inferring ownership from coordinates', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
-    const positioned = layoutGraphSync(graph)
+    const positioned = structuredClone(layoutGraphSync(graph))
     const a = positioned.nodes.find(node => node.id === 'A')!
     const b = positioned.nodes.find(node => node.id === 'B')!
     const { x, y } = a
@@ -563,7 +563,7 @@ describe('bounded final layout certification', () => {
 
   test.each(['node', 'group', 'edge'] as const)('a retained %s text block cannot replace the authored label', kind => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Alpha]\nA[Alpha] -- Alpha --> B[Beta]\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const style = resolveRenderStyle({})
     const owner = kind === 'node' ? invalid.nodes[0]! : kind === 'group' ? invalid.groups[0]! : invalid.edges[0]!
     owner.labelBlock = graphTextBlock('Zebra', style, kind)
@@ -595,13 +595,15 @@ describe('bounded final layout certification', () => {
 
     // Re-reading the authored entity source keeps source/display/transform but
     // loses the family's token decoding. Certification must catch that loss.
-    owner.labelBlock = graphTextBlock(owner.labelBlock!.prepared.source, style, kind)
-    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'reinterpreted', produce: () => clean }])).toThrow(/prepared.*text/)
+    const edited = structuredClone(clean)
+    const copy = kind === 'node' ? edited.nodes[0]! : kind === 'group' ? edited.groups[0]! : edited.edges[0]!
+    copy.labelBlock = graphTextBlock(owner.labelBlock!.prepared.source, style, kind)
+    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'reinterpreted', produce: () => edited }])).toThrow(/prepared.*text/)
   })
 
   test.each(['display', 'transform'] as const)('retained text cannot change its prepared %s interpretation', field => {
     const graph = parseMermaid('flowchart LR\nA[<b>Alpha</b>] --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const block = invalid.nodes[0]!.labelBlock!
     invalid.nodes[0]!.labelBlock = { ...block, prepared: { ...block.prepared, [field]: field === 'display' ? 'literal' : 'uppercase' } }
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'changed-interpretation', produce: () => invalid }])).toThrow(/prepared.*text/)
@@ -609,7 +611,7 @@ describe('bounded final layout certification', () => {
 
   test('an authored child frame cannot escape its parent with its members', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Outer]\nsubgraph T[Inner]\nA[Alpha]\nend\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const outer = invalid.groups[0]!, inner = outer.children[0]!
     const dx = outer.x + outer.width + 30 - inner.x
     inner.x += dx
@@ -620,7 +622,7 @@ describe('bounded final layout certification', () => {
 
   test('exhaustion stops after four attempts and never returns the least-bad candidate', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     invalid.edges[0]!.points = []
     let calls = 0
     const candidates = Array.from({ length: MAX_LAYOUT_CANDIDATES + 3 }, (_, index) => ({

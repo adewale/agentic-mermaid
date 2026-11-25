@@ -253,10 +253,10 @@ describe('an uncertified drawing renders everywhere and verify names it', () => 
       layout: context => {
         const result = flowchart.layout!(context)
         const positioned = ('positioned' in result ? result.positioned : result) as import('../types.ts').PositionedGraph
-        const [a, b] = positioned.nodes
-        b!.x = a!.x + 4
-        b!.y = a!.y + 4
-        return result
+        // A finished layout is immutable: inject the overlap on a new node.
+        const [a, b, ...rest] = positioned.nodes
+        const overlapped = { ...positioned, nodes: [a!, { ...b!, x: a!.x + 4, y: a!.y + 4 }, ...rest] }
+        return 'positioned' in result ? { ...result, positioned: overlapped } : overlapped
       },
     })
     try { await run() } finally { restore() }

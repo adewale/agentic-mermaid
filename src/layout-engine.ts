@@ -29,6 +29,7 @@ import type { MarginInfo } from './layout/geometry.ts'
 import { calculatePathMidpoint, DEFAULTS, findSubgraph, flattenGroupBounds, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeCrossStart, nodeMainCenter, nodeMainSize, nodeMainStart, pointAtPathDistance, polylineLength, positionedNodeCenter, rectsOverlap } from './layout/geometry.ts'
 import type { LayoutPass, LayoutPassStep, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
 import { runPipeline, runSteps } from './layout/pass.ts'
+import { finishPositionedGraph } from './layout/positioned-values.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
 import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
@@ -1864,7 +1865,7 @@ export function layoutGraphSync(
     edges: graph.edges.map((edge, index) => ({ ...edge, curve: edge.curve ?? graph.linkCurves!.get(index) ?? graph.linkCurves!.get('default') })),
   }
   const optimization = layoutOptimization(Boolean(options.graphLayout?.quality || options.graphLayout?.viewport))
-  return withRouteMarkerCache(() => optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options))
+  return finishPositionedGraph(withRouteMarkerCache(() => optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options)))
 }
 
 function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
