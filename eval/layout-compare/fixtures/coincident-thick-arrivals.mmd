@@ -1,0 +1,18 @@
+flowchart BT
+  N0(["validate input"])
+  N1[/"warnings"/]
+  N2[(ok)]
+  N3(["same word ok"])
+  N4[/"a longer label goes here"/]
+  N0 -->|validate input| N1
+  N0 ===>|warnings| N2
+  N0 ---> N2
+  N1 ----> N2
+  N1 -->|a longer label goes here| N3
+  N2 ===>|x| N3
+  N2 ---> N3
+  N2 ----> N4
+  N3 --> N4
+  N3 ===>|retry| N0
+  N3 --->|validate input| N0
+  N4 ----> N0
