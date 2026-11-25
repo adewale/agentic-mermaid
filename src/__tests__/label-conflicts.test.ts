@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { measureLabelConflicts, measureRenderedLabelConflicts } from '../layout/label-conflicts.ts'
-import { labelShafts } from '../layout/graph-paint-support.ts'
+import { labelSeatPaintContext, labelShafts, orthogonalShaftInk } from '../layout/graph-paint-support.ts'
+import { createLayoutRouteEdges, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
@@ -45,6 +46,32 @@ describe('rendered edge label conflicts', () => {
     expect(ink(peer)).toBeUndefined()
     peer.inlineStyle!.stroke = 'transparent'
     expect(ink(peer)).toEqual([])
+  })
+  // Layout-owned routes and captions keep measured paint between queries. A
+  // paint change on the same route or at the same caption point must never be
+  // served from that reuse, whichever field carries it.
+  it.each([
+    ['stroke width', (peer: PositionedEdge) => { peer.inlineStyle = { 'stroke-width': '6px' } }],
+    ['thick style', (peer: PositionedEdge) => { peer.style = 'thick' }],
+  ] as const)('re-measures an owned route after a %s change on the same points', (_case, edit) => {
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      const peer = edge()
+      edges.push(peer)
+      const ink = labelShafts(edges, style)
+      const before = ink(peer)
+      edit(peer)
+      expect(ink(peer)).toEqual(orthogonalShaftInk(peer, style))
+      expect(ink(peer)).not.toEqual(before)
+    })
+  })
+  it('re-measures a caption after its text block changes at the same point', () => {
+    const owner = labeled()
+    const paint = labelSeatPaintContext([], [owner], [], style, () => true)!
+    const before = paint.label(owner, owner.labelPosition!)!
+    owner.labelBlock = { ...owner.labelBlock!, width: owner.labelBlock!.width + 40 }
+    const after = paint.label(owner, owner.labelPosition!)!
+    expect(after.x1 - after.x0).toBeCloseTo(before.x1 - before.x0 + 40, 9)
   })
   it('counts another collision even when an existing collision already has zero clearance', () => {
     const first = edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 200 }] })

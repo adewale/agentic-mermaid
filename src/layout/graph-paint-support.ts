@@ -10,6 +10,7 @@ import { ownsLayoutRouteInputs, routeMarkerPaintRegions } from './route-marker-c
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { labelRect, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect } from '../shared/edge-label-geometry.ts'
 import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, type LabelMetricsStyle } from './route-geometry.ts'
+import { recordRevision, sameRevision, type RecordRevision } from '../shared/record-revision.ts'
 export type GraphPaintStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
 // Shape arithmetic precedes numeric emission in the renderer. Normalize the
 // resulting geometry, not the input node, before asking the shared ink owner.
@@ -64,16 +65,17 @@ export function orthogonalShaftInk(edge: PositionedEdge, style: GraphPaintStyle)
   return boxes
 }
 
-/** Within an owned pass the stroke style is fixed. A reroute publishes a
- * replacement points array; its new ink immediately replaces the old view. */
+/** Owned layout routes retain their ink while the route (a value: a reroute
+ * publishes a replacement points array) and every other field of the edge are
+ * unchanged. Caller-owned rosters are measured live at every query. */
 export function labelShafts(edges: readonly PositionedEdge[], style: GraphPaintStyle, pay?: (units: number) => boolean) {
-  const retained = ownsLayoutRouteInputs(edges, style) ? new Map<PositionedEdge, { points: Point[]; ink?: AxisAlignedBox[] }>() : undefined
+  const retained = ownsLayoutRouteInputs(edges, style) ? new Map<PositionedEdge, { points: Point[]; revision: RecordRevision; ink?: AxisAlignedBox[] }>() : undefined
   return (edge: PositionedEdge, points = edge.points): AxisAlignedBox[] | undefined => {
     const prior = retained?.get(edge)
-    if (prior?.points === points) return prior.ink
+    if (prior?.points === points && sameRevision(prior.revision, edge, 'points')) return prior.ink
     if (pay && !pay(16 + 16 * points.length + 4 * (edge.inlineStyle?.['stroke-width']?.length ?? 0))) return undefined
     const ink = orthogonalShaftInk(points === edge.points ? edge : { ...edge, points }, style)
-    retained?.set(edge, { points, ink })
+    retained?.set(edge, { points, revision: recordRevision(edge, 'points'), ink })
     return ink
   }
 }
@@ -153,7 +155,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
   const routes = new Map<PositionedEdge, NonNullable<ReturnType<typeof edgeInk>>>()
   const orthogonal = new Set<PositionedEdge>()
-  const labels = new Map<PositionedEdge, { x: number; y: number; box: AxisAlignedBox }>()
+  const labels = new Map<PositionedEdge, { x: number; y: number; revision: RecordRevision; box: AxisAlignedBox }>()
   const geometryWork = (g: Geometry): boolean => {
     if (!pay(32)) return false
     if (g.kind === 'compound') return pay(g.children.length + 1) && g.children.every(geometryWork)
@@ -224,15 +226,17 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   for (const edge of edges) if (!refreshRoute(edge)) return undefined
   const label = (edge: PositionedEdge, point: Point): AxisAlignedBox | undefined => {
     if (!pay(4)) return undefined
+    // A caption's box is reused at the same point while every other field of
+    // its edge (text, block, paint) is unchanged.
     const prior = labels.get(edge)
-    if (prior && prior.x === point.x && prior.y === point.y) return prior.box
+    if (prior && prior.x === point.x && prior.y === point.y && sameRevision(prior.revision, edge, 'labelPosition')) return prior.box
     if (!pay(64 + (edge.label?.length ?? 0) * 12)) return undefined
     const rect = labelRect({ ...edge, labelPosition: point }, style)
     if (!rect) return undefined
     const halo = labelHaloRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1))
     const box = { x0: halo.x, y0: halo.y, x1: halo.x + halo.w, y1: halo.y + halo.h }
     if (!finiteBox(box) || !pay(6)) return undefined
-    labels.set(edge, { x: point.x, y: point.y, box })
+    labels.set(edge, { x: point.x, y: point.y, revision: recordRevision(edge, 'labelPosition'), box })
     return box
   }
   const protectedHalos = (owner: PositionedEdge, blocker: PositionedEdge): { x: number; y: number; w: number; h: number }[] | undefined => {
