@@ -60,6 +60,13 @@ export interface OrthogonalRouteRequest {
    * route that visits each in turn, under the same rules (it never turns
    * back, so a via point is passed straight through or turned at). */
   readonly via?: readonly RouterPoint[]
+  /** Extra cost per pixel of a run on no channel line (without
+   * channelsOnly): a small value breaks ties toward the channels, a larger
+   * one pays for a detour to reach them. */
+  readonly offChannelCost?: number
+  /** Called once for every grid step the search checks, so a caller can
+   * bound the routing work of a whole diagram by throwing. */
+  readonly charge?: () => void
 }
 
 const STEP: Record<RouterDirection, RouterPoint> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
@@ -229,6 +236,9 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const clear = (a: RouterPoint, b: RouterPoint, line: Line) => !line.boxes.some(box => segmentHits(a, b, box))
     && !line.across.some(box => segmentHits(a, b, box))
     && !(request.avoid && crowds(a, b, { ...request.avoid, segments: line.crowd }))
+  const offChannel = request.channelsOnly ? 0 : request.offChannelCost ?? 0
+  const onChannel = (values: readonly number[], channels: readonly number[] = []) => values.map(value => channels.some(channel => Math.abs(channel - value) <= EPS))
+  const onChannelX = offChannel ? onChannel(xs, request.channels?.x) : [], onChannelY = offChannel ? onChannel(ys, request.channels?.y) : []
   const inside = (p: RouterPoint) => inflated.some(box => p.x > box.x0 + EPS && p.x < box.x1 - EPS && p.y > box.y0 + EPS && p.y < box.y1 - EPS)
   const index = (p: RouterPoint) => {
     const i = xs.findIndex(x => Math.abs(x - p.x) <= EPS), j = ys.findIndex(y => Math.abs(y - p.y) <= EPS)
@@ -270,9 +280,10 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // so the search distinguishes the two.
   const key = (i: number, j: number, d: number, k: number, run = Infinity) => (((i * ys.length + j) * 4 + d) * 2 + (run < minRun - EPS ? 1 : 0)) * (via.length + 1) + k
   const best = new Map<number, number>()
-  // Clearance and crossing cost belong to a grid edge, not to the state that
+  // Clearance and extra cost belong to a grid edge, not to the state that
   // reaches it: each edge is checked once, however many headings arrive.
-  // NaN = unchecked, -1 = blocked, otherwise the crossing cost.
+  // NaN = unchecked, -1 = blocked, otherwise its extra cost (crossings, off
+  // channel).
   const edges = xs.length * ys.length * 4
   const dense = edges <= DENSE_EDGE_CACHE ? new Float64Array(edges).fill(Number.NaN) : undefined, sparse = dense ? undefined : new Map<number, number>()
   const open = new StateHeap<State>()
@@ -314,8 +325,10 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const edge = (state.i * ys.length + state.j) * 4 + d
       let crossed = dense ? dense[edge]! : sparse!.get(edge) ?? Number.NaN
       if (Number.isNaN(crossed)) {
-        const line = d % 2 ? lineAt(true, state.i) : lineAt(false, state.j)
+        request.charge?.()
+        const vertical = d % 2 === 1, line = vertical ? lineAt(true, state.i) : lineAt(false, state.j)
         crossed = !clear(a, b, line) ? -1 : request.crossings ? crossedSegments(a, b, line.cross, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
+        if (crossed >= 0 && offChannel && !(vertical ? onChannelX[state.i] : onChannelY[state.j])) crossed += offChannel * (Math.abs(b.x - a.x) + Math.abs(b.y - a.y))
         if (dense) dense[edge] = crossed
         else sparse!.set(edge, crossed)
       }

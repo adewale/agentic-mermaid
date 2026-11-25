@@ -36,6 +36,8 @@ test.each([
   // A stub already leaves along the exit direction, so the route may turn at
   // its end; per-end stubs leave the arrival free.
   { name: 'a route may turn where its start stub ends', request: { ...base, end: { x: 20, y: -100 }, entry: 'N', stub: [20, 0], clearance: 0 }, bends: 1, corner: { x: 20, y: 50 } },
+  // Both Zs are equally long; running off the channel costs a little more.
+  { name: 'an off-channel cost settles equal routes on a channel', request: { ...base, end: { x: 300, y: 150 }, channels: { x: [250] }, offChannelCost: 0.05 }, bends: 2, corner: { x: 250, y: 50 } },
   // Via points are passed in order, under the same rules (no turning back).
   { name: 'via points are passed in order', request: { ...base, via: [{ x: 150, y: 200 }, { x: 250, y: 200 }] }, bends: 4 },
 ] as { name: string; request: OrthogonalRouteRequest; bends: number; corner?: RouterPoint }[])('$name', ({ request, bends: expected, corner }) => {
@@ -89,4 +91,11 @@ test('a route keeps off a drawn line by running beside it', () => {
   expect(bends(route)).toBe(2)
   expect(route.map(point => point.y)).not.toContain(150)
   expect([144, 156]).toContain(route[1]!.y)
+})
+
+test('a caller bounds the search work by throwing from charge', () => {
+  let steps = 0
+  expect(routeOrthogonal({ ...base, obstacles: [box], charge: () => { steps++ } })).toBeDefined()
+  expect(steps).toBeGreaterThan(0)
+  expect(() => routeOrthogonal({ ...base, obstacles: [box], charge: () => { throw new Error('budget') } })).toThrow('budget')
 })

@@ -89,6 +89,21 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
+  test('the official deployment fence draws no two relationships along one line', () => {
+    const source = extractOfficialCorpus().find(fence => fence.id === 'c4:official-syntax/c4.md#4')!.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Expected structured official C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const runs = layout.edges.flatMap(edge => edge.path.slice(1).map((end, i) => ({ id: edge.id, a: edge.path[i]!, b: end })))
+    for (const [i, p] of runs.entries()) for (const q of runs.slice(i + 1)) {
+      if (p.id === q.id) continue
+      const axis = p.a[0] === p.b[0] && q.a[0] === q.b[0] && p.a[0] === q.a[0] ? 1 : p.a[1] === p.b[1] && q.a[1] === q.b[1] && p.a[1] === q.a[1] ? 0 : undefined
+      if (axis === undefined) continue
+      const shared = Math.min(Math.max(p.a[axis]!, p.b[axis]!), Math.max(q.a[axis]!, q.b[axis]!)) - Math.max(Math.min(p.a[axis]!, p.b[axis]!), Math.min(q.a[axis]!, q.b[axis]!))
+      expect(shared, `${p.id} and ${q.id} share a line`).toBeLessThanOrEqual(0.01)
+    }
+  })
+
   test('public C4 projections retain the text drawn on cards, frames, routes, title and legend', () => {
     const source = 'C4Deployment\ntitle Runtime\nNode(parent,"Production","Linux") {\nContainer(api,"API","Go")\n}\nPerson(user,"User")\nRel(user,api,"Calls","HTTPS")'
     const parsed = parseRegisteredMermaid(source)

@@ -5,9 +5,8 @@ import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGra
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
 import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
-import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
+import { routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
-import { segmentThroughShape } from '../layout-rubric.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
 
@@ -61,48 +60,22 @@ function facingPort(start: Point, startSide: Side, box: C4Box, side: Side, index
   return level
 }
 
+const DIRECTION: Record<Side, RouterDirection> = { T: 'N', R: 'E', B: 'S', L: 'W' }
+const REVERSE: Record<RouterDirection, RouterDirection> = { N: 'S', S: 'N', E: 'W', W: 'E' }
+/** Checked grid steps over all of one diagram's routes. */
+const ROUTE_WORK = 400_000
+/** Running off the preferred corridors costs this share of the run's length:
+ * enough to settle equal routes on a corridor, never worth a bend. */
+const OFF_CORRIDOR = 0.05
+/** A crossing costs as much as a modest detour, never a bend. */
+const CROSSING = 150
 
-
-/** Sample nearby obstacle faces plus the exterior. At most 16 coordinates per
- * axis and five interior segments per candidate; all physical checks share the
- * request budget. This repairs failed local routes without a grid search. */
-function physicalCorridor(start: Point, end: Point, obstacles: PositionedNode[], through: (a: Point, b: Point, node: PositionedNode) => boolean): Point[] | undefined {
-  const coordinates = (axis: 'x' | 'y', size: 'width' | 'height') => {
-    const values = [...new Set(obstacles.flatMap(node => [node[axis] - 10, node[axis] + node[size] + 10]))]
-    const exterior = [Math.min(start[axis], end[axis], ...values), Math.max(start[axis], end[axis], ...values)]
-    const distance = (value: number) => Math.min(Math.abs(value - start[axis]), Math.abs(value - end[axis]))
-    return [...new Set([...exterior, ...values.sort((a, b) => distance(a) - distance(b) || a - b).slice(0, 14)])]
-  }
-  const xs = coordinates('x', 'width'), ys = coordinates('y', 'height')
-  const candidates: Point[][] = []
-  for (const x of xs) candidates.push([start, { x, y: start.y }, { x, y: end.y }, end])
-  for (const y of ys) candidates.push([start, { x: start.x, y }, { x: end.x, y }, end])
-  for (const x of xs) for (const y of ys) {
-    candidates.push([start, { x: start.x, y }, { x, y }, { x, y: end.y }, end])
-    candidates.push([start, { x, y: start.y }, { x, y }, { x: end.x, y }, end])
-  }
-  const length = (points: Point[]) => points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y), 0)
-  const clear = (a: Point, b: Point) => obstacles.every(node => !through(a, b, node))
-  const choose = (routes: Point[][]) => routes.map(simplifyPolyline).sort((a, b) => length(a) - length(b) || a.length - b.length)
-    .find(points => points.slice(1).every((point, index) => clear(points[index]!, point)))
-  const simple = choose(candidates)
-  if (simple) return simple
-  // A nested header can require separate departure and arrival bands: first
-  // leave the card's row, go around the header, then enter the target's row.
-  const startYs = ys.filter(y => clear(start, { x: start.x, y })), endYs = ys.filter(y => clear({ x: end.x, y }, end))
-  const startXs = xs.filter(x => clear(start, { x, y: start.y })), endXs = xs.filter(x => clear({ x, y: end.y }, end))
-  const nested: Point[][] = []
-  for (const x of xs) for (const a of startYs) for (const b of endYs) nested.push([start, { x: start.x, y: a }, { x, y: a }, { x, y: b }, { x: end.x, y: b }, end])
-  for (const y of ys) for (const a of startXs) for (const b of endXs) nested.push([start, { x: a, y: start.y }, { x: a, y }, { x: b, y }, { x: b, y: end.y }, end])
-  return choose(nested)
-}
 export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>): void {
   const { edges } = positioned
   const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: allocateGeneratedId(identities.generated, `c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
-  let physicalChecks = 0
-  const charge = () => { if (++physicalChecks > 400_000) throw new C4RouteWorkLimitError() }
-  const through = (a: Point, b: Point, node: PositionedNode) => { charge(); return segmentThroughShape(a, b, node) }
+  let work = 0
+  const charge = () => { if (++work > ROUTE_WORK) throw new C4RouteWorkLimitError() }
   const exit = (point: Point, side: Side, sign: number, lane: number, owner: string): Point => {
     const ray = { x: delta[side].x * sign, y: delta[side].y * sign }
     let distance = lane
@@ -116,7 +89,32 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     }
     return { x: point.x + ray.x * distance, y: point.y + ray.y * distance }
   }
-  const stubs = new Map<PositionedEdge, { start: Point; end: Point; startExit: Point; endExit: Point; seed?: Point[] }>()
+  const box = (node: PositionedNode, padX = 0, padY = 0): RouterBox => ({ x0: node.x - padX, y0: node.y - padY, x1: node.x + node.width + padX, y1: node.y + node.height + padY })
+  const physical = physicalObstacles.map(node => box(node))
+  // Routes cross boundary frames but never run along one, where it would
+  // vanish into the frame's outline, and keep off the lines of routes
+  // already drawn where they can.
+  const frames = [...boxes.values()].filter(item => item.container).flatMap(item => {
+    const x1 = item.x + item.width, y1 = item.y + item.height
+    return [[{ x: item.x, y: item.y }, { x: x1, y: item.y }], [{ x: x1, y: item.y }, { x: x1, y: y1 }], [{ x: item.x, y: y1 }, { x: x1, y: y1 }], [{ x: item.x, y: item.y }, { x: item.x, y: y1 }]] as const
+  })
+  // The gutter between each frame and its contents is a corridor too, and so
+  // is a line just outside each frame, for routes that pass around one.
+  const gutters = { x: [] as number[], y: [] as number[] }
+  for (const frame of boxes.values()) {
+    if (!frame.container) continue
+    const x1 = frame.x + frame.width, y1 = frame.y + frame.height
+    gutters.x.push(frame.x - 16, x1 + 16)
+    gutters.y.push(frame.y - 16, y1 + 16)
+    const inside = [...boxes.values()].filter(item => item !== frame && contains(frame, item))
+    if (!inside.length) continue
+    gutters.x.push((frame.x + Math.min(...inside.map(item => item.x))) / 2, (x1 + Math.max(...inside.map(item => item.x + item.width))) / 2)
+    gutters.y.push((frame.y + (frame.headerHeight ?? 0) + Math.min(...inside.map(item => item.y))) / 2, (y1 + Math.max(...inside.map(item => item.y + item.height))) / 2)
+  }
+  const drawn: (readonly [Point, Point])[] = []
+  const crossings = { segments: drawn, cost: CROSSING }
+  const keepOff = (segments: readonly (readonly [Point, Point])[]) => ({ segments, separation: 8, gap: 16 })
+  const routed = new Map<PositionedEdge, Point[]>()
   const counts = new Map<string, number>(), cursors = new Map<string, number>()
   const plans = edges.flatMap(edge => { const source = boxes.get(edge.source), target = boxes.get(edge.target); if (!source || !target) return []; const [startSide, endSide] = sides(source, target); for (const [id, side] of [[source.id, startSide], [target.id, endSide]]) { const key = `${id}\0${side}`; counts.set(key, (counts.get(key) ?? 0) + 1) }; return [{ edge, source, target, startSide, endSide }] })
   const pairs = new Map<string, typeof plans>()
@@ -138,55 +136,50 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     const terminal = graphEdgeTerminalClearance(edge, style)
     const startExit = exit(start, startSide, startSign, Math.max(lane, terminal.start ? terminal.start + (style.edgeBendRadius ?? 0) : 0), source.id)
     const endExit = exit(end, endSide, endSign, Math.max(lane, terminal.end ? terminal.end + (style.edgeBendRadius ?? 0) : 0), target.id)
-    stubs.set(edge, { start, end, startExit, endExit })
-    // C4 owns only the physical face choice and initial corridor. Shared graph
-    // route passes repair crossings, allocate labels and certify final routes.
-    let middle: Point[]
-    if (source.id === target.id) {
-      const right = source.x + source.width + lane + (edge.labelBlock?.width ?? 0) / 2
-      const bottom = source.y + source.height + lane + (edge.labelBlock?.height ?? 0) / 2
-      middle = [startExit, { x: right, y: startExit.y }, { x: right, y: bottom }, { x: endExit.x, y: bottom }, endExit]
-    } else if (startSide === 'R' || startSide === 'L') {
-      const x = (startExit.x + endExit.x) / 2 + shift
-      middle = [startExit, { x, y: startExit.y }, { x, y: endExit.y }, endExit]
-    } else {
-      const y = (startExit.y + endExit.y) / 2 + shift
-      middle = [startExit, { x: startExit.x, y }, { x: endExit.x, y }, endExit]
+    // C4 owns the physical face choice, the port leads and the corridors it
+    // prefers: midway between the two leads, shifted apart for repeated
+    // interactions between one pair, and for a self-interaction a loop wide
+    // enough for its label. The shared router finds the route around every
+    // card and header band.
+    const preferred = source.id === target.id
+      ? { x: [source.x + source.width + lane + (edge.labelBlock?.width ?? 0) / 2], y: [source.y + source.height + lane + (edge.labelBlock?.height ?? 0) / 2] }
+      : startSide === 'R' || startSide === 'L' ? { x: [(startExit.x + endExit.x) / 2 + shift], y: [] } : { x: [], y: [(startExit.y + endExit.y) / 2 + shift] }
+    const channels = { x: [...preferred.x, ...gutters.x], y: [...preferred.y, ...gutters.y] }
+    const leave = startSign > 0 ? DIRECTION[startSide] : REVERSE[DIRECTION[startSide]]
+    const arrive = REVERSE[endSign > 0 ? DIRECTION[endSide] : REVERSE[DIRECTION[endSide]]]
+    const request = { start, end, exit: leave, entry: arrive, stub: [Math.abs(startExit.x - start.x) + Math.abs(startExit.y - start.y), Math.abs(endExit.x - end.x) + Math.abs(endExit.y - end.y)] as const,
+      clearance: 0, channels, offChannelCost: OFF_CORRIDOR, crossings, charge }
+    // A corridor must carry its measured label halo as well as its stroke.
+    // Otherwise a path ten pixels below a database is clear for ink while
+    // its two-line label is still painted underneath the database surface.
+    // A full halo cannot fit through every nested boundary exit; then the
+    // route only keeps clear of actual cards and opaque headers, and the
+    // final label allocator places the retained label.
+    const padX = (edge.labelBlock?.width ?? 0) / 2 + 10, padY = (edge.labelBlock?.height ?? 0) / 2 + 8
+    const padded = physicalObstacles.map(node => node.id === edge.source || node.id === edge.target ? box(node) : box(node, padX, padY))
+    let route: Point[] | undefined
+    search: for (const avoid of drawn.length ? [keepOff([...frames, ...drawn]), keepOff(frames)] : [keepOff(frames)]) for (const obstacles of [padded, physical]) {
+      route = routeOrthogonal({ ...request, obstacles, avoid })
+      if (route) break search
     }
-    edge.points = simplifyPolyline([start, ...middle, end])
-    stubs.get(edge)!.seed = edge.points
+    // Leads that end against another card leave no clear route; draw the
+    // plainest orthogonal one rather than none.
+    route ??= routeOrthogonal({ ...request, obstacles: physical }) ?? routeOrthogonal({ ...request, obstacles: [] }) ?? [start, end]
+    edge.points = simplifyPolyline(route.map(point => ({ x: point.x, y: point.y })))
+    routed.set(edge, edge.points.map(point => ({ ...point })))
+    for (let at = 1; at < edge.points.length; at++) drawn.push([edge.points[at - 1]!, edge.points[at]!])
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }
+  // Shared graph route passes certify the routes and allocate labels; the
+  // routes themselves stay as routed.
   applyRouteContracts(positioned, graph, new Set(), style)
   repairLabelsOffOwnRoute(positioned, graph, style)
   separateEdgeLabelPills(positioned, graph, style, { seats: denseLabelSeats })
   closeRouteContracts(positioned, graph, style)
-  // Container frames are endpoint surfaces, not solid interior obstacles. Give
-  // the shared rerouter the actual endpoint frame plus the opaque header bands
-  // and leaf cards. This preserves boundary references without blocking every
-  // descendant as if the ancestor were a filled node.
   for (const edge of edges) {
-    const stub = stubs.get(edge)!
-    const source = boxes.get(edge.source)!, target = boxes.get(edge.target)!
-    const horizontal = Math.abs(center(source).x - center(target).x) >= Math.abs(center(source).y - center(target).y)
-    const direction = horizontal ? center(source).x <= center(target).x ? 'LR' : 'RL' : center(source).y <= center(target).y ? 'TB' : 'BT'
-    const anchorSource: PositionedNode = { id: allocateGeneratedId(identities.generated, `${edge.id}:routing-source`, ['c4', edge.id!, 'routing-source']), label: '', shape: 'rectangle', ...stub.startExit, width: 0, height: 0 }
-    const anchorTarget: PositionedNode = { id: allocateGeneratedId(identities.generated, `${edge.id}:routing-target`, ['c4', edge.id!, 'routing-target']), label: '', shape: 'rectangle', ...stub.endExit, width: 0, height: 0 }
-    const interior: PositionedEdge = { ...edge, source: anchorSource.id, target: anchorTarget.id, points: simplifyPolyline([stub.startExit, ...stub.seed!.slice(1, -1), stub.endExit]) }
-    // A corridor must carry its measured label halo as well as its stroke.
-    // Otherwise a path ten pixels below a database is clear for ink while
-    // its two-line label is still painted underneath the database surface.
-    const padX = (edge.labelBlock?.width ?? 0) / 2 + 10, padY = (edge.labelBlock?.height ?? 0) / 2 + 8
-    const obstacles = [...positioned.nodes, ...headerNodes].map(node => node.id === edge.source || node.id === edge.target
-      ? node : { ...node, x: node.x - padX, y: node.y - padY, width: node.width + padX * 2, height: node.height + padY * 2 })
-    rerouteEdgesThroughNodes([...obstacles, anchorSource, anchorTarget], [interior], { ...graph, direction })
-    // A full label halo cannot fit through every nested boundary exit. If that
-    // stronger corridor has no solution, still route the shaft clear of actual
-    // cards and opaque headers. The final C4 allocator separately places the
-    // retained label halo; its visibility checks remain authoritative.
-    const blocked = interior.points.slice(1).some((end, index) => physicalObstacles.some(node => through(interior.points[index]!, end, node)))
-    if (blocked) interior.points = physicalCorridor(stub.startExit, stub.endExit, physicalObstacles, through) ?? interior.points
-    edge.points = simplifyPolyline([stub.start, ...interior.points, stub.end])
+    const points = routed.get(edge)
+    if (!points) continue
+    edge.points = points
     edge.labelPosition = calculatePathMidpoint(edge.points)
   }
   repairMarkerTerminals(positioned, graph, style)
