@@ -1,4 +1,5 @@
 import { dependencyTerminalLead, dependencyStrokeWidth } from './dependency-paint.ts'
+import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 // ============================================================================
 // Gantt layout — schedule → deterministic geometry (docs/design/families/gantt.md §4).
 //
@@ -295,21 +296,19 @@ export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>)
 
 // ---- Dependency connector routing (family-elevation-plan §Gantt item 1) ------
 //
-// Deterministic orthogonal elbow routes from each predecessor bar's end to its
+// Deterministic orthogonal routes from each predecessor bar's end to its
 // successor bar's start, computed here (never in the renderer) so both the SVG
-// overlay and the invariant tests consume the same geometry. Correctness by
-// construction: horizontal runs happen only in row gutters (which contain no
-// bars) or as short stubs beside the two anchored bars; vertical runs cross a
-// row band only at an x proven clear of every bar interior — when the straight
-// column is blocked, the route jogs inside the gutter (the corridor just left
-// of the plot, x = plot.x - GANTT_DEP_STUB, is always clear because bars never
+// overlay and the invariant tests consume the same geometry. Gantt supplies the
+// ports and the corridors; the shared router finds the route. Runs follow the
+// corridors only: the gutter midlines between row bands (which contain no
+// bars), the columns a stub beside each bar, and the escape corridor just left
+// of the plot (x = plot.x - GANTT_DEP_STUB, always clear because bars never
 // start left of plot.x, and the label column keeps a labelGap > stub margin).
-// A route that would still cross a bar interior is never emitted.
+// The router never crosses a bar interior; a connector with no clear route is
+// not emitted.
 
 /** Stub length for connector exits/entries, and the escape-corridor inset. */
 export const GANTT_DEP_STUB = 8
-
-const DEP_EPS = 0.01
 
 interface DepPoint {
   x: number
@@ -319,10 +318,6 @@ interface DepRect {
   x: number
   y: number
   w: number
-  h: number
-}
-interface DepBand {
-  y: number
   h: number
 }
 interface DepPlot {
@@ -342,175 +337,54 @@ function depBarRect(bar: GanttBarLayout): DepRect {
   return { x: bar.x, y: bar.y, w: bar.w, h: bar.h }
 }
 
-/** Horizontal segment at `y` spanning [x1,x2] crosses the OPEN interior of r. */
-function hBlocked(y: number, x1: number, x2: number, r: DepRect): boolean {
-  const [a, b] = x1 <= x2 ? [x1, x2] : [x2, x1]
-  return y > r.y + DEP_EPS && y < r.y + r.h - DEP_EPS && b > r.x + DEP_EPS && a < r.x + r.w - DEP_EPS
+/** The corridors: gutter midlines between consecutive row bands (and between
+ *  the plot edges and the outer bands), the columns a stub beside each bar,
+ *  and the escape corridor, all inside the plot band. */
+function depCorridors(rows: GanttRowLayout[], obstacles: DepRect[], plot: DepPlot, stub: number): { x: number[]; y: number[] } {
+  const bands = rows.map(r => ({ y: r.y, h: r.h })).sort((a, b) => a.y - b.y)
+  const y = bands.map((band, i) => ((i > 0 ? bands[i - 1]!.y + bands[i - 1]!.h : plot.y) + band.y) / 2)
+  if (bands.length) y.push((bands.at(-1)!.y + bands.at(-1)!.h + plot.y + plot.h) / 2)
+  const lo = plot.x - GANTT_DEP_STUB, hi = plot.x + plot.w + GANTT_DEP_STUB
+  const x = [lo, ...obstacles.flatMap(r => [r.x - stub, r.x + r.w + stub]).map(value => Math.max(lo, Math.min(hi, value)))]
+  return { x, y }
 }
 
-/** Vertical segment at `x` spanning [y1,y2] crosses the OPEN interior of r. */
-function vBlocked(x: number, y1: number, y2: number, r: DepRect): boolean {
-  const [a, b] = y1 <= y2 ? [y1, y2] : [y2, y1]
-  return x > r.x + DEP_EPS && x < r.x + r.w - DEP_EPS && b > r.y + DEP_EPS && a < r.y + r.h - DEP_EPS
-}
+const DEP_ARROW: Record<RouterDirection, 'right' | 'down' | 'up' | undefined> = { E: 'right', S: 'down', N: 'up', W: undefined }
 
-function segBlocked(a: DepPoint, b: DepPoint, obstacles: DepRect[]): boolean {
-  if (Math.abs(a.x - b.x) <= DEP_EPS) return obstacles.some(r => vBlocked(a.x, a.y, b.y, r))
-  return obstacles.some(r => hBlocked(a.y, a.x, b.x, r))
-}
-
-/** Row bands in top-to-bottom order. Section headers, section gaps, and row
- *  gaps are all gutter space between bands — free of bars by construction. */
-function depBands(rows: GanttRowLayout[]): DepBand[] {
-  return rows.map(r => ({ y: r.y, h: r.h })).sort((a, b) => a.y - b.y)
-}
-
-function depBandIndexAt(bands: DepBand[], y: number): number {
-  return bands.findIndex(b => y >= b.y - DEP_EPS && y <= b.y + b.h + DEP_EPS)
-}
-
-/** Midline of the gutter below band i (below the last band: down to the plot
- *  edge, which the trailing section gap keeps strictly below the band). */
-function gutterBelow(bands: DepBand[], i: number, plot: DepPlot): number {
-  const bottom = bands[i]!.y + bands[i]!.h
-  const next = i + 1 < bands.length ? bands[i + 1]!.y : plot.y + plot.h
-  return (bottom + next) / 2
-}
-
-function gutterAbove(bands: DepBand[], i: number, plot: DepPlot): number {
-  const top = bands[i]!.y
-  const prev = i > 0 ? bands[i - 1]!.y + bands[i - 1]!.h : plot.y
-  return (prev + top) / 2
-}
-
-/** A crossing column for `band` clear of every bar interior: nearest candidate
- *  to targetX among obstacle flanks and the always-clear escape corridor. */
-function clearCrossingX(band: DepBand, obstacles: DepRect[], plot: DepPlot, targetX: number): number {
-  const S = GANTT_DEP_STUB
-  const lo = plot.x - S
-  const hi = plot.x + plot.w + S
-  const inBand = obstacles.filter(r => r.y < band.y + band.h - DEP_EPS && r.y + r.h > band.y + DEP_EPS)
-  const cands = new Set<number>([lo])
-  for (const r of inBand) {
-    cands.add(Math.max(lo, Math.min(hi, r.x - S)))
-    cands.add(Math.max(lo, Math.min(hi, r.x + r.w + S)))
-  }
-  let best = lo
-  let bestScore = Infinity
-  for (const x of cands) {
-    if (inBand.some(r => vBlocked(x, band.y - 1, band.y + band.h + 1, r))) continue
-    const score = Math.abs(x - targetX)
-    if (score < bestScore - DEP_EPS || (Math.abs(score - bestScore) <= DEP_EPS && x < best)) {
-      best = x
-      bestScore = score
-    }
-  }
-  return best
-}
-
-/** Drop duplicate points and merge collinear runs (the emitted polyline is
- *  exactly what the final blocked-validation checks). */
-function compactDepPoints(points: DepPoint[]): DepPoint[] {
-  const out: DepPoint[] = []
-  for (const p of points) {
-    const last = out[out.length - 1]
-    if (last && Math.abs(last.x - p.x) <= DEP_EPS && Math.abs(last.y - p.y) <= DEP_EPS) continue
-    out.push({ x: p.x, y: p.y })
-    const n = out.length
-    if (n >= 3) {
-      const a = out[n - 3]!
-      const b = out[n - 2]!
-      const c = out[n - 1]!
-      if ((Math.abs(a.x - b.x) <= DEP_EPS && Math.abs(b.x - c.x) <= DEP_EPS) || (Math.abs(a.y - b.y) <= DEP_EPS && Math.abs(b.y - c.y) <= DEP_EPS)) {
-        out.splice(n - 2, 1)
-      }
-    }
-  }
-  return out
-}
-
-function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], bands: DepBand[], plot: DepPlot, stub = GANTT_DEP_STUB): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
+function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], corridors: { x: number[]; y: number[] }, stub = GANTT_DEP_STUB): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
   const S = stub
   const fr = from.rect
   const tr = to.rect
-  const sy = fr.y + fr.h / 2
-  const ey = tr.y + tr.h / 2
-  const fromBand = depBandIndexAt(bands, sy)
-  const toBand = depBandIndexAt(bands, ey)
-  if (fromBand === -1 || toBand === -1) return null
-
-  const sameBand = fromBand === toBand
-  const down = sameBand || toBand > fromBand // same-band routes dip through the gutter below
-  const exitGutterY = down ? gutterBelow(bands, fromBand, plot) : gutterAbove(bands, fromBand, plot)
-  const entryGutterY = sameBand ? exitGutterY : down ? gutterAbove(bands, toBand, plot) : gutterBelow(bands, toBand, plot)
-
-  const points: DepPoint[] = []
-
-  // Exit: side stub off the bar end at row center; if a compact lane-mate
-  // blocks it, drop straight from the bar's own top/bottom edge instead
-  // (the bar's own footprint cannot be blocked).
-  const sxRight = fr.x + fr.w
-  const sideExit: DepPoint[] = [
-    { x: sxRight, y: sy },
-    { x: sxRight + S, y: sy },
-    { x: sxRight + S, y: exitGutterY },
+  // Ports in order of preference: off the bar end at row center, else
+  // straight down or up from the bar's own bottom or top; into the
+  // successor's start at row center, else through its own top or bottom.
+  const exitX = from.tipX ?? (fr.w >= 2 * S ? fr.x + fr.w - S : fr.x + fr.w / 2)
+  const enterX = to.tipX ?? (tr.w >= 2 * S ? tr.x + S : tr.x + tr.w / 2)
+  const starts = [
+    { start: { x: fr.x + fr.w, y: fr.y + fr.h / 2 }, exit: 'E' as const, stub: S },
+    { start: { x: exitX, y: fr.y + fr.h }, exit: 'S' as const, stub: 0 },
+    { start: { x: exitX, y: fr.y }, exit: 'N' as const, stub: 0 },
   ]
-  if (!segBlocked(sideExit[0]!, sideExit[1]!, obstacles) && !segBlocked(sideExit[1]!, sideExit[2]!, obstacles)) {
-    points.push(...sideExit)
-  } else {
-    const exitX = from.tipX ?? (fr.w >= 2 * S ? sxRight - S : fr.x + fr.w / 2)
-    points.push({ x: exitX, y: down ? fr.y + fr.h : fr.y }, { x: exitX, y: exitGutterY })
-  }
-
-  // Traverse: cross each band between the two gutters, jogging inside the
-  // preceding gutter to a proven-clear column when the current one is blocked.
-  let curX = points[points.length - 1]!.x
-  const targetX = tr.x - S
-  if (!sameBand) {
-    const step = down ? 1 : -1
-    for (let b = fromBand + step; b !== toBand; b += step) {
-      const band = bands[b]!
-      if (obstacles.some(r => vBlocked(curX, band.y - 1, band.y + band.h + 1, r))) {
-        const gutterBeforeY = down ? gutterAbove(bands, b, plot) : gutterBelow(bands, b, plot)
-        const newX = clearCrossingX(band, obstacles, plot, targetX)
-        points.push({ x: curX, y: gutterBeforeY }, { x: newX, y: gutterBeforeY })
-        curX = newX
-      }
-    }
-  }
-
-  // Entry: horizontal arrow into the successor's start at row center; if the
-  // approach column is blocked (flush chains, compact lane-mates), enter the
-  // successor's own top/bottom edge instead — its footprint cannot be blocked.
-  const entryX = tr.x - S
-  const sideEntry: DepPoint[] = [
-    { x: entryX, y: entryGutterY },
-    { x: entryX, y: ey },
-    { x: tr.x, y: ey },
+  const ends = [
+    { end: { x: tr.x, y: tr.y + tr.h / 2 }, entry: 'E' as const, stub: S },
+    { end: { x: enterX, y: tr.y }, entry: 'S' as const, stub: 0 },
+    { end: { x: enterX, y: tr.y + tr.h }, entry: 'N' as const, stub: 0 },
   ]
-  let arrowDir: 'right' | 'down' | 'up'
-  let entryPts: DepPoint[]
-  if (!segBlocked(sideEntry[0]!, sideEntry[1]!, obstacles) && !segBlocked(sideEntry[1]!, sideEntry[2]!, obstacles)) {
-    entryPts = sideEntry
-    arrowDir = 'right'
-  } else {
-    const enterX = to.tipX ?? (tr.w >= 2 * S ? tr.x + S : tr.x + tr.w / 2)
-    const fromAbove = entryGutterY < tr.y
-    entryPts = [
-      { x: enterX, y: entryGutterY },
-      { x: enterX, y: fromAbove ? tr.y : tr.y + tr.h },
-    ]
-    arrowDir = fromAbove ? 'down' : 'up'
+  // The pairing whose route has the fewest bends, then the shortest, wins;
+  // ties keep the earlier preference.
+  const boxes = obstacles.map(r => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h }))
+  let best: { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up'; cost: number } | null = null
+  for (const start of starts) for (const end of ends) {
+    const route = routeOrthogonal({
+      start: start.start, end: end.end, exit: start.exit, entry: end.entry, stub: [start.stub, end.stub],
+      obstacles: boxes, clearance: 0, channels: corridors, channelsOnly: true,
+    })
+    if (!route) continue
+    let cost = (route.length - 2) * 1e4
+    for (let i = 1; i < route.length; i++) cost += Math.abs(route[i]!.x - route[i - 1]!.x) + Math.abs(route[i]!.y - route[i - 1]!.y)
+    if (!best || cost < best.cost) best = { points: route.map(point => ({ x: point.x, y: point.y })), arrowDir: DEP_ARROW[end.entry]!, cost }
   }
-  points.push({ x: curX, y: entryGutterY }, ...entryPts)
-
-  const compacted = compactDepPoints(points)
-  // Belt-and-braces: a route crossing any bar interior is unrepresentable in
-  // the output — skip the connector rather than draw the violation.
-  for (let i = 1; i < compacted.length; i++) {
-    if (segBlocked(compacted[i - 1]!, compacted[i]!, obstacles)) return null
-  }
-  return { points: compacted, arrowDir }
+  return best && { points: best.points, arrowDir: best.arrowDir }
 }
 
 function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars: GanttBarLayout[], rows: GanttRowLayout[], plot: DepPlot, style: ResolvedRenderStyle, options: RenderOptions = {}): GanttDependencyLayout[] {
@@ -518,7 +392,6 @@ function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars
   if (edges.length === 0) return []
   const barByTask = new Map(bars.map(b => [b.taskIndex, b]))
   const obstacles = bars.map(depBarRect)
-  const bands = depBands(rows)
   const critIds = new Set(schedule.analysis?.criticalPathTaskIds ?? [])
   const out: GanttDependencyLayout[] = []
   for (const edge of edges) {
@@ -531,7 +404,8 @@ function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars
     // critical-path tasks: the successor starts exactly at this predecessor's
     // end (with several `after` refs only the latest end binds).
     const critical = edge.kind === 'after' && fromTask.id !== undefined && toTask.id !== undefined && critIds.has(fromTask.id) && critIds.has(toTask.id) && fromTask.end === toTask.start
-    const route = routeDependency({ rect: depBarRect(fb), tipX: fb.milestoneX }, { rect: depBarRect(tb), tipX: tb.milestoneX }, obstacles, bands, plot, options.gantt?.dependencyArrows ? dependencyTerminalLead(dependencyStrokeWidth(style.lineWidth, options.gantt.criticalPath === true && critical)) : GANTT_DEP_STUB)
+    const stub = options.gantt?.dependencyArrows ? dependencyTerminalLead(dependencyStrokeWidth(style.lineWidth, options.gantt.criticalPath === true && critical)) : GANTT_DEP_STUB
+    const route = routeDependency({ rect: depBarRect(fb), tipX: fb.milestoneX }, { rect: depBarRect(tb), tipX: tb.milestoneX }, obstacles, depCorridors(rows, obstacles, plot, stub), stub)
     if (!route) continue
     out.push({
       fromTaskIndex: edge.from,

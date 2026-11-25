@@ -176,6 +176,15 @@ describe('gantt dependency routing — layout invariants', () => {
     assertConnectorInvariants(layout)
   })
 
+  test('a successor on a later row is reached with one turn', () => {
+    // End of the predecessor, then down into the successor: no detour through
+    // a row gutter when the column is clear.
+    const { layout } = layoutOf(CRIT)
+    expect(layout.dependencies).toHaveLength(3)
+    for (const dep of layout.dependencies) expect(dep.points.length - 2).toBe(1)
+    assertConnectorInvariants(layout)
+  })
+
   test('a full-width blocking bar forces a jog, never a crossing', () => {
     const { layout } = layoutOf(BLOCKER)
     expect(layout.dependencies).toHaveLength(1)
