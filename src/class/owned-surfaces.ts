@@ -1,6 +1,6 @@
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
-import { simplifyOrthogonal } from '../layout/compound-visibility.ts'
+import { simplifyOrthogonal } from '../layout/orthogonal-polyline.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { connector } from '../scene/marks.ts'

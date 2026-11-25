@@ -136,6 +136,17 @@ test('the bare upstream graph keyword keeps its established Flowchart identity',
   expect(native.ok && native.value.body.kind).toBe('swimlane')
 })
 
+/** Length two orthogonal polylines draw along the same line. */
+function sharedInk(a: readonly { x: number; y: number }[], b: readonly { x: number; y: number }[]): number {
+  let shared = 0
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const p = a[i - 1]!, q = a[i]!, r = b[j - 1]!, t = b[j]!
+    if (p.x === q.x && r.x === t.x && p.x === r.x) shared += Math.max(0, Math.min(Math.max(p.y, q.y), Math.max(r.y, t.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, t.y)))
+    else if (p.y === q.y && r.y === t.y && p.y === r.y) shared += Math.max(0, Math.min(Math.max(p.x, q.x), Math.max(r.x, t.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, t.x)))
+  }
+  return shared
+}
+
 test('independent lane hand-offs keep separate short routes instead of an unlabelled shared bus', () => {
   const input = ['swimlane-beta LR', ...Array.from({ length: 3 }, (_, lane) => [`subgraph L${lane}[Team ${lane}]`, ...Array.from({ length: 6 }, (_, item) => `n${lane}_${item}[Task ${lane}.${item}]`), 'end']), ...Array.from({ length: 6 }, (_, item) => [`n0_${item} --> n1_${item}`, `n1_${item} --> n2_${item}`])].flat().join('\n')
   const chart = layoutSwimlane(parseSwimlane(input)), firstLane = chart.nodes.filter(node => node.id.startsWith('n0_'))
@@ -177,6 +188,8 @@ B return@-->|reconsider| A`
     ['approve', 'A', 'B', 'approve'], ['reject', 'A', 'B', 'reject'], ['return', 'B', 'A', 'reconsider'],
   ])
   expect(new Set(chart.edges.map(edge => JSON.stringify(edge.points))).size).toBe(3)
+  // Separate occurrences never share a line, which would read as one route.
+  for (const [i, a] of chart.edges.entries()) for (const b of chart.edges.slice(i + 1)) expect(sharedInk(a.points, b.points)).toBe(0)
   for (const edge of chart.edges) for (const [id, point] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
     const node = chart.nodes.find(node => node.id === id)!
     expect(point.x).toBeGreaterThanOrEqual(node.x - 1e-6)
@@ -292,6 +305,14 @@ A retry@-->|retry| A${repeated ? '\nA revise@-->|revise| A' : ''}`
       ['retry', 'A', 'A', 'retry'], ['revise', 'A', 'A', 'revise'],
     ] : [['retry', 'A', 'A', 'retry']])
     expect(new Set(layout.edges.map(edge => JSON.stringify(edge.path))).size).toBe(repeated ? 2 : 1)
+    // Each loop goes once around: four turns, never doubling back on itself.
+    for (const edge of layout.edges) {
+      expect(edge.path.length - 2).toBe(4)
+      for (let i = 2; i < edge.path.length; i++) {
+        const [ax, ay] = edge.path[i - 2]!, [bx, by] = edge.path[i - 1]!, [cx, cy] = edge.path[i]!
+        expect((bx - ax) * (cx - bx) + (by - ay) * (cy - by)).toBeGreaterThanOrEqual(0)
+      }
+    }
     const node = layout.nodes.find(node => node.id === 'A')!
     expect(node.parentId).toBe('Team')
     const contacts = layout.edges.flatMap(edge => [edge.path[0]!, edge.path.at(-1)!])

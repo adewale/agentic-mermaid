@@ -11,12 +11,11 @@ import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
-import { createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
-import { simplifyOrthogonal, type Terminal } from '../layout/compound-visibility.ts'
+import { routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { rectsOverlap } from '../layout/geometry.ts'
-import { segmentEntersMeasuredBox, type MeasuredBox } from '../layout/measured-route-safety.ts'
+import type { MeasuredBox } from '../layout/measured-route-safety.ts'
 import { bundledLabelCandidates, labelBoxAt, terminalLabelCorridorLength } from '../layout/passes/bundled-labels.ts'
-import { labelTouchesNeighborRoute, symmetricParallelOuterLanePoints } from '../layout/passes/parallel-lanes.ts'
+import { labelTouchesNeighborRoute } from '../layout/passes/parallel-lanes.ts'
 import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
 import { labelHaloExtension } from '../shared/edge-label-geometry.ts'
 import type { Direction, MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -132,7 +131,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const byId = new Map<string, PositionedNode | PositionedGroup>(nodes.map(node => [node.id, node]))
   const collect = (group: PositionedGroup): void => { byId.set(group.id, group); group.children.forEach(collect) }
   groups.forEach(collect)
-  const ports = (id: string, other: string, end: 'source' | 'target'): { port: Point; stub: Point } => {
+  const ports = (id: string, other: string, end: 'source' | 'target'): Terminal => {
     const node = byId.get(id)
     if (!node) throw new Error(`Swimlane edge ${end} "${id}" has no node or lane`)
     const forward = graph.direction !== 'RL' && graph.direction !== 'BT'
@@ -143,7 +142,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       : { x: node.x + node.width / 2, y: node.y + node.height / 2 }
     const port = 'shape' in node ? actual : side === 'E' ? { x: node.x + node.width, y: actual.y }
       : side === 'W' ? { x: node.x, y: actual.y } : side === 'S' ? { x: actual.x, y: node.y + node.height } : { x: actual.x, y: node.y }
-    return { port, stub: { x: port.x + (side === 'E' ? stubGap : side === 'W' ? -stubGap : 0), y: port.y + (side === 'S' ? stubGap : side === 'N' ? -stubGap : 0) } }
+    return terminal(node, port, side, stubGap)
   }
   // Containers are transparent responsibility regions. Nodes and header ink
   // remain obstacles even when a connector crosses an unrelated lane.
@@ -160,94 +159,96 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
     group.children.forEach(addHeader)
   }
   groups.forEach(addHeader)
-  const crossesBandsPerpendicularly = (a: Point, b: Point): boolean => a.x === b.x || bands.every(band => !segmentEntersMeasuredBox(a, b, band))
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
   const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap)
-  const terminals = edges.map(edge => {
+  // Each occurrence keeps its caption stretch clear of every other route.
+  const reserved = new Map<PositionedEdge, RouterBox>()
+  for (const [owner, channel] of channels) if (channel.runs[0]!.caption) reserved.set(owner, routerBox(channel.runs[0]!.caption))
+  // Occurrence detours run outside the content, so they keep painted
+  // clearance from every card they pass on the way.
+  const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes, ...headers].map(box => routerBox(box))
+  // A route crosses a painted header band, stroke included, only
+  // perpendicularly.
+  const across = { horizontal: bands.map(box => routerBox(box, style.lineWidth / 2)) }
+  // A route keeps off the lines of routes already drawn where it can, so
+  // independent connectors do not read as one shared bus.
+  const drawn: (readonly [Point, Point])[] = []
+  // Crossing one costs as much as a modest detour, never a bend.
+  const spacing = { segments: drawn, separation: Math.max(6, clearance), gap: stubGap }, crossings = { segments: drawn, cost: 400 }
+  for (const edge of edges) {
     const channel = channels.get(edge)
-    return channel ? { source: { port: channel.points[0]!, stub: channel.points[1]! }, target: { port: channel.points.at(-1)!, stub: channel.points.at(-2)! } }
-      : { source: ports(edge.source, edge.target, 'source'), target: ports(edge.target, edge.source, 'target') }
-  })
-  const anchors = terminals.flatMap(pair => [pair.source.stub, pair.target.stub])
-  for (const channel of channels.values()) {
-    anchors.push(...channel.points.slice(2, -2))
-    if (channel.caption) for (const x of [channel.caption.x, channel.caption.x + channel.caption.width]) for (const y of [channel.caption.y, channel.caption.y + channel.caption.height]) anchors.push({ x, y })
-  }
-  const reservedCaptions = [...channels].flatMap(([owner, channel]) => channel.caption ? [{ owner, box: channel.caption }] : [])
-  const routingTerminals: Terminal[] = anchors.map(point => ({ port: point, stub: point, penalty: 0 }))
-  let left = 0, top = 0, right = width, bottom = height
-  if (channels.size) for (const point of anchors) {
-    left = Math.min(left, point.x - padding); top = Math.min(top, point.y - padding)
-    right = Math.max(right, point.x + padding); bottom = Math.max(bottom, point.y + padding)
-  }
-  // The visibility kernel admits obstacle boundaries. Occurrence detours can
-  // graze a card on the way to an outside channel, so reserve painted clearance.
-  const obstacles = channels.size ? [...nodes.map(box => ({ x: box.x - clearance, y: box.y - clearance, width: box.width + clearance * 2, height: box.height + clearance * 2 })), ...headers.map(box => ({ x: box.x - 2, y: box.y - 2, width: box.width + 4, height: box.height + 4 }))] : [...nodes, ...headers]
-  const grid = graph.edges.length ? createSparseVisibilityGraph({ x: left, y: top, width: right - left, height: bottom - top }, obstacles, routingTerminals, anchors,
-    8, { pairs: 8_000_000, arcs: 8_000_000, swaps: 8_000_000 }, 200_000, fail) : undefined
-  try {
-    for (const [edgeIndex, edge] of edges.entries()) {
-      const pair = terminals[edgeIndex]!, channel = channels.get(edge)
-      const stops = channel ? channel.points.slice(1, -1) : [pair.source.stub, pair.target.stub]
-      const points = [pair.source.port, stops[0]!]
-      for (let index = 1; index < stops.length; index++) {
-        const start = stops[index - 1]!
-        points.push(...grid!.route([{ port: start, stub: start, penalty: 0 }], stops[index]!, undefined,
-          (a, b) => crossesBandsPerpendicularly(a, b) && reservedCaptions.every(candidate => candidate.owner === edge || !segmentEntersMeasuredBox(a, b, candidate.box))).slice(1))
-      }
-      edge.points = simplifyOrthogonal([...points, pair.target.port])
-      if (!channel && edge.label) {
-        const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
-          .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
-        if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
-      }
+    const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
+    const request = {
+      start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub] as const, clearance: 0, axisObstacles: across,
+      obstacles: [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])],
     }
-    if (channels.size) seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
-    if (channels.size) {
-      let halo = 0
-      for (const edge of edges) if (edge.label) halo = Math.max(halo, labelHaloExtension(edge, style.lineWidth))
-      translateGeometryToNonNegativeOrigin(nodes, edges, groups, padding, style, halo)
-      if (titleBand) {
-        // Outside channels can normalize above the original lane placement,
-        // or stay positive while still entering the title band. Move all
-        // content together, reserving the complete caption paint envelope.
-        let contentTop = Infinity
-        for (const node of nodes) contentTop = Math.min(contentTop, node.y - style.lineWidth / 2)
-        for (const group of groups) contentTop = Math.min(contentTop, group.y - style.lineWidth / 2)
-        for (const edge of edges) {
-          const stroke = style.lineWidth * (edge.style === 'thick' ? 2 : 1)
-          for (const point of edge.points) contentTop = Math.min(contentTop, point.y - stroke / 2)
-          if (edge.label && edge.labelPosition) contentTop = Math.min(contentTop, labelBoxAt(edge, edge.labelPosition, style).y - labelHaloExtension(edge, style.lineWidth))
-        }
-        const shift = padding + titleBand.height - contentTop
-        if (shift > 0) translatePositionedGraph({ width, height, nodes, groups, edges }, shift)
+    // Preferences relax in order: keeping off drawn lines, then the longer
+    // leads. Under each, the channel stretch whose route has the fewest bends,
+    // then the shortest, wins; ties keep the earlier stretch.
+    let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['runs'][number] | undefined, best = Infinity
+    const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, request.stub] : [request.stub]
+    search: for (const avoid of drawn.length ? [spacing, undefined] : [undefined]) for (const stub of stubs) {
+      for (const run of channel?.runs ?? [undefined]) {
+        const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings })
+        const cost = candidate ? routeCost(candidate) : Infinity
+        if (cost < best) { route = candidate; chosen = run; best = cost }
       }
-      const grow = (box: MeasuredBox): void => {
-        width = Math.max(width, box.x + box.width + padding)
-        height = Math.max(height, box.y + box.height + padding)
-      }
-      nodes.forEach(grow); groups.forEach(grow)
+      if (route) break search
+    }
+    if (chosen?.caption) reserved.set(edge, routerBox(chosen.caption))
+    edge.points = (route ?? fail(`${edge.source} -> ${edge.target} has no clear route`)).map(point => ({ x: point.x, y: point.y }))
+    for (let index = 1; index < edge.points.length; index++) drawn.push([edge.points[index - 1]!, edge.points[index]!])
+    if (!channel && edge.label) {
+      const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
+        .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
+      if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
+    }
+  }
+  if (channels.size) seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
+  if (channels.size) {
+    let halo = 0
+    for (const edge of edges) if (edge.label) halo = Math.max(halo, labelHaloExtension(edge, style.lineWidth))
+    translateGeometryToNonNegativeOrigin(nodes, edges, groups, padding, style, halo)
+    if (titleBand) {
+      // Outside channels can normalize above the original lane placement,
+      // or stay positive while still entering the title band. Move all
+      // content together, reserving the complete caption paint envelope.
+      let contentTop = Infinity
+      for (const node of nodes) contentTop = Math.min(contentTop, node.y - style.lineWidth / 2)
+      for (const group of groups) contentTop = Math.min(contentTop, group.y - style.lineWidth / 2)
       for (const edge of edges) {
-        for (const point of edge.points) {
-          width = Math.max(width, point.x + padding); height = Math.max(height, point.y + padding)
-        }
-        if (edge.label && edge.labelPosition) {
-          const box = labelBoxAt(edge, edge.labelPosition, style)
-          grow({ x: box.x - halo, y: box.y - halo, width: box.width + halo * 2, height: box.height + halo * 2 })
-        }
+        const stroke = style.lineWidth * (edge.style === 'thick' ? 2 : 1)
+        for (const point of edge.points) contentTop = Math.min(contentTop, point.y - stroke / 2)
+        if (edge.label && edge.labelPosition) contentTop = Math.min(contentTop, labelBoxAt(edge, edge.labelPosition, style).y - labelHaloExtension(edge, style.lineWidth))
+      }
+      const shift = padding + titleBand.height - contentTop
+      if (shift > 0) translatePositionedGraph({ width, height, nodes, groups, edges }, shift)
+    }
+    const grow = (box: MeasuredBox): void => {
+      width = Math.max(width, box.x + box.width + padding)
+      height = Math.max(height, box.y + box.height + padding)
+    }
+    nodes.forEach(grow); groups.forEach(grow)
+    for (const edge of edges) {
+      for (const point of edge.points) {
+        width = Math.max(width, point.x + padding); height = Math.max(height, point.y + padding)
+      }
+      if (edge.label && edge.labelPosition) {
+        const box = labelBoxAt(edge, edge.labelPosition, style)
+        grow({ x: box.x - halo, y: box.y - halo, width: box.width + halo * 2, height: box.height + halo * 2 })
       }
     }
-    const positioned: PositionedGraph = { width, height, nodes, groups, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, padding) } : {}) }
-    // Final routes against the painted headers, as graph layout certifies
-    // subgraph bands: strict safety refuses, report safety draws the routes
-    // with an uncertified receipt naming each band they misuse.
-    const findings = positionedHeaderRouteFindings(positioned, style, 'perpendicular')
-    if (findings.length && (options.layoutSafety === 'strict' || findings.some(finding => !finding.drawable))) {
-      throw new LayoutCertificationError([{ strategy: 'swimlane:header-bands', violations: findings.map(finding => finding.text) }])
-    }
-    const uncertified = mergeUncertifiedLayout(undefined, 'swimlane:header-bands', findings.map(finding => finding.drawable!))
-    return uncertified ? { ...positioned, uncertifiedLayout: uncertified } : positioned
-  } finally { grid?.retire() }
+  }
+  const positioned: PositionedGraph = { width, height, nodes, groups, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, padding) } : {}) }
+  // Final routes against the painted headers, as graph layout certifies
+  // subgraph bands: strict safety refuses, report safety draws the routes
+  // with an uncertified receipt naming each band they misuse.
+  const findings = positionedHeaderRouteFindings(positioned, style, 'perpendicular')
+  if (findings.length && (options.layoutSafety === 'strict' || findings.some(finding => !finding.drawable))) {
+    throw new LayoutCertificationError([{ strategy: 'swimlane:header-bands', violations: findings.map(finding => finding.text) }])
+  }
+  const uncertified = mergeUncertifiedLayout(undefined, 'swimlane:header-bands', findings.map(finding => finding.drawable!))
+  return uncertified ? { ...positioned, uncertifiedLayout: uncertified } : positioned
 }
 
 /** Fractional occurrence contacts need enough physical face for their actual
@@ -272,10 +273,33 @@ function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, Pos
   return sizes
 }
 
-/** Occurrences, including reverse hand-offs, need individual painted channels.
- * Reuse graph lane geometry while responsibility frames stay transparent. Each
- * approach is still routed by the shared obstacle graph, including nested ink. */
-type HandoffChannel = { points: Point[]; direction: Direction; caption?: MeasuredBox }
+/** Where a route meets its endpoint: the contact point, the side it leaves
+ * or enters by, the stub that clears the endpoint's bounding box, and a
+ * longer lead preferred where it is clear. */
+type Terminal = { port: Point; side: RouterDirection; stub: number; lead?: number }
+const OPPOSITE: Record<RouterDirection, RouterDirection> = { E: 'W', W: 'E', N: 'S', S: 'N' }
+
+function terminal(box: MeasuredBox, port: Point, side: RouterDirection, gap: number): Terminal {
+  const inset = side === 'E' ? box.x + box.width - port.x : side === 'W' ? port.x - box.x : side === 'S' ? box.y + box.height - port.y : port.y - box.y
+  return { port, side, stub: Math.max(0, inset) + gap }
+}
+
+/** Bends dominate length, as in the router's own search. */
+function routeCost(route: readonly Point[]): number {
+  let length = 0
+  for (let index = 1; index < route.length; index++) length += Math.abs(route[index]!.x - route[index - 1]!.x) + Math.abs(route[index]!.y - route[index - 1]!.y)
+  return (route.length - 2) * 1e4 + length
+}
+
+function routerBox(box: MeasuredBox, margin = 0): RouterBox {
+  return { x0: box.x - margin, y0: box.y - margin, x1: box.x + box.width + margin, y1: box.y + box.height + margin }
+}
+
+/** Occurrences (parallel and reciprocal hand-offs, self-loops) each run on
+ * their own channel outside the content, alternating sides, with a straight
+ * stretch long enough for the complete caption. The shared router reaches the
+ * channel from each port around every card, header and other caption. */
+type HandoffChannel = { source: Terminal; target: Terminal; runs: { via: Point[]; caption?: MeasuredBox }[]; direction: Direction }
 
 function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
@@ -294,8 +318,16 @@ function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGr
   for (const pair of pairs.values()) {
     const first = pair[0]!, crossLane = owners.get(first.source) !== owners.get(first.target)
     const alongX = crossLane ? !horizontal : horizontal
-    const cross = alongX ? 'y' : 'x'
+    const axis = alongX ? 'x' : 'y', cross = alongX ? 'y' : 'x', crossSize = alongX ? 'height' : 'width'
     const low = alongX ? top : left, high = alongX ? bottom : right, pitch = alongX ? pitchY : pitchX
+    // Contacts follow the channels across each face, outermost low channel
+    // first and outermost high channel last, so the turns to them nest
+    // instead of crossing.
+    const firstChannel = occurrence, channel = (index: number) => firstChannel + index
+    const slots = pair.map((_, index) => index).sort((a, b) => {
+      const ca = channel(a), cb = channel(b), side = (ca % 2) - (cb % 2)
+      return side || (ca % 2 ? ca - cb : cb - ca)
+    })
     for (const [index, edge] of pair.entries()) {
       const source = byId.get(edge.source)!, target = byId.get(edge.target)!
       const positive = alongX ? target.x + target.width / 2 >= source.x + source.width / 2 : target.y + target.height / 2 >= source.y + source.height / 2
@@ -303,35 +335,41 @@ function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGr
       const channelIndex = occurrence++
       const offset = pitch / 2 + 16 + Math.floor(channelIndex / 2) * pitch
       const lane = channelIndex % 2 ? high + offset : low - offset
-      // The shared kernel needs only endpoint rectangles. Group frames have a
-      // rectangular boundary; task ports are clipped back to their true shape.
-      const sourceNode: PositionedNode = 'shape' in source ? source : { ...source, shape: 'rectangle' }
-      const targetNode: PositionedNode = 'shape' in target ? target : { ...target, shape: 'rectangle' }
-      const points = symmetricParallelOuterLanePoints(sourceNode, targetNode, direction, lane, index, pair.length)
-      for (const [node, at, side] of [[sourceNode, 0, alongX ? positive ? 'E' : 'W' : positive ? 'S' : 'N'], [targetNode, points.length - 1, alongX ? positive ? 'W' : 'E' : positive ? 'N' : 'S']] as const) {
-        const port = pointOnRoutingBoundary(shapeRoutingProfile(node).boundary, side, points[at]![cross])
-        if (port) {
-          points[at] = port
-          points[at === 0 ? 1 : points.length - 2] = side === 'E' ? { x: node.x + node.width + stubGap, y: port.y }
-            : side === 'W' ? { x: node.x - stubGap, y: port.y }
-              : side === 'S' ? { x: port.x, y: node.y + node.height + stubGap } : { x: port.x, y: node.y - stubGap }
-        }
+      // Group frames have a rectangular boundary; task ports follow the true
+      // shape.
+      const fraction = (slots.indexOf(index) + 1) / (pair.length + 1)
+      // Inner channels turn out later than outer ones on the same side, so
+      // their turns nest too, where the longer lead is clear.
+      const outer = pair.filter((_, other) => channel(other) % 2 === channelIndex % 2 && channel(other) > channelIndex).length
+      const contact = (box: PositionedNode | PositionedGroup, side: RouterDirection): Terminal => {
+        const node: PositionedNode = 'shape' in box ? box : { ...box, shape: 'rectangle' }
+        const at = node[cross] + node[crossSize] * fraction
+        const port = pointOnRoutingBoundary(shapeRoutingProfile(node).boundary, side, at)
+          ?? (alongX ? { x: side === 'E' ? node.x + node.width : node.x, y: at } : { x: at, y: side === 'S' ? node.y + node.height : node.y })
+        const plain = terminal(node, port, side, stubGap)
+        return outer ? { ...plain, lead: plain.stub + outer * stubGap } : plain
       }
-      // Reserve a segment that fits the complete painted caption. Nearby
-      // task faces otherwise leave too little room even on an outside lane.
-      const axis = alongX ? 'x' : 'y', alongSize = alongX ? 'width' : 'height'
-      const a = points[2]!, b = points[points.length - 3]!
-      const needed = (edge.labelBlock?.[alongSize] ?? 0) + 64 + 2 * labelHaloExtension(edge, style.lineWidth)
-      if (Math.abs(b[axis] - a[axis]) < needed) {
-        const midpoint = (a[axis] + b[axis]) / 2, sign = positive ? 1 : -1
-        a[axis] = midpoint - sign * needed / 2
-        b[axis] = midpoint + sign * needed / 2
-      }
-      const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-      const pill = edge.label ? labelBoxAt(edge, center, style) : undefined
+      const start = contact(source, alongX ? positive ? 'E' : 'W' : positive ? 'S' : 'N')
+      const end = contact(target, alongX ? positive ? 'W' : 'E' : positive ? 'N' : 'S')
+      // The route runs straight along its channel for the complete painted
+      // caption, centred between the two leads. A stretch longer than the
+      // leads leave room for may instead start at one lead and extend past
+      // the other, where the centred one has no clear way back to a port.
+      const lead = (t: Terminal) => t.port[axis] + (t.side === 'E' || t.side === 'S' ? 1 : -1) * (t.lead ?? t.stub)
+      const from = lead(start), to = lead(end), midpoint = (from + to) / 2, sign = to === from ? (positive ? 1 : -1) : Math.sign(to - from)
+      const needed = (edge.labelBlock?.[alongX ? 'width' : 'height'] ?? 0) + 32 + 2 * labelHaloExtension(edge, style.lineWidth)
+      const stretches = [[midpoint - sign * needed / 2, midpoint + sign * needed / 2], ...(Math.abs(to - from) < needed ? [[from, from + sign * needed], [to - sign * needed, to]] : [])]
+      // Each stretch is first tried reaching the channel level with each lead,
+      // so the route turns straight out to it and back, then anywhere.
       const halo = labelHaloExtension(edge, style.lineWidth) + 4
-      const caption = pill ? { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 } : undefined
-      channels.set(edge, { points, direction, caption })
+      const runs = stretches.flatMap(([first, last]) => {
+        const pill = edge.label ? labelBoxAt(edge, alongX ? { x: (first! + last!) / 2, y: lane } : { x: lane, y: (first! + last!) / 2 }, style) : undefined
+        const caption = pill ? { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 } : undefined
+        const point = (along: number) => alongX ? { x: along, y: lane } : { x: lane, y: along }
+        const leads = [...(sign * (first! - from) > 0 ? [from] : []), first!, last!, ...(sign * (to - last!) > 0 ? [to] : [])]
+        return [...(leads.length > 2 ? [{ via: leads.map(point), caption }] : []), { via: [first!, last!].map(point), caption }]
+      })
+      channels.set(edge, { source: start, target: end, runs, direction })
     }
   }
   return channels
