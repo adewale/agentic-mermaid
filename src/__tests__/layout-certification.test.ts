@@ -130,21 +130,21 @@ describe('bounded final layout certification', () => {
     }
   })
 
-  test.each([false, true])('optional order search preserves the fourth mandatory recovery with balanced=%s', balanced => {
+  test.each([false, true])('optional order search preserves the third mandatory recovery with balanced=%s', balanced => {
     const first = LAYOUT_PIPELINE[0]!, run = first.run
     let mandatory = 0, optional = 0
     first.run = context => {
       const relaxed = context.elkResult?.layoutOptions?.['elk.layered.crossingMinimization.forceNodeModelOrder'] === 'false'
       if (relaxed) optional++
       else mandatory++
-      if (relaxed || mandatory < 4) throw new Error('rejected geometry candidate')
+      if (relaxed || mandatory < 3) throw new Error('rejected geometry candidate')
       run(context)
     }
     try {
       const result = withPerformanceExperiments([], () => renderMermaidSVGWithReceipt('flowchart LR\nA --> B', {
         graphLayout: { backend: 'elk', ...(balanced ? { quality: 'balanced' as const } : {}) },
       }))
-      expect(mandatory).toBe(4)
+      expect(mandatory).toBe(3)
       expect(optional).toBe(0)
       expect(result.svg).toContain('data-id="A"')
       if (balanced) expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)

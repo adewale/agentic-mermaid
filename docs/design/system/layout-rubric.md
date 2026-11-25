@@ -105,8 +105,8 @@ Generic bundling is a bounded proposal: the engine first chooses a certified
 bundled placement, then may compare one completed unbundled route proposal from
 that selected placement's same ELK result. Its existing certification score and
 successful checks are reused; only the new proposal is certified. The total
-bound is four placement pipelines plus one unbundled route
-pipeline, with at most 16 ELK attempts; routing alternatives are not multiplied
+bound is three placement pipelines plus one unbundled route
+pipeline, with at most 12 ELK attempts; routing alternatives are not multiplied
 across placement strategies. The receipt retains bundled placement scores in
 `preference.compared`, the actual final route score in `preference.selectedScore`,
 and the selected placement's route comparison in `preference.routing`.

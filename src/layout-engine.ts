@@ -2017,7 +2017,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   return runElkGraphBackend(options, () => layoutElkGraph(graph, options), (positioned, decision) => { positioned.layoutDecision = decision })
 }
 
-/** Four deterministic strategy combinations, each with the existing bounded
+/** Three deterministic strategy combinations, each with the existing bounded
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose: 'placement'): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'>
@@ -2058,12 +2058,11 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
     candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   // Search placement strategies first, then test one completed route proposal
   // only for the selected placement, reusing its ELK result and certified score.
-  // At most four ELK placements and one route pipeline;
-  // the existing 16-ELK exceptional upper bound is unchanged.
+  // At most three ELK placements and one route pipeline;
+  // the exceptional upper bound is three placements times the four-rung ELK ladder.
   // Report layout safety still draws a graph no candidate certifies, from its
   // best drawable candidate, with an uncertified receipt; strict refuses.
   const allowUncertified = options.layoutSafety !== 'strict'

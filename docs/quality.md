@@ -141,8 +141,8 @@ comparison, scores and deciding criterion.
 The receipt's `attempts` counts placement productions; the optional final route
 comparison is recorded separately.
 Clean graphs, equivalent strategies and larger inputs skip these comparisons;
-the upper bound is four placement pipelines plus one unbundled route pipeline,
-with the existing maximum of 16 ELK attempts. The unbundled proposal reuses the
+the upper bound is three placement pipelines plus one unbundled route pipeline,
+with at most 12 ELK attempts. The unbundled proposal reuses the
 selected placement's ELK result. Search decisions use graph
 work counts, never elapsed time, so machine speed cannot change the drawing.
 These route comparisons apply to Flowchart and State, which retain the scored
