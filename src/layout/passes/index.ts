@@ -2,7 +2,7 @@
 export { equalizePeerNodeDimensions, centerPeerBarycenters, corankFanInSpokes, markCorankFanInBundles, alignForkRejoinPeerCenters } from './peers.ts'
 export { honorLinkRankDistance } from './rank-distance.ts'
 export { reanchorOffOutlineEndpoints, rerouteEdgesThroughNodes, repairInwardEndpointApproaches, repairResidualDiagonals, collapseTinyBundledHitches } from './obstacle-routing.ts'
-export { reassignBundledSiblingLabels, applySymmetricFanoutEmissions } from './fanout.ts'
+export { applySymmetricFanoutEmissions } from './fanout.ts'
 export { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from './parallel-lanes.ts'
 export { alignLabeledSourcePort, alignPortLanes } from './port-lanes.ts'
 export { alignLayerNodes } from './layer-alignment.ts'

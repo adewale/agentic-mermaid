@@ -47,41 +47,6 @@ function seatGroupedFanout(
   return retained && complete() || assignBundledFanoutLabels(proposed, nodes, direction, style, false, admit) && complete()
 }
 
-export function reassignBundledSiblingLabels(
-  nodes: PositionedNode[],
-  edges: PositionedEdge[],
-  bundled: ReadonlySet<PositionedEdge>,
-  direction: Direction,
-  style: LabelMetricsStyle,
-  groups: PositionedGroup[] = [],
-): void {
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
-  const bySource = new Map<string, PositionedEdge[]>()
-  for (const edge of edges) {
-    if (!bundled.has(edge) || !edge.label || !positionedEdgeForwardish(edge, nodeMap, direction)) continue
-    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
-    bySource.get(edge.source)!.push(edge)
-  }
-  for (const group of bySource.values()) {
-    if (group.length < 2 || group.length > 3) continue
-    if (new Set(group.map(edge => edge.target)).size < group.length) continue
-    const sorted = [...group].sort((a, b) => {
-      const aTarget = nodeMap.get(a.target)
-      const bTarget = nodeMap.get(b.target)
-      if (!aTarget || !bTarget) return (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0)
-      return nodeCrossCenter(aTarget, direction) - nodeCrossCenter(bTarget, direction)
-    })
-    const source = nodeMap.get(sorted[0]!.source)!
-    if (source?.shape === 'rectangle' && nodeInsideGroups(source, groups)) {
-      const proposed = sorted.map(edge => ({ edge: { ...edge }, points: edge.points }))
-      const replacements = new Map(sorted.map((edge, i) => [edge, proposed[i]!.edge]))
-      if (seatGroupedFanout(proposed, nodes, edges.map(edge => replacements.get(edge) ?? edge), groups, direction, style)) {
-        sorted.forEach((edge, i) => { edge.labelPosition = proposed[i]!.edge.labelPosition })
-      }
-    } else assignBundledFanoutLabels(sorted.map(edge => ({ edge, points: edge.points })), nodes, direction, style)
-  }
-}
-
 /** The ids of every group enclosing `node`, outermost first. */
 function containingGroups(node: PositionedNode, groups: PositionedGroup[]): string {
   return flattenPositionedGroups(groups).filter(group => rectInsideGroup(node, group)).map(group => group.id).join('\u0000')

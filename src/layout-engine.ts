@@ -59,8 +59,6 @@ import {
   extractEdgesRecursively,
   honorLinkRankDistance,
   markCorankFanInBundles,
-  reanchorOffOutlineEndpoints,
-  reassignBundledSiblingLabels,
   repairInwardEndpointApproaches,
   repairResidualDiagonals,
   rerouteEdgesThroughNodes,
@@ -1472,13 +1470,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { collapseTinyBundledHitches(c.nodes, c.edges, c.bundled) },
   },
   {
-    id: 'reassignBundledSiblingLabels', doc: 're-home labels onto the correct bundled sibling segment',
-    after: ['collapseTinyBundledHitches'], mutates: ['labels'],
-    run: c => { reassignBundledSiblingLabels(c.nodes, c.edges, c.bundled, c.graph.direction, c.style, c.groups) },
-  },
-  {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
-    after: ['reassignBundledSiblingLabels'], mutates: ['edges'], freezesNodes: true,
+    after: ['collapseTinyBundledHitches'], mutates: ['edges'], freezesNodes: true,
     // An uncertified two-point route can still be diagonal or cross a node.
     // Hard/terminal repairs and fewer crossings may cost up to four bends
     // per removed defect. Mere preferred-port or symmetry changes may not.
@@ -1490,13 +1483,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, undefined) },
   },
   {
-    id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
-    after: ['applyRouteContracts'], mutates: ['edges'],
-    run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph, c.style) },
-  },
-  {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
-    after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'],
+    after: ['applyRouteContracts'], mutates: ['edges'],
     run: c => {
       const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
       c.titleBandRepairs = rerouted.titleBandRepairs
