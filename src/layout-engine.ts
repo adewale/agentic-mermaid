@@ -27,8 +27,8 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layou
 import { certifyCandidate, certifyLayoutPlacementCandidates, certifyLayoutWithRouteAlternative, type LayoutCertificationCandidate, LayoutCertificationError, positionedGeometryFindings, retainSelection, withinLayoutPreferenceBudget } from './layout/certification.ts'
 import type { MarginInfo } from './layout/geometry.ts'
 import { calculatePathMidpoint, DEFAULTS, findSubgraph, flattenGroupBounds, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeCrossStart, nodeMainCenter, nodeMainSize, nodeMainStart, pointAtPathDistance, polylineLength, positionedNodeCenter, rectsOverlap } from './layout/geometry.ts'
-import type { LayoutPass, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
-import { runPipeline } from './layout/pass.ts'
+import type { LayoutPass, LayoutPassStep, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
+import { runPipeline, runSteps } from './layout/pass.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
 import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
@@ -1341,6 +1341,14 @@ function checkpointCentering(context: LayoutPassContext): () => void {
   }
 }
 
+/** The label settler's steps. The two label-only steps may not rewrite a route. */
+const SETTLE_EDGE_LABEL_STEPS: ReadonlyArray<LayoutPassStep<LayoutPassContext>> = [
+  { id: 'repairLabelsOnSharedTrunks', mutates: ['edges'], run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
+  { id: 'repairLabelsOffOwnRoute', mutates: ['labels'], run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
+  { id: 'separateEdgeLabelPills', mutates: ['edges'], run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
+  { id: 'reseatConflictedLabels', mutates: ['labels'], run: c => { reseatConflictedLabels(c.nodes, c.edges, c.style) } },
+]
+
 // The post-ELK geometry pipeline, reified (docs/design/system/route-contracts.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with unchanged arguments. Symmetry repairs retain their current order: duplicate
@@ -1368,24 +1376,24 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
-    id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
+    id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15), then slide a single-outgoing labelled source onto the predicted straightener lane so the exit stays mid-port',
     after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
-    run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
-  },
-  {
-    id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
-    after: ['alignForkRejoinPeerCenters'], mutates: ['positions', 'edges'],
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
-    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
+    run: c => {
+      alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style)
+      alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style)
+    },
   },
   {
-    id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    id: 'centerPeerBarycenters', proposal: true, doc: 'center fork/rejoin hubs and peer fan-in/fan-out trunks over their peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions', 'edges'],
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     run: c => {
+      // One proposal: a rejected budget restores the geometry before both steps.
       let rollback: (() => void) | undefined
-      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
+      const checkpoint = () => { rollback ??= checkpointCentering(c) }
+      alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint)
+      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint)
       return rollback
     },
   },
@@ -1395,36 +1403,22 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
-    // Runs after centering/rank-distance repair, before fanout may move peer
-    // targets again. Its lane predictor preserves the later straightener's
-    // intended source port.
-    id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the predicted straightener lane so the exit stays mid-port',
-    after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { portRate: 'improve-only' },
-    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style) },
-  },
-  {
-    id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
-    after: ['alignLabeledSourcePort'], mutates: ['edges'],
-    enabled: c => c.mergeEdges,
+    // The co-ranked mixed-label fan-in spokes are re-routed as symmetric
+    // converging doglegs and marked bundle-owned whether or not the plain
+    // bundler ran: the fan-in converges via centering either way.
+    id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges); re-route + mark co-ranked mixed-label fan-in spokes bundle-owned',
+    after: ['honorLinkRankDistance'], mutates: ['edges'],
     run: c => {
-      c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
-      c.genericBundled = c.bundled.size > 0
+      if (c.mergeEdges) {
+        c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
+        c.genericBundled = c.bundled.size > 0
+      }
+      markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style)
     },
   },
   {
-    // Re-route the co-ranked mixed-label fan-in spokes as symmetric converging
-    // doglegs and mark them bundle-owned, so applyRouteContracts certifies them
-    // 'bundle' — the justified-bend marker findRouteHitches and the layout-rubric
-    // both key off. Independent of mergeEdges: the fan-in converges via centering
-    // whether or not the plain bundler ran, so the marker must too.
-    id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
-    after: ['bundleEdgePaths'], mutates: ['edges'],
-    run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
-  },
-  {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
-    after: ['markCorankFanInBundles'], mutates: ['edges'],
+    after: ['bundleEdgePaths'], mutates: ['edges'],
     mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'endpointApproaches' }, endpointApproaches: 'improve-only' },
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
@@ -1483,7 +1477,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, undefined) },
   },
   {
-    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
+    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, give every arrival class that may not share an arrowhead its own slot, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'],
     run: c => {
       const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
@@ -1491,43 +1485,21 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
+      separateIndistinctArrivals(c.nodes, c.edges, c.style)
+      repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
     },
   },
   {
-    id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',
+    id: 'settleEdgeLabels', doc: 'seat edge labels on their final routes: shared-trunk seats or proved private channels, pills off their own route, colliding pills, then captions still crossed by a foreign shaft (freeze-safe)',
     after: ['rerouteEdgesThroughNodes'], mutates: ['edges'],
-    run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'repairLabelsOffOwnRoute', doc: 're-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)',
-    after: ['repairLabelsOnSharedTrunks'], mutates: ['labels'],
-    run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'separateIndistinctArrivals', doc: 'give every arrival class that may not share an arrowhead its own slot on the entry face, whichever pass merged it (edge-only, freeze-safe)',
-    after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
-    run: c => { separateIndistinctArrivals(c.nodes, c.edges, c.style) },
-  },
-  {
-    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
-    after: ['separateIndistinctArrivals'], mutates: ['edges'],
-    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    steps: SETTLE_EDGE_LABEL_STEPS,
+    run: runSteps('settleEdgeLabels', SETTLE_EDGE_LABEL_STEPS),
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
-    after: ['separateEdgeLabelPills'], mutates: ['edges'],
+    after: ['settleEdgeLabels'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
-    after: ['closeRouteContracts'], mutates: ['edges'],
-    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
-  },
-  {
-    id: 'reseatConflictedLabels', doc: 'move a caption still crossed by a foreign shaft to the clearest seat on its own final route (label-only, freeze-safe)',
-    after: ['repairResidualDiagonals'], mutates: ['labels'],
-    run: c => { reseatConflictedLabels(c.nodes, c.edges, c.style) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',

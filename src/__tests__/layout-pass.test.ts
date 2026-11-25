@@ -24,6 +24,8 @@ import { opposingRoutePartners } from '../shared/edge-overlaps.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
+const settleLabelStep = (id: string) => LAYOUT_PIPELINE.find(pass => pass.id === 'settleEdgeLabels')!.steps!.find(step => step.id === id)!
+
 describe('source-aware ELK child order', () => {
   test.each([
     ['ready nodes released ahead of earlier queued nodes', 'flowchart TD\nA\nB\nC\nD\nE\nE --> B\nB --> D\nA --> C', ['A', 'C', 'E', 'B', 'D']],
@@ -76,7 +78,7 @@ N2 --->|a longer label goes here| N4`)
       const source = `flowchart ${direction}\nA[Start] --> B[Done]`
       const baseline = renderMermaidSVG(source, { embedFontImport: false })
       // The injected route fault must originate at a route-writing owner.
-      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOnSharedTrunks')!, run = pass.run
+      const pass = settleLabelStep('repairLabelsOnSharedTrunks'), run = pass.run
       let injected = 0
       pass.run = context => {
         run(context)
@@ -102,8 +104,8 @@ N2 --->|a longer label goes here| N4`)
     })
   })
 
-  test('a label-only pass cannot rewrite a route even with a fresh certificate', () => {
-    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOffOwnRoute')!, run = pass.run
+  test('a label-only step cannot rewrite a route even with a fresh certificate', () => {
+    const pass = settleLabelStep('repairLabelsOffOwnRoute'), run = pass.run
     pass.run = context => {
       run(context)
       const edge = context.edges[0]!, a = edge.points[0]!, b = edge.points.at(-1)!
@@ -285,7 +287,7 @@ S1["same word ok"] --> D`],
   })
 
   test('a late edge pass moving a frozen node is a production contract failure, not a fallback candidate', () => {
-    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOffOwnRoute')!
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'settleEdgeLabels')!
     const run = pass.run
     let calls = 0, failure: unknown
     pass.run = context => { calls++; run(context); context.nodes[0]!.x += 9 }
@@ -297,7 +299,7 @@ S1["same word ok"] --> D`],
       pass.run = run
     }
     expect(failure).toBeInstanceOf(LayoutPassContractError)
-    expect(failure).toMatchObject({ pass: 'repairLabelsOffOwnRoute', contract: 'freeze' })
+    expect(failure).toMatchObject({ pass: 'settleEdgeLabels', contract: 'freeze' })
     expect(calls).toBe(1)
   })
 

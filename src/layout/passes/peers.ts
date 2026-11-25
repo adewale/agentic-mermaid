@@ -674,6 +674,7 @@ export function alignForkRejoinPeerCenters(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   style: LabelMetricsStyle,
+  beforeMove?: () => void,
 ): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -739,6 +740,7 @@ export function alignForkRejoinPeerCenters(
     if (Math.abs(delta) <= 0.5) continue
     if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) continue
     layoutDebug('[fork-rejoin] center', source.id, 'peer island by', delta.toFixed(1))
+    beforeMove?.()
     shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
   }
 }

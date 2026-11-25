@@ -80,6 +80,36 @@ export interface LayoutPass<C extends PassContextBase> {
   /** A cosmetic proposal may return a geometry-only rollback. Required passes
    * return void; ordering, measurement, hard and freeze failures always escape. */
   run: (ctx: C) => void | (() => void)
+  /** The named steps a merged pass runs (via `runSteps`), each with its own effects. */
+  steps?: ReadonlyArray<LayoutPassStep<C>>
+}
+
+/** One named step of a merged pass. A step that does not declare `edges`
+ * moves labels only, and `runSteps` checks that it rewrote no route. */
+export interface LayoutPassStep<C extends PassContextBase> {
+  id: string
+  mutates: PassEffect[]
+  run: (ctx: C) => void
+}
+
+const samePoints = (a: ReadonlyArray<{ x: number; y: number }> | undefined, b: ReadonlyArray<{ x: number; y: number }> | undefined): boolean =>
+  a?.length === b?.length && (a ?? []).every((point, i) => point.x === b![i]!.x && point.y === b![i]!.y)
+
+/** Run a merged pass's steps in order, each held to its own declared effects.
+ * Routes are replaced rather than edited (frozen under scene assertions), so a
+ * changed `points` identity is the evidence a label-only step rewrote one. */
+export function runSteps<C extends PassContextBase>(pass: string, steps: ReadonlyArray<LayoutPassStep<C>>): (ctx: C) => void {
+  return ctx => {
+    for (const step of steps) {
+      if (step.mutates.includes('edges')) { step.run(ctx); continue }
+      const routes = (ctx.edges ?? []).map(edge => edge.points)
+      step.run(ctx)
+      const edges = ctx.edges ?? []
+      if (edges.length !== routes.length || edges.some((edge, i) => edge.points !== routes[i] && !samePoints(edge.points, routes[i]))) {
+        throw new LayoutPassContractError(`${pass}/${step.id}`, 'effects', `LayoutPass effects: '${pass}/${step.id}' rewrote edge geometry outside its declared effects [${step.mutates.join(', ')}]`)
+      }
+    }
+  }
 }
 
 export interface RunOptions<C extends PassContextBase> {
