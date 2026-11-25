@@ -24,7 +24,7 @@ import { createTextMeasurementExecution, withTextMeasurementExecution } from '..
 import { connector, shape } from '../scene/marks.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
-import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
+import { alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { labelSeatPaintContext, labelShafts } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
@@ -3009,22 +3009,6 @@ describe('port-lane reserved-header admission', () => {
     alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
     if (marked) expect({ nodes, edges }).toEqual(before)
     else expect(nodes[1]!.y).toBe(100)
-  })
-
-  for (const width of ['20', '16']) it(`${width === '20' ? 'refuses' : 'keeps'} the labelled-source slide beside a foreign painted shaft`, () => {
-    const graph = parseMermaid('flowchart LR\nS -->|go| T\nU --> V')
-    const nodes = [n('S', 0, 0, 40, 100), n('T', 120, 80), n('U', -70, 144, 20, 20), n('V', 80, 144, 20, 20)]
-    const edges = [{ ...e('S', 'T', [{ x: 40, y: 95 }, { x: 120, y: 95 }]), label: 'go', labelPosition: { x: 80, y: 95 } },
-      { ...e('U', 'V', [{ x: -50, y: 154 }, { x: 80, y: 154 }]), inlineStyle: { 'stroke-width': width } }]
-    const before = structuredClone({ nodes, edges })
-    // Recentring S on y95 puts its bottom at145. The y154 centreline
-    // clears the moved body, while the 20px shaft reaches y144.
-    alignLabeledSourcePort(nodes, edges, [], graph, 'LR', resolveRenderStyle())
-    if (width === '20') expect({ nodes, edges }).toEqual(before)
-    else {
-      expect(nodes[0]!.y).toBe(45)
-      expect(edges[0]!.labelPosition).toEqual({ x: 80, y: 95 })
-    }
   })
 
   it('retains the clear compound detour from chained hubs 355 instead of sweeping its terminal run through G', () => {

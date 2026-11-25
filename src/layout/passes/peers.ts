@@ -489,9 +489,8 @@ export function centerPeerBarycenters(
  * the hub and the spokes converge as symmetric doglegs. Those bends are
  * JUSTIFIED — the convergence is structurally necessary and buys the symmetry —
  * so the spokes must be treated exactly like the fan-out bundle: skipped by the
- * hitch oracle and exempt from the bend penalty. This is the single predicate
- * both consumers (markCorankFanInBundles, alignLabeledSourcePort) share, so the
- * bend exemption, the hitch HARD-invariant, and the labeled-source-port pass all
+ * hitch oracle and exempt from the bend penalty. markCorankFanInBundles marks
+ * exactly these spokes, so the bend exemption and the hitch HARD-invariant
  * AGREE on which spokes are part of a symmetric convergence.
  *
  * The gate mirrors corankFanInBalancingLabels (mixed labeled/unlabeled, rect hub

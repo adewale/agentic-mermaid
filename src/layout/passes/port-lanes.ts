@@ -1,14 +1,12 @@
-import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
-import { replaceRoutePoint, setLabelAxis, shiftRoute, shiftTerminalRun } from '../route-values.ts'
+import type { DiamondFacet, Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { setLabelAxis, shiftRoute, shiftTerminalRun } from '../route-values.ts'
 import { countEdgeCrossings, portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
-import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
+import { diamondFacetPorts, invalidEndpointApproaches, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geometry.ts'
-import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
-import { tryStraighten } from '../route-lanes.ts'
 import { arrivalsMayMerge, misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
@@ -16,7 +14,6 @@ import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from '../route-geometry.ts'
 import { STROKE_WIDTHS } from '../../styles.ts'
-import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
 
 import { writtenGeometry, finiteBox, boxesMeet, edgeInk, type GraphPaintStyle as PortLaneStyle } from '../graph-paint-support.ts'
 
@@ -118,294 +115,6 @@ function publishPortLaneCandidate(nodes: PositionedNode[], edges: PositionedEdge
   })
 }
 
-/**
- * Port-lane alignment, the placement repair for "straight but off-port":
- * a 2-point flow-axis edge whose endpoints' midpoint ports sit on different
- * cross lanes is floating through the overlap sliver of two side spans —
- * ELK's BALANCED node placement averages competing pulls and aligns such a
- * node with neither neighbor. Sliding ONE endpoint node by the lane
- * difference makes the edge midpoint-to-midpoint: port-exact AND straight,
- * the combination no routing-side repair can reach (port-aware coordinate
- * assignment in the Brandes–Köpf tradition, Rüegg et al. GD'15).
- *
- * Every move is proof-gated, mirroring alignLayerNodes' occlusion doctrine:
- * - only rect-like endpoints (their flow-side boundary is flat, so the
- *   edge's main-axis anchors survive a cross slide);
- * - the slid node's OTHER edges must be bent with a perpendicular segment
- *   to absorb the shift (their terminal run translates); a second straight
- *   edge or a group membership vetoes the move;
- * - the new bbox must keep clear of nodes, foreign edge corridors, and
- *   label pills.
- * The target node is tried first (often alone in its layer, the freest),
- * then the source.
- */
-/**
- * Restore the source mid-port for a labelled edge that ELK pushed off it.
- *
- * When a labelled edge is handed to ELK it reserves a cell for the inline label
- * dummy, and that cell displaces the edge's lane off the source node's mid-port:
- * the edge stays straight but exits the source off-centre (the "warnings →
- * warnings line not using the mid-point port" defect). alignPortLanes would
- * slide the node to fix exactly this, but every one of its slide loops EXCLUDES
- * labelled edges (`if (e.label) continue`), so the labelled case is never
- * repaired — which is what made global label-decoupling look necessary.
- *
- * The source's exit is whatever cross-LANE the certifying straightener
- * (applyRouteContracts) finally settles the edge onto — and that lane is chosen
- * downstream: it depends on the target's span, the label pill's fit, and any
- * fan-in. Aligning the source's mid to the TARGET's mid (the previous fix) only
- * works when the straightener happens to pick the shared mid lane; with a wide
- * label the pill cannot sit on the centred lane (so the straightener drops to an
- * off-centre lane), and with a fan-in skew the mids are too far apart for any
- * single lane to be port-exact at both ends. Both leave the source off-port.
- *
- * The general fix is to move the source onto the lane the straightener WILL use,
- * BEFORE the freeze, so the exit lands on the moved source's mid-port. We ask
- * the straightener's own read-only predictor (`straightLaneFor`) which lane it
- * will pick, iterating to a fixed point because moving the source shifts its
- * attach span (which can change the feasible lane). Then we slide the source by
- * that delta and re-anchor its exit endpoint exactly onto the mid-port. The
- * source may carry incoming edges (degree >= 2): their terminal run translates
- * with the node (anchored at the far end, the same machinery alignPortLanes
- * uses), so no edge is dragged off its other endpoint. Gated on the slid box
- * clearing every other node and foreign edge corridor (the occlusion doctrine
- * the other slides enforce); the independent hard-invariant gate is the backstop.
- */
-export function alignLabeledSourcePort(
-  nodes: PositionedNode[],
-  edges: PositionedEdge[],
-  groups: PositionedGroup[],
-  graph: MermaidGraph,
-  direction: Direction,
-  style: PortLaneStyle,
-): void {
-  if (layoutEnvFlag('APL_NO_LABELED_SOURCE_PORT')) return
-  if (!withinPortLaneBudget(nodes, edges, groups)) return
-  if (!edges.some(edge => edge.label)) return
-  const candidate = portLaneCandidate(nodes, edges)
-  alignLabeledSourcePortCandidate(candidate.nodes, candidate.edges, groups, graph, direction, style)
-  const budget = portLaneInkWork()
-  if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style, budget)) {
-    if (budget.remaining < 0) return
-    // The source slide predicts the straightener's lane. Before publication,
-    // materialize that same lane and its proved label seat on the private edge.
-    const { ctx, axis } = laneContextFor(candidate.nodes, candidate.edges, direction, style, groups)
-    for (let index = 0; index < candidate.edges.length; index++) {
-      const edge = candidate.edges[index]!
-      if (!edge.label || !routeChanged(edge, edges[index]!)) continue
-      const source = candidate.nodes.find(node => node.id === edge.source), target = candidate.nodes.find(node => node.id === edge.target)
-      if (!source || !target || !tryStraighten(edge, source, target, ctx, axis, edge.points[0]![axis.cross]).applied) return
-      recertifyReroutedEdge(edge, edge.routeCertificate, source, target)
-    }
-    const exhausted = Symbol()
-    const work = (): boolean => --budget.remaining >= 0
-    const pay = (): void => { if (!work()) throw exhausted }
-    try {
-      const paint = labelPaintClearance({ ...candidate, groups }, style, pay)
-      const clearSeat = (edge: PositionedEdge, previous: PositionedEdge): boolean => {
-        pay()
-        const rect = labelRect(edge, style)
-        if (!rect) return false
-        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1), edge)
-        if (!pill) return false
-        const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }
-        for (const peer of candidate.edges) {
-          pay()
-          const ink = edgeInk(peer, style, work)
-          if (!ink || ink.markers.some(marker => { pay(); return boxesMeet(box, marker.bounds!) })) return false
-          if (peer === edge) continue
-          if (ink.shafts.some(shaft => { pay(); return boxesMeet(box, shaft) })) return false
-          const other = labelRect(peer, style)
-          if (other) {
-            pay()
-            const halo = labelHaloExtension(peer, style.lineWidth ?? 1)
-            if (boxesMeet(box, { x0: other.x - halo, y0: other.y - halo, x1: other.x + other.w + halo, y1: other.y + other.h + halo })) return false
-          }
-        }
-        return portLaneInkClear(candidate.nodes, [edge], nodes, [previous], groups, style, budget)
-      }
-      for (let index = 0; index < candidate.edges.length; index++) {
-        pay()
-        const edge = candidate.edges[index]!, previous = edges[index]!
-        if (!edge.label || !routeChanged(edge, previous) || clearSeat(edge, previous)) continue
-        const inner = labelRect(edge, style), a = edge.points[0]!, b = edge.points[1]!
-        if (!inner || edge.points.length !== 2) return
-        const length = Math.hypot(b.x - a.x, b.y - a.y), half = (axis.main === 'x' ? inner.w : inner.h) / 2
-        if (!(length > 2 * half)) return
-        let seated = false
-        for (const t of centerOutLabelSamples(half / length, pay)) {
-          pay()
-          edge.labelPosition = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
-          if (clearSeat(edge, previous)) { seated = true; break }
-        }
-        if (!seated) return
-      }
-    } catch (error) {
-      if (error === exhausted) return
-      throw error
-    }
-    if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style, budget)) return
-  }
-  publishPortLaneCandidate(nodes, edges, candidate.nodes, candidate.edges)
-}
-
-function alignLabeledSourcePortCandidate(
-  nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, direction: Direction, style: LabelMetricsStyle,
-): void {
-  // A labeled source feeding a co-ranked, symmetrized mixed-label fan-in hub
-  // must YIELD: its spoke is now part of a symmetric convergence (the hub is
-  // centered on its sources' barycenter and the spokes are mirror doglegs).
-  // Re-straightening it onto the source mid-port would pull the spoke off the
-  // converged shape and de-center the hub — the older "labeled source exits
-  // straight at mid-port" contract is, for a fan-in, superseded by the
-  // symmetric-convergence principle (the spoke still EXITS at the mid-port, it
-  // just bends to converge). A labeled source whose target is single-input (no
-  // fan-in) is unaffected and still straightened below. We skip the hub's whole
-  // incoming spoke set via the shared corankFanInSpokes predicate, so this pass,
-  // the bend exemption, and the hitch oracle all agree on the same spokes.
-  const corankFanInTargets = new Set<string>()
-  for (const [hubId] of corankFanInSpokes(nodes, edges, groups, graph)) corankFanInTargets.add(hubId)
-  const isHorizontal = direction === 'LR' || direction === 'RL'
-  const cross = isHorizontal ? ('y' as const) : ('x' as const)
-  const main = isHorizontal ? ('x' as const) : ('y' as const)
-  const exitSide: 'N' | 'E' | 'S' | 'W' = isHorizontal
-    ? (direction === 'LR' ? 'E' : 'W')
-    : (direction === 'BT' ? 'N' : 'S')
-  const crossSize = (n: PositionedNode) => (isHorizontal ? n.height : n.width)
-  const portCross = (n: PositionedNode) => n[cross] + crossSize(n) / 2
-  // Clear actual overlap only (the slide moves a node to meet its own edge; a
-  // tight gap to an unrelated node is acceptable, and the independent
-  // hard-invariant gate is the real backstop against any overlap regression).
-  const GAP = 2
-
-  const flat: PositionedGroup[] = []
-  const collect = (gs: PositionedGroup[]) => { for (const g of gs) { flat.push(g); collect(g.children) } }
-  collect(groups)
-  const inGroup = (n: PositionedNode) => flat.some(g =>
-    n.x >= g.x - 0.5 && n.y >= g.y - 0.5 &&
-    n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5)
-
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
-  // The exit-side main coordinate of S's forward port (right edge for LR, etc).
-  const exitMain = (n: PositionedNode) => (main === 'x'
-    ? (exitSide === 'E' ? n.x + n.width : n.x)
-    : (exitSide === 'S' ? n.y + n.height : n.y))
-
-  // Gather S plus every upstream predecessor that must travel WITH it so its
-  // own incoming edge keeps its mid-port: each single-out, PORT_EXACT and
-  // ungrouped. Returns null if the chain is fed by a fan-out hub or an
-  // unmovable single-out source — we then leave S put rather than knock another
-  // source off its port (the degree-2 defect the narrow slide used to create).
-  const gatherMovableChain = (root: PositionedNode, labelled: PositionedEdge): Set<string> | null => {
-    const set = new Set<string>([root.id])
-    const stack = [root.id]
-    while (stack.length) {
-      const nId = stack.pop()!
-      for (const o of edges) {
-        if (o.target !== nId || o === labelled) continue // incoming edges only
-        const P = nodeMap.get(o.source)
-        // An edge from a subgraph frame cannot travel with the chain; sliding
-        // would leave its endpoint at the old port, off the moved outline.
-        if (!P) return null
-        if (set.has(P.id)) continue
-        if (edges.filter(x => x.source === P.id).length !== 1) return null // fan-out hub upstream
-        if (!PORT_EXACT.has(P.shape) || inGroup(P)) return null            // unmovable source
-        set.add(P.id); stack.push(P.id)
-      }
-    }
-    return set
-  }
-
-  for (const e of edges) {
-    if (!e.label || e.points.length < 2 || e.source === e.target) continue
-    // Yield to a symmetric mixed-label fan-in: never re-straighten a spoke that
-    // converges into a co-ranked, centered hub (see the note at the top).
-    if (corankFanInTargets.has(e.target)) continue
-    const S = nodeMap.get(e.source)
-    if (!S || !PORT_EXACT.has(S.shape) || inGroup(S)) continue
-    // S must emit exactly this one forward edge — its lane is then S's sole
-    // claim on the exit side, so re-centring it onto that lane is unambiguous.
-    // (S MAY have incoming edges; their nodes translate with the slide.)
-    if (edges.some(o => o !== e && o.source === S.id && o.target !== S.id)) continue
-    // The edge must actually leave S from its forward exit side, so sliding S
-    // along the cross axis re-centres a genuine side-exit (not a corner stub).
-    if (Math.abs(e.points[0]![main] - exitMain(S)) > 1) continue
-    const T = nodeMap.get(e.target)
-    if (!T || !PORT_EXACT.has(T.shape) || inGroup(T)) continue
-
-    // Find the lane the straightener will settle e onto, then the delta to put
-    // S's mid there. Moving S shifts its attach span, which can change the
-    // feasible lane, so iterate to a fixed point (converges in 1-2 rounds; the
-    // candidate set is discrete). Probe on a CLONE of S so the search never
-    // mutates committed geometry; commit only the converged delta.
-    const { ctx, axis } = laneContextFor(nodes, edges, direction, style, groups)
-    let delta = 0
-    let converged = false
-    const probe = { ...S }
-    for (let iter = 0; iter < 4; iter++) {
-      const lane = straightLaneFor(e, probe, T, ctx, axis)
-      if (lane === null) break
-      const step = lane - portCross(probe)
-      delta += step
-      probe[cross] += step
-      if (Math.abs(step) <= 0.5) { converged = true; break }
-    }
-    if (!converged || Math.abs(delta) <= 1) continue
-
-    // S's slide must carry its whole upstream chain, so no incoming source is
-    // left off its mid-port. Gather it; abort the slide if it can't move cleanly.
-    const chain = gatherMovableChain(S, e)
-    if (!chain) continue
-    const chainNodes = [...chain].map(id => nodeMap.get(id)).filter(Boolean) as PositionedNode[]
-    const movedRect = (n: PositionedNode) => ({
-      x: isHorizontal ? n.x : n.x + delta,
-      y: isHorizontal ? n.y + delta : n.y,
-      width: n.width, height: n.height,
-    })
-    // Every moved box must clear every UNMOVED node (with margin) and not cut a
-    // foreign edge corridor — never create a node overlap or edge-through-node.
-    const hitsNode = nodes.some(o => !chain.has(o.id) && chainNodes.some(n => {
-      const m = movedRect(n)
-      return m.x - GAP < o.x + o.width && m.x + m.width + GAP > o.x &&
-        m.y - GAP < o.y + o.height && m.y + m.height + GAP > o.y
-    }))
-    if (hitsNode) continue
-    // Intra-chain edges move WITH their nodes, so they are exempt from the
-    // foreign-corridor cut test; only edges incident to no moved node count.
-    const cutsEdge = edges.some(o => !chain.has(o.source) && !chain.has(o.target) &&
-      chainNodes.some(n => {
-        const m = movedRect(n)
-        return o.points.some((p, i) => {
-          if (i === 0) return false
-          const q = o.points[i - 1]!
-          return Math.max(p.x, q.x) > m.x + 0.5 && Math.min(p.x, q.x) < m.x + m.width - 0.5 &&
-            Math.max(p.y, q.y) > m.y + 0.5 && Math.min(p.y, q.y) < m.y + m.height - 0.5
-        })
-      }))
-    if (cutsEdge) continue
-
-    // Commit: translate every chain node, and every intra-chain edge, rigidly by
-    // delta — so each incoming edge stays straight and exits its source at mid.
-    for (const n of chainNodes) { if (isHorizontal) n.y += delta; else n.x += delta }
-    for (const o of edges) {
-      if (!chain.has(o.source) || !chain.has(o.target)) continue
-      // A label rides with its rigidly translated route (a chain self-loop's
-      // pill would otherwise be left beside where its loop used to be).
-      shiftRoute(o, cross, delta)
-    }
-    const port = { ...shapePorts(S)[exitSide] }
-    replaceRoutePoint(e, 0, port)
-    // The slide puts the exit on the predicted lane. When the old first bend
-    // is off that lane, rejoin the route where it first reaches the lane, so
-    // the moved exit never leaves a diagonal first segment.
-    const first = e.points[1]
-    if (first && first.x !== port.x && first.y !== port.y) {
-      const rejoin = e.points.findIndex((point, index) => index > 1 && point[cross] === port[cross])
-      if (rejoin > 1) e.points = [port, ...e.points.slice(rejoin)]
-    }
-  }
-}
-
 /** Final candidate admission for this node mover. Groups stay live and are
  * never flattened into a stale obstacle cache. An absent retained header uses
  * the whole frame conservatively, as in the shared lane predictor. Unchanged
@@ -445,6 +154,27 @@ function portLaneHeadersClear(nodes: readonly PositionedNode[], edges: readonly 
   return groups.every(clear)
 }
 
+/**
+ * Port-lane alignment, the placement repair for "straight but off-port":
+ * a 2-point flow-axis edge whose endpoints' midpoint ports sit on different
+ * cross lanes is floating through the overlap sliver of two side spans —
+ * ELK's BALANCED node placement averages competing pulls and aligns such a
+ * node with neither neighbor. Sliding ONE endpoint node by the lane
+ * difference makes the edge midpoint-to-midpoint: port-exact AND straight,
+ * the combination no routing-side repair can reach (port-aware coordinate
+ * assignment in the Brandes–Köpf tradition, Rüegg et al. GD'15).
+ *
+ * Every move is proof-gated, mirroring alignLayerNodes' occlusion doctrine:
+ * - only rect-like endpoints (their flow-side boundary is flat, so the
+ *   edge's main-axis anchors survive a cross slide);
+ * - the slid node's OTHER edges must be bent with a perpendicular segment
+ *   to absorb the shift (their terminal run translates); a second straight
+ *   edge or a group membership vetoes the move;
+ * - the new bbox must keep clear of nodes, foreign edge corridors, and
+ *   label pills.
+ * The target node is tried first (often alone in its layer, the freest),
+ * then the source.
+ */
 export function alignPortLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],

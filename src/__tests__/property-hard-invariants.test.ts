@@ -219,7 +219,7 @@ const MISLEADING_EXAMPLES: GroupedCase[] = [
 
 // Reduced issue-A7 counterexample of a broken pass contract: the labelled
 // source n11 is fed by an edge from subgraph G0, which cannot travel with the
-// source's slide, so alignLabeledSourcePort left that endpoint off the moved
+// source's slide, so the (since removed) labelled-source slide left that endpoint off the moved
 // outline and worsened portRate (LayoutMetricBudgetError, no render at all).
 const PASS_CONTRACT_EXAMPLES: GroupedCase[] = [
   {
@@ -239,7 +239,7 @@ const ENDPOINT_EXAMPLES: GroupedCase[] = [
 
 // Reduced issue-A7 counterexamples with a slanted segment or a detached
 // label: a layer snap moved a route's endpoint and first bend but not the
-// collinear point after them; alignLabeledSourcePort slid a source off the
+// collinear point after them; the (since removed) labelled-source slide moved a source off the
 // lane of its straight two-point route; the same slide re-anchored an exit
 // onto a new lane without moving the next bend; and it carried a self-loop
 // with its node but left the loop's label behind.

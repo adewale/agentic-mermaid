@@ -6,7 +6,7 @@ import type { LayoutDebugEnv } from './geometry.ts'
 // test may still toggle a switch between renders.
 const LAYOUT_DEBUG_FLAGS = [
   'APL_DEBUG', 'APL_DECOUPLE_LABELS', 'APL_NO_CENTER', 'APL_NO_CORANK_FANIN',
-  'APL_NO_FACET', 'APL_NO_LABELED_SOURCE_PORT', 'APL_NO_SVERTEX',
+  'APL_NO_FACET', 'APL_NO_SVERTEX',
 ] as const satisfies readonly (keyof LayoutDebugEnv)[]
 type UnlistedLayoutDebugFlag = Exclude<keyof LayoutDebugEnv, typeof LAYOUT_DEBUG_FLAGS[number]>
 // A switch added to LayoutDebugEnv but not listed above fails typechecking.

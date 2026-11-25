@@ -46,7 +46,6 @@ import { ARROW_HEAD, diagramTitleBand, FLOWCHART_DOTTED_DASH, positionDiagramTit
 import type { DiamondFacet, Direction, MermaidEdge, MermaidGraph, MermaidNode, MermaidSubgraph, NodeShape, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode, PositionedStateNote, RenderOptions, RouteClass } from './types.ts'
 import {
   alignForkRejoinPeerCenters,
-  alignLabeledSourcePort,
   alignLayerNodes,
   alignPortLanes,
   applyParallelDuplicateLanes,
@@ -1376,13 +1375,10 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
-    id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15), then slide a single-outgoing labelled source onto the predicted straightener lane so the exit stays mid-port',
+    id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
     after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'],
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
-    run: c => {
-      alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style)
-      alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style)
-    },
+    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
   {
     id: 'centerPeerBarycenters', proposal: true, doc: 'center fork/rejoin hubs and peer fan-in/fan-out trunks over their peer barycenters (#57/#61)',
