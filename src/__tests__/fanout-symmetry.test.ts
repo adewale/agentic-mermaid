@@ -15,11 +15,6 @@ import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { layoutFlow } from '../layout/geometry.ts'
-import { doglegBetween, sourceEmissionPort, targetFlowPort } from '../layout/passes/shared.ts'
-import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
-import { applySymmetricFanoutEmissions } from '../layout/passes/fanout.ts'
-import { resolveRenderStyle } from '../styles.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const SYM = [
@@ -62,30 +57,19 @@ end`
     expect(svg).toContain('iPhone')
     expect(svg).toContain('section')
   })
-  test.each(['LR', 'RL', 'TD', 'BT'] as const)('an internal fork continues its admitted centre trunk (%s)', direction => {
-    const graph = parseGraph(`flowchart ${direction}\nA-->C\nC-->D\nC-->E[Longer child]`)
-    const { nodes, edges, groups } = layoutGraphSync(graph)
-    const style = resolveRenderStyle()
-    const forks = edges.filter(edge => edge.source === 'C')
-    // The incoming route is explicitly centred so the test isolates the
-    // writer from upstream differences in which port a layout happens to use.
-    const incoming = edges.find(edge => edge.target === 'C')!
-    const start = sourceEmissionPort(nodes.find(node => node.id === 'A')!, direction, 0, 1)
-    const end = targetFlowPort(nodes.find(node => node.id === 'C')!, direction)
-    const { main } = layoutFlow(direction)
-    incoming.points = doglegBetween(start, end, direction, (start[main] + end[main]) / 2)
-    const bundled = bundleEdgePaths(edges, nodes, groups, graph.direction, style)
-    expect(forks.length).toBe(2)
-    expect(forks.every(edge => bundled.has(edge))).toBe(true)
-    const first = forks[0]!, second = forks[1]!
-    const trunk = first.points.slice(0, 2).map(point => ({ ...point }))
-    expect(second.points.slice(0, 2)).toEqual(trunk)
-    expect(Math.hypot(trunk[1]!.x - trunk[0]!.x, trunk[1]!.y - trunk[0]!.y)).toBeGreaterThan(0)
-    applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
-    expect(first.points.slice(0, 2)).toEqual(trunk)
-    expect(second.points.slice(0, 2)).toEqual(trunk)
-    expect(first.points[0]).not.toBe(second.points[0])
-    expect(first.points[1]).not.toBe(second.points[1])
+  // A fork whose own approach is centred leaves on one shared centre trunk
+  // instead of spreading its branches across the source's outlet side.
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('an internal fork continues its centre trunk (%s)', direction => {
+    const p = parseMermaid(`flowchart ${direction}\nA-->C\nC-->D\nC-->E[Longer child]`)
+    if (!p.ok) throw new Error('parse failed')
+    const layout = layoutMermaid(p.value)
+    const fork = layout.nodes.find(node => node.id === 'C')!
+    const [first, second] = layout.edges.filter(edge => edge.from === 'C').map(edge => edge.path)
+    const trunk = first!.slice(0, 2)
+    expect(second!.slice(0, 2)).toEqual(trunk)
+    expect(Math.hypot(trunk[1]![0] - trunk[0]![0], trunk[1]![1] - trunk[0]![1])).toBeGreaterThan(0)
+    const vertical = direction === 'TD' || direction === 'BT'
+    expect(vertical ? trunk[0]![0] : trunk[0]![1]).toBeCloseTo(vertical ? fork.x + fork.w / 2 : fork.y + fork.h / 2, 6)
   })
   test('peers with differing label widths are equalized to a common width and aligned', () => {
     const p = parseMermaid(SYM)
