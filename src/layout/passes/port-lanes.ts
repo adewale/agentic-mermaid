@@ -7,6 +7,7 @@ import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geom
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { positionedEdgeForwardish } from './shared.ts'
 import { symmetricFanout } from './fanout.ts'
+import { seatMeetingArrivals } from './arrival-slots.ts'
 import { misleadingSharedArrivals, ownsLayoutRouteInputs } from '../route-marker-clearance.ts'
 import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { shapeOutline } from '../../shape-outline.ts'
@@ -186,6 +187,9 @@ export function alignPortLanes(
   if (!withinPortLaneBudget(nodes, edges, groups)) return
   const { nodes: candidateNodes, edges: candidateEdges } = portLaneCandidate(nodes, edges)
   alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style, terminals)
+  // Rebuilt port-to-port runs may meet at one port. Those that may not share
+  // its arrowhead take their planned slots before any proof below.
+  seatMeetingArrivals(candidateNodes, candidateEdges, candidateEdges.filter((edge, index) => routeChanged(edge, edges[index]!)), terminals)
   // Admit the actual transformed geometry, including every incident run and
   // stretched hop. A node-only lane proof cannot see a reserved header band.
   const budget = portLaneInkWork()
@@ -210,11 +214,9 @@ export function alignPortLanes(
       if (after > 0 && after > countEdgeCrossings(edges, moved)) return
     }
   }
-  // Rebuilt port-to-port runs can land different relationships on one
-  // arrowhead that cannot stand for both (mixed strokes, two captions). No
-  // later pass separates those; repeated occurrences have their own owner.
-  const strict = { duplicates: false }
-  if (misleadingSharedArrivals(candidateEdges, strict) > misleadingSharedArrivals(edges, strict)) return
+  // No later pass separates arrivals left on one arrowhead that cannot
+  // stand for both; such a candidate is not published.
+  if (misleadingSharedArrivals(candidateEdges) > misleadingSharedArrivals(edges)) return
   publishPortLaneCandidate(nodes, edges, candidateNodes, candidateEdges)
 }
 

@@ -115,10 +115,8 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
 
 /** Visible occurrence pairs the final drawing cannot tell apart: a repeated
  * occurrence drawn exactly on its twin, or one arrowhead standing for arrivals
- * the terminal assignment does not let share it. `duplicates: false` leaves
- * repeated occurrences to the duplicate-lane owner, which separates the transient collapses earlier
- * preparatory passes create. */
-export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> {
+ * the terminal assignment does not let share it. */
+export function indistinctOccurrencePairs(edges: readonly PositionedEdge[]): Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> {
   const byTarget = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
     if (edge.style === 'invisible' || edge.source === edge.target || edge.points.length < 2) continue
@@ -130,9 +128,8 @@ export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], opti
   const pairs: Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> = []
   const terminals = terminalAssignment(edges)
   for (const group of byTarget.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
-    const a = group[i]!, b = group[j]!, repeated = a.source === b.source
-    if (repeated && options.duplicates === false) continue
-    if (repeated && a.points.length === b.points.length && a.points.every((point, k) => near(point, b.points[k]!))) pairs.push({ a, b, reason: 'twin' })
+    const a = group[i]!, b = group[j]!
+    if (a.source === b.source && a.points.length === b.points.length && a.points.every((point, k) => near(point, b.points[k]!))) pairs.push({ a, b, reason: 'twin' })
     else if (a.hasArrowEnd && b.hasArrowEnd && near(a.points.at(-1)!, b.points.at(-1)!) && !terminals.shares(a, b, 'end')) pairs.push({ a, b, reason: 'arrowhead' })
   }
   return pairs
@@ -140,8 +137,8 @@ export function indistinctOccurrencePairs(edges: readonly PositionedEdge[], opti
 
 /** Count of `indistinctOccurrencePairs`; passes that move terminals may not
  * increase it. */
-export function misleadingSharedArrivals(edges: readonly PositionedEdge[], options: { duplicates?: boolean } = {}): number {
-  return indistinctOccurrencePairs(edges, options).length
+export function misleadingSharedArrivals(edges: readonly PositionedEdge[]): number {
+  return indistinctOccurrencePairs(edges).length
 }
 
 type MarkerView = ReturnType<typeof markerView>

@@ -8,8 +8,10 @@ import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { LayoutCertificationError } from '../certification-error.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
+import { seatMeetingArrivals } from './arrival-slots.ts'
 
-export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
+export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges)): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
   const f = layoutFlow(graph.direction)
@@ -435,6 +437,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // dogleg between their (node or box) ports; feedback (back) edges re-loop
   // through the outer lane; self-loops ride along with their moved node.
   // applyRouteContracts certifies the final geometry.
+  const reconnected: PositionedEdge[] = []
   for (const edge of edges) {
     const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
     if (cls === 'self-loop') {
@@ -497,6 +500,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       }
       edge.points = route ?? uDetour(laneCross, crossMaxEdge)
       if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+      reconnected.push(edge)
       continue
     }
     const start = preserveContacts ? translatedContact(edge.source, edge.points[0]) : flowPort(edge.source, f.sourceSide)
@@ -541,5 +545,10 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     }])
     edge.points = route
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+    if (!preserveContacts) reconnected.push(edge)
   }
+
+  // Every reconnected arrival was aimed at one canonical point of its target;
+  // those that may not share it take their planned slots.
+  seatMeetingArrivals(nodes, edges, reconnected, terminals)
 }

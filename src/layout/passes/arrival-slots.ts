@@ -1,148 +1,85 @@
-// One owner for arrival slots. Earlier passes may land several arrivals on one
-// point of a target's outline; that single arrowhead may stand for them only
-// when the terminal assignment lets them share it. Whichever pass produced a misleading merge, this owner gives every
-// other class of arrivals its own slot on the same entry face, then proves the
-// moved routes against the final contracts. A cluster with no proven slot is
-// left as is, and certification reports it.
+// Producers that aim several arrivals at one canonical point of a target
+// (rank-distance reconnection, port-lane centering) seat them through here.
+// Arrivals meeting at one point that may not all share one arrowhead take the
+// slots the terminal assignment plans along the entry face; the producer only
+// picks, among the planned orders, the one its moved routes cross least.
+// Nothing repairs a misleading merge later: the rubric's indistinct-occurrence
+// check fails certification instead.
 
 import type { Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { countEdgeCrossings, onShapeOutline } from '../../layout-rubric.ts'
-import { recertifyReroutedEdge } from '../../route-contracts.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
-import { indistinctOccurrencePairs, routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
-import type { TerminalAssignment } from '../terminal-assignment.ts'
-import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES, type LabelMetricsStyle } from '../route-geometry.ts'
-import { routeClearOfNodes } from './shared.ts'
+import type { ArrivalSlot, TerminalAssignment } from '../terminal-assignment.ts'
 
-// Preferred pitch first, then tighter slots for short faces, then wider ones.
-const SLOT_OFFSETS = [14, -14, 10, -10, 7, -7, 21, -21, 28, -28]
 const FACE_MARGIN = 5
-const MIN_TERMINAL_RUN = 12
 const EPS = 0.5
 
 const near = (a: Point, b: Point) => Math.abs(a.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS
 
-/** Translate the terminal run of an orthogonal route across its entry axis,
- * stretching the perpendicular segment before it. A route that is one straight
- * run gains a dogleg at its midpoint. Undefined for non-orthogonal terminals. */
-export function shiftedArrival(points: readonly Point[], delta: number): Point[] | undefined {
-  const n = points.length
-  if (n < 2) return undefined
-  const end = points[n - 1]!, before = points[n - 2]!
-  const cross: 'x' | 'y' | undefined = Math.abs(before.x - end.x) < EPS ? 'x' : Math.abs(before.y - end.y) < EPS ? 'y' : undefined
-  if (!cross) return undefined
-  const main = cross === 'x' ? 'y' : 'x'
-  let start = n - 1
-  while (start > 0 && Math.abs(points[start - 1]![cross] - end[cross]) < EPS) start--
-  if (start === 0) {
-    const first = points[0]!, middle = (first[main] + end[main]) / 2
-    const at = (mainValue: number, crossValue: number): Point => (main === 'x' ? { x: mainValue, y: crossValue } : { x: crossValue, y: mainValue })
-    return [first, at(middle, first[cross]), at(middle, end[cross] + delta), at(end[main], end[cross] + delta)]
-  }
-  // The segment into the run must cross the entry axis orthogonally to stretch.
-  if (Math.abs(points[start - 1]![main] - points[start]![main]) >= EPS) return undefined
-  return points.map((point, index) => (index >= start ? { ...point, [cross]: point[cross] + delta } : point))
-}
-
-/** Partition a cluster into classes whose members may all share one arrowhead. */
-function mergeClasses(cluster: readonly PositionedEdge[], terminals: TerminalAssignment): PositionedEdge[][] {
-  const classes: PositionedEdge[][] = []
-  for (const edge of cluster) {
-    const home = classes.find(members => members.every(member => terminals.shares(member, edge, 'end')))
-    if (home) home.push(edge)
-    else classes.push([edge])
-  }
-  return classes
-}
-
-export function separateIndistinctArrivals(nodes: PositionedNode[], edges: PositionedEdge[], style: LabelMetricsStyle, terminals: TerminalAssignment): void {
-  if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return
-  const pairs = indistinctOccurrencePairs(edges)
-  if (pairs.length === 0) return
+/** Seat the arrivals of `edges` that meet `placed` routes at one point of a
+ * target. Every visible arrival ending there joins the plan, placed or not. */
+export function seatMeetingArrivals(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], placed: readonly PositionedEdge[], terminals: TerminalAssignment): void {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
-  // Clusters: arrivals at one point of one target that contain a misleading pair.
-  const clusters: PositionedEdge[][] = []
-  for (const { a } of pairs) {
-    const end = a.points.at(-1)!
-    if (clusters.some(cluster => cluster[0]!.target === a.target && near(cluster[0]!.points.at(-1)!, end))) continue
-    clusters.push(edges.filter(edge => edge.target === a.target && edge.style !== 'invisible' && edge.source !== edge.target
-      && edge.points.length >= 2 && near(edge.points.at(-1)!, end)))
+  const arrives = (edge: PositionedEdge) => edge.style !== 'invisible' && edge.source !== edge.target && edge.points.length >= 2
+  const meetings: PositionedEdge[][] = []
+  for (const edge of placed) {
+    if (!arrives(edge) || meetings.some(group => group.includes(edge))) continue
+    const end = edge.points.at(-1)!
+    meetings.push(edges.filter(other => other.target === edge.target && arrives(other) && near(other.points.at(-1)!, end)))
   }
-  for (const cluster of clusters) {
-    const target = nodeMap.get(cluster[0]!.target)
-    if (!target) continue
-    const classes = mergeClasses(cluster, terminals)
-    // Any one class may keep the shared point; the others need free slots.
-    // Try each keeper in turn and keep the first complete placement.
-    for (let keeper = 0; keeper < classes.length; keeper++) {
-      const undo = snapshot(cluster)
-      // Distinctness is a hard contract and crossings are soft: a class may
-      // spend one crossing only when no crossing-free slot exists.
-      const placed = classes.every((members, index) => index === keeper
-        || [0, 1].some(allowance => SLOT_OFFSETS.some(delta => placeClass(members, delta, allowance, target, nodeMap, nodes, edges, style))))
-      if (placed) break
-      undo()
+  for (const group of meetings) {
+    const node = nodeMap.get(group[0]!.target)
+    if (!node || group.length < 2) continue
+    const end = group[0]!.points.at(-1)!, before = group[0]!.points.at(-2)!
+    // The face runs across the terminal run; slots move along it.
+    const along: 'x' | 'y' = Math.abs(before.x - end.x) < 1e-9 ? 'x' : 'y'
+    const lo = node[along] + FACE_MARGIN, hi = node[along] + (along === 'x' ? node.width : node.height) - FACE_MARGIN
+    const plans = terminals.arrivalSlots(group, { port: end[along], reach: Math.min(end[along] - lo, hi - end[along]), approach: edge => edge.points[0]![along] })
+    if (plans.length < 2 && plans[0]?.every(slot => slot.offset === 0)) continue
+    const involved = new Set(group.map(edge => edges.indexOf(edge)))
+    const saved = group.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
+    const restore = () => { for (const entry of saved) { entry.edge.points = entry.points; entry.edge.labelPosition = entry.labelPosition } }
+    let best: { plan: ArrivalSlot[]; crossings: number } | undefined
+    for (const plan of plans) {
+      seat(plan, node, along)
+      const crossings = countEdgeCrossings(edges, involved)
+      if (!best || crossings < best.crossings) best = { plan, crossings }
+      restore()
     }
+    if (best) seat(best.plan, node, along)
   }
 }
 
-function snapshot(edges: readonly PositionedEdge[]): () => void {
-  const saved = edges.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition, certificate: edge.routeCertificate }))
-  return () => {
-    for (const { edge, points, labelPosition, certificate } of saved) {
-      edge.points = points
-      edge.labelPosition = labelPosition
-      edge.routeCertificate = certificate
-    }
-  }
+function seat(plan: readonly ArrivalSlot[], node: PositionedNode, along: 'x' | 'y'): void {
+  for (const { members, offset } of plan) if (offset !== 0) for (const edge of members) slideTerminalRun(edge, node, along, offset)
 }
 
-function placeClass(members: readonly PositionedEdge[], delta: number, crossingAllowance: number, target: PositionedNode, nodeMap: ReadonlyMap<string, PositionedNode>, nodes: PositionedNode[], edges: PositionedEdge[], style: LabelMetricsStyle): boolean {
-  const proposed = new Map<PositionedEdge, Point[]>()
-  for (const edge of members) {
-    let points = shiftedArrival(edge.points, delta)
-    if (!points) return false
-    const shifted = points.at(-1)!, previous = points.at(-2)!
-    const face = Math.abs(previous.x - shifted.x) < EPS ? 'x' : 'y'
-    const lo = target[face] + FACE_MARGIN, hi = target[face] + (face === 'x' ? target.width : target.height) - FACE_MARGIN
-    if (shifted[face] < lo || shifted[face] > hi) return false
-    if (!onShapeOutline(target, shifted)) {
-      // A curved or slanted face: extend the run toward the centre and clip it
-      // to the painted outline, keeping the entry axis.
-      const main = face === 'x' ? 'y' : 'x'
-      const centre = target[main] + (main === 'x' ? target.width : target.height) / 2
-      points = clipEdgeToShape([...points.slice(0, -1), { ...shifted, [main]: centre }], target, false)
-    }
-    const end = points.at(-1)!
-    if (!onShapeOutline(target, end)) return false
-    if (Math.hypot(end.x - previous.x, end.y - previous.y) < MIN_TERMINAL_RUN) return false
-    // The new slot must be free: no other arrival already ends there.
-    if (edges.some(other => other.target === target.id && !members.includes(other) && other.points.length > 0 && near(other.points.at(-1)!, end))) return false
-    if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) return false
-    if (routeCandidateMarkerBlocker(edge, points, edges, style)) return false
-    proposed.set(edge, points)
+/** Move an orthogonal route's terminal run `offset` along its entry face,
+ * stretching the segment before it (a straight route gains a midpoint
+ * dogleg), and keep the moved end on the painted outline. A caption seated
+ * on the moved run rides with it. */
+function slideTerminalRun(edge: PositionedEdge, node: PositionedNode, along: 'x' | 'y', offset: number): void {
+  const points = edge.points, end = points.at(-1)!
+  const across: 'x' | 'y' = along === 'x' ? 'y' : 'x'
+  const at = (acrossValue: number, alongValue: number): Point => across === 'x' ? { x: acrossValue, y: alongValue } : { x: alongValue, y: acrossValue }
+  let first = points.length - 1
+  while (first > 0 && points[first - 1]![along] === end[along]) first--
+  if (first > 0 && points[first - 1]![across] !== points[first]![across]) return
+  const middle = (points[0]![across] + end[across]) / 2
+  let moved = first === 0
+    ? [points[0]!, at(middle, end[along]), at(middle, end[along] + offset), at(end[across], end[along] + offset)]
+    : points.map((point, index) => index >= first ? { ...point, [along]: point[along] + offset } : point)
+  if (!onShapeOutline(node, moved.at(-1)!)) {
+    // A curved or slanted face: run on toward the centre and clip there.
+    const centre = node[across] + (across === 'x' ? node.width : node.height) / 2
+    moved = clipEdgeToShape([...moved.slice(0, -1), { ...moved.at(-1)!, [across]: centre }], node, false)
+    if (!onShapeOutline(node, moved.at(-1)!)) return
   }
-  const involved = new Set(members.map(edge => edges.indexOf(edge)))
-  const before = countEdgeCrossings(edges, involved)
-  const candidate = edges.map(edge => (proposed.has(edge) ? { ...edge, points: proposed.get(edge)! } : edge))
-  if (countEdgeCrossings(candidate, involved) > before + crossingAllowance) return false
-  for (const [edge, points] of proposed) {
-    const saved = edge.routeCertificate
-    const old = edge.points
-    edge.points = points
-    // A caption seated on the moved terminal run rides with it.
-    if (edge.labelPosition) {
-      const moved = old.findIndex((point, index) => !near(point, points[index] ?? point))
-      const runStart = moved < 0 ? old.length : moved
-      const onRun = old.slice(Math.max(0, runStart - 1)).some((point, index, run) => index > 0 && between(edge.labelPosition!, run[index - 1]!, point))
-      if (onRun) {
-        const face = Math.abs(old.at(-2)!.x - old.at(-1)!.x) < EPS ? 'x' : 'y'
-        edge.labelPosition = { ...edge.labelPosition, [face]: edge.labelPosition[face] + delta }
-      }
-    }
-    recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
+  const label = edge.labelPosition
+  if (label && first > 0 && points.slice(first).some((point, index, run) => index > 0 && between(label, run[index - 1]!, point))) {
+    edge.labelPosition = { ...label, [along]: label[along] + offset }
   }
-  return true
+  edge.points = moved
 }
 
 const between = (p: Point, a: Point, b: Point) =>

@@ -13,7 +13,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assignTerminals } from '../layout/terminal-assignment.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
 
-const LINKS = { solid: '-->', dotted: '-.->', thick: '==>', circle: '--o' } as const
+const LINKS = { solid: '-->', dotted: '-.->', thick: '==>', circle: '--o', long: '--->' } as const
 type Link = keyof typeof LINKS
 
 const SHAPES = { rect: ['[', ']'], diamond: ['{', '}'], round: ['((', '))'] } as const
@@ -22,7 +22,8 @@ type Shape = keyof typeof SHAPES
 interface Spec { direction: string; shapes: Shape[]; edges: { from: number; to: number; link: Link; label: boolean }[] }
 
 // Small multigraphs: repeated pairs, reciprocal pairs, fan-ins with mixed
-// strokes and captions, into straight-sided and single-vertex/curved hubs.
+// strokes, glyphs and captions, and longer links that make the rank-distance
+// pass reconnect every route, into straight-sided and single-vertex/curved hubs.
 // Labels are short ASCII words so text measurement is not what varies.
 const spec: fc.Arbitrary<Spec> = fc.integer({ min: 3, max: 7 }).chain(nodes => fc.record({
   direction: fc.constantFrom('TD', 'LR', 'BT', 'RL'),
@@ -30,7 +31,7 @@ const spec: fc.Arbitrary<Spec> = fc.integer({ min: 3, max: 7 }).chain(nodes => f
   edges: fc.array(fc.record({
     from: fc.integer({ min: 0, max: nodes - 1 }),
     to: fc.integer({ min: 0, max: nodes - 1 }),
-    link: fc.constantFrom<Link>('solid', 'solid', 'dotted', 'thick', 'circle'),
+    link: fc.constantFrom<Link>('solid', 'solid', 'dotted', 'thick', 'circle', 'long'),
     label: fc.boolean(),
   }), { minLength: 2, maxLength: 10 }).map(edges => edges.filter(edge => edge.from !== edge.to)).filter(edges => edges.length >= 2),
 }))
@@ -108,6 +109,13 @@ const REDUCED: [Spec][] = [
   // A circle-marked arrival ended on the diamond vertex an arrow already
   // held: one glyph painted over the other.
   [{ direction: 'LR', shapes: ['rect', 'diamond', 'rect'], edges: [edge(0, 1, 'solid', true), edge(2, 1, 'circle', false)] }],
+  // Rank-distance reconnection aims every arrival at its target's port.
+  // Mixed strokes and captions there need their own slots...
+  [{ direction: 'LR', shapes: rects(4), edges: [edge(1, 2, 'thick', true), edge(2, 1, 'solid', false), edge(0, 1, 'thick', true), edge(3, 1, 'long', false), edge(2, 1, 'long', true), edge(0, 2, 'long', false)] }],
+  // ...four repeated occurrences need four on a short face...
+  [{ direction: 'RL', shapes: ['diamond', 'diamond', 'rect'], edges: [edge(1, 0, 'circle', false), edge(0, 2, 'long', false), edge(0, 2, 'long', true), edge(0, 2, 'solid', false), edge(0, 2, 'long', true), edge(2, 0, 'solid', true), edge(2, 0, 'long', true)] }],
+  // ...and a node detour may not drop one back onto its twin's slot.
+  [{ direction: 'BT', shapes: ['round', 'rect', 'rect'], edges: [edge(0, 2, 'solid', true), edge(2, 0, 'long', false), edge(2, 0, 'thick', false), edge(1, 2, 'thick', false), edge(1, 2, 'thick', true)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {

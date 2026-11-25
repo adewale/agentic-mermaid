@@ -7,6 +7,7 @@ import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { invalidEndpointApproaches, terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
 import { shapeRoutingProfile } from '../../shape-outline.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -82,7 +83,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * how many routes it rebuilt and how many of those entered a title band: the
  * caller ranks such placements against alternatives that needed no repair.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): { titleBandRepairs: number; repaired: number } {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = [], terminals: TerminalAssignment = terminalAssignment(edges)): { titleBandRepairs: number; repaired: number } {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -330,7 +331,17 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       return adjacent && isOutwardShapeApproach(start ? source : target, pts[start ? 0 : pts.length - 1]!, adjacent)
     }
     const wasOutward = [outward(edge.points, true), outward(edge.points, false)]
-    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true)
+    // A detour that moves the arrival may not land it on a terminal the
+    // assignment does not let it share, nor redraw a repeated occurrence.
+    const oldEnd = edge.points.at(-1)!
+    const sharesLanding = (trial: Point[]): boolean => {
+      const end = trial.at(-1)!
+      if (Math.abs(end.x - oldEnd.x) < 0.5 && Math.abs(end.y - oldEnd.y) < 0.5) return true
+      return !edges.some(other => other !== edge && other.target === edge.target && other.style !== 'invisible' && other.points.length >= 2
+        && Math.abs(other.points.at(-1)!.x - end.x) < 0.5 && Math.abs(other.points.at(-1)!.y - end.y) < 0.5
+        && (edge.hasArrowEnd && other.hasArrowEnd ? !terminals.shares(edge, other, 'end') : other.source === edge.source))
+    }
+    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true) && sharesLanding(trial)
     let route = shiftInteriorSegment(edge.points, skip, keepsApproach) ?? bracketOverBand(edge.points, skip, keepsApproach)
       ?? detourTerminalSegment(edge.points, skip, keepsApproach)
     if (!route) {

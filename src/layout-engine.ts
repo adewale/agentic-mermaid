@@ -8,7 +8,6 @@ import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt 
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
-import { separateIndistinctArrivals } from './layout/passes/arrival-slots.ts'
 import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 import { reseatConflictedLabels } from './layout/passes/label-reseat.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
@@ -1398,9 +1397,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     },
   },
   {
-    id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
+    id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on, rebuild blocked reconnect routes through free channels (#81), and seat reconnected arrivals in their planned terminal slots',
     after: ['centerPeerBarycenters'], mutates: ['positions', 'dimensions', 'edges'],
-    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
+    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals) },
   },
   {
     // The co-ranked mixed-label fan-in spokes are re-routed as symmetric
@@ -1474,15 +1473,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups, terminals: c.terminals }, c.graph, c.bundled, c.style, undefined) },
   },
   {
-    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, give every arrival class that may not share an arrowhead its own slot, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
+    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'],
     run: c => {
-      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
+      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.terminals)
       c.titleBandRepairs = rerouted.titleBandRepairs
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
       repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
-      separateIndistinctArrivals(c.nodes, c.edges, c.style, c.terminals)
       repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
     },
   },
