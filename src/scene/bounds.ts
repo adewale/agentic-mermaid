@@ -42,6 +42,8 @@ export interface TypedPathSegment {
   readonly bounds: AxisAlignedBox
   /** Exact straight ink authority; a curve's control hull is only an envelope. */
   readonly line?: readonly [ScenePoint, ScenePoint]
+  /** Exact Bézier ink authority as a cubic (quadratics are degree-elevated). */
+  readonly cubic?: readonly [ScenePoint, ScenePoint, ScenePoint, ScenePoint]
 }
 
 function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean): AxisAlignedBox | undefined {
@@ -98,6 +100,7 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
     if (!command) return undefined
     const upper = command.toUpperCase(), relative = command !== upper
     if (visit) segmentBounds = { x0: x, y0: y, x1: x, y1: y }
+    let curve: TypedPathSegment['cubic']
     const count = upper === 'A' ? 7 : upper === 'C' ? 6 : upper === 'S' || upper === 'Q' ? 4 : upper === 'H' || upper === 'V' ? 1 : 2
     const args: number[] = []
     for (let i = 0; i < count; i++) {
@@ -117,6 +120,15 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       for (let i = 0; i < count - 2; i += 2) if (!include(px(i), py(i + 1))) return undefined
       nextX = px(count - 2); nextY = py(count - 1)
       nextControl = upper === 'T' ? reflected : { x: px(count - 4), y: py(count - 3) }
+      if (visit) {
+        const start = { x, y }, end = { x: nextX, y: nextY }
+        const first = upper === 'S' ? reflected : upper === 'T' ? reflected : { x: px(0), y: py(1) }
+        if (upper === 'C' || upper === 'S') curve = [start, first, nextControl, end]
+        else {
+          const lift = (from: ScenePoint): ScenePoint => ({ x: from.x + 2 / 3 * (first.x - from.x), y: from.y + 2 / 3 * (first.y - from.y) })
+          curve = [start, lift(start), lift(end), end]
+        }
+      }
     } else if (upper === 'A') {
       nextX = px(5); nextY = py(6)
       let rx = Math.abs(args[0]!), ry = Math.abs(args[1]!)
@@ -139,7 +151,7 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
     }
     if (!include(nextX, nextY)) return undefined
-    if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}) })) return undefined
+    if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}), ...(curve ? { cubic: curve } : {}) })) return undefined
     x = nextX; y = nextY; control = nextControl; previous = upper
   }
 }

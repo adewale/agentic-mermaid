@@ -28,7 +28,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
-import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode, ScenePoint, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { composeGroup, pageRectFor } from './backend.ts'
@@ -289,12 +289,37 @@ function sketchGeometryVia(
   return ''
 }
 
+/** A cubic's exact extent: its ends plus the interior extrema where the
+ * derivative vanishes. Sketch control points overshoot the drawn curve, so the
+ * control hull would reject sketches whose ink fits. */
+function cubicInkBounds([p0, p1, p2, p3]: readonly [ScenePoint, ScenePoint, ScenePoint, ScenePoint]): AxisAlignedBox {
+  const at = (t: number, a: number, b: number, c: number, d: number): number => {
+    const u = 1 - t
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d
+  }
+  const range = (a: number, b: number, c: number, d: number): [number, number] => {
+    let low = Math.min(a, d), high = Math.max(a, d)
+    // B'(t)/3 = qa t² + qb t + qc
+    const qa = -a + 3 * b - 3 * c + d, qb = 2 * (a - 2 * b + c), qc = b - a
+    const roots: number[] = []
+    if (Math.abs(qa) < 1e-12) { if (Math.abs(qb) > 1e-12) roots.push(-qc / qb) }
+    else {
+      const disc = qb * qb - 4 * qa * qc
+      if (disc >= 0) { const r = Math.sqrt(disc); roots.push((-qb + r) / (2 * qa), (-qb - r) / (2 * qa)) }
+    }
+    for (const t of roots) if (t > 0 && t < 1) { const v = at(t, a, b, c, d); low = Math.min(low, v); high = Math.max(high, v) }
+    return [low, high]
+  }
+  const [x0, x1] = range(p0.x, p1.x, p2.x, p3.x), [y0, y1] = range(p0.y, p1.y, p2.y, p3.y)
+  return { x0, y0, x1, y1 }
+}
+
 /** Whether every path a sketcher emitted, widened by half its stroke, stays
  * inside `allowed`. A path whose data cannot be read does not fit. */
 function sketchInkWithin(sketched: string, allowed: AxisAlignedBox): boolean {
   for (const [, d, attrs] of sketched.matchAll(/<path d="([^"]*)"([^>]*)>/g)) {
     let ink: AxisAlignedBox | undefined
-    if (!visitTypedPathSegments(d!, segment => { ink = unionSceneBounds(ink, segment.bounds); return true }) || !ink) return false
+    if (!visitTypedPathSegments(d!, segment => { ink = unionSceneBounds(ink, segment.cubic ? cubicInkBounds(segment.cubic) : segment.bounds); return true }) || !ink) return false
     const stroked = !/\sstroke="none"/.test(attrs!)
     const half = stroked ? Number(/\sstroke-width="([^"]+)"/.exec(attrs!)?.[1] ?? 1) / 2 : 0
     const box = expandSceneBounds(ink, half)
