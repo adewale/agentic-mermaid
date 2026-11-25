@@ -1,4 +1,5 @@
 import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import type { LayoutCertificationViolation } from '../layout/uncertified-layout.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -274,6 +275,8 @@ const COMMIT_CLEARANCE = 12
 const BEND_OFFSETS = [24, 36, 14] as const
 /** Where a gap channel may run between two lanes, as a fraction of the gap. */
 const GAP_FRACTIONS = [0.5, 0.35, 0.65, 0.25, 0.75] as const
+/** Extra cost per pixel for each step down a list of preferred lines. */
+const BEND_RANK_COST = 1e-3
 
 type RoutePoint = { x: number; y: number }
 type RouteCommit = Pick<PositionedGitGraphCommit, 'id' | 'lane' | 'x' | 'y'>
@@ -292,24 +295,57 @@ function routeGitGraphEdges(
   const space = new RouteSpace([...commitById.values()])
   const routed: Array<PositionedGitGraphEdge | undefined> = relations.map(() => undefined)
   const accepted: PositionedGitGraphEdge[] = []
-  const candidatesFor = (relation: Omit<PositionedGitGraphEdge, 'points'>): RoutePoint[][] => {
+  // Gitgraph states the lines a connector may use and ranks them; the shared
+  // router finds the cheapest route along them that passes no other commit.
+  // Every connector leaves and arrives along the lane axis. It may bend only
+  // at the bend columns beside its two commits, and travel along its own two
+  // lanes or a gap channel beside the target lane. A branch-off prefers to
+  // bend beside its parent, a merge or cherry-pick beside its target, nearest
+  // offset first; only a connector that cannot make two bends clear takes a
+  // gap channel (four bends).
+  const routeFor = (relation: Omit<PositionedGitGraphEdge, 'points'>): RoutePoint[] => {
     const from = commitById.get(relation.from)!, to = commitById.get(relation.to)!
     const start = { x: from.x, y: from.y }, end = { x: to.x, y: to.y }
     const sign = Math.sign(along(to) - along(from)) || 1
-    const viaGap = (side: number) => GAP_FRACTIONS.flatMap(fraction => BEND_OFFSETS.map(k => {
-      const channel = across(to) + side * laneGap * fraction
-      return [start, point(along(from) + sign * k, across(from)), point(along(from) + sign * k, channel), point(along(to) - sign * k, channel), point(along(to) - sign * k, across(to)), end]
-    }))
-    if (from.lane === to.lane) {
-      // A merge of a branch that never left this lane (its head is still the
-      // branch point) would run along the lane through the commits between.
-      const middle = (along(from) + along(to)) / 2
-      return [[start, point(middle, across(from)), point(middle, across(to)), end], ...viaGap(1), ...viaGap(-1)]
+    const sides = from.lane === to.lane ? [1, -1] : [Math.sign(laneCoordinate(from.lane) - laneCoordinate(to.lane))]
+    const gaps = sides.flatMap(side => GAP_FRACTIONS.map(fraction => across(to) + side * laneGap * fraction))
+    const nearSource = BEND_OFFSETS.map(k => along(from) + sign * k), nearTarget = BEND_OFFSETS.map(k => along(to) - sign * k)
+    const columns = relation.kind === 'parent' ? [...nearSource, ...nearTarget] : [...nearTarget, ...nearSource]
+    // Each step down a preference list costs a little per pixel: far less
+    // than a bend, and the equal-length alternatives differ only in it.
+    const ranked = (lines: readonly number[]) => lines.map((at, rank) => ({ at, cost: rank * BEND_RANK_COST }))
+    const lanes = [across(from), across(to), ...gaps]
+    const channels = lr ? { x: columns, y: lanes } : { x: lanes, y: columns }
+    const lineCosts = lr ? { x: ranked(columns), y: ranked(gaps) } : { x: ranked(gaps), y: ranked(columns) }
+    const heading = (lr ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')) as RouterDirection
+    // Only what lies where the route can run matters: the box its lines span.
+    const corner = (alongs: readonly number[], acrosses: readonly number[], pick: (...values: number[]) => number) => point(pick(...alongs), pick(...acrosses))
+    const alongs = [along(from), along(to), ...columns], acrosses = lanes
+    const low = corner(alongs, acrosses, Math.min), high = corner(alongs, acrosses, Math.max)
+    const obstacles = space.commitsNear(low, high, COMMIT_CLEARANCE).filter(commit => commit.id !== relation.from && commit.id !== relation.to)
+      .map(commit => ({ x0: commit.x - COMMIT_CLEARANCE, y0: commit.y - COMMIT_CLEARANCE, x1: commit.x + COMMIT_CLEARANCE, y1: commit.y + COMMIT_CLEARANCE }))
+    const nearby = space.edgesNear(low, high, 1).map(index => accepted[index]!)
+    const request = { start, end, exit: heading, entry: heading, clearance: 0, channels, channelsOnly: true, lineCosts, obstacles }
+    // Collinear ink with an earlier connector is refused, except the trunk
+    // two connectors share from a commit both join (a fork or a join).
+    const clear = (points: RoutePoint[]) => {
+      const edge = { ...relation, points }
+      return !space.passedCommit(edge) && space.nearbyEdges(edge).every(other => !connectorsShareInk(edge, accepted[other]!, commitById))
     }
-    const bendAtSource = BEND_OFFSETS.map(k => [start, point(along(from) + sign * k, across(from)), point(along(from) + sign * k, across(to)), end])
-    const bendAtTarget = BEND_OFFSETS.map(k => [start, point(along(to) - sign * k, across(from)), point(along(to) - sign * k, across(to)), end])
-    const gap = viaGap(Math.sign(laneCoordinate(from.lane) - laneCoordinate(to.lane)))
-    return relation.kind === 'parent' ? [...bendAtSource, ...bendAtTarget, ...gap] : [...bendAtTarget, ...bendAtSource, ...gap]
+    const shares = (other: PositionedGitGraphEdge) => [other.from, other.to].some(id => id === relation.from || id === relation.to)
+    const segments = (edges: readonly PositionedGitGraphEdge[]) => edges.flatMap(edge => edge.points.slice(1).map((point, index) => [edge.points[index]!, point] as const))
+    const keepOff = (edges: readonly PositionedGitGraphEdge[]) => ({ segments: segments(edges), separation: 1, gap: 0 })
+    const attempts = [keepOff(nearby.filter(edge => !shares(edge))), keepOff(nearby)]
+    let fallback: RoutePoint[] | undefined
+    for (const avoid of attempts) {
+      const route = routeOrthogonal({ ...request, avoid })?.map(point => ({ x: point.x, y: point.y }))
+      if (!route) continue
+      if (clear(route)) return route
+      fallback ??= route
+    }
+    // Nothing clear: draw the preferred shape anyway, so certification
+    // names what it passes.
+    return fallback ?? routeOrthogonal(request)?.map(point => ({ x: point.x, y: point.y })) ?? [start, point(nearSource[0]!, across(from)), point(nearSource[0]!, across(to)), end]
   }
   // Same-lane links are fixed; branch-offs choose before merges and
   // cherry-picks, which have more freedom. Output keeps relation order.
@@ -317,12 +353,7 @@ function routeGitGraphEdges(
   const order = relations.map((_, index) => index).sort((a, b) => rank(relations[a]!) - rank(relations[b]!) || a - b)
   for (const index of order) {
     const relation = relations[index]!
-    const candidates = candidatesFor(relation)
-    const clear = candidates.find(points => {
-      const edge = { ...relation, points }
-      return !space.passedCommit(edge) && space.nearbyEdges(edge).every(other => !connectorsShareInk(edge, accepted[other]!, commitById))
-    })
-    const edge = { ...relation, points: clear ?? candidates[0]! }
+    const edge = { ...relation, points: routeFor(relation) }
     routed[index] = edge
     space.addEdge(edge, accepted.length)
     accepted.push(edge)
@@ -375,6 +406,25 @@ class RouteSpace {
       if (first !== Infinity) return this.commits[first]
     }
     return undefined
+  }
+
+  /** Commits whose centre lies in the box spanned by a and b, widened by
+   *  margin, in document order. */
+  commitsNear(a: RoutePoint, b: RoutePoint, margin: number): RouteCommit[] {
+    const found = new Set<number>()
+    this.visit(this.commitCells, this.commitWide, () => this.commits.keys(), a, b, margin, index => {
+      const commit = this.commits[index]!
+      if (commit.x >= Math.min(a.x, b.x) - margin && commit.x <= Math.max(a.x, b.x) + margin && commit.y >= Math.min(a.y, b.y) - margin && commit.y <= Math.max(a.y, b.y) + margin) found.add(index)
+    })
+    return [...found].sort((x, y) => x - y).map(index => this.commits[index]!)
+  }
+
+  /** Indices of added connectors with a segment near the box spanned by a
+   *  and b, ascending. */
+  edgesNear(a: RoutePoint, b: RoutePoint, margin: number): number[] {
+    const found = new Set<number>()
+    this.visit(this.edgeCells, this.edgeWide, () => this.edges.values(), a, b, margin, index => found.add(index))
+    return [...found].sort((x, y) => x - y)
   }
 
   addEdge(edge: PositionedGitGraphEdge, index: number): void {

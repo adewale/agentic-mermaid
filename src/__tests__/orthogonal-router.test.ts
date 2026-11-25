@@ -38,6 +38,8 @@ test.each([
   { name: 'a route may turn where its start stub ends', request: { ...base, end: { x: 20, y: -100 }, entry: 'N', stub: [20, 0], clearance: 0 }, bends: 1, corner: { x: 20, y: 50 } },
   // Both Zs are equally long; running off the channel costs a little more.
   { name: 'an off-channel cost settles equal routes on a channel', request: { ...base, end: { x: 300, y: 150 }, channels: { x: [250] }, offChannelCost: 0.05 }, bends: 2, corner: { x: 250, y: 50 } },
+  // Both Zs are equally long; the listed line costs rank the bend columns.
+  { name: 'line costs rank where an equal route bends', request: { ...base, end: { x: 300, y: 150 }, channels: { x: [100, 250] }, channelsOnly: true, lineCosts: { x: [{ at: 100, cost: 0.01 }, { at: 250, cost: 0 }] } }, bends: 2, corner: { x: 250, y: 50 } },
   // Via points are passed in order, under the same rules (no turning back).
   { name: 'via points are passed in order', request: { ...base, via: [{ x: 150, y: 200 }, { x: 250, y: 200 }] }, bends: 4 },
 ] as { name: string; request: OrthogonalRouteRequest; bends: number; corner?: RouterPoint }[])('$name', ({ request, bends: expected, corner }) => {

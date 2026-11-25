@@ -64,6 +64,11 @@ export interface OrthogonalRouteRequest {
    * channelsOnly): a small value breaks ties toward the channels, a larger
    * one pays for a detour to reach them. */
   readonly offChannelCost?: number
+  /** Extra cost per pixel of a run along a listed line (a vertical run on
+   * an `x` line, a horizontal one on a `y` line): ranks lines a family
+   * prefers in order, such as where a route should bend, without
+   * forbidding the others. */
+  readonly lineCosts?: { readonly x?: readonly { readonly at: number; readonly cost: number }[]; readonly y?: readonly { readonly at: number; readonly cost: number }[] }
   /** Called once for every grid step the search checks, so a caller can
    * bound the routing work of a whole diagram by throwing. */
   readonly charge?: () => void
@@ -247,6 +252,8 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const offChannel = request.channelsOnly ? 0 : request.offChannelCost ?? 0
   const onChannel = (values: readonly number[], channels: readonly number[] = []) => values.map(value => channels.some(channel => Math.abs(channel - value) <= EPS))
   const onChannelX = offChannel ? onChannel(xs, request.channels?.x) : [], onChannelY = offChannel ? onChannel(ys, request.channels?.y) : []
+  const lineCost = (values: readonly number[], costs: readonly { at: number; cost: number }[] = []) => values.map(value => costs.find(line => Math.abs(line.at - value) <= EPS)?.cost ?? 0)
+  const lineCostX = lineCost(xs, request.lineCosts?.x), lineCostY = lineCost(ys, request.lineCosts?.y)
   const inside = (p: RouterPoint) => inflated.some(box => p.x > box.x0 + EPS && p.x < box.x1 - EPS && p.y > box.y0 + EPS && p.y < box.y1 - EPS)
   const index = (p: RouterPoint) => {
     const i = xs.findIndex(x => Math.abs(x - p.x) <= EPS), j = ys.findIndex(y => Math.abs(y - p.y) <= EPS)
@@ -342,6 +349,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
         const vertical = d % 2 === 1, line = vertical ? lineAt(true, state.i) : lineAt(false, state.j)
         crossed = !clear(a, b, line) ? -1 : request.crossings ? crossedSegments(a, b, line.cross, targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
         if (crossed >= 0 && offChannel && !(vertical ? onChannelX[state.i] : onChannelY[state.j])) crossed += offChannel * length
+        if (crossed >= 0) crossed += (vertical ? lineCostX[state.i]! : lineCostY[state.j]!) * length
         if (dense) dense[edge] = crossed
         else sparse!.set(edge, crossed)
       }
