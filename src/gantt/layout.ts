@@ -371,10 +371,12 @@ function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], c
     { end: { x: enterX, y: tr.y + tr.h }, entry: 'N' as const, stub: 0 },
   ]
   // The pairing whose route has the fewest bends, then the shortest, wins;
-  // ties keep the earlier preference.
+  // ties keep the earlier preference. A route with at most one bend ends the
+  // search: a later pairing could save at most that bend.
   const boxes = obstacles.map(r => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h }))
   let best: { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up'; cost: number } | null = null
-  for (const start of starts) for (const end of ends) {
+  search: for (const start of starts) for (const end of ends) {
+    if (best && best.cost < 2e4) break search
     const route = routeOrthogonal({
       start: start.start, end: end.end, exit: start.exit, entry: end.entry, stub: [start.stub, end.stub],
       obstacles: boxes, clearance: 0, channels: corridors, channelsOnly: true,
