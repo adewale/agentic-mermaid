@@ -1469,12 +1469,12 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'],
     run: c => {
-      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.terminals)
+      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.terminals, c.style)
       c.titleBandRepairs = rerouted.titleBandRepairs
-      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), false, c.style)
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
-      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
-      repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true, c.style)
+      repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), c.style)
     },
   },
   {

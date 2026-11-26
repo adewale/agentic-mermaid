@@ -7,7 +7,7 @@ import { hasConstructedBundleRoute, retainConstructedBundleRoutes } from '../bun
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
 import { terminalHookLength } from '../route-geometry.ts'
 import { laneContextFor, straightLaneFor } from '../route-lanes.ts'
-import { labelPaintClearance } from '../../route-contracts.ts'
+import { labelPaintClearance } from '../label-seat.ts'
 import { labelHaloExtension, labelRect } from '../../shared/edge-label-geometry.ts'
 import { labelSeatPaintContext } from '../graph-paint-support.ts'
 

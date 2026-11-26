@@ -198,7 +198,7 @@ export function alignPortLanes(
     // Peer sizing can leave incident endpoints stale before this pass. Repair
     // only changed private routes, then admit the geometry we actually publish.
     const changedEdges = candidateEdges.filter((edge, index) => routeChanged(edge, edges[index]!))
-    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction }, style)
+    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction }, style, { nodes: candidateNodes, edges: candidateEdges, groups })
     if (!portLaneInkClear(candidateNodes, candidateEdges, nodes, edges, groups, style, budget)) return
   }
   // Centering is preparatory, but may not silently break more canonical

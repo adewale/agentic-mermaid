@@ -7,10 +7,65 @@
 // own preference order, so a clear first choice is kept as it is. A caller
 // leaving a shared trunk ranks a seat on its own run before one beside it.
 
-import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
-import { labelRect } from '../shared/edge-label-geometry.ts'
+import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
+import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { measureLabelConflicts } from './label-conflicts.ts'
+import { calculatePathMidpoint } from './geometry.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
+import { sharedTrunkConflict } from './route-lanes.ts'
+
+export type LabelPaintRect = { x: number; y: number; w: number; h: number }
+
+/** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
+export function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): number {
+  return labelHaloExtension(edge, style.lineWidth ?? 1)
+}
+
+/** Owned label-only passes leave routes fixed. Reentrant host measurement
+ * can replace peer geometry, so only the owned path reuses marker footprints. */
+export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle, work?: () => void) {
+  work?.()
+  let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
+  const overlapsHeader = (pill: LabelPaintRect, groups: readonly PositionedGroup[]): boolean => groups.some(group => {
+    work?.()
+    // Production retains the measured strip. An unmeasured group cannot
+    // establish a clear interior slot; keep its full extent conservative.
+    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+    return height > 0 && pill.x < group.x + group.width && pill.x + pill.w > group.x
+      && pill.y < group.y + height && pill.y + pill.h > group.y || overlapsHeader(pill, group.children)
+  })
+  const overlapsMarker = (pill: LabelPaintRect): boolean => {
+    const current = customTextMeasurementActive()
+      ? positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
+      : markers ??= positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
+    for (const marker of current) {
+      work?.()
+      const box = marker.bounds
+      if (box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0) return true
+    }
+    return false
+  }
+  const clearPaintRect = (inner: LabelPaintRect, halo: number, edge: PositionedEdge): LabelPaintRect | undefined => {
+    work?.()
+    const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
+    // Own endpoint cards are obstacles too: a repair must not exchange a
+    // route-label ambiguity for hidden authored text or terminal symbols.
+    // Beside them the halo also leaves that end's marker and some line.
+    const lineWidth = style.lineWidth ?? 1
+    const sourceGap = labelEndpointClearance(edge, lineWidth, 'start') - halo, targetGap = labelEndpointClearance(edge, lineWidth, 'end') - halo
+    if (positioned.nodes.some(node => {
+      work?.()
+      const gap = Math.max(0, node.id === edge.source ? sourceGap : 0, node.id === edge.target ? targetGap : 0)
+      return pill.x < node.x + node.width + gap && pill.x + pill.w + gap > node.x && pill.y < node.y + node.height + gap && pill.y + pill.h + gap > node.y
+    }) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
+    return pill
+  }
+  return { overlapsMarker, clearPaintRect }
+}
 
 const SEAT_STEP = 8
 /** Work bound: a caption searches at most this many dense seats per offset. */
@@ -80,11 +135,6 @@ export function seatLabel(
   return best?.seat
 }
 
-/** Whether the caption's pill covers another caption, a node or a foreign shaft. */
-export function labelInConflict(edge: PositionedEdge, graph: { nodes: readonly PositionedNode[]; edges: readonly PositionedEdge[] }, style: LabelMetricsStyle): boolean {
-  return measureLabelConflicts(graph as { nodes: PositionedNode[]; edges: PositionedEdge[] }, style, new Set([graph.edges.indexOf(edge)])).total > 0
-}
-
 function routeDistance(point: Point, points: readonly Point[]): number {
   let distance = Infinity
   for (let index = 1; index < points.length; index++) {
@@ -96,25 +146,47 @@ function routeDistance(point: Point, points: readonly Point[]): number {
   return distance
 }
 
+export type SeatGraph = { nodes: readonly PositionedNode[]; edges: readonly PositionedEdge[]; groups?: readonly PositionedGroup[] }
+
+/**
+ * A producer that writes a route seats its caption on that route by the one
+ * rule, nearest `preferred` (by default the route's midpoint, which is kept
+ * when it is clear): first on its runs, then just inside the on-route
+ * allowance beside them (half the pill plus four pixels, the rubric's
+ * labelOffRoute bound), never on a run another edge shares. A caption with
+ * no such seat keeps its route's midpoint, for the settler's shared-trunk
+ * repair to give it a private channel.
+ */
+export function seatCaption(edge: PositionedEdge, graph: SeatGraph, style: LabelMetricsStyle, preferred?: Point): void {
+  if (!edge.label || edge.points.length < 2) return
+  const midpoint = calculatePathMidpoint(edge.points), target = preferred ?? midpoint
+  edge.labelPosition = midpoint
+  const block = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
+  const allow = block.height / 2 + LABEL_PILL_PADDING + 4
+  const nearest = (seats: Point[]) => seats.map((seat, index) => ({ seat, index, distance: Math.hypot(seat.x - target.x, seat.y - target.y) }))
+    .sort((a, b) => a.distance - b.distance || a.index - b.index).map(entry => entry.seat)
+  const seats = [...(routeDistance(target, edge.points) <= ON_ROUTE ? [target] : []), ...nearest(routeSeats(edge.points)), ...nearest([...routeSeats(edge.points, allow - 1), ...routeSeats(edge.points, 1 - allow)])]
+  const edges = graph.edges as PositionedEdge[]
+  const offTrunk = (seat: Point): boolean => !sharedTrunkConflict(edge, edges, style, seat)
+  // Paint-safe seats first (halo clear of cards, headers and markers); where
+  // none is, any seat off a shared trunk.
+  const paint = labelPaintClearance({ nodes: graph.nodes as PositionedNode[], edges, groups: (graph.groups ?? []) as PositionedGroup[] }, style), halo = labelHaloPadding(edge, style)
+  if (seatLabel(edge, graph, style, seats, seat => offTrunk(seat) && !!paint.clearPaintRect(pillRect(seat.x, seat.y, block), halo, edge))) return
+  seatLabel(edge, graph, style, seats, offTrunk)
+}
+
 /**
  * ELK reserves each caption's room beside the route it draws. Where the
  * produced route differs (a cross-hierarchy or margin route joined or rebuilt
- * after ELK), a caption left beyond the on-route allowance (half its pill
- * plus four pixels, the rubric's labelOffRoute bound) is seated on its own
- * route by the one rule, nearest the room ELK reserved. Self-loop captions
- * sit beside their stub by design.
+ * after ELK), or ELK reserved none, the caption is seated on its own route
+ * by the one rule, nearest any room ELK reserved. Self-loop captions sit
+ * beside their stub by design.
  */
-export function seatLabelsOnOwnRoutes(graph: { nodes: readonly PositionedNode[]; edges: readonly PositionedEdge[] }, style: LabelMetricsStyle): void {
+export function seatLabelsOnOwnRoutes(graph: SeatGraph, style: LabelMetricsStyle): void {
   for (const edge of graph.edges) {
-    const reserved = edge.labelPosition, rect = labelRect(edge, style)
-    if (!reserved || !rect || edge.source === edge.target || edge.points.length < 2) continue
-    const allow = rect.h / 2 + 4
-    if (routeDistance(reserved, edge.points) <= allow) continue
-    // On the route first; a run whose every on-route seat is crowded may
-    // still seat the pill just inside the allowance, on either side.
-    const nearest = (seats: Point[]) => seats.map((seat, index) => ({ seat, index, distance: Math.hypot(seat.x - reserved.x, seat.y - reserved.y) }))
-      .sort((a, b) => a.distance - b.distance || a.index - b.index).map(entry => entry.seat)
-    const seats = [...nearest(routeSeats(edge.points)), ...nearest([...routeSeats(edge.points, allow - 1), ...routeSeats(edge.points, 1 - allow)])]
-    seatLabel(edge, graph, style, seats, () => true)
+    if (!edge.label || edge.source === edge.target || edge.points.length < 2) continue
+    const reserved = edge.labelPosition, rect = reserved && labelRect(edge, style)
+    if (reserved && rect && routeDistance(reserved, edge.points) <= rect.h / 2 + 4) continue
+    seatCaption(edge, graph, style, reserved)
   }
 }

@@ -3,7 +3,8 @@
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import type { LabelSeatSearch } from './layout/label-seat-search.ts'
-import { labelInConflict, routeSeats, seatLabel } from './layout/label-seat.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { labelHaloPadding, labelPaintClearance, routeSeats, seatCaption, seatLabel, type LabelPaintRect } from './layout/label-seat.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { AxisAlignedBox } from './shared/transformed-bounds.ts'
@@ -577,7 +578,7 @@ export function applyRouteContracts(
     }
     if (occlusionFallback) {
       setRoutePoints(ctx, edge, occlusionFallback.route)
-      if (edge.label) edge.labelPosition = occlusionFallback.labelMid
+      seatCaption(edge, ctx, ctx.style, occlusionFallback.labelMid)
       return true
     }
     return false
@@ -718,7 +719,7 @@ export function applyRouteContracts(
     }
     if (fallback) {
       setRoutePoints(ctx, edge, fallback.route)
-      if (edge.label) edge.labelPosition = fallback.labelMid
+      seatCaption(edge, ctx, ctx.style, fallback.labelMid)
       return true
     }
     return false
@@ -1225,55 +1226,6 @@ function* labelSegmentSamples(segments: ReturnType<typeof orderedLabelSegments>,
       y: segment.a.y + (segment.b.y - segment.a.y) * t + (segment.vertical ? 0 : offset),
     }
   }
-}
-
-export type LabelPaintRect = { x: number; y: number; w: number; h: number }
-
-/** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
-function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): number {
-  return labelHaloExtension(edge, style.lineWidth ?? 1)
-}
-
-/** Owned label-only passes leave routes fixed. Reentrant host measurement
- * can replace peer geometry, so only the owned path reuses marker footprints. */
-export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle, work?: () => void) {
-  work?.()
-  let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
-  const overlapsHeader = (pill: LabelPaintRect, groups: readonly PositionedGroup[]): boolean => groups.some(group => {
-    work?.()
-    // Production retains the measured strip. An unmeasured group cannot
-    // establish a clear interior slot; keep its full extent conservative.
-    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
-    return height > 0 && pill.x < group.x + group.width && pill.x + pill.w > group.x
-      && pill.y < group.y + height && pill.y + pill.h > group.y || overlapsHeader(pill, group.children)
-  })
-  const overlapsMarker = (pill: LabelPaintRect): boolean => {
-    const current = customTextMeasurementActive()
-      ? positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
-      : markers ??= positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
-    for (const marker of current) {
-      work?.()
-      const box = marker.bounds
-      if (box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0) return true
-    }
-    return false
-  }
-  const clearPaintRect = (inner: LabelPaintRect, halo: number, edge: PositionedEdge): LabelPaintRect | undefined => {
-    work?.()
-    const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
-    // Own endpoint cards are obstacles too: a repair must not exchange a
-    // route-label ambiguity for hidden authored text or terminal symbols.
-    // Beside them the halo also leaves that end's marker and some line.
-    const lineWidth = style.lineWidth ?? 1
-    const sourceGap = labelEndpointClearance(edge, lineWidth, 'start') - halo, targetGap = labelEndpointClearance(edge, lineWidth, 'end') - halo
-    if (positioned.nodes.some(node => {
-      work?.()
-      const gap = Math.max(0, node.id === edge.source ? sourceGap : 0, node.id === edge.target ? targetGap : 0)
-      return pill.x < node.x + node.width + gap && pill.x + pill.w + gap > node.x && pill.y < node.y + node.height + gap && pill.y + pill.h + gap > node.y
-    }) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
-    return pill
-  }
-  return { overlapsMarker, clearPaintRect }
 }
 
 /**
@@ -1957,7 +1909,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
       }
       // The channel moved a route; a caption still in conflict takes the
       // rule's seat on the new routes, unless its own seat is no worse.
-      if (rerouted && labelInConflict(edge, positioned, style)) {
+      if (rerouted && measureLabelConflicts(positioned, style, new Set([positioned.edges.indexOf(edge)])).total) {
         const incumbent = edge.labelPosition!
         seatLabel(edge, positioned, style, (function* () { yield incumbent; yield* slots(edge, labeled.filter(other => other !== edge), false, undefined, true, true) })(), () => true)
       }

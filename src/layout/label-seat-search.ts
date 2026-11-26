@@ -1,5 +1,6 @@
 import type { PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
-import type { LabelMetricsStyle, LabelPaintRect } from '../route-contracts.ts'
+import type { LabelMetricsStyle } from '../route-contracts.ts'
+import type { LabelPaintRect } from './label-seat.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'

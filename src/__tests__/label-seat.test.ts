@@ -5,6 +5,7 @@
 import { expect, test } from 'bun:test'
 import { layoutMermaidWithReceipt, measureQuality, verifyMermaid } from '../agent/index.ts'
 import { routeSeats, seatLabel } from '../layout/label-seat.ts'
+import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
@@ -131,6 +132,18 @@ test('a caption beside a joined cross-hierarchy route is seated on that route', 
   const { layout } = layoutMermaidWithReceipt('stateDiagram-v2\n  direction RL\n  state C1 {\n    [*] --> s0\n  }\n  C1 --> s0 : x\n  C1 --> C1 : x')
   const { label, path } = layout.edges.find(edge => edge.from === 'C1' && edge.to === 's0')!
   expect(onOwnRun(label!, path)).toBe(true)
+})
+
+// A route producer seats the caption of every route it writes. Rerouted
+// around the node it ran through, this edge's midpoint lies against that
+// node's top; the producer seats the caption clear of it on the new route.
+test('a rerouted caption is seated on its new route clear of nodes', () => {
+  const nodes = [node('A', 0, 0), node('B', 400, 0), node('C', 180, 0)]
+  const through = edge('A', 'B', [[40, 20], [400, 20]], { label: 'handoff', labelPosition: { x: 220, y: 20 } })
+  expect(rerouteEdgesThroughNodes(nodes, [through], { direction: 'LR' }, undefined, [], undefined, style).repaired).toBe(1)
+  expect(measureLabelConflicts({ nodes, edges: [through] }, style)).toMatchObject({ labelNode: 0 })
+  const path = through.points.map(({ x, y }) => [x, y] as const)
+  expect(onOwnRun(through.labelPosition!, path)).toBe(true)
 })
 
 // Constructed scene for the cost order no public input is known to reach.

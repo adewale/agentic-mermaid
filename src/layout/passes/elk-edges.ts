@@ -9,7 +9,7 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { MermaidGraph, Point, PositionedEdge } from '../../types.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
-import { calculatePathMidpoint, type MarginInfo } from '../geometry.ts'
+import type { MarginInfo } from '../geometry.ts'
 import { orthogonalizeEdgePoints } from './orthogonalize.ts'
 import { alignElkRoundoff } from '../elk-roundoff.ts'
 
@@ -69,13 +69,9 @@ export function extractEdgesRecursively(
       allPoints.push(...(shared || redundant ? points.slice(1) : points))
     }
 
-    // Label position: use ELK's inline label position (on-edge with collision avoidance)
-    // Fall back to midpoint for hierarchical edges or when ELK position unavailable
-    let labelPosition: Point | undefined
-    if (originalEdge.label && allPoints.length >= 2) {
-      const elkLabelPos = seg.find(part => part.labelPosition)?.labelPosition
-      labelPosition = elkLabelPos ?? calculatePathMidpoint(allPoints)
-    }
+    // The room ELK reserved for the caption. A route without one, or one
+    // rebuilt below, has its caption seated on it after extraction.
+    let labelPosition = originalEdge.label ? seg.find(part => part.labelPosition)?.labelPosition : undefined
 
     // Ensure all edge segments are orthogonal (horizontal or vertical only).
     // In SEPARATE hierarchy mode, ELK may produce diagonal segments for
@@ -88,10 +84,7 @@ export function extractEdgesRecursively(
       marginEdgeIndex++
     }
 
-    // Recalculate label position for margin-routed edges
-    if (originalEdge.label && orthogonalPoints !== allPoints && orthogonalPoints.length >= 2) {
-      labelPosition = calculatePathMidpoint(orthogonalPoints)
-    }
+    if (orthogonalPoints !== allPoints) labelPosition = undefined
 
     edges.push(positionedEdgeFromAuthored(graph, edgeIndex, orthogonalPoints, labelPosition))
   }
