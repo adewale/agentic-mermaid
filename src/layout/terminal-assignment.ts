@@ -72,8 +72,10 @@ export interface ArrivalFace {
 /** Ends that share one terminal, `offset` from the face's port along it. */
 export interface ArrivalSlot { members: PositionedEdge[]; offset: number }
 
-const SLOT_PITCH = 14
-const MIN_SLOT_PITCH = 6
+/** Spacing between neighbouring arrival slots, and the least a crowded face
+ * may squeeze it to. */
+export const ARRIVAL_SLOT_PITCH = 14
+export const MIN_ARRIVAL_SLOT_PITCH = 6
 
 /** Arrivals that may not all share one arrowhead each get a slot of their
  * own along the face. Sets of mutually shareable arrivals are ordered by
@@ -102,8 +104,8 @@ function planArrivalSlots(shares: (a: PositionedEdge, b: PositionedEdge) => bool
   const plans: ArrivalSlot[][] = []
   for (const keeper of keepers) {
     const steps = Math.max(keeper, sets.length - 1 - keeper)
-    const pitch = Math.min(SLOT_PITCH, face.reach / steps)
-    if (pitch < MIN_SLOT_PITCH) continue
+    const pitch = Math.min(ARRIVAL_SLOT_PITCH, face.reach / steps)
+    if (pitch < MIN_ARRIVAL_SLOT_PITCH) continue
     const orders = [1, -1].map(direction => sets.map((members, index) => ({ members, offset: direction * (index - keeper) * pitch })))
     plans.push(...orders.sort((a, b) => drift(a) - drift(b)))
   }
