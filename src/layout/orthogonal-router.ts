@@ -77,6 +77,13 @@ export interface OrthogonalRouteRequest {
    * different one, and it explores far less of a large grid. Always on with
    * via points. */
   readonly guided?: boolean
+  /** The most a route is worth to the caller, in the search's own cost
+   * (length, bends, crossings and line costs, not counting the stubs), for
+   * one that keeps the cheapest of several requests. Where every route
+   * costs more than this (by over `COST_LIMIT_SLACK`), the search stops as
+   * soon as that is certain and returns undefined; otherwise it returns the
+   * route it returns without a limit. */
+  readonly costLimit?: number
 }
 
 const STEP: Record<RouterDirection, RouterPoint> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
@@ -276,6 +283,10 @@ const HOPELESS = 128
 /** How far past the cheapest cost a bounded pass still queues states: far
  * above rounding in summed costs; more only queues more states. */
 const BOUND_SLACK = 1
+/** How far past `costLimit` a route must cost before the search gives up on
+ * it: far above rounding in summed costs, so a route within the limit, or a
+ * caller summing the same route its own way, is never cut off. */
+export const COST_LIMIT_SLACK = 1
 
 /** Fewest bends, then shortest; undefined when no clear route exists. */
 export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] | undefined {
@@ -523,6 +534,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // at all. Not with `charge`: a caller's work budget counts the steps the
   // full search checks.
   const hopeless = request.charge ? -1 : HOPELESS
+  const limit = (request.costLimit ?? Infinity) + COST_LIMIT_SLACK
   /** One search pass, ordered by cost alone or (`ordered`) by cost plus the
    * lower bound. States whose cost plus lower bound exceeds `bound` cannot
    * lie on a route that cheap and are never queued. Returns the route's
@@ -553,6 +565,11 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     let expanded = 0
     while (scratch.open) {
       const slot = scratch.pop()
+      // The cost-and-bound order pops states in rising rank (within EPS per
+      // heap level), and a route's every state ranks at most its cost: once
+      // the first pass pops a state ranked past the limit, no route within
+      // it is left.
+      if (ordered && scratch.rank[slot]! > limit) return undefined
       if (scratch.final[slot]) return finish(slot)
       const si = scratch.i[slot]!, sj = scratch.j[slot]!, sd = scratch.d[slot]!, sk = scratch.k[slot]!, scost = scratch.cost[slot]!, srun = scratch.run[slot]!
       const own = key(si, sj, sd, sk, srun)

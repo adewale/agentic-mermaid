@@ -373,7 +373,9 @@ function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], c
   ]
   // The pairing whose route has the fewest bends, then the shortest, wins;
   // ties keep the earlier preference. A route with at most one bend ends the
-  // search: a later pairing could save at most that bend.
+  // search: a later pairing could save at most that bend. A later pairing's
+  // search gives up once it cannot beat the best so far (the router's cost
+  // leaves out the stubs).
   const boxes = obstacles.map(r => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h }))
   // A port inside another bar (bars drawn wider than their time overlap in
   // compact mode) would start or end the connector in that bar's interior.
@@ -385,6 +387,7 @@ function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], c
     const route = routeOrthogonal({
       start: start.start, end: end.end, exit: start.exit, entry: end.entry, stub: [start.stub, end.stub],
       obstacles: boxes, clearance: 0, channels: corridors, channelsOnly: true,
+      ...(best ? { costLimit: best.cost - start.stub - end.stub } : {}),
     })
     if (!route) continue
     let cost = (route.length - 2) * 1e4

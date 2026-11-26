@@ -5,7 +5,7 @@
 
 import { expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
+import { COST_LIMIT_SLACK, routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const box = { x0: 100, y0: 0, x1: 200, y1: 100 }
@@ -167,4 +167,17 @@ test('giving up on a route that cannot arrive never drops one that can', () => {
   fc.assert(fc.property(request, input => {
     expect(routeOrthogonal(input)).toEqual(routeOrthogonal({ ...input, charge: () => {} }))
   }), fcParameters({ numRuns: 300, examples: [[walled]] }))
+})
+
+// A caller keeping the cheapest of several routes passes the cost to beat:
+// the route within it is unchanged, and one costing more is not searched out.
+test('a cost limit keeps the route within it and drops a costlier one', () => {
+  fc.assert(fc.property(request, input => {
+    const route = routeOrthogonal(input)
+    if (!route) return
+    const [startStub, endStub] = typeof input.stub === 'object' ? input.stub : [input.stub ?? 0, input.stub ?? 0]
+    const cost = bends(route) * 1e4 + length(route) - startStub - endStub
+    expect(routeOrthogonal({ ...input, costLimit: cost })).toEqual(route)
+    expect(routeOrthogonal({ ...input, costLimit: cost - COST_LIMIT_SLACK - 1 })).toBeUndefined()
+  }), fcParameters({ numRuns: 300 }))
 })
