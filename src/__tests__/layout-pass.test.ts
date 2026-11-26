@@ -24,8 +24,6 @@ import { opposingRoutePartners } from '../shared/edge-overlaps.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
-const settleLabelStep = (id: string) => LAYOUT_PIPELINE.find(pass => pass.id === 'settleEdgeLabels')!.steps!.find(step => step.id === id)!
-
 describe('source-aware ELK child order', () => {
   test.each([
     ['ready nodes released ahead of earlier queued nodes', 'flowchart TD\nA\nB\nC\nD\nE\nE --> B\nB --> D\nA --> C', ['A', 'C', 'E', 'B', 'D']],
@@ -78,7 +76,7 @@ N2 --->|a longer label goes here| N4`)
       const source = `flowchart ${direction}\nA[Start] --> B[Done]`
       const baseline = renderMermaidSVG(source, { embedFontImport: false })
       // The injected route fault must originate at a route-writing owner.
-      const pass = settleLabelStep('repairLabelsOnSharedTrunks'), run = pass.run
+      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'settleEdgeLabels')!, run = pass.run
       let injected = 0
       pass.run = context => {
         run(context)
@@ -102,20 +100,6 @@ N2 --->|a longer label goes here| N4`)
         expect(injected).toBeGreaterThanOrEqual(2)
       } finally { pass.run = run }
     })
-  })
-
-  test('a label-only step cannot rewrite a route even with a fresh certificate', () => {
-    const pass = settleLabelStep('repairLabelsOffOwnRoute'), run = pass.run
-    pass.run = context => {
-      run(context)
-      const edge = context.edges[0]!, a = edge.points[0]!, b = edge.points.at(-1)!
-      edge.points = [a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b]
-      edge.routeCertificate = { ...edge.routeCertificate! }
-    }
-    try {
-      expect(() => withPerformanceExperiments(['text-spans'], () =>
-        renderMermaidSVG('flowchart LR\nA[Start] --> B[Done]', { embedFontImport: false }))).toThrow(/repairLabelsOffOwnRoute.*rewrote edge geometry/)
-    } finally { pass.run = run }
   })
 
   test.each([

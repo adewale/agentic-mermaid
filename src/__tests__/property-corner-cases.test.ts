@@ -23,10 +23,10 @@
 //
 // Every generator now pins labelOffRoute at ZERO. (The one pre-existing near-miss
 // this gate first surfaced — a high-degree RL double-hub fan-in whose diamond→hub
-// spoke label sat ~25px above a congested shared-approach trunk — is now fixed by
-// the repairLabelsOffOwnRoute pass, which pulls such a label back within the
-// allowance. The pins stay as an explicit contract: any NEW off-route label fails
-// the gate.)
+// spoke label sat ~25px above a congested shared-approach trunk — is now fixed:
+// every caption seat is chosen on or within the allowance of its own route
+// (src/layout/label-seat.ts). The pins stay as an explicit contract: any NEW
+// off-route label fails the gate.)
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'

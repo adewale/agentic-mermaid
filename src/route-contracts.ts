@@ -3,6 +3,7 @@
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import type { LabelSeatSearch } from './layout/label-seat-search.ts'
+import { labelInConflict, routeSeats, seatLabel } from './layout/label-seat.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { AxisAlignedBox } from './shared/transformed-bounds.ts'
@@ -1303,26 +1304,21 @@ export function repairLabelsOnSharedTrunks(
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
     const paint = clearance ??= labelPaintClearance(positioned, style)
     const halo = labelHaloPadding(edge, style)
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
+    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
-
     const segs = orderedLabelSegments(edge)
-
-    const saved = edge.labelPosition
-    let fixed = false
     // A narrow private segment beside a shared trunk can have no centered
-    // slot. Keep the shaft inside its pill while trying either side, within
-    // the existing on-route allowance; the route itself remains frozen.
+    // slot. Keep the shaft inside its pill while trying either side, then
+    // every dense seat of the run; the route itself remains frozen. The one
+    // seat rule ranks them, a seat on its own run first: beside it, the
+    // caption could name the trunk it is leaving.
     const shift = Math.min(pw, ph) / 2 - 1
-    for (const offset of [0, shift, -shift]) {
-      if (fixed) break
-      for (const point of labelSegmentSamples(segs, pw, ph, offset, false, true)) {
-        edge.labelPosition = point
-        if (paint.clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
-      }
+    const candidates = function* (): Generator<Point> {
+      for (const offset of [0, shift, -shift]) yield* labelSegmentSamples(segs, pw, ph, offset, false, true)
+      yield* routeSeats(edge.points)
     }
-
-    if (!fixed) { edge.labelPosition = saved; channels.push({ edge, width: m.width }) }
+    const admit = (point: Point): boolean => !!paint.clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style, point)
+    if (!seatLabel(edge, positioned, style, candidates(), admit, true)) channels.push({ edge, width: m.width })
   }
   // Seat short captions before wide ones reserve the outer channels. Label-
   // only repairs retain their original order and geometry-preserving priority.
@@ -1336,7 +1332,6 @@ export function repairLabelsOnSharedTrunks(
       }
     }
   }
-
 }
 
 const PRIVATE_CHANNEL_LANES = 128
@@ -1692,7 +1687,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
   // supply a search that remembers fixed clearances (label-seat-search.ts).
   const seats = options?.preserveRouteClearance ? undefined : options?.seats?.(positioned, style, labeled, clearPaintRect, rectOf, intersects)
 
-  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }, masking = true): Generator<Point> {
+  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }, masking = true, dense = false): Generator<Point> {
     if (rescue && !rescue.pay(16)) return
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
@@ -1738,8 +1733,17 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
         if (clearAt(point.x, point.y, maskFree)) yield point
       }
     }
+    // The settled graph also offers every dense seat of its own route that
+    // is paint-safe and off shared trunks. The one seat rule ranks them after
+    // the ladder by the captions and shafts they actually cover.
+    if (dense) for (const point of routeSeats(edge.points)) {
+      if (clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style, point)) yield point
+    }
   }
   const slide = (edge: PositionedEdge, masking = true): boolean => {
+    // A settled graph caption takes the least-conflicted seat by the one seat
+    // rule; a clear first slot is kept as it is.
+    if (privateChannel) return !!seatLabel(edge, positioned, style, slots(edge, labeled.filter(other => other !== edge), false, undefined, masking, true), () => true)
     for (const point of slots(edge, labeled.filter(other => other !== edge), false, undefined, masking)) {
       edge.labelPosition = point
       return true
@@ -1940,14 +1944,22 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
       // The label-only search has found no clear seat. Move only a shaft that
       // actually touches this halo, and preserve each previously clear label.
       // A second blocker can need just a local slide after the first one moves.
+      let rerouted = false
       for (let hit: typeof contact | undefined = contact; hit && channelBudget.lanes; hit = contacts.next().value) {
         if (!pay(1)) return
         if (hit === true || hit.edge.label) continue
         const peer = hit.edge, protectedHalos = paint.protectedHalos(edge, peer)
         if (!protectedHalos) return
         if (!privateChannel(peer, positioned, graph, style, clearance, edge, { protectedHalos, budget: channelBudget, prepare: paint.refreshRoute })) continue
+        rerouted = true
         const next = foreignRouteContacts(edge, rect).next().value
         if (!next || typeof next === 'object' && slideBeside(edge, rect, next.box, paint)) break
+      }
+      // The channel moved a route; a caption still in conflict takes the
+      // rule's seat on the new routes, unless its own seat is no worse.
+      if (rerouted && labelInConflict(edge, positioned, style)) {
+        const incumbent = edge.labelPosition!
+        seatLabel(edge, positioned, style, (function* () { yield incumbent; yield* slots(edge, labeled.filter(other => other !== edge), false, undefined, true, true) })(), () => true)
       }
     }
   }

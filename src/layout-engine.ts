@@ -1,4 +1,5 @@
 import { estimateNodeSize, groupHeaderHeight, groupTitleWidth, retainGraphText } from './layout/graph-measurement.ts'
+import { seatLabelsOnOwnRoutes } from './layout/label-seat.ts'
 export { estimateNodeSize, retainGraphText } from './layout/graph-measurement.ts'
 import { translateRoute } from './layout/route-values.ts'
 import { graphTextBlock } from './graph-text.ts'
@@ -9,7 +10,6 @@ import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
-import { reseatConflictedLabels } from './layout/passes/label-reseat.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -27,8 +27,8 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layou
 import { certifyCandidate, certifyLayoutPlacementCandidates, certifyLayoutCandidates, type LayoutCertificationCandidate, LayoutCertificationError, positionedGeometryFindings, retainSelection, withinLayoutPreferenceBudget } from './layout/certification.ts'
 import type { MarginInfo } from './layout/geometry.ts'
 import { calculatePathMidpoint, DEFAULTS, findSubgraph, flattenGroupBounds, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeCrossStart, nodeMainCenter, nodeMainSize, nodeMainStart, pointAtPathDistance, polylineLength, positionedNodeCenter, rectsOverlap } from './layout/geometry.ts'
-import type { LayoutPass, LayoutPassStep, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
-import { runPipeline, runSteps } from './layout/pass.ts'
+import type { LayoutPass, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
+import { runPipeline } from './layout/pass.ts'
 import { finishPositionedGraph } from './layout/positioned-values.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
@@ -36,7 +36,7 @@ import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from './layout-rubric.ts'
 import { measureRenderStage } from './render-stages.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { anticipateCrossingCounts } from './shared/edge-crossings.ts'
@@ -1343,25 +1343,18 @@ function checkpointCentering(context: LayoutPassContext): () => void {
   }
 }
 
-/** The label settler's steps. The two label-only steps may not rewrite a route. */
-const SETTLE_EDGE_LABEL_STEPS: ReadonlyArray<LayoutPassStep<LayoutPassContext>> = [
-  { id: 'repairLabelsOnSharedTrunks', mutates: ['edges'], run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
-  { id: 'repairLabelsOffOwnRoute', mutates: ['labels'], run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
-  { id: 'separateEdgeLabelPills', mutates: ['edges'], run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) } },
-  { id: 'reseatConflictedLabels', mutates: ['labels'], run: c => { reseatConflictedLabels(c.nodes, c.edges, c.style) } },
-]
-
 // The post-ELK geometry pipeline, reified (docs/design/system/route-contracts.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with unchanged arguments. Symmetry repairs retain their current order: duplicate
 // lanes depend on symmetric parallel lanes, and fanout commutativity is unproved.
 export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
-    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
+    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy); seat captions on their own produced routes',
     after: [], mutates: ['extract'],
     run: c => {
       extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
       retainGraphText(c, c.style)
+      seatLabelsOnOwnRoutes(c, c.style)
     },
   },
   {
@@ -1485,10 +1478,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     },
   },
   {
-    id: 'settleEdgeLabels', doc: 'seat edge labels on their final routes: shared-trunk seats or proved private channels, pills off their own route, colliding pills, then captions still crossed by a foreign shaft (freeze-safe)',
+    id: 'settleEdgeLabels', doc: 'settle captions on their final routes by the one seat rule: a shared-trunk caption takes a seat of its own run or a proved private channel, then colliding pills part (freeze-safe)',
     after: ['rerouteEdgesThroughNodes'], mutates: ['edges'],
-    steps: SETTLE_EDGE_LABEL_STEPS,
-    run: runSteps('settleEdgeLabels', SETTLE_EDGE_LABEL_STEPS),
+    run: c => {
+      const positioned = { nodes: c.nodes, edges: c.edges, groups: c.groups }
+      repairLabelsOnSharedTrunks(positioned, c.graph, c.style)
+      settleGraphEdgeLabels(positioned, c.graph, c.style)
+    },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
