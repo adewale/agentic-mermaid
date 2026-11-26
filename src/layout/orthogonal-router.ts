@@ -126,14 +126,18 @@ function firstAtLeast(values: Float64Array, value: number): number {
 
 /** Segments of one orientation as flat columns: the line each lies on and
  * its span along that line. */
-interface SegmentColumns { readonly at: number[]; readonly lo: number[]; readonly hi: number[] }
+interface SegmentColumns { readonly at: Float64Array; readonly lo: Float64Array; readonly hi: Float64Array }
 /** Segments split into vertical and horizontal columns. */
 function columns(segments: readonly (readonly [RouterPoint, RouterPoint])[]): { readonly vertical: SegmentColumns; readonly horizontal: SegmentColumns } {
-  const vertical: SegmentColumns = { at: [], lo: [], hi: [] }, horizontal: SegmentColumns = { at: [], lo: [], hi: [] }
+  let verticals = 0
+  for (const segment of segments) if (Math.abs(segment[0].x - segment[1].x) <= EPS) verticals++
+  const column = (size: number): SegmentColumns => ({ at: new Float64Array(size), lo: new Float64Array(size), hi: new Float64Array(size) })
+  const vertical = column(verticals), horizontal = column(segments.length - verticals)
+  let v = 0, h = 0
   for (const segment of segments) {
     const p = segment[0], q = segment[1]
-    if (Math.abs(p.x - q.x) <= EPS) { vertical.at.push(p.x); vertical.lo.push(Math.min(p.y, q.y)); vertical.hi.push(Math.max(p.y, q.y)) }
-    else { horizontal.at.push(p.y); horizontal.lo.push(Math.min(p.x, q.x)); horizontal.hi.push(Math.max(p.x, q.x)) }
+    if (Math.abs(p.x - q.x) <= EPS) { vertical.at[v] = p.x; vertical.lo[v] = Math.min(p.y, q.y); vertical.hi[v++] = Math.max(p.y, q.y) }
+    else { horizontal.at[h] = p.y; horizontal.lo[h] = Math.min(p.x, q.x); horizontal.hi[h++] = Math.max(p.x, q.x) }
   }
   return { vertical, horizontal }
 }
@@ -151,47 +155,105 @@ function crowds(a: RouterPoint, b: RouterPoint, at: number, avoided: SegmentColu
   return false
 }
 
-interface Queued { readonly i: number; readonly j: number; readonly d: number; readonly rank: number; readonly seq: number }
+/** Search states in flat columns, one slot per push, so a search allocates
+ * no object per state. A slot's index is its push order. Kept between
+ * searches with the per-state and per-edge tables, which a new generation
+ * clears without rewriting them. */
+class SearchScratch {
+  size = 0
+  i = new Int32Array(1024); j = new Int32Array(1024); d = new Int32Array(1024); k = new Int32Array(1024)
+  cost = new Float64Array(1024); rank = new Float64Array(1024); run = new Float64Array(1024)
+  /** The state this one was reached from, or -1. */
+  previous = new Int32Array(1024)
+  final = new Uint8Array(1024)
+  /** Binary min-heap of slots in search order. */
+  heap = new Int32Array(1024); heapRank = new Float64Array(1024)
+  open = 0
+  /** The cheapest cost found per search state, valid where its generation
+   * is the current pass's. */
+  best = new Float64Array(0); bestGeneration = new Uint32Array(0); passGeneration = 0
+  /** Each grid edge's checked extra cost, valid where its generation is the
+   * current route's. */
+  edge = new Float64Array(0); edgeGeneration = new Uint32Array(0); routeGeneration = 0
 
-/** The search order: lower rank (cost so far plus the least cost still to
- * come) first, within EPS a tie, then the earlier grid column, row and
- * heading, then the earlier push. Deterministic. */
-function before(a: Queued, b: Queued): boolean {
-  if (Math.abs(a.rank - b.rank) > EPS) return a.rank < b.rank
-  return a.i !== b.i ? a.i < b.i : a.j !== b.j ? a.j < b.j : a.d !== b.d ? a.d < b.d : a.seq < b.seq
-}
+  /** Starts a pass over `states` search states. */
+  startPass(states: number): void {
+    this.size = 0; this.open = 0
+    if (this.best.length < states) { this.best = new Float64Array(states); this.bestGeneration = new Uint32Array(states); this.passGeneration = 0 }
+    if (++this.passGeneration === 0xffffffff) { this.bestGeneration.fill(0); this.passGeneration = 1 }
+  }
 
-/** Binary min-heap over `before`. */
-class StateHeap<T extends Queued> {
-  private readonly items: T[] = []
-  get size(): number { return this.items.length }
-  push(item: T): void {
-    const items = this.items
-    let index = items.push(item) - 1
+  /** Starts a route over `edges` grid edges. */
+  startRoute(edges: number): void {
+    if (this.edge.length < edges) { this.edge = new Float64Array(edges); this.edgeGeneration = new Uint32Array(edges); this.routeGeneration = 0 }
+    if (++this.routeGeneration === 0xffffffff) { this.edgeGeneration.fill(0); this.routeGeneration = 1 }
+  }
+
+  add(i: number, j: number, d: number, k: number, cost: number, rank: number, run: number, previous: number, final: 0 | 1): number {
+    if (this.size === this.i.length) this.grow()
+    const slot = this.size++
+    this.i[slot] = i; this.j[slot] = j; this.d[slot] = d; this.k[slot] = k
+    this.cost[slot] = cost; this.rank[slot] = rank; this.run[slot] = run; this.previous[slot] = previous; this.final[slot] = final
+    return slot
+  }
+
+  private grow(): void {
+    const size = this.i.length * 2
+    const widen = <T extends Int32Array | Float64Array | Uint8Array>(from: T, to: T): T => { to.set(from); return to }
+    this.i = widen(this.i, new Int32Array(size)); this.j = widen(this.j, new Int32Array(size))
+    this.d = widen(this.d, new Int32Array(size)); this.k = widen(this.k, new Int32Array(size))
+    this.cost = widen(this.cost, new Float64Array(size)); this.rank = widen(this.rank, new Float64Array(size)); this.run = widen(this.run, new Float64Array(size))
+    this.previous = widen(this.previous, new Int32Array(size)); this.final = widen(this.final, new Uint8Array(size))
+    this.heap = widen(this.heap, new Int32Array(size)); this.heapRank = widen(this.heapRank, new Float64Array(size))
+  }
+
+  /** The search order: lower rank (cost so far plus the least cost still to
+   * come) first, within EPS a tie, then the earlier grid column, row and
+   * heading, then the earlier push. Deterministic. The heap keeps each
+   * slot's rank beside it; ties read the slots. */
+  private tieBefore(a: number, b: number): boolean {
+    const i = this.i, j = this.j, d = this.d
+    return i[a] !== i[b] ? i[a]! < i[b]! : j[a] !== j[b] ? j[a]! < j[b]! : d[a] !== d[b] ? d[a]! < d[b]! : a < b
+  }
+
+  push(slot: number): void {
+    const heap = this.heap, ranks = this.heapRank, rank = this.rank[slot]!
+    let index = this.open++
     while (index > 0) {
-      const parent = (index - 1) >> 1
-      if (!before(item, items[parent]!)) break
-      items[index] = items[parent]!
+      const parent = (index - 1) >> 1, other = ranks[parent]!
+      if (Math.abs(rank - other) > EPS ? rank >= other : !this.tieBefore(slot, heap[parent]!)) break
+      heap[index] = heap[parent]!; ranks[index] = other
       index = parent
     }
-    items[index] = item
+    heap[index] = slot; ranks[index] = rank
   }
-  pop(): T | undefined {
-    const items = this.items, first = items[0], last = items.pop()
-    if (first === undefined || last === undefined || items.length === 0) return first
+
+  pop(): number {
+    const heap = this.heap, ranks = this.heapRank, first = heap[0]!
+    const size = --this.open, last = heap[size]!, rank = ranks[size]!
+    if (size === 0) return first
     let index = 0
     for (;;) {
       const left = index * 2 + 1, right = left + 1
-      if (left >= items.length) break
-      const child = right < items.length && before(items[right]!, items[left]!) ? right : left
-      if (!before(items[child]!, last)) break
-      items[index] = items[child]!
+      if (left >= size) break
+      let child = left
+      if (right < size) {
+        const r = ranks[right]!, l = ranks[left]!
+        if (Math.abs(r - l) > EPS ? r < l : this.tieBefore(heap[right]!, heap[left]!)) child = right
+      }
+      const c = ranks[child]!
+      if (Math.abs(c - rank) > EPS ? c >= rank : !this.tieBefore(heap[child]!, last)) break
+      heap[index] = heap[child]!; ranks[index] = c
       index = child
     }
-    items[index] = last
+    heap[index] = last; ranks[index] = rank
     return first
   }
 }
+
+/** One scratch kept between routes; a nested route (from a `charge`
+ * callback) gets its own. */
+let spareScratch: SearchScratch | undefined = new SearchScratch()
 
 const samePoint = (a: RouterPoint, b: RouterPoint) => Math.abs(a.x - b.x) <= EPS && Math.abs(a.y - b.y) <= EPS
 /** Interior points whose neighbours share their line carry no turn. */
@@ -206,6 +268,9 @@ function withoutCollinear(route: readonly RouterPoint[]): RouterPoint[] {
 /** Grid edges are checked once per search. A large grid keeps the checks
  * sparsely instead of allocating one slot for every edge. */
 const DENSE_EDGE_CACHE = 1 << 22
+/** Scratch tables larger than this many entries are dropped after the route
+ * that needed them rather than kept for the next. */
+const RETAINED_SCRATCH = 1 << 20
 /** How far past the cheapest cost a bounded pass still queues states: far
  * above rounding in summed costs; more only queues more states. */
 const BOUND_SLACK = 1
@@ -255,12 +320,13 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // Every grid step runs along one grid line. What can block or cross a step
   // is gathered once per line: the boxes it passes through, the avoided
   // segments within a separation of it and the drawn segments across it.
-  type Line = { vertical: boolean; at: number; boxes: RouterBox[]; across: RouterBox[]; crowd: number[]; cross?: Float64Array }
-  const lines = new Map<number, Line>()
+  // A box blocks a line it passes through over its span along the line:
+  // `blocks` lists those spans as (from, to) pairs.
+  type Line = { vertical: boolean; at: number; blocks: number[]; crowd: number[]; cross?: Float64Array }
+  const columnsAt: (Line | undefined)[] = [], rowsAt: (Line | undefined)[] = []
   const avoided = columns(request.avoid?.segments ?? []), drawn = columns(request.crossings?.segments ?? [])
   const lineAt = (vertical: boolean, index: number): Line => {
-    const id = vertical ? -1 - index : index
-    let line = lines.get(id)
+    let line = vertical ? columnsAt[index] : rowsAt[index]
     if (line) return line
     const at = vertical ? xs[index]! : ys[index]!
     const passes = (box: RouterBox) => vertical ? box.x0 + EPS < at && at < box.x1 - EPS : box.y0 + EPS < at && at < box.y1 - EPS
@@ -270,8 +336,11 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const offset = Math.abs(along.at[k]! - at)
       if (offset <= EPS || offset < separation) crowd.push(k)
     }
-    line = { vertical, at, boxes: inflated.filter(passes), across: (vertical ? acrossY : acrossX).filter(passes), crowd }
-    lines.set(id, line)
+    const blocks: number[] = []
+    for (const boxes of [inflated, vertical ? acrossY : acrossX]) for (const box of boxes) if (passes(box)) blocks.push(vertical ? box.y0 : box.x0, vertical ? box.y1 : box.x1)
+    line = { vertical, at, blocks, crowd }
+    if (vertical) columnsAt[index] = line
+    else rowsAt[index] = line
     return line
   }
   /** Where the drawn segments across a line meet it, in ascending order;
@@ -282,9 +351,14 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     for (let k = 0; k < across.at.length; k++) if (across.lo[k]! + EPS < at && at < across.hi[k]! - EPS) found.push(across.at[k]!)
     return line.cross = Float64Array.from(found).sort()
   }
-  const clear = (a: RouterPoint, b: RouterPoint, line: Line) => !line.boxes.some(box => segmentHits(a, b, box))
-    && !line.across.some(box => segmentHits(a, b, box))
-    && !(request.avoid && crowds(a, b, line.at, line.vertical ? avoided.vertical : avoided.horizontal, line.crowd, request.avoid))
+  /** Whether step a-b along `line` keeps out of every box and clear of the
+   * avoided segments. A box the line passes through is entered where the
+   * step's span overlaps the box's span along the line (`segmentHits`). */
+  const clear = (a: RouterPoint, b: RouterPoint, line: Line) => {
+    const lo = line.vertical ? Math.min(a.y, b.y) : Math.min(a.x, b.x), hi = line.vertical ? Math.max(a.y, b.y) : Math.max(a.x, b.x), blocks = line.blocks
+    for (let k = 0; k < blocks.length; k += 2) if (hi > blocks[k]! + EPS && lo < blocks[k + 1]! - EPS) return false
+    return !(request.avoid && crowds(a, b, line.at, line.vertical ? avoided.vertical : avoided.horizontal, line.crowd, request.avoid))
+  }
   const offChannel = request.channelsOnly ? 0 : request.offChannelCost ?? 0
   const onChannel = (values: readonly number[], channels: readonly number[] = []) => values.map(value => channels.some(channel => Math.abs(channel - value) <= EPS))
   const onChannelX = offChannel ? onChannel(xs, request.channels?.x) : [], onChannelY = offChannel ? onChannel(ys, request.channels?.y) : []
@@ -322,7 +396,6 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   }
   // Dijkstra over (grid point, heading, via points passed). Neighbours are
   // adjacent grid points.
-  type State = { i: number; j: number; d: number; k: number; cost: number; rank: number; run: number; seq: number; previous?: State; final?: true }
   // The least cost still to come, for a guided search (one through via
   // points would otherwise spread over the whole grid): the length through
   // the remaining stops plus the turns the next stop needs at least. It never
@@ -332,41 +405,73 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const apart = (a: RouterPoint, b: RouterPoint) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
   const rest = via.map(() => 0)
   for (let k = via.length - 1; k >= 0; k--) rest[k] = k === via.length - 1 ? Math.min(...arrivals.map(end => apart(via[k]!, end))) : apart(via[k]!, via[k + 1]!) + rest[k + 1]!
-  /** Length to `next` plus the turns reaching it from (i, j) heading d needs. */
-  const toward = (i: number, j: number, d: number, next: RouterPoint) => {
-    const dx = next.x - xs[i]!, dy = next.y - ys[j]!, step = STEP[DIRECTIONS[d]!]
-    const ahead = dx * step.x + dy * step.y, aside = Math.abs(dx * step.y - dy * step.x)
+  /** Length from (x, y) to (nextX, nextY) plus the turns reaching it
+   * heading (stepX, stepY) needs. */
+  const toward = (x: number, y: number, stepX: number, stepY: number, nextX: number, nextY: number) => {
+    const dx = nextX - x, dy = nextY - y
+    const ahead = dx * stepX + dy * stepY, aside = Math.abs(dx * stepY - dy * stepX)
     return Math.abs(dx) + Math.abs(dy) + (aside <= EPS ? (ahead >= -EPS ? 0 : 2) : ahead >= -EPS ? 1 : 2) * bendCost
   }
   const guided = request.guided || via.length > 0
+  const viaX = via.map(point => point.x), viaY = via.map(point => point.y), arrivalX = arrivals.map(point => point.x), arrivalY = arrivals.map(point => point.y)
   const lowerBound = (i: number, j: number, d: number, k: number) => {
-    if (k < via.length) return toward(i, j, d, via[k]!) + rest[k]!
+    const x = xs[i]!, y = ys[j]!, stepX = DI[d]!, stepY = DJ[d]!
+    if (k < via.length) return toward(x, y, stepX, stepY, viaX[k]!, viaY[k]!) + rest[k]!
     let least = Infinity
-    for (const end of arrivals) least = Math.min(least, toward(i, j, d, end))
+    for (let at = 0; at < arrivalX.length; at++) least = Math.min(least, toward(x, y, stepX, stepY, arrivalX[at]!, arrivalY[at]!))
     return least
   }
   // With minRun, a short current run can block a turn a longer one allows,
   // so the search distinguishes the two.
   const runs = minRun > EPS ? 2 : 1
-  const key = (i: number, j: number, d: number, k: number, run = Infinity) => (((i * ys.length + j) * 4 + d) * runs + (run < minRun - EPS ? 1 : 0)) * (via.length + 1) + k
-  const states = xs.length * ys.length * 4 * runs * (via.length + 1)
+  const rows = ys.length, stages = via.length + 1
+  const key = (i: number, j: number, d: number, k: number, run: number) => (((i * rows + j) * 4 + d) * runs + (run < minRun - EPS ? 1 : 0)) * stages + k
+  const states = xs.length * rows * 4 * runs * stages
   // Clearance and extra cost belong to a grid edge, not to the state that
   // reaches it: each edge is checked once, however many headings arrive and
-  // however many passes search the grid. NaN = unchecked, -1 = blocked,
-  // otherwise its extra cost (crossings, off channel).
-  const edges = xs.length * ys.length * 4
-  const dense = edges <= DENSE_EDGE_CACHE ? new Float64Array(edges).fill(Number.NaN) : undefined, sparse = dense ? undefined : new Map<number, number>()
-  let pushed = 0
+  // however many passes search the grid: -1 = blocked, otherwise its extra
+  // cost (crossings, off channel).
+  const edges = xs.length * rows * 4
+  const scratch = spareScratch ?? new SearchScratch()
+  spareScratch = undefined
+  const dense = edges <= DENSE_EDGE_CACHE, sparse = dense ? undefined : new Map<number, number>()
+  if (dense) scratch.startRoute(edges)
+  const edgeCost = scratch.edge, edgeGeneration = scratch.edgeGeneration, route = scratch.routeGeneration
+  const arrivesAt = new Uint8Array(xs.length * rows)
+  for (const target of targets) arrivesAt[target.i * rows + target.j] = 1
+  /** The extra cost of the grid step from (i, j) heading d, `length` long,
+   * or -1 when it is blocked; checked (and charged) once. */
+  const stepExtra = (i: number, j: number, d: number, length: number): number => {
+    const edge = (i * rows + j) * 4 + d
+    if (dense ? edgeGeneration[edge] === route : sparse!.has(edge)) return dense ? edgeCost[edge]! : sparse!.get(edge)!
+    request.charge?.()
+    const ni = i + DI[d]!, nj = j + DJ[d]!
+    const a = { x: xs[i]!, y: ys[j]! }, b = { x: xs[ni]!, y: ys[nj]! }
+    const vertical = d % 2 === 1, line = vertical ? lineAt(true, i) : lineAt(false, j)
+    let crossed = !clear(a, b, line) ? -1 : request.crossings ? crossedSegments(a, b, meets(line), arrivesAt[ni * rows + nj] === 1) * request.crossings.cost : 0
+    if (crossed >= 0 && offChannel && !(vertical ? onChannelX[i] : onChannelY[j])) crossed += offChannel * length
+    if (crossed >= 0) crossed += (vertical ? lineCostX[i]! : lineCostY[j]!) * length
+    if (dense) { edgeCost[edge] = crossed; edgeGeneration[edge] = route }
+    else sparse!.set(edge, crossed)
+    return crossed
+  }
   /** One search pass, ordered by cost alone or (`ordered`) by cost plus the
    * lower bound. States whose cost plus lower bound exceeds `bound` cannot
-   * lie on a route that cheap and are never queued. */
-  const search = (ordered: boolean, bound: number): State | undefined => {
+   * lie on a route that cheap and are never queued. Returns the route's
+   * cost and grid points. */
+  const search = (ordered: boolean, bound: number): { cost: number; points: RouterPoint[] } | undefined => {
     // The cheapest cost found per search state, densely where the state
     // space is small enough.
-    const table = states <= DENSE_EDGE_CACHE ? new Float64Array(states).fill(Infinity) : undefined, map = table ? undefined : new Map<number, number>()
-    const best = { get: (k: number) => table ? table[k]! : map!.get(k) ?? Infinity, set: (k: number, cost: number) => { if (table) table[k] = cost; else map!.set(k, cost) } }
+    const table = states <= DENSE_EDGE_CACHE, map = table ? undefined : new Map<number, number>()
+    scratch.startPass(table ? states : 0)
+    const bestCost = scratch.best, bestGeneration = scratch.bestGeneration, pass = scratch.passGeneration
+    const setBest = (k: number, cost: number) => { if (table) { bestCost[k] = cost; bestGeneration[k] = pass } else map!.set(k, cost) }
     const bounded = bound < Infinity
-    const open = new StateHeap<State>()
+    const finish = (slot: number) => {
+      const points: RouterPoint[] = []
+      for (let at = slot; at >= 0; at = scratch.previous[at]!) points.push({ x: xs[scratch.i[at]!]!, y: ys[scratch.j[at]!]! })
+      return { cost: scratch.cost[slot]!, points: points.reverse() }
+    }
     for (const { i, j, d } of sources) {
       // Leaving against the start heading turns at `start`: the run since
       // that turn is the stub.
@@ -374,14 +479,16 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const cost = turned ? bendCost : 0, run = turned ? startStub : Infinity, k = advance(0, i, j)
       const least = ordered || bounded ? lowerBound(i, j, d, k) : 0
       if (cost + least > bound) continue
-      open.push({ i, j, d, k, cost, rank: cost + (ordered ? least : 0), run, seq: pushed++ })
-      best.set(key(i, j, d, k, run), cost)
+      scratch.push(scratch.add(i, j, d, k, cost, cost + (ordered ? least : 0), run, -1, 0))
+      setBest(key(i, j, d, k, run), cost)
     }
-    while (open.size) {
-      const state = open.pop()!
-      if (state.final) return state
-      if (best.get(key(state.i, state.j, state.d, state.k, state.run)) < state.cost - EPS) continue
-      if (state.k === via.length) {
+    while (scratch.open) {
+      const slot = scratch.pop()
+      if (scratch.final[slot]) return finish(slot)
+      const si = scratch.i[slot]!, sj = scratch.j[slot]!, sd = scratch.d[slot]!, sk = scratch.k[slot]!, scost = scratch.cost[slot]!, srun = scratch.run[slot]!
+      const own = key(si, sj, sd, sk, srun)
+      if ((table ? (bestGeneration[own] === pass ? bestCost[own]! : Infinity) : map!.get(own) ?? Infinity) < scost - EPS) continue
+      if (sk === via.length) {
         // Turning onto the end stub, or off it against the end heading, is
         // one more bend each, charged before the route can win; like any
         // turn it needs a minimum run before it: the run so far for the turn
@@ -390,45 +497,42 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
         // route must arrive along the entry direction itself.
         let extra = Infinity
         for (const { i, j, d } of targets) {
-          if (i !== state.i || j !== state.j || (d !== state.d && (endStub <= EPS || (d + 2) % 4 === state.d))) continue
-          const ontoStub = d !== state.d, offStub = endHeading >= 0 && d !== endHeading
-          if (ontoStub && state.run < minRun - EPS) continue
-          if (offStub && (ontoStub ? endStub : state.run + endStub) < minRun - EPS) continue
+          if (i !== si || j !== sj || (d !== sd && (endStub <= EPS || (d + 2) % 4 === sd))) continue
+          const ontoStub = d !== sd, offStub = endHeading >= 0 && d !== endHeading
+          if (ontoStub && srun < minRun - EPS) continue
+          if (offStub && (ontoStub ? endStub : srun + endStub) < minRun - EPS) continue
           extra = Math.min(extra, (ontoStub ? 1 : 0) + (offStub ? 1 : 0))
         }
-        if (extra === 0) return state
-        if (extra < Infinity && state.cost + extra * bendCost <= bound) open.push({ ...state, cost: state.cost + extra * bendCost, rank: state.cost + extra * bendCost, seq: pushed++, final: true })
+        if (extra === 0) return finish(slot)
+        if (extra < Infinity && scost + extra * bendCost <= bound) scratch.push(scratch.add(si, sj, sd, sk, scost + extra * bendCost, scost + extra * bendCost, srun, scratch.previous[slot]!, 1))
       }
+      const first = scratch.previous[slot]! < 0
       for (let d = 0; d < 4; d++) {
-        if ((d + 2) % 4 === state.d) continue // no reversal
+        if ((d + 2) % 4 === sd) continue // no reversal
         // The route leaves along the exit direction: by the stub when it has
         // one, otherwise by its first move.
-        if (!state.previous && d !== state.d && startStub <= EPS) continue
-        const ni = state.i + DI[d]!, nj = state.j + DJ[d]!
-        if (ni < 0 || nj < 0 || ni >= xs.length || nj >= ys.length) continue
-        const turned = d !== state.d
-        if (turned && state.run < minRun - EPS) continue
-        const length = Math.abs(xs[ni]! - xs[state.i]!) + Math.abs(ys[nj]! - ys[state.j]!)
-        const edge = (state.i * ys.length + state.j) * 4 + d
-        let crossed = dense ? dense[edge]! : sparse!.get(edge) ?? Number.NaN
-        if (Number.isNaN(crossed)) {
-          request.charge?.()
-          const a = { x: xs[state.i]!, y: ys[state.j]! }, b = { x: xs[ni]!, y: ys[nj]! }
-          const vertical = d % 2 === 1, line = vertical ? lineAt(true, state.i) : lineAt(false, state.j)
-          crossed = !clear(a, b, line) ? -1 : request.crossings ? crossedSegments(a, b, meets(line), targets.some(target => target.i === ni && target.j === nj)) * request.crossings.cost : 0
-          if (crossed >= 0 && offChannel && !(vertical ? onChannelX[state.i] : onChannelY[state.j])) crossed += offChannel * length
-          if (crossed >= 0) crossed += (vertical ? lineCostX[state.i]! : lineCostY[state.j]!) * length
-          if (dense) dense[edge] = crossed
-          else sparse!.set(edge, crossed)
-        }
+        if (first && d !== sd && startStub <= EPS) continue
+        const ni = si + DI[d]!, nj = sj + DJ[d]!
+        if (ni < 0 || nj < 0 || ni >= xs.length || nj >= rows) continue
+        const turned = d !== sd
+        if (turned && srun < minRun - EPS) continue
+        const length = Math.abs(xs[ni]! - xs[si]!) + Math.abs(ys[nj]! - ys[sj]!)
+        const edge = (si * rows + sj) * 4 + d
+        const crossed = dense && edgeGeneration[edge] === route ? edgeCost[edge]! : stepExtra(si, sj, d, length)
         if (crossed < 0) continue
-        const cost = state.cost + length + (turned ? bendCost : 0) + crossed
-        const passed = advance(state.k, ni, nj), k = key(ni, nj, d, passed, turned ? length : state.run + length)
+        const cost = scost + length + (turned ? bendCost : 0) + crossed
+        const run = turned ? length : srun + length
+        const passed = advance(sk, ni, nj), k = key(ni, nj, d, passed, run)
         const least = ordered || bounded ? lowerBound(ni, nj, d, passed) : 0
         if (cost + least > bound) continue
-        if (best.get(k) <= cost + EPS) continue
-        best.set(k, cost)
-        open.push({ i: ni, j: nj, d, k: passed, cost, rank: cost + (ordered ? least : 0), run: turned ? length : state.run + length, previous: state, seq: pushed++ })
+        if (table) {
+          if (bestGeneration[k] === pass && bestCost[k]! <= cost + EPS) continue
+          bestCost[k] = cost; bestGeneration[k] = pass
+        } else {
+          if ((map!.get(k) ?? Infinity) <= cost + EPS) continue
+          map!.set(k, cost)
+        }
+        scratch.push(scratch.add(ni, nj, d, passed, cost, cost + (ordered ? least : 0), run, slot, 0))
       }
     }
     return undefined
@@ -440,11 +544,17 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // overestimates and never drops by more than a step costs, so no skipped
   // state lies on a route that cheap and the pass returns the same route as
   // over the whole grid. It reuses the edges the first pass checked.
-  const cheapest = search(true, Infinity)
-  const found = guided || !cheapest ? cheapest : search(false, cheapest.cost + BOUND_SLACK) ?? cheapest
+  let found: { cost: number; points: RouterPoint[] } | undefined
+  try {
+    const cheapest = search(true, Infinity)
+    found = guided || !cheapest ? cheapest : search(false, cheapest.cost + BOUND_SLACK) ?? cheapest
+  } finally {
+    // A table this large is rare; keep it no longer than this route.
+    if (scratch.best.length > RETAINED_SCRATCH || scratch.edge.length > RETAINED_SCRATCH || scratch.i.length > RETAINED_SCRATCH) spareScratch = new SearchScratch()
+    else spareScratch = scratch
+  }
   if (!found) return undefined
-  const grid: RouterPoint[] = []
-  for (let state: State | undefined = found; state; state = state.previous) grid.unshift({ x: xs[state.i]!, y: ys[state.j]! })
+  const grid = found.points
   // Keep only the corners, then attach the stubs to the real endpoints.
   const corners = grid.filter((point, k) => {
     if (k === 0 || k === grid.length - 1) return true
