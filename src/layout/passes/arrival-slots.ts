@@ -21,18 +21,25 @@ const near = (a: Point, b: Point) => Math.abs(a.x - b.x) < EPS && Math.abs(a.y -
 export function seatMeetingArrivals(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], placed: readonly PositionedEdge[], terminals: TerminalAssignment): void {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   const arrives = (edge: PositionedEdge) => edge.style !== 'invisible' && edge.source !== edge.target && edge.points.length >= 2
-  const meetings: PositionedEdge[][] = []
+  const meetings: { group: PositionedEdge[]; along: 'x' | 'y' }[] = [], met = new Set<PositionedEdge>()
   for (const edge of placed) {
-    if (!arrives(edge) || meetings.some(group => group.includes(edge))) continue
+    if (!arrives(edge) || met.has(edge)) continue
     const end = edge.points.at(-1)!
-    meetings.push(edges.filter(other => other.target === edge.target && arrives(other) && near(other.points.at(-1)!, end)))
+    // The face runs across the terminal run; slots move along it. So a
+    // meeting plans only among arrivals whose terminal runs share one axis:
+    // one arriving along the other axis enters another face, and plans with
+    // the arrivals that share its axis.
+    const meeting = edges.filter(other => other.target === edge.target && arrives(other) && near(other.points.at(-1)!, end))
+    for (const other of meeting) met.add(other)
+    for (const along of ['x', 'y'] as const) {
+      const group = meeting.filter(other => faceAxis(other) === along)
+      if (group.length) meetings.push({ group, along })
+    }
   }
-  for (const group of meetings) {
+  for (const { group, along } of meetings) {
     const node = nodeMap.get(group[0]!.target)
     if (!node || group.length < 2) continue
-    const end = group[0]!.points.at(-1)!, before = group[0]!.points.at(-2)!
-    // The face runs across the terminal run; slots move along it.
-    const along: 'x' | 'y' = Math.abs(before.x - end.x) < 1e-9 ? 'x' : 'y'
+    const end = group[0]!.points.at(-1)!
     const lo = node[along] + FACE_MARGIN, hi = node[along] + (along === 'x' ? node.width : node.height) - FACE_MARGIN
     const plans = terminals.arrivalSlots(group, { port: end[along], reach: Math.min(end[along] - lo, hi - end[along]), approach: edge => edge.points[0]![along] })
     if (plans.length < 2 && plans[0]?.every(slot => slot.offset === 0)) continue
@@ -48,6 +55,14 @@ export function seatMeetingArrivals(nodes: readonly PositionedNode[], edges: rea
     }
     if (best) seat(best.plan, node, along)
   }
+}
+
+/** The axis of the face a route's terminal run enters: `x` across a
+ * vertical run, `y` across a horizontal one, none across a slanted one. */
+function faceAxis(edge: PositionedEdge): 'x' | 'y' | undefined {
+  const end = edge.points.at(-1)!, before = edge.points.at(-2)!
+  if (Math.abs(before.x - end.x) < 1e-9) return 'x'
+  return Math.abs(before.y - end.y) < 1e-9 ? 'y' : undefined
 }
 
 function seat(plan: readonly ArrivalSlot[], node: PositionedNode, along: 'x' | 'y'): void {
