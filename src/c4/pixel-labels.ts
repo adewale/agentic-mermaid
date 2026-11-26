@@ -1,6 +1,7 @@
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import { ARROW_HEAD } from '../styles.ts'
 import { createInkIndex } from '../shared/ink-index.ts'
+import { leastCostSeat } from '../layout/label-seat.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 
 export interface C4LabelRect { x: number; y: number; width: number; height: number }
@@ -106,9 +107,8 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
         nearRoutes(labelClearance).reduce((sum, route) => sum + (route.edge !== edge && segmentHits(route.start, route.end, routeClearance) ? 1 : 0), 0),
       ]
     }
-    let best = original, bestPenalty = penalty(original)
     // A clear unchanged position is already the nearest possible candidate.
-    if (bestPenalty.every(value => value === 0)) { edge.labelPosition = original; accepted.push(c4LabelRect(edge)!); continue }
+    if (penalty(original).every(value => value === 0)) { edge.labelPosition = original; accepted.push(c4LabelRect(edge)!); continue }
     const segments = routes.filter(route => route.edge === edge).sort((a, b) => Math.hypot(b.end.x - b.start.x, b.end.y - b.start.y) - Math.hypot(a.end.x - a.start.x, a.end.y - a.start.y))
     for (const { start, end } of segments) {
       const length = Math.hypot(end.x - start.x, end.y - start.y)
@@ -119,15 +119,15 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
         candidates.push(shifted({ x: start.x + (end.x - start.x) * fraction + nx * offset, y: start.y + (end.y - start.y) * fraction + ny * offset }))
       }
     }
-    // If no completely clear slot exists, preserve arrow visibility before
-    // preferring a smaller text collision; the final checker reports any loss.
+    // The shared seat choice (label-seat.ts), nearest first, on C4's own
+    // painted-halo cost. If no completely clear slot exists, it preserves
+    // arrow visibility before preferring a smaller text collision; the final
+    // checker reports any loss. The terms stay overlap areas, not the graph
+    // rule's conflict counts: an area tells a halo grazing a peer's margin
+    // from one covering its text, and dense tables need that distinction to
+    // keep every label's text visible.
     candidates.sort((a, b) => Math.hypot(a.x - original.x, a.y - original.y) - Math.hypot(b.x - original.x, b.y - original.y))
-    for (const candidate of candidates) {
-      const score = penalty(candidate), different = score.findIndex((value, index) => value !== bestPenalty[index])
-      if (different >= 0 && score[different]! < bestPenalty[different]!) { best = candidate; bestPenalty = score }
-      if (score.every(value => value === 0)) break
-    }
-    edge.labelPosition = best
+    edge.labelPosition = leastCostSeat(candidates, () => true, penalty)!
     accepted.push(c4LabelRect(edge)!)
   }
 }
