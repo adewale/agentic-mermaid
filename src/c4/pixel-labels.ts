@@ -1,6 +1,7 @@
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 import { ARROW_HEAD } from '../styles.ts'
 import { createInkIndex } from '../shared/ink-index.ts'
+import { leastCostSeat } from '../layout/label-seat.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 
 export interface C4LabelRect { x: number; y: number; width: number; height: number }
@@ -97,18 +98,23 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
     const dx = finiteOffset(authored?.offsetX), dy = finiteOffset(authored?.offsetY)
     const shifted = (point: Point): Point => ({ x: point.x + dx, y: point.y + dy })
     const original = shifted(edge.labelPosition!), candidates: Point[] = [original], width = rect!.width, height = rect!.height
-    const penalty = (candidate: Point): number[] => {
+    // What the painted halo at a candidate meets: arrowheads, cards and
+    // boundary headers/frames, accepted halos, and foreign shafts.
+    const meets = (candidate: Point) => {
       const box = { x: candidate.x - width / 2, y: candidate.y - height / 2, width, height }, clearance = inflate(box, 3), labelClearance = inflate(box, 4), routeClearance = inflate(box, 2)
-      return [
-        nearHeads(labelClearance).reduce((sum, head) => sum + overlap(clearance, head), 0),
-        nearObstacles(labelClearance).reduce((sum, obstacle) => sum + overlap(clearance, obstacle), 0),
-        accepted.reduce((sum, other) => sum + overlap(labelClearance, other), 0),
-        nearRoutes(labelClearance).reduce((sum, route) => sum + (route.edge !== edge && segmentHits(route.start, route.end, routeClearance) ? 1 : 0), 0),
-      ]
+      return {
+        heads: nearHeads(labelClearance).filter(head => overlap(clearance, head) > 0).length,
+        cards: nearObstacles(labelClearance).filter(obstacle => overlap(clearance, obstacle) > 0).length,
+        labels: accepted.filter(other => overlap(labelClearance, other) > 0).length,
+        shafts: nearRoutes(labelClearance).filter(route => route.edge !== edge && segmentHits(route.start, route.end, routeClearance)).length,
+      }
     }
-    let best = original, bestPenalty = penalty(original)
+    const seen = new Map<Point, ReturnType<typeof meets>>(), at = (candidate: Point) => seen.get(candidate) ?? seen.set(candidate, meets(candidate)).get(candidate)!
     // A clear unchanged position is already the nearest possible candidate.
-    if (bestPenalty.every(value => value === 0)) { edge.labelPosition = original; accepted.push(c4LabelRect(edge)!); continue }
+    const unchanged = at(original)
+    if (!unchanged.heads && !unchanged.cards && !unchanged.labels && !unchanged.shafts) { edge.labelPosition = original; accepted.push(c4LabelRect(edge)!); continue }
+    // C4 draws a relationship's label beside its line as well as on it, so
+    // its candidates include seats clear of the route.
     const segments = routes.filter(route => route.edge === edge).sort((a, b) => Math.hypot(b.end.x - b.start.x, b.end.y - b.start.y) - Math.hypot(a.end.x - a.start.x, a.end.y - a.start.y))
     for (const { start, end } of segments) {
       const length = Math.hypot(end.x - start.x, end.y - start.y)
@@ -119,15 +125,17 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
         candidates.push(shifted({ x: start.x + (end.x - start.x) * fraction + nx * offset, y: start.y + (end.y - start.y) * fraction + ny * offset }))
       }
     }
-    // If no completely clear slot exists, preserve arrow visibility before
-    // preferring a smaller text collision; the final checker reports any loss.
     candidates.sort((a, b) => Math.hypot(a.x - original.x, a.y - original.y) - Math.hypot(b.x - original.x, b.y - original.y))
-    for (const candidate of candidates) {
-      const score = penalty(candidate), different = score.findIndex((value, index) => value !== bestPenalty[index])
-      if (different >= 0 && score[different]! < bestPenalty[different]!) { best = candidate; bestPenalty = score }
-      if (score.every(value => value === 0)) break
-    }
-    edge.labelPosition = best
+    // The one seat rule (label-seat.ts), nearest first: among seats whose
+    // halo is paint-safe (clear of arrowheads, cards and boundary
+    // headers/frames), the fewest overlapped halos, then the fewest foreign
+    // shafts. Where none is, arrows stay visible before cards, and the cost
+    // counts a covered card as a text conflict. The final checker reports
+    // any loss.
+    const cost = (candidate: Point) => { const met = at(candidate); return [met.cards + met.labels, met.shafts] }
+    edge.labelPosition = leastCostSeat(candidates, candidate => !at(candidate).heads && !at(candidate).cards, cost)
+      ?? leastCostSeat(candidates, candidate => !at(candidate).heads, cost)
+      ?? leastCostSeat(candidates, () => true, cost)!
     accepted.push(c4LabelRect(edge)!)
   }
 }
