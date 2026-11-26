@@ -108,10 +108,25 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
   let work = 0
   const charge = () => { if (++work > ROUTE_WORK) throw new C4RouteWorkLimitError() }
+  // A lead leaves its owner's face, so only obstacles spanning that face
+  // across the lead's axis can stop it. Index them once per owner and axis
+  // instead of scanning every card for every lead.
+  const leadObstacles = new Map<string, PositionedNode[]>()
   const exit = (point: Point, side: Side, sign: number, lane: number, owner: string): Point => {
     const ray = { x: delta[side].x * sign, y: delta[side].y * sign }
+    const face = boxes.get(owner), [at, span] = ray.x ? ['y', 'height'] as const : ['x', 'width'] as const
+    let candidates = physicalObstacles
+    if (face && point[at] >= face[at] && point[at] <= face[at] + face[span]) {
+      const key = `${owner}\0${at}`
+      let indexed = leadObstacles.get(key)
+      if (!indexed) {
+        indexed = physicalObstacles.filter(node => { charge(); return node.id !== owner && node[at] < face[at] + face[span] && node[at] + node[span] > face[at] })
+        leadObstacles.set(key, indexed)
+      }
+      candidates = indexed
+    }
     let distance = lane
-    for (const node of physicalObstacles) {
+    for (const node of candidates) {
       charge()
       if (node.id === owner) continue
       const aligned = ray.x ? point.y > node.y && point.y < node.y + node.height : point.x > node.x && point.x < node.x + node.width

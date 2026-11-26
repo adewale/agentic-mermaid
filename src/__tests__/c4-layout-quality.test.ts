@@ -52,8 +52,34 @@ const PARALLEL = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child
 const DENSE = `C4Container\nSystem_Boundary(app,"Application") {\n${Array.from({ length: 7 }, (_, i) => `Container(n${i},"Service ${i}","HTTP")`).join('\n')}\n}\n${Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, j) => `Rel(n${from},n${from + j + 1},"Interaction ${from} to ${from + j + 1}","HTTPS")`).join('\n')).join('\n')}`
 
 describe('C4 measured pixel layout quality', () => {
-  test('native and lazy rendering expose exhausted physical route work instead of retaining an unchecked route', async () => {
+  test('a thousand repeated relationships between one pair of 201 cards draw on a thousand distinct ports', () => {
+    // This once refused: each lead probe scanned every card, and the busy
+    // pair's spacing, applied to every gap, made the drawing 5.1M px tall.
     const source = ['C4Context', ...Array.from({ length: 201 }, (_, i) => `System(n${i},"Card ${i}")`), ...Array.from({ length: 1000 }, () => 'Rel(n0,n1,"Repeated")')].join('\n')
+    expect(renderMermaidSVG(source).startsWith('<svg')).toBe(true)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    const n0 = layout.nodes.find(node => node.id === 'n0')!, n1 = layout.nodes.find(node => node.id === 'n1')!
+    expect(layout.edges).toHaveLength(1000)
+    for (const edge of layout.edges) {
+      expect([edge.from, edge.to]).toEqual(['n0', 'n1'])
+      expect(edge.path[0]![0]).toBeCloseTo(n0.x + n0.w, 6)
+      expect(edge.path.at(-1)![0]).toBeCloseTo(n1.x, 6)
+      expect(edge.path).toHaveLength(2)
+    }
+    expect(new Set(layout.edges.map(edge => edge.path[0]![1])).size).toBe(1000)
+    // The paint certifier stops at its own pair and emission budgets on a
+    // drawing this large; whatever it did check holds no definite issue.
+    expect(layout.paintCertification?.status).not.toBe('failed')
+    for (const issue of layout.paintCertification?.issues ?? []) expect(['CHECK_BUDGET', 'OUTPUT_SCOPE', 'CONDITIONAL_PAINT']).toContain(issue.code)
+  })
+
+  test('native and lazy rendering expose exhausted physical route work instead of retaining an unchecked route', async () => {
+    // Ten boundaries of four containers with 150 relationships between
+    // containers of different boundaries: the routes themselves, not the lead
+    // probes, exhaust the shared route work.
+    const source = ['C4Container', ...Array.from({ length: 10 }, (_, b) => `System_Boundary(b${b},"B${b}") {\n${Array.from({ length: 4 }, (_, i) => `Container(c${b}_${i},"C ${b} ${i}","T")`).join('\n')}\n}`), ...Array.from({ length: 150 }, (_, j) => `Rel(c${j % 10}_${j % 4},c${(j * 3 + 1) % 10}_${(j + 2) % 4},"R${j}")`)].join('\n')
     expect(() => renderMermaidSVG(source)).toThrow(C4RouteWorkLimitError)
     const { default: browser } = await import('../browser-lazy/families/c4.ts')
     await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'C4RouteWorkLimitError', code: 'C4_ROUTE_WORK_LIMIT' })
