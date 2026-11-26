@@ -29,7 +29,7 @@ import type { MarginInfo } from './layout/geometry.ts'
 import { calculatePathMidpoint, DEFAULTS, findSubgraph, flattenGroupBounds, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeCrossStart, nodeMainCenter, nodeMainSize, nodeMainStart, pointAtPathDistance, polylineLength, positionedNodeCenter, rectsOverlap } from './layout/geometry.ts'
 import type { LayoutPass, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
 import { runPipeline } from './layout/pass.ts'
-import { finishPositionedGraph } from './layout/positioned-values.ts'
+import { finishPositionedGraph, ownedLabelContent } from './layout/positioned-values.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
 import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
@@ -1774,7 +1774,7 @@ function extractNodesAndGroups(
       groups.push({
         id: child.id,
         label: mermaidSg?.label ?? '',
-        ...(mermaidSg?.labelContent ? { labelContent: mermaidSg.labelContent } : {}),
+        ...(mermaidSg?.labelContent ? { labelContent: ownedLabelContent(mermaidSg.labelContent) } : {}),
         x,
         y,
         width,
@@ -1796,7 +1796,7 @@ function extractNodesAndGroups(
         nodes.push({
           id: child.id,
           label: mNode.label,
-          ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
+          ...(mNode.labelContent ? { labelContent: ownedLabelContent(mNode.labelContent) } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
           ...(mNode.borders !== undefined ? { borders: mNode.borders } : {}),

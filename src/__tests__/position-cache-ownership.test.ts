@@ -90,6 +90,35 @@ test('private cache copies preserve text custody without trusting mutable measur
   expect(child.status).toBe(0)
 })
 
+// The cache freezes a finished graph to share it. Freezing must stop at the
+// graph's own objects: the authored MermaidGraph, and the caller holding it,
+// keep their rich-text label readings mutable after a cached layout.
+test('caching a finished graph freezes nothing the authored graph owns', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { parseMermaid } from './src/parser.ts'
+    import { layoutGraphSync } from './src/layout-engine.ts'
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const graph = parseMermaid(['flowchart TD', '  subgraph S["#lt;b#gt;group#lt;/b#gt; title"]',
+      '    A["#lt;b#gt;bold#lt;/b#gt; node"] -->|"#lt;i#gt;caption#lt;/i#gt;"| B', '  end'].join(String.fromCharCode(10)))
+    const authored = [graph.nodes.get('A').labelContent, graph.edges[0].labelContent, graph.subgraphs[0].labelContent]
+    assert.ok(authored.every(Boolean))
+    const result = { positioned: layoutGraphSync(graph) }
+    const family = {}
+    retainPositioned(family, 'authored-text', result, undefined, true)
+    // The finished graph itself is shared, so the cache freezes it.
+    assert.ok(Object.isFrozen(result.positioned.nodes[0]))
+    // Each authored reading stays the caller's to edit, and the cached graph
+    // does not see the edit.
+    for (const content of authored) content.authored = 'edited'
+    const hit = cachedPositioned(family, 'authored-text').positioned
+    const node = hit.nodes.find(value => value.id === 'A'), edge = hit.edges[0], group = hit.groups[0]
+    for (const content of [node.labelContent, edge.labelContent, group.labelContent]) assert.notEqual(content.authored, 'edited')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('private text reuse preserves every frozen descendant alias independent of traversal order', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'

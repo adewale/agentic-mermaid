@@ -5,10 +5,13 @@
 // graph is therefore shared, never copied: the position cache freezes it and
 // hands the same graph to every hit. Under scene assertions (the unit tests)
 // every finished graph, receipts included, is frozen, so an in-place edit
-// throws where it happens.
+// throws where it happens. Freezing reaches everything the graph holds, so
+// the graph holds nothing its authored MermaidGraph or caller still owns: a
+// projection copies each authored object it carries (ownedLabelContent).
 
 import type { PositionedGraph } from '../types.ts'
 import { sceneAssertionsEnabled } from '../scene/assertions.ts'
+import { prepareDisplayText, type LabelContent } from '../shared/display-text.ts'
 
 const finished = new WeakSet<object>()
 
@@ -37,4 +40,12 @@ export function freezePositionedGraph(positioned: object): void {
 /** Whether `value` is a graph layout's finished, immutable result. */
 export function isFinishedPositionedGraph(value: unknown): boolean {
   return typeof value === 'object' && value !== null && finished.has(value)
+}
+
+/** The positioned graph's own copy of an authored label reading. The wrapper
+ * is the authored graph's; its display plan is immutable (a caller-built plan
+ * is captured as an immutable copy), so freezing the copy freezes nothing the
+ * authored graph owns. */
+export function ownedLabelContent(content: LabelContent): LabelContent {
+  return { ...content, prepared: prepareDisplayText(content.prepared) }
 }

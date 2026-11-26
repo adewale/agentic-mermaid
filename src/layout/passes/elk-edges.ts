@@ -12,6 +12,7 @@ import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import type { MarginInfo } from '../geometry.ts'
 import { orthogonalizeEdgePoints } from './orthogonalize.ts'
 import { alignElkRoundoff } from '../elk-roundoff.ts'
+import { ownedLabelContent } from '../positioned-values.ts'
 
 /** Private adapter metadata retained by ELK and its layout cache. */
 export interface ElkHierarchySegment extends ElkExtendedEdge {
@@ -101,7 +102,7 @@ export function positionedEdgeFromAuthored(graph: MermaidGraph, edgeIndex: numbe
     // it as the edge's data-id (stable identity contract).
     ...(originalEdge.id !== undefined ? { id: originalEdge.id } : {}),
     label: originalEdge.label,
-    ...(originalEdge.labelContent ? { labelContent: originalEdge.labelContent } : {}),
+    ...(originalEdge.labelContent ? { labelContent: ownedLabelContent(originalEdge.labelContent) } : {}),
     style: originalEdge.style,
     hasArrowStart: originalEdge.hasArrowStart,
     hasArrowEnd: originalEdge.hasArrowEnd,
