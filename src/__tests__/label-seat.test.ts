@@ -9,6 +9,7 @@ import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { assignBundledFanoutLabels, bundledLabelCandidates } from '../layout/passes/bundled-labels.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { sharedTrunkConflict } from '../layout/route-lanes.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -141,13 +142,13 @@ test('a caption beside a joined cross-hierarchy route is seated on that route', 
 // The link-rank pass rebuilds the routes of the edges its shove moves and
 // seats their captions on them. Here the reconnected N0 -> N2 route's
 // midpoint lies on its long riser beside the sibling arrivals' shafts; the
-// rule seats the caption where it covers fewer of them. (Captions whose
-// midpoint lies on a shared trunk stay there for the settler's private
-// channel, and later passes reseat this one: the pass boundary is where the
-// seat is observable.)
+// rule seats the caption where it covers fewer of them. The N0 -> N1
+// midpoint lies on the run it shares with N0's other departures; the pass
+// seats that caption too, off the shared run. (Later passes reseat these:
+// the pass boundary is where the seat is observable.)
 test('the link-rank pass seats the captions of the routes it rebuilds', () => {
   const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
-  let observed: { at: number; midpoint: number; offRoute: number } | undefined
+  let observed: { at: number; midpoint: number; offRoute: number; onTrunk: string[] } | undefined
   pass.run = context => {
     run(context)
     const index = context.edges.findIndex(value => value.label === 'warnings')
@@ -162,7 +163,8 @@ test('the link-rank pass seats the captions of the routes it rebuilds', () => {
       return a.x === b.x ? Math.hypot(seat.x - a.x, Math.max(0, Math.min(a.y, b.y) - seat.y, seat.y - Math.max(a.y, b.y)))
         : Math.hypot(seat.y - a.y, Math.max(0, Math.min(a.x, b.x) - seat.x, seat.x - Math.max(a.x, b.x)))
     }))
-    observed = { at, midpoint, offRoute }
+    const onTrunk = context.edges.filter(edge => edge.label && sharedTrunkConflict(edge, context.edges, context.style)).map(edge => `${edge.source}->${edge.target}`)
+    observed = { at, midpoint, offRoute, onTrunk }
   }
   try {
     layoutGraphSync(parseMermaid(`flowchart BT
@@ -187,6 +189,7 @@ test('the link-rank pass seats the captions of the routes it rebuilds', () => {
   expect(observed!.at).toBeLessThan(observed!.midpoint)
   // Within the rubric's on-route allowance for a one-line caption.
   expect(observed!.offRoute).toBeLessThanOrEqual(20)
+  expect(observed!.onTrunk).toEqual([])
 })
 
 // A route producer seats the caption of every route it writes. Rerouted

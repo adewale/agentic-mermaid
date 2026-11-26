@@ -11,7 +11,6 @@ import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { seatMeetingArrivals } from './arrival-slots.ts'
 import { seatCaption } from '../label-seat.ts'
-import { sharedTrunkConflict } from '../route-lanes.ts'
 import type { LabelMetricsStyle } from '../route-geometry.ts'
 import { resolveRenderStyle } from '../../styles.ts'
 import { CLEARANCE } from '../route-geometry.ts'
@@ -600,10 +599,6 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // those that may not share it take their planned slots.
   seatMeetingArrivals(nodes, edges, reconnected, terminals)
   // Seat each caption on the route written above, by the one rule, nearest
-  // its route midpoint. A midpoint on a run another edge shares stays there:
-  // only the settler, on final routes, can give that caption a private
-  // channel, and a seat chosen here beside or along the trunk would stop it.
-  for (const edge of captioned) {
-    if (!sharedTrunkConflict(edge, edges, style)) seatCaption(edge, { nodes, edges, groups }, style, edge.labelPosition)
-  }
+  // its route midpoint.
+  for (const edge of captioned) seatCaption(edge, { nodes, edges, groups }, style, edge.labelPosition)
 }
