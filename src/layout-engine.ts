@@ -1392,7 +1392,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on, rebuild blocked reconnect routes through free channels (#81), and seat reconnected arrivals in their planned terminal slots',
     after: ['centerPeerBarycenters'], mutates: ['positions', 'dimensions', 'edges'],
-    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals) },
+    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals, c.style) },
   },
   {
     // The co-ranked mixed-label fan-in spokes are re-routed as symmetric

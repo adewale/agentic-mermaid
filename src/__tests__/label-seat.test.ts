@@ -8,6 +8,9 @@ import { routeSeats, seatLabel } from '../layout/label-seat.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { assignBundledFanoutLabels, bundledLabelCandidates } from '../layout/passes/bundled-labels.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
+import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid } from '../parser.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
 
@@ -133,6 +136,57 @@ test('a caption beside a joined cross-hierarchy route is seated on that route', 
   const { layout } = layoutMermaidWithReceipt('stateDiagram-v2\n  direction RL\n  state C1 {\n    [*] --> s0\n  }\n  C1 --> s0 : x\n  C1 --> C1 : x')
   const { label, path } = layout.edges.find(edge => edge.from === 'C1' && edge.to === 's0')!
   expect(onOwnRun(label!, path)).toBe(true)
+})
+
+// The link-rank pass rebuilds the routes of the edges its shove moves and
+// seats their captions on them. Here the reconnected N0 -> N2 route's
+// midpoint lies on its long riser beside the sibling arrivals' shafts; the
+// rule seats the caption where it covers fewer of them. (Captions whose
+// midpoint lies on a shared trunk stay there for the settler's private
+// channel, and later passes reseat this one: the pass boundary is where the
+// seat is observable.)
+test('the link-rank pass seats the captions of the routes it rebuilds', () => {
+  const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
+  let observed: { at: number; midpoint: number; offRoute: number } | undefined
+  pass.run = context => {
+    run(context)
+    const index = context.edges.findIndex(value => value.label === 'warnings')
+    const captioned = context.edges[index]!, involved = new Set([index])
+    const at = measureLabelConflicts(context, context.style, involved).labelEdge
+    const seat = captioned.labelPosition!
+    captioned.labelPosition = calculatePathMidpoint(captioned.points)
+    const midpoint = measureLabelConflicts(context, context.style, involved).labelEdge
+    captioned.labelPosition = seat
+    const offRoute = Math.min(...captioned.points.slice(1).map((b, i) => {
+      const a = captioned.points[i]!
+      return a.x === b.x ? Math.hypot(seat.x - a.x, Math.max(0, Math.min(a.y, b.y) - seat.y, seat.y - Math.max(a.y, b.y)))
+        : Math.hypot(seat.y - a.y, Math.max(0, Math.min(a.x, b.x) - seat.x, seat.x - Math.max(a.x, b.x)))
+    }))
+    observed = { at, midpoint, offRoute }
+  }
+  try {
+    layoutGraphSync(parseMermaid(`flowchart BT
+  N0(["validate input"])
+  N1[/"warnings"/]
+  N2[(ok)]
+  N3(["same word ok"])
+  N4[/"a longer label goes here"/]
+  N0 -->|validate input| N1
+  N0 ===>|warnings| N2
+  N0 ---> N2
+  N1 ----> N2
+  N1 -->|a longer label goes here| N3
+  N2 ===>|x| N3
+  N2 ---> N3
+  N2 ----> N4
+  N3 --> N4
+  N3 ===>|retry| N0
+  N3 --->|validate input| N0
+  N4 ----> N0`))
+  } finally { pass.run = run }
+  expect(observed!.at).toBeLessThan(observed!.midpoint)
+  // Within the rubric's on-route allowance for a one-line caption.
+  expect(observed!.offRoute).toBeLessThanOrEqual(20)
 })
 
 // A route producer seats the caption of every route it writes. Rerouted

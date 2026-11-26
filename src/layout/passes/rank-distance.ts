@@ -10,8 +10,12 @@ import { LayoutCertificationError } from '../certification-error.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { seatMeetingArrivals } from './arrival-slots.ts'
+import { seatCaption } from '../label-seat.ts'
+import { sharedTrunkConflict } from '../route-lanes.ts'
+import type { LabelMetricsStyle } from '../route-geometry.ts'
+import { resolveRenderStyle } from '../../styles.ts'
 
-export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges)): void {
+export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({})): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
   const f = layoutFlow(graph.direction)
@@ -437,7 +441,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // dogleg between their (node or box) ports; feedback (back) edges re-loop
   // through the outer lane; self-loops ride along with their moved node.
   // applyRouteContracts certifies the final geometry.
-  const reconnected: PositionedEdge[] = []
+  const reconnected: PositionedEdge[] = [], captioned: PositionedEdge[] = []
   for (const edge of edges) {
     const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
     if (cls === 'self-loop') {
@@ -450,7 +454,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const retained = preserveContacts ? stretchRetainedRoute(edge) : null
     if (retained) {
       edge.points = retained
-      if (edge.label) edge.labelPosition = calculatePathMidpoint(retained)
+      if (edge.label) { edge.labelPosition = calculatePathMidpoint(retained); captioned.push(edge) }
       continue
     }
     if (cls === 'feedback') {
@@ -499,7 +503,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
         }
       }
       edge.points = route ?? uDetour(laneCross, crossMaxEdge)
-      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+      if (edge.label) { edge.labelPosition = calculatePathMidpoint(edge.points); captioned.push(edge) }
       reconnected.push(edge)
       continue
     }
@@ -544,11 +548,18 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       strategy: 'link-rank-reconnect', violations: [`edge ${edge.source}->${edge.target}: no proven contact-preserving route after rank move`],
     }])
     edge.points = route
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+    if (edge.label) { edge.labelPosition = calculatePathMidpoint(edge.points); captioned.push(edge) }
     if (!preserveContacts) reconnected.push(edge)
   }
 
   // Every reconnected arrival was aimed at one canonical point of its target;
   // those that may not share it take their planned slots.
   seatMeetingArrivals(nodes, edges, reconnected, terminals)
+  // Seat each caption on the route written above, by the one rule, nearest
+  // its route midpoint. A midpoint on a run another edge shares stays there:
+  // only the settler, on final routes, can give that caption a private
+  // channel, and a seat chosen here beside or along the trunk would stop it.
+  for (const edge of captioned) {
+    if (!sharedTrunkConflict(edge, edges, style)) seatCaption(edge, { nodes, edges, groups }, style, edge.labelPosition)
+  }
 }
