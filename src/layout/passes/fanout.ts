@@ -44,7 +44,7 @@ function seatGroupedFanout(
         || a.y === b.y && a.y >= rect.y && a.y <= rect.y + rect.h && rect.x >= Math.min(a.x, b.x) && rect.x + rect.w <= Math.max(a.x, b.x)
     })
   })
-  return retained && complete() || assignBundledFanoutLabels(proposed, nodes, direction, style, false, admit) && complete()
+  return retained && complete() || assignBundledFanoutLabels(proposed, { nodes, edges, groups }, direction, style, false, admit) && complete()
 }
 
 /** The ids of every group enclosing `node`, outermost first. */
@@ -261,14 +261,14 @@ export function applySymmetricFanoutEmissions(
     // Route-only forks cannot enlarge their corridor. Prove the entire label
     // transaction against the proposed ink before replacing the live routes.
     const staged = proposed.map(({ edge, points }) => ({ edge: { ...edge, points }, points }))
+    const replacements = new Map(proposed.map(({ edge }, i) => [edge, staged[i]!.edge]))
+    const peers = edges.map(edge => replacements.get(edge) ?? edge)
     if (routeOnly && staged.some(({ edge }) => edge.label)) {
-      const replacements = new Map(proposed.map(({ edge }, i) => [edge, staged[i]!.edge]))
-      const peers = edges.map(edge => replacements.get(edge) ?? edge)
       if (!seatGroupedFanout(staged, nodes, peers, groups, graph.direction, style)) {
         restoreGeometry()
         continue
       }
-    } else assignBundledFanoutLabels(staged, nodes, graph.direction, style)
+    } else assignBundledFanoutLabels(staged, { nodes, edges: peers, groups }, graph.direction, style)
     for (let i = 0; i < proposed.length; i++) {
       const { edge, points } = proposed[i]!
       edge.points = points

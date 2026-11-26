@@ -664,7 +664,7 @@ export function markCorankFanInBundles(
     // helper bundleEdgePaths-fed labeled fan-outs use), THEN re-centre them onto
     // the route's main-axis midpoint: the co-rank dogleg otherwise leaves the
     // single labeled spoke hugging the source (the regression this fixes).
-    assignBundledFanoutLabels(proposed, nodes, graph.direction, style, /* recenter */ true)
+    assignBundledFanoutLabels(proposed, { nodes, edges, groups }, graph.direction, style, /* recenter */ true)
   }
 }
 

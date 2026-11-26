@@ -6,6 +6,7 @@ import { expect, test } from 'bun:test'
 import { layoutMermaidWithReceipt, measureQuality, verifyMermaid } from '../agent/index.ts'
 import { routeSeats, seatLabel } from '../layout/label-seat.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
+import { assignBundledFanoutLabels, bundledLabelCandidates } from '../layout/passes/bundled-labels.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
@@ -160,4 +161,22 @@ test('a caption never trades shaft conflicts for an overlap with another caption
   const seat = seatLabel(labelled, graph, style, [{ x: 20, y: 120 }, ...routeSeats(labelled.points).filter(point => point.y === 320)], () => true)
   expect(seat).toEqual({ x: 20, y: 120 })
   expect(measureLabelConflicts(graph, style).labelLabel).toBe(0)
+})
+
+// Constructed scene for the bundled seat's fallback, which no corpus or
+// generated input is known to reach: A's rebuilt fan-out, with cards beside
+// B's jog and leg so that every bundled slot on B's route meets a card. The
+// caption then takes the one rule's seat, not its route midpoint, which lies
+// over the card beside the leg. A labelled sibling with bundled slots of its
+// own must not change that.
+test.each([['alone', undefined], ['beside a labelled sibling', 'to C']])('a bundled caption with no bundled slot is seated by the one rule (%s)', (_name, siblingLabel) => {
+  const nodes = [node('A', 100, 0), node('B', 0, 300), node('C', 200, 300), node('K', 56, 62), node('L', 25, 112)]
+  nodes[3]!.width = 59; nodes[3]!.height = 28; nodes[4]!.width = 35; nodes[4]!.height = 138
+  const ab = edge('A', 'B', [[120, 40], [120, 60], [20, 60], [20, 300]], { label: 'caption' })
+  const ac = edge('A', 'C', [[120, 40], [120, 60], [220, 60], [220, 300]], siblingLabel ? { label: siblingLabel } : {})
+  const edges = [ab, ac]
+  expect(bundledLabelCandidates(ab, ab.points, nodes, 'TD', style)).toEqual([])
+  assignBundledFanoutLabels(edges.map(value => ({ edge: value, points: value.points })), { nodes, edges, groups: [] }, 'TD', style)
+  expect(measureLabelConflicts({ nodes, edges }, style)).toMatchObject({ labelNode: 0, labelLabel: 0 })
+  expect(onOwnRun(ab.labelPosition!, ab.points.map(({ x, y }) => [x, y] as const))).toBe(true)
 })
