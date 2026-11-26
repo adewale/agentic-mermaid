@@ -4,7 +4,9 @@
 // already drawn, which it neither crowds nor, when an equal route exists, crosses.
 
 import { expect, test } from 'bun:test'
-import { routeOrthogonal, type OrthogonalRouteRequest, type RouterPoint } from '../layout/orthogonal-router.ts'
+import fc from 'fast-check'
+import { routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 const box = { x0: 100, y0: 0, x1: 200, y1: 100 }
 const base: OrthogonalRouteRequest = { start: { x: 0, y: 50 }, end: { x: 300, y: 50 }, exit: 'E', entry: 'E', obstacles: [], clearance: 10 }
@@ -134,4 +136,35 @@ test.each([
   { name: 'a turn off the start heading counts the start stub', request: { start: { x: 0, y: 0 }, end: { x: 100, y: 20 }, exit: 'S', entry: 'E', stub: [15, 0], minRun: 20, startHeading: 'E', channelsOnly: true }, route: [{ x: 0, y: 0 }, { x: 0, y: 20 }, { x: 100, y: 20 }] },
 ] as { name: string; request: Omit<OrthogonalRouteRequest, 'obstacles' | 'clearance'>; route?: RouterPoint[] }[])('$name', ({ request, route }) => {
   expect(routeOrthogonal({ ...request, obstacles: [], clearance: 0 })).toEqual(route)
+})
+
+// A search that has not arrived after a few states asks a cheaper
+// reachability check whether it can arrive at all, and gives up when it
+// cannot. A `charge` budget counts every step the full search checks, so it
+// turns the check off: with and without one, every request routes alike.
+const lattice = fc.integer({ min: 0, max: 30 }).map(value => value * 10)
+const point = fc.record({ x: lattice, y: lattice })
+const heading = fc.constantFrom<RouterDirection>('E', 'S', 'W', 'N')
+const block = fc.tuple(lattice, lattice, fc.integer({ min: 1, max: 8 }), fc.integer({ min: 1, max: 8 }))
+  .map(([x, y, w, h]) => ({ x0: x, y0: y, x1: x + w * 10, y1: y + h * 10 }))
+const drawn = fc.tuple(point, fc.integer({ min: 1, max: 10 }), fc.boolean())
+  .map(([p, run, vertical]) => [p, vertical ? { x: p.x, y: p.y + run * 10 } : { x: p.x + run * 10, y: p.y }] as const)
+const request = fc.record({
+  start: point, end: point, exit: heading, entry: heading, obstacles: fc.array(block, { maxLength: 10 }),
+  clearance: fc.constantFrom(0, 4), stub: fc.constantFrom(0, 10, 20), via: fc.array(point, { maxLength: 2 }),
+  minRun: fc.constantFrom(0, 15), guided: fc.boolean(),
+  avoid: fc.option(fc.record({ segments: fc.array(drawn, { maxLength: 4 }), separation: fc.constant(8), gap: fc.constant(16) }), { nil: undefined }),
+}) as fc.Arbitrary<OrthogonalRouteRequest>
+// The end sits in a walled yard (the clearance closes its corners), so a
+// search through the via points visits everything outside before it fails.
+const walled: OrthogonalRouteRequest = {
+  start: { x: 0, y: 0 }, end: { x: 200, y: 200 }, exit: 'E', entry: 'E', stub: 10, clearance: 4, guided: false, minRun: 0,
+  via: [{ x: 300, y: 50 }, { x: 50, y: 300 }],
+  obstacles: [{ x0: 140, y0: 140, x1: 260, y1: 160 }, { x0: 140, y0: 240, x1: 260, y1: 260 }, { x0: 140, y0: 160, x1: 160, y1: 240 }, { x0: 240, y0: 160, x1: 260, y1: 240 }],
+}
+test('giving up on a route that cannot arrive never drops one that can', () => {
+  expect(routeOrthogonal(walled)).toBeUndefined()
+  fc.assert(fc.property(request, input => {
+    expect(routeOrthogonal(input)).toEqual(routeOrthogonal({ ...input, charge: () => {} }))
+  }), fcParameters({ numRuns: 300, examples: [[walled]] }))
 })

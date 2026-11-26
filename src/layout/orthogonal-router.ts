@@ -271,6 +271,8 @@ const DENSE_EDGE_CACHE = 1 << 22
 /** Scratch tables larger than this many entries are dropped after the route
  * that needed them rather than kept for the next. */
 const RETAINED_SCRATCH = 1 << 20
+/** States a search expands before it checks that a route exists at all. */
+const HOPELESS = 128
 /** How far past the cheapest cost a bounded pass still queues states: far
  * above rounding in summed costs; more only queues more states. */
 const BOUND_SLACK = 1
@@ -455,6 +457,72 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     else sparse!.set(edge, crossed)
     return crossed
   }
+  /** Whether any route can arrive at all, ignoring cost and minimum runs.
+   * Every route the search can find keeps the rules this keeps (clear
+   * steps, no reversal, via points in order, arriving along an entry or
+   * onto its stub), so where this finds none, neither does the search. */
+  const reachable = (): boolean => {
+    const length = (i: number, j: number, ni: number, nj: number) => Math.abs(xs[ni]! - xs[i]!) + Math.abs(ys[nj]! - ys[j]!)
+    // Depth first, each state's steps pushed in order of least progress
+    // toward a goal, so the step toward it is tried first.
+    const order = [0, 1, 2, 3], progress = [0, 0, 0, 0]
+    const rank = (i: number, j: number, x: number, y: number, sign: number) => {
+      for (let d = 0; d < 4; d++) { order[d] = d; progress[d] = sign * (DI[d]! * (x - xs[i]!) + DJ[d]! * (y - ys[j]!)) }
+      order.sort((a, b) => progress[a]! - progress[b]! || a - b)
+    }
+    // Backward from the arrivals to a state the last stretch can start in
+    // (after the last via point, or at the start, which settles a route
+    // without via points). A blocked arrival is settled here, in its own
+    // neighbourhood.
+    const last = stopsAt[via.length - 1]
+    const startsLast = (i: number, j: number, d: number) => last ? i === last.i && j === last.j
+      : sources.some(source => source.i === i && source.j === j && source.d === d)
+    const goal = last ?? sources[0]!, gx = xs[goal.i]!, gy = ys[goal.j]!
+    const arrives = new Uint8Array(xs.length * rows * 4), back: number[] = []
+    const mark = (i: number, j: number, d: number): boolean => {
+      const id = (i * rows + j) * 4 + d
+      if (!arrives[id]) { arrives[id] = 1; back.push(id) }
+      return startsLast(i, j, d)
+    }
+    let joined = false
+    for (const target of targets) for (let d = 0; d < 4; d++) if ((target.d === d || (endStub > EPS && (target.d + 2) % 4 !== d)) && mark(target.i, target.j, d)) joined = true
+    while (!joined && back.length) {
+      const id = back.pop()!, d = id % 4, point = (id - d) / 4, j = point % rows, i = (point - j) / rows
+      const pi = i - DI[d]!, pj = j - DJ[d]!
+      if (pi < 0 || pj < 0 || pi >= xs.length || pj >= rows || stepExtra(pi, pj, d, length(pi, pj, i, j)) < 0) continue
+      rank(pi, pj, gx, gy, -1)
+      for (const from of order) if ((from + 2) % 4 !== d && mark(pi, pj, from)) { joined = true; break }
+    }
+    if (!joined || !via.length) return joined
+    // Forward through the via points to an arrival.
+    const seen = new Uint8Array(xs.length * rows * 4 * stages), stack: number[] = []
+    const visit = (i: number, j: number, d: number, k: number) => {
+      const id = ((i * rows + j) * 4 + d) * stages + k
+      if (!seen[id]) { seen[id] = 1; stack.push(id) }
+    }
+    for (const { i, j, d } of sources) visit(i, j, d, advance(0, i, j))
+    const arrival = targets[0]!, ax = xs[arrival.i]!, ay = ys[arrival.j]!
+    while (stack.length) {
+      const id = stack.pop()!, k = id % stages, cell = (id - k) / stages, sd = cell % 4, point = (cell - sd) / 4, j = point % rows, i = (point - j) / rows
+      if (k === via.length) for (const target of targets) if (target.i === i && target.j === j && (target.d === sd || (endStub > EPS && (target.d + 2) % 4 !== sd))) return true
+      if (k < via.length) rank(i, j, via[k]!.x, via[k]!.y, 1)
+      else rank(i, j, ax, ay, 1)
+      for (const d of order) {
+        if ((d + 2) % 4 === sd) continue
+        const ni = i + DI[d]!, nj = j + DJ[d]!
+        if (ni < 0 || nj < 0 || ni >= xs.length || nj >= rows) continue
+        if (stepExtra(i, j, d, length(i, j, ni, nj)) < 0) continue
+        visit(ni, nj, d, advance(k, ni, nj))
+      }
+    }
+    return false
+  }
+  // A search that finds no route expands every state it can reach, once per
+  // via point passed. Once the first pass has expanded a few states without
+  // arriving, the cheaper reachability check settles whether it can arrive
+  // at all. Not with `charge`: a caller's work budget counts the steps the
+  // full search checks.
+  const hopeless = request.charge ? -1 : HOPELESS
   /** One search pass, ordered by cost alone or (`ordered`) by cost plus the
    * lower bound. States whose cost plus lower bound exceeds `bound` cannot
    * lie on a route that cheap and are never queued. Returns the route's
@@ -482,12 +550,14 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       scratch.push(scratch.add(i, j, d, k, cost, cost + (ordered ? least : 0), run, -1, 0))
       setBest(key(i, j, d, k, run), cost)
     }
+    let expanded = 0
     while (scratch.open) {
       const slot = scratch.pop()
       if (scratch.final[slot]) return finish(slot)
       const si = scratch.i[slot]!, sj = scratch.j[slot]!, sd = scratch.d[slot]!, sk = scratch.k[slot]!, scost = scratch.cost[slot]!, srun = scratch.run[slot]!
       const own = key(si, sj, sd, sk, srun)
       if ((table ? (bestGeneration[own] === pass ? bestCost[own]! : Infinity) : map!.get(own) ?? Infinity) < scost - EPS) continue
+      if (++expanded === hopeless && !bounded && !reachable()) return undefined
       if (sk === via.length) {
         // Turning onto the end stub, or off it against the end heading, is
         // one more bend each, charged before the route can win; like any
