@@ -368,8 +368,10 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     const bounded = bound < Infinity
     const open = new StateHeap<State>()
     for (const { i, j, d } of sources) {
+      // Leaving against the start heading turns at `start`: the run since
+      // that turn is the stub.
       const turned = startHeading >= 0 && d !== startHeading
-      const cost = turned ? bendCost : 0, run = turned ? 0 : Infinity, k = advance(0, i, j)
+      const cost = turned ? bendCost : 0, run = turned ? startStub : Infinity, k = advance(0, i, j)
       const least = ordered || bounded ? lowerBound(i, j, d, k) : 0
       if (cost + least > bound) continue
       open.push({ i, j, d, k, cost, rank: cost + (ordered ? least : 0), run, seq: pushed++ })
@@ -382,15 +384,20 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       if (state.k === via.length) {
         // Turning onto the end stub, or off it against the end heading, is
         // one more bend each, charged before the route can win; like any
-        // turn it needs a minimum run before it. Without a stub the route
-        // must arrive along the entry direction itself.
+        // turn it needs a minimum run before it: the run so far for the turn
+        // onto the stub, and for the turn off it the stub, plus the run so
+        // far when the route arrives straight along it. Without a stub the
+        // route must arrive along the entry direction itself.
         let extra = Infinity
         for (const { i, j, d } of targets) {
           if (i !== state.i || j !== state.j || (d !== state.d && (endStub <= EPS || (d + 2) % 4 === state.d))) continue
-          extra = Math.min(extra, (d !== state.d ? 1 : 0) + (endHeading >= 0 && d !== endHeading ? 1 : 0))
+          const ontoStub = d !== state.d, offStub = endHeading >= 0 && d !== endHeading
+          if (ontoStub && state.run < minRun - EPS) continue
+          if (offStub && (ontoStub ? endStub : state.run + endStub) < minRun - EPS) continue
+          extra = Math.min(extra, (ontoStub ? 1 : 0) + (offStub ? 1 : 0))
         }
         if (extra === 0) return state
-        if (extra < Infinity && state.run >= minRun - EPS && state.cost + extra * bendCost <= bound) open.push({ ...state, cost: state.cost + extra * bendCost, rank: state.cost + extra * bendCost, seq: pushed++, final: true })
+        if (extra < Infinity && state.cost + extra * bendCost <= bound) open.push({ ...state, cost: state.cost + extra * bendCost, rank: state.cost + extra * bendCost, seq: pushed++, final: true })
       }
       for (let d = 0; d < 4; d++) {
         if ((d + 2) % 4 === state.d) continue // no reversal

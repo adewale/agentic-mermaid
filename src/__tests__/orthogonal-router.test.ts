@@ -123,3 +123,15 @@ test.each([
   if (route && !own) for (const obstacle of request.obstacles) expect(hits(route, obstacle)).toBe(false)
 })
 
+// The run before a turn at a lead heading includes the stub it turns off.
+test.each([
+  // Straight down onto the end stub, then east: the last run is 15 + 10.
+  { name: 'a straight arrival counts the end stub in the run before the end heading', request: { start: { x: 0, y: 0 }, end: { x: 100, y: 25 }, exit: 'E', entry: 'S', stub: [0, 10], minRun: 20, endHeading: 'E' }, route: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 25 }] },
+  // Turning onto the end stub, then off it east: the stub is the whole run.
+  { name: 'a turn onto a short end stub cannot turn off it again', request: { start: { x: 0, y: -30 }, end: { x: 100, y: 25 }, exit: 'S', entry: 'S', stub: [0, 10], minRun: 20, endHeading: 'E', channelsOnly: true }, route: undefined },
+  { name: 'a turn onto a long enough end stub can', request: { start: { x: 0, y: -30 }, end: { x: 100, y: 35 }, exit: 'S', entry: 'S', stub: [0, 20], minRun: 20, endHeading: 'E', channelsOnly: true }, route: [{ x: 0, y: -30 }, { x: 0, y: 15 }, { x: 100, y: 15 }, { x: 100, y: 35 }] },
+  // Turning off the start heading at the start: the stub counts as run.
+  { name: 'a turn off the start heading counts the start stub', request: { start: { x: 0, y: 0 }, end: { x: 100, y: 20 }, exit: 'S', entry: 'E', stub: [15, 0], minRun: 20, startHeading: 'E', channelsOnly: true }, route: [{ x: 0, y: 0 }, { x: 0, y: 20 }, { x: 100, y: 20 }] },
+] as { name: string; request: Omit<OrthogonalRouteRequest, 'obstacles' | 'clearance'>; route?: RouterPoint[] }[])('$name', ({ request, route }) => {
+  expect(routeOrthogonal({ ...request, obstacles: [], clearance: 0 })).toEqual(route)
+})
