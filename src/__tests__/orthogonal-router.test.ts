@@ -102,3 +102,24 @@ test('a caller bounds the search work by throwing from charge', () => {
   expect(steps).toBeGreaterThan(0)
   expect(() => routeOrthogonal({ ...base, obstacles: [box], charge: () => { throw new Error('budget') } })).toThrow('budget')
 })
+
+// A stub is a segment like any other: it may leave the clearance around the
+// box its endpoint sits on, or a box its endpoint lies inside (a family that
+// grows its own box), but never cross another box on the way to the grid.
+const thin = { x0: 2, y0: -10, x1: 5, y1: 10 }
+const stubbed: OrthogonalRouteRequest = { start: { x: 0, y: 0 }, end: { x: 100, y: 50 }, exit: 'E', entry: 'E', stub: 8, obstacles: [], clearance: 0 }
+test.each([
+  { name: 'a start stub may not cross a thin box', request: { ...stubbed, obstacles: [thin] }, routes: false },
+  { name: 'nor an end stub', request: { ...stubbed, obstacles: [{ x0: 95, y0: 40, x1: 98, y1: 60 }] }, routes: false },
+  { name: 'another exit leaves clear of the thin box', request: { ...stubbed, exit: ['E', 'S'], obstacles: [thin] }, routes: true },
+  { name: 'a stub may not cross a box whose clearance holds its endpoint', request: { ...stubbed, clearance: 3, obstacles: [thin] }, routes: false },
+  { name: 'but may leave the clearance around its own box', request: { ...stubbed, clearance: 6, stub: 10, obstacles: [{ x0: -40, y0: -20, x1: 0, y1: 20 }] }, routes: true },
+  { name: 'or a grown box its endpoint lies inside', request: { ...stubbed, obstacles: [{ x0: -5, y0: -5, x1: 5, y1: 5 }] }, routes: true, own: true },
+  { name: 'a band blocks a stub along it', request: { ...stubbed, axisObstacles: { horizontal: [thin] } }, routes: false },
+  { name: 'but not a stub across it', request: { ...stubbed, exit: 'S', axisObstacles: { horizontal: [{ x0: -10, y0: 2, x1: 10, y1: 5 }] } }, routes: true },
+] as { name: string; request: OrthogonalRouteRequest; routes: boolean; own?: true }[])('$name', ({ request, routes, own }) => {
+  const route = routeOrthogonal(request)
+  expect(route !== undefined).toBe(routes)
+  if (route && !own) for (const obstacle of request.obstacles) expect(hits(route, obstacle)).toBe(false)
+})
+

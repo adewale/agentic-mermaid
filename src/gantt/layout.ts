@@ -309,6 +309,7 @@ export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>)
 
 /** Stub length for connector exits/entries, and the escape-corridor inset. */
 export const GANTT_DEP_STUB = 8
+const DEP_EPS = 1e-6
 
 interface DepPoint {
   x: number
@@ -374,9 +375,13 @@ function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], c
   // ties keep the earlier preference. A route with at most one bend ends the
   // search: a later pairing could save at most that bend.
   const boxes = obstacles.map(r => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h }))
+  // A port inside another bar (bars drawn wider than their time overlap in
+  // compact mode) would start or end the connector in that bar's interior.
+  const buried = (p: DepPoint) => boxes.some(b => p.x > b.x0 + DEP_EPS && p.x < b.x1 - DEP_EPS && p.y > b.y0 + DEP_EPS && p.y < b.y1 - DEP_EPS)
   let best: { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up'; cost: number } | null = null
   search: for (const start of starts) for (const end of ends) {
     if (best && best.cost < 2e4) break search
+    if (buried(start.start) || buried(end.end)) continue
     const route = routeOrthogonal({
       start: start.start, end: end.end, exit: start.exit, entry: end.entry, stub: [start.stub, end.stub],
       obstacles: boxes, clearance: 0, channels: corridors, channelsOnly: true,

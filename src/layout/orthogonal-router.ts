@@ -290,7 +290,20 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const onChannelX = offChannel ? onChannel(xs, request.channels?.x) : [], onChannelY = offChannel ? onChannel(ys, request.channels?.y) : []
   const lineCost = (values: readonly number[], costs: readonly { at: number; cost: number }[] = []) => values.map(value => costs.find(line => Math.abs(line.at - value) <= EPS)?.cost ?? 0)
   const lineCostX = lineCost(xs, request.lineCosts?.x), lineCostY = lineCost(ys, request.lineCosts?.y)
-  const inside = (p: RouterPoint) => inflated.some(box => p.x > box.x0 + EPS && p.x < box.x1 - EPS && p.y > box.y0 + EPS && p.y < box.y1 - EPS)
+  const within = (p: RouterPoint, box: RouterBox) => p.x > box.x0 + EPS && p.x < box.x1 - EPS && p.y > box.y0 + EPS && p.y < box.y1 - EPS
+  const inside = (p: RouterPoint) => inflated.some(box => within(p, box))
+  // A stub runs from its endpoint to the grid. It keeps out of every box as
+  // any segment does, except one its endpoint already lies in: it may leave
+  // the clearance around a box its endpoint sits on, but never cross the box
+  // itself, unless the endpoint lies inside the box itself (a family that
+  // grows its own boxes puts the endpoint there; the stub tip must still
+  // clear it).
+  const stubClear = (endpoint: RouterPoint, tip: RouterPoint, raw: readonly RouterBox[], grown: readonly RouterBox[]) => grown.every((box, k) => !segmentHits(endpoint, tip, box)
+    || (within(endpoint, box) && (!segmentHits(endpoint, tip, raw[k]!) || within(endpoint, raw[k]!))))
+  const stubBlocked = (endpoint: RouterPoint, tip: RouterPoint, d: RouterDirection) => !stubClear(endpoint, tip, request.obstacles, inflated)
+    || (d === 'E' || d === 'W'
+      ? !stubClear(endpoint, tip, request.axisObstacles?.horizontal ?? [], acrossX)
+      : !stubClear(endpoint, tip, request.axisObstacles?.vertical ?? [], acrossY))
   const index = (p: RouterPoint) => {
     const i = xs.findIndex(x => Math.abs(x - p.x) <= EPS), j = ys.findIndex(y => Math.abs(y - p.y) <= EPS)
     return i < 0 || j < 0 ? undefined : { i, j }
@@ -298,8 +311,8 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const heading = (d?: RouterDirection) => (d === undefined ? -1 : DIRECTIONS.indexOf(d))
   const startHeading = heading(request.startHeading), endHeading = heading(request.endHeading)
   const reverses = (d: number, h: number) => h >= 0 && (d + 2) % 4 === h
-  const sources = outs.filter(({ d, point }) => !inside(point) && !reverses(DIRECTIONS.indexOf(d), startHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
-  const targets = intos.filter(({ d, point }) => !inside(point) && !reverses(DIRECTIONS.indexOf(d), endHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
+  const sources = outs.filter(({ d, point }) => !inside(point) && !stubBlocked(start, point, d) && !reverses(DIRECTIONS.indexOf(d), startHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
+  const targets = intos.filter(({ d, point }) => !inside(point) && !stubBlocked(end, point, d) && !reverses(DIRECTIONS.indexOf(d), endHeading)).map(({ d, point }) => ({ d: DIRECTIONS.indexOf(d), ...index(point)! }))
   if (!sources.length || !targets.length || via.some(inside)) return undefined
   const stopsAt = via.map(point => index(point)!)
   /** Via points passed after reaching grid point (i, j) with `k` passed. */
