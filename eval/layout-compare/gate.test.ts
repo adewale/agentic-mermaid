@@ -35,6 +35,11 @@ test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdic
   { name: 'one more crossing outranks fewer bends', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 3, bends: 2 }))], verdict: 'regressed', criterion: 'edgeCrossings' },
   { name: 'fewer crossings outrank more bends', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 1, bends: 20 }))], verdict: 'improved', criterion: 'edgeCrossings' },
   { name: 'canvas change under 1% ties', base: [sample('a', metrics())], head: [sample('b', metrics({ area: 10_050 }))], verdict: 'unchanged' },
+  { name: 'canvas change under 1% ties across a 1% step', base: [sample('a', metrics({ area: 1.01 ** 925.49 }))], head: [sample('b', metrics({ area: 1.01 ** 925.51 }))], verdict: 'unchanged' },
+  { name: 'canvas growth of 2% regresses on area', base: [sample('a', metrics())], head: [sample('b', metrics({ area: 10_200 }))], verdict: 'regressed', criterion: 'area' },
+  { name: 'an uncertified base gaining a hard violation breaks despite fewer crossings', base: [{ ...sample('a', metrics()), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences'] } }], head: [{ ...sample('b', metrics({ crossings: 1 })), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences', 'edgeThroughNode'] } }], verdict: 'broken' },
+  { name: 'an uncertified base repeating a hard violation breaks', base: [{ ...sample('a', metrics()), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences'] } }], head: [{ ...sample('b', metrics({ crossings: 1 })), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences', 'indistinctOccurrences'] } }], verdict: 'broken' },
+  { name: 'shedding one of two hard violations outranks one more crossing', base: [{ ...sample('a', metrics()), geometry: { status: 'uncertified', kinds: ['indistinctOccurrences', 'edgeThroughNode'] } }], head: [{ ...sample('b', metrics({ crossings: 3 })), geometry: { status: 'uncertified', kinds: ['edgeThroughNode'] } }], verdict: 'improved' },
   { name: 'identical geometry is not rescored', base: [sample('a', metrics())], head: [sample('a', metrics({ crossings: 9 }))], verdict: 'unchanged' },
 ])('$name', ({ base, head, verdict, criterion }) => {
   const result = run(base, head)

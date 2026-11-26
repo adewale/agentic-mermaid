@@ -126,8 +126,8 @@ export function objectiveGeometry(input: GateInput, layout: RenderedLayout): Obj
 /** The declared objective, read from the published projection in the
  * objective's own order. Title readability cannot be observed and ties on
  * both sides; so do the port and barycentre axes when `objective` is absent.
- * Area is compared at 1% resolution: the drawn canvas includes bands the
- * engine's candidate area excludes. */
+ * Area is the drawn canvas in px²; `classify` ties two areas within 1% of each
+ * other, because the canvas includes bands the engine's candidate area excludes. */
 export function projectedPreferenceScore(metrics: QualityMetrics, objective?: ObjectiveGeometry): LayoutPreferenceScore {
   const area = metrics.routeGeometry?.area ?? 0
   return {
@@ -137,7 +137,7 @@ export function projectedPreferenceScore(metrics: QualityMetrics, objective?: Ob
     totalBends: metrics.routeGeometry?.bends ?? 0,
     nonCanonicalEndpointRate: objective?.nonCanonicalEndpointRate ?? 0,
     peerBarycenterDelta: objective?.peerBarycenterDelta ?? 0,
-    area: area > 0 ? Math.round(Math.log(area) / Math.log(1.01)) : 0,
+    area,
   }
 }
 
@@ -191,6 +191,13 @@ export function classify(input: GateInput, base: readonly CapturedSample[], head
   // Drawn but no longer certified is a lost hard guarantee, whatever it scores.
   if (h.geometry && !b.geometry) return { ...result, verdict: 'broken', notes: [`geometry certification lost: ${h.geometry.kinds.join(', ') || h.geometry.status}`] }
   if (b.geometry && !h.geometry) return { ...result, verdict: 'improved', notes: [`geometry certification regained: ${b.geometry.kinds.join(', ') || b.geometry.status}`] }
+  // Both uncertified: each violation head adds is a hard loss; shedding one
+  // with none added is a hard gain.
+  if (b.geometry && h.geometry) {
+    const added = surplus(h.geometry.kinds, b.geometry.kinds), shed = surplus(b.geometry.kinds, h.geometry.kinds)
+    if (added.length) return { ...result, verdict: 'broken', notes: [`geometry violations added: ${added.join(', ')}`] }
+    if (shed.length) return { ...result, verdict: 'improved', notes: [`geometry violations removed: ${shed.join(', ')}`] }
+  }
   if (b.digest === h.digest) return result
   let headMetrics: QualityMetrics, headObjective: ObjectiveGeometry | undefined
   try { headMetrics = score(h.layout); headObjective = objective(h.layout) } catch (error) {
@@ -206,10 +213,22 @@ export function classify(input: GateInput, base: readonly CapturedSample[], head
   result.tradeoffs = tradeoffNotes(baseMetrics, headMetrics)
   if (fixed.length) return { ...result, verdict: 'improved', notes: fixed.map(gain => `${gain.axis} ${gain.to} → ${gain.from}`) }
   const [baseScore, headScore] = [projectedPreferenceScore(baseMetrics, baseObjective), projectedPreferenceScore(headMetrics, headObjective)]
+  if (baseScore.area > 0 && headScore.area > 0 && Math.abs(Math.log(headScore.area / baseScore.area)) < Math.log(1.01)) headScore.area = baseScore.area
   const decision = compareLayoutPreference(baseScore, headScore)
   if (decision.criterion === undefined) return { ...result, notes: ['geometry changed; objective tied'] }
   const pair = `${decision.criterion} ${fmt(baseScore[decision.criterion])} → ${fmt(headScore[decision.criterion])}`
   return { ...result, verdict: decision.order < 0 ? 'improved' : 'regressed', criterion: decision.criterion, notes: [decision.criterion === 'area' ? 'canvas area changed by ≥1%' : pair] }
+}
+
+/** Each entry of `from` beyond its count in `to`, one per extra occurrence. */
+function surplus(from: readonly string[], to: readonly string[]): string[] {
+  const left = new Map<string, number>()
+  for (const kind of to) left.set(kind, (left.get(kind) ?? 0) + 1)
+  return from.filter(kind => {
+    const count = left.get(kind) ?? 0
+    left.set(kind, count - 1)
+    return count <= 0
+  })
 }
 
 const fmt = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3)
