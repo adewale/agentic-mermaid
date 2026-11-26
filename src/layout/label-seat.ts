@@ -179,12 +179,19 @@ export function seatCaption(edge: PositionedEdge, graph: SeatGraph, style: Label
  * ELK reserves each caption's room beside the route it draws. Where the
  * produced route differs (a cross-hierarchy or margin route joined or rebuilt
  * after ELK), or ELK reserved none, the caption is seated on its own route
- * by the one rule, nearest any room ELK reserved. Self-loop captions sit
- * beside their stub by design.
+ * by the one rule, nearest any room ELK reserved. A self-loop caption ELK
+ * reserved sits beside its stub by design; one without that room (labels
+ * kept out of ELK, or a stub rebuilt here) is seated on its stub, so every
+ * caption leaves extraction with a seat, whether or not the self-loop
+ * router later rebuilds the loop.
  */
 export function seatLabelsOnOwnRoutes(graph: SeatGraph, style: LabelMetricsStyle): void {
   for (const edge of graph.edges) {
-    if (!edge.label || edge.source === edge.target || edge.points.length < 2) continue
+    if (!edge.label || edge.points.length < 2) continue
+    if (edge.source === edge.target) {
+      if (!edge.labelPosition) seatCaption(edge, graph, style)
+      continue
+    }
     const reserved = edge.labelPosition, rect = reserved && labelRect(edge, style)
     if (reserved && rect && routeDistance(reserved, edge.points) <= rect.h / 2 + 4) continue
     seatCaption(edge, graph, style, reserved)

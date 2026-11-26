@@ -24,6 +24,7 @@ import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedNode, PositionedEdge } from '../types.ts'
 
 // Minimal reproduction: a label on A→B + a second feeder into B + an outflow
@@ -89,6 +90,29 @@ describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
       // terminal hook do not all fit on A's mid-port lane (#566), so the slide
       // onto it is refused and A->B straightens on B's side instead.
       expect(abPortGap().straight).toBe(true)
+    } finally {
+      if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
+      else process.env.APL_DECOUPLE_LABELS = previous
+    }
+  })
+
+  // Without ELK's reserved label room a self-loop's caption has no seat from
+  // ELK, and the self-loop router keeps a native or frame loop as drawn.
+  // Each caption still needs a seat on or beside its own loop: canvas sizing,
+  // label passes and certification all read it.
+  test.each([
+    ['frame self-loop', 'flowchart TD\n  subgraph S\n    A --> B\n  end\n  S -->|self| S'],
+    ['frame self-loop beside a feeder', 'flowchart LR\n  subgraph S\n    A --> B\n  end\n  S -->|self loop caption| S\n  C --> S'],
+    ['node self-loop inside a turned subgraph', 'flowchart TD\n  subgraph S\n    direction LR\n    A --> B\n  end\n  B -->|loop| B\n  B --> C'],
+  ])('with decoupling enabled: a %s keeps its caption seat', (_name, source) => {
+    const previous = process.env.APL_DECOUPLE_LABELS
+    process.env.APL_DECOUPLE_LABELS = '1'
+    try {
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      const loop = positioned.edges.find(edge => edge.source === edge.target)!
+      expect(loop.labelPosition).toBeDefined()
+      expect(assessLayout(graph, positioned).violations.filter(violation => violation.metric === 'labelOffRoute')).toEqual([])
     } finally {
       if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
       else process.env.APL_DECOUPLE_LABELS = previous
