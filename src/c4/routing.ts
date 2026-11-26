@@ -60,6 +60,38 @@ function facingPort(start: Point, startSide: Side, box: C4Box, side: Side, index
   return level
 }
 
+/** Sorted-pair keys of repeated relationships that all run as one straight
+ * run between facing faces carrying nothing else, on ports far enough apart
+ * that their labels stack across the run. Such a pair needs no corridor
+ * wider than one label: its runs never step between the two faces. */
+export function c4StraightPairs(boxes: ReadonlyMap<string, C4Box>, edges: readonly PositionedEdge[]): Set<string> {
+  const counts = new Map<string, number>(), pairs = new Map<string, PositionedEdge[]>(), straight = new Set<string>()
+  for (const edge of edges) {
+    const source = boxes.get(edge.source), target = boxes.get(edge.target)
+    if (!source || !target) continue
+    const [startSide, endSide] = sides(source, target)
+    for (const key of [`${source.id}\0${startSide}`, `${target.id}\0${endSide}`]) counts.set(key, (counts.get(key) ?? 0) + 1)
+    const key = JSON.stringify([edge.source, edge.target].sort()), members = pairs.get(key) ?? []
+    members.push(edge); pairs.set(key, members)
+  }
+  for (const [key, members] of pairs) {
+    const [first, second] = JSON.parse(key) as [string, string], count = members.length
+    if (count < 2 || first === second) continue
+    const a = boxes.get(first)!, b = boxes.get(second)!, [sideA, sideB] = sides(a, b)
+    if (OPPOSITE[sideA] !== sideB || counts.get(`${first}\0${sideA}`) !== count || counts.get(`${second}\0${sideB}`) !== count) continue
+    if (members.some(edge => { const [start, end] = sides(boxes.get(edge.source)!, boxes.get(edge.target)!); return edge.source === first ? start !== sideA || end !== sideB : start !== sideB || end !== sideA })) continue
+    const along = sideA === 'L' || sideA === 'R' ? 'y' : 'x'
+    const band = Math.max(...members.map(edge => (along === 'y' ? edge.labelBlock?.height : edge.labelBlock?.width) ?? 0)) + 16
+    let level = true
+    for (let index = 0; index < count && level; index++) {
+      const at = port(a, sideA, index, count)[along]
+      level = at === port(b, sideB, index, count)[along] && (index === 0 || at - port(a, sideA, index - 1, count)[along] >= band)
+    }
+    if (level) straight.add(key)
+  }
+  return straight
+}
+
 const DIRECTION: Record<Side, RouterDirection> = { T: 'N', R: 'E', B: 'S', L: 'W' }
 const REVERSE: Record<RouterDirection, RouterDirection> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 /** Checked grid steps over all of one diagram's routes. */

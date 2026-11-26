@@ -204,6 +204,72 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
+  // Fifty repeated relationships between n0 and n1 once multiplied every gap
+  // of the diagram, so the 18 cards they never touch spread over a drawing
+  // 26,117px tall, against 1,064px for the same cards with one relationship.
+  // Side by side, the pair's runs are straight and widen no gap; stacked,
+  // their ports sit 13px apart and their runs step, so only the gap between
+  // the two rows widens.
+  test.each([
+    { target: 'n1', count: 50, widened: [] as readonly string[] },
+    { target: 'n3', count: 10, widened: ['row 0|1'] as readonly string[] },
+  ])('one busy pair n0-$target widens only the gaps its runs use, grows only its own cards and certifies', ({ target, count, widened }) => {
+    const cards = Array.from({ length: 20 }, (_, i) => `System(n${i},"Card ${i}")`)
+    const layoutOf = (repeats: number) => {
+      const parsed = parseRegisteredMermaid(['C4Context', ...cards, ...Array.from({ length: repeats }, () => `Rel(n0,${target},"Repeated")`)].join('\n'))
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      return layoutMermaid(parsed.value, { debug: true })
+    }
+    const single = layoutOf(1), busy = layoutOf(count)
+    // Gaps between horizontally adjacent cards of one row, and between rows,
+    // to a thousandth of a pixel.
+    const round = (value: number) => Math.round(value * 1000) / 1000
+    const spacing = (layout: ReturnType<typeof layoutOf>) => {
+      const rows = new Map<number, typeof layout.nodes>()
+      for (const node of layout.nodes) rows.set(node.y, [...rows.get(node.y) ?? [], node])
+      const ordered = [...rows.entries()].sort(([a], [b]) => a - b).map(([, row]) => row.sort((a, b) => a.x - b.x))
+      return [
+        ...ordered.flatMap(row => row.slice(1).map((node, i) => ({ between: `${row[i]!.id}|${node.id}`, gap: round(node.x - row[i]!.x - row[i]!.w) }))),
+        ...ordered.slice(1).map((row, i) => ({ between: `row ${i}|${i + 1}`, gap: round(row[0]!.y - Math.max(...ordered[i]!.map(node => node.y + node.h))) })),
+      ]
+    }
+    const before = spacing(single), after = spacing(busy)
+    expect(after.map(item => item.between)).toEqual(before.map(item => item.between))
+    for (const [index, item] of after.entries()) {
+      if (widened.includes(item.between)) expect(item.gap).toBeGreaterThan(before[index]!.gap)
+      else expect(item).toEqual(before[index]!)
+    }
+    for (const node of busy.nodes) {
+      const alone = single.nodes.find(other => other.id === node.id)!
+      if (node.id === 'n0' || node.id === target) expect(node.h).toBeGreaterThan(alone.h)
+      else expect([node.id, node.w, node.h]).toEqual([alone.id, alone.w, alone.h])
+    }
+    expect(busy.edges).toHaveLength(count)
+    expect(busy.paintCertification?.status).toBe('passed')
+    expect(busy.paintCertification?.issues ?? []).toEqual([])
+  })
+
+  // Routes that must detour, into a boundary or past cards between their two
+  // ends, run through gaps no pair corridor widens. These generated diagrams
+  // lost paint certification when only corridor gaps widened, so a diagram
+  // with any such route keeps the diagram-wide spacing.
+  const cardLines = (ids: number[]) => ids.map(i => `System(n${i},"Card ${i}","Tech ${i}")`)
+  test.each([
+    ['a busy pair split by a boundary', ['C4Component', 'System_Boundary(b0,"Boundary") {', ...cardLines([0, 1, 2, 3, 4]), '}', ...cardLines([5, 6, 7, 8, 9]),
+      'Rel(n6,n4,"Label 0 with a longer caption")', 'Rel_L(n2,n0,"Label 1 with a longer caption")', 'Rel(n6,n4,"Label 2 with a longer caption")', 'Rel_D(n8,n4,"Label 3 with a longer caption")',
+      'Rel_D(n6,n4,"Label 4 with a longer caption")', 'Rel_U(n2,n2,"Label 5 with a longer caption")', 'Rel_R(n6,n8,"Label 6 with a longer caption")', 'Rel(n4,n6,"Label 7 with a longer caption")',
+      'Rel(n6,n4,"Again 0")', 'Rel(n6,n4,"Again 1")']],
+    ['a busy pair with cards between it', ['C4Component', 'UpdateLayoutConfig($c4ShapeInRow="1", $c4BoundaryInRow="1")', 'System_Boundary(b0,"Boundary") {', ...cardLines([0, 1, 2, 3]), '}', ...cardLines([4, 5, 6, 7, 8]),
+      'Rel_D(n6,n8,"Label 0 with a longer caption")', 'Rel(n4,n4,"Label 1 with a longer caption")', 'Rel_R(n8,n5,"Label 2 with a longer caption")', 'Rel(n4,n6,"Label 3 with a longer caption")',
+      ...[0, 1, 2, 3, 4, 5].map(i => `Rel(n0,n3,"Again ${i}")`)]],
+  ])('%s keeps diagram-wide spacing and certifies its paint', (_name, lines) => {
+    const parsed = parseRegisteredMermaid(lines.join('\n'))
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    expect(layout.paintCertification?.issues ?? []).toEqual([])
+    expect(layout.paintCertification?.status).toBe('passed')
+  })
+
   test('scaled SVG arrowheads, including their painted stroke, remain inside the final viewport', () => {
     for (const source of ['C4Context\nSystem(a,"A")\nRel(a,a,"Self")', PARALLEL]) for (const lineWidth of [12, 8]) {
       const svg = renderMermaidSVG(source, { style: { roles: { edge: { lineWidth } } } })

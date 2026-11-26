@@ -7,7 +7,7 @@ import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4Config, type C4
 import { projectC4Graph, c4ElementText, c4BoundaryText, c4RelationshipText } from './projection.ts'
 import { placeC4Boxes, type C4Box } from './placement.ts'
 import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
-import { routeC4Pixels } from './routing.ts'
+import { routeC4Pixels, c4StraightPairs } from './routing.ts'
 import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
@@ -81,14 +81,33 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   // halo on either side. A single label band leaves no clear candidate even
   // when its route, cards and physical ports are individually feasible.
   const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) * 2 + 48)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) * 2 + 48))
-  const pairCounts = new Map<string, number>()
+  // Repeated interactions between one pair run in parallel corridors. The
+  // corridor widens only the gaps between that pair when every interaction
+  // of the diagram can run between its own two elements; one that must
+  // detour (into a boundary, around an element between them, onto itself
+  // or an ancestor) runs through other gaps, so then every gap takes the
+  // busiest pair's spacing.
+  const pairCounts = new Map<string, { between: [string, string]; count: number }>()
   for (const edge of edges) {
-    const key = JSON.stringify([edge.source, edge.target].sort())
-    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
+    const between = [edge.source, edge.target].sort() as [string, string], key = JSON.stringify(between)
+    const pair = pairCounts.get(key) ?? { between, count: 0 }
+    pair.count++; pairCounts.set(key, pair)
   }
-  const parallelCorridors = Math.max(1, ...pairCounts.values())
-  const corridorDemand = parallelCorridors > 1 ? parallelCorridors + 1 : 1
-  const placement = placeC4Boxes(body, sizes, { gapX: gapX * corridorDemand, gapY: gapY * corridorDemand, padding: config.boundaryPadding, marginX: config.marginX + 40, marginY: config.marginY + 40 + (title?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? config.shapesPerRow, boundariesPerRow: body.layout.boundariesPerRow ?? config.boundariesPerRow, direction: graph.direction === 'TD' ? 'TB' : graph.direction, maxWidth: config.maxWidth })
+  const busiest = Math.max(1, ...[...pairCounts.values()].map(pair => pair.count))
+  const placementOptions = { padding: config.boundaryPadding, marginX: config.marginX + 40, marginY: config.marginY + 40 + (title?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? config.shapesPerRow, boundariesPerRow: body.layout.boundariesPerRow ?? config.boundariesPerRow, direction: graph.direction === 'TD' ? 'TB' : graph.direction, maxWidth: config.maxWidth }
+  const corridors = busiest > 1 ? [...pairCounts.values()].map(pair => { const demand = pair.count > 1 ? pair.count + 1 : 1; return { between: pair.between, gapX: gapX * demand, gapY: gapY * demand } }) : undefined
+  let placement = placeC4Boxes(body, sizes, { ...placementOptions, gapX, gapY, corridors })
+  if (!placement.corridorsClear) placement = placeC4Boxes(body, sizes, { ...placementOptions, gapX: gapX * (busiest + 1), gapY: gapY * (busiest + 1) })
+  else if (corridors) {
+    // A pair whose runs are all straight needs only the base gap. Keep the
+    // narrower placement only if those runs stay straight and clear in it.
+    const straight = c4StraightPairs(placement.boxes, edges)
+    if (straight.size) {
+      const narrowed = placeC4Boxes(body, sizes, { ...placementOptions, gapX, gapY, corridors: corridors.map(corridor => straight.has(JSON.stringify(corridor.between)) ? { ...corridor, gapX, gapY } : corridor) })
+      const still = narrowed.corridorsClear ? c4StraightPairs(narrowed.boxes, edges) : new Set<string>()
+      if ([...straight].every(key => still.has(key))) placement = narrowed
+    }
+  }
   for (const node of nodes) Object.assign(node, placement.boxes.get(node.id))
   const roots: PositionedGroup[] = []
   for (const item of body.boundaries) { const group = groups.get(item.id)!; Object.assign(group, placement.boxes.get(item.id)); const parent = item.parentId && groups.get(item.parentId); if (parent) parent.children.push(group); else roots.push(group) }
