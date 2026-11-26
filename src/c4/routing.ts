@@ -4,7 +4,7 @@ export { C4RouteWorkLimitError } from './errors.ts'
 import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGraph } from '../types.ts'
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
-import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
+import { simplifyPolyline, applyRouteContracts, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
 import { routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
@@ -170,11 +170,9 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     for (let at = 1; at < edge.points.length; at++) drawn.push([edge.points[at - 1]!, edge.points[at]!])
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }
-  // Shared graph route passes certify the routes and allocate labels; the
-  // routes themselves stay as routed.
+  // Shared graph route passes certify the routes; the routes themselves stay
+  // as routed and their captions are seated below.
   applyRouteContracts(positioned, graph, new Set(), style)
-  repairLabelsOffOwnRoute(positioned, graph, style)
-  separateEdgeLabelPills(positioned, graph, style, { seats: denseLabelSeats })
   closeRouteContracts(positioned, graph, style)
   for (const edge of edges) {
     const points = routed.get(edge)

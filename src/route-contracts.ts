@@ -1487,100 +1487,6 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
   return false
 }
 
-/**
- * Post-freeze label repair for labels left OFF their own route. ELK can place an
- * edge label with a perpendicular offset from the line; applyRouteContracts
- * re-slots labels only on edges it RE-ROUTES, so a label on an edge that came out
- * of ELK ALREADY straight (and is not a shared-trunk conflict, so the pass above
- * skips it too) keeps ELK's offset placement — which the rubric flags as
- * labelOffRoute once the offset exceeds half the pill height. Seen on a
- * high-degree mixed-label fan-in, where a straight diamond→hub spoke's label sat
- * a pill-height above its own line. Re-slot ONLY such labels onto their own
- * axis-aligned segments (longest first, center-out — the midpoint reads best),
- * taking the first slot that sits ON the route and clear of every node and
- * foreign trunk. If none exists, leave the label as placed (a rare off-route
- * label is a lesser evil than a pill drawn over a node).
- *
- * Self-loops are EXCLUDED: their label legitimately sits beside ELK's small loop
- * stub (a pill-width from it), which is correct, not off-route. Geometry-
- * preserving (labels only) so it is freeze-safe; deterministic (fixed segment
- * order + fixed center-out sample). A no-op on the HARD-clean corpus, whose
- * labels are already on their routes.
- */
-export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  const distToSeg = (p: Point, a: Point, b: Point): number => {
-    const dx = b.x - a.x,
-      dy = b.y - a.y,
-      l2 = dx * dx + dy * dy
-    if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y)
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
-    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
-  }
-  let clearance: ReturnType<typeof labelPaintClearance> | undefined
-  for (const edge of positioned.edges) {
-    if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
-    if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
-    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
-    const pw = m.width + 2 * LABEL_PILL_PADDING,
-      ph = m.height + 2 * LABEL_PILL_PADDING
-    const allow = ph / 2 + 4 // exactly the rubric's labelOffRoute allowance
-    const routeDist = (p: Point): number => {
-      let d = Infinity
-      for (let i = 1; i < edge.points.length; i++) d = Math.min(d, distToSeg(p, edge.points[i - 1]!, edge.points[i]!))
-      return d
-    }
-    if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
-    const paint = clearance ??= labelPaintClearance(positioned, style)
-    const halo = labelHaloPadding(edge, style)
-    const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
-      !!paint.clearPaintRect(pillRect(x, y, m), halo, edge) &&
-      !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
-
-    const segs = orderedLabelSegments(edge)
-
-    // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
-    // reads best) and take the first clear one.
-    let placed = false
-    for (const point of labelSegmentSamples(segs, pw, ph)) {
-      if (clearAt(point.x, point.y)) { edge.labelPosition = point; placed = true; break }
-    }
-    // (2) No on-route slot (the route's approach is a shared/congested trunk, so
-    // every on-route position collides). Pull the label PERPENDICULARLY toward
-    // the route — from wherever ELK parked it — to just inside the allowance
-    // (allow - 1), which still clears the trunk by ~half the remaining gap. Keep
-    // ELK's side first; fall back to the mirror side. This turns an off-route
-    // label into a within-tolerance one without forcing it onto a busy trunk.
-    if (!placed) {
-      let foot = edge.points[0]!,
-        fd = Infinity
-      for (const s of segs.length ? segs : []) {
-        const dx = s.b.x - s.a.x,
-          dy = s.b.y - s.a.y,
-          l2 = dx * dx + dy * dy || 1
-        const t = Math.max(0, Math.min(1, ((edge.labelPosition.x - s.a.x) * dx + (edge.labelPosition.y - s.a.y) * dy) / l2))
-        const fx = s.a.x + t * dx,
-          fy = s.a.y + t * dy,
-          d = Math.hypot(edge.labelPosition.x - fx, edge.labelPosition.y - fy)
-        if (d < fd) {
-          fd = d
-          foot = { x: fx, y: fy }
-        }
-      }
-      const ux = fd > EPS ? (edge.labelPosition.x - foot.x) / fd : 0
-      const uy = fd > EPS ? (edge.labelPosition.y - foot.y) / fd : -1 // default: lift above
-      const off = allow - 1
-      for (const side of [1, -1]) {
-        const cx = foot.x + ux * off * side,
-          cy = foot.y + uy * off * side
-        if (clearAt(cx, cy)) {
-          edge.labelPosition = { x: cx, y: cy }
-          break
-        }
-      }
-    }
-  }
-}
-
 function segmentHitsLoopLabel(a: Point, b: Point, rect: LabelPaintRect): boolean {
   if (Math.abs(a.x - b.x) <= EPS) {
     return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
@@ -1673,7 +1579,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
     if (!segs) return
     // Offset ladder: on-route first, then perpendicular offsets up to the
     // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
-    // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
+    // the shared seat rule uses) — a labeled reciprocal pair whose
     // lanes sit closer than two pill widths has NO on-route solution, but
     // ±(allow-1) of lateral headroom per label is enough to part them while
     // labelOffRoute stays satisfied by construction.

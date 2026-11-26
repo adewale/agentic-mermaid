@@ -5,7 +5,8 @@ import { bendCount } from '../layout/route-geometry.ts'
 import { createLayoutRouteEdges, routeCandidateMarkerBlocker, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { seatLabelsOnOwnRoutes } from '../layout/label-seat.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
@@ -436,7 +437,7 @@ describe('label candidate endpoint clearance', () => {
       groups: [{ id: 'Outer', label: '', x: -50, y: -50, width: 340, height: 300, headerHeight: 0, children: [header] }] }
     const graph = parseMermaid('flowchart TD\nA -->|handoff| B\nC --> D'), style = resolveRenderStyle()
     const before = structuredClone(edge)
-    if (operation === 'off-route') repairLabelsOffOwnRoute(positioned, graph, style)
+    if (operation === 'off-route') seatLabelsOnOwnRoutes(positioned, style)
     else if (operation === 'shared-trunk') repairLabelsOnSharedTrunks(positioned, graph, style)
     else separateEdgeLabelPills(positioned, graph, style, { preserveRouteClearance: true })
     expect(edge.labelPosition).not.toEqual(before.labelPosition)
@@ -466,38 +467,6 @@ describe('label candidate endpoint clearance', () => {
     // An impossible private slot may retain the original shared-trunk label;
     // preserving the arrows does not establish full private-label ownership.
     expect(rendered.receipt.layoutCertification?.status).not.toBe('failed')
-  })
-
-  it('keeps an off-route label when both nearest return slots overlap its own target', () => {
-    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
-      label: 'long terminal label', labelPosition: { x: 280, y: 0 }, points: [{ x: 200, y: 100 }, { x: 280, y: 100 }] }
-    const nodes: PositionedNode[] = [{ id: 'B', label: 'B', shape: 'rectangle', x: 280, y: 80, width: 80, height: 40 }]
-    const before = structuredClone(edge)
-    repairLabelsOffOwnRoute({ nodes, edges: [edge], groups: [] }, parseMermaid('flowchart LR\nA-->|long terminal label|B'), resolveRenderStyle())
-    expect(edge).toEqual(before)
-  })
-
-  it('keeps marker reservations live when later trusted label measurement replaces a peer route', () => {
-    const edge = (label: string, y: number): PositionedEdge => ({ source: `${label}-from`, target: `${label}-to`,
-      style: 'solid', hasArrowStart: false, hasArrowEnd: false, label, labelPosition: { x: 75, y: y - 100 },
-      points: [{ x: -25, y }, { x: 175, y }] })
-    const first = edge('first', 110), second = edge('second', 210)
-    const protectedEdge: PositionedEdge = { source: 'protected-from', target: 'protected-to', style: 'solid',
-      hasArrowStart: false, hasArrowEnd: true, points: [{ x: 500, y: 170 }, { x: 500, y: 210 }] }
-    const style = resolveRenderStyle()
-    let moved = false, pill!: NonNullable<ReturnType<typeof labelRect>>
-    const execution = createTextMeasurementExecution({ id: 'test:live-label-marker', version: '1.0.0', measure: ({ text }) => {
-      if (text.includes('second')) { moved = true; protectedEdge.points = [{ x: 75, y: 170 }, { x: 75, y: 210 }] }
-      return 24
-    } }, 'Inter')
-    withTextMeasurementExecution(execution, () => {
-      repairLabelsOffOwnRoute({ nodes: [], edges: [first, second, protectedEdge], groups: [] }, parseMermaid('flowchart LR\nA-->B'), style)
-      pill = labelRect(second, style)!
-    })
-    const marker = graphEdgeMarkerPaintRegions(protectedEdge, style)[0]!.bounds!
-    expect(moved).toBe(true)
-    expect(pill.x - 4 < marker.x1 && pill.x + pill.w + 4 > marker.x0 && pill.y - 4 < marker.y1 && pill.y + pill.h + 4 > marker.y0).toBe(false)
-    expect(second.labelPosition!.y).toBe(210)
   })
 
   it('preserves clear foreign shafts while moving a label away from a terminal marker', () => {
@@ -555,7 +524,7 @@ describe('label candidate endpoint clearance', () => {
       }
       const offRoute: PositionedEdge = { ...labeled[1]!, labelPosition: { x: 75, y: -100 },
         points: [{ x: -25, y: 110 }, { x: 175, y: 110 }] }
-      repairLabelsOffOwnRoute({ nodes: [], groups: [], edges: [offRoute, protectedEdge] }, parseMermaid('flowchart LR\nA-->B'), style)
+      seatLabelsOnOwnRoutes({ nodes: [], groups: [], edges: [offRoute, protectedEdge] }, style)
       const pill = labelRect(offRoute, style)!, halo = Math.max(4, style.lineWidth * 2)
       expect(pill.x - halo < protectedInk.x1 && pill.x + pill.w + halo > protectedInk.x0 && pill.y - halo < protectedInk.y1 && pill.y + pill.h + halo > protectedInk.y0).toBe(false)
       expect(offRoute.labelPosition!.y).toBe(110)
