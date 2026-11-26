@@ -14,6 +14,10 @@ import { seatCaption } from '../label-seat.ts'
 import { sharedTrunkConflict } from '../route-lanes.ts'
 import type { LabelMetricsStyle } from '../route-geometry.ts'
 import { resolveRenderStyle } from '../../styles.ts'
+import { CLEARANCE } from '../route-geometry.ts'
+import { graphEdgeTextBlock } from '../../graph-text.ts'
+import { resolveLabelContent } from '../../shared/display-text.ts'
+import { LABEL_PILL_PADDING } from '../../shared/edge-label-geometry.ts'
 
 export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({})): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
@@ -435,6 +439,88 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     return true
   }
 
+  // Feedback edges whose main spans overlap never share one outer lane: a
+  // shared lane draws two relationships as one trunk. They nest, the shorter
+  // span inside, each lane far enough from its neighbour that a caption
+  // centred on either clears the other (the private-channel spacing the late
+  // shared-trunk settler would otherwise have to find).
+  interface TakenLane { lane: number; lo: number; hi: number; half: number }
+  const takenLanes = { max: [] as TakenLane[], min: [] as TakenLane[] }
+  const laneHalf = (edge: PositionedEdge): number => {
+    if (!edge.label) return 0
+    const block = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
+    return (crossAxis === 'x' ? block.width : block.height) / 2 + LABEL_PILL_PADDING + 8
+  }
+  const freeLane = (base: number, dir: 1 | -1, taken: readonly TakenLane[], lo: number, hi: number, half: number): number => {
+    let lane = base
+    for (const other of [...taken].sort((a, b) => (a.lane - b.lane) * dir)) {
+      if (other.hi <= lo || other.lo >= hi) continue
+      const spacing = Math.max(FEEDBACK_LANE_GAP, half, other.half) + CLEARANCE
+      if (Math.abs(lane - other.lane) < spacing) lane = other.lane + dir * spacing
+    }
+    return lane
+  }
+  const feedbackRoutes = new Map<PositionedEdge, Point[]>()
+  const feedbackEdges = edges.filter(edge => edge.edgeIndex !== undefined && classes[edge.edgeIndex] === 'feedback')
+  const span = (edge: PositionedEdge): number => {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    return source && target ? Math.abs(nodeMainCenter(source, graph.direction) - nodeMainCenter(target, graph.direction)) : 0
+  }
+  feedbackEdges.sort((a, b) => span(a) - span(b) || edges.indexOf(a) - edges.indexOf(b))
+  for (const edge of feedbackEdges) {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (!source || !target) continue
+    // Feedback U-detour: drop to the outer lane at the source, run back along
+    // it, and rise into the target — both anchored at the max-cross side. A
+    // riser can cross a bystander sitting between the node and the lane
+    // (issue #81's no-overlap residual). When — and only when — the max-side
+    // U is blocked, fall back deterministically: the min-side lane, then a
+    // rung variant per lane that leaves the lane at a free channel and
+    // approaches the blocked endpoint through a clear column (the center
+    // anchors stay on-outline for every shape, unlike sliding a riser
+    // off-center). If everything is blocked, keep the canonical max-side
+    // route for the post-freeze net to repair.
+    const mSrc = nodeMainCenter(source, graph.direction), mTgt = nodeMainCenter(target, graph.direction)
+    const uDetour = (lane: number, edgeCross: (n: PositionedNode) => number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
+    ]
+    const rungTarget = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, lane), point(mRung, lane), point(mRung, col), point(mTgt, col), point(mTgt, edgeCross(target)),
+    ]
+    const rungSource = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
+    ]
+    const ends = new Set([edge.source, edge.target])
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts)
+    const lo = Math.min(mSrc, mTgt), hi = Math.max(mSrc, mTgt), half = laneHalf(edge)
+    const sides = [{ taken: takenLanes.max, dir: 1 }, { taken: takenLanes.min, dir: -1 }] as const
+    const laneFor = (side: typeof sides[number], base: number): number => freeLane(base, side.dir, side.taken, lo, hi, half)
+    const lanes: Array<[number, (n: PositionedNode) => number, typeof sides[number]]> = [[laneFor(sides[0], laneCross), crossMaxEdge, sides[0]], [laneFor(sides[1], laneCrossMin), crossMinEdge, sides[1]]]
+    let route: Point[] | undefined, used = lanes[0]!
+    for (const entry of lanes) {
+      const candidate = uDetour(entry[0], entry[1])
+      if (clear(candidate)) { route = candidate; used = entry; break }
+    }
+    if (!route) {
+      const rungMains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y'), mTgt)
+      search: for (const entry of lanes) {
+        const [lane, edgeCross] = entry
+        const cols = byProximity(channelCenters(crossAxis), edgeCross(target))
+        for (const build of [rungTarget, rungSource]) {
+          for (const mRung of rungMains) {
+            for (const col of cols) {
+              const candidate = build(lane, edgeCross, mRung, col)
+              if (clear(candidate)) { route = simplifyPolyline(candidate); used = entry; break search }
+            }
+          }
+        }
+      }
+    }
+    if (!route) route = uDetour(lanes[0]![0], crossMaxEdge)
+    used[2].taken.push({ lane: used[0], lo, hi, half })
+    feedbackRoutes.set(edge, route)
+  }
+
   // Reconnect every edge after the rank-distance move so no endpoint is left
   // pointing at a node's pre-move position (which would trip the route-staleness
   // certifier). Primary-forward / cross-hierarchy / container links get a forward
@@ -458,51 +544,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       continue
     }
     if (cls === 'feedback') {
-      const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
-      if (!source || !target) continue
-      // Feedback U-detour: drop to the outer lane at the source, run back along
-      // it, and rise into the target — both anchored at the max-cross side. A
-      // riser can cross a bystander sitting between the node and the lane
-      // (issue #81's no-overlap residual). When — and only when — the max-side
-      // U is blocked, fall back deterministically: the min-side lane, then a
-      // rung variant per lane that leaves the lane at a free channel and
-      // approaches the blocked endpoint through a clear column (the center
-      // anchors stay on-outline for every shape, unlike sliding a riser
-      // off-center). If everything is blocked, keep the canonical max-side
-      // route for the post-freeze net to repair.
-      const mSrc = nodeMainCenter(source, graph.direction), mTgt = nodeMainCenter(target, graph.direction)
-      const uDetour = (lane: number, edgeCross: (n: PositionedNode) => number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
-      ]
-      const rungTarget = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mRung, lane), point(mRung, col), point(mTgt, col), point(mTgt, edgeCross(target)),
-      ]
-      const rungSource = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
-      ]
-      const ends = new Set([edge.source, edge.target])
-      const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts)
-      const lanes: Array<[number, (n: PositionedNode) => number]> = [[laneCross, crossMaxEdge], [laneCrossMin, crossMinEdge]]
-      let route: Point[] | undefined
-      for (const [lane, edgeCross] of lanes) {
-        const candidate = uDetour(lane, edgeCross)
-        if (clear(candidate)) { route = candidate; break }
-      }
-      if (!route) {
-        const rungMains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y'), mTgt)
-        search: for (const [lane, edgeCross] of lanes) {
-          const cols = byProximity(channelCenters(crossAxis), edgeCross(target))
-          for (const build of [rungTarget, rungSource]) {
-            for (const mRung of rungMains) {
-              for (const col of cols) {
-                const candidate = build(lane, edgeCross, mRung, col)
-                if (clear(candidate)) { route = simplifyPolyline(candidate); break search }
-              }
-            }
-          }
-        }
-      }
-      edge.points = route ?? uDetour(laneCross, crossMaxEdge)
+      const route = feedbackRoutes.get(edge)
+      if (!route) continue
+      edge.points = route
       if (edge.label) { edge.labelPosition = calculatePathMidpoint(edge.points); captioned.push(edge) }
       reconnected.push(edge)
       continue

@@ -10,7 +10,8 @@
 // fix; each shows nodeOverlaps and/or edgeThroughNode without it.
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
+import { sharedTrunkConflict } from '../layout/route-lanes.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { auditRouteContracts, invalidEndpointApproaches } from '../route-contracts.ts'
 import { readFileSync } from 'node:fs'
@@ -380,4 +381,38 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
     clear(edges, groups, nodes)
   })
 
+})
+
+// Rebuilt feedback routes whose spans overlap leave the pass on lanes of
+// their own, the shorter span inside, so no two draw one trunk and no caption
+// the pass seats sits on a shared run. Before, every feedback U took the one
+// outer lane and only the late caption settler pulled them apart.
+describe('rebuilt feedback routes never share one lane', () => {
+  const sources = (dir: 'LR' | 'RL' | 'TD' | 'BT') => [
+    `flowchart ${dir}\n  A ---> B\n  B -->|retry| A\n  B -->|again| A`,
+    `flowchart ${dir}\n  A ---> B\n  B --> C\n  C -->|retry| A\n  B -->|again| A`,
+  ]
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s', dir => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
+    // A lane runs along the flow: a vertical run in TD/BT.
+    const along = dir === 'TD' || dir === 'BT' ? 'x' : 'y', main = along === 'x' ? 'y' : 'x'
+    const runs = (edge: PositionedEdge) => edge.points.slice(1).map((b, i) => [edge.points[i]!, b] as const).filter(([a, b]) => a[along] === b[along])
+    for (const source of sources(dir)) {
+      let observed: { lanes: string[][]; trunks: string[] } | undefined
+      pass.run = context => {
+        run(context)
+        const feedback = context.edges.filter(edge => edge.label)
+        const lanes: string[][] = []
+        for (let i = 0; i < feedback.length; i++) for (let j = i + 1; j < feedback.length; j++) {
+          for (const [a, b] of runs(feedback[i]!)) for (const [c, d] of runs(feedback[j]!)) {
+            const overlap = Math.min(Math.max(a[main], b[main]), Math.max(c[main], d[main])) - Math.max(Math.min(a[main], b[main]), Math.min(c[main], d[main]))
+            if (Math.abs(a[along] - c[along]) < 4 && overlap > 1) lanes.push([feedback[i]!.label!, feedback[j]!.label!])
+          }
+        }
+        observed = { lanes, trunks: feedback.filter(edge => sharedTrunkConflict(edge, context.edges, context.style)).map(edge => edge.label!) }
+      }
+      try { layoutGraphSync(parseMermaid(source)) } finally { pass.run = run }
+      expect(observed).toEqual({ lanes: [], trunks: [] })
+    }
+  })
 })
