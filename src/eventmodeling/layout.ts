@@ -71,7 +71,6 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   const laneById = new Map(lanes.map(lane => [lane.id, lane]))
   // Every frame owns a distinct chronological column. Edges leave on its right
   // and travel in inter-lane gutters, so namespace re-entry cannot redirect ink.
-  const incoming = new Map<string, number>(), outgoing = new Map<string, number>()
   // Routes stay in the corridors: the gutter after every column and the gap
   // above every lane (and below the last). The shared router picks the fewest
   // bends, then the shortest path, through them around every card.
@@ -105,8 +104,6 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     const from = byId.get(edge.from)!,
       to = byId.get(edge.to)!
     const sourceSlot = sourceSlots.get(index)!, targetSlot = targetSlots.get(index)!
-    outgoing.set(from.id, (outgoing.get(from.id) ?? 0) + 1)
-    incoming.set(to.id, (incoming.get(to.id) ?? 0) + 1)
     const start = { x: from.x + from.width + nodeStroke, y: from.y + from.height / 2 + (sourceSlot - (degrees.get(from.id)!.outgoing - 1) / 2) * portSpacing }
     const end = { x: to.x - nodeStroke, y: to.y + to.height / 2 + (targetSlot - (degrees.get(to.id)!.incoming - 1) / 2) * portSpacing }
     // A side with one connection may meet the other end level, when that
