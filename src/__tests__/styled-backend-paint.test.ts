@@ -155,4 +155,19 @@ describe('paint margin', () => {
     const ink = inkBox(svg, { x: x!, y: y!, w: w!, h: h! }, PAINT_MARGIN * 4)
     expect({ left: ink.x0 >= x!, top: ink.y0 >= y!, right: ink.x1 <= x! + w!, bottom: ink.y1 <= y! + h! }).toEqual({ left: true, top: true, right: true, bottom: true })
   })
+
+  // Families that read a canvas margin from their own config keep the paint
+  // margin too, however small the configured value.
+  const configured: Array<[BuiltinFamilyId, string]> = [
+    ['mindmap', 'mindmap:\n    padding: 0'],
+    ['architecture', 'architecture:\n    padding: 0'],
+    ['c4', 'c4:\n    diagramMarginX: 0\n    diagramMarginY: 0'],
+  ]
+  test.each(configured.flatMap(([family, config]) => backends.map(([backend, style]) => ({ family, config, backend, style }))))('$family with a zero configured margin stays on its canvas under the $backend backend', ({ family, config, style }) => {
+    const source = `---\nconfig:\n  ${config}\n---\n${getFamily(family)!.example}`
+    const svg = renderMermaidSVG(source, { embedFontImport: false, ...(style ? { style } : {}) })
+    const [x, y, w, h] = svg.match(/<svg\b[^>]*\sviewBox="([^"]+)"/)![1]!.split(/[\s,]+/).map(Number)
+    const ink = inkBox(svg, { x: x!, y: y!, w: w!, h: h! }, PAINT_MARGIN * 4)
+    expect({ left: ink.x0 >= x!, top: ink.y0 >= y!, right: ink.x1 <= x! + w!, bottom: ink.y1 <= y! + h! }).toEqual({ left: true, top: true, right: true, bottom: true })
+  })
 })

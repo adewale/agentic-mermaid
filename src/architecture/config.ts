@@ -4,6 +4,7 @@ import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 
 // Deterministic spacing defaults, shared with layout.ts so the
 // idealEdgeLengthMultiplier mapping and the layout fallback cannot drift.
@@ -300,7 +301,7 @@ export function resolveArchitectureRenderOptions(
   if (padding === undefined && nodeSpacing === undefined && layerSpacing === undefined) return options
   return {
     ...options,
-    padding: options.padding ?? padding,
+    padding: options.padding ?? (padding === undefined ? undefined : Math.max(PAINT_MARGIN, padding)),
     nodeSpacing: options.nodeSpacing ?? nodeSpacing,
     layerSpacing: options.layerSpacing ?? layerSpacing,
   }
