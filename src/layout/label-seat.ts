@@ -105,23 +105,6 @@ const cheaper = (a: readonly number[], b: readonly number[]): boolean => {
 }
 
 /**
- * The one rule's choice, for any caption geometry: the first admitted seat, in
- * the caller's order, of least cost, compared term by term; a seat of zero
- * cost ends the search. Graph captions measure their pills (seatLabel); C4
- * measures its own painted halo (c4/pixel-labels.ts).
- */
-export function leastCostSeat(candidates: Iterable<Point>, admit: (point: Point) => boolean, cost: (point: Point) => readonly number[]): Point | undefined {
-  let best: { seat: Point; cost: readonly number[] } | undefined
-  for (const seat of candidates) {
-    if (!admit(seat)) continue
-    const terms = cost(seat)
-    if (!best || cheaper(terms, best.cost)) best = { seat, cost: terms }
-    if (best.cost.every(term => term === 0)) break
-  }
-  return best?.seat
-}
-
-/**
  * Seat `edge`'s caption by the one rule: the first admitted seat, in the
  * caller's order, of least cost. Returns that seat with the caption left
  * there, or undefined with the caption restored when no seat is admitted.
@@ -139,13 +122,17 @@ export function seatLabel(
   const original = edge.labelPosition
   const involved = new Set([graph.edges.indexOf(edge)])
   const positioned = graph as { nodes: PositionedNode[]; edges: PositionedEdge[] }
-  const best = leastCostSeat(candidates, admit, seat => {
+  let best: { seat: Point; cost: number[] } | undefined
+  for (const seat of candidates) {
+    if (!admit(seat)) continue
     edge.labelPosition = seat
     const counts = measureLabelConflicts(positioned, style, involved)
-    return [counts.labelLabel + counts.labelNode, ownRunFirst && routeDistance(seat, edge.points) > ON_ROUTE ? 1 : 0, counts.labelEdge]
-  })
-  edge.labelPosition = best ?? original
-  return best
+    const cost = [counts.labelLabel + counts.labelNode, ownRunFirst && routeDistance(seat, edge.points) > ON_ROUTE ? 1 : 0, counts.labelEdge]
+    if (!best || cheaper(cost, best.cost)) best = { seat, cost }
+    if (best.cost.every(term => term === 0)) break
+  }
+  edge.labelPosition = best?.seat ?? original
+  return best?.seat
 }
 
 function routeDistance(point: Point, points: readonly Point[]): number {
