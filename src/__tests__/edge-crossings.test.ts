@@ -251,6 +251,16 @@ describe('unrelated route contacts', () => {
     }
   })
 
+  test('an all-to-all bus counts every unrelated pair once, without visiting each pair of segments', () => {
+    // k sources join one trunk that fans to k targets, as a dense `&` fan is
+    // drawn: every two routes with distinct ends share the trunk.
+    const k = 30, routes = []
+    for (let s = 0; s < k; s++) for (let t = 0; t < k; t++) {
+      routes.push(route([[s * 20, 0], [s * 20, 10], [1000, 10], [1000, 20], [t * 20, 20], [t * 20, 30]], `a${s}`, `b${t}`))
+    }
+    expect(measureRouteContacts(routes)).toEqual({ touches: 0, overlaps: k * k * (k - 1) * (k - 1) / 2 })
+  })
+
   test('public quality and the rubric report contacts beside crossings, and the quality bound counts them', () => {
     const edges = [edge([[0, 0], [100, 0], [100, 100]], 'A', 'B'), edge([[200, 0], [100, 0], [100, -100]], 'C', 'D')]
     const positioned: PositionedGraph = { nodes: [], edges, groups: [], width: 300, height: 300 }

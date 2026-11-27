@@ -275,36 +275,118 @@ function sharedRun(a: Segment, b: Segment, radius: number): number {
  * `countPolylineCrossings`, so the two measures never count one meeting twice.
  */
 export function measureRouteContacts(routes: readonly ContactPolyline[], radius = ROUTE_CONTACT_RADIUS): RouteContacts {
-  const segments = visibleSegments(routes).sort(segmentOrder)
-  const pairs = new Map<string, { crossings: CrossingPoint[]; touches: CrossingPoint[]; overlap: boolean }>()
-  const active: Segment[] = []
-  for (const segment of segments) {
+  // Routes drawn as a bus repeat one segment across many routes (a 60 x 60
+  // fan draws 18,000 segments as 241 distinct ones). The geometry-only tests
+  // run once per pair of distinct directed segments; only the route-dependent
+  // crossing test runs per pair of routes, and only where a touch is possible.
+  const byGeometry = new Map<string, Segment[]>()
+  for (const segment of visibleSegments(routes)) {
+    const key = `${segment.a.x},${segment.a.y},${segment.b.x},${segment.b.y}`
+    const members = byGeometry.get(key)
+    if (members) members.push(segment)
+    else byGeometry.set(key, [segment])
+  }
+  const classes = [...byGeometry.values()].sort((a, b) => segmentOrder(a[0]!, b[0]!))
+  const count = routes.length
+  const overlapping = new Uint32Array(Math.ceil(count * count / 32))
+  let overlaps = 0
+  const touchPoints = new Map<number, CrossingPoint[]>()
+  const pairIndex = (a: Segment, b: Segment) => Math.min(a.edgeIndex, b.edgeIndex) * count + Math.max(a.edgeIndex, b.edgeIndex)
+  const unrelated = (a: Segment, b: Segment): boolean => {
+    if (a.edgeIndex === b.edgeIndex) return false
+    const ends = routes[a.edgeIndex]!.ends, otherEnds = routes[b.edgeIndex]!.ends
+    return !(ends[0] === otherEnds[0] || ends[0] === otherEnds[1] || ends[1] === otherEnds[0] || ends[1] === otherEnds[1])
+  }
+  const markOverlap = (a: Segment, b: Segment): void => {
+    const index = pairIndex(a, b), word = index >>> 5, bit = 1 << (index & 31)
+    if (overlapping[word]! & bit) return
+    overlapping[word]! |= bit
+    overlaps++
+  }
+  const overlapped = (index: number): boolean => (overlapping[index >>> 5]! & (1 << (index & 31))) !== 0
+  const addTouch = (a: Segment, b: Segment, at: CrossingPoint): void => {
+    const index = pairIndex(a, b), points = touchPoints.get(index)
+    if (points) points.push(at)
+    else touchPoints.set(index, [at])
+  }
+  /** One pair of segments of unrelated routes, `later` after `earlier` in
+   * segment order: the complete per-pair rule. A crossing is retained by
+   * re-evaluating the pair's routes below, only where a touch needs it. */
+  const evaluate = (later: Segment, earlier: Segment): void => {
+    if (crossingPoint(later, earlier, routes)) return
+    if (sharedRun(later, earlier, radius) > CONTACT_OVERLAP) { markOverlap(later, earlier); return }
+    const near = nearestEnd(later, earlier)
+    if (near.distance <= radius) addTouch(later, earlier, near.at)
+  }
+  const ordered = (a: Segment, b: Segment): [Segment, Segment] => segmentOrder(a, b) > 0 ? [a, b] : [b, a]
+  const axis = (segment: Segment): 'h' | 'v' | undefined => segment.a.y === segment.b.y ? 'h' : segment.a.x === segment.b.x ? 'v' : undefined
+  // Segments sharing an axis orientation are exactly parallel, so they never
+  // cross and the shared run alone decides an overlap for every member pair.
+  const nearPairs: [Segment[], Segment[]][] = []
+  const visitClasses = (later: Segment[], earlier: Segment[]): void => {
+    const a = later[0]!, b = earlier[0]!, orientation = axis(a), other = axis(b)
+    if (orientation !== undefined && other !== undefined) {
+      if (orientation !== other) {
+        // Perpendicular axis segments share no run; only a touch remains,
+        // decided per pair of routes once the overlaps are known.
+        if (nearestEnd(a, b).distance <= radius) nearPairs.push([later, earlier])
+        return
+      }
+      const run = sharedRun(a, b, radius) > CONTACT_OVERLAP
+      // Member order follows route indices where two classes tie on their
+      // leading corner; both orders must then agree to decide by class.
+      const tied = a !== b && a.minX === b.minX && a.minY === b.minY
+      if (!tied || run === (sharedRun(b, a, radius) > CONTACT_OVERLAP)) {
+        if (run) {
+          for (const p of later) for (const q of earlier) if (p !== q && unrelated(p, q)) markOverlap(p, q)
+        } else if (nearestEnd(a, b).distance <= radius) nearPairs.push([later, earlier])
+        return
+      }
+    }
+    for (const p of later) for (const q of earlier) if (p !== q && unrelated(p, q)) evaluate(...ordered(p, q))
+  }
+  const active: Segment[][] = []
+  for (const members of classes) {
+    const segment = members[0]!
+    if (members.length > 1) visitClasses(members, members)
     let retained = 0
     for (let index = 0; index < active.length; index++) {
-      const other = active[index]!
-      if (!(other.maxX + radius >= segment.minX)) continue
+      const other = active[index]!, rep = other[0]!
+      if (!(rep.maxX + radius >= segment.minX)) continue
       active[retained++] = other
-      if (other.edgeIndex === segment.edgeIndex || other.maxY + radius < segment.minY || other.minY - radius > segment.maxY) continue
-      const ends = routes[segment.edgeIndex]!.ends, otherEnds = routes[other.edgeIndex]!.ends
-      if (ends[0] === otherEnds[0] || ends[0] === otherEnds[1] || ends[1] === otherEnds[0] || ends[1] === otherEnds[1]) continue
-      const crossing = crossingPoint(segment, other, routes)
-      const run = crossing ? 0 : sharedRun(segment, other, radius)
-      const near = crossing || run > CONTACT_OVERLAP ? undefined : nearestEnd(segment, other)
-      if (near && near.distance > radius) continue
-      const key = `${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`
-      let pair = pairs.get(key)
-      if (!pair) pairs.set(key, pair = { crossings: [], touches: [], overlap: false })
-      if (crossing) pair.crossings.push(crossing)
-      else if (near) pair.touches.push(near.at)
-      else pair.overlap = true
+      if (rep.maxY + radius < segment.minY || rep.minY - radius > segment.maxY) continue
+      visitClasses(members, other)
     }
     active.length = retained
-    active.push(segment)
+    active.push(members)
   }
-  let touches = 0, overlaps = 0
-  for (const pair of pairs.values()) {
-    if (pair.overlap) overlaps++
-    else if (pair.touches.some(point => pair.crossings.every(crossing => Math.hypot(crossing.x - point.x, crossing.y - point.y) > 2 * radius))) touches++
+  // Touches matter only for pairs that share no run.
+  for (const [later, earlier] of nearPairs) {
+    for (const p of later) for (const q of earlier) {
+      if (p === q || !unrelated(p, q) || overlapped(pairIndex(p, q))) continue
+      const [first, second] = ordered(p, q)
+      if (crossingPoint(first, second, routes)) continue
+      addTouch(first, second, nearestEnd(first, second).at)
+    }
+  }
+  // A touch within twice the radius of a proper crossing of the same pair is
+  // part of that crossing: gather each touching pair's crossings.
+  const byRoute = new Map<number, Segment[]>()
+  for (const members of classes) for (const segment of members) {
+    const list = byRoute.get(segment.edgeIndex)
+    if (list) list.push(segment)
+    else byRoute.set(segment.edgeIndex, [segment])
+  }
+  let touches = 0
+  for (const [index, points] of touchPoints) {
+    if (overlapped(index)) continue
+    const crossings: CrossingPoint[] = []
+    for (const p of byRoute.get(Math.floor(index / count))!) for (const q of byRoute.get(index % count)!) {
+      const [first, second] = ordered(p, q)
+      const crossing = crossingPoint(first, second, routes)
+      if (crossing) crossings.push(crossing)
+    }
+    if (points.some(point => crossings.every(crossing => Math.hypot(crossing.x - point.x, crossing.y - point.y) > 2 * radius))) touches++
   }
   return { touches, overlaps }
 }
