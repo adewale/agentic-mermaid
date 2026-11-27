@@ -232,11 +232,14 @@ test('exact convergent glyph repaint retains all other peer checks and never adm
 })
 
 test('an unsafe required outline repair retains an honestly invalid contact instead of publishing a false success', () => {
-  const graph = parseMermaid('flowchart LR\nA --> B\nP --> B')
+  // The border stub would put A->B's arrowhead on P->B's at B's corner, and
+  // W blocks the slide of A->B's terminal run into B's face: no repair is safe.
+  const graph = parseMermaid('flowchart LR\nA --> B\nP --> B\nW')
   const nodes: PositionedNode[] = [
     { id: 'A', label: '', x: 0, y: 40, width: 20, height: 40, shape: 'rectangle' },
     { id: 'B', label: '', x: 60, y: 20, width: 30, height: 40, shape: 'rectangle' },
     { id: 'P', label: '', x: 40, y: 120, width: 50, height: 40, shape: 'rectangle' },
+    { id: 'W', label: '', x: 44, y: 40, width: 12, height: 14, shape: 'rectangle' },
   ]
   const edge = marked('A', 'B', [{ x: 20, y: 60 }, { x: 40, y: 60 }, { x: 40, y: 80 }, { x: 60, y: 80 }])
   const peer = marked('P', 'B', [{ x: 64.3, y: 120 }, { x: 64.3, y: 60 }])
