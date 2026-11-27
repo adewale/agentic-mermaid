@@ -143,7 +143,7 @@
       "requests": 34,
       "raw": 816000,
       "gzip": 266000,
-      "brotli": 227000
+      "brotli": 239000
     },
     "eventmodeling": {
       "requests": 30,
