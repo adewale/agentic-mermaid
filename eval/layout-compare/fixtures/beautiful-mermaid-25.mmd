@@ -1,0 +1,22 @@
+%% An end left past its node's corner slides into the face instead of running along a neighbour's border: https://github.com/lukilabs/beautiful-mermaid/issues/25
+graph TD
+    A[contextSnippetsBlock函数] --> B[接收autocompleteContext字符串]
+    B --> C[按行分割]
+    C --> D[逐行处理]
+    
+    D --> E{匹配headerRegex?}
+    E -->|是| F[提取文件名]
+    F --> G[添加INSTINCT_CONTEXT_FILE_TOKEN]
+    E -->|否| H[检查前一行为header?]
+    
+    H -->|是| I[添加INSTINCT_SNIPPET_TOKEN]
+    I --> J[添加当前行内容]
+    H -->|否| K[直接添加当前行]
+    
+    G --> L[继续下一行]
+    J --> L
+    K --> L
+    
+    L --> M[所有行处理完毕?]
+    M -->|否| D
+    M -->|是| N[连接所有行并返回]

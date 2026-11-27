@@ -9,6 +9,7 @@ import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
 import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
 import { terminalAssignment } from './terminal-assignment.ts'
+import { captionRidesRun, shiftLabel } from './route-values.ts'
 import { LABEL_PILL_PADDING, labelEndpointClearance, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
 import {
   EPS,
@@ -72,19 +73,43 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
     }
     if (routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, points)
   }
+  // An end on a side's line but past its corner (its node grew or moved after
+  // routing) slides along the side into the face with its terminal run, which
+  // stays perpendicular to the side and keeps every bend. A stub along the
+  // side's line instead runs on the border and meets the node at its corner,
+  // so it is the fallback when the slid run is not clear.
+  const slide = (along: 'x' | 'y', lo: number, hi: number, outward: number): boolean => {
+    const across: 'x' | 'y' = along === 'x' ? 'y' : 'x'
+    const step = isStart ? 1 : -1
+    const run = edge.points[idx + step], after = edge.points[idx + 2 * step]
+    if (!run || !after || Math.abs(run[along] - p[along]) > EPS || (run[across] - p[across]) * outward <= EPS
+      || Math.abs(after[across] - run[across]) > EPS) return false
+    const inset = Math.min((hi - lo) / 2, OVERFLOW_SLIDE_INSET)
+    const lane = p[along] < lo ? lo + inset : hi - inset
+    const points = edge.points.map((point, i) => i === idx || i === idx + step ? { ...point, [along]: lane } : point)
+    if (ctx.nodes.some(other => other.id !== edge.source && other.id !== edge.target && routeEntersNodeBox(points, other))
+      || routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) return false
+    const rides = captionRidesRun(edge, edge.points, Math.min(idx, idx + step), Math.max(idx, idx + step), along)
+    setRoutePoints(ctx, edge, points)
+    if (rides) shiftLabel(edge, along, lane - p[along])
+    return true
+  }
 
   if (near(p.x, x0) || near(p.x, x1)) {
     const x = near(p.x, x0) ? x0 : x1
-    if (p.y < y0 - PORT_TOLERANCE) pushStub({ x, y: y0 }, { x, y: p.y })
-    else if (p.y > y1 + PORT_TOLERANCE) pushStub({ x, y: y1 }, { x, y: p.y })
+    if (p.y < y0 - PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1)) pushStub({ x, y: y0 }, { x, y: p.y }) }
+    else if (p.y > y1 + PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1)) pushStub({ x, y: y1 }, { x, y: p.y }) }
     return
   }
   if (near(p.y, y0) || near(p.y, y1)) {
     const y = near(p.y, y0) ? y0 : y1
-    if (p.x < x0 - PORT_TOLERANCE) pushStub({ x: x0, y }, { x: p.x, y })
-    else if (p.x > x1 + PORT_TOLERANCE) pushStub({ x: x1, y }, { x: p.x, y })
+    if (p.x < x0 - PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1)) pushStub({ x: x0, y }, { x: p.x, y }) }
+    else if (p.x > x1 + PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1)) pushStub({ x: x1, y }, { x: p.x, y }) }
   }
 }
+
+/** How far a slid terminal run stays from its side's corner. */
+const OVERFLOW_SLIDE_INSET = 12
 
 export function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
   if (count !== 2 && count !== 3) return null

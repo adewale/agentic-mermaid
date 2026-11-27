@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
@@ -3630,4 +3631,32 @@ it('an overflowing terminal displacement cannot bypass marker separation', () =>
   const candidate = [edge.points[0]!, { x: 0, y: 0 }, ...edge.points.slice(1)]
   const peer: PositionedEdge = { ...edge, source: 'C', target: 'D', points: [{ x: -9.5e307, y: 0 }, { x: -9e307, y: 0 }] }
   expect(routeCandidateMarkerBlocker(edge, candidate, [edge, peer], { ...resolveRenderStyle(), lineWidth: 1e306, edgeBendRadius: 0 })).toEqual(expect.objectContaining({ kind: 'port' }))
+})
+
+// lukilabs/beautiful-mermaid#25: peer equalization widened K after routing, so
+// H->K and K->L ended on K's top and bottom lines but past its corner. The
+// overflow repair drew a stub along the side's line, running on J's border
+// into K's corner. The terminal run slides into the face instead.
+it('an end left past its node corner slides into the face, off any border', () => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL('../../eval/layout-compare/fixtures/beautiful-mermaid-25.mmd', import.meta.url), 'utf8')))
+  const nodeById = new Map(positioned.nodes.map(node => [node.id, node]))
+  const cornered: string[] = [], alongBorder: string[] = []
+  for (const edge of positioned.edges) {
+    for (const [id, point] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
+      const node = nodeById.get(id)!
+      if (node.shape !== 'rectangle') continue
+      const corners = [[node.x, node.y], [node.x + node.width, node.y], [node.x, node.y + node.height], [node.x + node.width, node.y + node.height]] as const
+      if (corners.some(([x, y]) => Math.hypot(point.x - x, point.y - y) < 6)) cornered.push(`${edge.source}->${edge.target} at ${id}`)
+    }
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      for (const node of positioned.nodes) {
+        if (node.id === edge.source || node.id === edge.target || a.y !== b.y) continue
+        const overlap = Math.min(Math.max(a.x, b.x), node.x + node.width) - Math.max(Math.min(a.x, b.x), node.x)
+        if (overlap > 6 && [node.y, node.y + node.height].some(y => Math.abs(a.y - y) < 1)) alongBorder.push(`${edge.source}->${edge.target} on ${node.id}`)
+      }
+    }
+  }
+  expect(cornered).toEqual([])
+  expect(alongBorder).toEqual([])
 })
