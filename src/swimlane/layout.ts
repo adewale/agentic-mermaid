@@ -78,9 +78,32 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   const clearance = occurrences.size ? Math.max(8, (style.edgeBendRadius ?? 0) + style.lineWidth / 2) : 0
   const stubGap = Math.max(12, clearance + 4)
-  const nodeSizes = occurrences.size ? occurrenceNodeSizes(graph, occurrences, owners, horizontal, style, options.nodeSizes) : options.nodeSizes
+  // The face a route leaves or enters a task by: across lanes toward the
+  // other lane, within one along the process direction.
+  const portSide = (id: string, other: string, end: 'source' | 'target'): RouterDirection => {
+    const forward = graph.direction !== 'RL' && graph.direction !== 'BT'
+    const exiting = end === 'source' ? forward : !forward
+    const ownLane = owners.get(id), otherLane = owners.get(other), crossing = ownLane !== undefined && otherLane !== undefined && ownLane !== otherLane
+    return crossing ? (horizontal ? (otherLane > ownLane ? 'S' : 'N') : (otherLane > ownLane ? 'E' : 'W')) : horizontal ? (exiting ? 'E' : 'W') : (exiting ? 'S' : 'N')
+  }
+  const loops = selfLoopPlans(graph, edges, occurrences, owners, horizontal, portSide)
+  const nodeSizes = occurrences.size ? occurrenceNodeSizes(graph, occurrences, owners, horizontal, style, options.nodeSizes, loops) : options.nodeSizes
+  // Placement reserves each task's self-loops beside it, inside its own lane
+  // and groups: the reserve is centred across the process direction, so
+  // routes between aligned tasks stay straight, and one-sided along it.
+  const reserves = new Map<string, Record<RouterDirection, number>>()
+  const placementSizes = loops.size ? new Map(nodeSizes) : nodeSizes
+  for (const [id, plan] of loops) {
+    const node = graph.nodes.get(id)!
+    const size = nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock)
+    const reach = selfLoopGeometry(plan, size.width, size.height, style, stubGap).reach
+    const across = horizontal ? Math.max(reach.N, reach.S) : Math.max(reach.E, reach.W)
+    const reserve = horizontal ? { ...reach, N: across, S: across } : { ...reach, E: across, W: across }
+    reserves.set(id, reserve)
+    ;(placementSizes as Map<string, { width: number; height: number }>).set(id, { width: size.width + reserve.W + reserve.E, height: size.height + reserve.N + reserve.S })
+  }
   const measured = lanes.map((lane, index) => {
-    const local = layoutElkGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
+    const local = layoutElkGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes: placementSizes })
     // An isolated task is a complete component, not a new process row. Pack
     // independent components along the authored process direction inside the
     // lane so matching hand-offs retain separate, short crossing channels.
@@ -100,6 +123,16 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       }
       local.width = horizontal ? cursor - gap + inset : crossExtent + inset * 2
       local.height = horizontal ? crossExtent + inset * 2 : cursor - gap + inset
+    }
+    for (const node of local.nodes) {
+      const reserve = reserves.get(node.id)
+      if (!reserve) continue
+      // Across the process direction the reserve is centred: keep the
+      // task's centre exactly where placement aligned it.
+      const width = node.width - reserve.W - reserve.E, height = node.height - reserve.N - reserve.S
+      if (horizontal) { node.x += reserve.W; node.y = node.y + node.height / 2 - height / 2 }
+      else { node.x = node.x + node.width / 2 - width / 2; node.y += reserve.N }
+      node.width = width; node.height = height
     }
     retainGraphText({ ...local, edges: [] }, style)
     const title = graphTextBlock(resolveLabelContent(lane.label, lane.source?.labelContent), style, 'group')
@@ -134,10 +167,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const ports = (id: string, other: string, end: 'source' | 'target'): Terminal => {
     const node = byId.get(id)
     if (!node) throw new Error(`Swimlane edge ${end} "${id}" has no node or lane`)
-    const forward = graph.direction !== 'RL' && graph.direction !== 'BT'
-    const exiting = end === 'source' ? forward : !forward
-    const ownLane = owners.get(id), otherLane = owners.get(other), crossing = ownLane !== undefined && otherLane !== undefined && ownLane !== otherLane
-    const side = crossing ? (horizontal ? (otherLane > ownLane ? 'S' : 'N') : (otherLane > ownLane ? 'E' : 'W')) : horizontal ? (exiting ? 'E' : 'W') : (exiting ? 'S' : 'N')
+    const side = portSide(id, other, end)
     const actual = 'shape' in node ? shapeCardinalPorts(node)[side]
       : { x: node.x + node.width / 2, y: node.y + node.height / 2 }
     const port = 'shape' in node ? actual : side === 'E' ? { x: node.x + node.width, y: actual.y }
@@ -160,7 +190,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   groups.forEach(addHeader)
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
-  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap)
+  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap, loops)
   // Occurrence detours run outside the content, so they keep painted
   // clearance from every card they pass on the way.
   const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes, ...headers].map(box => routerBox(box))
@@ -183,10 +213,10 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
     for (const edge of edges) {
       const channel = channels.get(edge)
       const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
-      const request = {
-        start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub] as const, clearance: 0, axisObstacles: across,
-        obstacles: [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])],
-      }
+      const kept = [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])]
+      // Other routes keep out of the space a task's self-loops enclose, so a
+      // loop crosses nothing, where they can reach their ports without it.
+      const enclosed = [...channels].flatMap(([owner, other]) => other.region && !(edge.source === edge.target && edge.source === owner.source) ? [other.region] : [])
       // Preferences relax in order: keeping off drawn lines as far as the
       // policy asks (a port two routes share cannot keep them apart), then
       // the longer leads, then the channel stretch. For each stretch the
@@ -194,22 +224,37 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       // ties keep the earlier variant.
       const sharesPort = ([a, b]: readonly [Point, Point]) => [a, b].some(point => [source.port, target.port].some(port => Math.abs(point.x - port.x) < 1e-6 && Math.abs(point.y - port.y) < 1e-6))
       const avoids = !drawn.length ? [undefined] : policy === 0 ? [spacing, { ...spacing, segments: drawn.filter(segment => !sharesPort(segment)) }, undefined] : policy === 1 ? [spacing, undefined] : [undefined]
-      const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, request.stub] : [request.stub]
+      const stub = [source.stub, target.stub] as const
+      const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, stub] : [stub]
       let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['stretches'][number][number] | undefined, best = Infinity
-      search: for (const avoid of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
-        for (const run of variants) {
-          const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings, guided: true })
-          const cost = candidate ? routeCost(candidate) : Infinity
-          if (cost < best) { route = candidate; chosen = run; best = cost }
-          // Four turns (out to the channel, along it, back) is as few as an
-          // outside channel allows; a later variant could save only length,
-          // not worth another search.
-          if (candidate && candidate.length - 2 <= 4) break
+      for (const extra of enclosed.length ? [enclosed, []] : [[]]) {
+        const request = {
+          start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub, clearance: 0, axisObstacles: across,
+          obstacles: [...kept, ...extra],
         }
-        if (route) break search
+        search: for (const avoid of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
+          for (const run of variants) {
+            const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings, guided: true })
+            const cost = candidate ? routeCost(candidate) : Infinity
+            if (cost < best) { route = candidate; chosen = run; best = cost }
+            // Four turns (out to the channel, along it, back) is as few as an
+            // outside channel allows; a later variant could save only length,
+            // not worth another search.
+            if (candidate && candidate.length - 2 <= 4) break
+          }
+          if (route) break search
+        }
+        if (route) break
       }
       if (chosen?.caption) reserved.set(edge, routerBox(chosen.caption))
       edge.points = (route ?? fail(`${edge.source} -> ${edge.target} has no clear route`)).map(point => ({ x: point.x, y: point.y }))
+      // Aligned ports can differ by rounding; a run between them stays
+      // exactly straight.
+      for (let index = 1; index < edge.points.length; index++) {
+        const previous = edge.points[index - 1]!, point = edge.points[index]!
+        if (Math.abs(point.x - previous.x) < 1e-6) point.x = previous.x
+        if (Math.abs(point.y - previous.y) < 1e-6) point.y = previous.y
+      }
       for (let index = 1; index < edge.points.length; index++) drawn.push([edge.points[index - 1]!, edge.points[index]!])
       if (!channel && edge.label) {
         const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
@@ -273,7 +318,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
 
 /** Fractional occurrence contacts need enough physical face for their actual
  * marker resources. Feed only crowded rectangular dimensions to placement. */
-function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, PositionedEdge[]>, owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, existing?: ReadonlyMap<string, { width: number; height: number }>): ReadonlyMap<string, { width: number; height: number }> {
+function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, PositionedEdge[]>, owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, existing: ReadonlyMap<string, { width: number; height: number }> | undefined, loops: ReadonlyMap<string, SelfLoopPlan>): ReadonlyMap<string, { width: number; height: number }> {
   const sizes = new Map(existing)
   for (const pair of pairs.values()) {
     const first = pair[0]!, alongX = owners.get(first.source) !== owners.get(first.target) ? !horizontal : horizontal
@@ -282,12 +327,18 @@ function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, Pos
       if (marker.bounds) span = Math.max(span, marker.bounds.y1 - marker.bounds.y0)
     }
     if (!span) continue
-    const cross = alongX ? 'height' : 'width', minimum = (pair.length + 1) * (span + 1)
+    // A task's self-loops meet the half of each face nearer their face or
+    // corner, beside whatever meets the face's centre.
+    const plan = first.source === first.target ? loops.get(first.source) : undefined
+    const crosses: ('width' | 'height')[] = !plan ? [alongX ? 'height' : 'width'] : plan.at.length === 2 ? ['width', 'height'] : [LOOP_TURNS[plan.at] % 2 ? 'width' : 'height']
+    const minimum = (plan ? 2 : 1) * (pair.length + 1) * (span + 1)
     for (const id of first.source === first.target ? [first.source] : [first.source, first.target]) {
       const node = graph.nodes.get(id)
       if (!node || node.shape !== 'rectangle' || node.semanticShape) continue
-      const size = sizes.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock)
-      if (size[cross] < minimum) sizes.set(id, { ...size, [cross]: minimum })
+      const size = { ...sizes.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock) }
+      let grown = false
+      for (const cross of crosses) if (size[cross] < minimum) { size[cross] = minimum; grown = true }
+      if (grown) sizes.set(id, size)
     }
   }
   return sizes
@@ -315,27 +366,31 @@ function routerBox(box: MeasuredBox, margin = 0): RouterBox {
   return { x0: box.x - margin, y0: box.y - margin, x1: box.x + box.width + margin, y1: box.y + box.height + margin }
 }
 
-/** Occurrences (parallel and reciprocal hand-offs, self-loops) each run on
- * their own channel outside the content, alternating sides, with a straight
- * stretch long enough for the complete caption. The shared router reaches the
+/** Occurrences (parallel and reciprocal hand-offs, self-loops on a lane or
+ * group) each run on their own channel outside the content, alternating
+ * sides, with a straight stretch long enough for the complete caption; a
+ * task's self-loops run beside it instead. The shared router reaches the
  * channel from each port around every card, header and other caption. */
-type HandoffChannel = { source: Terminal; target: Terminal; stretches: { via: Point[]; caption?: MeasuredBox }[][]; direction: Direction }
+type HandoffChannel = { source: Terminal; target: Terminal; stretches: { via: Point[]; caption?: MeasuredBox }[][]; direction: Direction; region?: RouterBox }
 
-function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, pairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number): Map<PositionedEdge, HandoffChannel> {
+function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, allPairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, loops: ReadonlyMap<string, SelfLoopPlan>): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
+  // A task's self-loops stay beside it; the outside channels carry the rest.
+  for (const [id, plan] of loops) selfLoopChannels(byId.get(id) as PositionedNode, plan, style, stubGap, channels)
+  const pairs = [...allPairs.values()].filter(pair => !loops.has(pair[0]!.source) || pair[0]!.source !== pair[0]!.target)
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
   for (const box of [...byId.values(), ...headers]) {
     left = Math.min(left, box.x); top = Math.min(top, box.y)
     right = Math.max(right, box.x + box.width); bottom = Math.max(bottom, box.y + box.height)
   }
   let pitchX = 24, pitchY = 24
-  for (const pair of pairs.values()) for (const edge of pair) {
+  for (const pair of pairs) for (const edge of pair) {
     const halo = labelHaloExtension(edge, style.lineWidth)
     pitchX = Math.max(pitchX, (edge.labelBlock?.width ?? 0) + 24 + 2 * halo)
     pitchY = Math.max(pitchY, (edge.labelBlock?.height ?? 0) + 24 + 2 * halo)
   }
   let occurrence = 0
-  for (const pair of pairs.values()) {
+  for (const pair of pairs) {
     const first = pair[0]!, crossLane = owners.get(first.source) !== owners.get(first.target)
     const alongX = crossLane ? !horizontal : horizontal
     const axis = alongX ? 'x' : 'y', cross = alongX ? 'y' : 'x', crossSize = alongX ? 'height' : 'width'
@@ -414,5 +469,123 @@ function seatHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], hea
     })[0]
     if (!seat) fail('hand-off caption has no clear owned segment')
     edge.labelPosition = seat.point
+  }
+}
+
+/** Where a task's self-loops run: nested around one face, leaving by one
+ * neighbouring face and returning by the other, or around one corner. Each
+ * contact sits between the face's centre, where ordinary routes meet it, and
+ * the loop's own face or corner, so a loop arrives on its own terminal. */
+type LoopAt = RouterDirection | 'SE' | 'SW' | 'NW' | 'NE'
+type SelfLoopPlan = { at: LoopAt; loops: PositionedEdge[]; clear: boolean }
+/** Quarter turns clockwise from the south face (and south-east corner), where
+ * a loop leaves east and returns west (or south), clockwise. */
+const LOOP_TURNS: Record<LoopAt, number> = { S: 0, W: 1, N: 2, E: 3, SE: 0, SW: 1, NW: 2, NE: 3 }
+const CLOCKWISE: Record<RouterDirection, RouterDirection> = { E: 'S', S: 'W', W: 'N', N: 'E' }
+const LOOP_PLACES: readonly LoopAt[] = ['S', 'N', 'E', 'W', 'SE', 'SW', 'NE', 'NW']
+
+function turned(side: RouterDirection, turns: number): RouterDirection {
+  for (let index = 0; index < turns; index++) side = CLOCKWISE[side]
+  return side
+}
+
+/** Each task's self-loops go where they enclose nothing another route meets:
+ * a face with no route at its centre and no contacts spread over it or its
+ * neighbours' halves, else a corner. Only where every place is taken does a
+ * loop enclose (and so cross) the fewest other routes. */
+function selfLoopPlans(graph: MermaidGraph, edges: readonly PositionedEdge[], pairs: ReadonlyMap<string, PositionedEdge[]>, owners: ReadonlyMap<string, number>, horizontal: boolean, portSide: (id: string, other: string, end: 'source' | 'target') => RouterDirection): Map<string, SelfLoopPlan> {
+  const plans = new Map<string, SelfLoopPlan>()
+  for (const pair of pairs.values()) if (pair[0]!.source === pair[0]!.target && graph.nodes.has(pair[0]!.source)) plans.set(pair[0]!.source, { at: 'S', loops: pair, clear: true })
+  if (!plans.size) return plans
+  // Ordinary routes meet a face at its centre; occurrence contacts spread
+  // across it. A same-lane occurrence may meet either process face.
+  const centre = new Map<string, Record<RouterDirection, number>>(), spread = new Map<string, Record<RouterDirection, number>>()
+  const add = (faces: Map<string, Record<RouterDirection, number>>, id: string, side: RouterDirection): void => {
+    if (!plans.has(id)) return
+    const counts = faces.get(id) ?? { N: 0, E: 0, S: 0, W: 0 }
+    counts[side]++; faces.set(id, counts)
+  }
+  for (const edge of edges) {
+    if (edge.style === 'invisible' || edge.source === edge.target) continue
+    if (!pairs.has([edge.source, edge.target].sort().join('\0'))) {
+      add(centre, edge.source, portSide(edge.source, edge.target, 'source')); add(centre, edge.target, portSide(edge.target, edge.source, 'target'))
+      continue
+    }
+    const from = owners.get(edge.source), to = owners.get(edge.target)
+    if (from !== undefined && to !== undefined && from !== to) {
+      const out: RouterDirection = horizontal ? (to > from ? 'S' : 'N') : (to > from ? 'E' : 'W')
+      add(spread, edge.source, out); add(spread, edge.target, OPPOSITE[out])
+    } else for (const side of horizontal ? ['E', 'W'] as const : ['N', 'S'] as const) { add(spread, edge.source, side); add(spread, edge.target, side) }
+  }
+  const none = { N: 0, E: 0, S: 0, W: 0 }
+  for (const [id, plan] of plans) {
+    const centred = centre.get(id) ?? none, spreadOver = spread.get(id) ?? none
+    let least = Infinity
+    for (const at of LOOP_PLACES) {
+      const load = at.length === 2 ? spreadOver[at[0] as RouterDirection] + spreadOver[at[1] as RouterDirection]
+        : centred[at as RouterDirection] + spreadOver[at as RouterDirection] + spreadOver[turned(at as RouterDirection, 1)] + spreadOver[turned(at as RouterDirection, 3)]
+      if (load < least) { least = load; plan.at = at }
+    }
+    plan.clear = least === 0
+  }
+  return plans
+}
+
+/** Nested loop sizes in the south-face (or south-east-corner) frame: `a` and
+ * `b` are the task's half extents along and across that face. Loop `index`
+ * meets the neighbouring face `t` from the loop's face (and, around a
+ * corner, its own face `along` from the corner), leads out `s` and runs `d`
+ * beyond the face, far enough for its complete caption. Inner loops meet
+ * nearer the face and run nearer it, so nested loops never cross. `reach` is
+ * how far the loops extend beyond each actual face. */
+function selfLoopGeometry(plan: SelfLoopPlan, width: number, height: number, style: ReturnType<typeof resolveRenderStyle>, stubGap: number) {
+  const turns = LOOP_TURNS[plan.at], corner = plan.at.length === 2, level = turns % 2 === 0
+  const a = (level ? width : height) / 2, b = (level ? height : width) / 2, count = plan.loops.length
+  let s = 0, d = 0, previous = 0
+  const loops = plan.loops.map((edge, index) => {
+    const pill = edge.label ? labelBoxAt(edge, { x: 0, y: 0 }, style) : undefined
+    const halo = pill ? labelHaloExtension(edge, style.lineWidth) : 0
+    // The caption runs along the face (or the corner's face).
+    const c = pill ? (level ? pill.height : pill.width) / 2 + halo : 0
+    const needed = (pill ? (level ? pill.width : pill.height) + 2 * halo : 0) + 2 * stubGap
+    const t = b * (index + 1) / (count + 1), along = corner ? a * (index + 1) / (count + 1) : t
+    s = Math.max(index ? s + stubGap : stubGap, corner ? needed - along : (needed - 2 * a) / 2)
+    d = index ? Math.max(d + stubGap, d + previous + c + 4) : Math.max(stubGap, c + 4)
+    previous = c
+    return { edge, t, along, s, d, c }
+  })
+  const last = loops.at(-1)!, side = last.s + style.lineWidth
+  const reach: Record<RouterDirection, number> = { N: 0, E: 0, S: 0, W: 0 }
+  reach[turned('S', turns)] = last.d + last.c + style.lineWidth
+  reach[turned('E', turns)] = side
+  reach[turned('W', turns)] = corner ? 0 : side
+  return { turns, corner, a, b, loops, reach }
+}
+
+/** Each loop leaves and returns through its own contacts, along its own
+ * channel; the space the loops enclose is reserved from other routes. */
+function selfLoopChannels(node: PositionedNode, plan: SelfLoopPlan, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, channels: Map<PositionedEdge, HandoffChannel>): void {
+  const { turns, corner, a, b, loops } = selfLoopGeometry(plan, node.width, node.height, style, stubGap)
+  const cx = node.x + node.width / 2, cy = node.y + node.height / 2
+  const at = (u: number, v: number): Point => {
+    const [x, y] = turns === 0 ? [u, v] : turns === 1 ? [-v, u] : turns === 2 ? [-u, -v] : [v, -u]
+    return { x: cx + x, y: cy + y }
+  }
+  const boundary = shapeRoutingProfile(node).boundary
+  const contact = (side: RouterDirection, point: Point, lead: number): Terminal => {
+    const port = pointOnRoutingBoundary(boundary, side, side === 'E' || side === 'W' ? point.y : point.x) ?? point
+    return { ...terminal(node, port, side, stubGap), lead: terminal(node, port, side, lead).stub }
+  }
+  const exit = turned('E', turns), entry = turned(corner ? 'S' : 'W', turns), last = loops.at(-1)!
+  // Other routes keep their spacing from the loops' outer runs; the inner
+  // edges stay clear of the face centres they meet.
+  const margin = stubGap / 2
+  const [p, q] = [at(corner ? a - last.along : -a - last.s - margin, b - last.t), at(a + last.s + margin, b + last.d + last.c + margin)]
+  const region = plan.clear ? { x0: Math.min(p.x, q.x), y0: Math.min(p.y, q.y), x1: Math.max(p.x, q.x), y1: Math.max(p.y, q.y) } : undefined
+  for (const [index, loop] of loops.entries()) {
+    const source = contact(exit, at(a, b - loop.t), loop.s)
+    const target = corner ? contact(entry, at(a - loop.along, b), loop.d) : contact(entry, at(-a, b - loop.t), loop.s)
+    const via = corner ? [at(a + loop.s, b + loop.d)] : [at(a + loop.s, b + loop.d), at(-a - loop.s, b + loop.d)]
+    channels.set(loop.edge, { source, target, stretches: [[{ via }]], direction: turns % 2 ? 'TD' : 'LR', ...(region && !index ? { region } : {}) })
   }
 }

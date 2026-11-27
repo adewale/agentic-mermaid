@@ -1,0 +1,16 @@
+%% A labelled self-loop stays beside its own task, crossing nothing (https://github.com/mermaid-js/mermaid/issues/8622).
+swimlane-beta TD
+subgraph L1
+  D
+end
+subgraph L2
+  A
+  B
+end
+subgraph L3
+  C
+end
+A --> B
+B --> C
+B --> D
+B -->|retry| B

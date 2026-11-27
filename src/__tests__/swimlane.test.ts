@@ -398,6 +398,47 @@ A retry@-->|retry| A${count === 3 ? '\nA revise@-->|revise| A\nA reconsider@-->|
     expect(renderMermaidSVG(input, { style: 'accessible-high-contrast', layoutSafety: 'strict' })).toContain('data-id="next"')
 })
 
+// mermaid-js/mermaid#8622: a self-loop on a task with routes on three faces
+// once ran outside every lane, across a hand-off, and re-entered on another
+// route's final segment, sharing its arrowhead. With a fourth route (B --> E)
+// every face is taken and only a corner loop stays clear.
+test.each((['TD', 'LR', 'BT', 'RL'] as const).flatMap(direction => [false, true].map(loaded => [direction, loaded] as const)))('Swimlane %s self-loop stays beside its own task, crossing nothing (every face taken: %p)', (direction, loaded) => {
+  const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/swimlane-self-loop-8622.mmd', import.meta.url), 'utf8')
+  const input = fixture.replace('swimlane-beta TD', `swimlane-beta ${direction}`).replace('  B\nend', loaded ? '  B\n  E\nend\nB --> E' : '  B\nend')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value, { debug: true })
+  const loop = layout.edges.find(edge => edge.from === 'B' && edge.to === 'B')!
+  const others = layout.edges.filter(edge => edge !== loop)
+  expect(loop.label?.text).toBe('retry')
+  const lane = layout.groups.find(group => group.id === 'L2')!, own = layout.nodes.find(node => node.id === 'B')!
+  const segments = (path: readonly (readonly [number, number])[]) => path.slice(1).map((point, index) => [path[index]!, point] as const)
+  const meets = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]], [[cx, cy], [dx, dy]]: readonly [readonly [number, number], readonly [number, number]]) =>
+    Math.max(ax, bx) >= Math.min(cx, dx) && Math.max(cx, dx) >= Math.min(ax, bx) && Math.max(ay, by) >= Math.min(cy, dy) && Math.max(cy, dy) >= Math.min(ay, by)
+  // Orthogonal, inside its own lane, and touching no other task.
+  for (const [[ax, ay], [bx, by]] of segments(loop.path)) expect(ax === bx || ay === by).toBe(true)
+  for (const [x, y] of loop.path) {
+    expect(x).toBeGreaterThan(lane.x); expect(x).toBeLessThan(lane.x + lane.w)
+    expect(y).toBeGreaterThan(lane.y + 40); expect(y).toBeLessThan(lane.y + lane.h)
+  }
+  const xs = loop.path.map(([x]) => x), ys = loop.path.map(([, y]) => y)
+  for (const node of layout.nodes) if (node !== own) {
+    expect(Math.max(...xs) < node.x || Math.min(...xs) > node.x + node.w || Math.max(...ys) < node.y || Math.min(...ys) > node.y + node.h).toBe(true)
+  }
+  // It meets no other route, so it arrives on its own terminal.
+  for (const other of others) for (const a of segments(loop.path)) for (const b of segments(other.path)) expect(meets(a, b), `${other.id} meets the loop`).toBe(false)
+  // Its caption sits on its own route and clear of every other route.
+  const caption = loop.label!.bounds!, centre = [caption.x + caption.w / 2, caption.y + caption.h / 2] as const
+  expect(segments(loop.path).some(([[ax, ay], [bx, by]]) => Math.abs((bx - ax) * (centre[1] - ay) - (by - ay) * (centre[0] - ax)) < 1e-6
+    && centre[0] >= Math.min(ax, bx) - 1e-6 && centre[0] <= Math.max(ax, bx) + 1e-6 && centre[1] >= Math.min(ay, by) - 1e-6 && centre[1] <= Math.max(ay, by) + 1e-6)).toBe(true)
+  const box = [[caption.x, caption.y], [caption.x + caption.w, caption.y + caption.h]] as const
+  for (const other of others) for (const [a, b] of segments(other.path)) {
+    expect(Math.max(a[0], b[0]) < box[0][0] || Math.min(a[0], b[0]) > box[1][0] || Math.max(a[1], b[1]) < box[0][1] || Math.min(a[1], b[1]) > box[1][1], `${other.id} touches the caption`).toBe(true)
+  }
+  expect(layout.paintCertification?.status).toBe('passed')
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('retry')
+})
+
 // Certification reserves each lane header's painted band: a route crosses it
 // edge to edge, perpendicularly and beside the painted title. The agent-usage
 // rename of this fixture once drew a route jog inside the OPERATIONS band.
