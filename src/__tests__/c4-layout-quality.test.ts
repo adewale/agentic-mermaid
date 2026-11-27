@@ -10,6 +10,7 @@ import type { PositionedC4Diagram } from '../c4/layout.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 import { C4RouteWorkLimitError } from '../c4/routing.ts'
+import { collectSamples } from '../../eval/layout-compare/run.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 const overlaps = (a: Box, b: Box) => Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .01 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .01
@@ -115,6 +116,26 @@ describe('C4 measured pixel layout quality', () => {
             : ay === by && ay > card.y + .01 && ay < card.y + card.h - .01 && Math.min(Math.max(ax, bx), card.x + card.w) - Math.max(Math.min(ax, bx), card.x) > .01
           expect(crossed, `${edge.id} crosses ${card.id}`).toBe(false)
         }
+      }
+    }
+  })
+
+  // mermaid-v13#997: a relationship that crosses a boundary ran through the
+  // boundary's header text when only cards were route obstacles. Header bands
+  // are obstacles here already, so this guards the contract.
+  test.each(['fixture/mermaid-v13-997.mmd', ...[0, 1, 2, 3, 4].map(index => `c4:official-syntax/c4.md#${index}`)])('%s keeps every relationship out of every boundary header band', id => {
+    const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const bands = (layout.labels ?? []).filter(label => label.id.startsWith('boundary-label:')).map(label => ({ id: label.id, ...label.container! }))
+    expect(bands.length).toBeGreaterThan(0)
+    for (const edge of layout.edges) for (let i = 1; i < edge.path.length; i++) {
+      const [ax, ay] = edge.path[i - 1]!, [bx, by] = edge.path[i]!
+      const run = { x: Math.min(ax, bx), y: Math.min(ay, by), width: Math.abs(bx - ax), height: Math.abs(by - ay) }
+      for (const band of bands) {
+        const entered = run.x + run.width > band.x + .01 && run.x < band.x + band.w - .01 && run.y + run.height > band.y + .01 && run.y < band.y + band.h - .01
+        expect(entered, `${edge.id} enters ${band.id}`).toBe(false)
       }
     }
   })
