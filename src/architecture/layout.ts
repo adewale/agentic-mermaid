@@ -335,15 +335,18 @@ export function layoutArchitectureDiagram(
       }
       height = Math.max(height + shiftY, titleTop + titleHeight + 20)
     }
-    // Every edge label's painted box lies on the canvas. Packing can leave a
-    // route near the canvas edge, and a label seated on it then reaches past
-    // the left or top edge: move the whole drawing in by what it needs.
+    // Every edge label's painted box, card, junction, group frame and route
+    // lies on the canvas. Packing can leave a route near the canvas edge, a
+    // label seated on it then reaches past the left or top edge, and lining
+    // relations up can move a unit past it: move the whole drawing in by
+    // what it needs.
     const labelBoxes = edges.flatMap(edge => edge.labelPosition && edge.labelBlock ? [{
       x0: edge.labelPosition.x - edge.labelBlock.width / 2 - EDGE_LABEL_PADDING, y0: edge.labelPosition.y - edge.labelBlock.height / 2 - EDGE_LABEL_PADDING,
       x1: edge.labelPosition.x + edge.labelBlock.width / 2 + EDGE_LABEL_PADDING, y1: edge.labelPosition.y + edge.labelBlock.height / 2 + EDGE_LABEL_PADDING,
     }] : [])
-    const inX = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.x0)))
-    const inY = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.y0)))
+    const drawn = [...services, ...junctions, ...flatGroups.values(), ...edges.flatMap(edge => edge.points.map(point => ({ ...point, width: 0, height: 0 })))]
+    const inX = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.x0), ...drawn.map(box => box.x)))
+    const inY = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.y0), ...drawn.map(box => box.y)))
     if (inX > 0 || inY > 0) {
       const shiftGroup = (group: PositionedArchitectureGroup): void => {
         group.x += inX; group.y += inY
@@ -990,6 +993,99 @@ function applyArchitectureSideConstraints(
     }
     expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
+
+  // Faces fix the order along a relation's axis and leave the other axis to
+  // wherever placement put each unit, so a child could sit far to one side of
+  // the face it hangs from and its relation bend across others (mermaid#1212).
+  // Line up each relation between facing sides: move the target's unit (or
+  // else the source's) across the axis until the two contacts are level. A
+  // unit moves at most once per axis and keeps still once another lines up
+  // with it; a move must keep every sibling at the node spacing (or as far as
+  // it was), stay inside its group's padding, leave explicit alignments alone
+  // and keep every face order it satisfied. A labelled relation keeps its
+  // bend: its label and arrowheads need a longer run than a straight one
+  // between units a spacing apart would give them.
+  const pinned = { x: new Set<string>(), y: new Set<string>() }
+  // A move never takes a unit above or left of the drawing's top-left corner,
+  // which keeps the canvas margin placement gave it.
+  const corner = siblingKeysFor(undefined).map(key => unitBounds(key)!).reduce((min, box) => ({ x: Math.min(min.x, box.x), y: Math.min(min.y, box.y) }), { x: Infinity, y: Infinity })
+  const contact = (id: string, axis: SideConstraintAxis): number | undefined => {
+    const item = positionedServices.get(id) ?? positionedJunctions.get(id)
+    return item ? item[axis] + (axis === 'x' ? item.width : item.height) / 2 : undefined
+  }
+  // Lining up is only worth it when the straight run it makes is drawable:
+  // clear of every other card and junction, every header band and every
+  // group that contains neither end.
+  const straightRunClear = (edge: ArchitectureDiagram['edges'][number]): boolean => {
+    const source = positionedServices.get(edge.source.id) ?? positionedJunctions.get(edge.source.id)!
+    const target = positionedServices.get(edge.target.id) ?? positionedJunctions.get(edge.target.id)!
+    const a = rectAnchor(source, edge.source.side), b = rectAnchor(target, edge.target.side)
+    const run = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+    const enters = (box: Bounds): boolean => run.x < box.x + box.width - ROUTE_EPSILON && run.x + run.width > box.x + ROUTE_EPSILON
+      && run.y < box.y + box.height - ROUTE_EPSILON && run.y + run.height > box.y + ROUTE_EPSILON
+    const ends = new Set([...itemPath(edge.source.id) ?? [], ...itemPath(edge.target.id) ?? []])
+    for (const item of [...positionedServices.values(), ...positionedJunctions.values()]) if (item !== source && item !== target && enters(item)) return false
+    for (const group of groups.values()) {
+      const own = ends.has(unitKey('group', group.id))
+      if (enters(own ? { ...group, height: group.headerHeight ?? 0 } : group)) return false
+    }
+    return true
+  }
+  // How far out of line, in total, the facing contacts are of every relation
+  // between this unit and a unit outside it: a move must not raise it, so lining
+  // up one relation of a fan never pulls the hub off its middle (corpus fan-ins).
+  const misalignment = (unit: string, axis: SideConstraintAxis): number => {
+    let total = 0
+    for (const [index, edge] of diagram.edges.entries()) {
+      if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+      if ((edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x') !== axis) continue
+      const inSource = itemPath(edge.source.id)?.includes(unit) ?? false, inTarget = itemPath(edge.target.id)?.includes(unit) ?? false
+      if (inSource === inTarget) continue
+      const from = contact(edge.source.id, axis), to = contact(edge.target.id, axis)
+      if (from !== undefined && to !== undefined) total += Math.abs(from - to)
+    }
+    return total
+  }
+  const nearest = (a: Bounds, b: Bounds): number => Math.hypot(Math.max(0, a.x - b.x - b.width, b.x - a.x - a.width), Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height))
+  for (const [index, edge] of diagram.edges.entries()) {
+    if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+    const sourcePath = itemPath(edge.source.id), targetPath = itemPath(edge.target.id)
+    if (!sourcePath || !targetPath) continue
+    let common = 0
+    while (common < sourcePath.length && common < targetPath.length && sourcePath[common] === targetPath[common]) common++
+    if (common >= sourcePath.length || common >= targetPath.length) continue
+    const parentId = common === 0 ? undefined : splitUnitKey(sourcePath[common - 1]!).id
+    const axis: SideConstraintAxis = edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x'
+    const from = contact(edge.source.id, axis), to = contact(edge.target.id, axis)
+    if (from === undefined || to === undefined || Math.abs(from - to) <= ROUTE_EPSILON) continue
+    const siblings = siblingKeysFor(parentId)
+    const parent = parentId ? groups.get(parentId) : undefined
+    const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : (parent?.headerHeight ?? 0) + reservedHeaderPadding
+    const faces = constraints.filter(constraint => constraint.axis === axis && constraint.parentId === parentId)
+    const holds = (constraint: ArchitectureSideConstraint): boolean => {
+      const before = unitBounds(constraint.before), after = unitBounds(constraint.after)
+      return !!before && !!after && (axis === 'x' ? before.x + before.width : before.y + before.height) + constraint.gap <= (axis === 'x' ? after.x : after.y) + ROUTE_EPSILON
+    }
+    const aligned = (unit: string): boolean => diagram.alignments.some(alignment => alignment.axis === (axis === 'y' ? 'row' : 'column')
+      && alignment.members.some(member => itemPath(member)?.includes(unit)))
+    for (const [unit, anchor, delta] of [[targetPath[common]!, sourcePath[common]!, from - to], [sourcePath[common]!, targetPath[common]!, to - from]] as const) {
+      if (pinned[axis].has(unit) || aligned(unit)) continue
+      const bounds = unitBounds(unit)!
+      const moved = { ...bounds, [axis]: bounds[axis] + delta }
+      if (parent && (moved.x - GROUP_EDGE_PAD < parent.x - ROUTE_EPSILON || moved.y - topPadding < parent.y - ROUTE_EPSILON
+        || moved.x + moved.width + GROUP_EDGE_PAD > parent.x + parent.width + ROUTE_EPSILON || moved.y + moved.height + GROUP_EDGE_PAD > parent.y + parent.height + ROUTE_EPSILON)) continue
+      if (moved.x < corner.x - ROUTE_EPSILON || moved.y < corner.y - ROUTE_EPSILON) continue
+      if (siblings.some(other => other !== unit && nearest(moved, unitBounds(other)!) < Math.min(spacing, nearest(bounds, unitBounds(other)!)) - ROUTE_EPSILON)) continue
+      const kept = faces.filter(holds)
+      const offBefore = misalignment(unit, axis)
+      translateUnit(unit, axis, delta)
+      if (kept.some(constraint => !holds(constraint)) || !straightRunClear(edge) || misalignment(unit, axis) > offBefore + ROUTE_EPSILON) { translateUnit(unit, axis, -delta); continue }
+      pinned[axis].add(unit).add(anchor)
+      changed = true
+      break
+    }
+  }
+  expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   return changed
 }
 

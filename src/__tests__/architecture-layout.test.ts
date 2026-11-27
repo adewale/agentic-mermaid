@@ -532,6 +532,36 @@ describe('layoutArchitectureDiagram', () => {
     expect(jogs).toEqual([])
   })
 
+  // mermaid-v13#1212 and a random junction tree: faces fixed each child's
+  // order on the relation's axis but left it wherever placement put it on the
+  // other, so a child hung far to one side of its face and its relation bent
+  // across a sibling's.
+  it.each([
+    ['fixture/mermaid-v13-1212.mmd', ''],
+    ['junction tree', 'architecture-beta\n  junction s0\n  junction s1\n  junction s2\n  junction s3\n  junction s4\n  junction s5\n  junction s6\n  s0:L -- R:s1\n  s0:R -- L:s2\n  s1:T -- B:s3\n  s0:T -- B:s4'],
+  ])('%s draws its tree with no crossing and every relation straight', (id, inline) => {
+    const source = inline || collectSamples().find(sample => sample.id === id)!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    expect(measureQuality(projected).edgeCrossings).toBe(0)
+    expect(projected.edges.filter(edge => edge.path.length !== 2).map(edge => edge.id)).toEqual([])
+  })
+
+  // mermaid#7301: Internet sits above three nested groups whose header bands
+  // span their whole width, so the only way into Internet GW's top runs round
+  // a band's end. The route must take the nearer end and nothing longer.
+  it('routes into a deeply nested group round the nearer end of its header bands', () => {
+    const positioned = layout(collectSamples().find(sample => sample.id === 'fixture/mermaid-7301.mmd')!.source)
+    const groups = new Map(positioned.groups.flatMap(function all(group): Array<[string, typeof group]> { return [[group.id, group], ...group.children.flatMap(all)] }))
+    for (const edge of positioned.edges) for (const group of groups.values()) {
+      expect(routeCrossesBoxInterior(edge.points, { ...group, height: group.headerHeight! }), `${edge.source.id}->${edge.target.id} enters ${group.id}'s header`).toBe(false)
+    }
+    const route = positioned.edges.find(edge => edge.source.id === 'Internet')!.points
+    const start = route[0]!, end = route.at(-1)!, aws = groups.get('AWS')!
+    const length = route.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - route[index]!.x) + Math.abs(point.y - route[index]!.y), 0)
+    const around = Math.min(...[aws.x - 6, aws.x + aws.width + 6].map(x => Math.abs(start.x - x) + Math.abs(x - end.x))) + Math.abs(end.y - start.y)
+    expect(length).toBeLessThanOrEqual(around + 0.5)
+  })
+
   // Packing units a node spacing apart left no room for a relation's label
   // between them: overlap-audit cases 41 and 21 painted the label over a card
   // and over an arrowhead, so paint certification could not pass.

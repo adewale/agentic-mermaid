@@ -1,0 +1,17 @@
+---
+config:
+  layout: layered
+---
+%% A tree of services and junctions draws with no crossing (https://github.com/mermaid-js/mermaid-v13/issues/1212).
+architecture-beta
+    service top(server)[Top]
+    junction j1
+    junction j2
+    service l(server)[Left]
+    service r(server)[Right]
+    service bot(server)[Bottom]
+    top:B -- T:j1
+    j1:L -- R:l
+    j1:R -- L:r
+    j1:B -- T:j2
+    j2:B -- T:bot
