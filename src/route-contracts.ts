@@ -480,7 +480,7 @@ export function applyRouteContracts(
       for (let c1Index = 0; c1Index < c1s.length; c1Index++) {
         const c1 = c1s[c1Index]!
         if (c1 < s1.lo - EPS || c1 > s1.hi + EPS) continue
-        if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
+        if (Math.abs(c1 - c2) < HITCH_JOG) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
         if (srcMain === null) continue
         // The optional container tier proves its jog lies outside both endpoint
