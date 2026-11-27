@@ -110,6 +110,44 @@ describe('bounded final layout certification', () => {
     expect(selected.certification).toMatchObject({ strategy: 'separate-without-corank', attempts: 5, hardViolations: 0 })
   })
 
+  // Grouped graphs with a mixed-label fan-in (shrunk from a generated search)
+  // that no single placement change certifies: the first fails every other
+  // candidate on a link-rank reconnect with no contact-preserving route, the
+  // second on routes through a node and a group header.
+  test.each([
+    ['reconnect', `flowchart BT
+  subgraph G1[group 1]
+    N0["Node 0"]
+    N3["Node 3"]
+    N4["Node 4"]
+    N5["Node 5"]
+  end
+  N1 -->|"no"| N0
+  N3 ---> N0
+  N1 ----> N5`],
+    ['through a node and header', `flowchart TD
+  subgraph G1[group 1]
+    N1["Node 1"]
+    N3["Node 3"]
+    N5(("Node 5"))
+    N6{"Node 6"}
+    N7["Node 7"]
+  end
+  subgraph G2[group 2]
+    N2["Node 2"]
+  end
+  N1 -->|"yes"| N0
+  N2 --> N0
+  N3 -.->|"x"| N0
+  N4 ---> N0
+  N4 -.->|"yes"| N1
+  N6 --->|"two<br/>line label"| N3
+  N0 -.->|"yes"| N7
+  N3 --->|"no"| N7`],
+  ])('a grouped mixed-label fan-in certifies by separating the hierarchy without the co-rank (%s)', (_name, mermaid) => {
+    expect(layoutGraphSync(parseMermaid(mermaid)).certification).toMatchObject({ status: 'passed', strategy: 'separate-without-corank', hardViolations: 0 })
+  })
+
   test('a failing primary producer is contained before separate hierarchy within the public fallback budget', () => {
     const firstPass = LAYOUT_PIPELINE[0]!
     const run = firstPass.run
@@ -128,21 +166,21 @@ describe('bounded final layout certification', () => {
     }
   })
 
-  test.each([false, true])('optional order search preserves the third mandatory recovery with balanced=%s', balanced => {
+  test.each([false, true])('optional order search preserves the fourth mandatory recovery with balanced=%s', balanced => {
     const first = LAYOUT_PIPELINE[0]!, run = first.run
     let mandatory = 0, optional = 0
     first.run = context => {
       const relaxed = context.elkResult?.layoutOptions?.['elk.layered.crossingMinimization.forceNodeModelOrder'] === 'false'
       if (relaxed) optional++
       else mandatory++
-      if (relaxed || mandatory < 3) throw new Error('rejected geometry candidate')
+      if (relaxed || mandatory < 4) throw new Error('rejected geometry candidate')
       run(context)
     }
     try {
       const result = withPerformanceExperiments([], () => renderMermaidSVGWithReceipt('flowchart LR\nA --> B', {
         graphLayout: { backend: 'elk', ...(balanced ? { quality: 'balanced' as const } : {}) },
       }))
-      expect(mandatory).toBe(3)
+      expect(mandatory).toBe(4)
       expect(optional).toBe(0)
       expect(result.svg).toContain('data-id="A"')
       if (balanced) expect(result.receipt.layoutOptimization?.additionalProducerCalls).toBe(0)

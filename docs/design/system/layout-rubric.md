@@ -104,7 +104,7 @@ node-avoidance checks and cannot buy additional crossings during final selection
 Generic bundling decides locally: a fan-in or fan-out trunk is published only
 when its rebuilt routes cross no more foreign shafts than the routes they
 replace; otherwise the fan keeps its separate routes. Each placement runs the
-route pipeline once, so the bound is three placement pipelines with at most 12
+route pipeline once, so the bound is four placement pipelines with at most 16
 ELK attempts. The receipt retains placement scores in `preference.compared` and
 the final route score in `preference.selectedScore`. Parallel-edge graphs keep
 their specialized route owners. Endpoint contacts and lane ambiguity are not

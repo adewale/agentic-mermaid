@@ -137,7 +137,7 @@ The receipt's `preference.compared` entries retain the certified placement
 scores, and `preference.selectedScore` describes the actual final routes.
 The receipt's `attempts` counts placement productions.
 Clean graphs, equivalent strategies and larger inputs skip the placement
-comparisons; the upper bound is three placement pipelines with at most 12 ELK
+comparisons; the upper bound is four placement pipelines with at most 16 ELK
 attempts. Search decisions use graph
 work counts, never elapsed time, so machine speed cannot change the drawing.
 These route comparisons apply to Flowchart and State, which retain the scored

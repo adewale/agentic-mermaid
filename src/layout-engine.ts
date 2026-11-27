@@ -2000,7 +2000,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   return runElkGraphBackend(options, () => layoutElkGraph(graph, options), (positioned, decision) => { positioned.layoutDecision = decision })
 }
 
-/** Three deterministic strategy combinations, each with the existing bounded
+/** Four deterministic strategy combinations, each with the existing bounded
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose: 'placement'): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'>
@@ -2035,10 +2035,14 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
     candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    // Some grouped graphs with a mixed-label fan-in certify only with both
+    // changes: each single change still leaves a link-rank reconnect with no
+    // contact-preserving route, or a route through a node or group header.
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   // Each placement runs the route pipeline once; bundling itself declines a
   // trunk that would cross more foreign shafts than the routes it replaces.
-  // At most three ELK placements; the exceptional upper bound is three
+  // At most four ELK placements; the exceptional upper bound is four
   // placements times the four-rung ELK ladder.
   // Report layout safety still draws a graph no candidate certifies, from its
   // best drawable candidate, with an uncertified receipt; strict refuses.
