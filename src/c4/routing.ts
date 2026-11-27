@@ -9,6 +9,7 @@ import { orthogonalFallback, routeOrthogonal, type RouterBox, type RouterDirecti
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 
 type Side = 'T' | 'R' | 'B' | 'L'
 interface Rect { x: number; y: number; width: number; height: number }
@@ -107,13 +108,28 @@ const PROBE_WORK = 400_000
 const OFF_CORRIDOR = 0.05
 /** A crossing costs as much as a modest detour, never a bend. */
 const CROSSING = 150
+/** A route longer than this many times the distance between its ports is a
+ * detour worth trying other faces for. */
+const DETOUR = 3
+/** What one bend costs when comparing faces, in pixels of route. */
+const DETOUR_BEND = 200
+/** Grid steps all of one diagram's detour retries may check together. */
+const DETOUR_WORK = 200_000
+const DETOUR_SPENT = Symbol('C4 detour budget spent')
+const SIDES: readonly Side[] = ['T', 'R', 'B', 'L']
+const routeLength = (points: readonly Point[]): number => points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - points[index]!.x) + Math.abs(point.y - points[index]!.y), 0)
 
 export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>): void {
   const { edges } = positioned
   const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: allocateGeneratedId(identities.generated, `c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
-  let work = 0, probeWork = 0
-  const charge = () => { if (++work > ROUTE_WORK) throw new C4RouteWorkLimitError() }
+  let work = 0, probeWork = 0, detourWork = 0, detouring = false
+  // Trying other faces for a detour spends its own budget: running out ends
+  // the trying, never the diagram.
+  const charge = () => {
+    if (detouring) { if (++detourWork > DETOUR_WORK) throw DETOUR_SPENT; return }
+    if (++work > ROUTE_WORK) throw new C4RouteWorkLimitError()
+  }
   const probe = () => ++probeWork <= PROBE_WORK
   // A lead leaves its owner's face, so only obstacles spanning that face
   // across the lead's axis can stop it. Index them once per owner and axis
@@ -173,6 +189,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   const plans = edges.flatMap(edge => { const source = boxes.get(edge.source), target = boxes.get(edge.target); if (!source || !target) return []; const [startSide, endSide] = sides(source, target); for (const [id, side] of [[source.id, startSide], [target.id, endSide]]) { const key = `${id}\0${side}`; counts.set(key, (counts.get(key) ?? 0) + 1) }; return [{ edge, source, target, startSide, endSide }] })
   const pairs = new Map<string, typeof plans>()
   for (const plan of plans) { const key = JSON.stringify([plan.source.id, plan.target.id].sort()); const members = pairs.get(key) ?? []; members.push(plan); pairs.set(key, members) }
+  const claimed = new Set<string>()
   for (const [index, plan] of plans.entries()) {
     const { edge, source, target, startSide, endSide } = plan
     const cursor = (box: C4Box, side: Side) => { const key = `${box.id}\0${side}`, index = cursors.get(key) ?? 0; cursors.set(key, index + 1); return { index, count: counts.get(key)! } }
@@ -182,27 +199,8 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     const startSign = source.container && source.id !== target.id && contains(source, target) ? -1 : 1
     const endSign = target.container && source.id !== target.id && contains(target, source) ? -1 : 1
     const pair = pairs.get(JSON.stringify([source.id, target.id].sort()))!
-    const corridor = startSide === 'R' || startSide === 'L'
-      ? Math.max(24, ...pair.map(item => (item.edge.labelBlock?.width ?? 0) + 32))
-      : Math.max(24, ...pair.map(item => (item.edge.labelBlock?.height ?? 0) + 24))
-    const shift = (pair.indexOf(plan) - (pair.length - 1) / 2) * corridor
     const lane = 14 + (index % 5) * 4
     const terminal = graphEdgeTerminalClearance(edge, style)
-    const startExit = exit(start, startSide, startSign, Math.max(lane, terminal.start ? terminal.start + (style.edgeBendRadius ?? 0) : 0), source.id)
-    const endExit = exit(end, endSide, endSign, Math.max(lane, terminal.end ? terminal.end + (style.edgeBendRadius ?? 0) : 0), target.id)
-    // C4 owns the physical face choice, the port leads and the corridors it
-    // prefers: midway between the two leads, shifted apart for repeated
-    // interactions between one pair, and for a self-interaction a loop wide
-    // enough for its label. The shared router finds the route around every
-    // card and header band.
-    const preferred = source.id === target.id
-      ? { x: [source.x + source.width + lane + (edge.labelBlock?.width ?? 0) / 2], y: [source.y + source.height + lane + (edge.labelBlock?.height ?? 0) / 2] }
-      : startSide === 'R' || startSide === 'L' ? { x: [(startExit.x + endExit.x) / 2 + shift], y: [] } : { x: [], y: [(startExit.y + endExit.y) / 2 + shift] }
-    const channels = { x: [...preferred.x, ...gutters.x], y: [...preferred.y, ...gutters.y] }
-    const leave = startSign > 0 ? DIRECTION[startSide] : REVERSE[DIRECTION[startSide]]
-    const arrive = REVERSE[endSign > 0 ? DIRECTION[endSide] : REVERSE[DIRECTION[endSide]]]
-    const request = { start, end, exit: leave, entry: arrive, stub: [Math.abs(startExit.x - start.x) + Math.abs(startExit.y - start.y), Math.abs(endExit.x - end.x) + Math.abs(endExit.y - end.y)] as const,
-      clearance: 0, channels, offChannelCost: OFF_CORRIDOR, crossings, charge, probe }
     // A corridor must carry its measured label halo as well as its stroke.
     // Otherwise a path ten pixels below a database is clear for ink while
     // its two-line label is still painted underneath the database surface.
@@ -211,14 +209,63 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     // final label allocator places the retained label.
     const padX = (edge.labelBlock?.width ?? 0) / 2 + 10, padY = (edge.labelBlock?.height ?? 0) / 2 + 8
     const padded = physicalObstacles.map(node => node.id === edge.source || node.id === edge.target ? box(node) : box(node, padX, padY))
-    let route: Point[] | undefined
-    search: for (const avoid of drawn.length ? [keepOff([...frames, ...drawn]), keepOff(frames)] : [keepOff(frames)]) for (const obstacles of [padded, physical]) {
-      route = routeOrthogonal({ ...request, obstacles, avoid })
-      if (route) break search
+    const attempt = (startSide: Side, endSide: Side, start: Point, end: Point) => {
+      const corridor = startSide === 'R' || startSide === 'L'
+        ? Math.max(24, ...pair.map(item => (item.edge.labelBlock?.width ?? 0) + 32))
+        : Math.max(24, ...pair.map(item => (item.edge.labelBlock?.height ?? 0) + 24))
+      const shift = (pair.indexOf(plan) - (pair.length - 1) / 2) * corridor
+      const startExit = exit(start, startSide, startSign, Math.max(lane, terminal.start ? terminal.start + (style.edgeBendRadius ?? 0) : 0), source.id)
+      const endExit = exit(end, endSide, endSign, Math.max(lane, terminal.end ? terminal.end + (style.edgeBendRadius ?? 0) : 0), target.id)
+      // C4 owns the physical face choice, the port leads and the corridors it
+      // prefers: midway between the two leads, shifted apart for repeated
+      // interactions between one pair, and for a self-interaction a loop wide
+      // enough for its label. The shared router finds the route around every
+      // card and header band.
+      const preferred = source.id === target.id
+        ? { x: [source.x + source.width + lane + (edge.labelBlock?.width ?? 0) / 2], y: [source.y + source.height + lane + (edge.labelBlock?.height ?? 0) / 2] }
+        : startSide === 'R' || startSide === 'L' ? { x: [(startExit.x + endExit.x) / 2 + shift], y: [] } : { x: [], y: [(startExit.y + endExit.y) / 2 + shift] }
+      const channels = { x: [...preferred.x, ...gutters.x], y: [...preferred.y, ...gutters.y] }
+      const leave = startSign > 0 ? DIRECTION[startSide] : REVERSE[DIRECTION[startSide]]
+      const arrive = REVERSE[endSign > 0 ? DIRECTION[endSide] : REVERSE[DIRECTION[endSide]]]
+      const request = { start, end, exit: leave, entry: arrive, stub: [Math.abs(startExit.x - start.x) + Math.abs(startExit.y - start.y), Math.abs(endExit.x - end.x) + Math.abs(endExit.y - end.y)] as const,
+        clearance: 0, channels, offChannelCost: OFF_CORRIDOR, crossings, charge, probe }
+      let route: Point[] | undefined
+      search: for (const avoid of drawn.length ? [keepOff([...frames, ...drawn]), keepOff(frames)] : [keepOff(frames)]) for (const obstacles of [padded, physical]) {
+        route = routeOrthogonal({ ...request, obstacles, avoid })
+        if (route) break search
+      }
+      return { route, request }
     }
+    const first = attempt(startSide, endSide, start, end)
     // Leads that end against another card leave no clear route; draw the
     // plainest orthogonal one rather than none.
-    route ??= routeOrthogonal({ ...request, obstacles: physical }) ?? routeOrthogonal({ ...request, obstacles: [] }) ?? orthogonalFallback(request)
+    let route = first.route ?? routeOrthogonal({ ...first.request, obstacles: physical }) ?? routeOrthogonal({ ...first.request, obstacles: [] }) ?? orthogonalFallback(first.request)
+    // The faces facing each other can force a route round the canvas, for
+    // example out of a boundary whose header band blocks the way up
+    // (mermaid#7492). Then try the faces no other interaction uses, and keep
+    // the route that is shortest once each bend and crossing is charged.
+    if (source.id !== target.id && startSign > 0 && endSign > 0 && routeLength(route) > DETOUR * (Math.abs(end.x - start.x) + Math.abs(end.y - start.y))) {
+      const free = (item: C4Box, side: Side) => !counts.has(`${item.id}\0${side}`) && !claimed.has(`${item.id}\0${side}`)
+      const score = (points: readonly Point[]) => routeLength(points) + DETOUR_BEND * (simplifyPolyline(points.map(point => ({ x: point.x, y: point.y }))).length - 2)
+        + CROSSING * countPolylineCrossings([{ points }, ...drawn.map(segment => ({ points: segment }))], new Set([0]))
+      let best = { route, score: score(route), faces: [] as string[] }
+      detouring = true
+      try {
+        for (const from of SIDES) for (const to of SIDES) {
+          if ((from === startSide && to === endSide) || (from !== startSide && !free(source, from)) || (to !== endSide && !free(target, to))) continue
+          const alternative = attempt(from, to, from === startSide ? start : portAt(source, from, 0.5), to === endSide ? end : portAt(target, to, 0.5)).route
+          if (!alternative) continue
+          const value = score(alternative)
+          if (value < best.score - 0.5) best = { route: alternative, score: value, faces: [...from === startSide ? [] : [`${source.id}\0${from}`], ...to === endSide ? [] : [`${target.id}\0${to}`]] }
+        }
+      } catch (error) {
+        if (error !== DETOUR_SPENT) throw error
+      } finally {
+        detouring = false
+      }
+      route = best.route
+      for (const face of best.faces) claimed.add(face)
+    }
     edge.points = simplifyPolyline(route.map(point => ({ x: point.x, y: point.y })))
     routed.set(edge, edge.points.map(point => ({ ...point })))
     for (let at = 1; at < edge.points.length; at++) drawn.push([edge.points[at - 1]!, edge.points[at]!])

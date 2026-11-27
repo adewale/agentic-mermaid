@@ -123,7 +123,7 @@ describe('C4 measured pixel layout quality', () => {
   // mermaid-v13#997: a relationship that crosses a boundary ran through the
   // boundary's header text when only cards were route obstacles. Header bands
   // are obstacles here already, so this guards the contract.
-  test.each(['fixture/mermaid-v13-997.mmd', ...[0, 1, 2, 3, 4].map(index => `c4:official-syntax/c4.md#${index}`)])('%s keeps every relationship out of every boundary header band', id => {
+  test.each(['fixture/mermaid-v13-997.mmd', 'fixture/mermaid-7492.mmd', ...[0, 1, 2, 3, 4].map(index => `c4:official-syntax/c4.md#${index}`)])('%s keeps every relationship out of every boundary header band', id => {
     const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error('Expected structured C4 source')
@@ -138,6 +138,22 @@ describe('C4 measured pixel layout quality', () => {
         expect(entered, `${edge.id} enters ${band.id}`).toBe(false)
       }
     }
+  })
+
+  // mermaid#7492: Web Application -> E-Mail System left the boundary westward
+  // on the faces facing each other and circled the canvas (4.35x its ports'
+  // distance) although a route out past the header band's end is short.
+  test('a relationship out of a boundary takes a short clear route instead of circling the canvas', () => {
+    const parsed = parseRegisteredMermaid(collectSamples().find(sample => sample.id === 'fixture/mermaid-7492.mmd')!.source)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const detours = layout.edges.flatMap(edge => {
+      const length = edge.path.slice(1).reduce((sum, [x, y], i) => sum + Math.abs(x - edge.path[i]![0]) + Math.abs(y - edge.path[i]![1]), 0)
+      const [sx, sy] = edge.path[0]!, [ex, ey] = edge.path.at(-1)!
+      const ratio = length / (Math.abs(ex - sx) + Math.abs(ey - sy))
+      return ratio > 2 ? [`${edge.id} ${ratio.toFixed(2)}x`] : []
+    })
+    expect(detours).toEqual([])
   })
 
   test('the official deployment fence draws no two relationships along one line', () => {
