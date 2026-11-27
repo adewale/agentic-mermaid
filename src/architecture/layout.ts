@@ -414,9 +414,131 @@ export function layoutArchitectureDiagram(
       accessibilityDescription: diagram.accessibilityDescription,
     }
   }
-  return runElkGraphBackend(options,
-    () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true })),
-  )
+  return runElkGraphBackend(options, () => {
+    const positioned = layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true })
+    const placed = finish(positioned)
+    // Faces fix only the order along each relation, so packing a tree can
+    // still leave a child where its relation must cross another
+    // (corpus/architecture/4, mermaid-v13#1212). A tree has a drawing with
+    // no crossing; where the packed one crosses, draw the tree packed by its
+    // faces instead, when that crosses less.
+    const crossings = (diagram: PositionedArchitectureDiagram) => countPolylineCrossings(diagram.edges.map(edge => ({ points: edge.points })))
+    const before = crossings(placed)
+    if (before === 0) return placed
+    const packed = packArchitectureTree(diagram, positioned, options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING, options.padding ?? 40, edgeText)
+    if (!packed) return placed
+    const alternative = finish(packed)
+    return crossings(alternative) < before ? alternative : placed
+  })
+}
+
+/** Most units a tree is packed for; beyond it packing is not attempted. */
+const TREE_PACK_LIMIT = 200
+type TreeBox = { x0: number; y0: number; x1: number; y1: number }
+const SIDE_STEP: Record<ArchitectureEndpoint['side'], Point> = { L: { x: -1, y: 0 }, R: { x: 1, y: 0 }, T: { x: 0, y: -1 }, B: { x: 0, y: 1 } }
+
+/**
+ * Places a forest of services and junctions so every relation is one
+ * straight run between the faces it names and no two relations cross: each
+ * child's subtree is laid out first, then moved out along its relation's
+ * axis just far enough that its units keep the node spacing (the relation's
+ * label room between the two faces) from everything placed, its runs cross
+ * nothing, and it keeps clear of the lines the parent's other relations
+ * will take. Trees side by side follow declaration order. Undefined where
+ * the diagram is not such a forest: groups or alignments, a group endpoint
+ * or self-relation, faces that are not opposite, a face carrying two
+ * relations, a cycle, or more than TREE_PACK_LIMIT units.
+ */
+function packArchitectureTree(
+  diagram: ArchitectureDiagram,
+  positioned: ReturnType<typeof layoutElkGraphPlacementSync>,
+  spacing: number,
+  padding: number,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
+): ReturnType<typeof layoutElkGraphPlacementSync> | undefined {
+  if (diagram.groups.length || diagram.alignments.length || positioned.nodes.length > TREE_PACK_LIMIT) return undefined
+  const sizes = new Map(positioned.nodes.map(node => [node.id, node]))
+  const links = new Map<string, { side: ArchitectureEndpoint['side']; other: string; gap: number }[]>()
+  const faces = new Set<string>(), root = new Map<string, string>()
+  const find = (id: string): string => { while (root.get(id) !== id) id = root.get(id)!; return id }
+  for (const node of positioned.nodes) { root.set(node.id, node.id); links.set(node.id, []) }
+  for (const [index, edge] of diagram.edges.entries()) {
+    const { source, target } = edge
+    if (source.boundary === 'group' || target.boundary === 'group' || !sizes.has(source.id) || !sizes.has(target.id) || source.id === target.id || OPPOSITE_SIDE[source.side] !== target.side) return undefined
+    for (const face of [`${source.id}\0${source.side}`, `${target.id}\0${target.side}`]) { if (faces.has(face)) return undefined; faces.add(face) }
+    const a = find(source.id), b = find(target.id)
+    if (a === b) return undefined
+    root.set(a, b)
+    const label = edgeLabels[index], horizontal = source.side === 'L' || source.side === 'R'
+    const gap = label ? Math.max(spacing, (horizontal ? label.width : label.height) + 2 * (EDGE_LABEL_PADDING + ROUTE_CLEARANCE)) : spacing
+    links.get(source.id)!.push({ side: source.side, other: target.id, gap })
+    links.get(target.id)!.push({ side: target.side, other: source.id, gap })
+  }
+  const half = (id: string) => ({ x: sizes.get(id)!.width / 2, y: sizes.get(id)!.height / 2 })
+  const far = 1e7, inflate = spacing / 2
+  const overlaps = (a: TreeBox, b: TreeBox, grow: number) => a.x0 - grow < b.x1 && b.x0 < a.x1 + grow && a.y0 - grow < b.y1 && b.y0 < a.y1 + grow
+  const shift = (box: TreeBox, by: Point): TreeBox => ({ x0: box.x0 + by.x, y0: box.y0 + by.y, x1: box.x1 + by.x, y1: box.y1 + by.y })
+  // How much further along `side` a moving box must go to clear a fixed one.
+  const clearing = (moving: TreeBox, fixed: TreeBox, side: ArchitectureEndpoint['side'], grow: number) =>
+    side === 'R' ? fixed.x1 + grow - moving.x0 : side === 'L' ? moving.x1 + grow - fixed.x0 : side === 'B' ? fixed.y1 + grow - moving.y0 : moving.y1 + grow - fixed.y0
+  // A ray from a unit's face, the line a relation there takes.
+  const ray = (id: string, side: ArchitectureEndpoint['side']): TreeBox => {
+    const { x, y } = half(id)
+    return side === 'R' ? { x0: x, y0: 0, x1: far, y1: 0 } : side === 'L' ? { x0: -far, y0: 0, x1: -x, y1: 0 } : side === 'B' ? { x0: 0, y0: y, x1: 0, y1: far } : { x0: 0, y0: -far, x1: 0, y1: -y }
+  }
+  type Shape = { units: TreeBox[]; lines: TreeBox[]; centres: Map<string, Point> }
+  const layout = (id: string, parent: string | undefined): Shape => {
+    const { x, y } = half(id)
+    const shape: Shape = { units: [{ x0: -x, y0: -y, x1: x, y1: y }], lines: [], centres: new Map([[id, { x: 0, y: 0 }]]) }
+    const reserved = new Map(links.get(id)!.map(link => [link.side, ray(id, link.side)]))
+    for (const { side, other, gap } of links.get(id)!) {
+      if (other === parent) continue
+      const sub = layout(other, id), step = SIDE_STEP[side], size = half(other)
+      let t = (step.x ? x + size.x : y + size.y) + gap
+      for (;;) {
+        const at = { x: step.x * t, y: step.y * t }
+        let need = 0
+        const fixedLines = [...shape.lines, ...[...reserved].flatMap(([kind, line]) => kind === side ? [] : [line])]
+        for (const unit of sub.units) {
+          const moved = shift(unit, at)
+          for (const fixed of shape.units) if (overlaps(moved, fixed, inflate * 2)) need = Math.max(need, clearing(moved, fixed, side, inflate * 2))
+          for (const fixed of fixedLines) if (overlaps(moved, fixed, inflate)) need = Math.max(need, clearing(moved, fixed, side, inflate))
+        }
+        for (const line of sub.lines) {
+          const moved = shift(line, at)
+          for (const fixed of shape.units) if (overlaps(moved, fixed, inflate)) need = Math.max(need, clearing(moved, fixed, side, inflate))
+          for (const fixed of fixedLines) if (overlaps(moved, fixed, 1)) need = Math.max(need, clearing(moved, fixed, side, 1))
+        }
+        if (need <= ROUTE_EPSILON) break
+        t += need
+      }
+      const at = { x: step.x * t, y: step.y * t }
+      shape.units.push(...sub.units.map(unit => shift(unit, at)))
+      shape.lines.push(...sub.lines.map(line => shift(line, at)))
+      for (const [unit, centre] of sub.centres) shape.centres.set(unit, { x: centre.x + at.x, y: centre.y + at.y })
+      // The relation's run, from this unit's face to the child's.
+      const from = { x: step.x * x, y: step.y * y }, to = { x: at.x - step.x * size.x, y: at.y - step.y * size.y }
+      shape.lines.push({ x0: Math.min(from.x, to.x), y0: Math.min(from.y, to.y), x1: Math.max(from.x, to.x), y1: Math.max(from.y, to.y) })
+      reserved.delete(side)
+    }
+    return shape
+  }
+  const placed = new Map<string, Point>()
+  let cursor = padding
+  for (const node of positioned.nodes) {
+    if (placed.has(node.id) || [...placed.keys()].some(id => find(id) === find(node.id))) continue
+    const shape = layout(node.id, undefined)
+    const left = Math.min(...shape.units.map(unit => unit.x0)), top = Math.min(...shape.units.map(unit => unit.y0)), right = Math.max(...shape.units.map(unit => unit.x1))
+    for (const [id, centre] of shape.centres) placed.set(id, { x: cursor - left + centre.x, y: padding - top + centre.y })
+    cursor += right - left + spacing
+  }
+  const nodes = positioned.nodes.map(node => ({ ...node, x: placed.get(node.id)!.x - node.width / 2, y: placed.get(node.id)!.y - node.height / 2 }))
+  return {
+    ...positioned,
+    nodes,
+    width: Math.max(...nodes.map(node => node.x + node.width)) + padding,
+    height: Math.max(...nodes.map(node => node.y + node.height)) + padding,
+  }
 }
 
 type AlignableArchitectureItem = PositionedArchitectureService | PositionedArchitectureJunction

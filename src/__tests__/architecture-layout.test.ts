@@ -546,6 +546,39 @@ describe('layoutArchitectureDiagram', () => {
     expect(projected.edges.filter(edge => edge.path.length !== 2).map(edge => edge.id)).toEqual([])
   })
 
+  // corpus/architecture/4 drew its two junctions 36px apart, so the cards
+  // above and below them could not both hang straight and two relations
+  // crossed; in the junction tree s3 could not sit under s1 beside s5. A
+  // tree whose relations join opposite faces, each face used once, always
+  // has a drawing with no crossing.
+  type Tree = { kinds: boolean[]; links: { parent: number; side: number }[] }
+  const faces = ['L', 'R', 'T', 'B'] as const, opposite = { L: 'R', R: 'L', T: 'B', B: 'T' } as const
+  const treeSource = ({ kinds, links }: Tree) => {
+    const used = kinds.map(() => new Set<string>()), lines = ['architecture-beta', ...kinds.map((junction, i) => junction ? `  junction s${i}` : `  service s${i}(server)[S${i}]`)]
+    links.forEach(({ parent, side }, index) => {
+      const child = index + 1, from = parent % child, free = faces.filter(face => !used[from]!.has(face))
+      if (!free.length) return
+      const face = free[side % free.length]!
+      used[from]!.add(face); used[child]!.add(opposite[face])
+      lines.push(`  s${from}:${face} -- ${opposite[face]}:s${child}`)
+    })
+    return lines.join('\n')
+  }
+  const tree: fc.Arbitrary<Tree> = fc.integer({ min: 3, max: 8 }).chain(size => fc.record({
+    kinds: fc.array(fc.boolean(), { minLength: size, maxLength: size }),
+    links: fc.array(fc.record({ parent: fc.nat({ max: 7 }), side: fc.nat({ max: 3 }) }), { minLength: size - 1, maxLength: size - 1 }),
+  }))
+  it('draws corpus/architecture/4 and random trees with no crossing', () => {
+    const corpus = collectSamples().find(sample => sample.id === 'corpus/architecture/4')!.source
+    expect(measureQuality(layoutMermaidWithReceipt(corpus).layout).edgeCrossings).toBe(0)
+    fc.assert(fc.property(tree, input => {
+      expect(measureQuality(layoutMermaidWithReceipt(treeSource(input)).layout).edgeCrossings).toBe(0)
+    }), fcParameters<[Tree]>({ numRuns: 200, examples: [
+      // s0 → s1 (L), s0 → s2 (B), s1 → s3 (B), s0 → s4 (R), s2 → s5 (L), s4 → s6 (T).
+      [{ kinds: [true, true, true, true, true, true, true], links: [{ parent: 0, side: 0 }, { parent: 0, side: 2 }, { parent: 1, side: 2 }, { parent: 0, side: 0 }, { parent: 2, side: 0 }, { parent: 4, side: 1 }] }],
+    ] }))
+  })
+
   // mermaid#7301: Internet sits above three nested groups whose header bands
   // span their whole width, so the only way into Internet GW's top runs round
   // a band's end. The route must take the nearer end and nothing longer.
