@@ -5,7 +5,7 @@ import { DEFAULTS, calculatePathMidpoint, findSubgraph, layoutFlow, nodeCrossCen
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
 import { minimumLinkRankGap } from '../link-rank-gap.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
-import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../../shape-clipping.ts'
 import { LayoutCertificationError } from '../certification-error.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
@@ -346,6 +346,28 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     }
     return true
   }
+  // A rebuilt route only touches its own endpoints at its two contacts: no
+  // run of it may cross either body. A contact's roundoff against the outline
+  // is not a crossing, so the bodies are read one pixel inside their frames.
+  const outsideOwnBodies = (points: readonly Point[], edge: PositionedEdge): boolean => {
+    for (const id of [edge.source, edge.target]) {
+      const node = nodeMap.get(id)
+      if (!node || node.width <= 2 || node.height <= 2) continue
+      const inner = { ...node, x: node.x + 1, y: node.y + 1, width: node.width - 2, height: node.height - 2 }
+      for (let index = 1; index < points.length; index++) if (segmentThroughShape(points[index - 1]!, points[index]!, inner)) return false
+    }
+    return true
+  }
+  // Canonical ports sit on the flow sides. When the route there would first
+  // run inside its own endpoint (a target placed behind its source, a rung
+  // column inside the target), it leaves or enters at the outline where it
+  // first clears the body instead, so no caption is seated on a hidden run.
+  const trimOwnBodies = (points: Point[], edge: PositionedEdge): Point[] => {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    let trimmed = source ? trimOccludedShapeEndpoint(points, source, true) : points
+    if (target) trimmed = trimOccludedShapeEndpoint(trimmed, target, false)
+    return trimmed
+  }
   const contactDelta = (id: string): number | undefined => {
     const node = nodeMap.get(id), group = groupMap.get(id), original = originalGroupSpans.get(id)
     return node ? mainDelta.get(id) ?? 0 : group && original ? group[f.main] - original.start : undefined
@@ -490,14 +512,14 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
     ]
     const ends = new Set([edge.source, edge.target])
-    const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts)
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts) && outsideOwnBodies(pts, edge)
     const lo = Math.min(mSrc, mTgt), hi = Math.max(mSrc, mTgt), half = laneHalf(edge)
     const sides = [{ taken: takenLanes.max, dir: 1 }, { taken: takenLanes.min, dir: -1 }] as const
     const laneFor = (side: typeof sides[number], base: number): number => freeLane(base, side.dir, side.taken, lo, hi, half)
     const lanes: Array<[number, (n: PositionedNode) => number, typeof sides[number]]> = [[laneFor(sides[0], laneCross), crossMaxEdge, sides[0]], [laneFor(sides[1], laneCrossMin), crossMinEdge, sides[1]]]
     let route: Point[] | undefined, used = lanes[0]!
     for (const entry of lanes) {
-      const candidate = uDetour(entry[0], entry[1])
+      const candidate = trimOwnBodies(uDetour(entry[0], entry[1]), edge)
       if (clear(candidate)) { route = candidate; used = entry; break }
     }
     if (!route) {
@@ -508,14 +530,14 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
         for (const build of [rungTarget, rungSource]) {
           for (const mRung of rungMains) {
             for (const col of cols) {
-              const candidate = build(lane, edgeCross, mRung, col)
-              if (clear(candidate)) { route = simplifyPolyline(candidate); used = entry; break search }
+              const candidate = trimOwnBodies(simplifyPolyline(build(lane, edgeCross, mRung, col)), edge)
+              if (clear(candidate)) { route = candidate; used = entry; break search }
             }
           }
         }
       }
     }
-    if (!route) route = uDetour(lanes[0]![0], crossMaxEdge)
+    if (!route) route = trimOwnBodies(uDetour(lanes[0]![0], crossMaxEdge), edge)
     used[2].taken.push({ lane: used[0], lo, hi, half })
     feedbackRoutes.set(edge, route)
   }
@@ -562,15 +584,16 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     // entry port, threadable only through the channel beside it). If every
     // variant is blocked, keep the midpoint for the post-freeze net to repair.
     const ends = new Set([edge.source, edge.target])
-    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends) && headersClear(pts) && (!preserveContacts || contactsClear(pts, edge) && ownBodiesClear(pts, edge))
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends) && headersClear(pts) && outsideOwnBodies(pts, edge) && (!preserveContacts || contactsClear(pts, edge) && ownBodiesClear(pts, edge))
     const lo = Math.min(start[f.main], end[f.main]), hi = Math.max(start[f.main], end[f.main])
-    let route = doglegBetween(start, end, graph.direction, (lo + hi) / 2)
+    const outside = (points: Point[]): Point[] => preserveContacts ? points : trimOwnBodies(points, edge)
+    let route = outside(doglegBetween(start, end, graph.direction, (lo + hi) / 2))
     let proved = clear(route)
     if (!proved) {
       let found: Point[] | undefined
       const mains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y').filter(m => m > lo && m < hi), (lo + hi) / 2)
       for (const m of mains) {
-        const candidate = doglegBetween(start, end, graph.direction, m)
+        const candidate = outside(doglegBetween(start, end, graph.direction, m))
         if (clear(candidate)) { found = candidate; break }
       }
       if (!found) {
@@ -579,7 +602,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
         staircase: for (const col of cols) {
           for (const m1 of mains) {
             for (const m2 of byProximity(mains.filter(m => (m - m1) * f.sign > 0), end[f.main])) {
-              const candidate = simplifyPolyline([start, point(m1, cS), point(m1, col), point(m2, col), point(m2, cE), end])
+              const candidate = outside(simplifyPolyline([start, point(m1, cS), point(m1, col), point(m2, col), point(m2, cE), end]))
               if (clear(candidate)) { found = candidate; break staircase }
             }
           }

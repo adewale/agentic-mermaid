@@ -12,7 +12,7 @@ import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { sharedTrunkConflict } from '../layout/route-lanes.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, segmentThroughShape } from '../layout-rubric.ts'
 import { auditRouteContracts, invalidEndpointApproaches } from '../route-contracts.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -414,5 +414,34 @@ describe('rebuilt feedback routes never share one lane', () => {
       try { layoutGraphSync(parseMermaid(source)) } finally { pass.run = run }
       expect(observed).toEqual({ lanes: [], trunks: [] })
     }
+  })
+})
+
+// A rebuilt route touches its own endpoints only at its two contacts. Before,
+// a feedback rung could take a column inside its target (TD diamond, RL
+// circle) and a forward edge whose target ELK placed behind its source left
+// and entered by the flow sides through both bodies (TD, in a group): the
+// pass handed later passes, and the captions it seated, hidden runs.
+describe('rebuilt routes stay outside their own endpoint bodies', () => {
+  const sources = [
+    'flowchart TD\n  N0(("Node 0"))\n  N1{"Node 1"}\n  N2{"Node 2"}\n  N3["Node 3"]\n  N4(("Node 4"))\n  N5["Node 5"]\n  N2 --->|"x"| N5\n  N1 ---->|"yes"| N3\n  N3 -->|"two<br/>line label"| N1',
+    'flowchart RL\n  subgraph G1[group 1]\n    N5["Node 5"]\n  end\n  subgraph G2[group 2]\n    N7(["Node 7"])\n  end\n  N0(("Node 0"))\n  N1(("Node 1"))\n  N2["Node 2"]\n  N3["Node 3"]\n  N4(("Node 4"))\n  N6["Node 6"]\n  N8["Node 8"]\n  N4 --->|"one<br/>two<br/>three"| N1\n  N0 --->|"two<br/>line label"| N6\n  N6 --o N0',
+    'flowchart TD\n  subgraph G1[group 1]\n    N3["Node 3"]\n    N5["Node 5"]\n  end\n  subgraph G2[group 2]\n    N4(("Node 4"))\n  end\n  N0["Node 0"]\n  N1["Node 1"]\n  N2{"Node 2"}\n  N6["Node 6"]\n  N5 ---> N3\n  N0 --->|"no"| N1\n  N0 --->|"one<br/>two<br/>three"| N5\n  N6 ---> N0\n  N3 ==> N5\n  N6 -.->|"yes"| N0',
+  ]
+  test.each(sources)('%s', source => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
+    const crossings: string[] = []
+    pass.run = context => {
+      run(context)
+      const nodes = new Map(context.nodes.map(node => [node.id, node]))
+      for (const edge of context.edges) for (const id of new Set([edge.source, edge.target])) {
+        const node = nodes.get(id)!
+        // One pixel inside the frame: a contact on the outline is not a crossing.
+        const body = { ...node, x: node.x + 1, y: node.y + 1, width: node.width - 2, height: node.height - 2 }
+        if (edge.points.slice(1).some((b, i) => segmentThroughShape(edge.points[i]!, b, body))) crossings.push(`${edge.source}->${edge.target} through ${id}`)
+      }
+    }
+    try { layoutGraphSync(parseMermaid(source)) } finally { pass.run = run }
+    expect(crossings).toEqual([])
   })
 })
