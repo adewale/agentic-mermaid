@@ -1127,3 +1127,13 @@ describe('layer alignment keeps the route clearance', () => {
     expect(findings.filter(finding => finding.kind !== 'cornerEnd').map(finding => finding.detail)).toEqual([])
   })
 })
+
+// ELK can attach an edge to a group at a corner of its frame, so the route
+// continues the frame's other side (zombie-mermaid#2110: Cluster->X and
+// Cluster->Y; mermaid#2793: t->Rollback). Extraction slides such an end along
+// its side, clear of the corner.
+test.each(['zombie-mermaid-2110', 'mermaid-2793'])('%s: edges from a group leave its side, not a corner', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
+  const findings = rubric.routeClearanceFindings(positioned.edges, rubric.clearanceBoxes(positioned))
+  expect(findings.filter(finding => finding.kind === 'cornerEnd').map(finding => finding.detail)).toEqual([])
+})

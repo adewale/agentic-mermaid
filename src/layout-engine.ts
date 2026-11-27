@@ -57,6 +57,7 @@ import {
   collapseTinyBundledHitches,
   equalizePeerNodeDimensions,
   extractEdgesRecursively,
+  keepGroupEndsOffCorners,
   honorLinkRankDistance,
   markCorankFanInBundles,
   repairInwardEndpointApproaches,
@@ -1356,6 +1357,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: [], mutates: ['extract'],
     run: c => {
       extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
+      keepGroupEndsOffCorners(c.edges, c.groups, c.nodes)
       retainGraphText(c, c.style)
       seatLabelsOnOwnRoutes(c, c.style)
     },
