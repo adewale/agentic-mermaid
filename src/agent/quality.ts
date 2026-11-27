@@ -9,6 +9,12 @@ import { renderedPaintCertification } from '../scene/paint-certification.ts'
 // What's measured:
 //   - edgeCrossings: visible proper crossing incidences per edge pair/location
 //     (excluding endpoint contacts and shared collinear ink). Lower is better.
+//   - routeContacts: visible edge pairs sharing no endpoint whose ink meets
+//     other than in a proper crossing (a shared corner, a T-junction, a shared
+//     run). Each hides at least one crossing; checkQuality counts it as one.
+//   - routeClearance: runs within the route clearance of a border the edge
+//     does not attach to, end shafts too short or along their face, and ends
+//     at a box corner.
 //   - labelLegibility: fraction of measured visible node labels that fit their
 //     retained available region. Missing evidence is reported separately.
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
@@ -25,9 +31,9 @@ import { renderedPaintCertification } from '../scene/paint-certification.ts'
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
 import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from '../shared/color-math.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { countPolylineCrossings, measureRouteContacts, type RouteContacts } from '../shared/edge-crossings.ts'
 import { measureRenderedLabelConflicts, type LabelConflictCounts } from '../layout/label-conflicts.ts'
-import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps, routeClearanceFindings } from '../layout-rubric.ts'
 
 export interface QualityMetrics {
   /** Evidence from the actual native paint projection, when this layout retains it. */
@@ -54,6 +60,17 @@ export interface QualityMetrics {
    * from proper crossings; hiding a crossing in shared ink is not a win.
    * Parallel excludes self-loops, matching the existing route rubric. */
   routeOverlaps?: { parallel: number; opposing: number }
+  /** Visible edge pairs that share no endpoint yet whose ink meets other than
+   * in a proper crossing: at a shared corner, a T-junction or within a stroke
+   * (`touches`), or along a shared near-collinear run (`overlaps`). Either
+   * reads as a junction, so the drawing shows edges that do not exist. Each
+   * is at least as costly as the crossing it hides. */
+  routeContacts?: RouteContacts
+  /** Route clearance from boxes, by the rubric's `routeClearanceFindings`:
+   * runs within the clearance of a node or group border the edge does not
+   * attach to, end shafts shorter than the clearance or not perpendicular to
+   * their face, and ends within the clearance of a box corner. */
+  routeClearance?: { borderRuns: number; terminalShafts: number; cornerEnds: number }
   /** Raw visible polyline geometry, without subjective bundle/bend exemptions. */
   routeGeometry?: { bends: number; length: number; area: number }
   minimumNodeSpacing: number  // pixels; Infinity when fewer than two nodes
@@ -241,6 +258,8 @@ export function measureQuality(
     labelEdgeProximity: measureLabelEdgeProximity(layout),
     ...(labelConflicts ? { labelConflicts } : {}),
     routeOverlaps: { parallel: countParallelRouteOverlaps(graphEdges), opposing: countOpposingRouteOverlaps(graphEdges) },
+    routeContacts: measureRouteContacts(graphEdges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible', ends: [edge.source, edge.target] }))),
+    routeClearance: measureRouteClearance(layout, graphEdges),
     routeGeometry: { bends, length, area: layout.bounds.w * layout.bounds.h },
     minimumNodeSpacing: measureMinimumNodeSpacing(layout),
     elementDensity: measureElementDensity(layout),
@@ -249,6 +268,16 @@ export function measureQuality(
     nodeCount: layout.nodes.length,
     edgeCount: layout.edges.length,
   }
+}
+
+function measureRouteClearance(layout: RenderedLayout, edges: Parameters<typeof routeClearanceFindings>[0]): NonNullable<QualityMetrics['routeClearance']> {
+  const boxes = [
+    ...layout.nodes.map(node => ({ id: node.id, x: node.x, y: node.y, width: node.w, height: node.h })),
+    ...layout.groups.map(group => ({ id: group.id, x: group.x, y: group.y, width: group.w, height: group.h, group: true })),
+  ]
+  const counts = { borderRuns: 0, terminalShafts: 0, cornerEnds: 0 }
+  for (const finding of routeClearanceFindings(edges, boxes)) counts[`${finding.kind}s` as const]++
+  return counts
 }
 
 export interface RankedViolation {
@@ -281,8 +310,10 @@ export function checkQuality(
   if (m.paintCertification && m.paintCertification.status !== 'passed') flag('paintCertification', `paint layout ${m.paintCertification.status}: ${m.paintCertification.issues.map(issue => issue.message).join('; ')}`)
   const visibleEdges = layout.edges.reduce((count, edge) => count + (edge.visibility === 'hidden' ? 0 : 1), 0)
   const pairs = Math.max(1, visibleEdges * (visibleEdges - 1) / 2)
-  if (m.edgeCrossings / pairs > b.maxCrossingsRatio) {
-    flag('edgeCrossings', `edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
+  // A contact between unrelated routes hides at least one crossing.
+  const contacts = (m.routeContacts?.touches ?? 0) + (m.routeContacts?.overlaps ?? 0), crossings = m.edgeCrossings + contacts
+  if (crossings / pairs > b.maxCrossingsRatio) {
+    flag('edgeCrossings', `edge crossings ${m.edgeCrossings}${contacts ? ` + ${contacts} unrelated contacts` : ''}/${pairs} (${(crossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
   }
   if (m.labelLegibility < b.minLabelLegibility) {
     flag('labelLegibility', `label legibility ${(m.labelLegibility * 100).toFixed(0)}% < min ${(b.minLabelLegibility * 100).toFixed(0)}%`)

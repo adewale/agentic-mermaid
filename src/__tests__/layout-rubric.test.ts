@@ -14,7 +14,9 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../layout-rubric.ts'
+import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeClearanceFindings, routeMissesShapeBox, segmentThroughShape, type ClearanceBox } from '../layout-rubric.ts'
+import { measureQuality } from '../agent/quality.ts'
+import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphReachability } from '../layout/geometry.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 
@@ -32,6 +34,45 @@ it('peer topology preserves direction and cycles across reused traversal storage
     ] as const) expect(reaches(from, to)).toBe(expected)
   }
 })
+// Geometry certification passed drawings that read wrongly: E->F drawn along
+// node I's top border reads as E->I (mermaid-4458), and Cluster->Y arriving
+// through a 0.8px shaft lies its arrowhead along Log's border
+// (zombie-mermaid-2110). Clearance is measured from final geometry.
+describe('route clearance from borders, faces and corners', () => {
+  // A at the left, B at the right, I between them; G frames I.
+  const boxes: ClearanceBox[] = [
+    { id: 'A', x: 0, y: 100, width: 60, height: 40 },
+    { id: 'B', x: 300, y: 100, width: 60, height: 40 },
+    { id: 'I', x: 140, y: 100, width: 80, height: 40 },
+    { id: 'G', x: 120, y: 80, width: 120, height: 80, group: true },
+  ]
+  const edge = (points: Array<[number, number]>, source = 'A', target = 'B') => ({ source, target, style: 'solid' as 'solid' | 'invisible', points: points.map(([x, y]) => ({ x, y })) })
+  it.each<{ name: string; route: ReturnType<typeof edge>; findings: string[] }>([
+    { name: 'clear route', route: edge([[60, 120], [300, 120]], 'A', 'B'), findings: [] },
+    { name: 'run 0.8px above a node it does not attach to', route: edge([[30, 100], [30, 50], [100, 50], [100, 70], [180, 70], [180, 99.2], [330, 99.2], [330, 100]]), findings: ['borderRun:I', 'terminalShaft:B'] },
+    { name: 'run a clearance from a node and its group frame', route: edge([[30, 100], [30, 60], [330, 60], [330, 100]]), findings: [] },
+    { name: 'run inside a group along its frame', route: edge([[30, 140], [30, 150], [100, 150], [100, 159], [270, 159], [270, 150], [330, 150], [330, 140]]), findings: ['borderRun:G'] },
+    { name: 'arrival along its own face', route: edge([[60, 120], [100, 120], [100, 170], [310, 170], [310, 140], [320, 140]]), findings: ['terminalShaft:B'] },
+    { name: 'arrival through a 0.8px shaft', route: edge([[60, 120], [100, 120], [100, 170], [310, 170], [310, 140.8], [320, 140.8], [320, 140]]), findings: ['terminalShaft:B'] },
+    { name: 'departure from a corner', route: edge([[60, 140], [100, 140], [100, 170], [330, 170], [330, 140]]), findings: ['cornerEnd:A'] },
+    { name: 'lollipop stem into its own box', route: edge([[30, 140], [30, 180], [330, 180], [330, 100]]), findings: [] },
+    { name: 'self-loop beside its corner', route: edge([[60, 102], [80, 102], [80, 80], [40, 80], [40, 100]], 'A', 'A'), findings: [] },
+    { name: 'hidden route along a border', route: { ...edge([[30, 100], [30, 99.5], [330, 99.5], [330, 100]]), style: 'invisible' as const }, findings: [] },
+  ])('$name', ({ route, findings }) => {
+    expect(routeClearanceFindings([route], boxes).map(finding => `${finding.kind}:${finding.box}`).sort()).toEqual(findings.sort())
+  })
+
+  it('public quality and the rubric count the same findings', () => {
+    const positioned = {
+      width: 400, height: 200, groups: [],
+      nodes: boxes.filter(box => !box.group).map(box => ({ id: box.id, label: box.id, shape: 'rectangle' as const, x: box.x, y: box.y, width: box.width, height: box.height })),
+      edges: [{ ...edge([[30, 100], [30, 50], [100, 50], [100, 70], [180, 70], [180, 99.2], [330, 99.2], [330, 100]]), hasArrowStart: false, hasArrowEnd: true }],
+    }
+    expect(measureQuality(positionedToRenderedLayout(positioned, 'flowchart')).routeClearance).toEqual({ borderRuns: 1, terminalShafts: 1, cornerEnds: 0 })
+    expect(assessLayout(parseMermaid('flowchart LR\nA --> B\nI'), positioned).metrics).toMatchObject({ borderRuns: 1, terminalShafts: 1, cornerEnds: 0 })
+  })
+})
+
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'

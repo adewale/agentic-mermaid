@@ -24,7 +24,7 @@ import { resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
-import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { countPolylineCrossings, measureRouteContacts } from './shared/edge-crossings.ts'
 import { graphReachability } from './layout/geometry.ts'
 import { hasConstructedBundleRoute } from './layout/bundle-routes.ts'
 import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
@@ -107,6 +107,20 @@ export interface RubricMetrics {
   labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
+  /** Edge pairs sharing no endpoint whose ink meets other than in a proper
+   * crossing: a shared corner or T-junction reads as two edges that do not
+   * exist, and a shared run hides which edge owns it. Each hides at least
+   * one crossing. Measured, not yet hard: the graph pipeline still draws
+   * them (measureRouteContacts). */
+  routeContacts: number
+  /** Runs within ROUTE_BORDER_CLEARANCE of a node or group border the edge
+   * does not attach to. Measured, not yet hard (routeClearanceFindings). */
+  borderRuns: number
+  /** Ends whose shaft out of their face is shorter than the clearance or
+   * runs along that face. Measured, not yet hard. */
+  terminalShafts: number
+  /** Ends within the clearance of a box corner. Measured, not yet hard. */
+  cornerEnds: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
    *  bends (bundle-certified fan-out/fan-in spokes): those are "as good as
    *  straight", the same edges findRouteHitches treats as non-hitches. */
@@ -340,6 +354,124 @@ export function countParallelRouteOverlaps(edges: readonly InkEdge[], involved?:
   return overlaps
 }
 
+/** Distance a route keeps from every border it does not attach to, the
+ * length an end's shaft runs straight out of its face, and the distance an
+ * end keeps from a corner: the graph router's lane clearance. */
+export const ROUTE_BORDER_CLEARANCE = 4
+/** A run beside a border shorter than this is a corner graze, not a run. */
+const BORDER_RUN = 6
+/** Slack under the clearance for rounding in published coordinates. */
+const CLEARANCE_SLACK = 0.02
+/** An end this close to a box side line lies on that side. */
+const ON_SIDE = 1
+
+/** A node or group box, by the id edges use for their ends. */
+export interface ClearanceBox { readonly id: string; readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly group?: boolean }
+
+export interface RouteClearanceFinding {
+  /** `borderRun`: a run within the clearance of a border the route does not
+   * attach to (outside a node; on either side of a group frame).
+   * `terminalShaft`: an end whose straight shaft out of its face is shorter
+   * than the clearance or runs along that face, so its marker lies along the
+   * border or across the next bend. `cornerEnd`: an end within the
+   * clearance of a box corner, where its face cannot be read. */
+  readonly kind: 'borderRun' | 'terminalShaft' | 'cornerEnd'
+  readonly edge: number
+  readonly box: string
+  readonly detail: string
+}
+
+/**
+ * Route-to-border clearance over final geometry. A route drawn on or beside
+ * a box it does not attach to reads as attached to it (E→F along node I's top
+ * reads as E→I), and an arrival lying along its target's border or into its
+ * corner hides which face it enters. Boxes are measured by their bounds.
+ */
+export function routeClearanceFindings(edges: readonly InkEdge[], boxes: readonly ClearanceBox[]): RouteClearanceFinding[] {
+  const findings: RouteClearanceFinding[] = []
+  const limit = ROUTE_BORDER_CLEARANCE - CLEARANCE_SLACK
+  const byId = new Map<string, ClearanceBox>()
+  for (const box of boxes) if (!byId.has(box.id) || !box.group) byId.set(box.id, box)
+  edges.forEach((edge, index) => {
+    if (edge.style === 'invisible' || edge.points.length < 2) return
+    const name = `${edge.source}->${edge.target}`
+    const bounds = routeBounds(edge.points)
+    for (const box of boxes) {
+      if (box.id === edge.source || box.id === edge.target) continue
+      if (bounds.maxX < box.x - limit || bounds.minX > box.x + box.width + limit || bounds.maxY < box.y - limit || bounds.minY > box.y + box.height + limit) continue
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        const horizontal = Math.abs(a.y - b.y) <= 0.01, vertical = Math.abs(a.x - b.x) <= 0.01
+        if (horizontal === vertical) continue
+        const at = horizontal ? a.y : a.x, lo = horizontal ? box.y : box.x, hi = lo + (horizontal ? box.height : box.width)
+        const from = horizontal ? box.x : box.y, to = from + (horizontal ? box.width : box.height)
+        const run = Math.min(Math.max(horizontal ? a.x : a.y, horizontal ? b.x : b.y), to) - Math.max(Math.min(horizontal ? a.x : a.y, horizontal ? b.x : b.y), from)
+        if (run <= BORDER_RUN) continue
+        // Inside a node is a route through it (edgeThroughNode owns that);
+        // inside a group a run along its frame still reads as the frame.
+        const gap = at <= lo ? lo - at : at >= hi ? at - hi : box.group ? Math.min(at - lo, hi - at) : Infinity
+        if (gap >= limit) continue
+        findings.push({ kind: 'borderRun', edge: index, box: box.id, detail: `${name} runs ${gap.toFixed(1)}px from ${box.id}'s border for ${run.toFixed(0)}px` })
+        break
+      }
+    }
+    // Ends of orthogonal routes only: a diagonal or curved family route has
+    // no axis shaft, and a self-loop's arc is drawn beside its own corner.
+    if (edge.source === edge.target) return
+    for (const [id, points] of [[edge.source, edge.points], [edge.target, [...edge.points].reverse()]] as const) {
+      const box = byId.get(id)
+      if (!box) continue
+      const end = points[0]!
+      let k = 1
+      while (k < points.length && Math.hypot(points[k]!.x - end.x, points[k]!.y - end.y) <= 0.01) k++
+      if (k === points.length) continue
+      const first = points[k]!, length = Math.hypot(first.x - end.x, first.y - end.y)
+      if (Math.abs(first.x - end.x) > 0.01 && Math.abs(first.y - end.y) > 0.01) continue
+      const sides = [
+        { gap: Math.abs(end.x - box.x), normal: { x: -1, y: 0 }, along: end.y, from: box.y, to: box.y + box.height },
+        { gap: Math.abs(end.x - box.x - box.width), normal: { x: 1, y: 0 }, along: end.y, from: box.y, to: box.y + box.height },
+        { gap: Math.abs(end.y - box.y), normal: { x: 0, y: -1 }, along: end.x, from: box.x, to: box.x + box.width },
+        { gap: Math.abs(end.y - box.y - box.height), normal: { x: 0, y: 1 }, along: end.x, from: box.x, to: box.x + box.width },
+      ].filter(side => side.gap <= ON_SIDE && side.along >= side.from - ON_SIDE && side.along <= side.to + ON_SIDE)
+      // An end off its box's bounds (a curved outline, a lifeline) has no face to measure.
+      const face = sides[0]
+      if (!face) continue
+      const verb = id === edge.source ? 'leaves' : 'enters'
+      const fromCorner = Math.min(face.along - face.from, face.to - face.along)
+      if (fromCorner < limit) {
+        findings.push({ kind: 'cornerEnd', edge: index, box: id, detail: `${name} ${verb} ${id} ${fromCorner.toFixed(1)}px from its corner` })
+        continue
+      }
+      const direction = { x: (first.x - end.x) / length, y: (first.y - end.y) / length }
+      let shaft = length
+      for (let j = k + 1; j < points.length; j++) {
+        const p = points[j - 1]!, q = points[j]!, span = Math.hypot(q.x - p.x, q.y - p.y)
+        if (span <= 0.01) continue
+        if (Math.abs((q.x - p.x) / span - direction.x) > 1e-6 || Math.abs((q.y - p.y) / span - direction.y) > 1e-6) break
+        shaft += span
+      }
+      // A shaft into the box (a lollipop's stem) is the outline checks' case.
+      const outward = direction.x * face.normal.x + direction.y * face.normal.y
+      if (outward < -1e-6) continue
+      const tangent = outward < 1 - 1e-6
+      if (tangent || shaft < limit) {
+        findings.push({ kind: 'terminalShaft', edge: index, box: id, detail: `${name} ${verb} ${id} ${tangent ? 'along its face' : `with a ${shaft.toFixed(1)}px shaft`}` })
+      }
+    }
+  })
+  return findings
+}
+
+
+/** Every node and (nested) group of a positioned graph as a clearance box. */
+export function clearanceBoxes(positioned: Pick<PositionedGraph, 'nodes' | 'groups'>): ClearanceBox[] {
+  const boxes: ClearanceBox[] = positioned.nodes.map(node => ({ id: node.id, x: node.x, y: node.y, width: node.width, height: node.height }))
+  const visit = (groups: readonly PositionedGroup[]): void => {
+    for (const group of groups) { boxes.push({ id: group.id, x: group.x, y: group.y, width: group.width, height: group.height, group: true }); visit(group.children) }
+  }
+  visit(positioned.groups)
+  return boxes
+}
 
 export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'edges'>, visibleOnly = false): number {
   const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
@@ -642,6 +774,9 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
   }
 
   const crossings = withSoftMetrics ? countEdgeCrossings(positioned.edges) : 0
+  const contacts = withSoftMetrics ? measureRouteContacts(positioned.edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible', ends: [edge.source, edge.target] }))) : { touches: 0, overlaps: 0 }
+  const clearance = { borderRun: 0, terminalShaft: 0, cornerEnd: 0 }
+  if (withSoftMetrics) for (const finding of routeClearanceFindings(positioned.edges, clearanceBoxes(positioned))) clearance[finding.kind]++
 
   let nodeOverlaps = 0
   for (let i = 0; i < positioned.nodes.length; i++) {
@@ -679,6 +814,10 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       indistinctOccurrences: indistinct.length,
       labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
+      routeContacts: contacts.touches + contacts.overlaps,
+      borderRuns: clearance.borderRun,
+      terminalShafts: clearance.terminalShaft,
+      cornerEnds: clearance.cornerEnd,
       totalBends,
       maxBendsPerEdge: maxBends,
       portEndpointRate: portEndpointRate(positioned),
