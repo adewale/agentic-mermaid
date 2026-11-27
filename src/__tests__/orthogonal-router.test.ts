@@ -5,7 +5,7 @@
 
 import { expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { COST_LIMIT_SLACK, routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
+import { COST_LIMIT_SLACK, orthogonalFallback, routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const box = { x0: 100, y0: 0, x1: 200, y1: 100 }
@@ -212,4 +212,37 @@ test('a cost limit keeps the route within it and drops a costlier one', () => {
     expect(routeOrthogonal({ ...input, costLimit: cost })).toEqual(route)
     expect(routeOrthogonal({ ...input, costLimit: cost - COST_LIMIT_SLACK - 1 })).toBeUndefined()
   }), fcParameters({ numRuns: 300 }))
+})
+
+// A family's last resort, where no clear route exists, still draws an
+// orthogonal connector that leaves and arrives through its ports: along a
+// listed direction for at least its stub, whatever side of the start the end
+// lies on, and turning only at right angles.
+type FallbackRequest = { start: RouterPoint; end: RouterPoint; stub: [number, number]; exit: RouterDirection | RouterDirection[]; entry: RouterDirection | RouterDirection[] }
+const fallbackRequest: fc.Arbitrary<FallbackRequest> = fc.record({
+  start: point, end: point, stub: fc.tuple(fc.constantFrom(0, 10, 20), fc.constantFrom(0, 10, 20)),
+  exit: fc.oneof(heading, fc.uniqueArray(heading, { minLength: 1, maxLength: 4 })),
+  entry: fc.oneof(heading, fc.uniqueArray(heading, { minLength: 1, maxLength: 4 })),
+}).filter(input => input.start.x !== input.end.x || input.start.y !== input.end.y)
+test('the last-resort route is orthogonal and leaves and arrives along its ports past the stubs', () => {
+  const direction = (a: RouterPoint, b: RouterPoint): RouterDirection => (a.x === b.x ? (b.y > a.y ? 'S' : 'N') : b.x > a.x ? 'E' : 'W')
+  const horizontal = (d: RouterDirection) => d === 'E' || d === 'W'
+  const run = (a: RouterPoint, b: RouterPoint) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+  fc.assert(fc.property(fallbackRequest, ({ start, end, stub, exit, entry }) => {
+    const route = orthogonalFallback({ start, end, stub, exit, entry })
+    expect([route[0], route.at(-1)]).toEqual([start, end])
+    for (let k = 1; k < route.length; k++) {
+      const a = route[k - 1]!, b = route[k]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      expect(run(a, b)).toBeGreaterThan(0)
+      if (k > 1) expect(horizontal(direction(route[k - 2]!, a))).not.toBe(horizontal(direction(a, b)))
+    }
+    expect(typeof exit === 'string' ? [exit] : exit).toContain(direction(route[0]!, route[1]!))
+    expect(typeof entry === 'string' ? [entry] : entry).toContain(direction(route.at(-2)!, route.at(-1)!))
+    expect(run(route[0]!, route[1]!)).toBeGreaterThanOrEqual(stub[0])
+    expect(run(route.at(-2)!, route.at(-1)!)).toBeGreaterThanOrEqual(stub[1])
+  }), fcParameters<[FallbackRequest]>({ numRuns: 500, examples: [
+    // The end stub's tip is the start, which has no stub of its own.
+    [{ start: { x: 130, y: 30 }, end: { x: 140, y: 30 }, stub: [0, 10], exit: ['N'], entry: ['E'] }],
+  ] }))
 })

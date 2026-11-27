@@ -1,5 +1,5 @@
 import { LayoutCertificationError } from '../layout/certification-error.ts'
-import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { orthogonalFallback, routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import type { LayoutCertificationViolation } from '../layout/uncertified-layout.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -345,7 +345,7 @@ function routeGitGraphEdges(
     }
     // Nothing clear: draw the preferred shape anyway, so certification
     // names what it passes.
-    return fallback ?? routeOrthogonal(request)?.map(point => ({ x: point.x, y: point.y })) ?? [start, point(nearSource[0]!, across(from)), point(nearSource[0]!, across(to)), end]
+    return (fallback ?? routeOrthogonal(request) ?? orthogonalFallback(request)).map(point => ({ x: point.x, y: point.y }))
   }
   // Same-lane links are fixed; branch-offs choose before merges and
   // cherry-picks, which have more freedom. Output keeps relation order.

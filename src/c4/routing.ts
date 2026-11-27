@@ -5,7 +5,7 @@ import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGra
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
 import { simplifyPolyline, applyRouteContracts, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
-import { routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { orthogonalFallback, routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
@@ -218,7 +218,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     }
     // Leads that end against another card leave no clear route; draw the
     // plainest orthogonal one rather than none.
-    route ??= routeOrthogonal({ ...request, obstacles: physical }) ?? routeOrthogonal({ ...request, obstacles: [] }) ?? [start, end]
+    route ??= routeOrthogonal({ ...request, obstacles: physical }) ?? routeOrthogonal({ ...request, obstacles: [] }) ?? orthogonalFallback(request)
     edge.points = simplifyPolyline(route.map(point => ({ x: point.x, y: point.y })))
     routed.set(edge, edge.points.map(point => ({ ...point })))
     for (let at = 1; at < edge.points.length; at++) drawn.push([edge.points[at - 1]!, edge.points[at]!])

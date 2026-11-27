@@ -1,5 +1,5 @@
 import { blockMarkers, blockMarkerTerminal } from './markers.ts'
-import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { orthogonalFallback, routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'
@@ -220,7 +220,7 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     // A stub keeps the first and last runs visible; cells packed closer than
     // that still route, from the faces themselves.
     let points: Point[] = (routeOrthogonal({ ...request, stub: BLOCK_STUB }) ?? routeOrthogonal(request)
-      ?? routeOrthogonal({ ...request, obstacles: [] }) ?? routeOrthogonal({ ...request, obstacles: [], via: [] }) ?? [from, to]).map(point => ({ x: point.x, y: point.y }))
+      ?? routeOrthogonal({ ...request, obstacles: [] }) ?? routeOrthogonal({ ...request, obstacles: [], via: [] }) ?? orthogonalFallback({ ...request, stub: BLOCK_STUB })).map(point => ({ x: point.x, y: point.y }))
     outgoingContacts.add(contactKey(source.id, points[0]!))
     incomingContacts.add(contactKey(target.id, points.at(-1)!))
     points = simplifyPolyline(points)

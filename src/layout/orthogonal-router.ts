@@ -700,3 +700,33 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // Drop interior points made collinear by attaching the stubs.
   return withoutCollinear([start, ...corners, end].filter((point, k, all) => k === 0 || !samePoint(point, all[k - 1]!)))
 }
+
+/** How far beside each stub tip the last-resort route may turn. */
+const FALLBACK_DETOUR = 16
+/** The shortest lead the last-resort route draws, so it leaves and arrives
+ * along its ports even where the other endpoint's stub tip is its own
+ * endpoint (a route there would take no step from it). */
+const FALLBACK_LEAD = 1
+
+/** A family's last resort where no clear route exists: the request's
+ * fewest-bend orthogonal route through nothing at all. It keeps the
+ * endpoints, the exit and entry directions, the stubs (at least
+ * `FALLBACK_LEAD` long) and the family's line costs, and drops the
+ * obstacles, drawn routes, via points and minimum run; lines a detour beside
+ * each stub tip let it turn back toward an endpoint behind the other, so a
+ * route always exists. */
+export function orthogonalFallback(request: Pick<OrthogonalRouteRequest, 'start' | 'end' | 'exit' | 'entry' | 'stub' | 'channels' | 'bendCost' | 'lineCosts'>): RouterPoint[] {
+  const { start, end, exit, entry, stub } = request
+  const [startStub, endStub] = (typeof stub === 'object' ? stub : [stub ?? 0, stub ?? 0]).map(length => Math.max(length, FALLBACK_LEAD)) as [number, number]
+  const exits = typeof exit === 'string' ? [exit] : exit, entries = typeof entry === 'string' ? [entry] : entry
+  const tips = [...exits.map(d => ({ x: start.x + STEP[d].x * startStub, y: start.y + STEP[d].y * startStub })), ...entries.map(d => ({ x: end.x - STEP[d].x * endStub, y: end.y - STEP[d].y * endStub }))]
+  const beside = (values: readonly number[]) => values.flatMap(value => [value - FALLBACK_DETOUR, value + FALLBACK_DETOUR])
+  const route = routeOrthogonal({
+    start, end, exit, entry, stub: [startStub, endStub], obstacles: [], clearance: 0,
+    channels: { x: [...request.channels?.x ?? [], ...beside(tips.map(tip => tip.x))], y: [...request.channels?.y ?? [], ...beside(tips.map(tip => tip.y))] },
+    ...(request.bendCost === undefined ? {} : { bendCost: request.bendCost }),
+    ...(request.lineCosts ? { lineCosts: request.lineCosts } : {}),
+  })
+  if (!route) throw new Error('orthogonalFallback: an unobstructed grid with lines beside both stub tips always routes')
+  return route
+}

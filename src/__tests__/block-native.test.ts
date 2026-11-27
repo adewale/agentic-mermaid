@@ -403,6 +403,21 @@ describe('native block', () => {
         expect(svg).toContain('marker-end="url(#block-arrow-end)"')
       }
   })
+  test('a link with no clear route still leaves and arrives through its faces at right angles', () => {
+    // Without padding the cells touch: d's west face, which lies behind a's
+    // east face, has no room for a stub, so every routed attempt fails and
+    // the last resort draws the link.
+    const source = '---\nconfig:\n  block:\n    padding: 0\n---\nblock-beta\ncolumns 3\na:3\nb c d\na --- d',
+      p = positionResolvedFamily('block', resolveRenderRequestForExecution(source, {}, 'svg')).positioned as PositionedBlockDiagram,
+      a = p.nodes.find(node => node.id === 'a')!,
+      d = p.nodes.find(node => node.id === 'd')!,
+      points = p.edges[0]!.points
+    for (let i = 1; i < points.length; i++) expect(points[i - 1]!.x === points[i]!.x || points[i - 1]!.y === points[i]!.y).toBe(true)
+    expect(points[0]).toEqual({ x: a.x + a.width, y: a.y + a.height / 2 })
+    expect([points[1]!.y, points[1]!.x > points[0]!.x]).toEqual([points[0]!.y, true])
+    expect(points.at(-1)).toEqual({ x: d.x, y: d.y + d.height / 2 })
+    expect([points.at(-2)!.y, points.at(-2)!.x < d.x]).toEqual([points.at(-1)!.y, true])
+  })
   test('reciprocal and parallel labeled links occupy distinct clear routes without moving authored cells', () => {
     for (const columns of [1, 2]) {
       const cells = `block\ncolumns ${columns}\nA["API"] B["Database"]`,
