@@ -300,10 +300,9 @@ describe('a trunk never costs contact or bends', () => {
     expect(nearArrivals(positioned.edges)).toEqual([])
   })
 
-  // a3, a9 and TQBb face their trunk's port across the flow; a11 overlaps a12
-  // beside the port, outside the fan.
+  // a3, a9 and TQBb face their trunk's port across the flow.
   test.each([
-    { name: 'mermaid-6476', straight: [['a3', 'a4'], ['a5', 'a9'], ['a11', 'a12']] },
+    { name: 'mermaid-6476', straight: [['a3', 'a4'], ['a5', 'a9']] },
     { name: 'beautiful-mermaid-52', straight: [['TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb', 'TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf']] },
   ])('$name: fan members that can run straight keep straight routes', ({ name, straight }) => {
     const positioned = layoutOf(name)

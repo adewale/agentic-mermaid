@@ -1,0 +1,11 @@
+%% A layer snap never shortens a terminal shaft below its clearance: https://github.com/dfadler/zombie-mermaid/issues/2110
+flowchart TD
+  In[Request] --> A
+  subgraph Cluster
+    A --> B
+    B --> C
+  end
+  Cluster --> X[Cache]
+  Cluster --> Y[Log]
+  B --> Z[Audit]
+  C --> W[Reply]

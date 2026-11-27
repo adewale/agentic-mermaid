@@ -1114,3 +1114,16 @@ describe('the finished positioned graph', () => {
     for (const edit of edits) expect(edit).toThrow(TypeError)
   })
 })
+
+// Layer alignment snaps a staggered layer onto one line after routing. It
+// may not bring a foreign route within the route clearance of a moved box
+// (mermaid#4458: E->F ran 0.7px above Node I's top border and read as E->I),
+// nor leave a terminal shaft shorter than the clearance by moving only its
+// endpoint (zombie-mermaid#2110: Cluster->Y ended in a 0.8px shaft).
+describe('layer alignment keeps the route clearance', () => {
+  test.each(['mermaid-4458', 'zombie-mermaid-2110'])('%s: no border run or short terminal shaft', name => {
+    const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
+    const findings = rubric.routeClearanceFindings(positioned.edges, rubric.clearanceBoxes(positioned))
+    expect(findings.filter(finding => finding.kind !== 'cornerEnd').map(finding => finding.detail)).toEqual([])
+  })
+})
