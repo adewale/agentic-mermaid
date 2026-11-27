@@ -76,7 +76,7 @@ import {
   sharedTrunkConflict,
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind, shortenFeedbackRoute } from './layout/route-feedback.ts'
-import { createSelfLoopRouter } from './layout/route-self-loops.ts'
+import { createSelfLoopRouter, routeMeetsSelfLoop } from './layout/route-self-loops.ts'
 import { ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
 import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
@@ -792,7 +792,9 @@ export function applyRouteContracts(
   const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx, loopMarkerBlockers, reservedLoops)
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
+  const produced = new Map<PositionedEdge, Point[]>()
   for (const edge of positioned.edges) {
+    produced.set(edge, edge.points)
     const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     let normalized = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
     const source = sourceOf(edge), target = targetOf(edge)
@@ -894,6 +896,30 @@ export function applyRouteContracts(
     }
 
     drafts.push({ edge, cert })
+  }
+
+  // A self-loop owns the region between its arc and its node's face. Edges
+  // are proved in source order, so a route repaired before a later loop was
+  // allocated can now leave through it. Such a route is proved again from
+  // its produced route, which met no loop, now that the loop's crossing
+  // counts against every candidate.
+  for (const draft of drafts) {
+    const { edge } = draft
+    if (edge.source === edge.target || edge.style === 'invisible' || bundled.has(edge) || draft.cert.routeClass !== 'primary-forward' && draft.cert.routeClass !== 'feedback') continue
+    const loopsMet = (points: readonly Point[]) => [...reservedLoops].some(loop => routeMeetsSelfLoop(loop.points, points))
+    const original = produced.get(edge)!
+    if (!loopsMet(edge.points) || loopsMet(original)) continue
+    const current = edge.points, label = edge.labelPosition, cert = { ...draft.cert }
+    setRoutePoints(ctx, edge, original)
+    draft.cert.invariant = 'straight'
+    const r = attemptStraighten(edge, draft.cert)
+    if (loopsMet(edge.points)) {
+      setRoutePoints(ctx, edge, current)
+      edge.labelPosition = label
+      Object.assign(draft.cert, cert)
+      continue
+    }
+    if ((!r.applied || r.upgradeable) && !retry.some(item => item.edge === edge)) retry.push(draft)
   }
 
   // Fixed point: each round re-proves edges that failed OR landed on a
@@ -2212,6 +2238,13 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
       if (edgeLabel && otherLabel && edgeLabel.x < otherLabel.x + otherLabel.w && edgeLabel.x + edgeLabel.w > otherLabel.x && edgeLabel.y < otherLabel.y + otherLabel.h && edgeLabel.y + edgeLabel.h > otherLabel.y) {
         findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'label-label' })
       }
+    }
+    // No other route crosses the loop or runs inside it, at its start, at
+    // its end or along the way. (A composite's loop is drawn round its
+    // frame, which holds its own routes.)
+    if (node) for (const other of positioned.edges) {
+      if (other.source === other.target || other.style === 'invisible' || edge.style === 'invisible') continue
+      if (routeMeetsSelfLoop(edge.points, other.points)) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'route-route' })
     }
     const ownLabel = labelRect(edge, style)
     if (ownLabel) {

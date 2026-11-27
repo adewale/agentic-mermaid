@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
@@ -2151,6 +2152,45 @@ describe('edge-targeted findings name the edge the edge operations resolve', () 
       expect(edgesOf('ROUTE_SELF_CROSS')).toEqual([...ids].sort())
       expect(findings.flatMap(f => (f.code === 'LABEL_OVERFLOW' ? [f.target] : [])).sort()).toEqual(ids.filter((_, i) => graph.edges[i]!.label === 'x'.repeat(41)).sort())
     }), fcParameters({ numRuns: 25, examples: [[['one', 'two', 'x'.repeat(41)], ['x'.repeat(41), 'x'.repeat(41)]]] }))
+  })
+})
+
+// A self-loop owns the region between its arc and its node's face. No other
+// route crosses the arc or runs inside it, at its start, its end or between.
+describe('routes through a foreign self-loop', () => {
+  const through = (findings: ReturnType<typeof auditRouteContracts>) => findings.flatMap(finding =>
+    finding.code === 'ROUTE_SELF_LOOP_OCCUPANCY' && finding.kind === 'route-route' && finding.conflictWith ? [`${finding.conflictWith} through ${finding.edge}`] : [])
+
+  // mermaid-js/mermaid#5060: B->A was tightened onto B's east port before
+  // B->B was allocated, and the loop then took the only side it fitted.
+  it('issue fixture mermaid-5060 leaves no route through a self-loop', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-5060.mmd'), 'utf8')
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    expect(through(auditRouteContracts(positioned, graph))).toEqual([])
+    // The same reading, measured directly: no other route crosses a loop's
+    // arc or enters the box between its arc and its face.
+    const nodes = new Set(positioned.nodes.map(node => node.id))
+    for (const loop of positioned.edges.filter(edge => edge.source === edge.target && nodes.has(edge.source))) {
+      const xs = loop.points.map(point => point.x), ys = loop.points.map(point => point.y)
+      const [x0, x1, y0, y1] = [Math.min(...xs) + 0.01, Math.max(...xs) - 0.01, Math.min(...ys) + 0.01, Math.max(...ys) - 0.01]
+      for (const other of positioned.edges.filter(edge => edge.source !== edge.target)) {
+        expect(countEdgeCrossings([loop, other]), `${other.source}->${other.target}`).toBe(0)
+        expect(other.points.some((b, i) => i > 0 && Math.max(other.points[i - 1]!.x, b.x) > x0 && Math.min(other.points[i - 1]!.x, b.x) < x1
+          && Math.max(other.points[i - 1]!.y, b.y) > y0 && Math.min(other.points[i - 1]!.y, b.y) < y1), `${other.source}->${other.target}`).toBe(false)
+      }
+    }
+  })
+
+  it('the audit names a route that crosses or runs inside a loop it does not own', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> A\n  B --> C')
+    const positioned = editableLayout(graph)
+    const loop = positioned.edges.find(edge => edge.source === edge.target)!
+    expect(through(auditRouteContracts(positioned, graph))).toEqual([])
+    const xs = loop.points.map(point => point.x), ys = loop.points.map(point => point.y)
+    const mid = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
+    const route = positioned.edges.find(edge => edge.source === 'B')!
+    route.points = [{ x: mid.x, y: mid.y }, { x: mid.x, y: mid.y - 500 }]
+    expect(through(auditRouteContracts(positioned, graph))).toEqual(['B->C#0 through A->A#0'])
   })
 })
 

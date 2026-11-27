@@ -273,7 +273,16 @@ C -->|wait| C`
         expect(overlapX > 0 && overlapY > 0, `${edge.label} must not cover ${other.id}`).toBe(false)
       }
     }
-    expect(auditRouteContracts(positioned, graph)).toEqual([])
+    // Two loops nest on each side of the 60x37 card, so the north and south
+    // pairs straddle the through route's port. The audit reports each such
+    // pair, and nothing else.
+    const vertical = loops.filter(edge => Math.abs(edge.points[0]!.y - edge.points.at(-1)!.y) < 0.5 && (Math.abs(edge.points[0]!.y - node.y) < 0.5 || Math.abs(edge.points[0]!.y - node.y - node.height) < 0.5))
+    const expected = vertical.map(edge => {
+      const id = `B->B#${loops.indexOf(edge)}`
+      return { code: 'ROUTE_SELF_LOOP_OCCUPANCY' as const, edge: id, conflictWith: edge.points[0]!.y < node.y + node.height / 2 ? 'A->B#0' : 'B->C#0', kind: 'route-route' as const }
+    })
+    expect(vertical).toHaveLength(4)
+    expect(auditRouteContracts(positioned, graph)).toEqual(expected)
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
   })
 

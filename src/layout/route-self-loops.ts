@@ -3,7 +3,7 @@ import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, 
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
+import { EPS, type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { measureLabelConflicts } from './label-conflicts.ts'
 import { ownsLayoutRouteInputs, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
@@ -13,6 +13,20 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
 import { labelPaintInputsStable, labelShafts } from './graph-paint-support.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+
+/** The route crosses the self-loop's arc or runs inside the region between
+ * the arc and its node's face, which the loop owns. */
+export function routeMeetsSelfLoop(loop: readonly Point[], route: readonly Point[]): boolean {
+  if (loop.length < 2 || route.length < 2) return false
+  if (countPointPairCrossings(loop, route) > 0) return true
+  const x0 = Math.min(...loop.map(point => point.x)) + EPS, x1 = Math.max(...loop.map(point => point.x)) - EPS
+  const y0 = Math.min(...loop.map(point => point.y)) + EPS, y1 = Math.max(...loop.map(point => point.y)) - EPS
+  return route.some((b, index) => {
+    const a = route[index - 1]
+    return !!a && Math.max(a.x, b.x) > x0 && Math.min(a.x, b.x) < x1 && Math.max(a.y, b.y) > y0 && Math.min(a.y, b.y) < y1
+  })
+}
+
 export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
