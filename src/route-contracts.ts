@@ -1840,11 +1840,13 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
       if (accepted || !privateChannel || !channelBudget.lanes || positioned.groups.length || !withinLayoutPreferenceBudget(graph)) continue
       // The label-only search has found no clear seat. Move only a shaft that
       // actually touches this halo, and preserve each previously clear label.
-      // A second blocker can need just a local slide after the first one moves.
+      // A labelled shaft moves too: its channel is proved with its own caption
+      // seated on it, as for a shared trunk. A second blocker can need just a
+      // local slide after the first one moves.
       let rerouted = false
       for (let hit: typeof contact | undefined = contact; hit && channelBudget.lanes; hit = contacts.next().value) {
         if (!pay(1)) return
-        if (hit === true || hit.edge.label) continue
+        if (hit === true) continue
         const peer = hit.edge, protectedHalos = paint.protectedHalos(edge, peer)
         if (!protectedHalos) return
         if (!privateChannel(peer, positioned, graph, style, clearance, edge, { protectedHalos, budget: channelBudget, prepare: paint.refreshRoute })) continue
