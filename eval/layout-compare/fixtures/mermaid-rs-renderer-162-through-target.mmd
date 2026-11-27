@@ -1,0 +1,9 @@
+%% A feedback transition takes the free left side, clear of the group frame: https://github.com/1jehuang/mermaid-rs-renderer/issues/162
+stateDiagram-v2
+    Unlocked --> Sleeping : lid closed
+    Sleeping --> Unlocked : lid opened
+    state Suspend {
+        Saving --> Off
+    }
+    state "Screen saver" as Saver
+    Unlocked --> Saver

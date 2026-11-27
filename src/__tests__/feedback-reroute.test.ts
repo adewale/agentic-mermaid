@@ -10,7 +10,9 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, hardViolations } from '../layout-rubric.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { applyRouteContracts, closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
@@ -342,4 +344,25 @@ test('spatial marker pruning agrees with the live guard across marker shapes, cu
       expect(routeCandidateMarkerBlocker(example.edge, example.points, example.peers, example.style)).toEqual(example.blocker)
     }
   })
+})
+
+// Feedback edges that ELK sent round the far side of the drawing, or down
+// against the flow and back up through it, while both ends faced a free side:
+// they return along that side, at most 1.5x their centre-to-centre distance,
+// and draw no more crossings than the listed bound.
+test.each([
+  ['mermaid-rs-renderer-63.mmd', ['sub1->link1'], 0],
+  ['mermaid-rs-renderer-162-through-target.mmd', ['Sleeping->Unlocked'], 0],
+  ['frankenmermaid-16.mmd', ['Releasing->Idle', 'Recording->Idle'], 1],
+] as const)('issue fixture %s returns feedback along the nearer free side', (name, feedback, crossings) => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures', name), 'utf8')))
+  const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+  for (const key of feedback) {
+    const edge = positioned.edges.find(candidate => `${candidate.source}->${candidate.target}` === key)!
+    const a = nodes.get(edge.source)!, b = nodes.get(edge.target)!
+    const length = edge.points.slice(1).reduce((sum, point, i) => sum + Math.abs(point.x - edge.points[i]!.x) + Math.abs(point.y - edge.points[i]!.y), 0)
+    const centres = Math.abs(a.x + a.width / 2 - b.x - b.width / 2) + Math.abs(a.y + a.height / 2 - b.y - b.height / 2)
+    expect(length, key).toBeLessThanOrEqual(1.5 * centres)
+  }
+  expect(countEdgeCrossings(positioned.edges)).toBeLessThanOrEqual(crossings)
 })

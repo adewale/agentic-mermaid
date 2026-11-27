@@ -1,0 +1,6 @@
+%% A feedback edge returns along the nearer free side instead of circling the diagram: https://github.com/1jehuang/mermaid-rs-renderer/issues/63
+flowchart TD
+    link1 -->|sub| sub1
+    sub1 -->|deps| link1
+    link1 -->|nextSub| link2
+    link2 -->|prevSub| link1

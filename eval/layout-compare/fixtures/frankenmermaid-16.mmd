@@ -1,0 +1,14 @@
+%% Feedback transitions return beside the states instead of doubling back through them: https://github.com/Dicklesworthstone/frankenmermaid/issues/16
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Starting: Space down / tap
+    Starting --> Idle: closed
+    Starting --> Recording: opened
+    Starting --> Releasing: Space up, focus lost
+    Recording --> Idle: closed
+    Recording --> Stopping: Space up, focus lost / tap
+    Releasing --> Idle: closed
+    Releasing --> Stopping: opened / tap
+    Stopping --> Settling: closed
+    Settling --> Idle: quiet 1 s
+    Settling --> Stopping: opened / tap

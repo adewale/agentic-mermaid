@@ -1,12 +1,16 @@
-import type { Point, PortSide, PositionedEdge, PositionedNode, RouteClass, RouteInvariant } from '../types.ts'
+import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteClass, RouteInvariant } from '../types.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { EPS, CLEARANCE, shapePorts, invalidEndpointApproaches, isStraightenable, type Axis, axisPoint, simplifyPolyline, attachSpan, anchorMain, type LaneContext, setRoutePoints, facingSide } from './route-geometry.ts'
-import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossings, routeEntersNodeBox, sharedTrunkConflict } from './route-lanes.ts'
+import { directLaneBlockers, findLabelSlot, countRouteCrossings, hasDirectLaneBlocker, routeAddsCrossings, routeEntersNodeBox, routePairContact, sharedTrunkConflict } from './route-lanes.ts'
 import { routeCandidateMarkersClear } from './route-marker-clearance.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
 import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { STROKE_WIDTHS } from '../styles.ts'
+import { ARRIVAL_SLOT_PITCH, MIN_ARRIVAL_SLOT_PITCH } from './terminal-assignment.ts'
+import { measureRouteContacts } from '../shared/edge-crossings.ts'
+import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
+import { clearanceBoxes, routeClearanceFindings } from '../layout-rubric.ts'
 
 /**
  * ELK's feedbackEdges routing can wrap a loop around the source's forward
@@ -244,4 +248,146 @@ export function feedbackDetourKind(edge: PositionedEdge, routeClass: RouteClass,
   const bandHi = Math.max(source[graphAxis.cross] + crossSize(source), target[graphAxis.cross] + crossSize(target)) + 2
   const escapes = edge.points.some(pt => pt[graphAxis.cross] < bandLo || pt[graphAxis.cross] > bandHi)
   return escapes ? 'outer-feedback' : 'feedback-detour'
+}
+
+/** A rounded card's corner radius: its side is straight inside it. */
+const ROUNDED_CORNER = 6
+/** Least distance from a node or frame to a side lane: a terminal hook. */
+const SIDE_LANE_GAP = 12
+/** A side lane replaces a feedback route only when it is at most this
+ * fraction of the produced length, so near-equal routes keep ELK's. */
+const SIDE_LANE_SAVING = 0.75
+
+/**
+ * A feedback route that circles the far side of the drawing, or leaves
+ * against the flow and doubles back through it, while both endpoints face a
+ * free side the same way: leave the source and enter the target through
+ * those sides, joined by a lane just clear of every node and frame the run
+ * passes (wide enough for the caption). Either side may serve; the shorter
+ * clear one wins. Taken only when it is markedly shorter than the produced
+ * route and every new segment is lane-proved, and when it adds no crossing,
+ * no contact or shared run with another route, no end beside another end,
+ * and keeps marker and caption room. A lane never leaves or enters a frame:
+ * groups holding one endpoint only keep the produced route.
+ */
+export function shortenFeedbackRoute(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, ctx: LaneContext): boolean {
+  if (edge.points.length < 2 || edge.source === edge.target || !isStraightenable(source) || !isStraightenable(target)) return false
+  const { main, cross } = ctx.axis
+  const size = (box: { width: number; height: number }, along: 'x' | 'y') => along === 'x' ? box.width : box.height
+  const length = (points: readonly Point[]) => points.slice(1).reduce((sum, point, i) => sum + Math.abs(point.x - points[i]!.x) + Math.abs(point.y - points[i]!.y), 0)
+  const current = length(edge.points)
+  const block = edge.label ? labelRect(edge, ctx.style) : undefined
+  const gap = Math.max(SIDE_LANE_GAP, block ? size({ width: block.w, height: block.h }, cross) / 2 + CLEARANCE + 4 : 0)
+  const groups = flatGroups(ctx.groups ?? [])
+  const contains = (group: PositionedGroup, node: PositionedNode) =>
+    node.x >= group.x && node.y >= group.y && node.x + node.width <= group.x + group.width && node.y + node.height <= group.y + group.height
+  if (groups.some(group => contains(group, source) !== contains(group, target))) return false
+  const holders = groups.filter(group => contains(group, source))
+  const others = ctx.edges.filter(other => other !== edge && other.style !== 'invisible' && other.points.length >= 2)
+  const related = (other: PositionedEdge) => [other.source, other.target].some(id => id === edge.source || id === edge.target)
+  const sharedRun = (points: readonly Point[], other: PositionedEdge) =>
+    measureRouteContacts([{ points, ends: ['\0a', '\0b'] }, { points: other.points, ends: ['\0c', '\0d'] }]).overlaps
+  const at = (mainValue: number, crossValue: number): Point => main === 'x' ? { x: mainValue, y: crossValue } : { x: crossValue, y: mainValue }
+  // Face points: the side's port, then slots a pitch apart along the
+  // straight side of a rectangle or rounded card, for when another end holds
+  // the port. A short side takes its widest slot.
+  const facePoints = (node: PositionedNode, port: PortSide): Point[] => {
+    const centre = shapePorts(node)[port]
+    const corner = node.shape === 'rounded' ? ROUNDED_CORNER : 0
+    if (node.shape !== 'rectangle' && node.shape !== 'rounded' || node.semanticShape !== undefined && node.semanticShape !== 'rect') return [centre]
+    const reach = size(node, main) / 2 - MIN_ARRIVAL_SLOT_PITCH - corner, slot = Math.min(ARRIVAL_SLOT_PITCH, reach)
+    if (slot < MIN_ARRIVAL_SLOT_PITCH) return [centre]
+    return [0, -1, 1, -2, 2].filter(k => Math.abs(k) * slot <= reach + EPS).map(k => ({ ...centre, [main]: centre[main] + k * slot }))
+  }
+  type Candidate = { points: Point[]; lane: number; lo: number; hi: number; offset: number }
+  const candidates: Candidate[] = []
+  for (const side of [-1, 1] as const) {
+    const port: PortSide = cross === 'x' ? (side < 0 ? 'W' : 'E') : (side < 0 ? 'N' : 'S')
+    const sourcePoints = facePoints(source, port), targetPoints = facePoints(target, port)
+    const centreFrom = sourcePoints[0]!, centreTo = targetPoints[0]!
+    const lo = Math.min(centreFrom[main], centreTo[main]) - gap - 2 * ARRIVAL_SLOT_PITCH, hi = Math.max(centreFrom[main], centreTo[main]) + gap + 2 * ARRIVAL_SLOT_PITCH
+    const obstacles = [...ctx.nodes, ...groups.filter(group => !contains(group, source))]
+      .filter(box => box[main] < hi && box[main] + size(box, main) > lo)
+    let lane = side < 0 ? Math.min(centreFrom[cross], centreTo[cross]) - gap : Math.max(centreFrom[cross], centreTo[cross]) + gap
+    for (let moved = true; moved;) {
+      moved = false
+      for (const box of obstacles) {
+        const start = box[cross], end = start + size(box, cross)
+        if (lane > start - gap && lane < end + gap) { lane = side < 0 ? start - gap : end + gap; moved = true }
+      }
+    }
+    // Inside every frame that holds both ends, a terminal hook from its border.
+    if (holders.some(group => lane < group[cross] + SIDE_LANE_GAP || lane > group[cross] + size(group, cross) - SIDE_LANE_GAP)) continue
+    for (const from of sourcePoints) for (const to of targetPoints) {
+      const points = [{ ...from }, at(from[main], lane), at(to[main], lane), { ...to }]
+      if (length(points) > current * SIDE_LANE_SAVING) continue
+      candidates.push({ points, lane, lo: Math.min(from[main], to[main]), hi: Math.max(from[main], to[main]), offset: Math.abs(from[main] - centreFrom[main]) + Math.abs(to[main] - centreTo[main]) })
+    }
+  }
+  // Shortest first; among equals, the ports before offset slots.
+  candidates.sort((a, b) => length(a.points) - length(b.points) || a.offset - b.offset)
+  const probe: PositionedEdge = { ...edge, points: [], label: undefined }
+  let boxes: ReturnType<typeof clearanceBoxes> | undefined
+  // An end on a side's port may not leave it for a slot beside the port.
+  const onPort = (node: PositionedNode, point: Point) => (Object.values(shapePorts(node)) as Point[]).some(port => Math.abs(port.x - point.x) <= 0.5 && Math.abs(port.y - point.y) <= 0.5)
+  const ported = (points: readonly Point[]) => Number(onPort(source, points[0]!)) + Number(onPort(target, points.at(-1)!))
+  const portedNow = ported(edge.points)
+  for (const { points: candidate, lane, lo, hi } of candidates) {
+    const from = candidate[0]!, to = candidate[3]!
+    if (ported(candidate) < portedNow) continue
+    if (ctx.nodes.some(node => node.id !== edge.source && node.id !== edge.target && routeEntersNodeBox(candidate, node))) continue
+    if (routeEntersNodeBox(candidate.slice(1), source) || routeEntersNodeBox(candidate.slice(0, -1), target)) continue
+    // Each end's face looks straight at the lane: the other end is not in
+    // the strip between them, and every run keeps a hook's distance from it.
+    const strip = (node: PositionedNode, other: PositionedNode): boolean => {
+      const lo = Math.min(node[cross] + (lane > node[cross] ? size(node, cross) : 0), lane), hi = Math.max(node[cross] + (lane > node[cross] ? size(node, cross) : 0), lane)
+      return other[main] < node[main] + size(node, main) && other[main] + size(other, main) > node[main] && other[cross] < hi && other[cross] + size(other, cross) > lo
+    }
+    if (strip(source, target) || strip(target, source)) continue
+    if (boxGap(candidate.slice(0, 3), target) < SIDE_LANE_GAP || boxGap(candidate.slice(1), source) < SIDE_LANE_GAP) continue
+    // Nor may it run along a card or frame it did not run along before.
+    boxes ??= clearanceBoxes({ nodes: ctx.nodes, groups: [...ctx.groups ?? []] })
+    if (routeClearanceFindings([{ ...edge, points: candidate }], boxes).length > routeClearanceFindings([edge], boxes).length) continue
+    if (invalidEndpointApproaches({ ...edge, points: candidate }, source, target) > 0) continue
+    const hop = (point: Point): boolean => {
+      const sign = lane > point[cross] ? 1 : -1
+      const hopAxis: Axis = main === 'x' ? { main: 'y', cross: 'x', sign } : { main: 'x', cross: 'y', sign }
+      return hasDirectLaneBlocker(probe, point[main], Math.min(point[cross], lane), Math.max(point[cross], lane), ctx, hopAxis, false)
+    }
+    const runAxis: Axis = { ...ctx.axis, sign: to[main] > from[main] ? 1 : -1 }
+    if (hop(from) || hop(to) || hasDirectLaneBlocker(edge, lane, lo, hi, ctx, runAxis)) continue
+    if (routeAddsCrossings(candidate, edge, ctx) || !routeCandidateMarkersClear(edge, candidate, ctx.edges, ctx.style)) continue
+    const beside = others.some(other => [other.points[0]!, other.points.at(-1)!].some(end =>
+      [from, to].some(own => Math.hypot(own.x - end.x, own.y - end.y) < MIN_ARRIVAL_SLOT_PITCH)))
+    // A self-loop's span on a face is the loop's own: nothing leaves through it.
+    if (others.some(other => other.source === other.target && related(other) && countPointPairCrossings(candidate, other.points) > 0)) continue
+    if (beside || others.some(other => related(other)
+      ? sharedRun(candidate, other) > sharedRun(edge.points, other)
+      : routePairContact(candidate, edge, other) > routePairContact(edge.points, edge, other))) continue
+    const before = edge.points
+    setRoutePoints(ctx, edge, candidate)
+    if (edge.label) {
+      const slot = findLabelSlot(edge, candidate[1]!, candidate[2]!, ctx)
+      if (!slot) { setRoutePoints(ctx, edge, before); continue }
+      edge.labelPosition = slot
+    }
+    return true
+  }
+  return false
+}
+
+/** Least distance from an orthogonal polyline to a node's box. */
+function boxGap(points: readonly Point[], node: PositionedNode): number {
+  let gap = Infinity
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const dx = Math.max(0, node.x - Math.max(a.x, b.x), Math.min(a.x, b.x) - node.x - node.width)
+    const dy = Math.max(0, node.y - Math.max(a.y, b.y), Math.min(a.y, b.y) - node.y - node.height)
+    gap = Math.min(gap, Math.hypot(dx, dy))
+  }
+  return gap
+}
+
+function flatGroups(groups: readonly PositionedGroup[]): PositionedGroup[] {
+  return groups.flatMap(group => [group, ...flatGroups(group.children)])
 }

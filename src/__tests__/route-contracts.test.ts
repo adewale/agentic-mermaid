@@ -1108,7 +1108,9 @@ describe('route contracts — feedback channel lanes', () => {
   it.each(['TD', 'RL', 'BT', 'LR'].flatMap((direction, turns) =>
     ['clear', 'node', 'crossing'].map(blocker => ({ direction, turns, blocker })),
   ))('identifies the return channel before its farther target stub in $direction with $blocker clearance', ({ direction, turns, blocker }) => {
-    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${blocker === 'node' ? '\nN' : blocker === 'crossing' ? '\nD --- E' : ''}`)
+    // Wall stands where a shorter side lane would run, so only the return
+    // channel's own repair is in question.
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A\nWall${blocker === 'node' ? '\nN' : blocker === 'crossing' ? '\nD --- E' : ''}`)
     const rotate = (point: Point): Point => {
       let { x, y } = point
       for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
@@ -1118,7 +1120,7 @@ describe('route contracts — feedback channel lanes', () => {
       const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
       return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
     }
-    const nodes = [node('A', 300, 0), node('B', 300, 100), node('C', 100, 200)]
+    const nodes = [node('A', 300, 0), node('B', 300, 100), node('C', 100, 200), node('Wall', 360, -60, 10, 340)]
     if (blocker === 'node') nodes.push(node('N', 90, 210, 10, 20))
     if (blocker === 'crossing') nodes.push(node('D', 88, 206, 4, 4), node('E', 88, 230, 4, 4))
     const routes = [
@@ -1140,15 +1142,24 @@ describe('route contracts — feedback channel lanes', () => {
       // excursions disappear. The x=320 terminal stub is not that lane.
       expect(back.points).toEqual([[100, 220], [80, 220], [80, 20], [300, 20]].map(([x, y]) => rotate({ x: x!, y: y! })))
     } else if (blocker === 'node') {
-      // The shortcut may shorten the clear tail, but cannot cut through N.
-      expect(back.points[0]).toEqual(before[0])
-      expect(back.points[1]).toEqual(before[1])
+      // A shortcut may shorten the clear tail, but cannot cut through N.
+      const n = nodes.find(candidate => candidate.id === 'N')!
+      expect(back.points.slice(1).some((b, i) => {
+        const a = back.points[i]!
+        return Math.min(a.x, b.x) < n.x + n.width && Math.max(a.x, b.x) > n.x && Math.min(a.y, b.y) < n.y + n.height && Math.max(a.y, b.y) > n.y
+      })).toBe(false)
+      // Its caption rides whichever lane it keeps.
+      const label = back.labelPosition!
+      expect(back.points.slice(1).some((b, i) => {
+        const a = back.points[i]!
+        return Math.min(a.x, b.x) - 0.5 <= label.x && label.x <= Math.max(a.x, b.x) + 0.5 && Math.min(a.y, b.y) - 0.5 <= label.y && label.y <= Math.max(a.y, b.y) + 0.5
+      })).toBe(true)
     } else {
       // A perpendicular shaft is not a node obstacle: the independent
       // crossing check must reject the otherwise clear shortcut atomically.
       expect(back.points).toEqual(before)
     }
-    expect(back.labelPosition).toEqual(rotate({ x: 80, y: 100 }))
+    if (blocker !== 'node') expect(back.labelPosition).toEqual(rotate({ x: 80, y: 100 }))
     expect([back.source, back.target, back.label, back.hasArrowEnd]).toEqual(['C', 'A', 'return', true])
     expect(countEdgeCrossings(edges)).toBe(0)
     expect(assessLayout(graph, positioned).metrics.endpointApproaches).toBe(0)
@@ -1168,7 +1179,9 @@ describe('route contracts — feedback channel lanes', () => {
     ].map(row => ({ fromStyle: false, ...row, direction: 'TD', turns: 0, side: 'head' })),
   ])('keeps noncontact $side segments clear of the other endpoint in $direction (gap=$gap, node=$nodeWidth, shaft=$edgeWidth, style=$fromStyle)', ({ direction, turns, side, gap, nodeWidth, edgeWidth, changed, fromStyle }) => {
     const tail = side === 'tail'
-    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : ''}`)
+    // P and Q stand where shorter side lanes would run, so only the return
+    // channel's own repair is in question.
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : changed ? '' : '\nP\nQ'}`)
     const rotate = (point: Point): Point => {
       let { x, y } = point
       for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
@@ -1180,7 +1193,7 @@ describe('route contracts — feedback channel lanes', () => {
     }
     const nodes = tail
       ? [node('A', 300, 220), node('B', 800, 100), node('C', 170, 200, 40, 200), node('N', 110, 295, 10, 10), node('M', 110, 395, 10, 10)]
-      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap)]
+      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap), ...changed ? [] : [node('P', 125, 140, 10, 110), node('Q', 355, 140, 10, 110)]]
     if (!fromStyle) nodes[0]!.inlineStyle = { stroke: '#000', 'stroke-width': nodeWidth }
     const points = (tail
       ? [[190, 400], [190, 420], [700, 420], [700, 520], [80, 520], [80, 160], [320, 160], [320, 220]]

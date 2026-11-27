@@ -75,7 +75,7 @@ import {
   tryStraighten,
   sharedTrunkConflict,
 } from './layout/route-lanes.ts'
-import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
+import { tightenOuterFeedback, feedbackDetourKind, shortenFeedbackRoute } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
 import { ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
 import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
@@ -912,6 +912,18 @@ export function applyRouteContracts(
     if (!changed) break
     retry.length = 0
     retry.push(...still)
+  }
+
+  // With every other route settled, a feedback loop round the far side, or
+  // back through the flow, takes the nearer free side when that is markedly
+  // shorter. Proving it earlier would count crossings against routes the
+  // fixed point has yet to straighten.
+  for (const { edge, cert } of drafts) {
+    if (cert.routeClass !== 'feedback' || cert.invariant !== 'outer-feedback' && cert.invariant !== 'feedback-detour') continue
+    const source = sourceOf(edge), target = targetOf(edge)
+    if (!source || !target || !shortenFeedbackRoute(edge, source, target, ctx)) continue
+    cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? cert.invariant
+    cert.bendCount = bendCount(edge.points)
   }
 
   for (const edge of positioned.edges) {
