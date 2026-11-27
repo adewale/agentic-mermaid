@@ -16,7 +16,7 @@ import { rectsOverlap } from '../layout/geometry.ts'
 import type { MeasuredBox } from '../layout/measured-route-safety.ts'
 import { bundledLabelCandidates, labelBoxAt, terminalLabelCorridorLength } from '../layout/passes/bundled-labels.ts'
 import { labelTouchesNeighborRoute } from '../layout/passes/parallel-lanes.ts'
-import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
+import { CLEARANCE, translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
 import { labelHaloExtension } from '../shared/edge-label-geometry.ts'
 import type { Direction, MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { swimlanePartitions } from './model.ts'
@@ -193,7 +193,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap, loops)
   // Occurrence detours run outside the content, so they keep painted
   // clearance from every card they pass on the way.
-  const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes, ...headers].map(box => routerBox(box))
+  const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes.map(box => routerBox(box, CLEARANCE)), ...headers.map(box => routerBox(box))]
   // A route crosses a painted header band, stroke included, only
   // perpendicularly.
   const across = { horizontal: bands.map(box => routerBox(box, style.lineWidth / 2)) }

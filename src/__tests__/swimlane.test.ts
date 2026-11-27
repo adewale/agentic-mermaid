@@ -168,6 +168,22 @@ test('independent lane hand-offs keep separate short routes instead of an unlabe
   }
 })
 
+// mermaid-7964: a route detouring around a task between its ends was drawn on
+// that task's border for 238px, so it read as attached to the task.
+test.each(['LR', 'TD'] as const)('a %s route detouring around a task keeps the route clearance from its border', direction => {
+  const chart = layoutSwimlane(parseSwimlane(`swimlane-beta ${direction}\nsubgraph Lane\nA\nB\nC\nend\nA --> B\nB --> C\nA --> C`))
+  const detour = chart.edges.find(edge => edge.source === 'A' && edge.target === 'C')!, b = chart.nodes.find(node => node.id === 'B')!
+  expect(detour.points.length).toBeGreaterThan(2)
+  let nearest = Infinity
+  for (let index = 1; index < detour.points.length; index++) {
+    const p = detour.points[index - 1]!, q = detour.points[index]!
+    const dx = Math.max(b.x - Math.max(p.x, q.x), Math.min(p.x, q.x) - b.x - b.width, 0)
+    const dy = Math.max(b.y - Math.max(p.y, q.y), Math.min(p.y, q.y) - b.y - b.height, 0)
+    nearest = Math.min(nearest, Math.hypot(dx, dy))
+  }
+  expect(nearest).toBeGreaterThanOrEqual(4)
+})
+
 test.each(['LR', 'RL', 'TD', 'BT'] as const)('parallel and reciprocal Swimlane %s hand-offs keep separate owned labels and contacts', direction => {
   const input = `swimlane-beta ${direction}
 subgraph L[Requests]
