@@ -1,0 +1,77 @@
+%% Bundling never lays an edge along, or against, an unrelated edge: https://github.com/obsidianmd/pele/issues/100
+flowchart LR
+    subgraph L0["Wave 1"]
+      t01
+      t04
+      t17
+      PDE_1029
+      PDE_1030
+    end
+    subgraph L1["Wave 2"]
+      t02
+      t05
+      t08
+      t11
+      t12
+      t15
+    end
+    subgraph L2["Wave 3"]
+      t03
+      t06
+      t09
+      t13
+      t14
+    t13
+    t14
+    t16
+    t18
+    t19
+  end
+  subgraph L3["Wave 4"]
+    t07
+    t10
+  end
+  subgraph L4["Wave 5"]
+    t20
+  end
+  t01 --> t02
+  t01 --> t05
+  t01 --> t08
+  t01 --> t11
+  t01 --> t12
+  t01 --> t15
+  t17 --> t18
+  t17 --> t19
+  PDE_1029 --> t08
+  PDE_1029 --> t09
+  PDE_1029 --> t12
+  PDE_1029 --> t13
+  PDE_1030 --> t12
+  t02 --> t03
+  t02 --> t19
+  t05 --> t06
+  t05 --> t19
+  t08 --> t09
+  t08 --> t13
+  t08 --> t19
+  t11 --> t18
+  t12 --> t13
+  t12 --> t14
+  t12 --> t18
+  t15 --> t16
+  t03 --> t20
+  t06 --> t07
+  t09 --> t10
+  t13 --> t20
+  t14 --> t20
+  t16 --> t20
+  t18 --> t20
+  t19 --> t20
+  t07 --> t20
+  t10 --> t20
+  classDef ext fill:#eee,stroke:#999,stroke-dasharray: 4 3,color:#555
+  classDef done fill:#d9f2d9,stroke:#3a3
+  classDef step fill:#e3ecff,stroke:#4a6fd1
+  class PDE_1029,PDE_1030 ext
+  class t04 done
+  class t01,t02,t05,t08,t11,t12,t15 step

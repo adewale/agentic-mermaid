@@ -112,6 +112,23 @@ function separateCrossFaceEnds(meeting: readonly PositionedEdge[], at: Point, no
   }
 }
 
+/** Slide `edge`'s `end` terminal run along its face of `node` so it ends at
+ * `at`, a point of the same face line: an end that may share `at`'s terminal
+ * but would sit closer than a slot beside it joins it instead. Reports
+ * whether the run moved; a run that cannot (slanted, or the moved end would
+ * leave the outline) is left as it was. */
+export function joinTerminal(edge: PositionedEdge, node: PositionedNode, at: Point, end: TerminalEnd): boolean {
+  const along = faceAxis(edge, end)
+  if (!along) return false
+  const tip = terminalPoint(edge, end), across = along === 'x' ? 'y' : 'x'
+  if (Math.abs(tip[across] - at[across]) > 1e-6) return false
+  const saved = { points: edge.points, labelPosition: edge.labelPosition }
+  if (slideTerminalRun(edge, node, along, at[along] - tip[along], end) && near(terminalPoint(edge, end), at)) return true
+  edge.points = saved.points
+  edge.labelPosition = saved.labelPosition
+  return false
+}
+
 /** The axis of the face a route's `end` terminal run crosses: `x` along a
  * vertical run, `y` along a horizontal one, none along a slanted one. */
 function faceAxis(edge: PositionedEdge, end: TerminalEnd): 'x' | 'y' | undefined {

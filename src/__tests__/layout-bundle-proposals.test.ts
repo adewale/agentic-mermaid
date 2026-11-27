@@ -129,7 +129,8 @@ describe('bundle complete foreign ink admission', () => {
     const nodes = [box('A', 40, 0), box('B', 40, 120), box('C', 240, 120), box('F', 140, 30), box('G', 140, 100)]
     const edge = (source: string, target: string, points: Array<{ x: number; y: number }>): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
     // A -> C leaves above F; the bundled trunk would run between F and G.
-    const fan = [edge('A', 'B', [{ x: 60, y: 20 }, { x: 60, y: 120 }]), edge('A', 'C', [{ x: 80, y: 10 }, { x: 260, y: 10 }, { x: 260, y: 120 }])]
+    // It already has the trunk's two bends, so the crossing is the only cost.
+    const fan = [edge('A', 'B', [{ x: 60, y: 20 }, { x: 60, y: 120 }]), edge('A', 'C', [{ x: 60, y: 20 }, { x: 60, y: 24 }, { x: 260, y: 24 }, { x: 260, y: 120 }])]
     const edges = foreign ? [...fan, edge('F', 'G', [{ x: 160, y: 50 }, { x: 160, y: 100 }])] : fan
     const before = fan.map(e => e.points)
     const bundled = bundleEdgePaths(edges, nodes, [], 'TB', resolveRenderStyle())
@@ -244,4 +245,70 @@ test('two fan-in groups into different targets keep their trunks apart', () => {
   }
   expect(runs('A').length * runs('B').length).toBeGreaterThan(0)
   expect(runs('A').filter(p => runs('B').some(q => shared(p, q)))).toEqual([])
+})
+
+// Fork issues where a published trunk cost the drawing something the proper
+// crossing count cannot see. lukilabs/beautiful-mermaid#52: an arrival left
+// the shared arrowhead of a bundle by 1.7px, so two arrowheads overlapped.
+// obsidianmd/pele#100: a trunk ran 0.2px beside an unrelated edge, so the two
+// read as one bus. mermaid-js/mermaid#6476: members that ran straight bought
+// two bends each to join their trunks.
+describe('a trunk never costs contact or bends', () => {
+  const layoutOf = (name: string) => layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, `../../eval/layout-compare/fixtures/${name}.mmd`), 'utf8')))
+  const visible = (edges: readonly PositionedEdge[]) => edges.filter(edge => edge.style !== 'invisible' && edge.source !== edge.target)
+  const segments = (edge: PositionedEdge) => edge.points.slice(1).map((b, i) => [edge.points[i]!, b] as const)
+  const toSegment = (p: Point, [a, b]: readonly [Point, Point]) => {
+    const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy
+    const t = length ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length)) : 0
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
+  }
+  /** Pairs of edges with no endpoint in common whose ink runs alongside
+   * within 4px, or where a bend or end of one lies within 1px of the other. */
+  const unrelatedContact = (edges: readonly PositionedEdge[]): string[] => {
+    const found: string[] = []
+    const routes = visible(edges)
+    for (const a of routes) for (const b of routes) {
+      if (a === b || [a.source, a.target].some(node => node === b.source || node === b.target)) continue
+      const alongside = segments(a).some(([p, q]) => segments(b).some(([r, s]) => {
+        const axis = p.x === q.x && r.x === s.x ? 'y' : p.y === q.y && r.y === s.y ? 'x' : undefined
+        if (!axis) return false
+        const across = axis === 'y' ? 'x' : 'y'
+        const overlap = Math.min(Math.max(p[axis], q[axis]), Math.max(r[axis], s[axis])) - Math.max(Math.min(p[axis], q[axis]), Math.min(r[axis], s[axis]))
+        return Math.abs(p[across] - r[across]) < 4 && overlap > 0.5
+      }))
+      const touching = a.points.some(point => segments(b).some(segment => toSegment(point, segment) < 1))
+      if (alongside || touching) found.push(`${a.source}->${a.target} / ${b.source}->${b.target}`)
+    }
+    return found
+  }
+  /** Arrivals at one node whose arrowheads overlap: closer than an arrowhead's
+   * height (5px at the default stroke) plus a stroke, without sharing a point.
+   * (pele-100's t20 seats eight native arrivals 6.7px apart: they do not
+   * overlap, though they are tighter than the 7px a planned slot keeps.) */
+  const nearArrivals = (edges: readonly PositionedEdge[]): string[] => {
+    const routes = visible(edges).filter(edge => edge.hasArrowEnd)
+    return routes.flatMap((a, i) => routes.slice(i + 1).filter(b => {
+      if (a.target !== b.target) return false
+      const gap = Math.hypot(a.points.at(-1)!.x - b.points.at(-1)!.x, a.points.at(-1)!.y - b.points.at(-1)!.y)
+      return gap > 0.01 && gap < 6
+    }).map(b => `${a.source}->${a.target} / ${b.source}->${b.target}`))
+  }
+
+  test.each(['beautiful-mermaid-52', 'pele-100'])('%s: no unrelated edges touch and no arrivals overlap', name => {
+    const positioned = layoutOf(name)
+    expect(unrelatedContact(positioned.edges)).toEqual([])
+    expect(nearArrivals(positioned.edges)).toEqual([])
+  })
+
+  // a3, a9 and TQBb face their trunk's port across the flow; a11 overlaps a12
+  // beside the port, outside the fan.
+  test.each([
+    { name: 'mermaid-6476', straight: [['a3', 'a4'], ['a5', 'a9'], ['a11', 'a12']] },
+    { name: 'beautiful-mermaid-52', straight: [['TQBb8DjbT21GBpd5bWTaAsPzhihMpKXotb', 'TL8TBpubVzBr1UWPXBXU8Pci5ZAip9SwEf']] },
+  ])('$name: fan members that can run straight keep straight routes', ({ name, straight }) => {
+    const positioned = layoutOf(name)
+    const route = (source: string, target: string) => positioned.edges.find(edge => edge.source === source && edge.target === target)!.points
+    for (const [source, target] of straight) expect([source, target, route(source!, target!).length]).toEqual([source, target, 2])
+    expect(nearArrivals(positioned.edges)).toEqual([])
+  })
 })

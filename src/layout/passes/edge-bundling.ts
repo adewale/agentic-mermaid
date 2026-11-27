@@ -6,12 +6,17 @@ import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
-import { paintsAlike, terminalAssignment, type TerminalAssignment, type TerminalEnd } from '../terminal-assignment.ts'
+import { ARRIVAL_SLOT_PITCH, MIN_ARRIVAL_SLOT_PITCH, paintsAlike, terminalAssignment, type TerminalAssignment, type TerminalEnd } from '../terminal-assignment.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
 import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
-import { terminalHookLength } from '../route-geometry.ts'
+import { bendCount, RECT_LIKE, terminalHookLength } from '../route-geometry.ts'
+import { measureRouteContacts } from '../../shared/edge-crossings.ts'
 import { hookedElbow } from './shared.ts'
+import { joinTerminal } from './arrival-slots.ts'
+
+/** Keeps a member's end off the corners of its face. */
+const MEMBER_FACE_MARGIN = 5
 
 /**
  * Find all groups (outermost first) that geometrically contain the given point.
@@ -153,6 +158,15 @@ export function bundleEdgePaths(
     const members = group.filter(edge => !duplicates.has(edge))
     return group.some(edge => edge.label) || members.some((a, i) => members.some((b, j) => j > i && !terminals.shares(a, b, end)))
   }
+  // Two routes whose ink meets read as reaching each other's targets. That
+  // reading misleads unless both crossed readings are real edges painted
+  // alike (a complete bipartite join).
+  const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
+    && edge.style !== 'invisible' && paintsAlike(paint, edge)
+    && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
+    && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
+  const misleads = (member: PositionedEdge, other: PositionedEdge) => !paintsAlike(member, other)
+    || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
   const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
     for (const [edge, points] of candidates) {
       const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
@@ -161,14 +175,8 @@ export function bundleEdgePaths(
     const staged = edges.map(edge => candidates.has(edge) ? { ...edge, points: candidates.get(edge)! } : edge)
     // Ink shared in opposite directions reads as a bus: each route seems to
     // reach the other's target. A trunk may run back along another edge only
-    // where both readings are real edges painted alike (a complete bipartite
-    // join), never along e.g. the reverse route leaving the same port.
-    const realEdge = (source: string, target: string, paint: PositionedEdge) => edges.some(edge => edge.source === source && edge.target === target
-      && edge.style !== 'invisible' && paintsAlike(paint, edge)
-      && edge.hasArrowStart === paint.hasArrowStart && edge.hasArrowEnd === paint.hasArrowEnd
-      && (edge.startMarker ?? 'arrow') === (paint.startMarker ?? 'arrow') && (edge.endMarker ?? 'arrow') === (paint.endMarker ?? 'arrow'))
-    const misleads = (member: PositionedEdge, other: PositionedEdge) => !paintsAlike(member, other)
-      || !realEdge(member.source, other.target, member) || !realEdge(other.source, member.target, other)
+    // where both readings are real edges painted alike (misleads), never
+    // along e.g. the reverse route leaving the same port.
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
       const before = new Set(opposingRoutePartners(member, others))
@@ -190,19 +198,114 @@ export function bundleEdgePaths(
   const memberHook = (members: ReadonlyArray<{ edge: PositionedEdge }>, end: 'start' | 'end'): number =>
     Math.max(...members.map(({ edge }) => terminalHookLength(style, edge, end)))
 
+  // Lanes a member's own end may take across the flow: anywhere on a flat
+  // face, else only its centre port.
+  const across = isHorizontal ? 'y' : 'x'
+  const lanes = (node: PositionedNode): [number, number] => {
+    const start = node[across], size = across === 'x' ? node.width : node.height
+    return RECT_LIKE.has(node.shape) && size > 2 * MEMBER_FACE_MARGIN ? [start + MEMBER_FACE_MARGIN, start + size - MEMBER_FACE_MARGIN] : [start + size / 2, start + size / 2]
+  }
+  /** The hub's lane when the member's own face can take it, so a member
+   * aligned with the hub joins the trunk straight; else the member's centre. */
+  const memberLane = (node: PositionedNode, hubLane: number, axis: 'x' | 'y'): number => {
+    const [lo, hi] = lanes(node)
+    return hubLane >= lo && hubLane <= hi ? hubLane : node[axis] + (axis === 'x' ? node.width : node.height) / 2
+  }
+  /** The outermost member, when its two ends share a lane across the flow
+   * that lies beyond the hub's port on its own side: it can run straight on
+   * its own, clear of the trunk and of every other branch. */
+  const straightOutside = (members: ReadonlyArray<{ edge: PositionedEdge; node: PositionedNode }>, hubLane: number): PositionedEdge | undefined => {
+    const centre = (node: PositionedNode) => node[across] + (across === 'x' ? node.width : node.height) / 2
+    const ordered = [...members].sort((a, b) => centre(a.node) - centre(b.node))
+    for (const [member, side] of [[ordered[0]!, -1], [ordered.at(-1)!, 1]] as const) {
+      const source = nodeMap.get(member.edge.source), target = nodeMap.get(member.edge.target)
+      if (!source || !target) continue
+      const [a0, a1] = lanes(source), [b0, b1] = lanes(target)
+      const lo = Math.max(a0, b0), hi = Math.min(a1, b1)
+      if (hi - lo >= ARRIVAL_SLOT_PITCH && (side > 0 ? lo >= hubLane + MIN_ARRIVAL_SLOT_PITCH : hi <= hubLane - MIN_ARRIVAL_SLOT_PITCH)) return member.edge
+    }
+    return undefined
+  }
+
   // A bundle trades separate shafts for one trunk. It is worth publishing only
-  // when the trunk crosses no more foreign shafts than the routes it replaces.
-  const addsCrossings = (members: ReadonlyArray<{ edge: PositionedEdge }>, candidates: ReadonlyMap<PositionedEdge, Point[]>): boolean => {
+  // when the drawing loses nothing by the trade: no more crossings with
+  // foreign shafts, no more bends, and no more contact. Contact is what the
+  // crossing count cannot see: ink touching or running within the clearance
+  // of an unrelated route (measureRouteContacts at the router clearance; a
+  // shared run is worse than a touch), or an end landing beside, or on,
+  // an end of a shared node it may not share a terminal with. Contact that
+  // reads only real edges (misleads) is no loss. A foreign end that may share
+  // a member's new terminal but would sit beside it joins it instead, when
+  // its terminal run can slide there: one arrowhead replaces two overlapping
+  // ones, so the slide's bends are not charged. Bends are charged against a
+  // member's current route only while it is attached to its nodes; a route a
+  // node mover left detached has no bends to keep.
+  type Join = { points: Point[]; labelPosition: PositionedEdge['labelPosition'] }
+  const onBox = (point: Point, node: PositionedNode | undefined) => !!node && point.x >= node.x - 1 && point.x <= node.x + node.width + 1
+    && point.y >= node.y - 1 && point.y <= node.y + node.height + 1
+  const attached = (edge: PositionedEdge) => onBox(edge.points[0]!, nodeMap.get(edge.source)) && onBox(edge.points.at(-1)!, nodeMap.get(edge.target))
+  const endsOf = (edge: PositionedEdge, points: readonly Point[]) => [[edge.source, points[0]!, 'start'], [edge.target, points.at(-1)!, 'end']] as const
+  const stageJoin = (other: PositionedEdge, node: string, at: Point, end: TerminalEnd, joins: Map<PositionedEdge, Join>): boolean => {
+    const staged = joins.get(other)
+    if (staged) {
+      const tip = end === 'end' ? staged.points.at(-1)! : staged.points[0]!
+      return Math.hypot(tip.x - at.x, tip.y - at.y) <= 1e-6
+    }
+    const host = nodeMap.get(node)
+    if (!host) return false
+    const saved: Join = { points: other.points, labelPosition: other.labelPosition }
+    const joined = joinTerminal(other, host, at, end)
+    if (joined) joins.set(other, { points: other.points, labelPosition: other.labelPosition })
+    other.points = saved.points
+    other.labelPosition = saved.labelPosition
+    return joined
+  }
+  const related = (a: PositionedEdge, b: PositionedEdge) => [a.source, a.target].some(node => node === b.source || node === b.target)
+  /** Contact between the ink of two unrelated routes; a shared run is worse
+   * than a touch. */
+  const inkContact = (a: PositionedEdge, aPoints: readonly Point[], b: PositionedEdge, bPoints: readonly Point[]): number => {
+    if (!misleads(a, b)) return 0
+    const met = measureRouteContacts([{ points: aPoints, ends: [a.source, a.target] }, { points: bPoints, ends: [b.source, b.target] }])
+    return 2 * met.overlaps + met.touches
+  }
+  const contact = (member: PositionedEdge, points: readonly Point[], other: PositionedEdge, joins?: Map<PositionedEdge, Join>): number => {
+    const memberEnds = endsOf(member, points), otherEnds = endsOf(other, other.points)
+    if (!related(member, other)) return inkContact(member, points, other, other.points)
+    let near = 0
+    for (const [node, at, end] of memberEnds) for (const [peer, otherAt, otherEnd] of otherEnds) {
+      if (peer !== node) continue
+      const gap = Math.hypot(at.x - otherAt.x, at.y - otherAt.y)
+      if (gap >= MIN_ARRIVAL_SLOT_PITCH) continue
+      const shares = end === otherEnd && terminals.shares(member, other, end)
+      if (shares && (gap <= 1e-6 || joins && stageJoin(other, node, at, end, joins))) continue
+      near++
+    }
+    return near
+  }
+  /** The joins a bundle's trade needs, or undefined when it worsens the drawing. */
+  const tradeJoins = (members: ReadonlyArray<{ edge: PositionedEdge }>, candidates: ReadonlyMap<PositionedEdge, Point[]>): Map<PositionedEdge, Join> | undefined => {
     const own = new Set(members.map(member => member.edge))
-    const foreign = edges.filter(edge => !own.has(edge) && edge.style !== 'invisible')
-    let delta = 0
+    const foreign = edges.filter(edge => !own.has(edge) && edge.style !== 'invisible' && edge.points.length >= 2)
+    const joins = new Map<PositionedEdge, Join>()
+    let crossings = 0, bends = 0
     for (const { edge } of members) {
-      for (const other of foreign) delta += countPointPairCrossings(candidates.get(edge)!, other.points) - countPointPairCrossings(edge.points, other.points)
+      const after = candidates.get(edge)!
+      if (attached(edge)) bends += bendCount(after) - bendCount(edge.points)
+      for (const other of foreign) {
+        crossings += countPointPairCrossings(after, other.points) - countPointPairCrossings(edge.points, other.points)
+        if (contact(edge, after, other, joins) > contact(edge, edge.points, other) + 1e-6) return undefined
+      }
     }
     for (let i = 0; i < members.length; i++) for (let j = i + 1; j < members.length; j++) {
-      delta -= countPointPairCrossings(members[i]!.edge.points, members[j]!.edge.points)
+      crossings -= countPointPairCrossings(members[i]!.edge.points, members[j]!.edge.points)
     }
-    return delta > 0
+    // A joined end moves its route: that route may gain no contact either.
+    const placed = (edge: PositionedEdge) => candidates.get(edge) ?? joins.get(edge)?.points ?? edge.points
+    for (const [edge, join] of joins) for (const other of edges) {
+      if (other === edge || other.style === 'invisible' || other.points.length < 2 || related(edge, other)) continue
+      if (inkContact(edge, join.points, other, placed(other)) > inkContact(edge, edge.points, other, placed(other))) return undefined
+    }
+    return crossings > 0 || bends > 0 ? undefined : joins
   }
 
   // --- Fan-out: group edges by shared source ---
@@ -268,7 +371,7 @@ export function bundleEdgePaths(
 
         for (const { edge, node: target } of members) {
           const entryX = isLR ? target.x : target.x + target.width
-          const entryY = target.y + target.height / 2
+          const entryY = memberLane(target, exitY, 'y')
           candidates.set(edge, [
             { x: exitX, y: exitY },
             { x: junctionX, y: exitY },
@@ -287,7 +390,7 @@ export function bundleEdgePaths(
         junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
 
         for (const { edge, node: target } of members) {
-          const entryX = target.x + target.width / 2
+          const entryX = memberLane(target, exitX, 'x')
           const entryY = isBT ? target.y + target.height : target.y
           candidates.set(edge, [
             { x: exitX, y: exitY },
@@ -298,11 +401,20 @@ export function bundleEdgePaths(
         }
       }
 
+      // A member that could run straight on its own keeps its route rather
+      // than buy bends to join the trunk.
+      const alone = straightOutside(members, isHorizontal ? srcCY : srcCX)
+      if (alone && bendCount(candidates.get(alone)!) > 0) { members = members.filter(member => member.edge !== alone); continue }
       const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
-        if (addsCrossings(members, candidates)) break
+        const joins = tradeJoins(members, candidates)
+        if (!joins) break
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
+        }
+        for (const [edge, join] of joins) {
+          edge.points = join.points
+          edge.labelPosition = join.labelPosition
         }
         retainConstructedBundleRoutes(members.map(member => member.edge), processed)
         break
@@ -358,7 +470,7 @@ export function bundleEdgePaths(
 
         for (const { edge, node: src } of members) {
           const exitX = isLR ? src.x + src.width : src.x
-          const exitY = src.y + src.height / 2
+          const exitY = memberLane(src, entryY, 'y')
           candidates.set(edge, [
             { x: exitX, y: exitY },
             { x: junctionX, y: exitY },
@@ -377,7 +489,7 @@ export function bundleEdgePaths(
         junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
 
         for (const { edge, node: src } of members) {
-          const exitX = src.x + src.width / 2
+          const exitX = memberLane(src, entryX, 'x')
           const exitY = isBT ? src.y : src.y + src.height
           candidates.set(edge, [
             { x: exitX, y: exitY },
@@ -388,11 +500,20 @@ export function bundleEdgePaths(
         }
       }
 
+      // A member that could run straight on its own keeps its route rather
+      // than buy bends to join the trunk.
+      const alone = straightOutside(members, isHorizontal ? tgtCY : tgtCX)
+      if (alone && bendCount(candidates.get(alone)!) > 0) { members = members.filter(member => member.edge !== alone); continue }
       const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
-        if (addsCrossings(members, candidates)) break
+        const joins = tradeJoins(members, candidates)
+        if (!joins) break
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
+        }
+        for (const [edge, join] of joins) {
+          edge.points = join.points
+          edge.labelPosition = join.labelPosition
         }
         retainConstructedBundleRoutes(members.map(member => member.edge), processed)
         break
