@@ -105,6 +105,24 @@ function groupLineRunAlong(
   return undefined
 }
 
+/** Pairs of routes that run on one line over a shared span: drawn on top of
+ * each other, they cannot be told apart there. */
+function sharedInk(routes: Array<{ id: string; points: Array<{ x: number; y: number }> }>): string[] {
+  const runs = routes.flatMap(route => route.points.slice(1).flatMap((b, index) => {
+    const a = route.points[index]!
+    const vertical = Math.abs(a.x - b.x) <= 0.001
+    if (!vertical && Math.abs(a.y - b.y) > 0.001) return []
+    return [{ id: route.id, vertical, at: vertical ? a.x : a.y, lo: Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), hi: Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x) }]
+  }))
+  const pairs = new Set<string>()
+  runs.forEach((run, index) => {
+    for (const other of runs.slice(index + 1)) {
+      if (other.id !== run.id && other.vertical === run.vertical && Math.abs(other.at - run.at) <= 0.5 && Math.min(run.hi, other.hi) - Math.max(run.lo, other.lo) > 1) pairs.add([run.id, other.id].sort().join(' / '))
+    }
+  })
+  return [...pairs].sort()
+}
+
 function boxesOverlap(
   a: { x: number; y: number; width: number; height: number },
   b: { x: number; y: number; width: number; height: number },
@@ -482,6 +500,19 @@ describe('layoutArchitectureDiagram', () => {
     expect(routeCrossesBoxInterior(shortcut.points, middle)).toBe(false)
     expect(shortcut.obstacleFree).toBe(true)
     expect(shortcut.placement).toBe('satisfied')
+  })
+
+  // mermaid-v13#1176: the {group} relation left Region A on the line of the
+  // j1 -> s1 relation and entered Region B on the line of j1 -> s4, so the
+  // three relations read as one line and hid the junction.
+  it('draws a {group} relation apart from the junction relations between the same pair', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/mermaid-v13-1176.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    const point = ([x, y]: readonly [number, number]) => ({ x, y })
+    expect(sharedInk(projected.edges.map(edge => ({ id: edge.id, points: edge.path.map(point) })))).toEqual([])
+    const regionA = projected.groups.find(group => group.id === 'a')!, regionB = projected.groups.find(group => group.id === 'b')!
+    const groupEdge = projected.edges.find(edge => edge.from === 's1' && edge.to === 's4')!.path
+    expect([groupEdge[0]![0], groupEdge.at(-1)![0]].map(Number)).toEqual([regionA.x + regionA.w, regionB.x])
   })
 
   it('treats every satisfiable endpoint-side pair as placement constraints and classifies legal conflicts', () => {

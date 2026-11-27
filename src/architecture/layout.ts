@@ -1,4 +1,5 @@
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { architectureMarkerTerminal } from './markers.ts'
 import { architectureIconFallbackBlock } from './icon-layout.ts'
@@ -250,7 +251,7 @@ export function layoutArchitectureDiagram(
       if (alignmentFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-alignments', violations: alignmentFailures }])
     }
 
-    const routeOnce = (drawnFor: (index: number) => readonly Point[][]) => diagram.edges.map((edge, index) =>
+    const routeOnce = (drawnFor: (index: number) => readonly Point[][], apartFor: (index: number, routed: readonly PositionedArchitectureEdge[]) => readonly Point[][] = () => []) => diagram.edges.reduce<PositionedArchitectureEdge[]>((routed, edge, index) => (routed.push(
       routeArchitectureEdge(
         edge,
         servicesById,
@@ -262,15 +263,23 @@ export function layoutArchitectureDiagram(
         { start: edge.hasArrowStart ? architectureMarkerTerminal('architecture-arrow-start', typography.edgeLineWidth, 'start') : 0, end: edge.hasArrowEnd ? architectureMarkerTerminal('architecture-arrow-end', typography.edgeLineWidth, 'end') : 0 },
         typography.edgeBendRadius,
         drawnFor(index),
-      )
-    )
+        apartFor(index, routed),
+      )), routed), [])
     // A detour should not cross the other relations. Route once without them,
     // then route again knowing every other relation's route: only detours
-    // read them, and direct routes come out the same.
+    // read them, and direct routes come out the same. The second pass also
+    // keeps each route off the ink of the relations authored before it, as
+    // they are finally drawn: the later relation yields, so two relations
+    // never both move to one new line. Relations that share an authored
+    // contact share its lead.
     const routeEdges = () => {
       const first = routeOnce(() => [])
       const others = first.map(edge => edge.points)
-      return routeOnce(index => others.filter((_, other) => other !== index))
+      const contact = (end: ArchitectureEndpoint): string => `${end.boundary ?? 'item'}:${end.id}:${end.side}`
+      const sharesContact = (a: ArchitectureDiagram['edges'][number], b: ArchitectureDiagram['edges'][number]): boolean =>
+        [a.source, a.target].some(end => [b.source, b.target].some(other => contact(end) === contact(other)))
+      return routeOnce(index => others.filter((_, other) => other !== index), (index, routed) =>
+        routed.filter((_, other) => !sharesContact(diagram.edges[index]!, diagram.edges[other]!)).map(edge => edge.points))
     }
     const edges = routeEdges()
     edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
@@ -972,12 +981,14 @@ function routeArchitectureEdge(
   terminal: { start: number; end: number },
   radius: number,
   drawn: readonly Point[][],
+  apart: readonly Point[][] = [],
 ): PositionedArchitectureEdge {
-  const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
-  const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
   const groupFrames = ancestorFrameLines(edge, servicesById, groups, junctionsById)
   const cardFrames = [edge.source.id, edge.target.id].flatMap(id => { const card = serviceBounds.get(id); return card ? boxLines(card) : [] })
+  // Other relations' ink this route must not run on or beside: drawn on top
+  // of each other, two relations cannot be told apart (mermaid-v13#1176).
+  const apartLines: FrameLine[] = apart.flatMap(points => points.slice(1).map((point, index) => [points[index]!, point] as const))
   // Only the anchor-to-exit lead may touch its incident card. The middle
   // route must remain outside both endpoints so it cannot reverse through
   // the target and hide an arrowhead under the card's paint.
@@ -986,48 +997,111 @@ function routeArchitectureEdge(
     const bounds = group ?? serviceBounds.get(endpoint.id) ?? junctionBounds.get(endpoint.id)!
     obstacles.push({ ...bounds, id: group?.id ?? endpoint.id, kind: group ? 'group' : serviceBounds.has(endpoint.id) ? 'service' : 'junction' })
   }
-  // A fixed exit can land inside the clearance envelope of a neighboring
-  // card. Stop at that envelope so the visibility search has a reachable
-  // start/end, while retaining the authored attachment side.
-  for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
-    const horizontal = side === 'L' || side === 'R'
-    const forward = side === 'R' || side === 'B'
-    let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
-    for (const obstacle of obstacles) {
-      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
-      const lo = horizontal ? obstacle.y : obstacle.x
-      const size = horizontal ? obstacle.height : obstacle.width
-      if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
-      const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
-      const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
-      if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+  const routeFrom = (along: { source?: number; target?: number }) => {
+    const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0, along.source)
+    const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0, along.target)
+    // A fixed exit can land inside the clearance envelope of a neighboring
+    // card. Stop at that envelope so the visibility search has a reachable
+    // start/end, while retaining the authored attachment side.
+    for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
+      const horizontal = side === 'L' || side === 'R'
+      const forward = side === 'R' || side === 'B'
+      let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+      for (const obstacle of obstacles) {
+        const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+        const lo = horizontal ? obstacle.y : obstacle.x
+        const size = horizontal ? obstacle.height : obstacle.width
+        if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
+        const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
+        const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+        if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+      }
+      endpoint.exit = movePoint(endpoint.anchor, side, distance)
     }
-    endpoint.exit = movePoint(endpoint.anchor, side, distance)
+    // `frames` are outline lines to keep off; `separate` adds the other
+    // relations' ink. A route that cannot keep off them all is null.
+    const route = (frames: readonly FrameLine[] | undefined, separate: boolean): Point[] | null => {
+      // Leads stop a clearance short of a line they would end on head-on.
+      const exits = frames ? { start: leadShortOfFrames(source, edge.source.side, frames), end: leadShortOfFrames(target, edge.target.side, frames) } : { start: source.exit, end: target.exit }
+      const directMiddle = simplifyOrthogonalPoints([
+        exits.start,
+        ...routeBetween(exits.start, exits.end, edge.source.side, edge.target.side),
+        exits.end,
+      ])
+      const keepOff = separate ? [...frames ?? [], ...apartLines] : frames
+      const direct = routeClearsObstacles(directMiddle, obstacles)
+      const startHeading = headingOf(source.anchor, exits.start), endHeading = headingOf(exits.end, target.anchor)
+      const lanes = [...frames ? [...groupFrames, ...cardFrames] : [], ...separate ? apartLines : []]
+      const middle = keepOff
+        ? (direct && !runsAlongFrame(directMiddle, keepOff) ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn, keepOff, lanes))
+        : (direct ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn) ?? directMiddle)
+      return middle && simplifyOrthogonalPoints([source.anchor, ...middle, target.anchor])
+    }
+    // A route on its own group's frame or header divider reads as part of
+    // the container outline: keep off those lines whenever a clear route
+    // exists, and off the other relations' ink where it can. Running beside
+    // an endpoint's own card side is milder: keep off it too, unless that
+    // costs a bend.
+    const separate = apartLines.length > 0
+    const routes = [[groupFrames, true], [groupFrames, false], [undefined, true], [undefined, false]] as const
+    let offGroups: Point[] | null = null, separated = false
+    for (const [frames, keepApart] of routes) {
+      if (offGroups || (keepApart && !separate)) continue
+      offGroups = route(frames, keepApart)
+      separated = keepApart
+    }
+    const offAll = runsAlongFrame(offGroups!, cardFrames) ? route([...groupFrames, ...cardFrames], separated) : null
+    let points = offAll && offAll.length <= offGroups!.length ? offAll : offGroups!
+    const extended = extendTerminalRuns(points, terminal)
+    if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
+    return { source, target, points }
   }
-  const route = (frames: readonly FrameLine[] | undefined): Point[] | null => {
-    // Leads stop a clearance short of a line they would end on head-on.
-    const exits = frames ? { start: leadShortOfFrames(source, edge.source.side, frames), end: leadShortOfFrames(target, edge.target.side, frames) } : { start: source.exit, end: target.exit }
-    const directMiddle = simplifyOrthogonalPoints([
-      exits.start,
-      ...routeBetween(exits.start, exits.end, edge.source.side, edge.target.side),
-      exits.end,
-    ])
-    const direct = routeClearsObstacles(directMiddle, obstacles)
-    const startHeading = headingOf(source.anchor, exits.start), endHeading = headingOf(exits.end, target.anchor)
-    const middle = frames
-      ? (direct && !runsAlongFrame(directMiddle, frames) ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn, frames, [...groupFrames, ...cardFrames]))
-      : (direct ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn) ?? directMiddle)
-    return middle && simplifyOrthogonalPoints([source.anchor, ...middle, target.anchor])
+  let { source, target, points } = routeFrom({})
+  // A `{group}` contact may sit anywhere along its group's side. When the
+  // default contact puts this route on another relation's line, slide each
+  // group contact to the clear place with the fewest crossings, then bends
+  // (the declared layout objective's order), then the least displacement.
+  if ((edge.source.boundary === 'group' || edge.target.boundary === 'group') && runsAlongFrame(points, apartLines)) {
+    const choices = (end: 'source' | 'target'): Array<number | undefined> => {
+      if (edge[end].boundary !== 'group') return [undefined]
+      const endpoint = edge[end]
+      const group = groups.get(servicesById.get(endpoint.id)!.parentId!)!
+      const vertical = endpoint.side === 'L' || endpoint.side === 'R'
+      const anchor = (end === 'source' ? source : target).anchor
+      const preferred = vertical ? anchor.y : anchor.x
+      const lo = vertical ? group.y + Math.max(GROUP_EDGE_PAD, (group.headerHeight ?? 0) + ROUTE_CLEARANCE) : group.x + GROUP_EDGE_PAD
+      const hi = vertical ? group.y + group.height - GROUP_EDGE_PAD : group.x + group.width - GROUP_EDGE_PAD
+      // Places just clear of another relation's parallel run, and the faces
+      // of the obstacles a straight run there would pass.
+      const near = [
+        ...apartLines.filter(([p, q]) => (Math.abs(p.y - q.y) <= ROUTE_EPSILON) === vertical).flatMap(([p]) => {
+          const at = vertical ? p.y : p.x
+          return [at - 2 * ROUTE_CLEARANCE, at - ROUTE_CLEARANCE, at + ROUTE_CLEARANCE, at + 2 * ROUTE_CLEARANCE]
+        }),
+        ...obstacles.flatMap(obstacle => vertical ? [obstacle.y, obstacle.y + obstacle.height] : [obstacle.x, obstacle.x + obstacle.width]),
+      ].filter(at => at >= lo - ROUTE_EPSILON && at <= hi + ROUTE_EPSILON && Math.abs(at - preferred) > ROUTE_EPSILON)
+      const unique = [...new Set(near)].sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || a - b)
+      return [undefined, ...unique.slice(0, 8)]
+    }
+    const displacement = (end: 'source' | 'target', at: number | undefined): number => {
+      if (at === undefined) return 0
+      const anchor = (end === 'source' ? source : target).anchor
+      return Math.abs(at - (edge[end].side === 'L' || edge[end].side === 'R' ? anchor.y : anchor.x))
+    }
+    const drawnRoutes = drawn.map(route => ({ points: route }))
+    let best: { cost: readonly number[]; result: ReturnType<typeof routeFrom> } | undefined
+    for (const sourceAt of choices('source')) {
+      for (const targetAt of choices('target')) {
+        if (sourceAt === undefined && targetAt === undefined) continue
+        const result = routeFrom({ source: sourceAt, target: targetAt })
+        if (runsAlongFrame(result.points, apartLines) || !routeClearsObstacles(result.points, obstacles)) continue
+        const cost = [countPolylineCrossings([{ points: result.points }, ...drawnRoutes], new Set([0])), result.points.length - 2, displacement('source', sourceAt) + displacement('target', targetAt)]
+        const index = best ? cost.findIndex((value, axis) => Math.abs(value - best!.cost[axis]!) > ROUTE_EPSILON) : 0
+        if (!best || (index >= 0 && cost[index]! < best.cost[index]!)) best = { cost, result }
+      }
+    }
+    if (best) ({ source, target, points } = best.result)
   }
-  // A route on its own group's frame or header divider reads as part of the
-  // container outline: keep off those lines whenever a clear route exists.
-  // Running beside an endpoint's own card side is milder: keep off it too,
-  // unless that costs a bend.
-  const offGroups = route(groupFrames) ?? route(undefined)!
-  const offAll = runsAlongFrame(offGroups, cardFrames) ? route([...groupFrames, ...cardFrames]) : null
-  let points = offAll && offAll.length <= offGroups.length ? offAll : offGroups
-  const extended = extendTerminalRuns(points, terminal)
-  if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
   const sourceFacesTarget = sideFacesPoint(source.anchor, edge.source.side, target.anchor)
   const targetFacesSource = sideFacesPoint(target.anchor, edge.target.side, source.anchor)
 
@@ -1333,12 +1407,14 @@ function resolveEndpoint(
   junctionBounds: Map<string, Bounds>,
   groups: Map<string, PositionedArchitectureGroup>,
   lead = 0,
+  along?: number,
 ): ResolvedEndpoint {
   if (endpoint.boundary === 'group') {
     const service = servicesById.get(endpoint.id)!
     const serviceBoundsEntry = serviceBounds.get(endpoint.id)!
     const group = groups.get(service.parentId!)!
     const anchor = groupAnchor(group, serviceBoundsEntry, endpoint.side)
+    if (along !== undefined) anchor[endpoint.side === 'L' || endpoint.side === 'R' ? 'y' : 'x'] = along
     return { anchor, exit: movePoint(anchor, endpoint.side, Math.max(EDGE_EXIT_GAP, lead)) }
   }
 
