@@ -35,6 +35,10 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     degrees.get(edge.to)!.incoming++
   }
   const portSpacing = Math.max(12, 8 + style.lineWidth)
+  // A frame that names itself as a source loops beside its own card, inside
+  // its own lane: out of its lowest right port, under the card, and back into
+  // its lowest left port, short of the gutters other relations travel in.
+  const looped = new Set(relations.filter(edge => edge.from === edge.to).map(edge => edge.from))
   const titleBand = diagramTitleBand(body.title, style)
   const laneWidth = Math.max(140, ...lanes.map(lane => style.groupLabelPaddingX + lane.block.width + style.groupPaddingX)) + nodeStroke
   const nodes = body.frames.map((frame, index) => {
@@ -48,6 +52,7 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   })
   const columnWidth = Math.max(160, ...nodes.map(node => node.width))
   const gap = Math.max(48, options.nodeSpacing ?? 48, 2 * nodeStroke + 16)
+  const loopLead = Math.max(portSpacing, gap / 4)
   const width = Math.max(pad * 2 + laneWidth + Math.max(1, nodes.length) * columnWidth + Math.max(0, nodes.length - 1) * gap + Math.max(style.groupPaddingX + nodeStroke, gap / 2 + style.lineWidth), (titleBand?.width ?? 0) + 2 * pad)
   const members = new Map<string, typeof nodes>()
   for (const node of nodes) {
@@ -59,7 +64,7 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   for (const lane of lanes) {
     const owned = members.get(lane.id) ?? []
     lane.y = y
-    lane.height = Math.max(rowHeight, lane.block.height + 2 * style.groupPaddingY, ...owned.map(node => node.height + 2 * (style.groupPaddingY + nodeStroke)))
+    lane.height = Math.max(rowHeight, lane.block.height + 2 * style.groupPaddingY, ...owned.map(node => node.height + 2 * (Math.max(style.groupPaddingY, looped.has(node.id) ? 2 * loopLead : 0) + nodeStroke)))
     lane.width = width - 2 * pad
     for (const node of owned) {
       node.x = pad + laneWidth + node.index * (columnWidth + gap)
@@ -82,11 +87,13 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   }
   // A card's port slots follow the other ends top to bottom (then left to
   // right), so routes leaving or entering one side do not cross each other.
-  const centre = (id: string) => { const node = byId.get(id)!; return node.y + node.height / 2 }
+  // A self-relation takes the lowest slot on both sides, so its loop passes
+  // no other port.
+  const centre = (edge: (typeof relations)[number], end: 'from' | 'to') => { if (edge.from === edge.to) return Infinity; const node = byId.get(edge[end])!; return node.y + node.height / 2 }
   const slotOrder = (side: 'from' | 'to') => {
     const other = side === 'from' ? 'to' : 'from'
     const ranked = relations.map((edge, index) => ({ edge, index }))
-      .sort((a, b) => centre(a.edge[other]) - centre(b.edge[other]) || byId.get(a.edge[other])!.index - byId.get(b.edge[other])!.index || a.index - b.index)
+      .sort((a, b) => centre(a.edge, other) - centre(b.edge, other) || byId.get(a.edge[other])!.index - byId.get(b.edge[other])!.index || a.index - b.index)
     const slots = new Map<number, number>(), used = new Map<string, number>()
     for (const { edge, index } of ranked) {
       const slot = used.get(edge[side]) ?? 0
@@ -115,6 +122,13 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     const targetGutter = to.x - gap / 2
     const routeY = laneById.get(from.lane)!.y - gap / 2
     const template = from.lane === to.lane && to.index === from.index + 1 && start.y === end.y ? [start, end] : to.index === from.index + 1 ? [start, { x: gutter, y: start.y }, { x: gutter, y: end.y }, end] : [start, { x: gutter, y: start.y }, { x: gutter, y: routeY }, { x: targetGutter, y: routeY }, { x: targetGutter, y: end.y }, end]
+    if (edge.from === edge.to) {
+      const below = from.y + from.height + nodeStroke + loopLead
+      const points = [start, { x: start.x + loopLead, y: start.y }, { x: start.x + loopLead, y: below }, { x: end.x - loopLead, y: below }, { x: end.x - loopLead, y: end.y }, end]
+      drawn.push({ from: edge.from, to: edge.to, points })
+      const projection = style.edgeBendRadius > 0 ? projectRoundedConnectorPath(points, style.edgeBendRadius, { precision: 3, terminalClearance: { end: eventModelingTerminal(eventModelingArrow.id, style.lineWidth, 'end') } }) : undefined
+      return { ...edge, points: projection?.geometry.points ?? points, projection, index }
+    }
     const segments = drawn.filter(other => other.from !== edge.from && other.to !== edge.to && other.from !== edge.to && other.to !== edge.from)
       .flatMap(other => other.points.slice(1).map((point, at) => [other.points[at]!, point] as const))
     const routed = routeOrthogonal({ start, end, exit: 'E', entry: 'E', obstacles, clearance: 0, channels: { x: [...channels.x, targetGutter], y: channels.y }, channelsOnly: true, minRun: portSpacing,

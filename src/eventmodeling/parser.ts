@@ -260,7 +260,7 @@ export function validateEventModeling(body: EventModelingBody, strictIdentifiers
     if (typeof frame.entity !== 'string' || !new RegExp(`^${entity}$`).test(frame.entity) || !Object.values(types).includes(frame.type)) throw Error('Invalid frame entity or type')
   }
   for (const frame of body.frames) {
-    for (const source of frame.sources) if (!ids.has(source) || source === frame.id) throw Error(`Invalid source frame: ${source}`)
+    for (const source of frame.sources) if (!ids.has(source)) throw Error(`Invalid source frame: ${source}`)
     if (new Set(frame.sources).size !== frame.sources.length) throw Error('Duplicate frame relation')
     if (frame.dataReference !== undefined && (typeof frame.dataReference !== 'string' || !/^[_a-zA-Z]\w*$/.test(frame.dataReference))) throw Error('Invalid data reference')
     if (frame.dataReference && !Object.hasOwn(body.data, frame.dataReference)) throw Error(`Unknown data: ${frame.dataReference}`)

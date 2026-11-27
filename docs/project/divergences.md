@@ -899,6 +899,15 @@ pinned upstream renderer's reported final-character loss. Reserved grammar
 words used as identifiers are generous reads with an `UNSUPPORTED_SYNTAX`
 warning. Writers reject them until renamed rather than emit invalid Mermaid.
 
+A frame that names itself as a source (`tf 06 ui Screen ->> 05 ->> 06`,
+mermaid-js/mermaid-v13#672) is accepted by Mermaid 12.2.0, which keeps the
+relation and draws it as a straight line across its own card. Agentic used to
+reject it (`Invalid source frame`); it now keeps the self-relation, draws it as
+a loop beside the card inside its own lane, and writes it back unchanged.
+Because no frame type may feed itself, `EVENT_SOURCE_TYPE` reports it, the
+type rule pinned Mermaid's Event Modeling validator also states; no
+`UNSUPPORTED_SYNTAX` warning applies.
+
 ### Follow-up to #494: generous reads and portable writes
 
 The #548–#552 repairs align direct source rendering with typed admission.

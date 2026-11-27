@@ -1,6 +1,7 @@
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { asEventModeling, buildMermaid, createMermaid, describeMermaidTree, layoutMermaidWithReceipt, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { eventRelations, parseEventModeling } from '../eventmodeling/parser.ts'
 import { layoutEventModeling } from '../eventmodeling/layout.ts'
@@ -524,4 +525,60 @@ test.each<{ name: string; source: string; straight: string[] }>([
       expect(Math.min(hi, rhi) - Math.max(lo, rlo), `${key(a)} along ${key(b)}`).toBeLessThanOrEqual(0)
     }
   }
+})
+
+// mermaid-js/mermaid-v13#672: a frame naming itself as a source failed with
+// "Invalid source frame". Pinned Mermaid accepts it and keeps the relation, so
+// ours draws it: a loop beside its own card, in its own lane, meeting no other
+// route, while the other relations (an explicit reset input, a frame with no
+// sources) keep their own routes.
+test('a self-relation draws its own loop beside the card and leaves every other route intact', async () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/eventmodeling-self-relation-v13-672.mmd', import.meta.url), 'utf8')
+  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  expect(svg).toContain('data-id="relation:06:06"')
+  const { layout } = layoutMermaidWithReceipt(source, { embedFontImport: false })
+  expect(layout.edges.map(edge => `${edge.from}->${edge.to}`)).toEqual(['01->02', '02->03', '03->04', '02->04', '04->05', '02->05', '05->06', '06->06', '06->07', '07->08', '08->09'])
+  const cards = new Map(layout.nodes.map(node => [node.id, node]))
+  const segments = (path: readonly (readonly [number, number])[]) => path.slice(1).map((point, index) => [path[index]!, point] as const)
+  for (const edge of layout.edges) {
+    const from = cards.get(edge.from)!, to = cards.get(edge.to)!, [start, end] = [edge.path[0]!, edge.path.at(-1)!]
+    for (const [[ax, ay], [bx, by]] of segments(edge.path)) expect(ax === bx || ay === by, `${edge.id} is orthogonal`).toBe(true)
+    // Out of the source's right side, into the target's left side.
+    expect(Math.abs(start[0] - (from.x + from.w))).toBeLessThanOrEqual(1)
+    expect(start[1]).toBeGreaterThan(from.y); expect(start[1]).toBeLessThan(from.y + from.h)
+    expect(Math.abs(end[0] - to.x)).toBeLessThanOrEqual(1)
+    expect(end[1]).toBeGreaterThan(to.y); expect(end[1]).toBeLessThan(to.y + to.h)
+  }
+  const loop = layout.edges.find(edge => edge.from === '06' && edge.to === '06')!, card = cards.get('06')!
+  const lane = layout.groups.find(group => group.id === card.parentId)!
+  expect(lane.members).toEqual(['06'])
+  for (const [x, y] of loop.path) {
+    expect(y).toBeGreaterThan(lane.y); expect(y).toBeLessThan(lane.y + lane.h)
+    // Short of the neighbouring columns' gutters.
+    expect(x).toBeGreaterThan(cards.get('05')!.x + cards.get('05')!.w); expect(x).toBeLessThan(cards.get('07')!.x)
+  }
+  const meets = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]], [[cx, cy], [dx, dy]]: readonly [readonly [number, number], readonly [number, number]]) =>
+    Math.max(ax, bx) >= Math.min(cx, dx) && Math.max(cx, dx) >= Math.min(ax, bx) && Math.max(ay, by) >= Math.min(cy, dy) && Math.max(cy, dy) >= Math.min(ay, by)
+  // It meets no other route and shares none of their lines, so no trunk reads
+  // as continuing into it.
+  const line = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]]) => ax === bx ? `x${ax}` : `y${ay}`
+  for (const other of layout.edges) if (other !== loop) for (const a of segments(loop.path)) for (const b of segments(other.path)) {
+    expect(meets(a, b), `${other.id} meets the loop`).toBe(false)
+    expect(line(a), `${other.id} shares a line with the loop`).not.toBe(line(b))
+  }
+  // Pinned Mermaid accepts the self-reference and our canonical writing of it;
+  // only its domain rule (a ui reads a read model) is reported.
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error('expected native Event Modeling')
+  const upstream = startUpstreamMermaid()
+  try {
+    expect((await upstream.parse(source)).ok).toBe(true)
+    expect((await upstream.parse(serializeMermaid(parsed.value))).ok).toBe(true)
+  } finally {
+    await upstream.close()
+  }
+  const warnings = verifyMermaid(source).warnings
+  expect(warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  expect(warnings.filter(warning => warning.code === 'EVENT_SOURCE_TYPE').filter(warning => warning.node === '06').map(warning => warning.source)).toEqual(['06'])
+  expect(renderMermaidASCII(source, { useAscii: true })).toContain('Screen')
 })
