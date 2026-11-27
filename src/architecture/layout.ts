@@ -36,6 +36,10 @@ const EMPTY_GROUP_BODY = { width: 80, height: 24 }
 export const ARCHITECTURE_TITLE_FONT_SIZE = 18
 export const ARCHITECTURE_TITLE_FONT_WEIGHT = 600
 const TITLE_Y = 20
+/** Padding of the box the renderer paints behind an edge label. */
+export const EDGE_LABEL_PADDING = 7
+/** The least room between an edge label's box and the canvas edge. */
+const LABEL_CANVAS_MARGIN = 8
 const TITLE_SIDE_PADDING = 40
 
 interface LayoutGroup {
@@ -329,6 +333,34 @@ export function layoutArchitectureDiagram(
         if (edge.labelPosition) edge.labelPosition.y += shiftY
       }
       height = Math.max(height + shiftY, titleTop + titleHeight + 20)
+    }
+    // Every edge label's painted box lies on the canvas. Packing can leave a
+    // route near the canvas edge, and a label seated on it then reaches past
+    // the left or top edge: move the whole drawing in by what it needs.
+    const labelBoxes = edges.flatMap(edge => edge.labelPosition && edge.labelBlock ? [{
+      x0: edge.labelPosition.x - edge.labelBlock.width / 2 - EDGE_LABEL_PADDING, y0: edge.labelPosition.y - edge.labelBlock.height / 2 - EDGE_LABEL_PADDING,
+      x1: edge.labelPosition.x + edge.labelBlock.width / 2 + EDGE_LABEL_PADDING, y1: edge.labelPosition.y + edge.labelBlock.height / 2 + EDGE_LABEL_PADDING,
+    }] : [])
+    const inX = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.x0)))
+    const inY = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.y0)))
+    if (inX > 0 || inY > 0) {
+      const shiftGroup = (group: PositionedArchitectureGroup): void => {
+        group.x += inX; group.y += inY
+        group.children.forEach(shiftGroup)
+      }
+      groups.forEach(shiftGroup)
+      for (const item of [...services, ...junctions]) { item.x += inX; item.y += inY }
+      for (const edge of edges) {
+        for (const point of edge.points) { point.x += inX; point.y += inY }
+        if (edge.labelPosition) { edge.labelPosition.x += inX; edge.labelPosition.y += inY }
+      }
+      for (const box of labelBoxes) { box.x0 += inX; box.x1 += inX; box.y0 += inY; box.y1 += inY }
+      width += inX
+      height += inY
+    }
+    for (const box of labelBoxes) {
+      width = Math.max(width, box.x1 + LABEL_CANVAS_MARGIN)
+      height = Math.max(height, box.y1 + LABEL_CANVAS_MARGIN)
     }
     for (const edge of edges) {
       for (const point of edge.points) {

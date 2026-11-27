@@ -8,7 +8,7 @@ import type {
 } from './types.ts'
 import type { ArchitectureVisualConfig } from './config.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
-import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT, edgeMidpoint } from './layout.ts'
+import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT, EDGE_LABEL_PADDING, edgeMidpoint } from './layout.ts'
 import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
@@ -442,9 +442,8 @@ function lowerEdgeLabel<T>(marks: DrawingFactory<T>, edge: PositionedArchitectur
   const block = edge.labelBlock ?? preparePixelText(edge.label!, { display: 'formatted', transform: visual.edgeTextTransform, fontSize: visual.edgeFontSize, fontWeight: visual.edgeFontWeight, letterSpacing: visual.edgeLetterSpacing })
   const label = block.text
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const padding = 7
-  const bgWidth = block.width + padding * 2
-  const bgHeight = block.height + padding * 2
+  const bgWidth = block.width + EDGE_LABEL_PADDING * 2
+  const bgHeight = block.height + EDGE_LABEL_PADDING * 2
   return [
     marks.shape({
       id: `${sceneId}:bg`,
