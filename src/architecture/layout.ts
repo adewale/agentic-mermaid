@@ -236,6 +236,7 @@ export function layoutArchitectureDiagram(
       // more before resolving `{group}` anchors and route obstacles.
       expandGroupBounds(groups, services, junctions, true, reservedHeaderPadding)
     }
+    const contactsSnapped = snapNearlyAlignedContacts(diagram, services, junctions, flatGroups, options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING, reservedHeaderPadding)
 
     if (diagram.alignments.length) {
       // Side ordering and container cleanup must preserve every fixed-axis
@@ -293,7 +294,7 @@ export function layoutArchitectureDiagram(
     const titleHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
     let width = positioned.width
     let height = positioned.height
-    if (diagram.alignments.length > 0 || sideConstraintsChanged) {
+    if (diagram.alignments.length > 0 || sideConstraintsChanged || contactsSnapped) {
       // Alignment may collapse several old ranks into one; derive the canvas
       // from post-constraint geometry instead of retaining ELK's stale extent.
       width = Math.max(
@@ -785,15 +786,28 @@ function applyArchitectureSideConstraints(
     // still legal; leave placement intact and let the typed certificate say so.
     if (order.length !== components.length) continue
 
-    const initialBounds = components.map(componentBounds)
-    let cursor = Math.min(...initialBounds.map(bound => axis === 'x' ? bound.x : bound.y))
+    // Pack the constrained units by longest path: a unit starts one spacing
+    // past the last unit it must follow, and a unit that follows none starts
+    // where the first constrained unit did. A unit no face constrains on
+    // this axis keeps its place, so satisfying one relation never pushes an
+    // unrelated sibling off the line of another (pele#138); the overlap
+    // cleanup below separates any units this brings together.
+    const predecessors = new Map(components.map(component => [component, [] as string[]]))
+    for (const [before, afters] of arcs) for (const after of afters) predecessors.get(after)!.push(before)
+    const constrained = new Set([...arcs].flatMap(([before, afters]) => [before, ...afters]))
+    const startOf = (bounds: Bounds): number => axis === 'x' ? bounds.x : bounds.y
+    const origin = Math.min(...[...constrained].map(component => startOf(componentBounds(component))))
     for (const component of order) {
-      const bounds = componentBounds(component)
-      const start = axis === 'x' ? bounds.x : bounds.y
-      const delta = cursor - start
-      if (Math.abs(delta) > ROUTE_EPSILON) changed = true
+      if (!constrained.has(component)) continue
+      const start = startOf(componentBounds(component))
+      const required = Math.max(origin, ...predecessors.get(component)!.map(before => {
+        const placed = componentBounds(before)
+        return startOf(placed) + (axis === 'x' ? placed.width : placed.height) + spacing
+      }))
+      const delta = required - start
+      if (Math.abs(delta) <= ROUTE_EPSILON) continue
+      changed = true
       for (const key of componentMembers.get(component)!) translateUnit(key, axis, delta)
-      cursor += (axis === 'x' ? bounds.width : bounds.height) + spacing
     }
     // A nested reorder can enlarge its container; refresh before a parent-level
     // constraint uses that group as one sibling unit.
@@ -876,6 +890,37 @@ function applyArchitectureSideConstraints(
       }
       if (!moved) break
     }
+    // Any two siblings side by side (their y spans overlap, their x spans do
+    // not) keep the node spacing between them. The right one moves right with
+    // its column, and so does a unit a face places after it, so no x order
+    // a face already has reverses (conflicting faces have none to keep).
+    const xFaces = constraints.filter(constraint => {
+      if (constraint.axis !== 'x' || constraint.parentId !== context.parentId) return false
+      const before = unitBounds(constraint.before), after = unitBounds(constraint.after)
+      return before !== undefined && after !== undefined && before.x + before.width <= after.x + ROUTE_EPSILON
+    })
+    for (let pass = 0; pass < siblingKeys.length; pass++) {
+      let moved = false
+      const order = [...siblingKeys].sort((a, b) => unitBounds(a)!.x - unitBounds(b)!.x || compareCodePointStrings(a, b))
+      for (const [index, key] of order.entries()) {
+        const bounds = unitBounds(key)!
+        let required = -Infinity
+        for (const other of order.slice(0, index)) {
+          const placed = unitBounds(other)!
+          if (column(other) === column(key) || placed.x + placed.width > bounds.x + ROUTE_EPSILON) continue
+          if (placed.y < bounds.y + bounds.height - ROUTE_EPSILON && bounds.y < placed.y + placed.height - ROUTE_EPSILON) required = Math.max(required, placed.x + placed.width + spacing)
+        }
+        for (const face of xFaces) {
+          const before = face.after === key ? unitBounds(face.before) : undefined
+          if (before) required = Math.max(required, before.x + before.width + spacing)
+        }
+        if (bounds.x >= required - ROUTE_EPSILON) continue
+        const delta = required - bounds.x
+        for (const sibling of columns.get(column(key))!) translateUnit(sibling, 'x', delta)
+        moved = changed = true
+      }
+      if (!moved) break
+    }
     const order = [...members.keys()].sort((a, b) => {
       const aa = boundsFor(a), bb = boundsFor(b)
       return aa.y - bb.y || aa.x - bb.x || compareCodePointStrings(a, b)
@@ -884,9 +929,14 @@ function applyArchitectureSideConstraints(
     for (const root of order) {
       for (let pass = 0; pass <= placed.length; pass++) {
         const bounds = boundsFor(root)
-        const blockers = placed.map(boundsFor).filter(other => overlaps(bounds, other))
+        // Every other pair keeps the node spacing too, measured between the
+        // nearest points of the two boxes: a unit below another moves down
+        // until it is that far away.
+        const gapX = (other: Bounds): number => Math.max(0, other.x - bounds.x - bounds.width, bounds.x - other.x - other.width)
+        const gapY = (other: Bounds): number => Math.max(0, other.y - bounds.y - bounds.height, bounds.y - other.y - other.height)
+        const blockers = placed.map(boundsFor).filter(other => overlaps(bounds, other) || Math.hypot(gapX(other), gapY(other)) < spacing - ROUTE_EPSILON)
         if (blockers.length === 0) break
-        const targetY = Math.max(...blockers.map(other => other.y + other.height + spacing))
+        const targetY = Math.max(...blockers.map(other => other.y + other.height + Math.sqrt(Math.max(0, spacing * spacing - gapX(other) ** 2))))
         const delta = targetY - bounds.y
         for (const key of members.get(root)!) translateUnit(key, 'y', delta)
         changed = true
@@ -898,6 +948,70 @@ function applyArchitectureSideConstraints(
   return changed
 }
 
+
+/** Facing contacts this close would join with a jog that reads as a glitch. */
+const CONTACT_SNAP = 2
+const OPPOSITE_SIDE: Record<ArchitectureEndpoint['side'], ArchitectureEndpoint['side']> = { L: 'R', R: 'L', T: 'B', B: 'T' }
+
+/**
+ * Line up the facing contacts of a relation whose units placement left at
+ * most CONTACT_SNAP out of line, so its route runs straight. Contacts stay at
+ * their side centres; one endpoint unit moves instead, and only when that
+ * keeps it inside its group's padding, keeps every distance it had or the
+ * node spacing, leaves its fixed alignment axis alone and puts none of its
+ * other relations out of line.
+ */
+function snapNearlyAlignedContacts(
+  diagram: ArchitectureDiagram,
+  services: PositionedArchitectureService[],
+  junctions: PositionedArchitectureJunction[],
+  groups: Map<string, PositionedArchitectureGroup>,
+  spacing: number,
+  reservedHeaderPadding?: number,
+): boolean {
+  const items = new Map<string, PositionedArchitectureService | PositionedArchitectureJunction>([...services, ...junctions].map(item => [item.id, item]))
+  const aligned = (id: string, axis: 'x' | 'y'): boolean => diagram.alignments.some(alignment => alignment.axis === (axis === 'y' ? 'row' : 'column') && alignment.members.includes(id))
+  const offAxis = (edge: ArchitectureDiagram['edges'][number]): { axis: 'x' | 'y'; offset: number } | undefined => {
+    const source = items.get(edge.source.id), target = items.get(edge.target.id)
+    if (!source || !target || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) return undefined
+    const axis = edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x'
+    const size = axis === 'y' ? 'height' : 'width'
+    return { axis, offset: target[axis] + target[size] / 2 - source[axis] - source[size] / 2 }
+  }
+  const distance = (a: Bounds, b: Bounds): number => Math.hypot(Math.max(0, a.x - b.x - b.width, b.x - a.x - a.width), Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height))
+  let snapped = false
+  for (const edge of diagram.edges) {
+    const misaligned = offAxis(edge)
+    if (!misaligned || Math.abs(misaligned.offset) <= ROUTE_EPSILON || Math.abs(misaligned.offset) > CONTACT_SNAP) continue
+    const { axis, offset } = misaligned
+    for (const [id, delta] of [[edge.target.id, -offset], [edge.source.id, offset]] as const) {
+      const item = items.get(id)!
+      if (aligned(id, axis)) continue
+      const moved = { x: item.x, y: item.y, width: item.width, height: item.height, [axis]: item[axis] + delta }
+      const group = item.parentId ? groups.get(item.parentId) : undefined
+      const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : (group?.headerHeight ?? 0) + reservedHeaderPadding
+      if (group && (moved.x - GROUP_EDGE_PAD < group.x - ROUTE_EPSILON || moved.y - topPadding < group.y - ROUTE_EPSILON
+        || moved.x + moved.width + GROUP_EDGE_PAD > group.x + group.width + ROUTE_EPSILON || moved.y + moved.height + GROUP_EDGE_PAD > group.y + group.height + ROUTE_EPSILON)) continue
+      const neighbours: Bounds[] = [...[...items.values()].filter(other => other !== item), ...[...groups.values()].filter(other => {
+        for (let parent = item.parentId; parent; parent = groups.get(parent)?.parentId) if (parent === other.id) return false
+        return true
+      })]
+      if (neighbours.some(other => distance(moved, other) < Math.min(spacing, distance(item, other)) - ROUTE_EPSILON)) continue
+      const incident = diagram.edges.filter(other => other !== edge && (other.source.id === id || other.target.id === id))
+      const before = incident.map(offAxis)
+      const original = item[axis]
+      item[axis] += delta
+      const breaks = incident.some((other, index) => {
+        const was = before[index], now = offAxis(other)
+        return was !== undefined && now !== undefined && was.axis === axis && Math.abs(was.offset) <= ROUTE_EPSILON && Math.abs(now.offset) > ROUTE_EPSILON
+      })
+      if (breaks) { item[axis] = original; continue }
+      snapped = true
+      break
+    }
+  }
+  return snapped
+}
 
 function mapGroup(
   group: LayoutGroup,

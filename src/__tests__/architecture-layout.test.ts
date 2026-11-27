@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
+import { ARCHITECTURE_DEFAULT_NODE_SPACING, ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { convertToElkFormat } from '../layout-engine.ts'
@@ -10,6 +10,7 @@ import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { measureQuality } from '../agent/quality.ts'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 
 function parse(source: string) {
@@ -500,6 +501,34 @@ describe('layoutArchitectureDiagram', () => {
     expect(routeCrossesBoxInterior(shortcut.points, middle)).toBe(false)
     expect(shortcut.obstacleFree).toBe(true)
     expect(shortcut.placement).toBe('satisfied')
+  })
+
+  // pele#138: satisfying page:B -- T:store stacked every root sibling below
+  // the group on y, so Claude API, which only page:R -- L:api constrains,
+  // was pushed below localStorage and the two relations crossed.
+  it('keeps relations clear of unconnected services and of each other where they can be', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/pele-138.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    for (const edge of projected.edges) {
+      const points = edge.path.map(([x, y]) => ({ x, y }))
+      const crossed = projected.nodes.filter(node => node.id !== edge.from && node.id !== edge.to && routeCrossesBoxInterior(points, { x: node.x, y: node.y, width: node.w, height: node.h }))
+      expect({ edge: edge.id, crossed: crossed.map(node => node.id) }).toEqual({ edge: edge.id, crossed: [] })
+    }
+    expect(measureQuality(projected).edgeCrossings).toBe(0)
+  })
+
+  // Packing only face-constrained units once left Storage 33 px beside
+  // Database and 1.5 px out of line with Server, a jog that read as a glitch.
+  it.each(['fixture/architecture-basic.mmd', 'fixture/pele-138.mmd', 'corpus/architecture/0', 'corpus/architecture/4', 'corpus/architecture/5'])('%s keeps the node spacing and draws no jog shorter than 4 px', id => {
+    const { layout: projected } = layoutMermaidWithReceipt(collectSamples().find(sample => sample.id === id)!.source)
+    // Public coordinates are rounded to whole pixels.
+    expect(measureQuality(projected).minimumNodeSpacing).toBeGreaterThanOrEqual(ARCHITECTURE_DEFAULT_NODE_SPACING - 1)
+    const jogs = projected.edges.flatMap(edge => edge.path.slice(1, -2).flatMap(([x, y], index) => {
+      const [nx, ny] = edge.path[index + 2]!
+      const run = Math.hypot(nx - x, ny - y)
+      return run > 0 && run < 4 ? [`${edge.id}: ${run}px`] : []
+    }))
+    expect(jogs).toEqual([])
   })
 
   // mermaid-v13#1176: the {group} relation left Region A on the line of the
