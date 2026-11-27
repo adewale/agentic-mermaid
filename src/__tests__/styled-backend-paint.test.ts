@@ -5,7 +5,7 @@ import * as marks from '../scene/marks.ts'
 import type { StyleBackend } from '../scene/backend.ts'
 import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 import { HybridBackend } from '../scene/hybrid-backend.ts'
-import { RoughBackend } from '../scene/rough-backend.ts'
+import { createSketchBackend, RoughBackend } from '../scene/rough-backend.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { getFamily, type BuiltinFamilyId } from '../agent/families.ts'
@@ -144,6 +144,21 @@ describe('paint margin', () => {
       const allowed = PAINT_MARGIN + strokeWidth * 2
       expect([canonical.x0 - ink.x0, canonical.y0 - ink.y0, ink.x1 - canonical.x1, ink.y1 - canonical.y1].every(stray => stray <= allowed)).toBe(true)
     }
+  })
+
+  // A sketcher's paths are measured whatever order their attributes come in:
+  // one that inks past the margin, or whose data cannot be read, is redrawn
+  // by the rough sketch instead of drawn as emitted.
+  test.each([
+    { name: 'ink past the margin after a stroke', path: '<path stroke="#000" d="M 0 0 L 400 400" />', drawn: false },
+    { name: 'a wide stroke given before its data', path: '<path stroke-width="60" stroke="#000" d="M 40 40 L 140 40" />', drawn: false },
+    { name: 'no data', path: '<path stroke="#000" fill="none" />', drawn: false },
+    { name: 'ink within the margin after a stroke', path: "<path stroke='#000' stroke-width='2' d='M 40 40 L 140 40 L 140 80 L 40 80 Z' />", drawn: true },
+  ])('a sketcher path with $name is drawn as emitted: $drawn', ({ path, drawn }) => {
+    const mark = marks.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: 40, y: 40, width: 100, height: 40 }, paint: { fill: 'none', stroke: '#000', strokeWidth: '2' } })
+    const backend = createSketchBackend('emitted', () => path)
+    // The backend appends the mark's identity before the tag closes.
+    expect(backend.drawNode(mark, { seed: 1, style: { stroke: 'jittered', roughness: 1, bowing: 1, passes: 1 } }).includes(path.slice(0, -3))).toBe(drawn)
   })
 
   // Layout reserves the margin, so no backend inks past the canvas, even when

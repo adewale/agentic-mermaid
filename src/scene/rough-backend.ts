@@ -314,14 +314,22 @@ function cubicInkBounds([p0, p1, p2, p3]: readonly [ScenePoint, ScenePoint, Scen
   return { x0, y0, x1, y1 }
 }
 
+/** A `<path>` start tag; quoted values may hold `>`. */
+const PATH_TAG = /<path\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g
+/** One attribute of a start tag, in either quote. */
+const TAG_ATTRIBUTE = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
+
 /** Whether every path a sketcher emitted, widened by half its stroke, stays
- * inside `allowed`. A path whose data cannot be read does not fit. */
+ * inside `allowed`. Its attributes are read in any order; a path whose data
+ * is missing or cannot be read does not fit. */
 function sketchInkWithin(sketched: string, allowed: AxisAlignedBox): boolean {
-  for (const [, d, attrs] of sketched.matchAll(/<path d="([^"]*)"([^>]*)>/g)) {
+  for (const [, body] of sketched.matchAll(PATH_TAG)) {
+    const attrs = new Map<string, string>()
+    for (const [, name, double, single] of body!.matchAll(TAG_ATTRIBUTE)) attrs.set(name!, double ?? single!)
+    const d = attrs.get('d')
     let ink: AxisAlignedBox | undefined
-    if (!visitTypedPathSegments(d!, segment => { ink = unionSceneBounds(ink, segment.cubic ? cubicInkBounds(segment.cubic) : segment.bounds); return true }) || !ink) return false
-    const stroked = !/\sstroke="none"/.test(attrs!)
-    const half = stroked ? Number(/\sstroke-width="([^"]+)"/.exec(attrs!)?.[1] ?? 1) / 2 : 0
+    if (d === undefined || !visitTypedPathSegments(d, segment => { ink = unionSceneBounds(ink, segment.cubic ? cubicInkBounds(segment.cubic) : segment.bounds); return true }) || !ink) return false
+    const half = attrs.get('stroke') === 'none' ? 0 : strokeWidthRatio(attrs.get('stroke-width')) / 2
     const box = expandSceneBounds(ink, half)
     if (box.x0 < allowed.x0 || box.y0 < allowed.y0 || box.x1 > allowed.x1 || box.y1 > allowed.y1) return false
   }
