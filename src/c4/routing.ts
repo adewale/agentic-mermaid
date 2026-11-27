@@ -110,7 +110,7 @@ const OFF_CORRIDOR = 0.05
 const CROSSING = 150
 /** A route longer than this many times the distance between its ports is a
  * detour worth trying other faces for. */
-const DETOUR = 3
+const DETOUR = 1.5
 /** What one bend costs when comparing faces, in pixels of route. */
 const DETOUR_BEND = 200
 /** Grid steps all of one diagram's detour retries may check together. */

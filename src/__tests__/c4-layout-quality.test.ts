@@ -143,11 +143,20 @@ describe('C4 measured pixel layout quality', () => {
   // mermaid#7492: Web Application -> E-Mail System left the boundary westward
   // on the faces facing each other and circled the canvas (4.35x its ports'
   // distance) although a route out past the header band's end is short.
-  test('a relationship out of a boundary takes a short clear route instead of circling the canvas', () => {
-    const parsed = parseRegisteredMermaid(collectSamples().find(sample => sample.id === 'fixture/mermaid-7492.mmd')!.source)
+  // Official fences #1 and #3: relationships 2.1-2.6x their ports' distance
+  // never tried other faces, although free faces gave routes about half as
+  // long. Customer -> Mobile App in #1 must pass round the end of the header
+  // band above Mobile App, so the shortest route is that long.
+  test.each([
+    ['fixture/mermaid-7492.mmd', []],
+    ['c4:official-syntax/c4.md#1', ['c4-rel-3']],
+    ['c4:official-syntax/c4.md#3', []],
+  ] as const)('%s: relationships take short clear routes instead of detouring', (id, forced: readonly string[]) => {
+    const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source
+    const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error('Expected structured C4 source')
     const layout = layoutMermaid(parsed.value)
-    const detours = layout.edges.flatMap(edge => {
+    const detours = layout.edges.filter(edge => !forced.includes(edge.id)).flatMap(edge => {
       const length = edge.path.slice(1).reduce((sum, [x, y], i) => sum + Math.abs(x - edge.path[i]![0]) + Math.abs(y - edge.path[i]![1]), 0)
       const [sx, sy] = edge.path[0]!, [ex, ey] = edge.path.at(-1)!
       const ratio = length / (Math.abs(ex - sx) + Math.abs(ey - sy))
