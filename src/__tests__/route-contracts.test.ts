@@ -3474,6 +3474,25 @@ describe('settled orthogonal excursions', () => {
     })
   })
 
+  // pele-100's t16->t20 kept a 1.6px final jog after a longer staircase.
+  it.each([
+    ['six points', [[0, 0], [40, 0], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [40, 0], [40, 51.6], [160, 51.6]]],
+    ['a longer route', [[0, 0], [20, 0], [20, -30], [40, -30], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [20, 0], [20, -30], [40, -30], [40, 51.6], [160, 51.6]]],
+  ])('folds a staircase\'s final hitch into the run before it: %s', (_name, before, after) => {
+    const graph = parseMermaid('flowchart LR\nA --> B'), style = resolveRenderStyle()
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: -20, y: -10, width: 20, height: 20 },
+      { ...graph.nodes.get('B')!, x: 160, y: 40, width: 20, height: 24 },
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points: before.map(([x, y]) => ({ x: x!, y: y! })),
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: before.length - 2 } })
+      closeRouteContracts({ nodes, edges, groups: [] }, graph, style)
+      expect(edges[0]!.points).toEqual(after.map(([x, y]) => ({ x: x!, y: y! })))
+    })
+  })
+
   // pele-100: an ELK hierarchy channel left t07->t20 a 1.6px jog inside the
   // target's group although the entry lane was clear. Retained ink beside a
   // fan-in peer is not new contact.

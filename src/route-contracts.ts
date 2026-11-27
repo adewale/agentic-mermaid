@@ -1933,6 +1933,9 @@ function frameCrossingSignature(points: readonly Point[], groups: readonly Posit
   return counts.join(',')
 }
 
+/** A perpendicular jog this short between two parallel runs reads as a hitch. */
+const HITCH_JOG = 2 * CLEARANCE
+
 /** Remove a single orthogonal excursion after captions have settled. The
  * inner run can move to the nearest endpoint lane without moving either
  * contact or rotating its ray. No distance threshold makes a bend optional:
@@ -1952,18 +1955,23 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
   let positions: Map<PositionedEdge, Point> | undefined
   for (const edge of positioned.edges) {
     const saved = edge.routeCertificate, points = edge.points
-    if (!saved || saved.routeClass !== 'primary-forward' && saved.routeClass !== 'cross-hierarchy' || points.length !== 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
-    const [start, a, b, c, d, end] = points as [Point, Point, Point, Point, Point, Point]
+    if (!saved || saved.routeClass !== 'primary-forward' && saved.routeClass !== 'cross-hierarchy' || points.length < 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
+    // The last six points: an excursion, or a staircase whose final jog is
+    // a hitch. Before them the route is kept as drawn.
+    const head = points.slice(0, -6)
+    const [start, a, b, c, d, end] = points.slice(-6) as [Point, Point, Point, Point, Point, Point]
     const main = axis.main, cross = axis.cross
-    const lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
+    let lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
+    // A staircase's final jog shorter than a hitch folds into the run before.
+    if (lane === b[cross] && Math.abs(end[cross] - b[cross]) < HITCH_JOG) lane = end[cross]
     if (start[cross] !== a[cross] || a[main] !== b[main] || b[cross] !== c[cross]
-      || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross]
+      || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross] || head.length > 0 && lane !== end[cross]
       || !simpleOrthogonal(points) || (a[main] - start[main]) * axis.sign <= 0
       || (c[main] - b[main]) * axis.sign <= 0 || (end[main] - d[main]) * axis.sign <= 0) continue
     const oldInk = orthogonalShaftInk(edge, style)
     if (!oldInk?.length) continue
     const jog = lane === end[cross] ? a[main] : d[main]
-    const route = [{ ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
+    const route = [...head.map(point => ({ ...point })), { ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
     if (!simpleOrthogonal(route)) continue
     nodes ??= indexRouteNodes(positioned.nodes)
     const source = nodes.get(edge.source), target = nodes.get(edge.target)
