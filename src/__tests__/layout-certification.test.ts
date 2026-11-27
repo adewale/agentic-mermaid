@@ -1,4 +1,6 @@
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { verifyMermaid } from '../agent/verify.ts'
 import { describe, expect, test } from 'bun:test'
 import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, certifyLayoutCandidates, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
@@ -13,7 +15,7 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, hardViolations } from '../layout-rubric.ts'
 import { retainComparisonMetrics, nonRegressingAlternative } from '../layout/non-regressing-alternative.ts'
 import { withLayoutOptimizationBudget } from '../layout/optimization-budget.ts'
 import { invalidEndpointApproaches, laneContextFor, directLaneBlockers } from '../route-contracts.ts'
@@ -435,9 +437,10 @@ describe('bounded final layout certification', () => {
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
     // The default placement certifies only by detouring routes around title
-    // bands, so it defers to the separate-hierarchy placement, which needs none.
-    expect(preference.reason).toBe('unreadableTitles')
-    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0]])
+    // bands, so the separate-hierarchy placement, which needs none, is also
+    // produced; it wins the objective on crossings, not on title readability.
+    expect(preference.reason).toBe('edgeCrossings')
+    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 0], ['separate-hierarchy', 0]])
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
     expect(preference.selectedScore).toEqual(placement!.score)
@@ -477,6 +480,20 @@ describe('bounded final layout certification', () => {
         }
       }
     }
+  })
+
+  // obsidianmd/pele#3: ELK's default placement draws the ten fan-in edges
+  // without a crossing, but the routes entering group C cross its title band.
+  // Its band detour certifies; it was nonetheless discarded, as if a title
+  // were unreadable, for the separate-hierarchy placement whose own routes
+  // cross many times. A detour is a routing cost: no title here is narrow, so
+  // the drawing may cross no more than that alternative (crossings counted by
+  // the rubric on each published drawing).
+  test('a title-band detour is judged by the objective, not as an unreadable title', () => {
+    const graph = parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/pele-3-grouped-fan-in.mmd'), 'utf8'))
+    const selected = layoutGraphSync(graph), separate = layoutGraphSync(graph, { separateHierarchy: true })
+    expect(selected.certification?.preference.compared.every(candidate => candidate.score.unreadableTitles === 0)).toBe(true)
+    expect(countEdgeCrossings(selected.edges)).toBeLessThan(countEdgeCrossings(separate.edges))
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {

@@ -2041,22 +2041,23 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   // A placement with a narrow title, or with final routes detoured around a
   // title band, defers to the next bounded candidate and is kept if that one
   // fails. Family placement discards these generic routes, so only titles count.
-  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
+  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
+  const detoured = (positioned: PositionedGraph) => purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned)
   const compareRoutes = options.compareRoutePreferences !== false
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
   const candidates: LayoutCertificationCandidate[] = [{
     strategy: 'default', produce: () => produceCandidate(options),
-    preferNext: preferReadableTitles,
+    preferNext: preferReadableTitles, detoured,
   }]
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => produceCandidate({ ...options, separateHierarchy: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => produceCandidate({ ...options, separateHierarchy: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
     // Some grouped graphs with a mixed-label fan-in certify only with both
     // changes: each single change still leaves a link-rank reconnect with no
     // contact-preserving route, or a route through a node or group header.
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   // Each placement runs the route pipeline once; bundling itself declines a
   // trunk that would cross more foreign shafts than the routes it replaces.

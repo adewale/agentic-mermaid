@@ -1,0 +1,13 @@
+%% Ten fan-in edges from two grouped chains into a third group: https://github.com/obsidianmd/pele/issues/3
+flowchart TD
+  subgraph A
+    a1 --> a2 --> a3 --> a4 --> a5
+  end
+  subgraph B
+    b1 --> b2 --> b3 --> b4 --> b5
+  end
+  subgraph C
+    store[(Store)]
+  end
+  a1 & a2 & a3 & a4 & a5 --> store
+  b1 & b2 & b3 & b4 & b5 --> store

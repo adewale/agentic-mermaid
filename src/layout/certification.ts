@@ -72,6 +72,10 @@ export interface LayoutCertificationCandidate {
   /** Try the next bounded candidate first, retaining this already certified
    * result if the preferred alternative fails. Runs inside this attempt. */
   preferNext?: (positioned: PositionedGraph) => boolean
+  /** A certified result whose routes needed a detour another placement may
+   * avoid. It is kept only if it also wins the objective against the next
+   * quality alternative: the detour is a routing cost, judged with the others. */
+  detoured?: (positioned: PositionedGraph) => boolean
   /** A fallback may be identical for this graph (for example hierarchy mode
    * without groups). It remains available after failure, but is not a quality
    * probe. At most one eligible alternative is produced after certification. */
@@ -342,6 +346,7 @@ interface CertifiedCandidate {
   positioned: PositionedGraph
   strategy: string
   score: LayoutPreferenceScore
+  detoured?: boolean
 }
 
 interface CertifiedSelection {
@@ -400,7 +405,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
-        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) },
+        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext), ...(candidate.detoured?.(positioned) ? { detoured: true } : {}) },
       } : {}),
       ...(drawable ? {
         drawable: { positioned, strategy: candidate.strategy, violations: [...findings.map(finding => finding.drawable!), ...hard.map(rubricViolation)], complete: rubric !== undefined },
@@ -477,7 +482,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
         probe = 'readability'
         continue
       }
-      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0) return accept(certified, 'first-certified')
+      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0 && !certified.detoured) return accept(certified, 'first-certified')
       if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
       if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
       deferred = certified
