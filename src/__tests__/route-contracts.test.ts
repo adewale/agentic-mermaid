@@ -3636,9 +3636,11 @@ it('an overflowing terminal displacement cannot bypass marker separation', () =>
 // lukilabs/beautiful-mermaid#25: peer equalization widened K after routing, so
 // H->K and K->L ended on K's top and bottom lines but past its corner. The
 // overflow repair drew a stub along the side's line, running on J's border
-// into K's corner. The terminal run slides into the face instead.
-it('an end left past its node corner slides into the face, off any border', () => {
-  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL('../../eval/layout-compare/fixtures/beautiful-mermaid-25.mmd', import.meta.url), 'utf8')))
+// into K's corner. The terminal run slides into the face instead. In the
+// reduced -overflow fixture H->I ended 217px left of I, and the stub ran 193px
+// on K's border: the slide there costs a crossing, the lesser ink.
+it.each(['beautiful-mermaid-25', 'beautiful-mermaid-25-overflow'])('%s: an end left past its node corner slides into the face, off any border', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
   const nodeById = new Map(positioned.nodes.map(node => [node.id, node]))
   const cornered: string[] = [], alongBorder: string[] = []
   for (const edge of positioned.edges) {

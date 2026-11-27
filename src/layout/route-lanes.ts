@@ -77,8 +77,10 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
   // routing) slides along the side into the face with its terminal run, which
   // stays perpendicular to the side and keeps every bend. A stub along the
   // side's line instead runs on the border and meets the node at its corner,
-  // so it is the fallback when the slid run is not clear.
-  const slide = (along: 'x' | 'y', lo: number, hi: number, outward: number): boolean => {
+  // so it is the fallback when the slid run is not clear. A slide may add a
+  // crossing only when that stub would run on another node's border, which
+  // reads as a junction that does not exist: a crossing is the lesser ink.
+  const slide = (along: 'x' | 'y', lo: number, hi: number, outward: number, stub: readonly [Point, Point]): boolean => {
     const across: 'x' | 'y' = along === 'x' ? 'y' : 'x'
     const step = isStart ? 1 : -1
     const run = edge.points[idx + step], after = edge.points[idx + 2 * step]
@@ -87,8 +89,15 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
     const inset = Math.min((hi - lo) / 2, OVERFLOW_SLIDE_INSET)
     const lane = p[along] < lo ? lo + inset : hi - inset
     const points = edge.points.map((point, i) => i === idx || i === idx + step ? { ...point, [along]: lane } : point)
+    const stubOnBorder = ctx.nodes.some(other => {
+      if (other.id === edge.source || other.id === edge.target) return false
+      const start = other[along], end = start + (along === 'x' ? other.width : other.height)
+      const overlap = Math.min(Math.max(stub[0][along], stub[1][along]), end) - Math.max(Math.min(stub[0][along], stub[1][along]), start)
+      const sides = [other[across], other[across] + (across === 'x' ? other.width : other.height)]
+      return overlap > OVERFLOW_STUB_RUN && sides.some(side => Math.abs(side - stub[0][across]) <= 1)
+    })
     if (ctx.nodes.some(other => other.id !== edge.source && other.id !== edge.target && routeEntersNodeBox(points, other))
-      || routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) return false
+      || !stubOnBorder && routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) return false
     const rides = captionRidesRun(edge, edge.points, Math.min(idx, idx + step), Math.max(idx, idx + step), along)
     setRoutePoints(ctx, edge, points)
     if (rides) shiftLabel(edge, along, lane - p[along])
@@ -97,19 +106,21 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
 
   if (near(p.x, x0) || near(p.x, x1)) {
     const x = near(p.x, x0) ? x0 : x1
-    if (p.y < y0 - PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1)) pushStub({ x, y: y0 }, { x, y: p.y }) }
-    else if (p.y > y1 + PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1)) pushStub({ x, y: y1 }, { x, y: p.y }) }
+    if (p.y < y0 - PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1, [{ x, y: y0 }, p])) pushStub({ x, y: y0 }, { x, y: p.y }) }
+    else if (p.y > y1 + PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1, [{ x, y: y1 }, p])) pushStub({ x, y: y1 }, { x, y: p.y }) }
     return
   }
   if (near(p.y, y0) || near(p.y, y1)) {
     const y = near(p.y, y0) ? y0 : y1
-    if (p.x < x0 - PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1)) pushStub({ x: x0, y }, { x: p.x, y }) }
-    else if (p.x > x1 + PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1)) pushStub({ x: x1, y }, { x: p.x, y }) }
+    if (p.x < x0 - PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1, [{ x: x0, y }, p])) pushStub({ x: x0, y }, { x: p.x, y }) }
+    else if (p.x > x1 + PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1, [{ x: x1, y }, p])) pushStub({ x: x1, y }, { x: p.x, y }) }
   }
 }
 
 /** How far a slid terminal run stays from its side's corner. */
 const OVERFLOW_SLIDE_INSET = 12
+/** A stub running on a node's border longer than this reads as attached. */
+const OVERFLOW_STUB_RUN = 6
 
 export function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
   if (count !== 2 && count !== 3) return null
