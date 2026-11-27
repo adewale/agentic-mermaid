@@ -17,6 +17,7 @@ import { CLEARANCE } from '../route-geometry.ts'
 import { graphEdgeTextBlock } from '../../graph-text.ts'
 import { resolveLabelContent } from '../../shared/display-text.ts'
 import { LABEL_PILL_PADDING } from '../../shared/edge-label-geometry.ts'
+import { indistinctOccurrencePairs } from '../route-marker-clearance.ts'
 
 export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({})): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
@@ -103,6 +104,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   }
 
   const mainDelta = new Map<string, number>() // net main-axis shift applied per node
+  // Pre-move main-axis starts, exact: subtracting a net shift back off a
+  // moved coordinate can land one roundoff away from where routes touched it.
+  const originalMain = new Map(nodes.map(node => [node.id, node[f.main]]))
   const changed = new Set<PositionedNode>()
   const moveSet = (starts: string[], delta: number): void => {
     if (Math.abs(delta) < 0.5) return
@@ -389,9 +393,11 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       }
       if (!node) return null
     }
-    return node ? { start: node[f.main] - delta, size: nodeMainSize(node, graph.direction), delta } : null
+    return node ? { start: originalMain.get(id) ?? node[f.main] - delta, size: nodeMainSize(node, graph.direction), delta } : null
   }
-  const stretchRetainedRoute = (edge: PositionedEdge): Point[] | null => {
+  // `contacts` proves the stretched ends on the painted outline; a route the
+  // later clip pass will trim to its outline only keeps its translated ends.
+  const stretchRetainedRoute = (edge: PositionedEdge, contacts = true): Point[] | null => {
     const source = stretchSpan(edge.source, edge.target), target = stretchSpan(edge.target, edge.source)
     if (!source || !target || edge.points.length < 2) return null
     const [left, right] = source.start <= target.start ? [source, target] : [target, source]
@@ -427,7 +433,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (sourceDelta === undefined || targetDelta === undefined
       || points[0]![f.main] !== edge.points[0]![f.main] + sourceDelta
       || points.at(-1)![f.main] !== edge.points.at(-1)![f.main] + targetDelta) return null
-    if (!contactsClear(points, edge)) return null
+    if (contacts && !contactsClear(points, edge)) return null
     const ends = new Set([edge.source, edge.target])
     return routeClearOfNodes(points, nodes, ends) && headersClear(points) ? points : null
   }
@@ -549,6 +555,15 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // through the outer lane; self-loops ride along with their moved node.
   // applyRouteContracts certifies the final geometry.
   const reconnected: PositionedEdge[] = [], captioned: PositionedEdge[] = []
+  // Each rebuilt edge's own produced route, stretched with the move, while
+  // the pre-move routes are still in place: the reconnect's fallback below.
+  const stretched = new Map<PositionedEdge, Point[]>()
+  for (const edge of edges) {
+    const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
+    if (cls === 'self-loop' || groupMap.size > 0 && (cls === 'cross-hierarchy' || cls === 'container')) continue
+    const route = stretchRetainedRoute(edge, false)
+    if (route) stretched.set(edge, route)
+  }
   for (const edge of edges) {
     const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
     if (cls === 'self-loop') {
@@ -621,6 +636,26 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // Every reconnected arrival was aimed at one canonical point of its target;
   // those that may not share it take their planned slots.
   seatMeetingArrivals(nodes, edges, reconnected, terminals)
+  // Canonical ports draw every forward edge between two nodes on one route.
+  // Where seating could not part occurrences the drawing must tell apart (a
+  // repeated edge on its twin, or arrivals that may not share an arrowhead),
+  // those edges keep their own produced routes, stretched with the move; the
+  // stretch keeps their ports and lanes and enters no node body. Kept only
+  // when it leaves fewer such pairs.
+  const indistinct = indistinctOccurrencePairs(edges)
+  if (indistinct.length) {
+    const involved = [...new Set(indistinct.flatMap(({ a, b }) => [a, b]))].filter(edge => stretched.has(edge))
+    const saved = edges.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
+    for (const edge of involved) {
+      edge.points = stretched.get(edge)!
+      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+    }
+    // A kept route can still meet another at one point; those take slots.
+    seatMeetingArrivals(nodes, edges, involved, terminals)
+    if (involved.length && indistinctOccurrencePairs(edges).length >= indistinct.length) {
+      for (const entry of saved) { entry.edge.points = entry.points; entry.edge.labelPosition = entry.labelPosition }
+    }
+  }
   // Seat each caption on the route written above, by the one rule, nearest
   // its route midpoint.
   for (const edge of captioned) seatCaption(edge, { nodes, edges, groups }, style, edge.labelPosition)

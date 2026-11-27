@@ -116,6 +116,9 @@ const REDUCED: [Spec][] = [
   [{ direction: 'RL', shapes: ['diamond', 'diamond', 'rect'], edges: [edge(1, 0, 'circle', false), edge(0, 2, 'long', false), edge(0, 2, 'long', true), edge(0, 2, 'solid', false), edge(0, 2, 'long', true), edge(2, 0, 'solid', true), edge(2, 0, 'long', true)] }],
   // ...and a node detour may not drop one back onto its twin's slot.
   [{ direction: 'BT', shapes: ['round', 'rect', 'rect'], edges: [edge(0, 2, 'solid', true), edge(2, 0, 'long', false), edge(2, 0, 'thick', false), edge(1, 2, 'thick', false), edge(1, 2, 'thick', true)] }],
+  // Six repeated feedback occurrences rebuilt onto one face too short for six
+  // slots: they keep their own produced routes, stretched with the move.
+  [{ direction: 'TD', shapes: ['diamond', 'rect', 'rect', 'rect'], edges: [edge(3, 1, 'long', false), edge(1, 0, 'thick', false), edge(0, 3, 'circle', false), edge(0, 3, 'long', false), edge(0, 3, 'long', false), edge(0, 3, 'long', false), edge(0, 3, 'solid', false), edge(0, 3, 'dotted', false)] }],
 ]
 
 test('every visible edge occurrence keeps its own readable route and arrowhead', () => {
