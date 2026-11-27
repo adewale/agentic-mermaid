@@ -233,6 +233,7 @@ export function layoutArchitectureDiagram(
       junctionsById,
       serviceBounds,
       junctionBounds,
+      edgeText,
       reservedHeaderPadding,
     )
     if (sideConstraintsChanged) {
@@ -606,6 +607,9 @@ interface ArchitectureSideConstraint {
   before: string
   after: string
   depth: number
+  /** The least room between the two units: the node spacing, or what the
+   * relation's label needs to sit between them along this axis. */
+  gap: number
 }
 
 /**
@@ -628,6 +632,7 @@ function applyArchitectureSideConstraints(
   junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
   positionedServices: Map<string, Bounds>,
   positionedJunctions: Map<string, Bounds>,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
   reservedHeaderPadding?: number,
 ): boolean {
   let changed = false
@@ -658,10 +663,14 @@ function applyArchitectureSideConstraints(
   }
 
   const constraints: ArchitectureSideConstraint[] = []
-  for (const edge of diagram.edges) {
+  for (const [index, edge] of diagram.edges.entries()) {
     const sourcePath = itemPath(edge.source.id, edge.source.boundary)
     const targetPath = itemPath(edge.target.id, edge.target.boundary)
     if (!sourcePath || !targetPath) continue
+    // A label is seated on its own route between the two units, so their gap
+    // along an axis holds the label's extent on it, its painted padding and a
+    // route clearance either side.
+    const label = edgeLabels[index]
     let common = 0
     while (common < sourcePath.length && common < targetPath.length && sourcePath[common] === targetPath[common]) common++
     // One effective endpoint is the other's ancestor (for example a group
@@ -680,6 +689,7 @@ function applyArchitectureSideConstraints(
         before: currentBeforeOther ? current : other,
         after: currentBeforeOther ? other : current,
         depth: common,
+        gap: label ? Math.max(spacing, (axis === 'x' ? label.width : label.height) + 2 * (EDGE_LABEL_PADDING + ROUTE_CLEARANCE)) : spacing,
       })
     }
     addForSide(sourceUnit, targetUnit, edge.source.side)
@@ -779,6 +789,8 @@ function applyArchitectureSideConstraints(
       alignmentComponents(siblingKeys, parentId, axis === 'x' ? 'column' : 'row')
 
     const arcs = new Map<string, Set<string>>()
+    const gaps = new Map<string, number>()
+    const gapOf = (before: string, after: string): number => gaps.get(`${before}\0${after}`) ?? spacing
     let intrinsicConflict = false
     for (const entry of entries) {
       const before = find(entry.before)
@@ -787,6 +799,7 @@ function applyArchitectureSideConstraints(
       const targets = arcs.get(before) ?? new Set<string>()
       targets.add(after)
       arcs.set(before, targets)
+      gaps.set(`${before}\0${after}`, Math.max(gapOf(before, after), entry.gap))
     }
     if (intrinsicConflict) continue
 
@@ -794,8 +807,8 @@ function applyArchitectureSideConstraints(
     const constraintSatisfied = (before: string, after: string): boolean => {
       const a = componentBounds(before), b = componentBounds(after)
       return axis === 'x'
-        ? a.x + a.width + spacing <= b.x + ROUTE_EPSILON
-        : a.y + a.height + spacing <= b.y + ROUTE_EPSILON
+        ? a.x + a.width + gapOf(before, after) <= b.x + ROUTE_EPSILON
+        : a.y + a.height + gapOf(before, after) <= b.y + ROUTE_EPSILON
     }
     if ([...arcs].every(([before, afters]) => [...afters].every(after => constraintSatisfied(before, after)))) continue
 
@@ -834,7 +847,7 @@ function applyArchitectureSideConstraints(
       const start = startOf(componentBounds(component))
       const required = Math.max(origin, ...predecessors.get(component)!.map(before => {
         const placed = componentBounds(before)
-        return startOf(placed) + (axis === 'x' ? placed.width : placed.height) + spacing
+        return startOf(placed) + (axis === 'x' ? placed.width : placed.height) + gapOf(before, component)
       }))
       const delta = required - start
       if (Math.abs(delta) <= ROUTE_EPSILON) continue
@@ -944,7 +957,7 @@ function applyArchitectureSideConstraints(
         }
         for (const face of xFaces) {
           const before = face.after === key ? unitBounds(face.before) : undefined
-          if (before) required = Math.max(required, before.x + before.width + spacing)
+          if (before) required = Math.max(required, before.x + before.width + face.gap)
         }
         if (bounds.x >= required - ROUTE_EPSILON) continue
         const delta = required - bounds.x

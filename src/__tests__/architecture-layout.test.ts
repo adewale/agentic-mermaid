@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { gen } from '../../eval/overlap-audit/generators.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { ARCHITECTURE_DEFAULT_NODE_SPACING, ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
@@ -529,6 +530,14 @@ describe('layoutArchitectureDiagram', () => {
       return run > 0 && run < 4 ? [`${edge.id}: ${run}px`] : []
     }))
     expect(jogs).toEqual([])
+  })
+
+  // Packing units a node spacing apart left no room for a relation's label
+  // between them: overlap-audit cases 41 and 21 painted the label over a card
+  // and over an arrowhead, so paint certification could not pass.
+  it.each([21, 41])('seats overlap-audit case %i\'s labels clear of cards and arrowheads', index => {
+    const { receipt } = renderMermaidSVGWithReceipt(gen.architecture!(index))
+    expect(receipt.layoutCertification?.status).toBe('passed')
   })
 
   // mermaid-v13#1176: the {group} relation left Region A on the line of the
