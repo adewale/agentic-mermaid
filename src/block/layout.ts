@@ -216,10 +216,16 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     // block the route.
     const obstacles = (source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles)
       .map(node => { const margin = node.id === source.id || node.id === target.id ? 0 : BLOCK_CLEARANCE; return { x0: node.x - margin, y0: node.y - margin, x1: node.x + node.width + margin, y1: node.y + node.height + margin } })
+    // Composite frames the route does not attach to are crossed, never
+    // followed: a run along one reads as the frame. Only where no route keeps
+    // off them does the route ask again without them.
+    const frames = { boxes: shapeNodes.filter(node => node.id !== source.id && node.id !== target.id && byId.get(node.id)!.block.type === 'composite').map(node => ({ x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height })), clearance: BLOCK_CLEARANCE }
     const request = { start: from, end: to, exit, entry, obstacles, clearance: 0, channels, offChannelCost: 0.05, via }
+    const framed = frames.boxes.length ? { ...request, frames } : undefined
     // A stub keeps the first and last runs visible; cells packed closer than
     // that still route, from the faces themselves.
-    let points: Point[] = (routeOrthogonal({ ...request, stub: BLOCK_STUB }) ?? routeOrthogonal(request)
+    let points: Point[] = ((framed && (routeOrthogonal({ ...framed, stub: BLOCK_STUB }) ?? routeOrthogonal(framed)))
+      ?? routeOrthogonal({ ...request, stub: BLOCK_STUB }) ?? routeOrthogonal(request)
       ?? routeOrthogonal({ ...request, obstacles: [] }) ?? routeOrthogonal({ ...request, obstacles: [], via: [] }) ?? orthogonalFallback({ ...request, stub: BLOCK_STUB })).map(point => ({ x: point.x, y: point.y }))
     outgoingContacts.add(contactKey(source.id, points[0]!))
     incomingContacts.add(contactKey(target.id, points.at(-1)!))

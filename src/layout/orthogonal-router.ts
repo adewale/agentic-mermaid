@@ -56,6 +56,14 @@ export interface OrthogonalRouteRequest {
    * crossed only perpendicularly), and likewise for `vertical`. Inflated by
    * `clearance` like the obstacles. */
   readonly axisObstacles?: { readonly horizontal?: readonly RouterBox[]; readonly vertical?: readonly RouterBox[] }
+  /** Outlines (lane and group frames) a route may cross but not follow: a
+   * segment may cross a side anywhere, but no run lies along a side within
+   * `clearance` of it over the side's span, where it would read as the frame
+   * or as attached to it. A run exactly `clearance` away is allowed. Not
+   * inflated by the request's `clearance`, and offering no line of its own:
+   * a caller that needs a route when none keeps off the frames asks again
+   * without them. */
+  readonly frames?: { readonly boxes: readonly RouterBox[]; readonly clearance: number }
   /** Points the route passes through in order, between the stubs: the best
    * route that visits each in turn, under the same rules (it never turns
    * back, so a via point is passed straight through or turned at). */
@@ -313,7 +321,17 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   const minRun = request.minRun ?? 0
   const inflate = (box: RouterBox): RouterBox => ({ x0: box.x0 - clearance, y0: box.y0 - clearance, x1: box.x1 + clearance, y1: box.y1 + clearance })
   const inflated = request.obstacles.map(inflate)
-  const acrossX = (request.axisObstacles?.horizontal ?? []).map(inflate), acrossY = (request.axisObstacles?.vertical ?? []).map(inflate)
+  // A frame side is a band across its line that runs along it may not enter.
+  const sides = (horizontal: boolean): RouterBox[] => {
+    const frames = request.frames, bands: RouterBox[] = []
+    if (frames) for (const box of frames.boxes) for (const at of horizontal ? [box.y0, box.y1] : [box.x0, box.x1]) {
+      bands.push(horizontal ? { x0: box.x0, y0: at - frames.clearance, x1: box.x1, y1: at + frames.clearance } : { x0: at - frames.clearance, y0: box.y0, x1: at + frames.clearance, y1: box.y1 })
+    }
+    return bands
+  }
+  const frameRows = sides(true), frameColumns = sides(false)
+  const framedX = [...request.axisObstacles?.horizontal ?? [], ...frameRows], framedY = [...request.axisObstacles?.vertical ?? [], ...frameColumns]
+  const acrossX = [...(request.axisObstacles?.horizontal ?? []).map(inflate), ...frameRows], acrossY = [...(request.axisObstacles?.vertical ?? []).map(inflate), ...frameColumns]
   const [startStub, endStub] = typeof request.stub === 'object' ? request.stub : [request.stub ?? 0, request.stub ?? 0]
   const via = request.via ?? []
   // Leave and arrive along the required directions for at least the stub.
@@ -407,8 +425,8 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     || (within(endpoint, box) && (!segmentHits(endpoint, tip, raw[k]!) || within(endpoint, raw[k]!))))
   const stubBlocked = (endpoint: RouterPoint, tip: RouterPoint, d: RouterDirection) => !stubClear(endpoint, tip, request.obstacles, inflated)
     || (d === 'E' || d === 'W'
-      ? !stubClear(endpoint, tip, request.axisObstacles?.horizontal ?? [], acrossX)
-      : !stubClear(endpoint, tip, request.axisObstacles?.vertical ?? [], acrossY))
+      ? !stubClear(endpoint, tip, framedX, acrossX)
+      : !stubClear(endpoint, tip, framedY, acrossY))
   const index = (p: RouterPoint) => {
     const i = xs.findIndex(x => Math.abs(x - p.x) <= EPS), j = ys.findIndex(y => Math.abs(y - p.y) <= EPS)
     return i < 0 || j < 0 ? undefined : { i, j }

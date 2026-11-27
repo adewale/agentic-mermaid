@@ -184,6 +184,28 @@ test.each(['LR', 'TD'] as const)('a %s route detouring around a task keeps the r
   expect(nearest).toBeGreaterThanOrEqual(4)
 })
 
+// mermaid-v13-843 (reduced): n192→n85 ran on lane L3's border for 85px, so it
+// read as the border. A route crosses lane and group frames, but never runs
+// along one within the route clearance where another route exists.
+test('Swimlane routes cross lane frames without running along them', () => {
+  const lanes = [['L1', 'n80', 'n82', 'n85'], ['L2', 'n101', 'n102'], ['L3', 'n179', 'n192'], ['L6', 'n318'], ['L7', 'n371', 'n392']]
+  const input = ['swimlane-beta TB', ...lanes.flatMap(([lane, ...nodes]) => [`subgraph ${lane}`, ...nodes.map(node => `  ${node}["${node}"]`), 'end']),
+    'n371 --> n102', 'n318 --> n101', 'n82 --> n179', 'n80 --> n392', 'n192 --> n85'].join('\n')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  expect(layout.groups.length).toBe(5)
+  for (const edge of layout.edges) for (const group of layout.groups) for (let index = 1; index < edge.path.length; index++) {
+    const [ax, ay] = edge.path[index - 1]!, [bx, by] = edge.path[index]!
+    const horizontal = ay === by, at = horizontal ? ay : ax
+    const from = horizontal ? group.x : group.y, to = from + (horizontal ? group.w : group.h)
+    const run = Math.min(Math.max(horizontal ? ax : ay, horizontal ? bx : by), to) - Math.max(Math.min(horizontal ? ax : ay, horizontal ? bx : by), from)
+    for (const side of horizontal ? [group.y, group.y + group.h] : [group.x, group.x + group.w]) {
+      expect(run > 1 && Math.abs(at - side) < 4, `${edge.from}->${edge.to} segment ${index} runs along ${group.id}`).toBe(false)
+    }
+  }
+})
+
 test.each(['LR', 'RL', 'TD', 'BT'] as const)('parallel and reciprocal Swimlane %s hand-offs keep separate owned labels and contacts', direction => {
   const input = `swimlane-beta ${direction}
 subgraph L[Requests]

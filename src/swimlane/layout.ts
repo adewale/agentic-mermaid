@@ -197,6 +197,13 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   // A route crosses a painted header band, stroke included, only
   // perpendicularly.
   const across = { horizontal: bands.map(box => routerBox(box, style.lineWidth / 2)) }
+  // Lane and group frames are crossed, never followed: a run along a border
+  // reads as the border, or as attached to the lane. Only where no route
+  // keeps off them does a route ask again without them.
+  const frameBoxes: RouterBox[] = []
+  const addFrame = (group: PositionedGroup): void => { frameBoxes.push(routerBox(group)); group.children.forEach(addFrame) }
+  groups.forEach(addFrame)
+  const frameRules = [{ boxes: frameBoxes, clearance: Math.max(CLEARANCE, clearance) }, undefined]
   // Every caption must find a clear seat on its own route. Where the routes
   // leave one no room, route again keeping less strictly off the routes
   // already drawn: first only off lines that do not meet a route's own
@@ -227,10 +234,10 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       const stub = [source.stub, target.stub] as const
       const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, stub] : [stub]
       let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['stretches'][number][number] | undefined, best = Infinity
-      for (const extra of enclosed.length ? [enclosed, []] : [[]]) {
+      framing: for (const frames of frameRules) for (const extra of enclosed.length ? [enclosed, []] : [[]]) {
         const request = {
           start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub, clearance: 0, axisObstacles: across,
-          obstacles: [...kept, ...extra],
+          obstacles: [...kept, ...extra], ...(frames ? { frames } : {}),
         }
         search: for (const avoid of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
           for (const run of variants) {
@@ -244,7 +251,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
           }
           if (route) break search
         }
-        if (route) break
+        if (route) break framing
       }
       if (chosen?.caption) reserved.set(edge, routerBox(chosen.caption))
       edge.points = (route ?? fail(`${edge.source} -> ${edge.target} has no clear route`)).map(point => ({ x: point.x, y: point.y }))

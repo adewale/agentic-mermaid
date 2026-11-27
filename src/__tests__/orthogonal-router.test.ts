@@ -35,6 +35,10 @@ test.each([
   // The band blocks the straight run along it; crossing it is free.
   { name: 'a one-axis obstacle blocks runs along it', request: { ...base, channels: { x: [50, 250], y: [150] }, axisObstacles: { horizontal: [box] } }, bends: 4 },
   { name: 'a one-axis obstacle lets a route cross it', request: { ...base, start: { x: 150, y: -50 }, end: { x: 150, y: 150 }, exit: 'S', entry: 'S', axisObstacles: { horizontal: [box] } }, bends: 0 },
+  // A frame's side may be crossed but not followed within its clearance; a
+  // run exactly the clearance away is allowed, so the nearer channel wins.
+  { name: 'a frame side blocks a run along it', request: { ...base, channels: { x: [50, 250], y: [30, 46] }, frames: { boxes: [{ x0: 100, y0: 50, x1: 200, y1: 150 }], clearance: 4 } }, bends: 4, corner: { x: 50, y: 46 } },
+  { name: 'a frame lets a route cross its sides', request: { ...base, start: { x: 150, y: 0 }, end: { x: 150, y: 200 }, exit: 'S', entry: 'S', frames: { boxes: [{ x0: 100, y0: 50, x1: 200, y1: 150 }], clearance: 4 } }, bends: 0 },
   // A stub already leaves along the exit direction, so the route may turn at
   // its end; per-end stubs leave the arrival free.
   { name: 'a route may turn where its start stub ends', request: { ...base, end: { x: 20, y: -100 }, entry: 'N', stub: [20, 0], clearance: 0 }, bends: 1, corner: { x: 20, y: 50 } },

@@ -480,6 +480,25 @@ describe('native block', () => {
     // label halo over the neighboring Audit input arrowhead.
     expect(() => renderMermaidSVG(source, { style: 'publication-figure', seed: 17, layoutSafety: 'strict' })).not.toThrow()
   })
+  // mermaid-5313: a→l left group1 and jogged 14px along its bottom frame, so
+  // the jog read as the frame. A route crosses a composite it does not attach
+  // to but never runs along its frame within the route clearance.
+  test.each([
+    ['mermaid-5313', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l'],
+    ['links out of and back into a group', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l\n  c --> m\n  m --> a'],
+  ])('%s routes cross composite frames without running along them', (_name, source) => {
+    const layout = layoutMermaid(structured(source))
+    for (const edge of layout.edges) for (const group of layout.groups.filter(group => group.id !== edge.from && group.id !== edge.to)) {
+      for (let index = 1; index < edge.path.length; index++) {
+        const [ax, ay] = edge.path[index - 1]!, [bx, by] = edge.path[index]!
+        const horizontal = ay === by, at = horizontal ? ay : ax
+        const sides = horizontal ? [group.y, group.y + group.h] : [group.x, group.x + group.w]
+        const from = horizontal ? group.x : group.y, to = from + (horizontal ? group.w : group.h)
+        const run = Math.min(Math.max(horizontal ? ax : ay, horizontal ? bx : by), to) - Math.max(Math.min(horizontal ? ax : ay, horizontal ? bx : by), from)
+        for (const side of sides) expect(run > 1 && Math.abs(at - side) < 4, `${edge.from}->${edge.to} segment ${index} runs along ${group.id}`).toBe(false)
+      }
+    }
+  })
   test('nested composites retain actual Scene containment and independent semantic Style roles', () => {
     const source = 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',
       options = { style: { roles: { node: { textColor: '#b91c1c' }, group: { textColor: '#174ea6', fontSize: 22, fontWeight: 800, paddingX: 36, paddingY: 28, cornerRadius: 17, lineWidth: 3, borderColor: '#008800', headerFillColor: '#fef3c7' } } } },
