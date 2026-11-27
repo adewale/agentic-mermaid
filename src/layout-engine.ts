@@ -598,6 +598,9 @@ function mermaidToElk(
       'elk.layered.highDegreeNodes.treatment': 'true',
       'elk.layered.highDegreeNodes.threshold': '8',
       'elk.layered.compaction.postCompaction.strategy': 'LEFT_RIGHT_CONSTRAINT_LOCKING',
+      // Compaction must not merge two edges' verticals that meet end to end:
+      // the shared corner reads as two edges that do not exist.
+      'agentic.layered.compaction.separateMeetingSegments': 'true',
       // Mermaid source order is author intent for small flowcharts with feedback
       // loops. ELK's default greedy cycle breaker can rank a decision before the
       // login step in A->B->C plus C->B graphs; model-order cycle breaking keeps

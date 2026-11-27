@@ -244,6 +244,9 @@ const canonicalIds = [
   "org.eclipse.elk.rectpacking.whiteSpaceElimination.strategy",
 ] as const
 const legacyIds: readonly (readonly [string, string])[] = [["org.eclipse.elk.layered.northOrSouthPort", "org.eclipse.elk.layered.allowNonFlowPortsToSwitchSides"]]
+// Agentic Mermaid's own options. elkjs ignores them, so a graph that does not
+// set one keeps exact ELK behaviour.
+const extensionIds = ["agentic.layered.compaction.separateMeetingSegments"] as const
 
 /** LayoutMetaDataService.getOptionDataBySuffix, without reflection or providers. */
 export function resolveOptionId(suffix: string): string | null {
@@ -251,6 +254,7 @@ export function resolveOptionId(suffix: string): string | null {
   let result: string | null = null
   for (const id of canonicalIds) if (id.endsWith(suffix) && (suffix.length === id.length || id.charAt(id.length - suffix.length - 1) === '.')) { if (result !== null) return null; result = id }
   if (result !== null) return result
+  for (const id of extensionIds) if (id === suffix) return id
   for (const [alias, id] of legacyIds) if (alias.endsWith(suffix) && (suffix.length === alias.length || alias.charAt(alias.length - suffix.length - 1) === '.')) { if (result !== null) return null; result = id }
   return result
 }

@@ -36,6 +36,8 @@ type Point = { x: number; y: number }
 type Rect = Point & { width: number; height: number }
 type Direction = 'LEFT' | 'RIGHT'
 type Locks = { left: boolean; right: boolean; up: boolean; down: boolean }
+/** Segment ends this close read as touching: two connector strokes. */
+const MEETING_SEGMENT_GAP = 2
 const locks = (): Locks => ({ left: false, right: false, up: false, down: false })
 const incomingEdges = (node: Node): Edge[] => node.ports.flatMap(port => port.incoming)
 const outgoingEdges = (node: Node): Edge[] => node.ports.flatMap(port => port.outgoing)
@@ -530,6 +532,22 @@ class OneDimensionalCompactor {
     this.sweep(() => true)
     for (const action of schedule) action()
     schedule.length = 0
+    if (booleanOption(this.options, 'agentic.layered.compaction.separateMeetingSegments', false)) this.separateMeetingSegments()
+  }
+  /** Extension: ELK skips the spacing at a segment end that meets a node's
+   * port row, so two edges' verticals where one ends as the other begins get
+   * no constraint and can compact onto one line, drawing one corner for both
+   * edges. Keep each such pair in its routed order. */
+  private separateMeetingSegments(): void {
+    const segments = this.graph.nodes.filter(node => node.origin instanceof VerticalSegment)
+    for (const a of segments) for (const b of segments) {
+      if (a === b || a.group === b.group || b.hitbox.x <= a.hitbox.x || a.constraints.includes(b)) continue
+      const gap = Math.max(a.hitbox.y, b.hitbox.y) - Math.min(a.hitbox.y + a.hitbox.height, b.hitbox.y + b.hitbox.height)
+      if (gap < -0.0001 || gap > MEETING_SEGMENT_GAP) continue
+      const edges = (a.origin as VerticalSegment).representedLEdges
+      if ((b.origin as VerticalSegment).representedLEdges.some(edge => edges.includes(edge))) continue
+      a.constraints.push(b)
+    }
   }
 }
 

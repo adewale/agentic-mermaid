@@ -13,6 +13,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assignTerminals } from '../layout/terminal-assignment.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
 import { readFileSync } from 'node:fs'
+import { measureRouteContacts } from '../shared/edge-crossings.ts'
 import { join } from 'node:path'
 
 const LINKS = { solid: '-->', dotted: '-.->', thick: '==>', circle: '--o', long: '--->' } as const
@@ -144,4 +145,14 @@ test.each(['merman-176-unequal-duplicates.mmd', 'mermaid-v13-674-flowchart-marke
   expect(indistinct(positioned)).toEqual([])
   const seats = positioned.edges.filter(edge => edge.label).map(edge => `${edge.labelPosition!.x.toFixed(1)},${edge.labelPosition!.y.toFixed(1)}`)
   expect(new Set(seats).size).toBe(seats.length)
+})
+
+// Two edges that share no node may meet only in a proper crossing. A shared
+// corner or an end-to-end run draws them as edges that do not exist:
+// mermaid-js/mermaid#7964's verticals compacted onto one line by ELK, and
+// #6476's elbow carried by a layer snap onto a neighbour's corner.
+test.each(['mermaid-7964-flowchart.mmd', 'mermaid-6476.mmd'])('issue fixture %s draws no contact between unrelated edges', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures', name), 'utf8')))
+  const routes = positioned.edges.filter(edge => edge.style !== 'invisible').map(edge => ({ points: edge.points, ends: [edge.source, edge.target] as const }))
+  expect(measureRouteContacts(routes)).toEqual({ touches: 0, overlaps: 0 })
 })

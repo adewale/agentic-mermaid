@@ -6,6 +6,7 @@ import type { DiamondFacet, Direction, Point, PortSide, PositionedEdge, Position
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
+import { measureRouteContacts, ROUTE_CONTACT_RADIUS } from '../shared/edge-crossings.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
 import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
 import { terminalAssignment } from './terminal-assignment.ts'
@@ -451,6 +452,30 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
     if (slotClear(point.x, point.y)) return point
   }
   return null
+}
+
+/** Allocation-free broad phase for `measureRouteContacts`: every touch or
+ * shared run puts a vertex of one route within the contact radius of the
+ * other route. */
+function routesNear(a: readonly Point[], b: readonly Point[]): boolean {
+  const near = (vertices: readonly Point[], route: readonly Point[]): boolean => {
+    for (const p of vertices) for (let i = 1; i < route.length; i++) {
+      const q = route[i - 1]!, r = route[i]!
+      if (p.x >= Math.min(q.x, r.x) - ROUTE_CONTACT_RADIUS && p.x <= Math.max(q.x, r.x) + ROUTE_CONTACT_RADIUS
+        && p.y >= Math.min(q.y, r.y) - ROUTE_CONTACT_RADIUS && p.y <= Math.max(q.y, r.y) + ROUTE_CONTACT_RADIUS) return true
+    }
+    return false
+  }
+  return near(a, b) || near(b, a)
+}
+
+/** 1 when `points`, drawn for `edge`, touches or shares a run with `other`
+ * although the two share no endpoint (`measureRouteContacts`), else 0. */
+export function routePairContact(points: readonly Point[], edge: Pick<PositionedEdge, 'source' | 'target'>, other: Pick<PositionedEdge, 'source' | 'target' | 'points'>): number {
+  if (other.source === edge.source || other.source === edge.target || other.target === edge.source || other.target === edge.target
+    || !routesNear(points, other.points)) return 0
+  const contacts = measureRouteContacts([{ points, ends: [edge.source, edge.target] }, { points: other.points, ends: [other.source, other.target] }])
+  return contacts.touches + contacts.overlaps
 }
 
 /** Use the same visible proper crossings for proposals and final scoring. */

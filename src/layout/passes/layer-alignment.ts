@@ -4,6 +4,7 @@ import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
 import { captionRidesRun } from '../route-values.ts'
+import { routePairContact } from '../route-lanes.ts'
 
 function outwardEndpoint(points: Point[], node: PositionedNode | undefined, start: boolean): boolean | undefined {
   if (!node) return undefined
@@ -270,6 +271,9 @@ export function alignLayerNodes(
         if (nodes.some(other => other.id !== edge.source && other.id !== edge.target
           && routeEntersBox(after.points, projectedNodes.get(other.id) ?? other) && !routeEntersBox(before.points, other))) breaksApproach = true
         if (runsAlongside(after.points, edge, edges) > runsAlongside(before.points, edge, edges)) breaksApproach = true
+        // Nor may it meet an unrelated route end to end or at a corner.
+        if (edges.some(other => other !== edge && other.style !== 'invisible'
+          && routePairContact(after.points, edge, other) > routePairContact(before.points, edge, other))) breaksApproach = true
         let clippedBefore: PositionedEdge | undefined, clippedAfter: PositionedEdge | undefined
         for (const start of [true, false]) {
           const endpoint = start ? edge.source : edge.target

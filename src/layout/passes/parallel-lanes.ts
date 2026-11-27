@@ -4,6 +4,7 @@ import { measureLabelConflicts } from '../label-conflicts.ts'
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline } from '../../layout-rubric.ts'
+import { routePairContact } from '../route-lanes.ts'
 import { PORT_EXACT, simplifyPolyline, centerOutLabelSamples } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, rectsOverlap } from '../geometry.ts'
@@ -231,6 +232,16 @@ function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Parallel
     if (routeCandidateMarkerBlocker(edge, staged.points, candidate, style, staged)) return 'marker-blocked'
   }
   if (options?.labelClearance && !parallelLaneLabelAdmission(edges, proposed, options.labelClearance)) return false
+  // A separated lane may not land on, or end against, an unrelated route.
+  const contacts = (routes: readonly PositionedEdge[]): number => {
+    let count = 0
+    for (const index of involved) for (let other = 0; other < routes.length; other++) {
+      if (other === index || involved.has(other) && other < index || routes[index]!.style === 'invisible' || routes[other]!.style === 'invisible') continue
+      count += routePairContact(routes[index]!.points, routes[index]!, routes[other]!)
+    }
+    return count
+  }
+  if (contacts(candidate) > contacts(edges)) return false
   const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
   if (!options?.allowCrossingsForOverlap) return extraCrossings <= 0
   const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
