@@ -14,7 +14,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeClearanceFindings, routeMissesShapeBox, segmentThroughShape, type ClearanceBox } from '../layout-rubric.ts'
+import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeClearanceFindings, measureRouteReadability, routeMissesShapeBox, segmentThroughShape, type ClearanceBox } from '../layout-rubric.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphReachability } from '../layout/geometry.ts'
@@ -69,7 +69,7 @@ describe('route clearance from borders, faces and corners', () => {
       edges: [{ ...edge([[30, 100], [30, 50], [100, 50], [100, 70], [180, 70], [180, 99.2], [330, 99.2], [330, 100]]), hasArrowStart: false, hasArrowEnd: true }],
     }
     expect(measureQuality(positionedToRenderedLayout(positioned, 'flowchart')).routeClearance).toEqual({ borderRuns: 1, terminalShafts: 1, cornerEnds: 0 })
-    expect(assessLayout(parseMermaid('flowchart LR\nA --> B\nI'), positioned).metrics).toMatchObject({ borderRuns: 1, terminalShafts: 1, cornerEnds: 0 })
+    expect(measureRouteReadability(positioned)).toMatchObject({ borderRuns: 1, terminalShafts: 1, cornerEnds: 0 })
   })
 })
 

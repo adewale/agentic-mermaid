@@ -107,20 +107,6 @@ export interface RubricMetrics {
   labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
-  /** Edge pairs sharing no endpoint whose ink meets other than in a proper
-   * crossing: a shared corner or T-junction reads as two edges that do not
-   * exist, and a shared run hides which edge owns it. Each hides at least
-   * one crossing. Measured, not yet hard: the graph pipeline still draws
-   * them (measureRouteContacts). */
-  routeContacts: number
-  /** Runs within ROUTE_BORDER_CLEARANCE of a node or group border the edge
-   * does not attach to. Measured, not yet hard (routeClearanceFindings). */
-  borderRuns: number
-  /** Ends whose shaft out of their face is shorter than the clearance or
-   * runs along that face. Measured, not yet hard. */
-  terminalShafts: number
-  /** Ends within the clearance of a box corner. Measured, not yet hard. */
-  cornerEnds: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
    *  bends (bundle-certified fan-out/fan-in spokes): those are "as good as
    *  straight", the same edges findRouteHitches treats as non-hitches. */
@@ -652,6 +638,33 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
   return worst
 }
 
+/** Route readability over final geometry, measured, not yet hard: the graph
+ * pipeline still draws each class on the corpus. Kept out of assessLayout,
+ * which certification runs for every candidate and which consumes none of
+ * these, so only callers that read them pay for them. */
+export interface RouteReadabilityMetrics {
+  /** Edge pairs sharing no endpoint whose ink meets other than in a proper
+   * crossing: a shared corner or T-junction reads as two edges that do not
+   * exist, and a shared run hides which edge owns it. Each hides at least
+   * one crossing (measureRouteContacts). */
+  routeContacts: number
+  /** Runs within ROUTE_BORDER_CLEARANCE of a node or group border the edge
+   * does not attach to (routeClearanceFindings). */
+  borderRuns: number
+  /** Ends whose shaft out of their face is shorter than the clearance or
+   * runs along that face. */
+  terminalShafts: number
+  /** Ends within the clearance of a box corner. */
+  cornerEnds: number
+}
+
+export function measureRouteReadability(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>): RouteReadabilityMetrics {
+  const contacts = measureRouteContacts(positioned.edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible', ends: [edge.source, edge.target] })))
+  const clearance = { borderRun: 0, terminalShaft: 0, cornerEnd: 0 }
+  for (const finding of routeClearanceFindings(positioned.edges, clearanceBoxes(positioned))) clearance[finding.kind]++
+  return { routeContacts: contacts.touches + contacts.overlaps, borderRuns: clearance.borderRun, terminalShafts: clearance.terminalShaft, cornerEnds: clearance.cornerEnd }
+}
+
 /**
  * Score a positioned layout against the rubric. Pure and deterministic:
  * identical input produces identical metrics.
@@ -774,9 +787,6 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
   }
 
   const crossings = withSoftMetrics ? countEdgeCrossings(positioned.edges) : 0
-  const contacts = withSoftMetrics ? measureRouteContacts(positioned.edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible', ends: [edge.source, edge.target] }))) : { touches: 0, overlaps: 0 }
-  const clearance = { borderRun: 0, terminalShaft: 0, cornerEnd: 0 }
-  if (withSoftMetrics) for (const finding of routeClearanceFindings(positioned.edges, clearanceBoxes(positioned))) clearance[finding.kind]++
 
   let nodeOverlaps = 0
   for (let i = 0; i < positioned.nodes.length; i++) {
@@ -814,10 +824,6 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       indistinctOccurrences: indistinct.length,
       labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
-      routeContacts: contacts.touches + contacts.overlaps,
-      borderRuns: clearance.borderRun,
-      terminalShafts: clearance.terminalShaft,
-      cornerEnds: clearance.cornerEnd,
       totalBends,
       maxBendsPerEdge: maxBends,
       portEndpointRate: portEndpointRate(positioned),

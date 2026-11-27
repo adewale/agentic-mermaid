@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { checkQuality, measureQuality } from '../agent/quality.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { toFinite } from '../agent/types.ts'
-import { assessLayout, countEdgeCrossings, measureRubricMetrics } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, measureRouteReadability, measureRubricMetrics } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
 import { countIndexedPolylineCrossings, countPolylineCrossings, crossingPoint, distinctCrossingLocations, measureRouteContacts, retainCrossingLocation, type CrossingPolyline } from '../shared/edge-crossings.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -256,7 +256,8 @@ describe('unrelated route contacts', () => {
     const positioned: PositionedGraph = { nodes: [], edges, groups: [], width: 300, height: 300 }
     const layout = positionedToRenderedLayout(positioned, 'flowchart')
     expect(measureQuality(layout)).toMatchObject({ edgeCrossings: 0, routeContacts: { touches: 1, overlaps: 0 } })
-    expect(assessLayout(parseMermaid('flowchart LR\nA --> B\nC --> D'), positioned).metrics).toMatchObject({ edgeCrossings: 0, routeContacts: 1 })
+    expect(assessLayout(parseMermaid('flowchart LR\nA --> B\nC --> D'), positioned).metrics.edgeCrossings).toBe(0)
+    expect(measureRouteReadability(positioned).routeContacts).toBe(1)
     expect(checkQuality(layout, { maxCrossingsRatio: 0 }).ranked.map(violation => violation.metric)).toContain('edgeCrossings')
   })
 })
