@@ -7,7 +7,7 @@ import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { toFinite } from '../agent/types.ts'
-import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
+import type { PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 
 const style = resolveRenderStyle()
 
@@ -77,10 +77,10 @@ describe('rendered edge label conflicts', () => {
     const first = edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 200 }] })
     const second = edge({ points: [{ x: 110, y: 0 }, { x: 110, y: 200 }] })
     expect(measureLabelConflicts({ nodes: [], edges: [labeled(), first] }, style)).toEqual({
-      total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1,
+      total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1, labelGroup: 0,
     })
     expect(measureLabelConflicts({ nodes: [], edges: [labeled(), first, second] }, style)).toEqual({
-      total: 2, labelLabel: 0, labelNode: 0, labelEdge: 2,
+      total: 2, labelLabel: 0, labelNode: 0, labelEdge: 2, labelGroup: 0,
     })
   })
 
@@ -88,7 +88,7 @@ describe('rendered edge label conflicts', () => {
     // The text bands do not overlap, but their padded pills overlap by 4px.
     const other = labeled({ labelPosition: { x: 136, y: 100 } })
     expect(measureLabelConflicts({ nodes: [], edges: [labeled(), other] }, style)).toEqual({
-      total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0,
+      total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0, labelGroup: 0,
     })
   })
 
@@ -103,11 +103,11 @@ describe('rendered edge label conflicts', () => {
         edge({ points: [{ x: 300, y: 0 }, { x: 300, y: 200 }] }),
       ],
     }
-    expect(measureLabelConflicts(positioned, style, new Set([2]))).toEqual({ total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1 })
-    expect(measureLabelConflicts(positioned, style, new Set([0]))).toEqual({ total: 4, labelLabel: 1, labelNode: 1, labelEdge: 2 })
-    expect(measureLabelConflicts(positioned, style, new Set([1, 2]))).toEqual({ total: 2, labelLabel: 1, labelNode: 0, labelEdge: 1 })
-    expect(measureLabelConflicts(positioned, style, new Set([4]))).toEqual({ total: 2, labelLabel: 0, labelNode: 1, labelEdge: 1 })
-    expect(measureLabelConflicts(positioned, style, new Set())).toEqual({ total: 0, labelLabel: 0, labelNode: 0, labelEdge: 0 })
+    expect(measureLabelConflicts(positioned, style, new Set([2]))).toEqual({ total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1, labelGroup: 0 })
+    expect(measureLabelConflicts(positioned, style, new Set([0]))).toEqual({ total: 4, labelLabel: 1, labelNode: 1, labelEdge: 2, labelGroup: 0 })
+    expect(measureLabelConflicts(positioned, style, new Set([1, 2]))).toEqual({ total: 2, labelLabel: 1, labelNode: 0, labelEdge: 1, labelGroup: 0 })
+    expect(measureLabelConflicts(positioned, style, new Set([4]))).toEqual({ total: 2, labelLabel: 0, labelNode: 1, labelEdge: 1, labelGroup: 0 })
+    expect(measureLabelConflicts(positioned, style, new Set())).toEqual({ total: 0, labelLabel: 0, labelNode: 0, labelEdge: 0, labelGroup: 0 })
   })
 
   it('does not infer shared semantic label ownership from a bundle or matching text', () => {
@@ -118,7 +118,7 @@ describe('rendered edge label conflicts', () => {
 
   it('includes own endpoint nodes when their bodies overlap the pill', () => {
     expect(measureLabelConflicts({ nodes: [node(), node({ id: 'B' })], edges: [labeled()] }, style)).toEqual({
-      total: 2, labelLabel: 0, labelNode: 2, labelEdge: 0,
+      total: 2, labelLabel: 0, labelNode: 2, labelEdge: 0, labelGroup: 0,
     })
   })
 
@@ -126,7 +126,7 @@ describe('rendered edge label conflicts', () => {
     const own = labeled({ points: [{ x: 0, y: 100 }, { x: 200, y: 100 }] })
     const other = edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 100 }, { x: 110, y: 100 }, { x: 110, y: 200 }] })
     expect(measureLabelConflicts({ nodes: [], edges: [own, other] }, style)).toEqual({
-      total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1,
+      total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1, labelGroup: 0,
     })
   })
 
@@ -204,7 +204,7 @@ describe('label conflict projections share geometry', () => {
         edge({ style: 'invisible', points: [{ x: 110, y: 0 }, { x: 110, y: 200 }] }),
       ], [node()])
       const layout = positionedToRenderedLayout(positioned, kind)
-      const counts = { total: 3, labelLabel: 1, labelNode: 1, labelEdge: 1 }
+      const counts = { total: 3, labelLabel: 1, labelNode: 1, labelEdge: 1, labelGroup: 0 }
       expect(measureLabelConflicts(positioned, style)).toEqual(counts)
       expect(measureRenderedLabelConflicts(layout)).toEqual(counts)
       expect(measureQuality(layout).labelConflicts).toEqual(counts)
@@ -241,5 +241,28 @@ describe('label conflict projections share geometry', () => {
     delete layout.edges[0]!.label!.bounds
     expect(measureQuality(layout).labelConflicts).toBeUndefined()
     expect(measureQuality(layout).labelMeasurement.unmeasuredEdges).toBe(1)
+  })
+})
+
+describe('captions over group titles and frames', () => {
+  // The caption's pill spans x=80..120, y=85..115 (see labeled()).
+  const frame = (overrides: Partial<PositionedGroup> = {}): PositionedGroup =>
+    ({ id: 'G', label: 'G', x: 0, y: 0, width: 300, height: 300, headerHeight: 28, children: [], ...overrides })
+  it.each([
+    ['on the title band', frame({ y: 80 }), 1],
+    ['across the left side', frame({ x: 100, y: 0 }), 1],
+    ['across the bottom side', frame({ y: -200 }), 1],
+    ['inside the body', frame(), 0],
+    ['outside the frame', frame({ x: 200 }), 0],
+    ['across a concurrency region, which draws no box', frame({ x: 100, concurrencyRegion: true }), 0],
+  ] as const)('a caption %s', (_name, group, expected) => {
+    const positioned: PositionedGraph = { nodes: [], edges: [labeled()], groups: [group], width: 400, height: 400 }
+    const counts = { total: expected, labelLabel: 0, labelNode: 0, labelEdge: 0, labelGroup: expected }
+    expect(measureLabelConflicts(positioned, style)).toEqual(counts)
+    // The public projection carries the producer's title band, so the rubric
+    // and measureQuality count the same conflicts.
+    const layout = positionedToRenderedLayout(positioned, 'flowchart')
+    expect(measureRenderedLabelConflicts(layout)).toEqual(counts)
+    expect(measureQuality(layout).labelConflicts).toEqual(counts)
   })
 })

@@ -2161,6 +2161,12 @@ export interface RenderedLayoutGroup {
   parentId?: GroupId
   /** Semantic region kind used by the renderer/action sidecar. */
   regionKind?: Exclude<RenderedRegionKind, 'node' | 'edge' | 'label' | 'canvas'>
+  /** Height of the title band the producer reserved at the top of the frame;
+   *  absent when the group has none. */
+  headerHeight?: Finite
+  /** 'none' for a group that paints no outline of its own (a State
+   *  concurrency region, separated from its siblings by dashed lines). */
+  outline?: 'none'
 }
 export interface RenderedLayout {
   /** Bounded native paint evidence, included by debug layout projection. */

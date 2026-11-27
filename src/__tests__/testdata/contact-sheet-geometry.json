@@ -320,7 +320,7 @@
       {"id":"B->D","from":"B","to":"D","path":[[169,253],[169,324],[195,324],[195,440]],"label":{"x":195,"y":382,"text":"needs work"}}
     ],
     "groups": [
-      {"id":"product","x":40,"y":40,"w":208,"h":453,"members":["A","B","C","D"],"label":"Product Loop"}
+      {"id":"product","x":40,"y":40,"w":208,"h":453,"members":["A","B","C","D"],"label":"Product Loop","headerHeight":28}
     ]
   },
   "X": {

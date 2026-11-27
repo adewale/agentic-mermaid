@@ -126,12 +126,13 @@ export function leastCostSeat(candidates: Iterable<Point>, admit: (point: Point)
  * Seat `edge`'s caption by the one rule: the first admitted seat, in the
  * caller's order, of least cost. Returns that seat with the caption left
  * there, or undefined with the caption restored when no seat is admitted.
- * `ownRunFirst` ranks seats on a run before seats beside one, after text
- * conflicts and before shafts.
+ * Text conflicts count other captions, cards, and group title bands and
+ * outlines. `ownRunFirst` ranks seats on a run before seats beside one,
+ * after text conflicts and before shafts.
  */
 export function seatLabel(
   edge: PositionedEdge,
-  graph: { nodes: readonly PositionedNode[]; edges: readonly PositionedEdge[] },
+  graph: { nodes: readonly PositionedNode[]; edges: readonly PositionedEdge[]; groups?: readonly PositionedGroup[] },
   style: LabelMetricsStyle,
   candidates: Iterable<Point>,
   admit: (point: Point) => boolean,
@@ -139,17 +140,22 @@ export function seatLabel(
 ): Point | undefined {
   const original = edge.labelPosition
   const involved = new Set([graph.edges.indexOf(edge)])
-  const positioned = graph as { nodes: PositionedNode[]; edges: PositionedEdge[] }
+  const positioned = graph as { nodes: PositionedNode[]; edges: PositionedEdge[]; groups?: readonly PositionedGroup[] }
   const best = leastCostSeat(candidates, admit, seat => {
     edge.labelPosition = seat
     const counts = measureLabelConflicts(positioned, style, involved)
-    return [counts.labelLabel + counts.labelNode, ownRunFirst && routeDistance(seat, edge.points) > ON_ROUTE ? 1 : 0, counts.labelEdge]
+    return [counts.labelLabel + counts.labelNode + counts.labelGroup, ownRunFirst && routeDistance(seat, edge.points) > ON_ROUTE ? 1 : 0, counts.labelEdge]
   })
   edge.labelPosition = best ?? original
   return best
 }
 
-function routeDistance(point: Point, points: readonly Point[]): number {
+/** The seat lies on one of the route's runs. */
+export function seatOnRoute(seat: Point, points: readonly Point[]): boolean {
+  return routeDistance(seat, points) <= ON_ROUTE
+}
+
+export function routeDistance(point: Point, points: readonly Point[]): number {
   let distance = Infinity
   for (let index = 1; index < points.length; index++) {
     const a = points[index - 1]!, b = points[index]!

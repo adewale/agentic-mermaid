@@ -1,0 +1,17 @@
+%% Each hub caption sits on its own route, not beside it between two routes: https://github.com/mermaid-js/mermaid/issues/8878
+flowchart LR
+  classDef core fill:#3399ff,stroke:#0066cc,stroke-width:2px,color:#fff;
+  classDef access fill:#d5dbdb,stroke:#7f8c8d,stroke-width:1px;
+
+  core["MDF-CORE (ex4600-40f)"]
+  class core core;
+  sw1["BLDG-A-SW1"]
+  sw2["BLDG-B-SW1"]
+  sw3["BLDG-C-SW1"]
+  sw4["BLDG-D-SW1"]
+  class sw1,sw2,sw3,sw4 access;
+
+  core ==>|"xe-0/0/1 ↔ xe-0/2/0"| sw1
+  core ==>|"xe-0/0/2 ↔ xe-0/2/0"| sw2
+  core ==>|"xe-0/0/3 ↔ xe-0/2/0"| sw3
+  core ==>|"xe-0/0/4 ↔ xe-0/2/0"| sw4

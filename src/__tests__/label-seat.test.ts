@@ -4,7 +4,7 @@
 
 import { expect, test } from 'bun:test'
 import { layoutMermaidWithReceipt, measureQuality, verifyMermaid } from '../agent/index.ts'
-import { routeSeats, seatLabel } from '../layout/label-seat.ts'
+import { routeSeats, seatCaption, seatLabel } from '../layout/label-seat.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { seatMeetingArrivals } from '../layout/passes/arrival-slots.ts'
 import { shiftNodeSetCross } from '../layout/passes/shared.ts'
@@ -16,8 +16,11 @@ import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { sharedTrunkConflict } from '../layout/route-lanes.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
+import { labelRect, segmentEntersLabelRect } from '../shared/edge-label-geometry.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedEdge, PositionedNode } from '../types.ts'
+import type { PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
 
 const style = resolveRenderStyle({})
 const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 40 })
@@ -308,4 +311,29 @@ test('port-lane centering keeps every caption on the arrival it slides', () => {
   N4 ---->|"retry later"| N1`))
   } finally { pass.run = run }
   expect(left).toEqual([])
+})
+
+// A route that enters a group at its midpoint would centre the caption on the
+// frame line. Another paint-safe seat on the same run avoids it.
+test('a producer does not seat a caption across a group frame when its run has a clear seat', () => {
+  const caption = edge('A', 'B', [[0, 100], [300, 100]], { label: 'caption' })
+  const group: PositionedGroup = { id: 'G', label: 'G', x: 150, y: 20, width: 300, height: 200, headerHeight: 28, children: [] }
+  const graph = { nodes: [], edges: [caption], groups: [group] }
+  seatCaption(caption, graph, style)
+  expect(onOwnRun(caption.labelPosition!, [[0, 100], [300, 100]])).toBe(true)
+  expect(measureLabelConflicts(graph, style)).toMatchObject({ total: 0, labelGroup: 0 })
+})
+
+// mermaid-js/mermaid#8878: two hub captions on routes 36px apart cannot both
+// sit on their runs. The settler moved both aside; once one has moved, the
+// other's run is clear again, and a caption left detached between two routes
+// reads as either route's.
+test('settled hub captions each cover their own line', () => {
+  const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-8878.mmd'), 'utf8')
+  const positioned = layoutGraphSync(parseMermaid(source))
+  for (const caption of positioned.edges.filter(candidate => candidate.label)) {
+    const rect = labelRect(caption, style)!
+    expect(caption.points.some((point, i) => i > 0 && segmentEntersLabelRect(caption.points[i - 1]!, point, rect)), `${caption.source}->${caption.target}`).toBe(true)
+  }
+  expect(measureLabelConflicts(positioned, style).total).toBe(0)
 })

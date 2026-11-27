@@ -112,6 +112,8 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
       members,
       label: g.label,
       ...(parentId ? { parentId } : {}),
+      ...(!g.concurrencyRegion && g.headerHeight !== undefined && g.headerHeight > 0 ? { headerHeight: toFinite(g.headerHeight) } : {}),
+      ...(g.concurrencyRegion ? { outline: 'none' as const } : {}),
     })
     for (const child of g.children) visit(child, g.id)
   }

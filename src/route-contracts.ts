@@ -5,7 +5,7 @@ import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import type { LabelSeatSearch } from './layout/label-seat-search.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { clearanceBoxes, routeClearanceFindings } from './layout-rubric.ts'
-import { labelHaloPadding, labelPaintClearance, routeSeats, seatCaption, seatLabel, type LabelPaintRect } from './layout/label-seat.ts'
+import { labelHaloPadding, labelPaintClearance, routeDistance, routeSeats, seatCaption, seatLabel, seatOnRoute, type LabelPaintRect } from './layout/label-seat.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { AxisAlignedBox } from './shared/transformed-bounds.ts'
@@ -1863,6 +1863,47 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
     }
     if (conflicts === 0) { rescuePaintSeats(); break }
     if (sweep === 2) rescuePaintSeats()
+  }
+  if (privateChannel) returnToOwnRuns()
+
+  // A caption the sweeps left clear of its own line returns onto one of its
+  // runs where a seat is now clear: the neighbour that pushed it aside may
+  // itself have moved later. Detached from its line, between two routes, a
+  // caption can read as either route's. One whose nearest route is a twin
+  // (the same two nodes) stays beside the pair: a seat on its run would mask
+  // the twin. The caption nearest another route, relative to its own, goes
+  // first; the seat nearest its current one wins and may add no conflict of
+  // any kind.
+  function returnToOwnRuns(): void {
+    const twin = (a: PositionedEdge, b: PositionedEdge): boolean => a.source === b.source && a.target === b.target || a.source === b.target && a.target === b.source
+    const aside: Array<{ edge: PositionedEdge; index: number; ambiguity: number }> = []
+    labeled.forEach((edge, index) => {
+      if (edge.source === edge.target) return
+      const rect = labelRect(edge, style)
+      if (!rect || edge.points.some((point, i) => i > 0 && segmentEntersLabelRect(edge.points[i - 1]!, point, rect))) return
+      let nearest: PositionedEdge | undefined, other = Infinity
+      for (const peer of positioned.edges) {
+        if (peer === edge || peer.style === 'invisible' || peer.points.length < 2) continue
+        const distance = routeDistance(edge.labelPosition!, peer.points)
+        if (distance < other) { other = distance; nearest = peer }
+      }
+      if (nearest && twin(edge, nearest)) return
+      aside.push({ edge, index, ambiguity: routeDistance(edge.labelPosition!, edge.points) / other })
+    })
+    aside.sort((a, b) => b.ambiguity - a.ambiguity || a.index - b.index)
+    for (const { edge } of aside) {
+      if (seatOnRoute(edge.labelPosition!, edge.points)) continue
+      const incumbent = edge.labelPosition!, involved = new Set([positioned.edges.indexOf(edge)])
+      const before = measureLabelConflicts(positioned, style, involved).total
+      const onRun: Point[] = []
+      for (const point of slots(edge, labeled.filter(other => other !== edge), false, undefined, false)) if (seatOnRoute(point, edge.points)) onRun.push(point)
+      onRun.sort((a, b) => Math.hypot(a.x - incumbent.x, a.y - incumbent.y) - Math.hypot(b.x - incumbent.x, b.y - incumbent.y))
+      edge.labelPosition = onRun.find(point => {
+        edge.labelPosition = point
+        const counts = measureLabelConflicts(positioned, style, involved)
+        return counts.total <= before && counts.labelEdge === 0
+      }) ?? incumbent
+    }
   }
 }
 
