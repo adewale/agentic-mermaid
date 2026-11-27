@@ -14,7 +14,8 @@
 //   broken     support lost, authored nodes/edges lost, graph geometry or
 //              paint certification lost, label measurement lost, or head
 //              nondeterministic.
-//   regressed  the declared objective prefers base.
+//   regressed  the declared objective prefers base. Its crossing axis
+//              counts contacts between unrelated routes as crossings.
 //   improved   the declared objective prefers head (or head fixed a break).
 //   unchanged  objective tie; secondary metric moves are listed as tradeoffs.
 //
@@ -126,13 +127,16 @@ export function objectiveGeometry(input: GateInput, layout: RenderedLayout): Obj
 /** The declared objective, read from the published projection in the
  * objective's own order. Title readability cannot be observed and ties on
  * both sides; so do the port and barycentre axes when `objective` is absent.
+ * The crossing axis counts each contact between unrelated routes (a shared
+ * corner, a T-junction, a shared run) as a crossing: such a contact hides at
+ * least one, so drawing a crossing as a contact cannot score better.
  * Area is the drawn canvas in px²; `classify` ties two areas within 1% of each
  * other, because the canvas includes bands the engine's candidate area excludes. */
 export function projectedPreferenceScore(metrics: QualityMetrics, objective?: ObjectiveGeometry): LayoutPreferenceScore {
   const area = metrics.routeGeometry?.area ?? 0
   return {
     unreadableTitles: 0,
-    edgeCrossings: metrics.edgeCrossings,
+    edgeCrossings: metrics.edgeCrossings + (metrics.routeContacts?.touches ?? 0) + (metrics.routeContacts?.overlaps ?? 0),
     labelConflicts: metrics.labelConflicts?.total ?? 0,
     totalBends: metrics.routeGeometry?.bends ?? 0,
     nonCanonicalEndpointRate: objective?.nonCanonicalEndpointRate ?? 0,
@@ -161,6 +165,9 @@ function tradeoffNotes(base: QualityMetrics, head: QualityMetrics): string[] {
   }
   worse('opposing shared spans', base.routeOverlaps?.opposing, head.routeOverlaps?.opposing)
   worse('same-endpoint shared spans', base.routeOverlaps?.parallel, head.routeOverlaps?.parallel)
+  worse('runs beside unattached borders', base.routeClearance?.borderRuns, head.routeClearance?.borderRuns)
+  worse('short or tangent end shafts', base.routeClearance?.terminalShafts, head.routeClearance?.terminalShafts)
+  worse('ends at a corner', base.routeClearance?.cornerEnds, head.routeClearance?.cornerEnds)
   worse('label legibility', base.labelLegibility, head.labelLegibility, true, 0.01)
   worse('label–edge proximity', base.labelEdgeProximity, head.labelEdgeProximity, true, 0.5)
   worse('minimum node spacing', base.minimumNodeSpacing, head.minimumNodeSpacing, true, 0.5)

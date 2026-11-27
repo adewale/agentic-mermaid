@@ -6,8 +6,10 @@ import { expect, test } from 'bun:test'
 import { layoutMermaidWithReceipt, type QualityMetrics } from '../../src/agent/index.ts'
 import { classify, summarize, type CapturedSample, type GateVerdict } from './gate.ts'
 
-const metrics = (patch: Partial<Record<'crossings' | 'conflicts' | 'bends' | 'area' | 'nodes' | 'opposing', number>> & { paint?: string } = {}) => ({
+const metrics = (patch: Partial<Record<'crossings' | 'contacts' | 'conflicts' | 'bends' | 'area' | 'nodes' | 'opposing' | 'borderRuns', number>> & { paint?: string } = {}) => ({
   edgeCrossings: patch.crossings ?? 2,
+  routeContacts: { touches: patch.contacts ?? 0, overlaps: 0 },
+  routeClearance: { borderRuns: patch.borderRuns ?? 0, terminalShafts: 0, cornerEnds: 0 },
   labelConflicts: { total: patch.conflicts ?? 0 },
   routeGeometry: { bends: patch.bends ?? 10, length: 500, area: patch.area ?? 10_000 },
   routeOverlaps: { opposing: patch.opposing ?? 0, parallel: 0 },
@@ -34,6 +36,8 @@ test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdic
   { name: 'paint certification regained outranks one more crossing', base: [sample('a', metrics({ paint: 'unverified' }))], head: [sample('b', metrics({ crossings: 3 }))], verdict: 'improved' },
   { name: 'one more crossing outranks fewer bends', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 3, bends: 2 }))], verdict: 'regressed', criterion: 'edgeCrossings' },
   { name: 'fewer crossings outrank more bends', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 1, bends: 20 }))], verdict: 'improved', criterion: 'edgeCrossings' },
+  { name: 'a crossing drawn as a shared corner is no better', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 1, contacts: 1 }))], verdict: 'unchanged' },
+  { name: 'a crossing drawn as two contacts regresses', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 1, contacts: 2, bends: 2 }))], verdict: 'regressed', criterion: 'edgeCrossings' },
   { name: 'canvas change under 1% ties', base: [sample('a', metrics())], head: [sample('b', metrics({ area: 10_050 }))], verdict: 'unchanged' },
   { name: 'canvas change under 1% ties across a 1% step', base: [sample('a', metrics({ area: 1.01 ** 925.49 }))], head: [sample('b', metrics({ area: 1.01 ** 925.51 }))], verdict: 'unchanged' },
   { name: 'canvas growth of 2% regresses on area', base: [sample('a', metrics())], head: [sample('b', metrics({ area: 10_200 }))], verdict: 'regressed', criterion: 'area' },
@@ -48,9 +52,9 @@ test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdic
 })
 
 test('secondary metrics are reported without deciding a tied objective', () => {
-  const result = run([sample('a', metrics())], [sample('b', metrics({ opposing: 2 }))])
+  const result = run([sample('a', metrics())], [sample('b', metrics({ opposing: 2, borderRuns: 1 }))])
   expect(result.verdict).toBe('unchanged')
-  expect(result.tradeoffs).toEqual(['opposing shared spans 0 → 2'])
+  expect(result.tradeoffs).toEqual(['opposing shared spans 0 → 2', 'runs beside unattached borders 0 → 1'])
 })
 
 test('layout time is the geometric mean of per-sample median ratios', () => {
