@@ -3,6 +3,7 @@ import { DEFAULTS } from '../geometry.ts'
 import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
+import { captionRidesRun } from '../route-values.ts'
 
 function outwardEndpoint(points: Point[], node: PositionedNode | undefined, start: boolean): boolean | undefined {
   if (!node) return undefined
@@ -88,7 +89,8 @@ function moveOverlapsNode(after: PositionedNode, before: PositionedNode, nodes: 
 
 /** Project the same endpoint adjustment for admission and commit. Retaining
  * zero-length points here matters: the next nonzero shaft may be a tangent. */
-function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta?: number, targetDelta?: number): Point[] {
+function shiftedEndpointPoints(edge: PositionedEdge, horizontal: boolean, sourceDelta?: number, targetDelta?: number): Point[] {
+  const points = edge.points
   if (points.length < 2 || sourceDelta === undefined && targetDelta === undefined) return points
   const projected = points.map(point => ({ ...point }))
   const main = horizontal ? 'x' : 'y'
@@ -103,10 +105,12 @@ function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta
     // A terminal shaft along the flow would shrink by the snap. When that
     // leaves it shorter than the clearance, the elbow and the run across the
     // flow before it move with the node, so the shaft keeps its length; the
-    // run's far end is never a terminal.
+    // run's far end is never a terminal. A run that carries the edge's
+    // caption stays put: moving it would leave the caption off its route.
     const run = projected[beyond]
     if (neighbor[cross] !== point[cross] || Math.abs(neighbor[main] - point[main]) >= Math.min(shaft, SNAP_CLEARANCE)) continue
     if (!run || beyond === 0 || beyond === projected.length - 1 || run[main] !== neighbor[main] || carried.has(adjacent) || carried.has(beyond)) continue
+    if (captionRidesRun(edge, points, Math.min(adjacent, beyond), Math.max(adjacent, beyond), main)) continue
     neighbor[main] += delta
     run[main] += delta
     carried.add(adjacent).add(beyond)
@@ -258,8 +262,8 @@ export function alignLayerNodes(
       for (const edge of incident.get(id) ?? []) {
         if (checked.has(edge) || edge.style === 'invisible') continue
         checked.add(edge)
-        const before = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
-        const after = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal,
+        const before = { ...edge, points: shiftedEndpointPoints(edge, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
+        const after = { ...edge, points: shiftedEndpointPoints(edge, isHorizontal,
           moves.get(edge.source) ?? deltas.get(edge.source), moves.get(edge.target) ?? deltas.get(edge.target)) }
         // A carried elbow must not land in another box, nor run alongside
         // another route where it did not.
@@ -309,6 +313,6 @@ export function alignLayerNodes(
 
   // Adjust edge endpoints to match shifted node positions
   for (const edge of edges) {
-    edge.points = shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target))
+    edge.points = shiftedEndpointPoints(edge, isHorizontal, deltas.get(edge.source), deltas.get(edge.target))
   }
 }
