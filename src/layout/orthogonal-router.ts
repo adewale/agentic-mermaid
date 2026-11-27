@@ -72,6 +72,14 @@ export interface OrthogonalRouteRequest {
   /** Called once for every grid step the search checks, so a caller can
    * bound the routing work of a whole diagram by throwing. */
   readonly charge?: () => void
+  /** With `charge`: called once for every grid step the early check that a
+   * route can arrive at all reads before the search has. Without it a
+   * `charge` budget turns that check off. With it the check runs, its reads
+   * are charged here instead, and `charge` still counts exactly the steps
+   * the search itself checks, so a route that cannot arrive stops early and
+   * a route that can is charged as without the check. Returning false
+   * abandons the check, and the search goes on as without it. */
+  readonly probe?: () => boolean
   /** Order the search by a lower bound on the cost still to come. The route
    * is as cheap as without it, but among equally cheap routes it may find a
    * different one, and it explores far less of a large grid. Always on with
@@ -182,6 +190,9 @@ class SearchScratch {
   /** Each grid edge's checked extra cost, valid where its generation is the
    * current route's. */
   edge = new Float64Array(0); edgeGeneration = new Uint32Array(0); routeGeneration = 0
+  /** Edges the reachability check read for a caller's `probe` that the
+   * search has not yet charged, where the generation is the current route's. */
+  owed = new Uint32Array(0)
 
   /** Starts a pass over `states` search states. */
   startPass(states: number): void {
@@ -192,8 +203,13 @@ class SearchScratch {
 
   /** Starts a route over `edges` grid edges. */
   startRoute(edges: number): void {
-    if (this.edge.length < edges) { this.edge = new Float64Array(edges); this.edgeGeneration = new Uint32Array(edges); this.routeGeneration = 0 }
-    if (++this.routeGeneration === 0xffffffff) { this.edgeGeneration.fill(0); this.routeGeneration = 1 }
+    if (this.edge.length < edges) { this.edge = new Float64Array(edges); this.edgeGeneration = new Uint32Array(edges); this.owed = new Uint32Array(0); this.routeGeneration = 0 }
+    if (++this.routeGeneration === 0xffffffff) { this.edgeGeneration.fill(0); this.owed.fill(0); this.routeGeneration = 1 }
+  }
+
+  /** Readies the owed-edge table for the current route's edges. */
+  startOwing(): void {
+    if (this.owed.length < this.edge.length) this.owed = new Uint32Array(this.edge.length)
   }
 
   add(i: number, j: number, d: number, k: number, cost: number, rank: number, run: number, previous: number, final: 0 | 1): number {
@@ -280,6 +296,8 @@ const DENSE_EDGE_CACHE = 1 << 22
 const RETAINED_SCRATCH = 1 << 20
 /** States a search expands before it checks that a route exists at all. */
 const HOPELESS = 128
+/** Thrown inside the reachability check when the caller's `probe` declines. */
+const ABANDONED = Symbol('abandoned reachability check')
 /** How far past the cheapest cost a bounded pass still queues states: far
  * above rounding in summed costs; more only queues more states. */
 const BOUND_SLACK = 1
@@ -449,6 +467,11 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   spareScratch = undefined
   const dense = edges <= DENSE_EDGE_CACHE, sparse = dense ? undefined : new Map<number, number>()
   if (dense) scratch.startRoute(edges)
+  // Under a `charge` budget with a `probe`, an edge the reachability check
+  // reads first is owed to `charge` until the search reads it.
+  const deferring = request.charge !== undefined && request.probe !== undefined
+  if (deferring && dense) scratch.startOwing()
+  const owed = scratch.owed, owedSparse = deferring && !dense ? new Set<number>() : undefined
   const edgeCost = scratch.edge, edgeGeneration = scratch.edgeGeneration, route = scratch.routeGeneration
   const arrivesAt = new Uint8Array(xs.length * rows)
   for (const target of targets) arrivesAt[target.i * rows + target.j] = 1
@@ -456,8 +479,29 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
    * or -1 when it is blocked; checked (and charged) once. */
   const stepExtra = (i: number, j: number, d: number, length: number): number => {
     const edge = (i * rows + j) * 4 + d
-    if (dense ? edgeGeneration[edge] === route : sparse!.has(edge)) return dense ? edgeCost[edge]! : sparse!.get(edge)!
+    if (dense ? edgeGeneration[edge] === route : sparse!.has(edge)) {
+      if (deferring && (dense ? owed[edge] === route : owedSparse!.has(edge))) {
+        if (dense) owed[edge] = 0
+        else owedSparse!.delete(edge)
+        request.charge!()
+      }
+      return dense ? edgeCost[edge]! : sparse!.get(edge)!
+    }
     request.charge?.()
+    return measure(i, j, d, length, edge)
+  }
+  /** The same step read for the reachability check under a `probe`: charged
+   * to the probe, and owed to `charge`, when it reads the step first. */
+  const probeStep = (i: number, j: number, d: number, length: number): number => {
+    const edge = (i * rows + j) * 4 + d
+    if (dense ? edgeGeneration[edge] === route : sparse!.has(edge)) return dense ? edgeCost[edge]! : sparse!.get(edge)!
+    if (!request.probe!()) throw ABANDONED
+    if (dense) owed[edge] = route
+    else owedSparse!.add(edge)
+    return measure(i, j, d, length, edge)
+  }
+  /** Checks a step not read before and keeps its extra cost. */
+  const measure = (i: number, j: number, d: number, length: number, edge: number): number => {
     const ni = i + DI[d]!, nj = j + DJ[d]!
     const a = { x: xs[i]!, y: ys[j]! }, b = { x: xs[ni]!, y: ys[nj]! }
     const vertical = d % 2 === 1, line = vertical ? lineAt(true, i) : lineAt(false, j)
@@ -473,6 +517,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
    * steps, no reversal, via points in order, arriving along an entry or
    * onto its stub), so where this finds none, neither does the search. */
   const reachable = (): boolean => {
+    const step = deferring ? probeStep : stepExtra
     const length = (i: number, j: number, ni: number, nj: number) => Math.abs(xs[ni]! - xs[i]!) + Math.abs(ys[nj]! - ys[j]!)
     // Depth first, each state's steps pushed in order of least progress
     // toward a goal, so the step toward it is tried first.
@@ -500,7 +545,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
     while (!joined && back.length) {
       const id = back.pop()!, d = id % 4, point = (id - d) / 4, j = point % rows, i = (point - j) / rows
       const pi = i - DI[d]!, pj = j - DJ[d]!
-      if (pi < 0 || pj < 0 || pi >= xs.length || pj >= rows || stepExtra(pi, pj, d, length(pi, pj, i, j)) < 0) continue
+      if (pi < 0 || pj < 0 || pi >= xs.length || pj >= rows || step(pi, pj, d, length(pi, pj, i, j)) < 0) continue
       rank(pi, pj, gx, gy, -1)
       for (const from of order) if ((from + 2) % 4 !== d && mark(pi, pj, from)) { joined = true; break }
     }
@@ -522,7 +567,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
         if ((d + 2) % 4 === sd) continue
         const ni = i + DI[d]!, nj = j + DJ[d]!
         if (ni < 0 || nj < 0 || ni >= xs.length || nj >= rows) continue
-        if (stepExtra(i, j, d, length(i, j, ni, nj)) < 0) continue
+        if (step(i, j, d, length(i, j, ni, nj)) < 0) continue
         visit(ni, nj, d, advance(k, ni, nj))
       }
     }
@@ -531,9 +576,13 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   // A search that finds no route expands every state it can reach, once per
   // via point passed. Once the first pass has expanded a few states without
   // arriving, the cheaper reachability check settles whether it can arrive
-  // at all. Not with `charge`: a caller's work budget counts the steps the
-  // full search checks.
-  const hopeless = request.charge ? -1 : HOPELESS
+  // at all. A `charge` budget counts the steps the full search checks, so
+  // the check runs under one only with a `probe` to charge its own reads.
+  const hopeless = request.charge && !request.probe ? -1 : HOPELESS
+  /** Whether a route may arrive; an abandoned check does not say no. */
+  const mayArrive = (): boolean => {
+    try { return reachable() } catch (error) { if (error === ABANDONED) return true; throw error }
+  }
   const limit = (request.costLimit ?? Infinity) + COST_LIMIT_SLACK
   /** One search pass, ordered by cost alone or (`ordered`) by cost plus the
    * lower bound. States whose cost plus lower bound exceeds `bound` cannot
@@ -574,7 +623,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
       const si = scratch.i[slot]!, sj = scratch.j[slot]!, sd = scratch.d[slot]!, sk = scratch.k[slot]!, scost = scratch.cost[slot]!, srun = scratch.run[slot]!
       const own = key(si, sj, sd, sk, srun)
       if ((table ? (bestGeneration[own] === pass ? bestCost[own]! : Infinity) : map!.get(own) ?? Infinity) < scost - EPS) continue
-      if (++expanded === hopeless && !bounded && !reachable()) return undefined
+      if (++expanded === hopeless && !bounded && !mayArrive()) return undefined
       if (sk === via.length) {
         // Turning onto the end stub, or off it against the end heading, is
         // one more bend each, charged before the route can win; like any
@@ -605,7 +654,7 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
         if (turned && srun < minRun - EPS) continue
         const length = Math.abs(xs[ni]! - xs[si]!) + Math.abs(ys[nj]! - ys[sj]!)
         const edge = (si * rows + sj) * 4 + d
-        const crossed = dense && edgeGeneration[edge] === route ? edgeCost[edge]! : stepExtra(si, sj, d, length)
+        const crossed = dense && edgeGeneration[edge] === route && !(deferring && owed[edge] === route) ? edgeCost[edge]! : stepExtra(si, sj, d, length)
         if (crossed < 0) continue
         const cost = scost + length + (turned ? bendCost : 0) + crossed
         const run = turned ? length : srun + length

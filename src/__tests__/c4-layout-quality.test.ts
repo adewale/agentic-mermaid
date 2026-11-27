@@ -76,10 +76,14 @@ describe('C4 measured pixel layout quality', () => {
   })
 
   test('native and lazy rendering expose exhausted physical route work instead of retaining an unchecked route', async () => {
-    // Ten boundaries of four containers with 150 relationships between
-    // containers of different boundaries: the routes themselves, not the lead
-    // probes, exhaust the shared route work.
-    const source = ['C4Container', ...Array.from({ length: 10 }, (_, b) => `System_Boundary(b${b},"B${b}") {\n${Array.from({ length: 4 }, (_, i) => `Container(c${b}_${i},"C ${b} ${i}","T")`).join('\n')}\n}`), ...Array.from({ length: 150 }, (_, j) => `Rel(c${j % 10}_${j % 4},c${(j * 3 + 1) % 10}_${(j + 2) % 4},"R${j}")`)].join('\n')
+    // Ten boundaries of four containers with relationships between containers
+    // of different boundaries: with 300 the routes themselves, not the lead
+    // probes, exhaust the shared route work. With 150 they once did too, when
+    // each obstacle set a relationship tried and could not route through
+    // charged every step it could reach.
+    const boundaries = (relationships: number) => ['C4Container', ...Array.from({ length: 10 }, (_, b) => `System_Boundary(b${b},"B${b}") {\n${Array.from({ length: 4 }, (_, i) => `Container(c${b}_${i},"C ${b} ${i}","T")`).join('\n')}\n}`), ...Array.from({ length: relationships }, (_, j) => `Rel(c${j % 10}_${j % 4},c${(j * 3 + 1) % 10}_${(j + 2) % 4},"R${j}")`)].join('\n')
+    expect(renderMermaidSVG(boundaries(150)).startsWith('<svg')).toBe(true)
+    const source = boundaries(300)
     expect(() => renderMermaidSVG(source)).toThrow(C4RouteWorkLimitError)
     const { default: browser } = await import('../browser-lazy/families/c4.ts')
     await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'C4RouteWorkLimitError', code: 'C4_ROUTE_WORK_LIMIT' })

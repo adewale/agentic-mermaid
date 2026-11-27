@@ -141,7 +141,8 @@ test.each([
 // A search that has not arrived after a few states asks a cheaper
 // reachability check whether it can arrive at all, and gives up when it
 // cannot. A `charge` budget counts every step the full search checks, so it
-// turns the check off: with and without one, every request routes alike.
+// turns the check off unless a `probe` takes the check's own reads: with and
+// without either, every request routes alike.
 const lattice = fc.integer({ min: 0, max: 30 }).map(value => value * 10)
 const point = fc.record({ x: lattice, y: lattice })
 const heading = fc.constantFrom<RouterDirection>('E', 'S', 'W', 'N')
@@ -165,7 +166,38 @@ const walled: OrthogonalRouteRequest = {
 test('giving up on a route that cannot arrive never drops one that can', () => {
   expect(routeOrthogonal(walled)).toBeUndefined()
   fc.assert(fc.property(request, input => {
-    expect(routeOrthogonal(input)).toEqual(routeOrthogonal({ ...input, charge: () => {} }))
+    const route = routeOrthogonal(input)
+    expect(routeOrthogonal({ ...input, charge: () => {} })).toEqual(route)
+    expect(routeOrthogonal({ ...input, charge: () => {}, probe: () => true })).toEqual(route)
+    expect(routeOrthogonal({ ...input, charge: () => {}, probe: () => false })).toEqual(route)
+  }), fcParameters({ numRuns: 300, examples: [[walled]] }))
+})
+
+// The budget a caller bounds with `charge` must not grow with the check: a
+// diagram routed within it before still is. A route that arrives is charged
+// exactly the steps the full search checks; one that cannot stops early, or
+// searches in full where the probe declines to read a step.
+test('a probed check charges a route that arrives as the full search and one that cannot far less', () => {
+  const charged = (input: OrthogonalRouteRequest) => {
+    let steps = 0
+    const route = routeOrthogonal({ ...input, charge: () => { steps++ } })
+    return { route, steps }
+  }
+  // The walled yard again, beside a field of posts the full search must
+  // visit every gap of before it fails.
+  const posts = Array.from({ length: 64 }, (_, k) => ({ x0: 400 + (k % 8) * 40, y0: (k >> 3) * 40, x1: 410 + (k % 8) * 40, y1: 10 + (k >> 3) * 40 }))
+  const fenced: OrthogonalRouteRequest = { ...walled, via: [], obstacles: [...walled.obstacles, ...posts] }
+  const full = charged(fenced), probed = charged({ ...fenced, probe: () => true })
+  expect(full.route).toBeUndefined()
+  expect(probed.route).toBeUndefined()
+  expect(probed.steps * 4).toBeLessThan(full.steps)
+  fc.assert(fc.property(request, input => {
+    const full = charged(input)
+    for (const probe of [() => true, () => false]) {
+      const probed = charged({ ...input, probe })
+      if (full.route) expect(probed.steps).toBe(full.steps)
+      else expect(probed.steps).toBeLessThanOrEqual(full.steps)
+    }
   }), fcParameters({ numRuns: 300, examples: [[walled]] }))
 })
 
