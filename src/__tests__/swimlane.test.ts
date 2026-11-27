@@ -535,9 +535,13 @@ test.each((['TD', 'LR', 'BT', 'RL'] as const).flatMap(direction => [false, true]
 // crossing other lanes (A's loops spanned the whole lane stack; G's ran
 // through lane C). Like a task's loops, they nest around one corner of their
 // own frame where the room outside it holds them: G's stay inside lane B,
-// A's enter no other lane, and none meets another route.
-test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s lane and group self-loops stay beside their own frame', direction => {
-  const input = `swimlane-beta ${direction}\nsubgraph A\n  a1 --> a2\nend\nsubgraph B\n  b1\n  subgraph G\n    g1\n  end\nend\nsubgraph C\n  c1\nend\nA -->|again| A\nA --> A\nG --> G\na2 --> b1\nb1 --> c1`
+// A's enter no other lane, and none meets another route. A labelled loop, or
+// two, on G once found no room in lane B's inset and took the outside
+// channel; placement now opens room for them past G's corner.
+const groupLoops = { 'one loop': ['G --> G'], 'a labelled loop': ['G -->|retry| G'], 'two loops': ['G --> G', 'G --> G'], 'two loops, one labelled': ['G --> G', 'G -->|retry| G'] }
+test.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => Object.keys(groupLoops).map(loops => [direction, loops] as const)))('Swimlane %s lane and group self-loops stay beside their own frame (%s on G)', (direction, variant) => {
+  const ownLoops = groupLoops[variant as keyof typeof groupLoops]
+  const input = `swimlane-beta ${direction}\nsubgraph A\n  a1 --> a2\nend\nsubgraph B\n  b1\n  subgraph G\n    g1\n  end\nend\nsubgraph C\n  c1\nend\nA -->|again| A\nA --> A\n${ownLoops.join('\n')}\na2 --> b1\nb1 --> c1`
   const parsed = parseRegisteredMermaid(input)
   if (!parsed.ok) throw new Error('expected native Swimlane')
   const layout = layoutMermaid(parsed.value, { debug: true })
@@ -546,16 +550,17 @@ test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s lane and group self-lo
   const enters = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]], box: { x: number; y: number; w: number; h: number }) =>
     Math.max(ax, bx) > box.x && Math.min(ax, bx) < box.x + box.w && Math.max(ay, by) > box.y && Math.min(ay, by) < box.y + box.h
   const loops = layout.edges.filter(edge => edge.from === edge.to)
-  expect(loops.map(edge => edge.from)).toEqual(['A', 'A', 'G'])
+  expect(loops.map(edge => edge.from)).toEqual(['A', 'A', ...ownLoops.map(() => 'G')])
   for (const loop of loops) {
     const own = group(loop.from), others = layout.edges.filter(edge => edge !== loop)
     for (const [[ax, ay], [bx, by]] of segments(loop.path)) expect(ax === bx || ay === by).toBe(true)
     for (const other of ['A', 'B', 'C'].map(group).filter(lane => lane !== own && !(loop.from === 'G' && lane.id === 'B'))) {
       for (const segment of segments(loop.path)) expect(enters(segment, other), `${loop.id} enters ${other.id}`).toBe(false)
     }
-    if (loop.from === 'G') for (const [x, y] of loop.path) {
-      const lane = group('B')
-      expect(x > lane.x && x < lane.x + lane.w && y > lane.y && y < lane.y + lane.h, `${loop.id} stays in lane B`).toBe(true)
+    if (loop.from === 'G') {
+      const lane = group('B'), caption = loop.label?.bounds
+      for (const [x, y] of loop.path) expect(x > lane.x && x < lane.x + lane.w && y > lane.y && y < lane.y + lane.h, `${loop.id} stays in lane B`).toBe(true)
+      if (caption) expect(caption.x > lane.x && caption.x + caption.w < lane.x + lane.w && caption.y > lane.y && caption.y + caption.h < lane.y + lane.h, `${loop.id}'s caption stays in lane B`).toBe(true)
     }
     for (const other of others) for (const a of segments(loop.path)) for (const b of segments(other.path)) {
       const [[ax, ay], [bx, by]] = a, [[cx, cy], [dx, dy]] = b

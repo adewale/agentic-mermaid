@@ -134,6 +134,9 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       else { node.x = node.x + node.width / 2 - width / 2; node.y += reserve.N }
       node.width = width; node.height = height
     }
+    // A nested group's self-loops run round its south-east corner (the
+    // first corner tried), inside the lane: open the room they need there.
+    reserveGroupLoopRoom(local, occurrences, style, stubGap, Math.max(CLEARANCE, clearance))
     retainGraphText({ ...local, edges: [] }, style)
     const title = graphTextBlock(resolveLabelContent(lane.label, lane.source?.labelContent), style, 'group')
     const header = Math.max(40, title.height + 16)
@@ -759,4 +762,44 @@ function groupSelfLoopChannels(group: PositionedGroup, pair: PositionedEdge[], b
     return true
   }
   return false
+}
+
+/** Opens room inside a lane's own placement for each nested group's
+ * self-loops round the group's south-east corner: past the group's east
+ * and south faces, every task, group and lane edge beyond the group moves
+ * out, and groups across that line grow, until the loops' runs and
+ * captions keep `margin` off them. Placement leaves only its padding
+ * there, too little for a caption or for nested loops. */
+function reserveGroupLoopRoom(local: { width: number; height: number; nodes: PositionedNode[]; groups: PositionedGroup[] }, pairs: ReadonlyMap<string, PositionedEdge[]>, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, margin: number): void {
+  const groups: PositionedGroup[] = []
+  const collect = (group: PositionedGroup): void => { groups.push(group); group.children.forEach(collect) }
+  local.groups.forEach(collect)
+  for (const group of groups) {
+    const pair = pairs.get(`${group.id}\0${group.id}`)
+    if (!pair) continue
+    const plan: SelfLoopPlan = { at: 'SE', loops: pair, clear: false }
+    const { loops } = selfLoopGeometry(plan, group.width, group.height, style, stubGap, (pair.length + 1) * stubGap * 2)
+    const caption = Math.max(...loops.map(loop => loop.c)), last = loops.at(-1)!
+    const contains = (outer: MeasuredBox, inner: MeasuredBox) => outer.x <= inner.x + 1e-6 && outer.y <= inner.y + 1e-6 && outer.x + outer.width >= inner.x + inner.width - 1e-6 && outer.y + outer.height >= inner.y + inner.height - 1e-6
+    for (const axis of ['x', 'y'] as const) {
+      const size = axis === 'x' ? 'width' : 'height', across = axis === 'x' ? 'y' : 'x', acrossSize = axis === 'x' ? 'height' : 'width'
+      const needed = (axis === 'x' ? last.s : last.d) + caption + margin
+      const cut = group[axis] + group[size]
+      // The loops' reach across this axis: past the other face too.
+      const from = group[across], to = group[across] + group[acrossSize] + (axis === 'x' ? last.d : last.s) + caption + margin
+      let available = local[size] - cut
+      for (const box of [...local.nodes, ...groups]) {
+        if (box === group || contains(group, box)) continue
+        if (contains(box, group)) { available = Math.min(available, box[axis] + box[size] - cut); continue }
+        if (box[axis] >= cut - 1e-6 && box[across] < to && box[across] + box[acrossSize] > from) available = Math.min(available, box[axis] - cut)
+      }
+      const extra = needed - available
+      if (extra <= 1e-6) continue
+      for (const box of [...local.nodes, ...groups]) {
+        if (box[axis] >= cut - 1e-6) box[axis] += extra
+        else if (box[axis] + box[size] > cut + 1e-6) box[size] += extra
+      }
+      local[size] += extra
+    }
+  }
 }
