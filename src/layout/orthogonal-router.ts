@@ -719,6 +719,81 @@ export function routeOrthogonal(request: OrthogonalRouteRequest): RouterPoint[] 
   return withoutCollinear([start, ...corners, end].filter((point, k, all) => k === 0 || !samePoint(point, all[k - 1]!)))
 }
 
+/** The coordinates along their faces, across the direction of travel, that
+ * each end of a route may move to: `[from, to]` for each. */
+export interface StraightSlide { readonly start: readonly [number, number]; readonly end: readonly [number, number] }
+
+/** One straight run between two ends that may each move along its face, for
+ * ends that face each other across a gap: a family whose fixed ports would
+ * jog a few pixels where a straight line fits uses this first. Where the
+ * request leaves and arrives in one direction, the end lies ahead of the
+ * start, and the two ranges share coordinates whose run keeps out of every
+ * obstacle, axis obstacle and frame and off every avoided segment, the run
+ * at the coordinate nearest `prefer` (by default midway between the two
+ * ends), confirmed by routeOrthogonal under the request's own rules; else
+ * undefined. Boxes an end lies on are its own and do not block it. */
+export function routeStraight(request: OrthogonalRouteRequest, slide: StraightSlide, prefer?: number): RouterPoint[] | undefined {
+  const exits = typeof request.exit === 'string' ? [request.exit] : request.exit, entries = typeof request.entry === 'string' ? [request.entry] : request.entry
+  const d = exits.find(direction => entries.includes(direction))
+  if (!d || request.via?.length) return undefined
+  const vertical = d === 'N' || d === 'S', along = vertical ? 'x' : 'y', travel = vertical ? 'y' : 'x'
+  const { start, end, clearance } = request
+  const ahead = (end[travel] - start[travel]) * (vertical ? STEP[d].y : STEP[d].x)
+  if (ahead <= EPS) return undefined
+  const lo = Math.max(slide.start[0], slide.end[0]), hi = Math.min(slide.start[1], slide.end[1])
+  if (lo > hi + EPS) return undefined
+  const t0 = Math.min(start[travel], end[travel]), t1 = Math.max(start[travel], end[travel])
+  const span = (box: RouterBox, axis: 'x' | 'y') => axis === 'x' ? [box.x0, box.x1] as const : [box.y0, box.y1] as const
+  // Open intervals of the along coordinate that a run between t0 and t1
+  // may not take.
+  const blocked: [number, number][] = []
+  const block = (box: RouterBox, grow: number) => {
+    const [b0, b1] = span(box, travel)
+    if (b1 - grow <= t0 + EPS || b0 + grow >= t1 - EPS) return
+    const [a0, a1] = span(box, along)
+    blocked.push([a0 - grow, a1 + grow])
+  }
+  const own = (box: RouterBox) => {
+    const [b0, b1] = span(box, travel), [a0, a1] = span(box, along)
+    return a1 > lo - EPS && a0 < hi + EPS && [start[travel], end[travel]].some(at => at >= b0 - EPS && at <= b1 + EPS)
+  }
+  for (const box of request.obstacles) if (!own(box)) block(box, clearance)
+  for (const box of (vertical ? request.axisObstacles?.vertical : request.axisObstacles?.horizontal) ?? []) if (!own(box)) block(box, clearance)
+  const frames = request.frames
+  if (frames) for (const box of frames.boxes) {
+    const [b0, b1] = span(box, travel)
+    if (b1 <= t0 + EPS || b0 >= t1 - EPS) continue
+    for (const side of span(box, along)) blocked.push([side - frames.clearance, side + frames.clearance])
+  }
+  const avoid = request.avoid
+  if (avoid) for (const [p, q] of avoid.segments) {
+    if ((Math.abs(p.x - q.x) <= EPS) !== vertical) continue
+    const s0 = Math.min(p[travel], q[travel]), s1 = Math.max(p[travel], q[travel]), at = p[along]
+    const spacing = Math.max(s0 - t1, t0 - s1)
+    if (spacing < 0) blocked.push([at - avoid.separation, at + avoid.separation])
+    else if (spacing < avoid.gap) blocked.push([at - EPS, at + EPS])
+  }
+  // The free stretches of [lo, hi], and the point of each nearest `prefer`.
+  const target = Math.min(hi, Math.max(lo, prefer ?? (start[along] + end[along]) / 2))
+  blocked.sort((a, b) => a[0] - b[0])
+  let best: number | undefined, from = lo
+  const consider = (a: number, b: number) => {
+    if (b < a - EPS) return
+    const at = Math.min(b, Math.max(a, target))
+    if (best === undefined || Math.abs(at - target) < Math.abs(best - target) - EPS) best = at
+  }
+  for (const [a, b] of blocked) {
+    if (b <= from + EPS) { from = Math.max(from, b); continue }
+    if (a >= hi - EPS) break
+    consider(from, Math.min(a, hi))
+    from = Math.max(from, b)
+  }
+  consider(from, hi)
+  if (best === undefined) return undefined
+  const route = routeOrthogonal({ ...request, start: { ...start, [along]: best }, end: { ...end, [along]: best } })
+  return route?.length === 2 ? route : undefined
+}
+
 /** How far beside each stub tip the last-resort route may turn. */
 const FALLBACK_DETOUR = 16
 /** The shortest lead the last-resort route draws, so it leaves and arrives

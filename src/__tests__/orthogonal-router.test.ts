@@ -5,7 +5,7 @@
 
 import { expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { COST_LIMIT_SLACK, orthogonalFallback, routeOrthogonal, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
+import { COST_LIMIT_SLACK, orthogonalFallback, routeOrthogonal, routeStraight, type OrthogonalRouteRequest, type RouterDirection, type RouterPoint } from '../layout/orthogonal-router.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const box = { x0: 100, y0: 0, x1: 200, y1: 100 }
@@ -249,4 +249,22 @@ test('the last-resort route is orthogonal and leaves and arrives along its ports
     // The end stub's tip is the start, which has no stub of its own.
     [{ start: { x: 130, y: 30 }, end: { x: 140, y: 30 }, stub: [0, 10], exit: ['N'], entry: ['E'] }],
   ] }))
+})
+
+// Ends that may slide along facing faces run straight where the faces'
+// ranges share a clear coordinate: the one nearest the midpoint, else the
+// nearest free one; never through an obstacle or along a frame side.
+const facing: OrthogonalRouteRequest = { start: { x: 100, y: 0 }, end: { x: 130, y: 200 }, exit: 'S', entry: 'S', obstacles: [], clearance: 10 }
+const slides = { start: [60, 140], end: [90, 170] } as const
+test.each([
+  { name: 'the midpoint between the ends', request: facing, x: 115 },
+  { name: 'past an obstacle across the midpoint', request: { ...facing, obstacles: [{ x0: 100, y0: 80, x1: 120, y1: 120 }] }, x: 130 },
+  { name: 'beside a frame side within its clearance', request: { ...facing, frames: { boxes: [{ x0: 116, y0: 50, x1: 300, y1: 150 }], clearance: 6 } }, x: 110 },
+  { name: 'nowhere when the faces share no coordinate', request: facing, slide: { start: [60, 80], end: [90, 170] } as const, x: undefined },
+  { name: 'nowhere when every shared coordinate is blocked', request: { ...facing, obstacles: [{ x0: 80, y0: 80, x1: 150, y1: 120 }] }, x: undefined },
+  { name: 'nowhere when the end lies behind the start', request: { ...facing, end: { x: 130, y: -200 } }, x: undefined },
+])('a straight run between sliding ends lies at $name', ({ request, slide, x }) => {
+  const route = routeStraight(request, slide ?? slides)
+  if (x === undefined) return expect(route).toBeUndefined()
+  expect(route).toEqual([{ x, y: request.start.y }, { x, y: request.end.y }])
 })

@@ -499,6 +499,27 @@ describe('native block', () => {
       }
     }
   })
+  // mermaid-5313: a→l jogged 14px between the two cells' centre ports,
+  // although their facing faces overlap. Ends on faces that carry no other
+  // end move along them, within the middle half of each, to one straight run.
+  test.each([
+    ['mermaid-5313, offset across rows', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l', 'a', 'l'],
+    ['offset across columns', 'block-beta\n  columns 2\n  block:g\n    columns 1\n    a\n    b["tall\\nlabel\\nhere"]\n  end\n  c["c with\\na tall\\ntall\\nlabel"]\n  b --> c', 'b', 'c'],
+  ])('%s: a connector between overlapping faces runs straight', (_name, source, from, to) => {
+    const layout = layoutMermaid(structured(source)), edge = layout.edges.find(edge => edge.from === from && edge.to === to)!
+    expect(edge.path).toHaveLength(2)
+    const [ax, ay] = edge.path[0]!, [bx, by] = edge.path[1]!
+    const vertical = ax === bx
+    expect(vertical || ay === by).toBe(true)
+    for (const [id, x, y] of [[from, ax, ay], [to, bx, by]] as const) {
+      const node = layout.nodes.find(node => node.id === id)!
+      const along = vertical ? x - node.x : y - node.y, face = vertical ? node.w : node.h
+      // Published coordinates are rounded.
+      expect(along, `${id}: end within the middle half of its face`).toBeGreaterThanOrEqual(face / 4 - 1)
+      expect(along).toBeLessThanOrEqual(face * 3 / 4 + 1)
+      expect(vertical ? [node.y, node.y + node.h] : [node.x, node.x + node.w], `${id}: end on its face`).toContain(vertical ? y : x)
+    }
+  })
   test('nested composites retain actual Scene containment and independent semantic Style roles', () => {
     const source = 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',
       options = { style: { roles: { node: { textColor: '#b91c1c' }, group: { textColor: '#174ea6', fontSize: 22, fontWeight: 800, paddingX: 36, paddingY: 28, cornerRadius: 17, lineWidth: 3, borderColor: '#008800', headerFillColor: '#fef3c7' } } } },

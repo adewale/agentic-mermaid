@@ -255,19 +255,34 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
-  test('relationships between facing cards of different heights run straight instead of stepping a few pixels', () => {
-    // A container and a shorter database face each other; their evenly spaced
-    // ports sit about 3px apart, which drew as a dogleg on each relationship.
-    const svg = renderMermaidSVG(`C4Container
+  // A container and a shorter database face each other; their evenly spaced
+  // ports sat about 3px apart, which drew as a dogleg on each relationship.
+  // mermaid-v13#1177: Mobile App and API Application, offset by 34px, drew a
+  // 34px dogleg between their centred ports although their faces overlap.
+  test.each([
+    ['facing cards of different heights', `C4Container
   title Orders
   Container(api, "Orders API", "TypeScript", "Accepts orders and serves order status to every client")
   ContainerDb(db, "Store", "Postgres")
   Rel(api, db, "Reads")
-  Rel(api, db, "Writes")`)
-    const routes = painted(svg).routes
-    expect(routes).toHaveLength(2)
+  Rel(api, db, "Writes")`, 2],
+    ['mermaid-v13#1177: offset cards stacked in a boundary', `C4Container
+System_Ext(mail, "E-Mail")
+Person(customer, "Customer")
+Container_Boundary(c1, "Internet Banking") {
+  Container(spa, "Single-Page App", "JavaScript, Angular", "Provides all the Internet banking functionality to customers via their web browser")
+  Container_Ext(mobile_app, "Mobile App", "C#, Xamarin", "Provides a limited subset of the Internet banking functionality to customers via their mobile device")
+  Container(web_app, "Web Application", "Java, Spring MVC", "Delivers the static content and the Internet banking SPA")
+  ContainerDb(database, "Database", "SQL Database", "Stores user registration information, hashed auth credentials, access logs, etc.")
+  ContainerDb_Ext(backend_api, "API Application", "Java, Docker Container", "Provides Internet banking functionality via API")
+}
+Rel(mobile_app, backend_api, "Uses", "async, JSON/HTTPS")`, 1],
+  ])('relationships between %s run straight instead of stepping', (_name, source, count) => {
+    const routes = painted(renderMermaidSVG(source)).routes
+    expect(routes).toHaveLength(count)
     for (const route of routes) {
-      expect({ id: route.id, levels: new Set(route.points.map(([, y]) => y)).size }).toEqual({ id: route.id, levels: 1 })
+      const lines = Math.min(new Set(route.points.map(([x]) => x)).size, new Set(route.points.map(([, y]) => y)).size)
+      expect({ id: route.id, lines }).toEqual({ id: route.id, lines: 1 })
     }
   })
 

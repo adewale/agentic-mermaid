@@ -1,5 +1,5 @@
 import { blockMarkers, blockMarkerTerminal } from './markers.ts'
-import { orthogonalFallback, routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { orthogonalFallback, routeOrthogonal, routeStraight, type OrthogonalRouteRequest, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'
@@ -17,6 +17,9 @@ import type { Block, BlockBody, PositionedBlock, PositionedBlockDiagram } from '
 const BLOCK_STUB = 8
 /** Distance a connector keeps from the cells it passes. */
 const BLOCK_CLEARANCE = 6
+/** Outlines whose faces are flat, so an end may move along one. */
+const STRAIGHT_FACES = new Set<NodeShape>(['rectangle', 'rounded', 'subroutine'])
+const REVERSE: Record<RouterDirection, RouterDirection> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 
 export const BLOCK_SHAPES: Record<string, NodeShape> = {
   na: 'rectangle',
@@ -159,6 +162,9 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     siblings.forEach((index, slot) => pairSlots.set(index, { slot, count: siblings.length, width, height }))
   }
   const incomingContacts = new Set<string>(), outgoingContacts = new Set<string>()
+  // The request each connector between two different cells was routed by,
+  // where both ends could move along their faces for a straight run.
+  const straightenable = new Map<number, { request: OrthogonalRouteRequest; exit: RouterDirection }>()
   const contactKey = (id: string, point: Point) => `${id}\0${point.x}\0${point.y}`
   const edges = model.edges.map((edge, index) => {
     const source = byId.get(edge.start!),
@@ -224,6 +230,7 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     const framed = frames.boxes.length ? { ...request, frames } : undefined
     // A stub keeps the first and last runs visible; cells packed closer than
     // that still route, from the faces themselves.
+    if (count === 1 && source !== target && exit === entry && [source, target].every(node => !arrowBoundaries.has(node.id) && STRAIGHT_FACES.has(blockShapeNode(node).shape))) straightenable.set(index, { request: framed ?? request, exit })
     let points: Point[] = ((framed && (routeOrthogonal({ ...framed, stub: BLOCK_STUB }) ?? routeOrthogonal(framed)))
       ?? routeOrthogonal({ ...request, stub: BLOCK_STUB }) ?? routeOrthogonal(request)
       ?? routeOrthogonal({ ...request, obstacles: [] }) ?? routeOrthogonal({ ...request, obstacles: [], via: [] }) ?? orthogonalFallback({ ...request, stub: BLOCK_STUB })).map(point => ({ x: point.x, y: point.y }))
@@ -255,6 +262,32 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       labelPosition = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
     return { ...edge, points, labelBlock, labelPosition }
   })
+  // Every cell face that a connector end touches, by the cell and the side.
+  const faceUse = new Map<string, number>()
+  const faceKey = (id: string, side: RouterDirection) => `${id}\0${side}`
+  const travel = (a: Point, b: Point): RouterDirection => Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? (b.x >= a.x ? 'E' : 'W') : b.y >= a.y ? 'S' : 'N'
+  for (const edge of edges) {
+    const p = edge.points
+    for (const key of [faceKey(edge.start!, travel(p[0]!, p[1]!)), faceKey(edge.end!, REVERSE[travel(p.at(-2)!, p.at(-1)!)])]) faceUse.set(key, (faceUse.get(key) ?? 0) + 1)
+  }
+  // Fixed centre ports jog where two facing cells are offset by less than
+  // their faces overlap (mermaid#5313). A connector whose two faces carry no
+  // other end moves both ends along their faces, within the middle half of
+  // each, to one straight run, where that run keeps every rule its route
+  // was searched under.
+  for (const [index, { request, exit }] of straightenable) {
+    const edge = edges[index]!
+    if (edge.points.length === 2) continue
+    const source = byId.get(edge.start!)!, target = byId.get(edge.end!)!
+    if (faceUse.get(faceKey(source.id, exit)) !== 1 || faceUse.get(faceKey(target.id, REVERSE[exit])) !== 1) continue
+    const across = exit === 'N' || exit === 'S'
+    const middle = (node: PositionedBlock) => (across ? [node.x + node.width / 4, node.x + node.width * 3 / 4] : [node.y + node.height / 4, node.y + node.height * 3 / 4]) as [number, number]
+    const slide = { start: middle(source), end: middle(target) }
+    const straight = routeStraight({ ...request, stub: BLOCK_STUB }, slide) ?? routeStraight(request, slide)
+    if (!straight) continue
+    edge.points = straight.map(point => ({ x: point.x, y: point.y }))
+    edge.labelPosition = { x: (straight[0]!.x + straight[1]!.x) / 2, y: (straight[0]!.y + straight[1]!.y) / 2 }
+  }
   // Reuse the graph route allocator's bounded on-route label candidates. Its
   // final clearance protects actual opaque halos, nearby cards and terminal
   // markers; the longest segment alone can put text over a neighboring input.

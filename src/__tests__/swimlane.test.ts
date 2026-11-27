@@ -184,6 +184,35 @@ test.each(['LR', 'TD'] as const)('a %s route detouring around a task keeps the r
   expect(nearest).toBeGreaterThanOrEqual(4)
 })
 
+// merman#242: request→triage and triage→investigate jogged 4–5px between
+// the centred ports of tasks of different widths, although their faces
+// overlap. A hand-off alone on two facing faces whose middle halves overlap
+// runs straight, with each end in the middle half of its face.
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s hand-offs between overlapping faces run straight', direction => {
+  const input = `swimlane-beta ${direction}\nsubgraph Customer\n  request[Request service]\n  receive[Receive update]\nend\nsubgraph Support\n  triage[Triage request]\n  answer[Send answer]\nend\nsubgraph Engineering\n  investigate[Investigate issue]\n  fix[Prepare fix]\nend\nrequest --> triage\ntriage -->|Known issue| answer\ntriage -->|Needs code change| investigate\ninvestigate --> fix --> answer\nanswer --> receive`
+  const chart = layoutSwimlane(parseSwimlane(input))
+  type P = { x: number; y: number }
+  const heading = (a: P, b: P) => Math.abs(a.x - b.x) < 1e-6 ? (b.y > a.y ? 'S' : 'N') : b.x > a.x ? 'E' : 'W'
+  const opposite = { E: 'W', W: 'E', N: 'S', S: 'N' } as const
+  const faces = chart.edges.flatMap(edge => [`${edge.source}:${heading(edge.points[0]!, edge.points[1]!)}`, `${edge.target}:${opposite[heading(edge.points.at(-2)!, edge.points.at(-1)!)]}`])
+  let straight = 0
+  for (const edge of chart.edges) {
+    const exit = heading(edge.points[0]!, edge.points[1]!), entry = heading(edge.points.at(-2)!, edge.points.at(-1)!)
+    if (exit !== entry || faces.filter(face => face === `${edge.source}:${exit}` || face === `${edge.target}:${opposite[entry]}`).length !== 2) continue
+    const vertical = exit === 'N' || exit === 'S'
+    const [from, to] = [edge.source, edge.target].map(id => chart.nodes.find(node => node.id === id)!)
+    const middle = (node: typeof from) => vertical ? [node!.x + node!.width / 4, node!.x + node!.width * 3 / 4] : [node!.y + node!.height / 4, node!.y + node!.height * 3 / 4]
+    const [[a0, a1], [b0, b1]] = [middle(from), middle(to)] as [number[], number[]]
+    if (Math.max(a0!, b0!) > Math.min(a1!, b1!)) continue
+    straight++
+    expect(edge.points, `${edge.source}->${edge.target}`).toHaveLength(2)
+    const along = vertical ? edge.points[0]!.x : edge.points[0]!.y
+    expect(along).toBeGreaterThanOrEqual(Math.max(a0!, b0!))
+    expect(along).toBeLessThanOrEqual(Math.min(a1!, b1!))
+  }
+  expect(straight).toBeGreaterThan(0)
+})
+
 // mermaid-v13-843 (reduced): n192→n85 ran on lane L3's border for 85px, so it
 // read as the border. A route crosses lane and group frames, but never runs
 // along one within the route clearance where another route exists.

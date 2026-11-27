@@ -5,7 +5,7 @@ import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGra
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
 import { simplifyPolyline, applyRouteContracts, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
-import { orthogonalFallback, routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { orthogonalFallback, routeOrthogonal, routeStraight, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
@@ -240,6 +240,28 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     // Leads that end against another card leave no clear route; draw the
     // plainest orthogonal one rather than none.
     let route = first.route ?? routeOrthogonal({ ...first.request, obstacles: physical }) ?? routeOrthogonal({ ...first.request, obstacles: [] }) ?? orthogonalFallback(first.request)
+    // Centred ports on facing faces of offset cards jog between them
+    // (mermaid-v13#1177). A relationship that is alone on both faces moves
+    // its two ends along them, within the middle half of each, to one
+    // straight run, where that run keeps the rules its route was searched
+    // under.
+    if (route.length > 2 && source.id !== target.id && startSign > 0 && endSign > 0 && OPPOSITE[startSide] === endSide && counts.get(`${source.id}\0${startSide}`) === 1 && counts.get(`${target.id}\0${endSide}`) === 1) {
+      const along = startSide === 'L' || startSide === 'R' ? 'y' : 'x'
+      const middle = (item: C4Box, side: Side) => [portAt(item, side, 0.25)[along], portAt(item, side, 0.75)[along]] as const
+      const slide = { start: middle(source, startSide), end: middle(target, endSide) }
+      let straight: Point[] | undefined
+      search: for (const avoid of drawn.length ? [keepOff([...frames, ...drawn]), keepOff(frames)] : [keepOff(frames)]) for (const obstacles of [padded, physical]) {
+        straight = routeStraight({ ...first.request, obstacles, avoid }, slide)
+        if (straight) break search
+      }
+      // A cylinder's curved face lies a little off the line its centre
+      // port gives; the run keeps its line and ends on the face.
+      const onFace = (item: C4Box, side: Side, point: Point) => {
+        const from = portAt(item, side, 0)[along], to = portAt(item, side, 1)[along]
+        return { ...portAt(item, side, (point[along] - from) / (to - from)), [along]: point[along] }
+      }
+      if (straight) route = [onFace(source, startSide, straight[0]!), onFace(target, endSide, straight[1]!)]
+    }
     // The faces facing each other can force a route round the canvas, for
     // example out of a boundary whose header band blocks the way up
     // (mermaid#7492). Then try the faces no other interaction uses, and keep

@@ -11,7 +11,7 @@ import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
-import { routeOrthogonal, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
+import { routeOrthogonal, routeStraight, type RouterBox, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { rectsOverlap } from '../layout/geometry.ts'
 import type { MeasuredBox } from '../layout/measured-route-safety.ts'
 import { bundledLabelCandidates, labelBoxAt, terminalLabelCorridorLength } from '../layout/passes/bundled-labels.ts'
@@ -215,11 +215,36 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   const gapChannels = horizontal ? { y: gapLines } : { x: gapLines }
   // Each route's terminals, and the stubs they fix before any route is drawn.
+  const stubOf = (end: Terminal): readonly [Point, Point] => [end.port, { x: end.port.x + STEP[end.side].x * end.stub, y: end.port.y + STEP[end.side].y * end.stub }]
   const terminals = edges.map(edge => {
     const channel = channels.get(edge)
     const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
-    const stub = (end: Terminal): readonly [Point, Point] => [end.port, { x: end.port.x + STEP[end.side].x * end.stub, y: end.port.y + STEP[end.side].y * end.stub }]
-    return { source, target, stubs: [stub(source), stub(target)] }
+    return { source, target, stubs: [stubOf(source), stubOf(target)] }
+  })
+  // Centred ports on facing faces of offset tasks jog a few pixels between
+  // them (merman#242). A hand-off alone on both of its faces moves its two
+  // ends along them, within the middle half of each, to one straight run
+  // that keeps off every task, header, frame and other route's stub.
+  const faceUse = new Map<string, number>()
+  edges.forEach((edge, order) => {
+    for (const [id, end] of [[edge.source, terminals[order]!.source], [edge.target, terminals[order]!.target]] as const) faceUse.set(`${id}\0${end.side}`, (faceUse.get(`${id}\0${end.side}`) ?? 0) + 1)
+  })
+  edges.forEach((edge, order) => {
+    const { source, target } = terminals[order]!
+    const from = byId.get(edge.source), to = byId.get(edge.target)
+    if (channels.has(edge) || edge.source === edge.target || source.side !== OPPOSITE[target.side] || !from || !to || !('shape' in from) || !('shape' in to)) return
+    if (![from, to].every(node => STRAIGHT_FACES.has(node.shape)) || faceUse.get(`${edge.source}\0${source.side}`) !== 1 || faceUse.get(`${edge.target}\0${target.side}`) !== 1) return
+    if (Math.abs(source.port.x - target.port.x) < 1e-6 || Math.abs(source.port.y - target.port.y) < 1e-6) return
+    const vertical = source.side === 'N' || source.side === 'S'
+    const middle = (node: PositionedNode) => (vertical ? [node.x + node.width / 4, node.x + node.width * 3 / 4] : [node.y + node.height / 4, node.y + node.height * 3 / 4]) as [number, number]
+    const others = terminals.flatMap((other, k) => k === order ? [] : other.stubs)
+    const regions = [...channels.values()].flatMap(channel => channel.region ? [channel.region] : [])
+    const captions = [...channels.values()].flatMap(channel => channel.stretches[0]![0]!.caption ? [routerBox(channel.stretches[0]![0]!.caption)] : [])
+    const straight = routeStraight({ start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub], clearance: 0,
+      obstacles: [...obstacles, ...regions, ...captions], axisObstacles: across, frames: frameRules[0]!, avoid: { segments: others, separation, gap: stubGap } }, { start: middle(from), end: middle(to) })
+    if (!straight) return
+    const ends = { source: terminal(from, straight[0]!, source.side, stubGap), target: terminal(to, straight[1]!, target.side, stubGap) }
+    terminals[order] = { ...ends, stubs: [stubOf(ends.source), stubOf(ends.target)] }
   })
   // Every caption must find a clear seat on its own route. Where the routes
   // leave one no room, route again keeping less strictly off the routes
@@ -385,6 +410,8 @@ function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, Pos
  * or enters by, the stub that clears the endpoint's bounding box, and a
  * longer lead preferred where it is clear. */
 type Terminal = { port: Point; side: RouterDirection; stub: number; lead?: number }
+/** Outlines whose faces are flat, so an end may move along one. */
+const STRAIGHT_FACES = new Set(['rectangle', 'rounded', 'subroutine'])
 const OPPOSITE: Record<RouterDirection, RouterDirection> = { E: 'W', W: 'E', N: 'S', S: 'N' }
 const STEP: Record<RouterDirection, Point> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
 
