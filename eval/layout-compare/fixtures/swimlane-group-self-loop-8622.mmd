@@ -1,0 +1,19 @@
+%% Self-loops on a lane or a nested group stay beside their own frame instead of crossing other lanes (https://github.com/mermaid-js/mermaid/issues/8622).
+swimlane-beta LR
+subgraph A
+  a1 --> a2
+end
+subgraph B
+  b1
+  subgraph G
+    g1
+  end
+end
+subgraph C
+  c1
+end
+A -->|again| A
+A --> A
+G --> G
+a2 --> b1
+b1 --> c1
