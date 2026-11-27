@@ -206,6 +206,29 @@ test('Swimlane routes cross lane frames without running along them', () => {
   }
 })
 
+// mermaid-v13-843 (reduced): a route ran over the stub another hand-off must
+// leave or arrive by, and routes that found no line of their own shared one
+// with unrelated routes, so the drawing read as other hand-offs. Unrelated
+// routes (no shared task) neither share a line nor meet except by crossing.
+test('unrelated Swimlane hand-offs neither share a line nor meet except by crossing', () => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-v13-843-swimlane-reduced.mmd', import.meta.url), 'utf8')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  expect(layout.edges.length).toBe(18)
+  const segments = layout.edges.flatMap(edge => edge.path.slice(1).map(([x, y], index) => {
+    const [px, py] = edge.path[index]!
+    return { edge, horizontal: py === y, at: py === y ? y : x, lo: Math.min(py === y ? px : py, py === y ? x : y), hi: Math.max(py === y ? px : py, py === y ? x : y) }
+  }))
+  for (const a of segments) for (const b of segments) {
+    if (a.edge === b.edge || [a.edge.from, a.edge.to].some(id => id === b.edge.from || id === b.edge.to)) continue
+    const where = `${a.edge.from}->${a.edge.to} and ${b.edge.from}->${b.edge.to}`
+    if (a.horizontal === b.horizontal) expect(Math.abs(a.at - b.at) <= 1 && Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > 1, `${where} share a line`).toBe(false)
+    // Perpendicular segments that meet cross properly, through both interiors.
+    else if (b.at >= a.lo - 1 && b.at <= a.hi + 1 && a.at >= b.lo - 1 && a.at <= b.hi + 1) expect(b.at > a.lo + 1 && b.at < a.hi - 1 && a.at > b.lo + 1 && a.at < b.hi - 1, `${where} meet without crossing`).toBe(true)
+  }
+})
+
 test.each(['LR', 'RL', 'TD', 'BT'] as const)('parallel and reciprocal Swimlane %s hand-offs keep separate owned labels and contacts', direction => {
   const input = `swimlane-beta ${direction}
 subgraph L[Requests]

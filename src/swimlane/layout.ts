@@ -203,23 +203,45 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const frameBoxes: RouterBox[] = []
   const addFrame = (group: PositionedGroup): void => { frameBoxes.push(routerBox(group)); group.children.forEach(addFrame) }
   groups.forEach(addFrame)
-  const frameRules = [{ boxes: frameBoxes, clearance: Math.max(CLEARANCE, clearance) }, undefined]
+  const frameClearance = Math.max(CLEARANCE, clearance), frameRules = [{ boxes: frameBoxes, clearance: frameClearance }, undefined]
+  const separation = Math.max(6, clearance)
+  // Lines across each gap between lanes, a separation apart, for routes that
+  // find no line of their own on the ordinary grid.
+  const gapLines: number[] = []
+  for (let k = 1; k < groups.length; k++) {
+    const previous = groups[k - 1]!, next = groups[k]!
+    const from = (horizontal ? previous.y + previous.height : previous.x + previous.width) + frameClearance, to = (horizontal ? next.y : next.x) - frameClearance
+    for (let at = from; at <= to + 1e-6; at += separation) gapLines.push(at)
+  }
+  const gapChannels = horizontal ? { y: gapLines } : { x: gapLines }
+  // Each route's terminals, and the stubs they fix before any route is drawn.
+  const terminals = edges.map(edge => {
+    const channel = channels.get(edge)
+    const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
+    const stub = (end: Terminal): readonly [Point, Point] => [end.port, { x: end.port.x + STEP[end.side].x * end.stub, y: end.port.y + STEP[end.side].y * end.stub }]
+    return { source, target, stubs: [stub(source), stub(target)] }
+  })
   // Every caption must find a clear seat on its own route. Where the routes
   // leave one no room, route again keeping less strictly off the routes
   // already drawn: first only off lines that do not meet a route's own
-  // ports, then off every line or none, then off none.
+  // ports, then off every line or only unrelated ones, then off none.
   for (let policy = 0; ; policy++) {
     // Each occurrence keeps its caption stretch clear of every other route.
     const reserved = new Map<PositionedEdge, RouterBox>()
     for (const [owner, channel] of channels) if (channel.stretches[0]![0]!.caption) reserved.set(owner, routerBox(channel.stretches[0]![0]!.caption))
     // A route keeps off the lines of routes already drawn where it can, so
     // independent connectors do not read as one shared bus.
-    const drawn: (readonly [Point, Point])[] = []
+    const drawn: (readonly [Point, Point])[] = [], drawnBy: PositionedEdge[] = []
     // Crossing one costs as much as a modest detour, never a bend.
-    const spacing = { segments: drawn, separation: Math.max(6, clearance), gap: stubGap }, crossings = { segments: drawn, cost: 400 }
-    for (const edge of edges) {
-      const channel = channels.get(edge)
-      const source = channel?.source ?? ports(edge.source, edge.target, 'source'), target = channel?.target ?? ports(edge.target, edge.source, 'target')
+    const crossings = { segments: drawn, cost: 400 }
+    for (const [order, edge] of edges.entries()) {
+      const { source, target } = terminals[order]!, channel = channels.get(edge)
+      // Unrelated routes (no shared task or lane) do not share a line: a
+      // route keeps off theirs, drawn or still to come (their stubs are
+      // already fixed by their ports). Related routes may share a trunk.
+      const related = (other: PositionedEdge) => other.source === edge.source || other.source === edge.target || other.target === edge.source || other.target === edge.target
+      const later = edges.slice(order + 1).flatMap((other, k) => related(other) ? [] : terminals[order + 1 + k]!.stubs)
+      const unrelated = drawn.filter((_, k) => !related(drawnBy[k]!))
       const kept = [...obstacles, ...[...reserved].flatMap(([owner, box]) => owner === edge ? [] : [box])]
       // Other routes keep out of the space a task's self-loops enclose, so a
       // loop crosses nothing, where they can reach their ports without it.
@@ -228,9 +250,17 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       // policy asks (a port two routes share cannot keep them apart), then
       // the longer leads, then the channel stretch. For each stretch the
       // variant whose route has the fewest bends, then the shortest, wins;
-      // ties keep the earlier variant.
+      // ties keep the earlier variant. Before keeping off no line at all, a
+      // route keeps off the unrelated routes drawn so far, with lines across
+      // the lane gaps to pass them on, except where its own fixed stubs
+      // already meet one: first only the parts they meet, then those routes
+      // whole.
       const sharesPort = ([a, b]: readonly [Point, Point]) => [a, b].some(point => [source.port, target.port].some(port => Math.abs(point.x - port.x) < 1e-6 && Math.abs(point.y - port.y) < 1e-6))
-      const avoids = !drawn.length ? [undefined] : policy === 0 ? [spacing, { ...spacing, segments: drawn.filter(segment => !sharesPort(segment)) }, undefined] : policy === 1 ? [spacing, undefined] : [undefined]
+      const keepOff = (segments: readonly (readonly [Point, Point])[], lines?: typeof gapChannels) => ({ avoid: { segments, separation, gap: stubGap }, ...(lines ? { channels: lines } : {}) })
+      const own = terminals[order]!.stubs, every = keepOff([...drawn, ...later]), apartFromUnrelated = keepOff([...unrelated, ...later])
+      const rescues = [keepOff(own.reduce((kept, stub) => kept.flatMap(segment => outside(segment, stub, stubGap)), unrelated), gapChannels),
+        keepOff(unrelated.filter(segment => own.every(stub => outside(segment, stub, stubGap)[0] === segment)), gapChannels)]
+      const avoids = !drawn.length && !later.length ? [{}] : policy === 0 ? [every, keepOff([...drawn.filter(segment => !sharesPort(segment)), ...later]), apartFromUnrelated, ...rescues, {}] : policy === 1 ? [every, apartFromUnrelated, ...rescues, {}] : [{}]
       const stub = [source.stub, target.stub] as const
       const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, stub] : [stub]
       let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['stretches'][number][number] | undefined, best = Infinity
@@ -239,9 +269,9 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
           start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub, clearance: 0, axisObstacles: across,
           obstacles: [...kept, ...extra], ...(frames ? { frames } : {}),
         }
-        search: for (const avoid of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
+        search: for (const keeping of avoids) for (const stub of stubs) for (const variants of channel?.stretches ?? [[undefined]]) {
           for (const run of variants) {
-            const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...(avoid ? { avoid } : {}), crossings, guided: true })
+            const candidate = routeOrthogonal({ ...request, stub, ...(run ? { via: run.via } : {}), ...keeping, crossings, guided: true })
             const cost = candidate ? routeCost(candidate) : Infinity
             if (cost < best) { route = candidate; chosen = run; best = cost }
             // Four turns (out to the channel, along it, back) is as few as an
@@ -262,7 +292,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
         if (Math.abs(point.x - previous.x) < 1e-6) point.x = previous.x
         if (Math.abs(point.y - previous.y) < 1e-6) point.y = previous.y
       }
-      for (let index = 1; index < edge.points.length; index++) drawn.push([edge.points[index - 1]!, edge.points[index]!])
+      for (let index = 1; index < edge.points.length; index++) { drawn.push([edge.points[index - 1]!, edge.points[index]!]); drawnBy.push(edge) }
       if (!channel && edge.label) {
         const segment = edge.points.slice(1).map((point, index) => ({ a: edge.points[index]!, b: point }))
           .sort((a, b) => (Math.abs(b.a.x - b.b.x) + Math.abs(b.a.y - b.b.y)) - (Math.abs(a.a.x - a.b.x) + Math.abs(a.a.y - a.b.y)))[0]
@@ -356,6 +386,7 @@ function occurrenceNodeSizes(graph: MermaidGraph, pairs: ReadonlyMap<string, Pos
  * longer lead preferred where it is clear. */
 type Terminal = { port: Point; side: RouterDirection; stub: number; lead?: number }
 const OPPOSITE: Record<RouterDirection, RouterDirection> = { E: 'W', W: 'E', N: 'S', S: 'N' }
+const STEP: Record<RouterDirection, Point> = { E: { x: 1, y: 0 }, W: { x: -1, y: 0 }, N: { x: 0, y: -1 }, S: { x: 0, y: 1 } }
 
 function terminal(box: MeasuredBox, port: Point, side: RouterDirection, gap: number): Terminal {
   const inset = side === 'E' ? box.x + box.width - port.x : side === 'W' ? port.x - box.x : side === 'S' ? box.y + box.height - port.y : port.y - box.y
@@ -367,6 +398,19 @@ function routeCost(route: readonly Point[]): number {
   let length = 0
   for (let index = 1; index < route.length; index++) length += Math.abs(route[index]!.x - route[index - 1]!.x) + Math.abs(route[index]!.y - route[index - 1]!.y)
   return (route.length - 2) * 1e4 + length
+}
+
+/** The parts of axis-aligned segment `segment` farther than `margin` from
+ * the box of segment `stub`. */
+function outside(segment: readonly [Point, Point], stub: readonly [Point, Point], margin: number): (readonly [Point, Point])[] {
+  const x0 = Math.min(stub[0].x, stub[1].x) - margin, x1 = Math.max(stub[0].x, stub[1].x) + margin
+  const y0 = Math.min(stub[0].y, stub[1].y) - margin, y1 = Math.max(stub[0].y, stub[1].y) + margin
+  const [a, b] = segment, vertical = a.x === b.x
+  const at = vertical ? a.x : a.y, lo = Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), hi = Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x)
+  const [from, to] = vertical ? [y0, y1] : [x0, x1]
+  if (at <= (vertical ? x0 : y0) || at >= (vertical ? x1 : y1) || hi <= from || lo >= to) return [segment]
+  const point = (along: number): Point => vertical ? { x: at, y: along } : { x: along, y: at }
+  return [...(lo < from ? [[point(lo), point(from)] as const] : []), ...(hi > to ? [[point(to), point(hi)] as const] : [])]
 }
 
 function routerBox(box: MeasuredBox, margin = 0): RouterBox {
