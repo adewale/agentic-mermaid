@@ -83,7 +83,9 @@ function separateCrossFaceArrivals(meeting: readonly PositionedEdge[], end: Poin
     const from = others.reduce((sum, edge) => sum + edge.points.at(-2)![along], 0) / others.length
     const away = from > end[along] ? -1 : 1
     for (const direction of [away, -away]) {
-      const offset = direction * Math.min(ARRIVAL_SLOT_PITCH / 2, direction > 0 ? hi - end[along] : end[along] - lo)
+      // An end already within the face margin has no room that way.
+      const room = Math.max(0, direction > 0 ? hi - end[along] : end[along] - lo)
+      const offset = direction * Math.min(ARRIVAL_SLOT_PITCH / 2, room)
       if (Math.abs(offset) < MIN_ARRIVAL_SLOT_PITCH / 2) continue
       const saved = sides[along].map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
       if (sides[along].every(edge => slideTerminalRun(edge, node, along, offset))) break

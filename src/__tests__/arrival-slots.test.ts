@@ -9,7 +9,7 @@
 
 import { expect, test } from 'bun:test'
 import { seatMeetingArrivals } from '../layout/passes/arrival-slots.ts'
-import { assignTerminals } from '../layout/terminal-assignment.ts'
+import { ARRIVAL_SLOT_PITCH, assignTerminals } from '../layout/terminal-assignment.ts'
 import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
 import { indistinctOccurrencePairs } from '../layout/route-marker-clearance.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
@@ -36,4 +36,18 @@ test('a vertical and a horizontal arrival at one point keep their own terminal a
   const [dx, dy] = [down.points.at(-1)!, left.points.at(-1)!]
   expect(Math.hypot(dx.x - dy.x, dx.y - dy.y)).toBeGreaterThan(6)
   expect(countEdgeCrossings(edges)).toBe(0)
+})
+
+// An end within the face margin has no room toward that edge of the face:
+// the side slides half a slot the other way, not a sliver back past the end.
+test('a perpendicular side with no room toward the face edge slides half a slot the other way', () => {
+  const node: PositionedNode = { id: 'T', label: 'T', shape: 'rectangle', x: 0, y: 0, width: 100, height: 60 }
+  const point = { x: 98, y: 0 }
+  // From above, and along the top face from the left; different strokes.
+  const down: PositionedEdge = { source: 'A', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 98, y: -100 }, { ...point }] }
+  const along: PositionedEdge = { source: 'B', target: 'T', style: 'dotted', hasArrowStart: false, hasArrowEnd: true, points: [{ x: -100, y: 0 }, { ...point }] }
+  const edges = [down, along]
+  seatMeetingArrivals([node], edges, edges, assignTerminals(edges))
+  expect(down.points.at(-1)).toEqual({ x: 98 - ARRIVAL_SLOT_PITCH / 2, y: 0 })
+  expect(indistinctOccurrencePairs(edges)).toEqual([])
 })
