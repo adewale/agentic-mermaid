@@ -1,0 +1,19 @@
+%% Agentflow: an arrowhead and a cross entering one node never share a point: https://github.com/mermaid-js/mermaid-v13/issues/674
+agentflow-beta LR
+  connector llm["LLM API"]
+  i["Input"]@{ shape: input }
+  t["Task"]@{ shape: task }
+  d{"Decide"}
+  r["Reference"]@{ shape: refdoc }
+  a["Act"]@{ shape: action }
+  tl["Tool"]@{ shape: tool }
+  flow box["Box"]
+    x["Inside"]
+  end
+  box@{ view: "collapsed" }
+  i --> t & d & r & a & tl & box
+  t & d & r & a & tl & box --> llm
+  d -->|yes| a
+  d --x r
+  r -.- tl
+  a --> t

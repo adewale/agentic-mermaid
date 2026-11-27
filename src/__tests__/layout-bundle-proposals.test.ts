@@ -7,8 +7,10 @@ import { withRenderStageObserver } from '../render-stages.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedEdge, PositionedNode } from '../types.ts'
+import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
 import { flowchartMesh } from '../../eval/shared/graph-fixtures.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 // This existing dense fixture still benefits from a route comparison after
 // placement selection. The former small skip-link fixture is now clean in its
@@ -227,4 +229,19 @@ describe('bounded generic bundle proposals', () => {
       first.run = run
     }
   })
+})
+
+// lukilabs/beautiful-mermaid#68: two fan-in groups feeding different targets.
+// Each group may merge into a trunk of its own; no run of one group's routes
+// may lie on a run of the other's, or the two trunks read as one.
+test('two fan-in groups into different targets keep their trunks apart', () => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/beautiful-mermaid-68-fan-in-groups.mmd'), 'utf8')))
+  const runs = (target: string) => positioned.edges.filter(edge => edge.target === target).flatMap(edge => edge.points.slice(1).map((b, i) => [edge.points[i]!, b] as const))
+  const shared = (p: readonly [Point, Point], q: readonly [Point, Point]): boolean => {
+    const axis = p[0].x === p[1].x && q[0].x === q[1].x && p[0].x === q[0].x ? 'y' : p[0].y === p[1].y && q[0].y === q[1].y && p[0].y === q[0].y ? 'x' : undefined
+    if (!axis) return false
+    return Math.min(Math.max(p[0][axis], p[1][axis]), Math.max(q[0][axis], q[1][axis])) - Math.max(Math.min(p[0][axis], p[1][axis]), Math.min(q[0][axis], q[1][axis])) > 0.5
+  }
+  expect(runs('A').length * runs('B').length).toBeGreaterThan(0)
+  expect(runs('A').filter(p => runs('B').some(q => shared(p, q)))).toEqual([])
 })

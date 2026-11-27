@@ -12,6 +12,8 @@ import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assignTerminals } from '../layout/terminal-assignment.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const LINKS = { solid: '-->', dotted: '-.->', thick: '==>', circle: '--o', long: '--->' } as const
 type Link = keyof typeof LINKS
@@ -131,4 +133,15 @@ test('every visible edge occurrence keeps its own readable route and arrowhead',
     expect(indistinct(positioned), text).toEqual([])
     expect(unassignedShares(positioned), text).toEqual([])
   }), fcParameters({ numRuns: 60, examples: REDUCED }))
+})
+
+// Reported elsewhere, already held here: three captioned duplicates of unequal
+// width (Latias94/merman#176) keep three routes, arrivals and caption seats;
+// an arrow and a cross entering one node (mermaid-js/mermaid-v13#674, as a
+// flowchart) never share a point.
+test.each(['merman-176-unequal-duplicates.mmd', 'mermaid-v13-674-flowchart-markers.mmd'])('issue fixture %s keeps every occurrence readable', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures', name), 'utf8')))
+  expect(indistinct(positioned)).toEqual([])
+  const seats = positioned.edges.filter(edge => edge.label).map(edge => `${edge.labelPosition!.x.toFixed(1)},${edge.labelPosition!.y.toFixed(1)}`)
+  expect(new Set(seats).size).toBe(seats.length)
 })
