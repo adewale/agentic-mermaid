@@ -146,10 +146,16 @@ describe('C4 measured pixel layout quality', () => {
   // Official fences #1 and #3: relationships 2.1-2.6x their ports' distance
   // never tried other faces, although free faces gave routes about half as
   // long. Customer -> Mobile App in #1 must pass round the end of the header
-  // band above Mobile App, so the shortest route is that long.
+  // band above Mobile App, so the shortest route is that long. In #2 Single
+  // Page Application -> Accounts Summary Controller (2.46x) had no grid line
+  // outside the route already in the left gutter, so its face trial went
+  // round the right of the canvas; Mobile App ->
+  // Accounts Summary Controller must pass round an end of the API
+  // Application header band, so every route it has is at least 2.8x.
   test.each([
     ['fixture/mermaid-7492.mmd', []],
     ['c4:official-syntax/c4.md#1', ['c4-rel-3']],
+    ['c4:official-syntax/c4.md#2', ['c4-rel-8']],
     ['c4:official-syntax/c4.md#3', []],
   ] as const)('%s: relationships take short clear routes instead of detouring', (id, forced: readonly string[]) => {
     const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source

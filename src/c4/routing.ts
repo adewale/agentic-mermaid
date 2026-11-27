@@ -115,6 +115,9 @@ export const C4_DETOUR = 1.5
  * circles the canvas (mermaid#7492). Trials below it are kept only where
  * the final captions and arrowheads collide no more than without them. */
 export const C4_CIRCLING_DETOUR = 3
+/** Lines beyond the outermost obstacle on each side, OUTER_PITCH apart
+ * (the routes' separation). */
+const OUTER_LINES = 4, OUTER_PITCH = 8
 /** What one bend costs when comparing faces, in pixels of route. */
 const DETOUR_BEND = 200
 /** Grid steps all of one diagram's detour retries may check together. */
@@ -228,7 +231,17 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
       const preferred = source.id === target.id
         ? { x: [source.x + source.width + lane + (edge.labelBlock?.width ?? 0) / 2], y: [source.y + source.height + lane + (edge.labelBlock?.height ?? 0) / 2] }
         : startSide === 'R' || startSide === 'L' ? { x: [(startExit.x + endExit.x) / 2 + shift], y: [] } : { x: [], y: [(startExit.y + endExit.y) / 2 + shift] }
-      const channels = { x: [...preferred.x, ...gutters.x], y: [...preferred.y, ...gutters.y] }
+      // A face trial also has lines beyond everything the route keeps off, a
+      // route separation apart, so it can pass round the outside of routes
+      // already drawn in the outermost gutter (official fence #2). Only
+      // trials have them: they search their own budget, and the extra lines
+      // would cost every first route search work.
+      const outer = { x: [] as number[], y: [] as number[] }
+      if (detouring) {
+        const [x0, y0, x1, y1] = [Math.min(...padded.map(b => b.x0)), Math.min(...padded.map(b => b.y0)), Math.max(...padded.map(b => b.x1)), Math.max(...padded.map(b => b.y1))]
+        for (let k = 1; k <= OUTER_LINES; k++) { outer.x.push(x0 - k * OUTER_PITCH, x1 + k * OUTER_PITCH); outer.y.push(y0 - k * OUTER_PITCH, y1 + k * OUTER_PITCH) }
+      }
+      const channels = { x: [...preferred.x, ...gutters.x, ...outer.x], y: [...preferred.y, ...gutters.y, ...outer.y] }
       const leave = startSign > 0 ? DIRECTION[startSide] : REVERSE[DIRECTION[startSide]]
       const arrive = REVERSE[endSign > 0 ? DIRECTION[endSide] : REVERSE[DIRECTION[endSide]]]
       const request = { start, end, exit: leave, entry: arrive, stub: [Math.abs(startExit.x - start.x) + Math.abs(startExit.y - start.y), Math.abs(endExit.x - end.x) + Math.abs(endExit.y - end.y)] as const,
@@ -278,7 +291,8 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
       detouring = true
       try {
         for (const from of SIDES) for (const to of SIDES) {
-          if ((from === startSide && to === endSide) || (from !== startSide && !free(source, from)) || (to !== endSide && !free(target, to))) continue
+          // The planned faces too: a trial routes with the outer lines.
+          if ((from !== startSide && !free(source, from)) || (to !== endSide && !free(target, to))) continue
           const alternative = attempt(from, to, from === startSide ? start : portAt(source, from, 0.5), to === endSide ? end : portAt(target, to, 0.5)).route
           if (!alternative) continue
           const value = score(alternative)
