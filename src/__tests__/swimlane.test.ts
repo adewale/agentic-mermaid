@@ -12,6 +12,9 @@ import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { parseSwimlane } from '../swimlane/parser.ts'
 import { layoutSwimlane, swimlanePartitions } from '../swimlane/layout.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { graphGroupHeader } from '../graph-group-header.ts'
+import { labelBoxAt } from '../layout/passes/bundled-labels.ts'
+import { resolveRenderStyle } from '../styles.ts'
 
 const source = `swimlane-beta LR
 subgraph Customer[Customer 👩‍💻]
@@ -188,6 +191,32 @@ test.each(['LR', 'TD'] as const)('a %s route detouring around a task keeps the r
 // the centred ports of tasks of different widths, although their faces
 // overlap. A hand-off alone on two facing faces whose middle halves overlap
 // runs straight, with each end in the middle half of its face.
+// merman#242: "Needs code change" sat at its route's midpoint, across the
+// Engineering lane's top frame and on its title band, although the route
+// crosses the 48px gap between the lanes, where the caption fits clear of
+// both. A caption keeps off title bands and frame lines where its own route
+// has such a seat. (Top to bottom, the route crosses the gap sideways and
+// the caption is wider than it, so no such seat exists.)
+test.each(['LR', 'RL'] as const)('Swimlane %s captions keep off lane titles and frame lines', direction => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/merman-242.mmd', import.meta.url), 'utf8').replace('swimlane-beta LR', `swimlane-beta ${direction}`)
+  const chart = layoutSwimlane(parseSwimlane(input)), style = resolveRenderStyle({})
+  const groups: PositionedGroup[] = []
+  const collect = (group: PositionedGroup): void => { groups.push(group); group.children.forEach(collect) }
+  chart.groups.forEach(collect)
+  const captioned = chart.edges.filter(edge => edge.label)
+  expect(captioned.length).toBe(2)
+  for (const edge of captioned) {
+    const box = labelBoxAt(edge, edge.labelPosition!, style), name = `${edge.source}->${edge.target}`
+    for (const group of groups) {
+      const band = graphGroupHeader(group, style).band
+      expect(box.x < band.x + band.width && box.x + box.width > band.x && box.y < band.y + band.height && box.y + box.height > band.y, `${name} on ${group.id}'s title`).toBe(false)
+      const alongX = box.x < group.x + group.width && box.x + box.width > group.x, alongY = box.y < group.y + group.height && box.y + box.height > group.y
+      for (const at of [group.y, group.y + group.height]) expect(alongX && box.y < at && at < box.y + box.height, `${name} across ${group.id}'s frame`).toBe(false)
+      for (const at of [group.x, group.x + group.width]) expect(alongY && box.x < at && at < box.x + box.width, `${name} across ${group.id}'s frame`).toBe(false)
+    }
+  }
+})
+
 test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s hand-offs between overlapping faces run straight', direction => {
   const input = `swimlane-beta ${direction}\nsubgraph Customer\n  request[Request service]\n  receive[Receive update]\nend\nsubgraph Support\n  triage[Triage request]\n  answer[Send answer]\nend\nsubgraph Engineering\n  investigate[Investigate issue]\n  fix[Prepare fix]\nend\nrequest --> triage\ntriage -->|Known issue| answer\ntriage -->|Needs code change| investigate\ninvestigate --> fix --> answer\nanswer --> receive`
   const chart = layoutSwimlane(parseSwimlane(input))

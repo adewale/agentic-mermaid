@@ -217,6 +217,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const frameBoxes: RouterBox[] = []
   const addFrame = (group: PositionedGroup): void => { frameBoxes.push(routerBox(group)); group.children.forEach(addFrame) }
   groups.forEach(addFrame)
+  const swimlaneFrames: SwimlaneFrames = { bands, boxes: frameBoxes }
   const frameClearance = Math.max(CLEARANCE, clearance), frameRules = [{ boxes: frameBoxes, clearance: frameClearance }, undefined]
   const separation = Math.max(6, clearance)
   // Lines across each gap between lanes, a separation apart (and half one
@@ -350,9 +351,15 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
         if (segment) edge.labelPosition = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 }
       }
     }
-    if (!channels.size) break
+    if (!channels.size) {
+      // Midpoint captions keep their seats unless one lies on a title band
+      // or across a frame line; that one takes the first clear seat on its
+      // own route, where it has one.
+      seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, swimlaneFrames, undefined, edge => !edge.label || clearOfFrames(labelBoxAt(edge, edge.labelPosition!, style), swimlaneFrames))
+      break
+    }
     try {
-      seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, fail)
+      seatHandoffLabels(nodes, edges, headers, channels, graph.direction, style, swimlaneFrames, fail)
       break
     } catch (error) {
       if (policy === 2) throw error
@@ -578,15 +585,34 @@ function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGr
   return channels
 }
 
-function seatHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], headers: MeasuredBox[], channels: ReadonlyMap<PositionedEdge, { direction: Direction }>, direction: Direction, style: ReturnType<typeof resolveRenderStyle>, fail: (reason: string) => never): void {
+/** A caption's painted box that keeps off every lane and group title band
+ * and crosses no frame line: one on a title or across a frame reads as
+ * part of the lane, or as two captions (merman#242). */
+function clearOfFrames(box: MeasuredBox, frames: SwimlaneFrames): boolean {
+  if (frames.bands.some(band => rectsOverlap(box, band, 0))) return false
+  const spans = (at: number, from: number, size: number) => from < at && at < from + size
+  return frames.boxes.every(frame => {
+    const alongX = box.x < frame.x1 && box.x + box.width > frame.x0, alongY = box.y < frame.y1 && box.y + box.height > frame.y0
+    return !(alongX && (spans(frame.y0, box.y, box.height) || spans(frame.y1, box.y, box.height))) && !(alongY && (spans(frame.x0, box.x, box.width) || spans(frame.x1, box.x, box.width)))
+  })
+}
+type SwimlaneFrames = { readonly bands: readonly MeasuredBox[]; readonly boxes: readonly RouterBox[] }
+
+/** Seats captions on their own routes, each clear of tasks, headers, other
+ * captions and neighbouring routes, preferring the first seat clear of the
+ * title bands and frame lines too. Captions `keep` accepts keep their
+ * seats; without `fail`, a caption with no clear seat keeps its own. */
+function seatHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], headers: MeasuredBox[], channels: ReadonlyMap<PositionedEdge, { direction: Direction }>, direction: Direction, style: ReturnType<typeof resolveRenderStyle>, frames: SwimlaneFrames, fail?: (reason: string) => never, keep: (edge: PositionedEdge) => boolean = () => false): void {
   // Every caption participates: an ordinary route can approach an occurrence
   // channel, and two independent midpoint choices can cover each other's ink.
-  for (const edge of edges) delete edge.labelPosition
+  const original = new Map(edges.map(edge => [edge, edge.labelPosition])), kept = new Set(edges.filter(edge => edge.labelPosition && keep(edge)))
+  for (const edge of edges) if (!kept.has(edge)) delete edge.labelPosition
   for (const edge of edges) {
-    if (!edge.label || edge.style === 'invisible') continue
+    if (!edge.label || edge.style === 'invisible' || kept.has(edge)) continue
     const halo = labelHaloExtension(edge, style.lineWidth)
-    const seat = bundledLabelCandidates(edge, edge.points, nodes, channels.get(edge)?.direction ?? direction, style, (_edge, point) => {
-      const pill = labelBoxAt(edge, point, style), box = { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 }
+    const painted = (point: Point) => { const pill = labelBoxAt(edge, point, style); return { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 } }
+    const seats = bundledLabelCandidates(edge, edge.points, nodes, channels.get(edge)?.direction ?? direction, style, (_edge, point) => {
+      const box = painted(point)
       if (headers.some(header => rectsOverlap(box, header, 2)) || nodes.some(node => rectsOverlap(box, node, 2))) return false
       if (edges.some(other => {
         if (other === edge || !other.label || !other.labelPosition) return false
@@ -594,9 +620,11 @@ function seatHandoffLabels(nodes: PositionedNode[], edges: PositionedEdge[], hea
         return rectsOverlap(box, { x: pill.x - halo, y: pill.y - halo, width: pill.width + halo * 2, height: pill.height + halo * 2 }, 2)
       })) return false
       return !labelTouchesNeighborRoute(edge, { x: box.x, y: box.y, w: box.width, h: box.height }, edges)
-    })[0]
-    if (!seat) fail('hand-off caption has no clear owned segment')
-    edge.labelPosition = seat.point
+    })
+    const seat = seats.find(candidate => clearOfFrames(painted(candidate.point), frames)) ?? seats[0]
+    if (seat) edge.labelPosition = seat.point
+    else if (fail) fail('hand-off caption has no clear owned segment')
+    else edge.labelPosition = original.get(edge)
   }
 }
 
