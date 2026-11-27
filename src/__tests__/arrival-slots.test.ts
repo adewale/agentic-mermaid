@@ -12,6 +12,10 @@ import { seatMeetingArrivals } from '../layout/passes/arrival-slots.ts'
 import { ARRIVAL_SLOT_PITCH, assignTerminals } from '../layout/terminal-assignment.ts'
 import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
 import { indistinctOccurrencePairs } from '../layout/route-marker-clearance.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid } from '../parser.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
 
 test('a vertical and a horizontal arrival at one point keep their own terminal axes and separate', () => {
@@ -50,6 +54,22 @@ test('a perpendicular side with no room toward the face edge slides half a slot 
   seatMeetingArrivals([node], edges, edges, assignTerminals(edges))
   expect(down.points.at(-1)).toEqual({ x: 98 - ARRIVAL_SLOT_PITCH / 2, y: 0 })
   expect(indistinctOccurrencePairs(edges)).toEqual([])
+})
+
+// Departures that may not share a start terminal take slots by the same plan.
+// Two labelled feedback edges painted differently (thick `retry`, thin
+// `validate input`) were rebuilt from one point of their source's side and
+// ran together until they split to their own lanes.
+test('rebuilt departures that may not share one start terminal leave apart', () => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/coincident-thick-arrivals.mmd'), 'utf8')))
+  const feedback = positioned.edges.filter(edge => edge.source === 'N3' && edge.target === 'N0')
+  expect(feedback.map(edge => [edge.style, edge.label])).toEqual([['thick', 'retry'], ['solid', 'validate input']])
+  const [a, b] = feedback.map(edge => [edge.points[0]!, edge.points[1]!] as const)
+  // The two first runs share no point, and in particular no stretch of shaft.
+  const along = (p: { x: number; y: number }, q: { x: number; y: number }, r: { x: number; y: number }) =>
+    Math.abs((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)) < 1e-6
+      && Math.min(p.x, q.x) - 1e-6 <= r.x && r.x <= Math.max(p.x, q.x) + 1e-6 && Math.min(p.y, q.y) - 1e-6 <= r.y && r.y <= Math.max(p.y, q.y) + 1e-6
+  expect([along(a![0], a![1], b![0]), along(a![0], a![1], b![1]), along(b![0], b![1], a![0]), along(b![0], b![1], a![1])]).toEqual([false, false, false, false])
 })
 
 // The assignment reads a staged copy as the roster entry with its edge index.

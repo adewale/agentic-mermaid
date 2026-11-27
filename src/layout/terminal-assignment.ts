@@ -5,11 +5,12 @@
 // and the final rubric all read that decision rather than carrying their own
 // predicate.
 //
-// The assignment also plans where arrivals that may not share a port sit on
-// its face: their order along it and their offsets (`arrivalSlots`). The
-// producers that aim several arrivals at one canonical point and then needed
-// a later pass to pull them apart (rank-distance reconnection, port-lane
-// centering) seat them by that plan when they build the routes. Producers
+// The assignment also plans where ends that may not share a port sit on its
+// face: their order along it and their offsets (`terminalSlots`), for
+// arrivals and departures alike. The producers that aim several ends at one
+// canonical point and then needed a later pass to pull them apart
+// (rank-distance reconnection, port-lane centering) seat them by that plan
+// when they build the routes. Producers
 // that choose a port by their own proof keep doing so, and read only the
 // sharing rule: route contracts' straight-lane, Z and side-entry proofs (a
 // port held against the route leaves the lanes one pair separation beside
@@ -56,37 +57,38 @@ function mayMerge(a: PositionedEdge, b: PositionedEdge, end: TerminalEnd): boole
 export interface TerminalAssignment {
   /** Whether `a` and `b` end at one node at `end` and may share that terminal. */
   shares(a: PositionedEdge, b: PositionedEdge, end: TerminalEnd): boolean
-  /** Slot plans on one entry face for arrivals that would otherwise meet at
-   * its port, most preferred first: see `planArrivalSlots`. */
-  arrivalSlots(arrivals: readonly PositionedEdge[], face: ArrivalFace): ArrivalSlot[][]
+  /** Slot plans on one face for ends (`end` of each edge) that would
+   * otherwise meet at its port, most preferred first: see `planTerminalSlots`. */
+  terminalSlots(ends: readonly PositionedEdge[], face: TerminalFace, end: TerminalEnd): TerminalSlot[][]
 }
 
-/** An entry face, measured along the face: the port's coordinate, how far
- * a slot may sit from it, and where each arrival approaches from. */
-export interface ArrivalFace {
+/** A face, measured along it: the port's coordinate, how far a slot may sit
+ * from it, and where each route comes from (an arrival) or goes to (a
+ * departure). */
+export interface TerminalFace {
   port: number
   reach: number
   approach: (edge: PositionedEdge) => number
 }
 
 /** Ends that share one terminal, `offset` from the face's port along it. */
-export interface ArrivalSlot { members: PositionedEdge[]; offset: number }
+export interface TerminalSlot { members: PositionedEdge[]; offset: number }
 
-/** Spacing between neighbouring arrival slots, and the least a crowded face
+/** Spacing between neighbouring terminal slots, and the least a crowded face
  * may squeeze it to. */
 export const ARRIVAL_SLOT_PITCH = 14
 export const MIN_ARRIVAL_SLOT_PITCH = 6
 
-/** Arrivals that may not all share one arrowhead each get a slot of their
- * own along the face. Sets of mutually shareable arrivals are ordered by
- * where they approach from, so their terminal runs nest without crossing.
+/** Ends that may not all share one terminal each get a slot of their own
+ * along the face. Sets of mutually shareable ends are ordered by where their
+ * routes approach from, so their terminal runs nest without crossing.
  * One set keeps the port: preferably the largest, then the one approaching
  * nearest it. The plans list every keeper in that preference, each in
  * approach order and then mirrored, so a producer that can measure the
  * routes it is building may pick the plan that crosses least. Plans whose
  * slots do not fit the face are left out. */
-function planArrivalSlots(shares: (a: PositionedEdge, b: PositionedEdge) => boolean, arrivals: readonly PositionedEdge[], face: ArrivalFace): ArrivalSlot[][] {
-  const ordered = [...arrivals].sort((a, b) => face.approach(a) - face.approach(b))
+function planTerminalSlots(shares: (a: PositionedEdge, b: PositionedEdge) => boolean, ends: readonly PositionedEdge[], face: TerminalFace): TerminalSlot[][] {
+  const ordered = [...ends].sort((a, b) => face.approach(a) - face.approach(b))
   const sets: PositionedEdge[][] = []
   for (const edge of ordered) {
     const home = sets.find(members => members.every(member => shares(member, edge)))
@@ -100,8 +102,8 @@ function planArrivalSlots(shares: (a: PositionedEdge, b: PositionedEdge) => bool
     || Math.abs(mean(sets[a]!) - face.port) - Math.abs(mean(sets[b]!) - face.port) || a - b)
   // Of a keeper's two orders, the one moving each set toward where it comes
   // from goes first.
-  const drift = (plan: ArrivalSlot[]) => plan.reduce((sum, slot) => sum + slot.members.reduce((total, edge) => total + Math.abs(face.approach(edge) - face.port - slot.offset), 0), 0)
-  const plans: ArrivalSlot[][] = []
+  const drift = (plan: TerminalSlot[]) => plan.reduce((sum, slot) => sum + slot.members.reduce((total, edge) => total + Math.abs(face.approach(edge) - face.port - slot.offset), 0), 0)
+  const plans: TerminalSlot[][] = []
   for (const keeper of keepers) {
     const steps = Math.max(keeper, sets.length - 1 - keeper)
     const pitch = Math.min(ARRIVAL_SLOT_PITCH, face.reach / steps)
@@ -139,8 +141,8 @@ export function assignTerminals(edges: readonly PositionedEdge[]): TerminalAssig
       const ra = resolve(a), rb = resolve(b)
       return ra === rb || mayMerge(ra, rb, end)
     },
-    arrivalSlots(arrivals, face) {
-      return planArrivalSlots((a, b) => this.shares(a, b, 'end'), arrivals, face)
+    terminalSlots(ends, face, end) {
+      return planTerminalSlots((a, b) => this.shares(a, b, end), ends, face)
     },
   }
 }

@@ -9,7 +9,7 @@ import { isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../../shape-c
 import { LayoutCertificationError } from '../certification-error.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
-import { seatMeetingArrivals } from './arrival-slots.ts'
+import { seatMeetingArrivals, seatMeetingDepartures } from './arrival-slots.ts'
 import { seatCaption } from '../label-seat.ts'
 import type { LabelMetricsStyle } from '../route-geometry.ts'
 import { resolveRenderStyle } from '../../styles.ts'
@@ -633,8 +633,10 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (!preserveContacts) reconnected.push(edge)
   }
 
-  // Every reconnected arrival was aimed at one canonical point of its target;
-  // those that may not share it take their planned slots.
+  // Every reconnected route left one canonical point of its source and was
+  // aimed at one of its target; ends that may not share one take their
+  // planned slots.
+  seatMeetingDepartures(nodes, edges, reconnected, terminals)
   seatMeetingArrivals(nodes, edges, reconnected, terminals)
   // Canonical ports draw every forward edge between two nodes on one route.
   // Where seating could not part occurrences the drawing must tell apart (a
@@ -651,6 +653,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
     }
     // A kept route can still meet another at one point; those take slots.
+    seatMeetingDepartures(nodes, edges, involved, terminals)
     seatMeetingArrivals(nodes, edges, involved, terminals)
     if (involved.length && indistinctOccurrencePairs(edges).length >= indistinct.length) {
       for (const entry of saved) { entry.edge.points = entry.points; entry.edge.labelPosition = entry.labelPosition }
