@@ -9,7 +9,7 @@ import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { invalidEndpointApproaches, terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
 import { shapeRoutingProfile } from '../../shape-outline.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
-import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
+import { MIN_ARRIVAL_SLOT_PITCH, terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 
 const DEFAULT_STYLE: LabelMetricsStyle = resolveRenderStyle({})
 
@@ -369,6 +369,16 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
 
 export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  // Straightening slides the arrival by the hitch's height along the face. An
+  // arrival leaving a shared terminal, or landing beside another end of its
+  // target, would draw two arrowheads closer than a slot apart: keep the hitch.
+  // Landing exactly on an arrival it may share is joining that terminal.
+  const terminals = terminalAssignment(edges)
+  const gap = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
+  const besideAnotherEnd = (edge: PositionedEdge, end: Point): boolean => gap(end, edge.points.at(-1)!) > 1e-6 && edges.some(other => other !== edge
+    && other.style !== 'invisible' && other.points.length >= 2
+    && (other.target === edge.target && gap(other.points.at(-1)!, end) < MIN_ARRIVAL_SLOT_PITCH && !(gap(other.points.at(-1)!, end) <= 1e-6 && terminals.shares(edge, other, 'end'))
+      || other.source === edge.target && gap(other.points[0]!, end) < MIN_ARRIVAL_SLOT_PITCH))
   for (const edge of edges) {
     if (!bundled.has(edge) || edge.label || edge.points.length !== 4) continue
     const bundle = bundleRouteBeforeRewrite(edge)
@@ -380,7 +390,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
     if (Math.abs(a.y - b.y) < 0.01 && Math.abs(b.x - c.x) < 0.01 && Math.abs(c.y - d.y) < 0.01 && Math.abs(b.y - c.y) <= 6) {
       const end = { x: d.x, y: a.y }
       const onTargetSide = Math.abs(d.x - target.x) < 0.01 || Math.abs(d.x - (target.x + target.width)) < 0.01
-      if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+      if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude) && !besideAnotherEnd(edge, end)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
         retainBundleRouteAfterRewrite(edge, bundle)
@@ -390,7 +400,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
     if (Math.abs(a.x - b.x) < 0.01 && Math.abs(b.y - c.y) < 0.01 && Math.abs(c.x - d.x) < 0.01 && Math.abs(b.x - c.x) <= 6) {
       const end = { x: a.x, y: d.y }
       const onTargetSide = Math.abs(d.y - target.y) < 0.01 || Math.abs(d.y - (target.y + target.height)) < 0.01
-      if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+      if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude) && !besideAnotherEnd(edge, end)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
         retainBundleRouteAfterRewrite(edge, bundle)

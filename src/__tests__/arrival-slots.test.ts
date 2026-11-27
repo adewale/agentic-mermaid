@@ -9,6 +9,7 @@
 
 import { expect, test } from 'bun:test'
 import { seatMeetingArrivals } from '../layout/passes/arrival-slots.ts'
+import { collapseTinyBundledHitches } from '../layout/passes/obstacle-routing.ts'
 import { ARRIVAL_SLOT_PITCH, assignTerminals } from '../layout/terminal-assignment.ts'
 import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
 import { indistinctOccurrencePairs } from '../layout/route-marker-clearance.ts'
@@ -83,4 +84,18 @@ test('the terminal assignment judges a replaced roster entry as it now is', () =
   expect(terminals.shares(roster[0]!, roster[1]!, 'end')).toBe(true)
   roster[1] = arrival('B', 1, 'dotted')
   expect(terminals.shares(roster[0]!, { ...roster[1]!, points: [] }, 'end')).toBe(false)
+})
+
+// Straightening a bundled member's sub-perceptual hitch slides its arrival by
+// the hitch's height along the face (lukilabs/beautiful-mermaid#52: 1.7px off
+// the arrowhead its trunk shared). Beside another end of the target it keeps
+// the hitch; alone on the face it is straightened.
+test.each([true, false])('a tiny bundled hitch beside another arrival is kept (neighbour=%s)', neighbour => {
+  const box = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 60, height: 40 })
+  const nodes = [box('A', 0, 8.3), box('B', 0, 60), box('T', 100, 10)]
+  const hitched: PositionedEdge = { source: 'A', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 60, y: 28.3 }, { x: 80, y: 28.3 }, { x: 80, y: 30 }, { x: 100, y: 30 }] }
+  const other: PositionedEdge = { source: 'B', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 60, y: 80 }, { x: 80, y: 80 }, { x: 80, y: 30 }, { x: 100, y: 30 }] }
+  const edges = neighbour ? [hitched, other] : [hitched]
+  collapseTinyBundledHitches(nodes, edges, new Set(edges))
+  expect(hitched.points).toEqual(neighbour ? [{ x: 60, y: 28.3 }, { x: 80, y: 28.3 }, { x: 80, y: 30 }, { x: 100, y: 30 }] : [{ x: 60, y: 28.3 }, { x: 100, y: 28.3 }])
 })

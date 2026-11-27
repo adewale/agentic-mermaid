@@ -75,7 +75,8 @@ export interface TerminalFace {
 export interface TerminalSlot { members: PositionedEdge[]; offset: number }
 
 /** Spacing between neighbouring terminal slots, and the least a crowded face
- * may squeeze it to. */
+ * may squeeze it to: an arrowhead's height (5 at the default stroke) plus a
+ * stroke, so two distinct arrowheads on one face never overlap. */
 export const ARRIVAL_SLOT_PITCH = 14
 export const MIN_ARRIVAL_SLOT_PITCH = 6
 
