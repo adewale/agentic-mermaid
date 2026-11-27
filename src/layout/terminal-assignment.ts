@@ -114,18 +114,24 @@ function planArrivalSlots(shares: (a: PositionedEdge, b: PositionedEdge) => bool
 
 /** Record the sharing decision for every end of `edges`. The roster is read
  * when first queried, so a layout can create its assignment before
- * extraction fills the roster. */
+ * extraction fills the roster. The index is rebuilt when the roster grows or
+ * shrinks, or when the entry it holds for an edge index is no longer the
+ * roster's entry at that position (replaced by a new object), so the rule
+ * always judges the roster's current entry. */
 export function assignTerminals(edges: readonly PositionedEdge[]): TerminalAssignment {
-  const authored = new Map<number, PositionedEdge>()
+  const authored = new Map<number, { member: PositionedEdge; at: number }>()
   let indexed = -1
+  const reindex = (): void => {
+    authored.clear()
+    edges.forEach((member, at) => { if (member.edgeIndex !== undefined && !authored.has(member.edgeIndex)) authored.set(member.edgeIndex, { member, at }) })
+    indexed = edges.length
+  }
   const resolve = (edge: PositionedEdge): PositionedEdge => {
     if (edge.edgeIndex === undefined) return edge
-    if (indexed !== edges.length) {
-      authored.clear()
-      for (const member of edges) if (member.edgeIndex !== undefined && !authored.has(member.edgeIndex)) authored.set(member.edgeIndex, member)
-      indexed = edges.length
-    }
-    return authored.get(edge.edgeIndex) ?? edge
+    if (indexed !== edges.length) reindex()
+    let entry = authored.get(edge.edgeIndex)
+    if (entry && edges[entry.at] !== entry.member) { reindex(); entry = authored.get(edge.edgeIndex) }
+    return entry?.member ?? edge
   }
   return {
     shares(a, b, end) {

@@ -51,3 +51,16 @@ test('a perpendicular side with no room toward the face edge slides half a slot 
   expect(down.points.at(-1)).toEqual({ x: 98 - ARRIVAL_SLOT_PITCH / 2, y: 0 })
   expect(indistinctOccurrencePairs(edges)).toEqual([])
 })
+
+// The assignment reads a staged copy as the roster entry with its edge index.
+// A roster entry replaced by a new object is judged as it now is, even when
+// the roster keeps its length.
+test('the terminal assignment judges a replaced roster entry as it now is', () => {
+  const arrival = (source: string, edgeIndex: number, style: PositionedEdge['style']): PositionedEdge =>
+    ({ source, target: 'T', style, hasArrowStart: false, hasArrowEnd: true, points: [{ x: 0, y: 0 }, { x: 0, y: 10 }], edgeIndex })
+  const roster = [arrival('A', 0, 'solid'), arrival('B', 1, 'solid')]
+  const terminals = assignTerminals(roster)
+  expect(terminals.shares(roster[0]!, roster[1]!, 'end')).toBe(true)
+  roster[1] = arrival('B', 1, 'dotted')
+  expect(terminals.shares(roster[0]!, { ...roster[1]!, points: [] }, 'end')).toBe(false)
+})
