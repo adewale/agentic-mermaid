@@ -902,6 +902,46 @@ describe('runPipeline invariant enforcement', () => {
     ).toThrow(/reroute.*bends.*allowance 2/)
   })
 
+  // The centering pass runs two steps. Here the fork/rejoin step centres
+  // N5's three-way fork row on the decision and improves symmetry; the peer
+  // step that follows worsens it. Rejecting the peer step must keep the
+  // fork/rejoin step (shrunk from a generated search; observed where the
+  // pass hands over, since later passes move this row again).
+  test('a rejected peer-centering step keeps the fork/rejoin step before it', () => {
+    const next = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = next.run
+    let offset: number | undefined
+    next.run = context => {
+      if (offset === undefined) {
+        const centre = (id: string) => { const node = context.nodes.find(candidate => candidate.id === id)!; return node.y + node.height / 2 }
+        const row = ['N6', 'N7', 'N8'].map(centre)
+        offset = Math.abs(centre('N5') - (Math.min(...row) + Math.max(...row)) / 2)
+      }
+      run(context)
+    }
+    try {
+      layoutGraphSync(parseMermaid(`flowchart LR
+  N2["Node 2"]
+  N5{"Node 5"}
+  N6["Node 6"]
+  N7["Node 7"]
+  N8["Node 8"]
+  N13{"Node 13"}
+  N2 --> N4
+  N3 -->|"yes"| N4
+  N5 -.-> N6
+  N6 ==> N9
+  N5 -->|"no"| N7
+  N7 -->|"no"| N9
+  N5 --o|"a<br/>b"| N8
+  N8 --> N9
+  N11 --> N10
+  N12 -->|"validate input"| N10
+  N3 -->|"validate input"| N11
+  N11 -.->|"retry later"| N9`))
+    } finally { next.run = run }
+    expect(offset).toBeLessThanOrEqual(0.5)
+  })
+
   test('a losing cosmetic proposal restores its owned geometry before dependent passes', () => {
     const node = { x: 0, y: 0, width: 1, height: 1 }
     const ctx: TestCtx = { frozen: false, nodes: [node], log: [] }

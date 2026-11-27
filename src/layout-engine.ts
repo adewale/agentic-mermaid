@@ -1328,6 +1328,9 @@ function hasParallelPair(edges: readonly Pick<PositionedEdge, 'source' | 'target
   return false
 }
 
+/** Bends the centering pass may add, across both of its steps. */
+const CENTERING_BENDS = 2
+
 /** A cosmetic centering proposal owns only coordinates, routes and label anchors.
  * Capture those channels on its first actual move; authored data, prepared text,
  * groups and certificates are neither copied nor replaced. */
@@ -1379,13 +1382,28 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'centerPeerBarycenters', proposal: true, doc: 'center fork/rejoin hubs and peer fan-in/fan-out trunks over their peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: CENTERING_BENDS } },
     run: c => {
-      // One proposal: a rejected budget restores the geometry before both steps.
-      let rollback: (() => void) | undefined
-      const checkpoint = () => { rollback ??= checkpointCentering(c) }
-      alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint)
-      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint)
+      // Each step is a proposal of its own: a step that worsens symmetry, or
+      // leaves the pass more bends than its budget, restores the geometry
+      // before that step alone, so a rejected peer step keeps a good fork/
+      // rejoin step. The returned rollback restores the geometry before both.
+      let start: PassMetrics | undefined, rollback: (() => void) | undefined
+      const step = (move: (checkpoint: () => void) => void): void => {
+        let before: PassMetrics | undefined, undo: (() => void) | undefined
+        move(() => {
+          if (undo) return
+          before = measureLayoutPass(c, ['symErr', 'bends'])
+          start ??= before
+          undo = checkpointCentering(c)
+          rollback ??= undo
+        })
+        if (!undo) return
+        const after = measureLayoutPass(c, ['symErr', 'bends'])
+        if (after.symErr! > before!.symErr! + 1e-6 || after.bends! > start!.bends! + CENTERING_BENDS + 1e-6) undo()
+      }
+      step(checkpoint => alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint))
+      step(checkpoint => centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint))
       return rollback
     },
   },
