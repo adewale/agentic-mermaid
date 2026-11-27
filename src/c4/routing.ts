@@ -110,7 +110,11 @@ const OFF_CORRIDOR = 0.05
 const CROSSING = 150
 /** A route longer than this many times the distance between its ports is a
  * detour worth trying other faces for. */
-const DETOUR = 1.5
+export const C4_DETOUR = 1.5
+/** The ratio from which a face trial is always kept: a route this long
+ * circles the canvas (mermaid#7492). Trials below it are kept only where
+ * the final captions and arrowheads collide no more than without them. */
+export const C4_CIRCLING_DETOUR = 3
 /** What one bend costs when comparing faces, in pixels of route. */
 const DETOUR_BEND = 200
 /** Grid steps all of one diagram's detour retries may check together. */
@@ -119,7 +123,7 @@ const DETOUR_SPENT = Symbol('C4 detour budget spent')
 const SIDES: readonly Side[] = ['T', 'R', 'B', 'L']
 const routeLength = (points: readonly Point[]): number => points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - points[index]!.x) + Math.abs(point.y - points[index]!.y), 0)
 
-export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>): void {
+export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>, detour = C4_DETOUR): void {
   const { edges } = positioned
   const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: allocateGeneratedId(identities.generated, `c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
@@ -266,7 +270,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     // example out of a boundary whose header band blocks the way up
     // (mermaid#7492). Then try the faces no other interaction uses, and keep
     // the route that is shortest once each bend and crossing is charged.
-    if (source.id !== target.id && startSign > 0 && endSign > 0 && routeLength(route) > DETOUR * (Math.abs(end.x - start.x) + Math.abs(end.y - start.y))) {
+    if (source.id !== target.id && startSign > 0 && endSign > 0 && routeLength(route) > detour * (Math.abs(end.x - start.x) + Math.abs(end.y - start.y))) {
       const free = (item: C4Box, side: Side) => !counts.has(`${item.id}\0${side}`) && !claimed.has(`${item.id}\0${side}`)
       const score = (points: readonly Point[]) => routeLength(points) + DETOUR_BEND * (simplifyPolyline(points.map(point => ({ x: point.x, y: point.y }))).length - 2)
         + CROSSING * countPolylineCrossings([{ points }, ...drawn.map(segment => ({ points: segment }))], new Set([0]))

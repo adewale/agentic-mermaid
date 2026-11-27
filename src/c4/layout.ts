@@ -7,7 +7,7 @@ import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4Config, type C4
 import { projectC4Graph, c4ElementText, c4BoundaryText, c4RelationshipText } from './projection.ts'
 import { placeC4Boxes, type C4Box } from './placement.ts'
 import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
-import { routeC4Pixels, c4StraightPairs } from './routing.ts'
+import { routeC4Pixels, c4StraightPairs, C4_CIRCLING_DETOUR } from './routing.ts'
 import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
@@ -49,7 +49,8 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
     const group: PositionedGroup = { id: item.id, label, labelBlock, x: 0, y: 0, width: Math.max(config.minimumWidth, labelBlock.width + config.padding * 2), height: headerHeight + config.boundaryPadding * 2, headerHeight, children: [] }
     groups.set(item.id, group); sizes.set(item.id, { ...group, container: true })
   }
-  const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, points: [], labelBlock: preparePixelText(c4RelationshipText(body, body.relationships[index]!), { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: wrapWidth() }) }), inlineStyle: graph.linkStyles.get(index), edgeIndex: index }))
+  const freshEdges = (): PositionedEdge[] => graph.edges.map((edge, index) => ({ ...edge, points: [], labelBlock: preparePixelText(c4RelationshipText(body, body.relationships[index]!), { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: wrapWidth() }) }), inlineStyle: graph.linkStyles.get(index), edgeIndex: index }))
+  let edges = freshEdges()
   // A relationship to an ancestor needs a real interior lane between the
   // descendant's bottom face and the ancestor's frame. Ordinary box padding
   // can be shorter than the opaque label plus arrowhead and hide the entire
@@ -113,6 +114,19 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   for (const item of body.boundaries) { const group = groups.get(item.id)!; Object.assign(group, placement.boxes.get(item.id)); const parent = item.parentId && groups.get(item.parentId); if (parent) parent.children.push(group); else roots.push(group) }
   routeC4Pixels(placement.boxes, { nodes, groups: roots, edges }, graph, style, planC4Identity(body))
   placeC4PixelLabels({ nodes, groups: roots, edges }, style.lineWidth, body)
+  // Trying other faces for a modest detour shortens routes, but captions are
+  // seated only once every route is drawn: a shorter route can leave a
+  // caption or arrowhead nowhere clear (official fence #0). Keep those trials
+  // only where the drawing collides no more than with trials for routes
+  // that circle the canvas alone.
+  const collisions = (routed: PositionedEdge[]) => c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges: routed }, style.lineWidth).length
+  const tried = collisions(edges)
+  if (tried) {
+    const circling = freshEdges()
+    routeC4Pixels(placement.boxes, { nodes, groups: roots, edges: circling }, graph, style, planC4Identity(body), C4_CIRCLING_DETOUR)
+    placeC4PixelLabels({ nodes, groups: roots, edges: circling }, style.lineWidth, body)
+    if (collisions(circling) < tried) edges = circling
+  }
   const labelBoxes: PositionedNode[] = edges.flatMap(edge => { const box = c4LabelRect(edge); return box ? [{ ...box, id: edge.id!, label: '', shape: 'rectangle' }] : [] })
   const markerBoxes: PositionedNode[] = edges.flatMap(edge => c4MarkerRects(edge, style.lineWidth).map(box => ({ ...box, id: edge.id!, label: '', shape: 'rectangle' as const })))
   translateGeometryToNonNegativeOrigin([...nodes, ...labelBoxes, ...markerBoxes], edges, roots, Math.max(config.marginX, config.marginY) + (title?.height ?? 0))
