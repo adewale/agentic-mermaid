@@ -286,11 +286,13 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   // with its written right-angle miter supports. Only its own contact segment
   // may touch an endpoint body; stationary foreign captions and glyphs remain
   // obstacles even when the endpoint resources themselves did not move.
-  const clearRoute = (edge: PositionedEdge, points: readonly Point[]): boolean => {
+  // A shaft inside `retained` ink the route already painted is not new paint.
+  const clearRoute = (edge: PositionedEdge, points: readonly Point[], retained: readonly AxisAlignedBox[] = []): boolean => {
     const ink = routes.get(edge)
     if (!ink || !orthogonal.has(edge) || ink.shafts.length !== 2 * points.length - 3) return false
     for (let index = 0; index < ink.shafts.length; index++) {
       const shaft = ink.shafts[index]!
+      if (retained.some(box => shaft.x0 >= box.x0 - 1e-9 && shaft.y0 >= box.y0 - 1e-9 && shaft.x1 <= box.x1 + 1e-9 && shaft.y1 <= box.y1 + 1e-9)) continue
       for (const marker of ink.markers) {
         if (marker.position === 'start' && index === 0 || marker.position === 'end' && index === ink.shafts.length - 1) continue
         if (!pay(1) || !finiteBox(marker.bounds) || boxesMeet(shaft, marker.bounds)) return false
@@ -317,5 +319,6 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return true
   }
-  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos }
+  const routeShafts = (edge: PositionedEdge): readonly AxisAlignedBox[] => routes.get(edge)?.shafts ?? []
+  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos, routeShafts }
 }

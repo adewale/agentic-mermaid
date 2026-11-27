@@ -3474,6 +3474,34 @@ describe('settled orthogonal excursions', () => {
     })
   })
 
+  // pele-100: an ELK hierarchy channel left t07->t20 a 1.6px jog inside the
+  // target's group although the entry lane was clear. Retained ink beside a
+  // fan-in peer is not new contact.
+  it('contracts a cross-hierarchy excursion that keeps its frame crossings, beside retained fan-in ink', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> B\nsubgraph G\nB\nend'), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, 95, 20, 10], B: [180, 90, 20, 40], C: [10, 0, 20, 10] }
+    const nodes = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    const groups: PositionedGroup[] = [{ id: 'G', label: 'G', x: 100, y: 60, width: 120, height: 100, headerHeight: 10, children: [] }]
+    const paths = [
+      [[0, 100], [40, 100], [40, 120], [150, 120], [150, 115], [180, 115]],
+      [[20, 10], [20, 99.95], [160, 99.95], [160, 102], [180, 102]],
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...graph.edges.map((edge, edgeIndex): PositionedEdge => ({ ...edge, edgeIndex,
+        points: paths[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })),
+        routeCertificate: { edgeIndex, routeClass: 'cross-hierarchy', invariant: 'explained-detour', bendCount: paths[edgeIndex]!.length - 2 },
+      })))
+      const peer = structuredClone(edges[1]!.points)
+      closeRouteContracts({ nodes, edges, groups }, graph, style)
+      expect(edges[0]!.points).toEqual([[0, 100], [40, 100], [40, 115], [180, 115]].map(([x, y]) => ({ x: x!, y: y! })))
+      expect(edges[1]!.points).toEqual(peer)
+    })
+  })
+
   it.each([0, 1, 2, 3])('contracts an excursion with its caption while preserving both contacts at rotation %s', turns => {
     const direction = (['RL', 'BT', 'LR', 'TD'] as const)[turns]!
     const graph = parseMermaid(`flowchart ${direction}\nA -->|caption| B`), style = resolveRenderStyle()

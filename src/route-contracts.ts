@@ -4,6 +4,7 @@
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import type { LabelSeatSearch } from './layout/label-seat-search.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { clearanceBoxes, routeClearanceFindings } from './layout-rubric.ts'
 import { labelHaloPadding, labelPaintClearance, routeSeats, seatCaption, seatLabel, type LabelPaintRect } from './layout/label-seat.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
@@ -1907,12 +1908,40 @@ export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edg
   }
 }
 
+/** Each group frame the route crosses, with its crossing count. A shortcut
+ * may enter and leave the same containers, but not trade one frame for
+ * another or add a pass through a sibling. */
+function frameCrossingSignature(points: readonly Point[], groups: readonly PositionedGroup[]): string {
+  const counts: string[] = []
+  const visit = (group: PositionedGroup): void => {
+    const x0 = group.x, x1 = group.x + group.width, y0 = group.y, y1 = group.y + group.height
+    let crossings = 0
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      if (Math.abs(a.y - b.y) <= EPS) {
+        const lo = Math.min(a.x, b.x), hi = Math.max(a.x, b.x)
+        if (a.y > y0 && a.y < y1) crossings += (lo < x0 && hi > x0 ? 1 : 0) + (lo < x1 && hi > x1 ? 1 : 0)
+      } else {
+        const lo = Math.min(a.y, b.y), hi = Math.max(a.y, b.y)
+        if (a.x > x0 && a.x < x1) crossings += (lo < y0 && hi > y0 ? 1 : 0) + (lo < y1 && hi > y1 ? 1 : 0)
+      }
+    }
+    if (crossings) counts.push(`${group.id}:${crossings}`)
+    group.children.forEach(visit)
+  }
+  groups.forEach(visit)
+  return counts.join(',')
+}
+
 /** Remove a single orthogonal excursion after captions have settled. The
  * inner run can move to the nearest endpoint lane without moving either
  * contact or rotating its ray. No distance threshold makes a bend optional:
- * the replacement and its translated caption must clear the actual paint. */
+ * the replacement and its translated caption must clear the actual paint.
+ * Inside a grouped graph the replacement also keeps every frame crossing and
+ * adds no run along a frame or card border. */
 function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  if (!ownsLayoutRouteInputs(positioned.edges, style) || positioned.groups.length || graph.subgraphs.length || !withinLayoutPreferenceBudget(graph)) return
+  if (!ownsLayoutRouteInputs(positioned.edges, style) || !withinLayoutPreferenceBudget(graph)) return
+  let boxes: ReturnType<typeof clearanceBoxes> | undefined
   const { ctx, axis } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
   ctx.fixedLabels = true
   ctx.finalLabelClearance = true
@@ -1923,7 +1952,7 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
   let positions: Map<PositionedEdge, Point> | undefined
   for (const edge of positioned.edges) {
     const saved = edge.routeCertificate, points = edge.points
-    if (!saved || saved.routeClass !== 'primary-forward' || points.length !== 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
+    if (!saved || saved.routeClass !== 'primary-forward' && saved.routeClass !== 'cross-hierarchy' || points.length !== 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
     const [start, a, b, c, d, end] = points as [Point, Point, Point, Point, Point, Point]
     const main = axis.main, cross = axis.cross
     const lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
@@ -1939,9 +1968,21 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
     nodes ??= indexRouteNodes(positioned.nodes)
     const source = nodes.get(edge.source), target = nodes.get(edge.target)
     if (!source || !target || invalidEndpointApproaches({ ...edge, points: route }, source, target) || routeAddsCrossings(route, edge, ctx)) continue
+    if (positioned.groups.length) {
+      if (frameCrossingSignature(route, positioned.groups) !== frameCrossingSignature(points, positioned.groups)) continue
+      boxes ??= clearanceBoxes(positioned)
+      if (routeClearanceFindings([{ ...edge, points: route }], boxes).length > routeClearanceFindings([edge], boxes).length) continue
+    }
+    // Only new ink needs a lane proof: a run the route already draws keeps
+    // whatever neighbours it had.
+    const drawn = (p: Point, q: Point): boolean => points.slice(1).some((r, i) => {
+      const o = points[i]!
+      if (p.x === q.x) return o.x === p.x && r.x === p.x && Math.min(p.y, q.y) >= Math.min(o.y, r.y) && Math.max(p.y, q.y) <= Math.max(o.y, r.y)
+      return o.y === p.y && r.y === p.y && Math.min(p.x, q.x) >= Math.min(o.x, r.x) && Math.max(p.x, q.x) <= Math.max(o.x, r.x)
+    })
     if (route.slice(1).some((point, i) => {
       const before = route[i]!, segmentAxis = axisFor(before.x === point.x ? 'TB' : 'LR')
-      return hasDirectLaneBlocker(edge, before[segmentAxis.cross], Math.min(before[segmentAxis.main], point[segmentAxis.main]), Math.max(before[segmentAxis.main], point[segmentAxis.main]), ctx, segmentAxis, false)
+      return !drawn(before, point) && hasDirectLaneBlocker(edge, before[segmentAxis.cross], Math.min(before[segmentAxis.main], point[segmentAxis.main]), Math.max(before[segmentAxis.main], point[segmentAxis.main]), ctx, segmentAxis, false)
     }) || !routeCandidateMarkersClear(edge, route, positioned.edges, style)) continue
     let label = edge.labelPosition
     if (edge.label) {
@@ -1953,8 +1994,9 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
     }
     paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay))
     if (!paint) return
+    const retained = paint.routeShafts(edge)
     if (!paint.refreshRoute(edge, route)) return
-    const clear = paint.clearRoute(edge, route) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
+    const clear = paint.clearRoute(edge, route, retained) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
     if (!clear) { if (!paint.refreshRoute(edge)) return; continue }
     const oldLabel = edge.labelPosition
     setRoutePoints(ctx, edge, route)
