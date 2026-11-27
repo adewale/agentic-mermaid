@@ -6,6 +6,10 @@ import { expect, test } from 'bun:test'
 import { layoutMermaidWithReceipt, measureQuality, verifyMermaid } from '../agent/index.ts'
 import { routeSeats, seatLabel } from '../layout/label-seat.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
+import { seatMeetingArrivals } from '../layout/passes/arrival-slots.ts'
+import { shiftNodeSetCross } from '../layout/passes/shared.ts'
+import { assignTerminals } from '../layout/terminal-assignment.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
 import { assignBundledFanoutLabels, bundledLabelCandidates } from '../layout/passes/bundled-labels.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
@@ -236,4 +240,72 @@ test.each([['alone', undefined], ['beside a labelled sibling', 'to C']])('a bund
   assignBundledFanoutLabels(edges.map(value => ({ edge: value, points: value.points })), { nodes, edges, groups: [] }, 'TD', style)
   expect(measureLabelConflicts({ nodes, edges }, style)).toMatchObject({ labelNode: 0, labelLabel: 0 })
   expect(onOwnRun(ab.labelPosition!, ab.points.map(({ x, y }) => [x, y] as const))).toBe(true)
+})
+
+// A caption seated beside its terminal run (ELK's offset, or an offset seat of
+// the rule) rides that run: a pass that moves the run across moves the
+// caption with it, here the arrival-slot slide and the node movers' run shift.
+// Constructed at the two movers because no public input is known to seat a
+// caption beside a run that one of them then moves (a 6100-graph generated
+// search found none). Each would otherwise leave the caption past its
+// on-route allowance: 28px off a 19px allowance, and 25px.
+const allowance = (subject: PositionedEdge) => (subject.labelBlock!.height + 16) / 2 + 4
+test.each([
+  ['an arrival slid along its entry face', () => {
+    const target = node('T', 0, 200); target.width = 200
+    const captioned = edge('A', 'T', [[20, 0], [20, 100], [100, 100], [100, 200]], { label: 'yes', labelBlock: graphEdgeTextBlock('yes', style), labelPosition: { x: 114, y: 160 } })
+    // A dotted arrival from straight above keeps the port; the captioned one
+    // takes the slot toward where it comes from, away from its caption.
+    const edges = [edge('B', 'T', [[100, -50], [100, 200]], { style: 'dotted' }), captioned]
+    seatMeetingArrivals([target], edges, edges, assignTerminals(edges))
+    return captioned
+  }],
+  ['a run shifted with its node', () => {
+    const captioned = edge('A', 'B', [[30, 40], [30, 100], [50, 100], [50, 200]], { label: 'yes', labelBlock: graphEdgeTextBlock('yes', style), labelPosition: { x: 65, y: 150 } })
+    shiftNodeSetCross(new Set(['B']), [node('A', 0, 0), node('B', 30, 200)], [captioned], 'TD', -10)
+    return captioned
+  }],
+] as const)('a caption beside %s rides it', (_name, move) => {
+  const captioned = move()
+  const run = captioned.points.at(-1)!.x
+  expect(captioned.points.at(-2)!.x).toBe(run)
+  expect(Math.abs(captioned.labelPosition!.x - run)).toBeLessThanOrEqual(allowance(captioned))
+})
+
+// Public layout: port-lane centering slides N3's two arrivals into planned
+// slots on N1's face, the captioned straight one gaining a dogleg. Its
+// caption, on the half that moves, moves with it. (The link-rank pass later
+// reseats this caption: the pass boundary is where the carry is observable.)
+test('port-lane centering keeps every caption on the arrival it slides', () => {
+  const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignPortLanes')!, run = pass.run
+  const offRoute = (subject: PositionedEdge): boolean => {
+    const label = subject.labelPosition
+    if (!subject.label || !label || subject.source === subject.target) return false
+    const distance = Math.min(...subject.points.slice(1).map((b, i) => {
+      const a = subject.points[i]!, length = (b.x - a.x) ** 2 + (b.y - a.y) ** 2
+      const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((label.x - a.x) * (b.x - a.x) + (label.y - a.y) * (b.y - a.y)) / length))
+      return Math.hypot(label.x - a.x - t * (b.x - a.x), label.y - a.y - t * (b.y - a.y))
+    }))
+    return distance > allowance(subject)
+  }
+  const left: string[] = []
+  pass.run = context => {
+    const before = context.edges.map(offRoute)
+    run(context)
+    context.edges.forEach((subject, index) => { if (!before[index] && offRoute(subject)) left.push(`${subject.source}->${subject.target} ${subject.label}`) })
+  }
+  try {
+    layoutGraphSync(parseMermaid(`flowchart BT
+  N3{"Node 3"}
+  N0 ----> N1
+  N0 -->|"yes"| N1
+  N3 --o|"one<br/>two<br/>three"| N1
+  N3 --->|"yes"| N1
+  N4 ==>|"no"| N3
+  N1 -.-> N4
+  N1 ==>|"yes"| N4
+  N5 ==>|"retry later"| N3
+  N4 ---->|"retry later"| N1`))
+  } finally { pass.run = run }
+  expect(left).toEqual([])
 })

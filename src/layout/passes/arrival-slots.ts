@@ -11,6 +11,7 @@
 import type { Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { countEdgeCrossings, onShapeOutline } from '../../layout-rubric.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
+import { captionRidesRun, shiftLabel } from '../route-values.ts'
 import { ARRIVAL_SLOT_PITCH, MIN_ARRIVAL_SLOT_PITCH, type ArrivalSlot, type TerminalAssignment } from '../terminal-assignment.ts'
 
 const FACE_MARGIN = 5
@@ -105,8 +106,9 @@ function seat(plan: readonly ArrivalSlot[], node: PositionedNode, along: 'x' | '
 
 /** Move an orthogonal route's terminal run `offset` along its entry face,
  * stretching the segment before it (a straight route gains a midpoint
- * dogleg), and keep the moved end on the painted outline. A caption seated
- * on the moved run rides with it. Reports whether the run moved. */
+ * dogleg), and keep the moved end on the painted outline. A caption riding
+ * the moved run (captionRidesRun) moves with it. Reports whether the run
+ * moved. */
 function slideTerminalRun(edge: PositionedEdge, node: PositionedNode, along: 'x' | 'y', offset: number): boolean {
   const points = edge.points, end = points.at(-1)!
   const across: 'x' | 'y' = along === 'x' ? 'y' : 'x'
@@ -124,13 +126,13 @@ function slideTerminalRun(edge: PositionedEdge, node: PositionedNode, along: 'x'
     moved = clipEdgeToShape([...moved.slice(0, -1), { ...moved.at(-1)!, [across]: centre }], node, false)
     if (!onShapeOutline(node, moved.at(-1)!)) return false
   }
+  // The moved run: the collinear tail, or a straight route's half past its
+  // new dogleg. A caption at the dogleg is on both halves and stays.
   const label = edge.labelPosition
-  if (label && first > 0 && points.slice(first).some((point, index, run) => index > 0 && between(label, run[index - 1]!, point))) {
-    edge.labelPosition = { ...label, [along]: label[along] + offset }
-  }
+  const rides = first === 0
+    ? !!label && Math.abs(label[across] - middle) > EPS && captionRidesRun(edge, [points[0]!, at(middle, end[along]), end], 1, 2, along)
+    : captionRidesRun(edge, points, first, points.length - 1, along)
   edge.points = moved
+  if (rides) shiftLabel(edge, along, offset)
   return true
 }
-
-const between = (p: Point, a: Point, b: Point) =>
-  p.x >= Math.min(a.x, b.x) - EPS && p.x <= Math.max(a.x, b.x) + EPS && p.y >= Math.min(a.y, b.y) - EPS && p.y <= Math.max(a.y, b.y) + EPS

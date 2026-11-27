@@ -8,7 +8,7 @@
 // leaving a shared trunk ranks a seat on its own run before one beside it.
 
 import type { Point, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
-import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
+import { labelEndpointClearance, labelHaloExtension, pillRect } from '../shared/edge-label-geometry.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
@@ -17,6 +17,7 @@ import { measureLabelConflicts } from './label-conflicts.ts'
 import { calculatePathMidpoint } from './geometry.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 import { sharedTrunkConflict } from './route-lanes.ts'
+import { captionOnRouteAllowance } from './route-values.ts'
 
 export type LabelPaintRect = { x: number; y: number; w: number; h: number }
 
@@ -175,7 +176,7 @@ export function seatCaption(edge: PositionedEdge, graph: SeatGraph, style: Label
   const midpoint = calculatePathMidpoint(edge.points), target = preferred ?? midpoint
   edge.labelPosition = midpoint
   const block = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
-  const allow = block.height / 2 + LABEL_PILL_PADDING + 4
+  const allow = captionOnRouteAllowance(block)
   const nearest = (seats: Point[]) => seats.map((seat, index) => ({ seat, index, distance: Math.hypot(seat.x - target.x, seat.y - target.y) }))
     .sort((a, b) => a.distance - b.distance || a.index - b.index).map(entry => entry.seat)
   const seats = [...(routeDistance(target, edge.points) <= ON_ROUTE ? [target] : []), ...nearest(routeSeats(edge.points)), ...nearest([...routeSeats(edge.points, allow - 1), ...routeSeats(edge.points, 1 - allow)])]
@@ -205,8 +206,8 @@ export function seatLabelsOnOwnRoutes(graph: SeatGraph, style: LabelMetricsStyle
       if (!edge.labelPosition) seatCaption(edge, graph, style)
       continue
     }
-    const reserved = edge.labelPosition, rect = reserved && labelRect(edge, style)
-    if (reserved && rect && routeDistance(reserved, edge.points) <= rect.h / 2 + 4) continue
+    const reserved = edge.labelPosition, block = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
+    if (reserved && routeDistance(reserved, edge.points) <= captionOnRouteAllowance(block)) continue
     seatCaption(edge, graph, style, reserved)
   }
 }
