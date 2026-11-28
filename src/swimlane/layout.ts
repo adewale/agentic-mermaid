@@ -134,9 +134,6 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       else { node.x = node.x + node.width / 2 - width / 2; node.y += reserve.N }
       node.width = width; node.height = height
     }
-    // A nested group's self-loops run round its south-east corner (the
-    // first corner tried), inside the lane: open the room they need there.
-    reserveGroupLoopRoom(local, occurrences, style, stubGap, Math.max(CLEARANCE, clearance))
     retainGraphText({ ...local, edges: [] }, style)
     const title = graphTextBlock(resolveLabelContent(lane.label, lane.source?.labelContent), style, 'group')
     const header = Math.max(40, title.height + 16)
@@ -193,24 +190,13 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   groups.forEach(addHeader)
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
-  const unlooped = new Set<string>()
-  let channels = handoffChannels(byId, occurrences, headers, bands, owners, horizontal, style, stubGap, loops, Math.max(CLEARANCE, clearance), unlooped)
+  const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap, loops)
   // Occurrence detours run outside the content, so they keep painted
   // clearance from every card they pass on the way.
   const obstacles = channels.size ? [...nodes.map(box => routerBox(box, clearance)), ...headers.map(box => routerBox(box, 2))] : [...nodes.map(box => routerBox(box, CLEARANCE)), ...headers.map(box => routerBox(box))]
   // A route crosses a painted header band, stroke included, only
   // perpendicularly.
   const across = { horizontal: bands.map(box => routerBox(box, style.lineWidth / 2)) }
-  // A lane's or group's loop that cannot reach its corner past the cards,
-  // headers and captions already placed goes by the outside channels after
-  // all.
-  const captionBoxes = [...channels.values()].flatMap(channel => channel.stretches[0]![0]!.caption ? [routerBox(channel.stretches[0]![0]!.caption)] : [])
-  for (const [edge, channel] of channels) {
-    if (edge.source !== edge.target || loops.has(edge.source) || unlooped.has(edge.source)) continue
-    const { source, target } = channel
-    if (!routeOrthogonal({ start: source.port, end: target.port, exit: source.side, entry: OPPOSITE[target.side], stub: [source.stub, target.stub], clearance: 0, axisObstacles: across, obstacles: [...obstacles, ...captionBoxes], via: channel.stretches[0]![0]!.via })) unlooped.add(edge.source)
-  }
-  if (unlooped.size) channels = handoffChannels(byId, occurrences, headers, bands, owners, horizontal, style, stubGap, loops, Math.max(CLEARANCE, clearance), unlooped)
   // Lane and group frames are crossed, never followed: a run along a border
   // reads as the border, or as attached to the lane. Only where no route
   // keeps off them does a route ask again without them.
@@ -500,19 +486,11 @@ function routerBox(box: MeasuredBox, margin = 0): RouterBox {
  * channel from each port around every card, header and other caption. */
 type HandoffChannel = { source: Terminal; target: Terminal; stretches: { via: Point[]; caption?: MeasuredBox }[][]; direction: Direction; region?: RouterBox }
 
-function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, allPairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], bands: readonly MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, loops: ReadonlyMap<string, SelfLoopPlan>, margin: number, unlooped: ReadonlySet<string>): Map<PositionedEdge, HandoffChannel> {
+function handoffChannels(byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, allPairs: ReadonlyMap<string, PositionedEdge[]>, headers: MeasuredBox[], owners: ReadonlyMap<string, number>, horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, loops: ReadonlyMap<string, SelfLoopPlan>): Map<PositionedEdge, HandoffChannel> {
   const channels = new Map<PositionedEdge, HandoffChannel>()
   // A task's self-loops stay beside it; the outside channels carry the rest.
   for (const [id, plan] of loops) selfLoopChannels(byId.get(id) as PositionedNode, plan, style, stubGap, channels)
-  // So do a lane's or group's, around one of its corners where the room
-  // outside its frame holds them.
-  const grouped = new Set<string>()
-  for (const pair of allPairs.values()) {
-    const id = pair[0]!.source, group = byId.get(id)
-    if (pair[0]!.target !== id || !group || 'shape' in group || unlooped.has(id)) continue
-    if (groupSelfLoopChannels(group, pair, byId, headers, bands, horizontal, style, stubGap, margin, channels)) grouped.add(id)
-  }
-  const pairs = [...allPairs.values()].filter(pair => pair[0]!.source !== pair[0]!.target || (!loops.has(pair[0]!.source) && !grouped.has(pair[0]!.source)))
+  const pairs = [...allPairs.values()].filter(pair => !loops.has(pair[0]!.source) || pair[0]!.source !== pair[0]!.target)
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
   for (const box of [...byId.values(), ...headers]) {
     left = Math.min(left, box.x); top = Math.min(top, box.y)
@@ -694,12 +672,9 @@ function selfLoopPlans(graph: MermaidGraph, edges: readonly PositionedEdge[], pa
  * beyond the face, far enough for its complete caption. Inner loops meet
  * nearer the face and run nearer it, so nested loops never cross. `reach` is
  * how far the loops extend beyond each actual face. */
-function selfLoopGeometry(plan: SelfLoopPlan, width: number, height: number, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, span = Infinity) {
+function selfLoopGeometry(plan: SelfLoopPlan, width: number, height: number, style: ReturnType<typeof resolveRenderStyle>, stubGap: number) {
   const turns = LOOP_TURNS[plan.at], corner = plan.at.length === 2, level = turns % 2 === 0
   const a = (level ? width : height) / 2, b = (level ? height : width) / 2, count = plan.loops.length
-  // Contacts spread over at most `span` of each face from the loops' face
-  // or corner.
-  const spreadA = Math.min(a, span), spreadB = Math.min(b, span)
   let s = 0, d = 0, previous = 0
   const loops = plan.loops.map((edge, index) => {
     const pill = edge.label ? labelBoxAt(edge, { x: 0, y: 0 }, style) : undefined
@@ -707,7 +682,7 @@ function selfLoopGeometry(plan: SelfLoopPlan, width: number, height: number, sty
     // The caption runs along the face (or the corner's face).
     const c = pill ? (level ? pill.height : pill.width) / 2 + halo : 0
     const needed = (pill ? (level ? pill.width : pill.height) + 2 * halo : 0) + 2 * stubGap
-    const t = spreadB * (index + 1) / (count + 1), along = corner ? spreadA * (index + 1) / (count + 1) : t
+    const t = b * (index + 1) / (count + 1), along = corner ? a * (index + 1) / (count + 1) : t
     s = Math.max(index ? s + stubGap : stubGap, corner ? needed - along : (needed - 2 * a) / 2)
     d = index ? Math.max(d + stubGap, d + previous + c + 4) : Math.max(stubGap, c + 4)
     previous = c
@@ -723,8 +698,8 @@ function selfLoopGeometry(plan: SelfLoopPlan, width: number, height: number, sty
 
 /** Each loop leaves and returns through its own contacts, along its own
  * channel; the space the loops enclose is reserved from other routes. */
-function selfLoopChannels(node: PositionedNode, plan: SelfLoopPlan, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, channels: Map<PositionedEdge, HandoffChannel>, span?: number): void {
-  const { turns, corner, a, b, loops } = selfLoopGeometry(plan, node.width, node.height, style, stubGap, span)
+function selfLoopChannels(node: PositionedNode, plan: SelfLoopPlan, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, channels: Map<PositionedEdge, HandoffChannel>): void {
+  const { turns, corner, a, b, loops } = selfLoopGeometry(plan, node.width, node.height, style, stubGap)
   const cx = node.x + node.width / 2, cy = node.y + node.height / 2
   const at = (u: number, v: number): Point => {
     const [x, y] = turns === 0 ? [u, v] : turns === 1 ? [-v, u] : turns === 2 ? [-u, -v] : [v, -u]
@@ -746,88 +721,5 @@ function selfLoopChannels(node: PositionedNode, plan: SelfLoopPlan, style: Retur
     const target = corner ? contact(entry, at(a - loop.along, b), loop.d) : contact(entry, at(-a, b - loop.t), loop.s)
     const via = corner ? [at(a + loop.s, b + loop.d)] : [at(a + loop.s, b + loop.d), at(-a - loop.s, b + loop.d)]
     channels.set(loop.edge, { source, target, stretches: [[{ via }]], direction: turns % 2 ? 'TD' : 'LR', ...(region && !index ? { region } : {}) })
-  }
-}
-
-/** A lane's or group's self-loops nest around the first of its corners
- * (the corners at the ends of the process direction first) where every run
- * of every loop, with its caption, keeps `margin` off every task, header
- * and other frame and stays inside the frames around the group. Contacts
- * sit near the corner, not spread over the whole face. False where no
- * corner has the room: the outside channels carry the loops then. */
-function groupSelfLoopChannels(group: PositionedGroup, pair: PositionedEdge[], byId: ReadonlyMap<string, PositionedNode | PositionedGroup>, headers: readonly MeasuredBox[], bands: readonly MeasuredBox[], horizontal: boolean, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, margin: number, channels: Map<PositionedEdge, HandoffChannel>): boolean {
-  const box: PositionedNode = { ...group, shape: 'rectangle' }
-  const contains = (outer: MeasuredBox, inner: MeasuredBox) => outer.x <= inner.x + 1e-6 && outer.y <= inner.y + 1e-6 && outer.x + outer.width >= inner.x + inner.width - 1e-6 && outer.y + outer.height >= inner.y + inner.height - 1e-6
-  const others = [...byId.values()].filter(other => other !== group)
-  const ancestors = others.filter(other => !('shape' in other) && contains(other, group))
-  // The group's own header lies inside its frame, which the loops leave.
-  const own = (box: MeasuredBox) => contains(group, { x: box.x + box.width / 2, y: box.y + box.height / 2, width: 0, height: 0 })
-  // A run crosses a header band only perpendicularly.
-  const crossed = bands.filter(band => !own(band))
-  const foreign = [...headers.filter(header => !own(header)),
-    ...others.filter(other => !ancestors.includes(other as PositionedGroup) && !contains(group, other))]
-  const hits = (a: Point, b: Point, grow: number, other: MeasuredBox) => Math.max(a.x, b.x) + grow > other.x && Math.min(a.x, b.x) - grow < other.x + other.width && Math.max(a.y, b.y) + grow > other.y && Math.min(a.y, b.y) - grow < other.y + other.height
-  const inside = (point: Point, grow: number, outer: MeasuredBox) => point.x - grow >= outer.x + margin && point.x + grow <= outer.x + outer.width - margin && point.y - grow >= outer.y + margin && point.y + grow <= outer.y + outer.height - margin
-  const span = (pair.length + 1) * stubGap * 2
-  for (const at of horizontal ? ['SE', 'NE', 'SW', 'NW'] as const : ['SE', 'SW', 'NE', 'NW'] as const) {
-    const plan: SelfLoopPlan = { at, loops: pair, clear: false }, trial = new Map<PositionedEdge, HandoffChannel>()
-    selfLoopChannels(box, plan, style, stubGap, trial, span)
-    const { loops } = selfLoopGeometry(plan, box.width, box.height, style, stubGap, span)
-    const fits = loops.every(loop => {
-      const channel = trial.get(loop.edge)!, from = channel.source, to = channel.target, via = channel.stretches[0]![0]!.via[0]!
-      const across = (side: RouterDirection) => side === 'N' || side === 'S'
-      const path = [from.port, across(from.side) ? { x: from.port.x, y: via.y } : { x: via.x, y: from.port.y }, via, across(to.side) ? { x: to.port.x, y: via.y } : { x: via.x, y: to.port.y }, to.port]
-      return path.slice(1).every((point, k) => {
-        // A run keeps `margin` off foreign boxes and frames, its caption
-        // half-width too beside a run that may carry it.
-        const previous = path[k]!, caption = k === 0 || k === path.length - 2 ? 0 : loop.c
-        return foreign.every(other => !hits(previous, point, Math.max(margin, caption), other)) && ancestors.every(outer => inside(previous, caption, outer) && inside(point, caption, outer))
-          && (Math.abs(previous.y - point.y) > 1e-6 || crossed.every(band => !hits(previous, point, Math.max(style.lineWidth / 2, caption), band)))
-      })
-    })
-    if (!fits) continue
-    for (const [edge, channel] of trial) channels.set(edge, channel)
-    return true
-  }
-  return false
-}
-
-/** Opens room inside a lane's own placement for each nested group's
- * self-loops round the group's south-east corner: past the group's east
- * and south faces, every task, group and lane edge beyond the group moves
- * out, and groups across that line grow, until the loops' runs and
- * captions keep `margin` off them. Placement leaves only its padding
- * there, too little for a caption or for nested loops. */
-function reserveGroupLoopRoom(local: { width: number; height: number; nodes: PositionedNode[]; groups: PositionedGroup[] }, pairs: ReadonlyMap<string, PositionedEdge[]>, style: ReturnType<typeof resolveRenderStyle>, stubGap: number, margin: number): void {
-  const groups: PositionedGroup[] = []
-  const collect = (group: PositionedGroup): void => { groups.push(group); group.children.forEach(collect) }
-  local.groups.forEach(collect)
-  for (const group of groups) {
-    const pair = pairs.get(`${group.id}\0${group.id}`)
-    if (!pair) continue
-    const plan: SelfLoopPlan = { at: 'SE', loops: pair, clear: false }
-    const { loops } = selfLoopGeometry(plan, group.width, group.height, style, stubGap, (pair.length + 1) * stubGap * 2)
-    const caption = Math.max(...loops.map(loop => loop.c)), last = loops.at(-1)!
-    const contains = (outer: MeasuredBox, inner: MeasuredBox) => outer.x <= inner.x + 1e-6 && outer.y <= inner.y + 1e-6 && outer.x + outer.width >= inner.x + inner.width - 1e-6 && outer.y + outer.height >= inner.y + inner.height - 1e-6
-    for (const axis of ['x', 'y'] as const) {
-      const size = axis === 'x' ? 'width' : 'height', across = axis === 'x' ? 'y' : 'x', acrossSize = axis === 'x' ? 'height' : 'width'
-      const needed = (axis === 'x' ? last.s : last.d) + caption + margin
-      const cut = group[axis] + group[size]
-      // The loops' reach across this axis: past the other face too.
-      const from = group[across], to = group[across] + group[acrossSize] + (axis === 'x' ? last.d : last.s) + caption + margin
-      let available = local[size] - cut
-      for (const box of [...local.nodes, ...groups]) {
-        if (box === group || contains(group, box)) continue
-        if (contains(box, group)) { available = Math.min(available, box[axis] + box[size] - cut); continue }
-        if (box[axis] >= cut - 1e-6 && box[across] < to && box[across] + box[acrossSize] > from) available = Math.min(available, box[axis] - cut)
-      }
-      const extra = needed - available
-      if (extra <= 1e-6) continue
-      for (const box of [...local.nodes, ...groups]) {
-        if (box[axis] >= cut - 1e-6) box[axis] += extra
-        else if (box[axis] + box[size] > cut + 1e-6) box[size] += extra
-      }
-      local[size] += extra
-    }
   }
 }
