@@ -616,6 +616,22 @@ describe('layoutArchitectureDiagram', () => {
     expect([groupEdge[0]![0], groupEdge.at(-1)![0]].map(Number)).toEqual([regionA.x + regionA.w, regionB.x])
   })
 
+  // mermaid#5952: a bus of seven junctions feeding six databases. Packing
+  // each junction by its own predecessors alone put the junction under the
+  // server a line below the others, so the runs between them stepped across
+  // each other and the database leads (6 crossings, one shared run).
+  it('draws mermaid#5952\'s junction bus on one line with no crossing or shared run', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/mermaid-5952-architecture.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    const quality = measureQuality(projected)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeContacts?.overlaps).toBe(0)
+    const bus = new Set(['3Leftofmid', '2Leftofmid', '1Leftofmid', 'mid', '1RightOfMid', '2RightOfMid', '3RightOfMid', 'server'])
+    const runs = projected.edges.filter(edge => bus.has(edge.from) && bus.has(edge.to))
+    expect(runs).toHaveLength(7)
+    expect(runs.filter(edge => edge.path.length !== 2).map(edge => `${edge.from}->${edge.to}`)).toEqual([])
+  })
+
   it('treats every satisfiable endpoint-side pair as placement constraints and classifies legal conflicts', () => {
     const sides = ['L', 'R', 'T', 'B'] as const
     const axis = (side: typeof sides[number]) => side === 'L' || side === 'R' ? 'x' : 'y'

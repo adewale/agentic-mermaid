@@ -302,6 +302,22 @@ export function layoutArchitectureDiagram(
     if (diagram.alignments.length > 0 || sideConstraintsChanged || contactsSnapped) {
       // Alignment may collapse several old ranks into one; derive the canvas
       // from post-constraint geometry instead of retaining ELK's stale extent.
+      // That holds for the top and left margins too: lining units up can move
+      // the unit that started the drawing away from its corner.
+      const items = [...services, ...junctions, ...groups]
+      const outX = Math.max(0, Math.min(...items.map(item => item.x)) - 40), outY = Math.max(0, Math.min(...items.map(item => item.y)) - 40)
+      if (outX > 0 || outY > 0) {
+        const shiftGroup = (group: PositionedArchitectureGroup): void => {
+          group.x -= outX; group.y -= outY
+          group.children.forEach(shiftGroup)
+        }
+        groups.forEach(shiftGroup)
+        for (const item of [...services, ...junctions]) { item.x -= outX; item.y -= outY }
+        for (const edge of edges) {
+          for (const point of edge.points) { point.x -= outX; point.y -= outY }
+          if (edge.labelPosition) { edge.labelPosition.x -= outX; edge.labelPosition.y -= outY }
+        }
+      }
       width = Math.max(
         80,
         ...services.map(service => service.x + service.width + 40),
@@ -967,6 +983,51 @@ function applyArchitectureSideConstraints(
     const constrained = new Set([...arcs].flatMap(([before, afters]) => [before, ...afters]))
     const startOf = (bounds: Bounds): number => axis === 'x' ? bounds.x : bounds.y
     const origin = Math.min(...[...constrained].map(component => startOf(componentBounds(component))))
+    // An unlabelled relation between facing sides of two siblings wants its
+    // two contacts level across its own axis, which is this one. Packing each
+    // unit by its own predecessors alone put a bus of junctions on as many
+    // lines as they had depths, and each run between them bent across the
+    // others (mermaid#5952). Units joined by such relations form one level:
+    // centred on one line and packed as one unit as wide as its widest
+    // member, after every level any member must follow. Where the relations
+    // would put a unit level with one it must follow, or the levels' order
+    // is a cycle, each unit is packed alone as before.
+    const levelOrder = levelPacking(diagram, edgeLabels, axis, siblingKeys, itemPath, find, components, predecessors, member => startOf(componentBounds(member)))
+    if (levelOrder) {
+      const sizeOf = (bounds: Bounds): number => axis === 'x' ? bounds.width : bounds.height
+      const levelOf = new Map(levelOrder.flatMap(members => members.map(member => [member, members] as const)))
+      /** Where each placed level ends. */
+      const ends = new Map<readonly string[], number>()
+      // Levels start where the first constrained unit did, or where the first
+      // unit of a level that follows none did, so lining that unit up leaves
+      // no empty space before it.
+      const first = Math.min(origin, ...levelOrder.filter(members => members.length > 1 && members.every(member => predecessors.get(member)!.length === 0)).flat().map(member => startOf(componentBounds(member))))
+      for (const members of levelOrder) {
+        // A unit alone that no face constrains keeps its place.
+        if (members.length === 1 && !constrained.has(members[0]!)) continue
+        const half = Math.max(...members.map(member => sizeOf(componentBounds(member)))) / 2
+        const start = Math.max(first, ...members.flatMap(member => predecessors.get(member)!.map(before => ends.get(levelOf.get(before)!)! + gapOf(before, member))))
+        ends.set(members, start + 2 * half)
+        for (const member of members) {
+          const bounds = componentBounds(member)
+          const delta = start + half - startOf(bounds) - sizeOf(bounds) / 2
+          if (Math.abs(delta) <= ROUTE_EPSILON) continue
+          changed = true
+          for (const key of componentMembers.get(member)!) translateUnit(key, axis, delta)
+        }
+        // Contacts sit at side centres, and a route between two contacts
+        // that differ in the last bit draws a hairline jog: put every lone
+        // service or junction of the level exactly on its centre line.
+        for (const member of members) {
+          const keys = componentMembers.get(member)!
+          const item = keys.length === 1 ? positionedServices.get(splitUnitKey(keys[0]!).id) ?? positionedJunctions.get(splitUnitKey(keys[0]!).id) : undefined
+          if (!item || splitUnitKey(keys[0]!).kind === 'group') continue
+          for (let step = 0; step < 2 && startOf(item) + sizeOf(item) / 2 !== start + half; step++) item[axis] += start + half - startOf(item) - sizeOf(item) / 2
+        }
+      }
+      expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
+      continue
+    }
     for (const component of order) {
       if (!constrained.has(component)) continue
       const start = startOf(componentBounds(component))
@@ -1169,7 +1230,10 @@ function applyArchitectureSideConstraints(
     return total
   }
   const nearest = (a: Bounds, b: Bounds): number => Math.hypot(Math.max(0, a.x - b.x - b.width, b.x - a.x - a.width), Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height))
-  for (const [index, edge] of diagram.edges.entries()) {
+  // Lining one relation up can move a unit that an earlier relation was
+  // already level with; a second pass lines that relation up again, still
+  // moving each unit at most once per axis.
+  for (let pass = 0; pass < 2; pass++) for (const [index, edge] of diagram.edges.entries()) {
     if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
     const sourcePath = itemPath(edge.source.id), targetPath = itemPath(edge.target.id)
     if (!sourcePath || !targetPath) continue
@@ -1211,6 +1275,53 @@ function applyArchitectureSideConstraints(
   return changed
 }
 
+
+/**
+ * The levels sibling units pack in along `axis`, in packing order: units
+ * joined, directly or through others, by an unlabelled relation between
+ * facing sides of the two units themselves whose run lies across `axis`.
+ * Undefined when no two units share a level, when a level holds a unit and
+ * one it must follow on `axis`, or when the levels' order is a cycle.
+ */
+function levelPacking(
+  diagram: ArchitectureDiagram,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
+  axis: SideConstraintAxis,
+  siblingKeys: readonly string[],
+  itemPath: (id: string) => string[] | null,
+  component: (key: string) => string,
+  components: readonly string[],
+  predecessors: ReadonlyMap<string, readonly string[]>,
+  startOf: (component: string) => number,
+): (readonly string[])[] | undefined {
+  const root = new Map(components.map(member => [member, member]))
+  const find = (member: string): string => { while (root.get(member) !== member) member = root.get(member)!; return member }
+  const siblings = new Set(siblingKeys)
+  let joined = false
+  for (const [index, edge] of diagram.edges.entries()) {
+    if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+    if ((edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x') !== axis) continue
+    const source = itemPath(edge.source.id)?.at(-1), target = itemPath(edge.target.id)?.at(-1)
+    if (!source || !target || !siblings.has(source) || !siblings.has(target)) continue
+    const a = find(component(source)), b = find(component(target))
+    if (a === b) continue
+    root.set(b, a)
+    joined = true
+  }
+  if (!joined) return undefined
+  const levels = new Map<string, string[]>()
+  for (const member of components) levels.set(find(member), [...levels.get(find(member)) ?? [], member])
+  const after = new Map([...levels].map(([key, members]) => [key, new Set(members.flatMap(member => predecessors.get(member)!.map(find)))]))
+  if ([...after].some(([key, befores]) => befores.has(key))) return undefined
+  const order: string[] = []
+  while (order.length < levels.size) {
+    const next = [...levels.keys()].filter(key => !order.includes(key) && [...after.get(key)!].every(before => order.includes(before)))
+      .sort((a, b) => Math.min(...levels.get(a)!.map(startOf)) - Math.min(...levels.get(b)!.map(startOf)) || compareCodePointStrings(a, b))[0]
+    if (next === undefined) return undefined
+    order.push(next)
+  }
+  return order.map(key => levels.get(key)!)
+}
 
 /** Facing contacts this close would join with a jog that reads as a glitch. */
 const CONTACT_SNAP = 2
