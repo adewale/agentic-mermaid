@@ -1,0 +1,12 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/8869
+stateDiagram-v2
+    [*] --> Libre
+    Libre --> Adquirido: adquirir()
+    Adquirido --> Libre: liberar()
+    Adquirido --> Adquirido: reentrante (mismo hilo)
+    state Adquirido {
+        [*] --> Activo
+        Activo --> Esperando: wait()
+        Esperando --> Activo: notify()
+    }
+    Libre --> [*]

@@ -1,0 +1,27 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/3739
+graph LR;
+    subgraph Backup CRs
+    A
+    C
+    M
+    end
+    A[Backup CR-1] & C[Backup CR-2] & M[Backup CR-3] -->|Watched by|B;
+    B((Velero Controller))-->|Create|D & E & N;
+    D[Worker Job-1]-->|Create|F & FF;
+    E[Worker Job-2]-->|Create|G;
+    N[Worker Job-3]-->|Create|O & OO & OOO;
+    F((Worker Pod#1))-->|PodStatus|J;
+    FF((Worker Pod#2))-->|PodStatus|L;
+    G((Worker Pod#1))-->|PodStatus|K;
+    O((Worker Pod#1))-->|PodStatus|Q;
+    OO((Worker Pod#2))-->|PodStatus|R;
+    OOO((Worker Pod#3))-->|PodStatus|S;
+    J[Failed];
+    L[Succeeded]-->|Update job status|D;
+    K[Succeeded]-->|Update job status|E;
+    Q[Failed];
+    R[Failed];
+    S[Failed]-->|Update job status|N;
+    N-->|Failed|B;
+    E-->|Succeeded|B;
+    D-->|Succeeded|B;

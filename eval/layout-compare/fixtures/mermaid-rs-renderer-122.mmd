@@ -1,0 +1,10 @@
+%% Real diagram from a user issue: https://github.com/1jehuang/mermaid-rs-renderer/issues/122
+flowchart TD
+start(Need flowchart) --> drawn{Have a<br>drawing or<br>draft flowchart?}
+drawn -->|Yes| ai[Provide to AI<br>and create flowchart]
+drawn -->|No| createDraft[Make a draft]
+createDraft --> ai
+
+ai --> improve{Needs<br>improvement?}
+improve -->|Yes| drawn
+improve -->|No| e(End)

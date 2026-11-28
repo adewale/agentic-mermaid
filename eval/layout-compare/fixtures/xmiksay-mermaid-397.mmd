@@ -1,0 +1,77 @@
+%% Real diagram from a user issue: https://github.com/xmiksay/mermaid/issues/397
+flowchart LR
+  user(["Operator"])
+  feeds["Event feeds<br/><i>Hosts, audit logs, cloud trails, identity provider</i>"]
+  llm["Model API"]
+  chat["Chat channel"]
+  risk["Risk register<br/><i>External SaaS</i>"]
+  detect["Detector<br/><i>Engine v5 · host-a</i><br/>Detection; its index is the event store"]
+  monitor["Monitor<br/><i>Monitor v8 · host-b</i>"]
+  subgraph zone2["zone-2 — workflow + intel (Docker)"]
+    flow["Workflow<br/><i>Orchestrator</i>"]
+    intel["Intel store<br/><i>TI</i>"]
+    analyze["Analyzers"]
+  end
+  subgraph zone1["zone-1 — core services"]
+    cases["Case manager<br/><i>Case mgmt</i>"]
+    agent["agent<br/><i>Python</i>"]
+    gw["Model gateway"]
+    toolgw["Tool gateway"]
+    vulns["Vuln intel<br/><i>OAuth</i>"]
+    sync["Risk connector"]
+    local["Local model<br/><i>phase 4</i>"]
+    db[("Database")]
+  end
+  subgraph zone3["zone-3 — isolated, on demand"]
+    runner["Runner"]
+    probe["Probe"]
+  end
+  ws["Workspaces<br/><i>Cluster</i>"]
+  ci["CI server<br/><i>CI/CD</i>"]
+  cfg["Config mgmt"]
+  secrets["Secrets store<br/><i>host-c</i>"]
+
+  feeds -. "Events" .-> detect
+  detect -- "Findings ≥ level N" --> flow
+  monitor -- "Problems" --> flow
+  flow -- "Analyze observables" --> analyze
+  flow -- "Indicator lookups" --> intel
+  flow -- "Exposure lookup" --> vulns
+  flow -- "Evidence bundle" --> agent
+  agent -- "triage / deep" --> gw
+  gw -- "Messages" --> llm
+  gw -- "local" --> local
+  agent -- "Ledger rows" --> db
+  flow -- "Open/update case" --> cases
+  cases -- "Confirmed indicators" --> intel
+  flow -- "Notify / page" --> chat
+  vulns -- "Reads package vulns" --> detect
+  user -- "Works cases" --> cases
+  user -- "Workspace" --> ws
+  ws -- "Tool calls" --> toolgw
+  ws -- "Assistant" --> gw
+  runner -- "Tool calls" --> toolgw
+  toolgw -- "read / notes / indicators" --> cases
+  toolgw -- "read" --> detect
+  toolgw -- "search / sighting" --> intel
+  toolgw -- "Open MR / start pipeline" --> ci
+  flow -- "Start action pipeline" --> ci
+  ci == "Run playbook after approval" ==> cfg
+  probe -- "Findings → cases" --> cases
+  secrets -- "Role secrets, PKI" --> flow
+  sync -- "Findings, treatment status" --> risk
+  sync -- "Mappings, outbox/inbox" --> db
+  sync -- "Approved treatment" --> ci
+
+  classDef ai fill:#7B3FA0,stroke:#5B2F78,color:#fff
+  classDef control fill:#C0392B,stroke:#8E2A20,color:#fff
+  classDef existing fill:#5F7D8C,stroke:#465C68,color:#fff
+  classDef isolated fill:#E8A33D,stroke:#A8741F,color:#000,stroke-dasharray:4 3
+  classDef ext fill:#999,stroke:#777,color:#fff
+  classDef cont fill:#438DD5,stroke:#2E6295,color:#fff
+  class llm,agent,gw,local,ws ai
+  class toolgw,secrets,ci control
+  class detect,monitor,cfg,risk existing
+  class runner,probe isolated
+  class feeds,chat ext
+  class flow,intel,analyze,cases,vulns,sync,db cont

@@ -1,0 +1,12 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6024
+architecture-beta
+    group api(cloud)[API]
+
+    service db(database)[Database] in api
+    service disk1(disk)[Storage] in api
+    service disk2(disk)[Storage] in api
+    service server(server)[Server] in api
+
+    db:L <--> R:server
+    disk1:T <--> L:server
+    disk2:T <--> R:db

@@ -1,0 +1,10 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6049
+flowchart TB
+    start([Start])
+    ==> green([Change some code])
+    ==> finish([Finish])
+
+    green -.->|Incomplete ?| green
+
+    classDef green_phase font-weight:bold,color:black,fill:#1cba1c;
+    class green green_phase

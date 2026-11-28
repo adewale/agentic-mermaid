@@ -1,0 +1,43 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/660
+graph LR
+    subgraph pool
+        subgraph earn
+            Sa0((start))
+            Sa1(work)
+            Sa2((receive wage))
+            
+            Sa0-->Sa1
+            Sa1-->Sa2
+            Sa2-->Sa1
+        end
+
+       Sa2-.->S0
+
+        subgraph spend
+            S0((start))
+            S2(Go shopping)
+            S3{How much money will I spend?} 
+            S1(save for later)
+            S4(buy Laptop)
+            S5(buy iPhone)
+            S6(buy Car)
+            S7{ }
+            S8((end))
+            S9{ }
+            S10(pay)
+
+            S0-->S2
+            S2 --> S3
+            S3-->| =0 | S1
+            S3-->| <= 1k | S4
+            S3 -->| > 1k| S5
+            S3 -->| >10k | S6
+            S1-->S9
+            S4-->S7
+            S5-->S7
+            S6-->S7
+            S7-->S10
+            S10-->S9
+            S9-->S8
+        end
+    end

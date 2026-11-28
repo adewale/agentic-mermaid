@@ -1,0 +1,11 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/8636
+flowchart LR
+    A[Alpha] -.-> B[Beta]
+    C[Gamma] -.-> D[Delta]
+    A -.-> D
+    C -.-> B

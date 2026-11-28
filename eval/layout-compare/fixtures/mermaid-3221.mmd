@@ -1,0 +1,6 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/3221
+C4Context
+    Person(role_operator, Operator, "A colleague that manages and deploys roles into the stage or production environment")
+    System(tooling, Tooling, "Set of tools and software to simplify the canary analysis processes")
+
+    Rel(role_operator, tooling, Prepares role experiments configurations, "configures")

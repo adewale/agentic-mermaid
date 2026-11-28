@@ -1,0 +1,28 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6066
+flowchart TB
+
+    %% Top layer
+    subgraph Top[The World]
+        direction LR
+        Top1 ~~~ Top2 ~~~ Top3
+        Top1
+        Top2
+        Top3
+    end
+
+    %% Second layer
+    subgraph Middle
+        direction LR
+        Mid1
+        Mid2
+        Mid1  ~~~ Mid2
+    end
+
+    %% Third layer
+    subgraph Bottom
+        direction LR
+        Bot1
+    end
+
+    Top ~~~ Middle ~~~ Bottom
+    Top1 --> Mid1

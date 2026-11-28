@@ -1,0 +1,33 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6131
+flowchart TD
+
+	X["Lorem Ipsum is simply dummy text of the printing and typesetting industry."]
+	Z["Lorem Ipsum is simply dummy text of the printing and typesetting industry."]
+
+subgraph A ["Lorem Ipsum is simply dummy text of the printing and typesetting industry."]
+	X
+end
+
+
+subgraph B ["Lorem Ipsum is simply dummy text of the printing and typesetting industry."]
+	Z
+end
+
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z 
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z
+	X -->|"Lorem Ipsum is simply dummy text of the printing and typesetting industry."| Z
+
+
+linkStyle 0 stroke-width:4px 
+linkStyle 1 stroke-width:4px 
+linkStyle 2 stroke-width:4px 
+linkStyle 3 stroke-width:4px 
+linkStyle 4 stroke-width:4px 
+linkStyle 5 stroke-width:4px 
+
+
+classDef default stroke:#333,stroke-width:1px,rx:10px;
+classDef group stroke:#333,stroke-width:1px,rx:10px;

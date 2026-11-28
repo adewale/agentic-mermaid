@@ -1,0 +1,9 @@
+%% Real diagram from a user issue: https://github.com/1jehuang/mermaid-rs-renderer/issues/163
+flowchart TD
+    A[Markdown] --> B[Dokumentmodell]
+    B --> C{Passt der Inhalt?}
+    C -->|ja| D[Musterfolie kopieren]
+    C -->|zu viel| E[Auf die naechste Folie]
+    C -->|kein Design| F[Build bricht ab]
+    D --> G[Fertiges Deck]
+    E --> G

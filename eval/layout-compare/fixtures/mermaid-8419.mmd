@@ -1,0 +1,10 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/8419
+C4Component
+title Same-row relationship label
+
+Container_Boundary(worker, "Worker") {
+  Component(group, "Grouping", "events/group", "Turns reports into facts and attaches them to a story")
+  Component(digest, "Digest", "events/digest", "Rewrites the story summary after grouping")
+}
+
+Rel(group, digest, "enqueue events.digest after a 60s debounce")

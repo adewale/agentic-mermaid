@@ -1,0 +1,16 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/3409
+gitGraph
+       commit
+       branch develop
+       commit
+       commit
+       branch release/1.0.0
+       checkout release/1.0.0
+       commit tag:"1.0.0-beta1"
+       checkout develop
+       commit
+       commit
+       commit
+       commit
+       checkout release/1.0.0
+       merge develop tag: "1.0.0-beta2"

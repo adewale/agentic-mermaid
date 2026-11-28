@@ -1,0 +1,6 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/8706
+stateDiagram-v2
+  [*] --> Ready
+  Ready --> Ready: send (subscribe)
+  Ready --> Ready: receive + notify observers
+  Ready --> [*]
