@@ -2,7 +2,7 @@ import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode 
 import { DEFAULTS } from '../geometry.ts'
 import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
-import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
+import { HITCH_JOG, trimBoundaryEndpointRuns } from '../../route-contracts.ts'
 import { captionRidesRun } from '../route-values.ts'
 import { routePairContact } from '../route-lanes.ts'
 
@@ -71,6 +71,18 @@ function runsAlongside(points: readonly Point[], self: PositionedEdge, edges: re
       const overlap = Math.min(Math.max(p[axis], q[axis]), Math.max(r[axis], s[axis])) - Math.max(Math.min(p[axis], q[axis]), Math.min(r[axis], s[axis]))
       if (overlap > 0.5 && Math.abs(p[across] - r[across]) < SNAP_CLEARANCE) count++
     }
+  }
+  return count
+}
+
+/** Perpendicular jogs shorter than a hitch between two parallel runs. */
+function hitchJogs(points: readonly Point[]): number {
+  const runs = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
+  let count = 0
+  for (let i = 2; i < runs.length - 1; i++) {
+    const a = runs[i - 2]!, b = runs[i - 1]!, c = runs[i]!, d = runs[i + 1]!
+    const horizontal = a.y === b.y && c.y === d.y && b.x === c.x, vertical = a.x === b.x && c.x === d.x && b.y === c.y
+    if ((horizontal || vertical) && Math.hypot(c.x - b.x, c.y - b.y) < HITCH_JOG) count++
   }
   return count
 }
@@ -271,6 +283,8 @@ export function alignLayerNodes(
         if (nodes.some(other => other.id !== edge.source && other.id !== edge.target
           && routeEntersBox(after.points, projectedNodes.get(other.id) ?? other) && !routeEntersBox(before.points, other))) breaksApproach = true
         if (runsAlongside(after.points, edge, edges) > runsAlongside(before.points, edge, edges)) breaksApproach = true
+        // Nor may a carried elbow shorten a jog into a hitch.
+        if (hitchJogs(after.points) > hitchJogs(before.points)) breaksApproach = true
         // Nor may it meet an unrelated route end to end or at a corner.
         if (edges.some(other => other !== edge && other.style !== 'invisible'
           && routePairContact(after.points, edge, other) > routePairContact(before.points, edge, other))) breaksApproach = true

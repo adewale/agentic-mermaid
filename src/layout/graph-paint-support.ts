@@ -148,6 +148,15 @@ export function labelPaintInputsStable(nodes: readonly PositionedNode[], edges: 
 
 /** A settled graph proposal owns this snapshot. Labels stay live; the route
  * owner refreshes its changed shaft and markers before publishing a channel. */
+/** Two straight shaft supports cross at right angles, each strictly through
+ *  the other's interior. A bend's miter square is never such a support. */
+function properCrossing(a: AxisAlignedBox, b: AxisAlignedBox): boolean {
+  const wide = (box: AxisAlignedBox): boolean => box.x1 - box.x0 > box.y1 - box.y0
+  const tall = (box: AxisAlignedBox): boolean => box.y1 - box.y0 > box.x1 - box.x0
+  const through = (h: AxisAlignedBox, v: AxisAlignedBox): boolean => wide(h) && tall(v) && v.x0 > h.x0 && v.x1 < h.x1 && h.y0 > v.y0 && h.y1 < v.y1
+  return through(a, b) || through(b, a)
+}
+
 export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean, measuredShafts?: ReturnType<typeof labelShafts>) {
   if (!pay(16) || !labelPaintInputsStable(nodes, edges, groups, style, pay)) return undefined
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
@@ -287,7 +296,10 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   // may touch an endpoint body; stationary foreign captions and glyphs remain
   // obstacles even when the endpoint resources themselves did not move.
   // A shaft inside `retained` ink the route already painted is not new paint.
-  const clearRoute = (edge: PositionedEdge, points: readonly Point[], retained: readonly AxisAlignedBox[] = []): boolean => {
+  // With `crossings`, a shaft may cross a foreign shaft properly (each passes
+  // through the other's interior at right angles, away from any bend): the
+  // caller has proved the route adds no crossing.
+  const clearRoute = (edge: PositionedEdge, points: readonly Point[], retained: readonly AxisAlignedBox[] = [], crossings = false): boolean => {
     const ink = routes.get(edge)
     if (!ink || !orthogonal.has(edge) || ink.shafts.length !== 2 * points.length - 3) return false
     for (let index = 0; index < ink.shafts.length; index++) {
@@ -310,7 +322,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
         // Aesthetic contraction requires complete separation. This also
         // protects thick parallel shafts, whose paint can overlap while
         // their distinct centerlines have no proper crossing.
-        for (const support of other.shafts) if (!pay(1) || boxesMeet(shaft, support)) return false
+        for (const support of other.shafts) if (!pay(1) || boxesMeet(shaft, support) && !(crossings && properCrossing(shaft, support))) return false
         if (peer.label) {
           const box = label(peer, peer.labelPosition!)
           if (!box || !pay(1) || labelHaloMeetsShaft({ x: box.x0, y: box.y0, w: box.x1 - box.x0, h: box.y1 - box.y0 }, shaft)) return false

@@ -3544,19 +3544,28 @@ describe('settled orthogonal excursions', () => {
   })
 
   // pele-100's t16->t20 kept a 1.6px final jog after a longer staircase.
+  // frankenmermaid#14 drew such staircases across a TD flow (S->H), and on a
+  // dotted link whose run crosses another link (P->V2).
+  const sixPoints = [[0, 0], [40, 0], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], folded = [[0, 0], [40, 0], [40, 51.6], [160, 51.6]]
   it.each([
-    ['six points', [[0, 0], [40, 0], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [40, 0], [40, 51.6], [160, 51.6]]],
-    ['a longer route', [[0, 0], [20, 0], [20, -30], [40, -30], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [20, 0], [20, -30], [40, -30], [40, 51.6], [160, 51.6]]],
-  ])('folds a staircase\'s final hitch into the run before it: %s', (_name, before, after) => {
-    const graph = parseMermaid('flowchart LR\nA --> B'), style = resolveRenderStyle()
-    const nodes: PositionedNode[] = [
-      { ...graph.nodes.get('A')!, x: -20, y: -10, width: 20, height: 20 },
-      { ...graph.nodes.get('B')!, x: 160, y: 40, width: 20, height: 24 },
-    ]
+    ['six points', 'flowchart LR\nA --> B', sixPoints, folded],
+    ['a longer route', 'flowchart LR\nA --> B', [[0, 0], [20, 0], [20, -30], [40, -30], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [20, 0], [20, -30], [40, -30], [40, 51.6], [160, 51.6]]],
+    ['a route across the flow', 'flowchart TD\nA --> B', sixPoints, folded],
+    ['a dotted route through a crossing it keeps', 'flowchart LR\nA -.-> B\nC --> D', sixPoints, folded],
+  ])('folds a staircase\'s final hitch into the run before it: %s', (_name, source, before, after) => {
+    const graph = parseMermaid(source), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, -10, 20, 20], B: [160, 40, 20, 24], C: [70, -60, 20, 20], D: [70, 100, 20, 20] }
+    const nodes: PositionedNode[] = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
     withRouteMarkerCache(() => {
       const edges = createLayoutRouteEdges(style)
       edges.push({ ...graph.edges[0]!, edgeIndex: 0, points: before.map(([x, y]) => ({ x: x!, y: y! })),
         routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: before.length - 2 } })
+      // C->D runs straight down through the staircase's middle run.
+      if (graph.edges[1]) edges.push({ ...graph.edges[1], edgeIndex: 1, points: [{ x: 80, y: -40 }, { x: 80, y: 100 }],
+        routeCertificate: { edgeIndex: 1, routeClass: 'primary-forward', invariant: 'straight', bendCount: 0 } })
       closeRouteContracts({ nodes, edges, groups: [] }, graph, style)
       expect(edges[0]!.points).toEqual(after.map(([x, y]) => ({ x: x!, y: y! })))
     })

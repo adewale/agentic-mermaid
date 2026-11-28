@@ -18,7 +18,7 @@ import { labelPaintInputsStable, labelSeatPaintContext, labelShafts, orthogonalS
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
+import { LABEL_INTERIOR_TOLERANCE, LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
   withinLayoutPreferenceBudget,
@@ -2013,18 +2013,21 @@ function frameCrossingSignature(points: readonly Point[], groups: readonly Posit
 }
 
 /** A perpendicular jog this short between two parallel runs reads as a hitch. */
-const HITCH_JOG = 2 * CLEARANCE
+export const HITCH_JOG = 2 * CLEARANCE
 
 /** Remove a single orthogonal excursion after captions have settled. The
  * inner run can move to the nearest endpoint lane without moving either
- * contact or rotating its ray. No distance threshold makes a bend optional:
+ * contact or rotating its ray. A route is read along its own final run, so
+ * one drawn across the graph's flow (a same-rank link, or a link inside a
+ * subgraph laid out in another direction) is shortened like any other. No
+ * distance threshold makes a bend optional:
  * the replacement and its translated caption must clear the actual paint.
  * Inside a grouped graph the replacement also keeps every frame crossing and
  * adds no run along a frame or card border. */
 function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
   if (!ownsLayoutRouteInputs(positioned.edges, style) || !withinLayoutPreferenceBudget(graph)) return
   let boxes: ReturnType<typeof clearanceBoxes> | undefined
-  const { ctx, axis } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
+  const { ctx } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
   ctx.fixedLabels = true
   ctx.finalLabelClearance = true
   let nodes: Map<string, PositionedNode> | undefined
@@ -2032,6 +2035,9 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
   const pay = (units: number): boolean => { remaining -= units; return remaining >= 0 }
   let paint: ReturnType<typeof labelSeatPaintContext>
   let positions: Map<PositionedEdge, Point> | undefined
+  // A dotted route paints butt-capped dashes of its solid line (miter joins),
+  // so the solid shaft model bounds its ink for every clearance proof here.
+  const envelope = (edge: PositionedEdge): PositionedEdge => edge.style === 'dotted' ? { ...edge, style: 'solid' } : edge
   for (const edge of positioned.edges) {
     const saved = edge.routeCertificate, points = edge.points
     if (!saved || saved.routeClass !== 'primary-forward' && saved.routeClass !== 'cross-hierarchy' || points.length < 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
@@ -2039,6 +2045,7 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
     // a hitch. Before them the route is kept as drawn.
     const head = points.slice(0, -6)
     const [start, a, b, c, d, end] = points.slice(-6) as [Point, Point, Point, Point, Point, Point]
+    const axis: Axis = d.y === end.y ? { main: 'x', cross: 'y', sign: end.x >= d.x ? 1 : -1 } : { main: 'y', cross: 'x', sign: end.y >= d.y ? 1 : -1 }
     const main = axis.main, cross = axis.cross
     let lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
     // A staircase's final jog shorter than a hitch folds into the run before.
@@ -2047,7 +2054,7 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
       || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross] || head.length > 0 && lane !== end[cross]
       || !simpleOrthogonal(points) || (a[main] - start[main]) * axis.sign <= 0
       || (c[main] - b[main]) * axis.sign <= 0 || (end[main] - d[main]) * axis.sign <= 0) continue
-    const oldInk = orthogonalShaftInk(edge, style)
+    const oldInk = orthogonalShaftInk(envelope(edge), style)
     if (!oldInk?.length) continue
     const jog = lane === end[cross] ? a[main] : d[main]
     const route = [...head.map(point => ({ ...point })), { ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
@@ -2073,17 +2080,22 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
     }) || !routeCandidateMarkersClear(edge, route, positioned.edges, style)) continue
     let label = edge.labelPosition
     if (edge.label) {
+      // The caption stays on the run it moves with; a sub-pixel overhang of a
+      // corner enters no pill interior.
       const rect = labelRect(edge, style)
-      if (!label || !rect || rect[main] < Math.min(b[main], c[main])
-        || rect[main] + (main === 'x' ? rect.w : rect.h) > Math.max(b[main], c[main])
+      if (!label || !rect || rect[main] < Math.min(b[main], c[main]) - LABEL_INTERIOR_TOLERANCE
+        || rect[main] + (main === 'x' ? rect.w : rect.h) > Math.max(b[main], c[main]) + LABEL_INTERIOR_TOLERANCE
         || Math.abs(label[cross] - b[cross]) > (cross === 'x' ? rect.w : rect.h) / 2) continue
       label = { ...label, [cross]: label[cross] + lane - b[cross] }
     }
-    paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay))
+    if (!paint) {
+      const shafts = labelShafts(positioned.edges, style, pay)
+      paint = labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, (owner, routePoints = owner.points) => shafts(envelope(owner), routePoints))
+    }
     if (!paint) return
     const retained = paint.routeShafts(edge)
     if (!paint.refreshRoute(edge, route)) return
-    const clear = paint.clearRoute(edge, route, retained) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
+    const clear = paint.clearRoute(edge, route, retained, true) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
     if (!clear) { if (!paint.refreshRoute(edge)) return; continue }
     const oldLabel = edge.labelPosition
     setRoutePoints(ctx, edge, route)
