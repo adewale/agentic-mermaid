@@ -273,7 +273,9 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       // loop crosses nothing, where they can reach their ports without it.
       const enclosed = [...channels].flatMap(([owner, other]) => other.region && !(edge.source === edge.target && edge.source === owner.source) ? [other.region] : [])
       // Preferences relax in order: keeping off drawn lines as far as the
-      // policy asks (a port two routes share cannot keep them apart), then
+      // policy asks (a port two routes share cannot keep them apart, so at
+      // first a route leaves its own ports along the routes that share them,
+      // as one trunk, rather than jogging off beside them), then
       // the longer leads, then the channel stretch. For each stretch the
       // variant whose route has the fewest bends, then the shortest, wins;
       // ties keep the earlier variant. Before keeping off no line at all, a
@@ -286,7 +288,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       const own = terminals[order]!.stubs, every = keepOff([...drawn, ...later]), apartFromUnrelated = keepOff([...unrelated, ...later])
       const rescues = [keepOff(own.reduce((kept, stub) => kept.flatMap(segment => outside(segment, stub, stubGap)), unrelated), gapChannels),
         keepOff(unrelated.filter(segment => own.every(stub => outside(segment, stub, stubGap)[0] === segment)), gapChannels)]
-      const avoids = !drawn.length && !later.length ? [{}] : policy === 0 ? [every, keepOff([...drawn.filter(segment => !sharesPort(segment)), ...later]), apartFromUnrelated, ...rescues, {}] : policy === 1 ? [every, apartFromUnrelated, ...rescues, {}] : [{}]
+      const avoids = !drawn.length && !later.length ? [{}] : policy === 0 ? [keepOff([...drawn.filter(segment => !sharesPort(segment)), ...later]), apartFromUnrelated, ...rescues, {}] : policy === 1 ? [every, apartFromUnrelated, ...rescues, {}] : [{}]
       const stub = [source.stub, target.stub] as const
       const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, stub] : [stub]
       let route: ReturnType<typeof routeOrthogonal>, chosen: HandoffChannel['stretches'][number][number] | undefined, best = Infinity

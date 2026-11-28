@@ -242,6 +242,24 @@ test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s hand-offs between over
   expect(straight).toBeGreaterThan(0)
 })
 
+// mermaid#8568: A2→E leaves A2 by the port A2→B already leaves by. It once
+// stepped out of the stub and jogged off beside A2→B (four turns) instead of
+// running on along A2→B's line, as one trunk, until it turned for E.
+test('Swimlane hand-offs leaving one port share its trunk instead of jogging beside it', () => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-8568.mmd', import.meta.url), 'utf8')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  const route = (from: string, to: string) => layout.edges.find(edge => edge.from === from && edge.to === to)!.path
+  const trunk = route('A2', 'B'), branch = route('A2', 'E')
+  expect(branch[0]).toEqual(trunk[0]!)
+  // The branch's first run is on the trunk's line; it turns once more, for
+  // E's face.
+  const vertical = trunk[0]![0] === trunk[1]![0]
+  expect(vertical ? branch[1]![0] : branch[1]![1]).toBe(vertical ? trunk[0]![0] : trunk[0]![1])
+  expect(branch.length - 2, 'A2->E bends').toBeLessThanOrEqual(2)
+})
+
 // mermaid-v13-843 (reduced): n192→n85 ran on lane L3's border for 85px, so it
 // read as the border. A route crosses lane and group frames, but never runs
 // along one within the route clearance where another route exists.
