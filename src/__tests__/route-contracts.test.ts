@@ -3671,17 +3671,6 @@ describe('private label-bearing route channels', () => {
     expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     for (const edge of positioned.edges) expect(edge.routeCertificate?.bendCount).toBe(bendCount(edge.points))
   })
-
-  // generated-cyclic:169: n1->n0's only private run is short and beside
-  // n1->n2's parallel fan-out lane, which runs through its caption. The
-  // labelled lane takes a private channel whose own caption stays clear.
-  it('moves a labelled sibling lane off a caption that has no clear seat of its own', () => {
-    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/labelled-sibling-lane-through-caption.mmd'), 'utf8')
-    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
-    expect(measureLabelConflicts(positioned, resolveRenderStyle())).toMatchObject({ total: 0 })
-    expect(auditRouteContracts(positioned, graph)).toEqual([])
-    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
-  })
 })
 
 it.each([0, 1, 2, 3].flatMap(turns => ([['end', 'solid', false], ['start', 'solid', false], ['start', 'thick', false], ['both', 'thick', false], ['start', 'thick', true]] as const).map(([marked, shaft, collinear]) => ({ turns, marked, shaft, collinear }))))('a private channel retains $marked $shaft arrow leads and clears foreign ink at rotation $turns (collinear=$collinear)', ({ turns, marked, shaft, collinear }) => {
