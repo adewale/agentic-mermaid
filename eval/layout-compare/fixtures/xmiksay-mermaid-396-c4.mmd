@@ -1,0 +1,89 @@
+%% The largest real C4 diagram of the fork-network survey: 31 relationships across three boundaries (https://github.com/xmiksay/mermaid/issues/396).
+C4Container
+title Example platform — Containers
+
+Person(user, "Operator")
+System_Ext(feeds, "Event sources", "Hosts, audit logs, cloud trails, identity provider")
+System_Ext(llm, "Model API")
+System_Ext(chat, "Chat channel")
+System_Ext(risk, "Risk register", "External SaaS")
+
+Container(detect, "Detector", "Engine v5 · host-a", "Detection; its index is the event store")
+Container(monitor, "Monitor", "Monitor v8 · host-b", "Problem webhook")
+
+Container_Boundary(zone2, "zone-2 — workflow + intel (Docker)") {
+  Container(flow, "Workflow", "Orchestrator", "Dedup, enrichment, workflow runs")
+  Container(intel, "Intel store", "TI", "Indicators, sightings, feeds")
+  Container(analyze, "Analyzers", "Analyzers", "Observable analysis (read-only)")
+}
+
+Container_Boundary(zone1, "zone-1 — core services") {
+  Container(cases, "Case manager", "Case mgmt", "Cases, timeline, evidence, decisions")
+  Container(agent, "agent", "Python", "Triage step + ledger")
+  Container(gw, "Model gateway", "Proxy", "Aliases, budgets, redaction hook, logs")
+  Container(toolgw, "Tool gateway", "RPC", "Tool allow-list, scopes, audit")
+  Container(vulns, "Vuln intel", "Service · OAuth", "CVE/EPSS/KEV/SBOM intelligence")
+  Container(sync, "Risk connector", "PHP + queue", "Outbound-only sync, outbox/inbox")
+  Container(local, "Local model", "Runtime · phase 4", "Redaction pre-pass, fallback")
+  ContainerDb(db, "Database", "SQL", "Ledger, case DB, spend, platform schema")
+}
+
+Container_Boundary(zone3, "zone-3 — isolated, on demand") {
+  Container(runner, "Runner", "Controller + container runs", "Unattended agent runs")
+  Container(probe, "Probe", "Assessment tooling", "Scoped recon assessments")
+}
+
+Container(ws, "Workspaces", "Cluster · GitOps", "Operator workspaces with an assistant")
+Container(ci, "CI server", "CI/CD", "Content repo, protected environments")
+Container(cfg, "Config mgmt", "Platform repo", "Approved changes")
+Container(secrets, "Secrets store", "host-c", "Roles, PKI, scoped tokens")
+
+Rel(feeds, detect, "Events")
+Rel(detect, flow, "Findings ≥ level N", "integration: workflow")
+Rel(monitor, flow, "Problems", "webhook")
+Rel(flow, analyze, "Analyze observables")
+Rel(flow, intel, "Indicator lookups")
+Rel(flow, vulns, "Exposure lookup")
+Rel(flow, agent, "Evidence bundle", "HTTPS/mTLS")
+Rel(agent, gw, "triage / deep")
+Rel(gw, llm, "Messages", "HTTPS")
+Rel(gw, local, "local")
+Rel(agent, db, "Ledger rows")
+Rel(flow, cases, "Open/update case + note", "API, mTLS")
+Rel(cases, intel, "Confirmed indicators", "module")
+Rel(flow, chat, "Notify / page")
+Rel(vulns, detect, "Reads package vulns")
+Rel(user, cases, "Works cases", "OIDC")
+Rel(user, ws, "Workspace", "OIDC")
+Rel(ws, toolgw, "Tool calls", "OIDC token")
+Rel(ws, gw, "Assistant", "virtual key")
+Rel(runner, toolgw, "Tool calls", "case- or issue-scoped token")
+Rel(toolgw, cases, "read / notes / indicators")
+Rel(toolgw, detect, "read")
+Rel(toolgw, intel, "search / sighting")
+Rel(toolgw, ci, "Open MR / start pipeline")
+Rel(flow, ci, "Start action pipeline")
+Rel(ci, cfg, "Run playbook after approval")
+Rel(probe, cases, "Findings → cases", "via CI job")
+Rel(secrets, flow, "Role secrets, PKI")
+Rel(sync, risk, "Findings, evidence metadata, treatment status / pull context", "HTTPS mTLS, outbound")
+Rel(sync, db, "Mappings, risk context, outbox/inbox")
+Rel(sync, ci, "Approved treatment → pipeline request")
+
+UpdateElementStyle(llm, $bgColor="#7B3FA0")
+UpdateElementStyle(agent, $bgColor="#7B3FA0")
+UpdateElementStyle(gw, $bgColor="#7B3FA0")
+UpdateElementStyle(local, $bgColor="#7B3FA0")
+UpdateElementStyle(ws, $bgColor="#7B3FA0")
+UpdateElementStyle(toolgw, $bgColor="#C0392B")
+UpdateElementStyle(secrets, $bgColor="#C0392B")
+UpdateElementStyle(ci, $bgColor="#C0392B")
+UpdateElementStyle(runner, $bgColor="#E8A33D", $fontColor="#000000")
+UpdateElementStyle(probe, $bgColor="#E8A33D", $fontColor="#000000")
+UpdateElementStyle(detect, $bgColor="#5F7D8C")
+UpdateElementStyle(monitor, $bgColor="#5F7D8C")
+UpdateElementStyle(cfg, $bgColor="#5F7D8C")
+UpdateElementStyle(risk, $bgColor="#5F7D8C")
+UpdateRelStyle(feeds, detect, $textColor="#C0392B", $lineColor="#C0392B")
+UpdateRelStyle(ci, cfg, $textColor="#1B7F3B", $lineColor="#1B7F3B")
+UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="2")
