@@ -59,6 +59,7 @@ import {
   extractEdgesRecursively,
   keepGroupEndsOffCorners,
   honorLinkRankDistance,
+  type LinkRankFallback,
   markCorankFanInBundles,
   repairInwardEndpointApproaches,
   repairResidualDiagonals,
@@ -105,6 +106,10 @@ interface LayoutEngineOptions extends RenderOptions {
   compareRoutePreferences?: boolean
   /** @internal The bounded profile of a graph above a layout cost threshold. */
   layoutCost?: LayoutCostReceipt
+  /** @internal What a long link's rank move does when no reconnect route is
+   * proven: refuse the candidate (default), or leave the placement unmoved.
+   * Only the last bounded candidate leaves it unmoved. */
+  linkRankFallback?: LinkRankFallback
 }
 
 type MarkerPortDemand = { count: number; span: number }
@@ -1317,6 +1322,7 @@ export interface LayoutPassContext extends PassContextBase {
   /** Which edge ends may share one terminal: the one decision every pass that
    * places a terminal reads. */
   readonly terminals: TerminalAssignment
+  readonly linkRankFallback?: LinkRankFallback
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1415,7 +1421,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on, rebuild blocked reconnect routes through free channels (#81), and seat reconnected arrivals in their planned terminal slots',
     after: ['centerPeerBarycenters'], mutates: ['positions', 'dimensions', 'edges'],
-    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals, c.style) },
+    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals, c.style, c.linkRankFallback) },
   },
   {
     // The co-ranked mixed-label fan-in spokes are re-routed as symmetric
@@ -1652,6 +1658,7 @@ function elkToPositioned(
   layoutPadding: number = DEFAULTS.padding,
   style: ResolvedRenderStyle = resolveRenderStyle({}),
   stateNoteMargin: number = 18,
+  linkRankFallback?: LinkRankFallback,
 ): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges = createLayoutRouteEdges(style)
@@ -1666,7 +1673,7 @@ function elkToPositioned(
   // Extract nodes and groups recursively
   extractNodesAndGroups(elkResult, graph, subgraphIds, nodes, groups, 0, 0)
 
-  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult)
+  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult, linkRankFallback)
 }
 
 /** Finish the ELK result through the shared text, route and geometry contracts. */
@@ -1678,6 +1685,7 @@ function finishGraphGeometry(
   style: ResolvedRenderStyle,
   stateNoteMargin: number,
   elkResult: ElkNode,
+  linkRankFallback?: LinkRankFallback,
 ): PositionedGraph {
   const { nodes, edges, groups } = initial
 
@@ -1709,6 +1717,7 @@ function finishGraphGeometry(
     layoutPadding,
     stateNoteMargin,
     frozen: false,
+    linkRankFallback,
   }
   retainGraphText(ctx, style)
   runPipeline(ctx, LAYOUT_PIPELINE, { measureMetrics: measureLayoutPass })
@@ -1961,7 +1970,7 @@ function layoutCandidate(
       height: child.height! + 2 * opts.padding,
       children: [{ ...child, x: opts.padding, y: opts.padding }],
     }
-    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18)
+    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18, options.linkRankFallback)
   }
   // ELK Layered can reject rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
@@ -2015,7 +2024,7 @@ function layoutCandidate(
   const elkResult = result
   const noteMargin = stateVisual?.noteMargin ?? 18
   const mergeEdges = DEFAULTS.mergeEdges && !options.layoutCost?.relaxed.includes('edge-bundling')
-  return elkToPositioned(elkResult, graph, mergeEdges, opts.padding, style, noteMargin)
+  return elkToPositioned(elkResult, graph, mergeEdges, opts.padding, style, noteMargin, options.linkRankFallback)
 }
 
 function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
@@ -2039,9 +2048,13 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
     ...requestOptions, layoutCost,
     nodeSizes: new Map([...requestOptions.nodeSizes ?? [], ...contraction.blocks.map(block => [block.junction, JUNCTION_SIZE] as const)]),
   } : { ...requestOptions, layoutCost }
-  const produceCandidate = (candidateOptions: LayoutEngineOptions): PositionedGraph => contraction
-    ? expandJunctionLayout(graph, contraction, layoutCandidate(contraction.graph, candidateOptions))
-    : layoutCandidate(graph, candidateOptions)
+  let linkRankFallback: LinkRankFallback | undefined
+  const produceCandidate = (requested: LayoutEngineOptions): PositionedGraph => {
+    const candidateOptions = linkRankFallback ? { ...requested, linkRankFallback } : requested
+    return contraction
+      ? expandJunctionLayout(graph, contraction, layoutCandidate(contraction.graph, candidateOptions))
+      : layoutCandidate(graph, candidateOptions)
+  }
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   // A placement with a narrow title, or with final routes detoured around a
   // title band, defers to the next bounded candidate and is kept if that one
@@ -2072,6 +2085,14 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
   // best drawable candidate, with an uncertified receipt; strict refuses.
   const allowUncertified = options.layoutSafety !== 'strict'
   if (layoutCost) candidates.length = Math.min(candidates.length, layoutCost.maxCandidates)
+  // A long link is a request for distance, not a reason to draw nothing: the
+  // last bounded candidate keeps its placement unmoved where no reconnect
+  // route after the rank move is proven (mermaid#5094 under a styled face).
+  const last = candidates.at(-1)!, produceLast = last.produce
+  last.produce = () => {
+    linkRankFallback = 'unmoved'
+    try { return produceLast() } finally { linkRankFallback = undefined }
+  }
   if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, undefined, allowUncertified)
   const selected = withLayoutCost(certifyLayoutCandidates(graph, style, candidates, undefined, allowUncertified), layoutCost)
   // Report safety may return a drawable graph no candidate certified; it has no

@@ -20,6 +20,7 @@ import { honorLinkRankDistance } from '../layout/passes/rank-distance.ts'
 import { LayoutCertificationError as RankReconnectCertificationError } from '../layout/certification-error.ts'
 import type { Point, PositionedNode, PositionedEdge, PositionedGroup, RenderOptions } from '../types.ts'
 import { segmentEntersMeasuredBox } from '../layout/measured-route-safety.ts'
+import { clipEdgeToShape } from '../shape-clipping.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 
@@ -306,6 +307,26 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
     clear(edges, groups, nodes)
   })
 
+  // mermaid#5094: ELK attaches a link to a round node's bounding box, not its
+  // outline, so no route through that contact passes the outline proof. The
+  // produced route survives the move (the clip pass trims its node end).
+  test('a link from a circle into a shoved frame keeps its produced route', () => {
+    const graph = parseMermaid('flowchart TD\nC(((Client))) ---> G\nsubgraph G\nS[Server]\nend')
+    const nodes: PositionedNode[] = [
+      {id: 'C', label: 'Client', shape: graph.nodes.get('C')!.shape, x: 0, y: 0, width: 104, height: 104},
+      {id: 'S', label: 'Server', shape: 'rectangle', x: 20, y: 200, width: 64, height: 32},
+    ]
+    const groups: PositionedGroup[] = [{id: 'G', label: 'G', x: 0, y: 152, width: 104, height: 100, children: [], headerHeight: 28}]
+    const edges: PositionedEdge[] = [{...graph.edges[0]!, edgeIndex: 0, points: [{x: 70, y: 104}, {x: 70, y: 152}]}]
+    honorLinkRankDistance(nodes, edges, groups, graph)
+    // A two-rank link: one 48px layer gap plus one 88px rank.
+    expect(groups[0]!.y - 104).toBe(136)
+    expect(edges[0]!.points).toEqual([{x: 70, y: 104}, {x: 70, y: 240}])
+    const clipped = clipEdgeToShape(edges[0]!.points, nodes[0]!, true)
+    expect(Math.hypot(clipped[0]!.x - 52, clipped[0]!.y - 52)).toBeCloseTo(52, 1)
+    expect(invalidEndpointApproaches({...edges[0]!, points: clipped}, nodes[0], undefined)).toBe(0)
+  })
+
   test.each(['-->', '---->'])('a %s link with no actual shove preserves the original route and object identities', operator => {
     const graph = parseMermaid(source('TD', operator))
     const nodes: PositionedNode[] = [
@@ -335,10 +356,14 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
       {...graph.edges[1]!, edgeIndex: 1, points: [{x: targetX - 214, y: 305}, {x: targetX - 204, y: 305}, {x: targetX - 204, y: 215}, {x: targetX, y: 215}]},
     ]
     if (targetX === 80) {
-      const original = edges[0]!.points
+      const original = edges[0]!.points, before = structuredClone({ nodes, groups, edges })
       expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).toThrow(RankReconnectCertificationError)
       expect(nodes[1]!.x).toBe(90)
       expect(edges[0]!.points).toBe(original)
+      // The last bounded candidate keeps the placement as it was instead.
+      const unmoved = structuredClone(before)
+      honorLinkRankDistance(unmoved.nodes, unmoved.edges, unmoved.groups, graph, undefined, undefined, 'unmoved')
+      expect(unmoved).toEqual(before)
       return
     }
     honorLinkRankDistance(nodes, edges, groups, graph)

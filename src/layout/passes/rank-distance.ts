@@ -19,7 +19,11 @@ import { resolveLabelContent } from '../../shared/display-text.ts'
 import { LABEL_PILL_PADDING } from '../../shared/edge-label-geometry.ts'
 import { indistinctOccurrencePairs } from '../route-marker-clearance.ts'
 
-export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({})): void {
+/** What a rank move does when no reconnect route after it is proven: refuse
+ * the placement, or restore the placement as it was before the move. */
+export type LinkRankFallback = 'refuse' | 'unmoved'
+
+export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({}), fallback: LinkRankFallback = 'refuse'): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
   const f = layoutFlow(graph.direction)
@@ -27,6 +31,13 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   const groupMap = new Map<string, PositionedGroup>()
   const flattenGroups = (gs: PositionedGroup[]): void => { for (const g of gs) { groupMap.set(g.id, g); flattenGroups(g.children) } }
   flattenGroups(groups)
+  // The placement before any move, restored when the move cannot be reconnected.
+  const boxes = [...nodes, ...groupMap.values()].map(box => ({ box, x: box.x, y: box.y, width: box.width, height: box.height }))
+  const routes = edges.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
+  const unmove = (): void => {
+    for (const { box, x, y, width, height } of boxes) Object.assign(box, { x, y, width, height })
+    for (const { edge, points, labelPosition } of routes) { edge.points = points; edge.labelPosition = labelPosition }
+  }
 
   // A subgraph endpoint (`container` edge) expands to every node it encloses, so
   // shoving the unit moves the whole box. `cross-hierarchy` and `container` links
@@ -397,7 +408,8 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   }
   // `contacts` proves the stretched ends on the painted outline; a route the
   // later clip pass will trim to its outline only keeps its translated ends.
-  const stretchRetainedRoute = (edge: PositionedEdge, contacts = true): Point[] | null => {
+  // 'frames' proves only frame ends: the clip pass trims node ends.
+  const stretchRetainedRoute = (edge: PositionedEdge, contacts: boolean | 'frames' = true): Point[] | null => {
     const source = stretchSpan(edge.source, edge.target), target = stretchSpan(edge.target, edge.source)
     if (!source || !target || edge.points.length < 2) return null
     const [left, right] = source.start <= target.start ? [source, target] : [target, source]
@@ -433,7 +445,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (sourceDelta === undefined || targetDelta === undefined
       || points[0]![f.main] !== edge.points[0]![f.main] + sourceDelta
       || points.at(-1)![f.main] !== edge.points.at(-1)![f.main] + targetDelta) return null
-    if (contacts && !contactsClear(points, edge)) return null
+    if (contacts && !contactsClear(points, edge, contacts === 'frames')) return null
     const ends = new Set([edge.source, edge.target])
     return routeClearOfNodes(points, nodes, ends) && headersClear(points) ? points : null
   }
@@ -444,9 +456,10 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (delta === undefined) return null
     return { ...old, [f.main]: old[f.main] + delta }
   }
-  const contactsClear = (points: Point[], edge: PositionedEdge): boolean => {
+  const contactsClear = (points: Point[], edge: PositionedEdge, framesOnly = false): boolean => {
     for (const [id, start] of [[edge.source, true], [edge.target, false]] as const) {
       const node = nodeMap.get(id), group = groupMap.get(id)
+      if (node && framesOnly) continue
       const owner = node ?? (group ? { id: group.id, label: group.label, shape: 'rectangle' as const, x: group.x, y: group.y, width: group.width, height: group.height } : undefined)
       if (!owner) return false
       const port = start ? points[0] : points.at(-1)
@@ -625,6 +638,17 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       }
       if (found) { route = found; proved = true }
     }
+    // ELK can attach a link to the bounding box of a round node rather than
+    // its outline (mermaid#5094: a circle into a moved subgraph), so no
+    // contact-preserving route proves that end. Keep the produced route,
+    // stretched with the move: its frame contacts are still proved, and each
+    // node end keeps its produced contact and approach, translated with the
+    // node, for the clip pass to trim as it trims every other edge.
+    if (preserveContacts && !proved) {
+      const kept = stretchRetainedRoute(edge, 'frames')
+      if (kept) { route = kept; proved = true }
+    }
+    if (preserveContacts && !proved && fallback === 'unmoved') { unmove(); return }
     if (preserveContacts && !proved) throw new LayoutCertificationError([{
       strategy: 'link-rank-reconnect', violations: [`edge ${edge.source}->${edge.target}: no proven contact-preserving route after rank move`],
     }])

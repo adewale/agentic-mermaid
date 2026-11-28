@@ -1,0 +1,26 @@
+%% A long link from a circle into a subgraph the rank move shifts keeps its produced route instead of failing the layout: https://github.com/mermaid-js/mermaid/issues/5094
+flowchart 
+    style client color:white,fill:#dd5555,stroke:#ee00,stroke-width:2px
+    style ipset color:white,fill:green,stroke:#ee00,stroke-width:2px
+    style ipset1 color:white,fill:green,stroke:#ee00,stroke-width:2px
+    style speed-check color:white,fill:green,stroke:#ee00,stroke-width:2px
+    client(((Client)))-----> |1. Request|smartdns
+    smartdns---->|2. Obtain IP|client
+    client--->|3. Request data using IP|router
+    subgraph smartdns [SmartDNS&nbsp&nbsp]
+        server(DNS service)-->|a.Handling namserver rules|rule(domain name rules)
+        rule-->|b.External domains|public-group(external server group)
+        rule-->|b.Internal domains|private-group(internal server group)
+        public-group-->|d. Add IP to IPSet|ipset1(IPSet,NFTSet)
+        private-group-->|d. Measuring the speed and obtain the fastest IP address|speed-check(Measuring speed)
+    end
+    router-->ipset(IPSet,NFTSet)
+    subgraph router [Routing gateway]
+        NAT-->|a. Receive data packet|ipset-->|b. Data forwarding|tproxy(TPROXY forwarding service)
+    end
+    tproxy----->|VPN|ProxyServer
+    tproxy----->|SOCKS5|ProxyServer
+    tproxy----->|HTTP PROXY|ProxyServer
+
+    public-group--->|c.Query external domain|public-servers(external DNS server)
+    private-group--->|c.Query internal domain|private-servers(internal DNS server)
