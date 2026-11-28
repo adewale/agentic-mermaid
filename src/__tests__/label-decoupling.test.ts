@@ -14,9 +14,8 @@
 // the DEFAULT path without decoupling. NOTE: this repro is a mixed-label fan-in
 // (A->B labelled, B2->B not), so on the default path the co-rank centring squares
 // the hub and A->B converges as a symmetric dogleg whose EXIT is still A's
-// mid-port (alignLabeledSourcePort yields to the convergence here — it only
-// straightens a labelled source into a SINGLE-input target; see
-// labeled-source-port-property.test.ts). Either way A leaves at its mid-port, so
+// mid-port (a labelled source into a SINGLE-input target is the straight case;
+// see labeled-source-port-property.test.ts). Either way A leaves at its mid-port, so
 // this file keeps the decoupling flag pinned as a regression guard that the
 // mid-port exit is preserved (it must not re-break the port it already preserved).
 
@@ -24,8 +23,8 @@ import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
-import { alignLabeledSourcePort } from '../layout/passes/port-lanes.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedNode, PositionedEdge } from '../types.ts'
 
 // Minimal reproduction: a label on A→B + a second feeder into B + an outflow
@@ -96,26 +95,27 @@ describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
       else process.env.APL_DECOUPLE_LABELS = previous
     }
   })
-})
 
-
-test('materialized initial label seat must clear foreign shaft ink before publication', () => {
-  const node = (id: string, x: number, y: number, width = 60, height = 40): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
-  const nodes = [node('A', 104, 100), node('B2', 40, 40), node('B', 224, 70), node('C', 332, 70),
-    node('P', 200, 0, 16.5, 20), node('Q', 200, 130, 16.5, 20)]
-  const edge = (source: string, target: string, points: Array<{ x: number; y: number }>): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
-  const labelled = { ...edge('A', 'B', [{ x: 164, y: 120 }, { x: 212, y: 120 }, { x: 212, y: 96 }, { x: 224, y: 96 }]), label: 'x', labelPosition: { x: 208, y: 120 } }
-  const edges = [labelled, edge('B2', 'B', [{ x: 100, y: 60 }, { x: 212, y: 60 }, { x: 212, y: 84 }, { x: 224, y: 84 }]),
-    edge('B', 'C', [{ x: 284, y: 90 }, { x: 332, y: 90 }]), edge('P', 'Q', [{ x: 208.25, y: 20 }, { x: 208.25, y: 130 }])]
-  const foreign = structuredClone(edges[3]!)
-  alignLabeledSourcePort(nodes, edges, [], parseMermaid(MIN + '\n  P --> Q'), 'LR', resolveRenderStyle({}))
-  expect(labelled.points).toEqual([{ x: 164, y: 90 }, { x: 224, y: 90 }])
-  expect(nodes[0]!.y + nodes[0]!.height / 2).toBe(90)
-  expect(edges[3]).toEqual(foreign)
-  // Prepared default 11px 'x' width 7.59, plus8px pill padding+4pxhalo.
-  // The straightener's initial center194 hasclearcards but its halo covers
-  // the foreign actual1px vertical shaft. The existing11slots must reseat it.
-  expect(194 + 7.59 / 2 + 12).toBeGreaterThan(208.25 - 0.5)
-  expect(labelled.labelPosition.x + 7.59 / 2 + 12).toBeLessThan(208.25 - 0.5)
-  expect(labelled.labelPosition.y).toBe(90)
+  // Without ELK's reserved label room a self-loop's caption has no seat from
+  // ELK, and the self-loop router keeps a native or frame loop as drawn.
+  // Each caption still needs a seat on or beside its own loop: canvas sizing,
+  // label passes and certification all read it.
+  test.each([
+    ['frame self-loop', 'flowchart TD\n  subgraph S\n    A --> B\n  end\n  S -->|self| S'],
+    ['frame self-loop beside a feeder', 'flowchart LR\n  subgraph S\n    A --> B\n  end\n  S -->|self loop caption| S\n  C --> S'],
+    ['node self-loop inside a turned subgraph', 'flowchart TD\n  subgraph S\n    direction LR\n    A --> B\n  end\n  B -->|loop| B\n  B --> C'],
+  ])('with decoupling enabled: a %s keeps its caption seat', (_name, source) => {
+    const previous = process.env.APL_DECOUPLE_LABELS
+    process.env.APL_DECOUPLE_LABELS = '1'
+    try {
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      const loop = positioned.edges.find(edge => edge.source === edge.target)!
+      expect(loop.labelPosition).toBeDefined()
+      expect(assessLayout(graph, positioned).violations.filter(violation => violation.metric === 'labelOffRoute')).toEqual([])
+    } finally {
+      if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
+      else process.env.APL_DECOUPLE_LABELS = previous
+    }
+  })
 })

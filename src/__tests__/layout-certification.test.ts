@@ -1,7 +1,11 @@
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { verifyMermaid } from '../agent/verify.ts'
+import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { measureQuality } from '../agent/quality.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, certifyLayoutCandidates, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError } from '../layout/backend.ts'
@@ -13,7 +17,7 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, hardViolations } from '../layout-rubric.ts'
 import { retainComparisonMetrics, nonRegressingAlternative } from '../layout/non-regressing-alternative.ts'
 import { withLayoutOptimizationBudget } from '../layout/optimization-budget.ts'
 import { invalidEndpointApproaches, laneContextFor, directLaneBlockers } from '../route-contracts.ts'
@@ -80,23 +84,23 @@ describe('bounded final layout certification', () => {
 
   test('strict candidate correspondence failures remain engine defects', () => {
     const graph = parseMermaid('flowchart TD\nA --> B')
-    const changed = layoutGraphSync(graph)
+    const changed = structuredClone(layoutGraphSync(graph))
     changed.nodes[0]!.label = 'changed meaning'
     expect(() => certifyCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => changed }, true)).toThrow(TypeError)
   })
 
   test('strict candidate geometry rejection stays classified', () => {
     const graph = parseMermaid('flowchart TD\nA --> B')
-    const rejected = layoutGraphSync(graph)
+    const rejected = structuredClone(layoutGraphSync(graph))
     rejected.edges[0]!.points = []
     const actual = certifyCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => rejected }, true)
     expect(actual.certified).toBeUndefined()
     expect(actual.attempt.violations.length).toBeGreaterThan(0)
   })
 
-  test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
+  test('a rejected conditional solver preserves all four fallbacks', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     const invalid = structuredClone(clean)
     invalid.edges[0]!.points = []
     const candidates = [
@@ -106,10 +110,46 @@ describe('bounded final layout certification', () => {
       { strategy: 'separate-without-corank', produce: () => clean },
     ]
     const preliminary = { strategy: 'conditional', produce: () => invalid }
-    const selected = routeSelection
-      ? certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), candidates, () => undefined, preliminary)
-      : certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates, preliminary)
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates, preliminary)
     expect(selected.certification).toMatchObject({ strategy: 'separate-without-corank', attempts: 5, hardViolations: 0 })
+  })
+
+  // Grouped graphs with a mixed-label fan-in (shrunk from a generated search)
+  // that no single placement change certifies: the first fails every other
+  // candidate on a link-rank reconnect with no contact-preserving route, the
+  // second on routes through a node and a group header.
+  test.each([
+    ['reconnect', `flowchart BT
+  subgraph G1[group 1]
+    N0["Node 0"]
+    N3["Node 3"]
+    N4["Node 4"]
+    N5["Node 5"]
+  end
+  N1 -->|"no"| N0
+  N3 ---> N0
+  N1 ----> N5`],
+    ['through a node and header', `flowchart TD
+  subgraph G1[group 1]
+    N1["Node 1"]
+    N3["Node 3"]
+    N5(("Node 5"))
+    N6{"Node 6"}
+    N7["Node 7"]
+  end
+  subgraph G2[group 2]
+    N2["Node 2"]
+  end
+  N1 -->|"yes"| N0
+  N2 --> N0
+  N3 -.->|"x"| N0
+  N4 ---> N0
+  N4 -.->|"yes"| N1
+  N6 --->|"two<br/>line label"| N3
+  N0 -.->|"yes"| N7
+  N3 --->|"no"| N7`],
+  ])('a grouped mixed-label fan-in certifies by separating the hierarchy without the co-rank (%s)', (_name, mermaid) => {
+    expect(layoutGraphSync(parseMermaid(mermaid)).certification).toMatchObject({ status: 'passed', strategy: 'separate-without-corank', hardViolations: 0 })
   })
 
   test('a failing primary producer is contained before separate hierarchy within the public fallback budget', () => {
@@ -177,7 +217,7 @@ describe('bounded final layout certification', () => {
 
   test('an invalid first route yields to a certified deterministic alternative', () => {
     const graph = parseMermaid(source)
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     const invalid = structuredClone(clean)
     invalid.edges[0]!.points = []
     const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
@@ -225,46 +265,6 @@ describe('bounded final layout certification', () => {
     expect(selected.certification?.preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 0, area: 89600 })
   })
 
-  test('a final route comparison reuses its placement preflight and keeps placement evidence', () => {
-    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
-    const crossing = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
-      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
-    ], 320)
-    const detour = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
-      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
-    ])
-    let placementPreflights = 0, routePreflights = 0
-    const selected = certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), [{
-      strategy: 'placement', produce: () => crossing,
-      preferNext: () => { placementPreflights++; return false },
-    }], (_placed, score) => {
-      expect(score.edgeCrossings).toBe(1)
-      return {
-        strategy: 'without-generic-bundling', produce: () => detour,
-        preferNext: () => { routePreflights++; return false },
-      }
-    })
-    expect(placementPreflights).toBe(1)
-    expect(routePreflights).toBe(1)
-    expect(selected).toBe(detour)
-    expect(selected.certification).toMatchObject({ strategy: 'placement', attempts: 1, preference: {
-      selectedScore: { edgeCrossings: 0 },
-      compared: [{ strategy: 'placement', score: { edgeCrossings: 1 } }],
-      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } } },
-    } })
-  })
-
-  test('a final routing callback cannot use an attached receipt to bypass placement checks', () => {
-    const graph = parseMermaid(source)
-    const forged = layoutGraphSync(graph)
-    forged.edges[0]!.points = []
-    let routeCalls = 0
-    expect(() => certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), [{
-      strategy: 'forged-receipt', produce: () => forged,
-    }], () => { routeCalls++; return undefined })).toThrow(LayoutCertificationError)
-    expect(routeCalls).toBe(0)
-  })
-
   function labelledWitness(crossing: boolean, conflict = false): { graph: MermaidGraph; positioned: PositionedGraph } {
     const graph = parseMermaid('flowchart LR\nA -- x --> B\nC --> D')
     const positioned = crossing
@@ -282,6 +282,16 @@ describe('bounded final layout certification', () => {
     positioned.edges[0]!.labelBlock = graphTextBlock('x', resolveRenderStyle({}), 'edge')
     return { graph, positioned }
   }
+
+  test.each([
+    { name: 'a duplicate drawn on its twin', source: 'flowchart LR\nA --> B\nA --> B', routes: [[[60, 120], [260, 120]], [[60, 120], [260, 120]]] },
+    { name: 'one arrowhead for a dotted and a solid arrival', source: 'flowchart LR\nA --> B\nC -.-> B', routes: [[[60, 120], [260, 120]], [[160, 40], [160, 120], [260, 120]]] },
+  ] as const)('$name is not certified', ({ source, routes }) => {
+    const graph = parseMermaid(source)
+    const positions: Record<string, [number, number]> = { A: [20, 100], B: [260, 100], C: [140, 0] }
+    const witness = routeWitness(graph, positions, routes.map(route => route.map(point => [...point] as [number, number])))
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'only', produce: () => witness }])).toThrow(/indistinctOccurrences/)
+  })
 
   test('a soft label-conflict reduction cannot buy another crossing', () => {
     const { graph, positioned: occluded } = labelledWitness(false, true)
@@ -374,8 +384,9 @@ describe('bounded final layout certification', () => {
       graph.nodes.set(`N${i}`, { id: `N${i}`, label: `N${i}`, shape: 'rectangle' })
       positions[`N${i}`] = [500 + i % 8 * 60, Math.floor(i / 8) * 60]
     }
+    // Padding edges count toward the bound; invisible ones draw no twin ink.
     if (kind === 'edges') while (graph.edges.length < size) {
-      graph.edges.push({ ...graph.edges[0]! })
+      graph.edges.push({ ...graph.edges[0]!, style: 'invisible' })
       routes.push([[60, 120], [260, 120]])
     }
     const first = routeWitness(graph, positions, routes, 1100, 1000), next = structuredClone(first)
@@ -402,13 +413,11 @@ describe('bounded final layout certification', () => {
       expect(crossing.certification?.preference.compared).toHaveLength(1)
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
-      // A header-clear, zero-crossing placement has no reason to run the
-      // saved unbundled proposal solely to satisfy a comparison count.
+      // A header-clear, zero-crossing placement needs no second placement.
       expect(calls).toBe(1)
       expect(alreadySeparate.certification).toMatchObject({ status: 'passed', hardViolations: 0, attempts: 1,
         preference: { reason: 'first-certified', selectedScore: { edgeCrossings: 0, labelConflicts: 0 } } })
       expect(alreadySeparate.certification?.preference.compared).toHaveLength(1)
-      expect(alreadySeparate.certification?.preference.routing).toBeUndefined()
       expectClearZeroFixture(alreadySeparate)
     } finally { firstPass.run = run }
   })
@@ -430,14 +439,12 @@ describe('bounded final layout certification', () => {
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
     // The default placement certifies only by detouring routes around title
-    // bands, so it defers to the separate-hierarchy placement, which needs none.
-    expect(preference.reason).toBe('unreadableTitles')
-    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0]])
+    // bands, so the separate-hierarchy placement, which needs none, is also
+    // produced; it wins the objective on crossings, not on title readability.
+    expect(preference.reason).toBe('edgeCrossings')
+    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 0], ['separate-hierarchy', 0]])
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
-    // The selected placement already has zero crossings and label conflicts;
-    // the bounded selector correctly avoids a cosmetic routing production.
-    expect(preference.routing).toBeUndefined()
     expect(preference.selectedScore).toEqual(placement!.score)
     expect(preference.selectedScore.labelConflicts).toBe(0)
     expectClearZeroFixture(positioned)
@@ -477,23 +484,48 @@ describe('bounded final layout certification', () => {
     }
   })
 
+  // obsidianmd/pele#3: ELK's default placement draws the ten fan-in edges
+  // without a crossing, but the routes entering group C cross its title band.
+  // Its band detour certifies; it was nonetheless discarded, as if a title
+  // were unreadable, for the separate-hierarchy placement whose own routes
+  // cross many times. A detour is a routing cost: no title here is narrow, so
+  // the drawing may cross no more than that alternative (crossings counted by
+  // the rubric on each published drawing).
+  test('a title-band detour is judged by the objective, not as an unreadable title', () => {
+    const graph = parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/pele-3-grouped-fan-in.mmd'), 'utf8'))
+    const selected = layoutGraphSync(graph), separate = layoutGraphSync(graph, { separateHierarchy: true })
+    expect(selected.certification?.preference.compared.every(candidate => candidate.score.unreadableTitles === 0)).toBe(true)
+    expect(countEdgeCrossings(selected.edges)).toBeLessThan(countEdgeCrossings(separate.edges))
+  })
+
+  // mermaid#7822 (a bare swimlane keyword lays out as a flowchart): the
+  // default placement detours around title bands with 44 crossings, but its
+  // routes share 11 runs with unrelated routes; the separate-hierarchy
+  // placement draws 76 crossings and none. A shared run hides which edge owns
+  // it, so the published drawing has none.
+  test('a placement whose routes share runs loses to one whose routes do not', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-7822.mmd'), 'utf8')
+    const quality = measureQuality(layoutMermaidWithReceipt(source, {}).layout)
+    expect(quality.routeContacts).toEqual({ touches: 0, overlaps: 0 })
+  })
+
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     invalid.nodes[0]!.x = Number.NaN
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'invalid', produce: () => invalid }])).toThrow(LayoutCertificationError)
   })
 
   test.each(['labelBlock', 'labelPosition'] as const)('a visible edge label requires retained %s before certification', field => {
     const graph = parseMermaid(source)
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     delete invalid.edges[0]![field]
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'missing-label-geometry', produce: () => invalid }])).toThrow(/missing retained geometry/)
   })
 
   test.each(['node', 'edge', 'marker', 'label', 'node-label', 'group-label', 'parent'] as const)('a candidate cannot pass by losing or changing an authored %s', field => {
     const graph = parseMermaid('flowchart LR\nsubgraph S\nA -- meaningful --> B\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     if (field === 'node') invalid.nodes.pop()
     if (field === 'edge') invalid.edges.pop()
     if (field === 'marker') invalid.edges[0]!.hasArrowEnd = false
@@ -572,7 +604,7 @@ describe('bounded final layout certification', () => {
 
   test('a candidate cannot exchange authored members between intact group frames', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const a = invalid.nodes.find(node => node.id === 'A')!
     const b = invalid.nodes.find(node => node.id === 'B')!
     const { x, y } = a
@@ -585,7 +617,7 @@ describe('bounded final layout certification', () => {
 
   test('public group membership retains authored identities instead of inferring ownership from coordinates', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
-    const positioned = layoutGraphSync(graph)
+    const positioned = structuredClone(layoutGraphSync(graph))
     const a = positioned.nodes.find(node => node.id === 'A')!
     const b = positioned.nodes.find(node => node.id === 'B')!
     const { x, y } = a
@@ -599,7 +631,7 @@ describe('bounded final layout certification', () => {
 
   test.each(['node', 'group', 'edge'] as const)('a retained %s text block cannot replace the authored label', kind => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Alpha]\nA[Alpha] -- Alpha --> B[Beta]\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const style = resolveRenderStyle({})
     const owner = kind === 'node' ? invalid.nodes[0]! : kind === 'group' ? invalid.groups[0]! : invalid.edges[0]!
     owner.labelBlock = graphTextBlock('Zebra', style, kind)
@@ -611,7 +643,7 @@ describe('bounded final layout certification', () => {
     const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
     const options = { styleFace: request.appearance.face }
     const style = resolveRenderStyle(options)
-    const clean = layoutGraphSync(graph, options)
+    const clean = { ...layoutGraphSync(graph, options) }
     expect(clean.nodes[0]!.labelBlock!.prepared.source).toBe('<i>Alpha</i>')
     expect(clean.nodes[0]!.labelBlock!.text).not.toBe(clean.nodes[0]!.label)
     expect(certifyLayoutCandidates(graph, style, [{ strategy: 'styled', produce: () => clean }]).certification?.status).toBe('passed')
@@ -622,7 +654,7 @@ describe('bounded final layout certification', () => {
     const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
     const options = { styleFace: request.appearance.face }
     const style = resolveRenderStyle(options)
-    const clean = layoutGraphSync(graph, options)
+    const clean = { ...layoutGraphSync(graph, options) }
     const owner = kind === 'node' ? clean.nodes[0]! : kind === 'group' ? clean.groups[0]! : clean.edges[0]!
     const expected = kind === 'node' ? '<I>ALPHA</I>' : kind === 'group' ? '<b>outer</b>' : '<B>Mixed Case</B>'
     expect(owner.labelBlock!.text).toBe(expected)
@@ -631,13 +663,15 @@ describe('bounded final layout certification', () => {
 
     // Re-reading the authored entity source keeps source/display/transform but
     // loses the family's token decoding. Certification must catch that loss.
-    owner.labelBlock = graphTextBlock(owner.labelBlock!.prepared.source, style, kind)
-    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'reinterpreted', produce: () => clean }])).toThrow(/prepared.*text/)
+    const edited = structuredClone(clean)
+    const copy = kind === 'node' ? edited.nodes[0]! : kind === 'group' ? edited.groups[0]! : edited.edges[0]!
+    copy.labelBlock = graphTextBlock(owner.labelBlock!.prepared.source, style, kind)
+    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'reinterpreted', produce: () => edited }])).toThrow(/prepared.*text/)
   })
 
   test.each(['display', 'transform'] as const)('retained text cannot change its prepared %s interpretation', field => {
     const graph = parseMermaid('flowchart LR\nA[<b>Alpha</b>] --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const block = invalid.nodes[0]!.labelBlock!
     invalid.nodes[0]!.labelBlock = { ...block, prepared: { ...block.prepared, [field]: field === 'display' ? 'literal' : 'uppercase' } }
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'changed-interpretation', produce: () => invalid }])).toThrow(/prepared.*text/)
@@ -645,7 +679,7 @@ describe('bounded final layout certification', () => {
 
   test('an authored child frame cannot escape its parent with its members', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[Outer]\nsubgraph T[Inner]\nA[Alpha]\nend\nend')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     const outer = invalid.groups[0]!, inner = outer.children[0]!
     const dx = outer.x + outer.width + 30 - inner.x
     inner.x += dx
@@ -656,7 +690,7 @@ describe('bounded final layout certification', () => {
 
   test('exhaustion stops after four attempts and never returns the least-bad candidate', () => {
     const graph = parseMermaid('flowchart LR\nA --> B')
-    const invalid = layoutGraphSync(graph)
+    const invalid = structuredClone(layoutGraphSync(graph))
     invalid.edges[0]!.points = []
     let calls = 0
     const candidates = Array.from({ length: MAX_LAYOUT_CANDIDATES + 3 }, (_, index) => ({
@@ -680,7 +714,7 @@ describe('bounded final layout certification', () => {
 
   test('a title preference preflight exception stays inside its candidate attempt', () => {
     const graph = parseMermaid(source)
-    const clean = layoutGraphSync(graph)
+    const clean = { ...layoutGraphSync(graph) }
     let calls = 0
     const positioned = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
       {
@@ -812,15 +846,6 @@ describe('group headers gate completed candidate consumers', () => {
       { strategy: 'crosses-header', produce: () => crossesHeader },
       { strategy: 'clear-detour', produce: () => positioned },
     ])).toBe(positioned)
-  })
-
-  test('a route alternative with fewer bends cannot overwrite a header-clear baseline', () => {
-    const { graph, positioned, crossesHeader, style } = witness()
-    const chosen = certifyLayoutWithRouteAlternative(graph, style,
-      [{ strategy: 'clear-detour', produce: () => positioned }],
-      () => ({ strategy: 'without-generic-bundling', produce: () => crossesHeader }))
-    expect(chosen).toBe(positioned)
-    expect(chosen.certification?.preference?.routing?.preference.reason).toBe('alternative-invalid')
   })
 })
 

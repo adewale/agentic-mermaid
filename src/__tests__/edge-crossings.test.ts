@@ -3,9 +3,9 @@ import fc from 'fast-check'
 import { checkQuality, measureQuality } from '../agent/quality.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { toFinite } from '../agent/types.ts'
-import { assessLayout, countEdgeCrossings, measureRubricMetrics } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, measureRouteReadability, measureRubricMetrics } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
-import { countIndexedPolylineCrossings, countPolylineCrossings, crossingPoint, distinctCrossingLocations, retainCrossingLocation, type CrossingPolyline } from '../shared/edge-crossings.ts'
+import { countIndexedPolylineCrossings, countPolylineCrossings, crossingPoint, distinctCrossingLocations, measureRouteContacts, retainCrossingLocation, type CrossingPolyline } from '../shared/edge-crossings.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import type { Point, PositionedEdge, PositionedGraph } from '../types.ts'
@@ -222,6 +222,53 @@ describe('shared visible proper-crossing metric', () => {
     expect(metrics.totalBends).toBe(1)
     expect(metrics.maxBendsPerEdge).toBe(1)
     expect(measureRubricMetrics(graph, positioned, ['bends'], resolveRenderStyle({})).bends).toBe(metrics.totalBends)
+  })
+})
+
+// Two unrelated routes that meet without a proper crossing read as a junction:
+// in mermaid-7964 two routes turning at one shared corner read as each
+// other's continuation, so the drawing shows edges that do not exist, and the
+// proper-crossing count scored that drawing 0.
+describe('unrelated route contacts', () => {
+  const route = (points: Array<[number, number]>, from: string, to: string, visible = true) => ({ points: points.map(([x, y]) => ({ x, y })), ends: [from, to] as const, visible })
+  const ab = route([[0, 0], [100, 0], [100, 100]], 'A', 'B')
+  test.each<{ name: string; other: ReturnType<typeof route>; contacts: { touches: number; overlaps: number }; crossings: number }>([
+    { name: 'turning at a shared corner', other: route([[200, 0], [100, 0], [100, -100]], 'C', 'D'), contacts: { touches: 1, overlaps: 0 }, crossings: 0 },
+    { name: 'turning 0.4px from a shared corner', other: route([[100.4, -100], [100.4, 0.36], [200, 0.36]], 'C', 'D'), contacts: { touches: 1, overlaps: 0 }, crossings: 0 },
+    { name: 'a bend on the other route (T-junction)', other: route([[50, -100], [50, 0], [-50, 0]], 'C', 'D'), contacts: { touches: 0, overlaps: 1 }, crossings: 0 },
+    { name: 'a vertex on the other route, leaving it', other: route([[50, -100], [50, 0], [50, -10], [-50, -10]], 'C', 'D'), contacts: { touches: 1, overlaps: 0 }, crossings: 0 },
+    { name: 'continuing it end to end', other: route([[100, 100], [100, 200]], 'C', 'D'), contacts: { touches: 1, overlaps: 0 }, crossings: 0 },
+    { name: 'a same-direction run 0.2px off collinear', other: route([[-50, 0.2], [60, 0.2], [60, 80]], 'C', 'D'), contacts: { touches: 0, overlaps: 1 }, crossings: 0 },
+    { name: 'a proper crossing', other: route([[50, -50], [50, 50]], 'C', 'D'), contacts: { touches: 0, overlaps: 0 }, crossings: 1 },
+    { name: 'two proper crossings beside a bend', other: route([[99.5, -50], [99.5, 0.5], [120, 0.5]], 'C', 'D'), contacts: { touches: 0, overlaps: 0 }, crossings: 2 },
+    { name: 'a parallel run a clearance away', other: route([[0, 4], [90, 4]], 'C', 'D'), contacts: { touches: 0, overlaps: 0 }, crossings: 0 },
+    { name: 'sharing a trunk with a route from the same source', other: route([[0, 0], [100, 0], [100, -50]], 'A', 'E'), contacts: { touches: 0, overlaps: 0 }, crossings: 0 },
+    { name: 'a hidden route on the corner', other: route([[200, 0], [100, 0], [100, -100]], 'C', 'D', false), contacts: { touches: 0, overlaps: 0 }, crossings: 0 },
+  ])('$name', ({ other, contacts, crossings }) => {
+    for (const routes of [[ab, other], [other, ab]]) {
+      expect(measureRouteContacts(routes)).toEqual(contacts)
+      expect(countPolylineCrossings(routes)).toBe(crossings)
+    }
+  })
+
+  test('an all-to-all bus counts every unrelated pair once, without visiting each pair of segments', () => {
+    // k sources join one trunk that fans to k targets, as a dense `&` fan is
+    // drawn: every two routes with distinct ends share the trunk.
+    const k = 30, routes = []
+    for (let s = 0; s < k; s++) for (let t = 0; t < k; t++) {
+      routes.push(route([[s * 20, 0], [s * 20, 10], [1000, 10], [1000, 20], [t * 20, 20], [t * 20, 30]], `a${s}`, `b${t}`))
+    }
+    expect(measureRouteContacts(routes)).toEqual({ touches: 0, overlaps: k * k * (k - 1) * (k - 1) / 2 })
+  })
+
+  test('public quality and the rubric report contacts beside crossings, and the quality bound counts them', () => {
+    const edges = [edge([[0, 0], [100, 0], [100, 100]], 'A', 'B'), edge([[200, 0], [100, 0], [100, -100]], 'C', 'D')]
+    const positioned: PositionedGraph = { nodes: [], edges, groups: [], width: 300, height: 300 }
+    const layout = positionedToRenderedLayout(positioned, 'flowchart')
+    expect(measureQuality(layout)).toMatchObject({ edgeCrossings: 0, routeContacts: { touches: 1, overlaps: 0 } })
+    expect(assessLayout(parseMermaid('flowchart LR\nA --> B\nC --> D'), positioned).metrics.edgeCrossings).toBe(0)
+    expect(measureRouteReadability(positioned).routeContacts).toBe(1)
+    expect(checkQuality(layout, { maxCrossingsRatio: 0 }).ranked.map(violation => violation.metric)).toContain('edgeCrossings')
   })
 })
 

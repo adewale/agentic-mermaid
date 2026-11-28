@@ -147,6 +147,21 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
     expect(overlap).toBe(false)
   })
 
+  // mermaid#6337: a snap carried Update's departure 4.6px along a 10.5px jog
+  // beside it, leaving a 5.9px hitch on a clear lane.
+  it.each([
+    { name: 'declines a snap that would shorten a jog into a hitch', jog: 16, expected: [100, 120] },
+    { name: 'CONTROL: snaps when the shortened jog stays longer than a hitch', jog: 30, expected: [layerCentre, layerCentre] },
+  ])('$name', ({ jog, expected }) => {
+    const P = mkNode('P', 0, 100), Q = mkNode('Q', 100, 120), W = mkNode('W', -200, 300)
+    const points = [{ x: 0, y: 115 }, { x: -20, y: 115 }, { x: -20, y: 115 + jog }, { x: -180, y: 115 + jog }, { x: -180, y: 300 }]
+    const edge = mkEdge('P', 'W', points.map(point => ({ ...point })))
+    alignLayerNodes([P, Q, W], [edge], 'TD')
+    expect([P.y, Q.y]).toEqual([...expected])
+    // The jog beside the departure is never shorter than a hitch (2 x 4px).
+    expect(Math.abs(edge.points[2]!.y - edge.points[1]!.y)).toBeGreaterThanOrEqual(8)
+  })
+
   const rotate = (point: Point, turns: number): Point => {
     let { x, y } = point
     for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]

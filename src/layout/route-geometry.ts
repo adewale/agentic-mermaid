@@ -1,4 +1,6 @@
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import type { TerminalAssignment } from './terminal-assignment.ts'
+import { translateRoute } from './route-values.ts'
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
@@ -8,6 +10,7 @@ import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../sh
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
+import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -439,6 +442,8 @@ export interface LaneContext {
   nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
   /** Owner invalidation follows every route write; labels remain live. */
   routeChannelGeometry?: RouteChannelGeometry
+  /** The caller's terminal assignment; otherwise the one recorded for `edges`. */
+  terminals?: TerminalAssignment
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -653,8 +658,8 @@ function allocateRoutePortsImpl(
 /** Translate all positioned geometry together so the public canvas origin is non-negative.
  * Optional label paint padding retains opaque halos beyond the measured pill. */
 export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle, labelPaintPadding = 0): void {
-  let minX = 0
-  let minY = 0
+  let minX = Infinity
+  let minY = Infinity
   const visitGroup = (group: PositionedGroup): void => {
     minX = Math.min(minX, group.x)
     minY = Math.min(minY, group.y)
@@ -679,9 +684,12 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
       minY = Math.min(minY, edge.labelPosition.y)
     }
   }
-  if (minX >= 0 && minY >= 0) return
-  const dx = minX < 0 ? -minX + padding : 0
-  const dy = minY < 0 ? -minY + padding : 0
+  // A pass may move geometry toward the origin after the padding was laid
+  // out; it still keeps the paint backends' margin from the canvas edge.
+  if (minX >= PAINT_MARGIN && minY >= PAINT_MARGIN) return
+  const dx = minX < 0 ? -minX + Math.max(padding, PAINT_MARGIN) : Math.max(0, PAINT_MARGIN - minX)
+  const dy = minY < 0 ? -minY + Math.max(padding, PAINT_MARGIN) : Math.max(0, PAINT_MARGIN - minY)
+  if (dx === 0 && dy === 0) return
   const moveGroup = (group: PositionedGroup): void => {
     group.x += dx
     group.y += dy
@@ -692,16 +700,7 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
     node.y += dy
   }
   for (const group of groups) moveGroup(group)
-  for (const edge of edges) {
-    for (const point of edge.points) {
-      point.x += dx
-      point.y += dy
-    }
-    if (edge.labelPosition) {
-      edge.labelPosition.x += dx
-      edge.labelPosition.y += dy
-    }
-  }
+  for (const edge of edges) translateRoute(edge, dx, dy)
 }
 
 /** Proper crossings and positive-length collinear overlap; endpoint touching stays legal. */

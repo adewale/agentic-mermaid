@@ -214,7 +214,8 @@ test('public rendering signals support and actual position-cache bypass; observe
 
 test('a rejected layout producer reports its fallback, while later readability exploration stays distinct', () => {
   const graph = parseMermaid('flowchart LR\n TelemetryFirst --> TelemetrySecond')
-  const clean = layoutGraphSync(graph)
+  // Certification writes its receipt on a candidate; a finished graph is immutable.
+  const clean = structuredClone(layoutGraphSync(graph))
   const events: PerformanceObservation[] = []
   const selected = withPerformanceObserver(event => events.push(event), () => certifyLayoutCandidates(graph, resolveRenderStyle({}), [
     { strategy: 'first', produce: () => { throw Error('private producer detail') } },

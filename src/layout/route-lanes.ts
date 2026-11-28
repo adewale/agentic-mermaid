@@ -6,9 +6,13 @@ import type { DiamondFacet, Direction, Point, PortSide, PositionedEdge, Position
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
+import { measureRouteContacts, ROUTE_CONTACT_RADIUS } from '../shared/edge-crossings.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
-import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { terminalAssignment } from './terminal-assignment.ts'
+import { captionRidesRun, shiftLabel } from './route-values.ts'
 import { LABEL_PILL_PADDING, labelEndpointClearance, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
+import { pillMeetsGroupFrame } from './label-conflicts.ts'
 import {
   EPS,
   CLEARANCE,
@@ -71,19 +75,54 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
     }
     if (routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, points)
   }
+  // An end on a side's line but past its corner (its node grew or moved after
+  // routing) slides along the side into the face with its terminal run, which
+  // stays perpendicular to the side and keeps every bend. A stub along the
+  // side's line instead runs on the border and meets the node at its corner,
+  // so it is the fallback when the slid run is not clear. A slide may add a
+  // crossing only when that stub would run on another node's border, which
+  // reads as a junction that does not exist: a crossing is the lesser ink.
+  const slide = (along: 'x' | 'y', lo: number, hi: number, outward: number, stub: readonly [Point, Point]): boolean => {
+    const across: 'x' | 'y' = along === 'x' ? 'y' : 'x'
+    const step = isStart ? 1 : -1
+    const run = edge.points[idx + step], after = edge.points[idx + 2 * step]
+    if (!run || !after || Math.abs(run[along] - p[along]) > EPS || (run[across] - p[across]) * outward <= EPS
+      || Math.abs(after[across] - run[across]) > EPS) return false
+    const inset = Math.min((hi - lo) / 2, OVERFLOW_SLIDE_INSET)
+    const lane = p[along] < lo ? lo + inset : hi - inset
+    const points = edge.points.map((point, i) => i === idx || i === idx + step ? { ...point, [along]: lane } : point)
+    const stubOnBorder = ctx.nodes.some(other => {
+      if (other.id === edge.source || other.id === edge.target) return false
+      const start = other[along], end = start + (along === 'x' ? other.width : other.height)
+      const overlap = Math.min(Math.max(stub[0][along], stub[1][along]), end) - Math.max(Math.min(stub[0][along], stub[1][along]), start)
+      const sides = [other[across], other[across] + (across === 'x' ? other.width : other.height)]
+      return overlap > OVERFLOW_STUB_RUN && sides.some(side => Math.abs(side - stub[0][across]) <= 1)
+    })
+    if (ctx.nodes.some(other => other.id !== edge.source && other.id !== edge.target && routeEntersNodeBox(points, other))
+      || !stubOnBorder && routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) return false
+    const rides = captionRidesRun(edge, edge.points, Math.min(idx, idx + step), Math.max(idx, idx + step), along)
+    setRoutePoints(ctx, edge, points)
+    if (rides) shiftLabel(edge, along, lane - p[along])
+    return true
+  }
 
   if (near(p.x, x0) || near(p.x, x1)) {
     const x = near(p.x, x0) ? x0 : x1
-    if (p.y < y0 - PORT_TOLERANCE) pushStub({ x, y: y0 }, { x, y: p.y })
-    else if (p.y > y1 + PORT_TOLERANCE) pushStub({ x, y: y1 }, { x, y: p.y })
+    if (p.y < y0 - PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1, [{ x, y: y0 }, p])) pushStub({ x, y: y0 }, { x, y: p.y }) }
+    else if (p.y > y1 + PORT_TOLERANCE) { if (!slide('y', y0, y1, x === x0 ? -1 : 1, [{ x, y: y1 }, p])) pushStub({ x, y: y1 }, { x, y: p.y }) }
     return
   }
   if (near(p.y, y0) || near(p.y, y1)) {
     const y = near(p.y, y0) ? y0 : y1
-    if (p.x < x0 - PORT_TOLERANCE) pushStub({ x: x0, y }, { x: p.x, y })
-    else if (p.x > x1 + PORT_TOLERANCE) pushStub({ x: x1, y }, { x: p.x, y })
+    if (p.x < x0 - PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1, [{ x: x0, y }, p])) pushStub({ x: x0, y }, { x: p.x, y }) }
+    else if (p.x > x1 + PORT_TOLERANCE) { if (!slide('x', x0, x1, y === y0 ? -1 : 1, [{ x: x1, y }, p])) pushStub({ x: x1, y }, { x: p.x, y }) }
   }
 }
+
+/** How far a slid terminal run stays from its side's corner. */
+const OVERFLOW_SLIDE_INSET = 12
+/** A stub running on a node's border longer than this reads as attached. */
+const OVERFLOW_STUB_RUN = 6
 
 export function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
   if (count !== 2 && count !== 3) return null
@@ -293,7 +332,7 @@ function collectLaneBlockers(
       const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
-        if (other.target === edge.target && other.source !== edge.source && edgesMayShareTerminal(edge, other) &&
+        if ((ctx.terminals ?? terminalAssignment(ctx.edges)).shares(edge, other, 'end') &&
           Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }
@@ -386,34 +425,80 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
     return !obstacles().some(o => rectsOverlap(pill.x, pill.y, pill.w, pill.h, o.x, o.y, o.w, o.h, o.gap))
   }
 
-  // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
-  // sets), center-out: the midpoint reads best, the outer slots rescue lanes
-  // whose middle band is occupied by a neighboring node or pill.
-  for (const t of [0.5, 1 / 3, 2 / 3, 0.25, 0.75, 1 / 6, 5 / 6]) {
-    const cx = start.x + (end.x - start.x) * t
-    const cy = start.y + (end.y - start.y) * t
-    if (slotClear(cx, cy)) return { x: cx, y: cy }
+  // A caption keeps off group title bands and frame lines where a seat on
+  // its lane allows it; only a lane with no such seat takes the first clear
+  // one. Frames never refuse a lane: they rank its seats.
+  const frames = ctx.groups ?? []
+  const frameClear = (cx: number, cy: number): boolean => !pillMeetsGroupFrame(pillRect(cx, cy, m), frames)
+  // Seats just beside each frame line and title band, for the lane search.
+  const frameObstacles: Obstacle[] = []
+  const walk = (groups: readonly PositionedGroup[]): void => {
+    for (const group of groups) {
+      const x1 = group.x + group.width, y1 = group.y + group.height, header = group.concurrencyRegion ? 0 : group.headerHeight ?? 0
+      if (!group.concurrencyRegion) for (const line of [
+        { x: group.x, y: group.y, w: 0, h: group.height }, { x: x1, y: group.y, w: 0, h: group.height },
+        { x: group.x, y: group.y, w: group.width, h: 0 }, { x: group.x, y: y1, w: group.width, h: 0 },
+      ]) frameObstacles.push({ ...line, x1: line.x + line.w, y1: line.y + line.h, gap: 0 })
+      if (header > 0) frameObstacles.push({ x: group.x, y: group.y, w: group.width, h: header, x1, y1: group.y + header, gap: 0 })
+      walk(group.children)
+    }
   }
-  // A crowded or only just long enough lane can miss every sample while a
-  // clear seat remains between its obstacles. Try the seats just beside each
-  // obstacle crossing the pill's band, nearest the midpoint first.
-  if (!axisAligned) return null
-  const lo = Math.min(start[main], end[main]), hi = Math.max(start[main], end[main]), mid = (lo + hi) / 2
-  if (hi - lo < 2 * half - 2 * EPS) return null
-  const seats = [mid]
-  for (const o of obstacles()) {
-    if (o[crossEnd] + o.gap <= start[cross] - crossHalf || o[cross] - o.gap >= start[cross] + crossHalf) continue
-    seats.push(o[main] - o.gap - half - EPS, o[mainEnd] + o.gap + half + EPS)
+  if (axisAligned) walk(frames)
+  const search = (admit: (cx: number, cy: number) => boolean, extra: readonly Obstacle[]): Point | null => {
+    // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
+    // sets), center-out: the midpoint reads best, the outer slots rescue lanes
+    // whose middle band is occupied by a neighboring node or pill.
+    for (const t of [0.5, 1 / 3, 2 / 3, 0.25, 0.75, 1 / 6, 5 / 6]) {
+      const cx = start.x + (end.x - start.x) * t
+      const cy = start.y + (end.y - start.y) * t
+      if (admit(cx, cy)) return { x: cx, y: cy }
+    }
+    // A crowded or only just long enough lane can miss every sample while a
+    // clear seat remains between its obstacles. Try the seats just beside each
+    // obstacle crossing the pill's band, nearest the midpoint first.
+    if (!axisAligned) return null
+    const lo = Math.min(start[main], end[main]), hi = Math.max(start[main], end[main]), mid = (lo + hi) / 2
+    if (hi - lo < 2 * half - 2 * EPS) return null
+    const seats = [mid]
+    for (const o of [...obstacles(), ...extra]) {
+      if (o[crossEnd] + o.gap <= start[cross] - crossHalf || o[cross] - o.gap >= start[cross] + crossHalf) continue
+      seats.push(o[main] - o.gap - half - EPS, o[mainEnd] + o.gap + half + EPS)
+    }
+    // The whole pill stays on its own lane: a lane ending at a bend has no
+    // node there to push a seat back, and a pill over the corner reads as
+    // belonging to neither run.
+    const ranked = seats.filter(seat => seat >= lo + half - EPS && seat <= hi - half + EPS).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b)
+    for (const seat of ranked.slice(0, 16)) {
+      const point = main === 'x' ? { x: seat, y: start.y } : { x: start.x, y: seat }
+      if (admit(point.x, point.y)) return point
+    }
+    return null
   }
-  // The whole pill stays on its own lane: a lane ending at a bend has no
-  // node there to push a seat back, and a pill over the corner reads as
-  // belonging to neither run.
-  const ranked = seats.filter(seat => seat >= lo + half - EPS && seat <= hi - half + EPS).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b)
-  for (const seat of ranked.slice(0, 16)) {
-    const point = main === 'x' ? { x: seat, y: start.y } : { x: start.x, y: seat }
-    if (slotClear(point.x, point.y)) return point
+  return (frames.length ? search((cx, cy) => slotClear(cx, cy) && frameClear(cx, cy), frameObstacles) : null) ?? search(slotClear, [])
+}
+
+/** Allocation-free broad phase for `measureRouteContacts`: every touch or
+ * shared run puts a vertex of one route within the contact radius of the
+ * other route. */
+function routesNear(a: readonly Point[], b: readonly Point[]): boolean {
+  const near = (vertices: readonly Point[], route: readonly Point[]): boolean => {
+    for (const p of vertices) for (let i = 1; i < route.length; i++) {
+      const q = route[i - 1]!, r = route[i]!
+      if (p.x >= Math.min(q.x, r.x) - ROUTE_CONTACT_RADIUS && p.x <= Math.max(q.x, r.x) + ROUTE_CONTACT_RADIUS
+        && p.y >= Math.min(q.y, r.y) - ROUTE_CONTACT_RADIUS && p.y <= Math.max(q.y, r.y) + ROUTE_CONTACT_RADIUS) return true
+    }
+    return false
   }
-  return null
+  return near(a, b) || near(b, a)
+}
+
+/** 1 when `points`, drawn for `edge`, touches or shares a run with `other`
+ * although the two share no endpoint (`measureRouteContacts`), else 0. */
+export function routePairContact(points: readonly Point[], edge: Pick<PositionedEdge, 'source' | 'target'>, other: Pick<PositionedEdge, 'source' | 'target' | 'points'>): number {
+  if (other.source === edge.source || other.source === edge.target || other.target === edge.source || other.target === edge.target
+    || !routesNear(points, other.points)) return 0
+  const contacts = measureRouteContacts([{ points, ends: [edge.source, edge.target] }, { points: other.points, ends: [other.source, other.target] }])
+  return contacts.touches + contacts.overlaps
 }
 
 /** Use the same visible proper crossings for proposals and final scoring. */

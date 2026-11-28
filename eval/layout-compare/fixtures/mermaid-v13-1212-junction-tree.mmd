@@ -1,0 +1,15 @@
+%% A tree whose relations join opposite faces draws with no crossing, even where packing by faces leaves a child no room beside its parent (https://github.com/mermaid-js/mermaid-v13/issues/1212).
+architecture-beta
+  junction s0
+  junction s1
+  junction s2
+  junction s3
+  junction s4
+  junction s5
+  junction s6
+  s0:L -- R:s1
+  s0:B -- T:s2
+  s1:B -- T:s3
+  s0:R -- L:s4
+  s2:L -- R:s5
+  s4:T -- B:s6

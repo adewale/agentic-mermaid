@@ -1,0 +1,5 @@
+%% Real diagram from a user issue: https://github.com/obsidianmd/pele/issues/119
+flowchart LR
+    qs(("$$q_{start}$$")) -- "$$\epsilon, \epsilon \to E\$ $$" --> ql(("$$q_{loop}$$"))
+    ql -- "$$\begin{gathered} \epsilon, E \to E+E \\ \epsilon, E \to E*E \\ \epsilon, E \to (E) \\ \epsilon, E \to \text{id} \\ \epsilon, E \to \text{num} \\ +, + \to \epsilon \quad *, * \to \epsilon \\ (, ( \to \epsilon \quad ), ) \to \epsilon \\ \text{id}, \text{id} \to \epsilon \quad \text{num}, \text{num} \to \epsilon \end{gathered}$$" --> ql
+    ql -- "$$\epsilon, \$ \to \epsilon$$" --> qa((("$$q_{accept}$$")))

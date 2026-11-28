@@ -403,6 +403,21 @@ describe('native block', () => {
         expect(svg).toContain('marker-end="url(#block-arrow-end)"')
       }
   })
+  test('a link with no clear route still leaves and arrives through its faces at right angles', () => {
+    // Without padding the cells touch: d's west face, which lies behind a's
+    // east face, has no room for a stub, so every routed attempt fails and
+    // the last resort draws the link.
+    const source = '---\nconfig:\n  block:\n    padding: 0\n---\nblock-beta\ncolumns 3\na:3\nb c d\na --- d',
+      p = positionResolvedFamily('block', resolveRenderRequestForExecution(source, {}, 'svg')).positioned as PositionedBlockDiagram,
+      a = p.nodes.find(node => node.id === 'a')!,
+      d = p.nodes.find(node => node.id === 'd')!,
+      points = p.edges[0]!.points
+    for (let i = 1; i < points.length; i++) expect(points[i - 1]!.x === points[i]!.x || points[i - 1]!.y === points[i]!.y).toBe(true)
+    expect(points[0]).toEqual({ x: a.x + a.width, y: a.y + a.height / 2 })
+    expect([points[1]!.y, points[1]!.x > points[0]!.x]).toEqual([points[0]!.y, true])
+    expect(points.at(-1)).toEqual({ x: d.x, y: d.y + d.height / 2 })
+    expect([points.at(-2)!.y, points.at(-2)!.x < d.x]).toEqual([points.at(-1)!.y, true])
+  })
   test('reciprocal and parallel labeled links occupy distinct clear routes without moving authored cells', () => {
     for (const columns of [1, 2]) {
       const cells = `block\ncolumns ${columns}\nA["API"] B["Database"]`,
@@ -464,6 +479,46 @@ describe('native block', () => {
     // The larger publication typography formerly placed Persist's opaque
     // label halo over the neighboring Audit input arrowhead.
     expect(() => renderMermaidSVG(source, { style: 'publication-figure', seed: 17, layoutSafety: 'strict' })).not.toThrow()
+  })
+  // mermaid-5313: a→l left group1 and jogged 14px along its bottom frame, so
+  // the jog read as the frame. A route crosses a composite it does not attach
+  // to but never runs along its frame within the route clearance.
+  test.each([
+    ['mermaid-5313', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l'],
+    ['links out of and back into a group', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l\n  c --> m\n  m --> a'],
+  ])('%s routes cross composite frames without running along them', (_name, source) => {
+    const layout = layoutMermaid(structured(source))
+    for (const edge of layout.edges) for (const group of layout.groups.filter(group => group.id !== edge.from && group.id !== edge.to)) {
+      for (let index = 1; index < edge.path.length; index++) {
+        const [ax, ay] = edge.path[index - 1]!, [bx, by] = edge.path[index]!
+        const horizontal = ay === by, at = horizontal ? ay : ax
+        const sides = horizontal ? [group.y, group.y + group.h] : [group.x, group.x + group.w]
+        const from = horizontal ? group.x : group.y, to = from + (horizontal ? group.w : group.h)
+        const run = Math.min(Math.max(horizontal ? ax : ay, horizontal ? bx : by), to) - Math.max(Math.min(horizontal ? ax : ay, horizontal ? bx : by), from)
+        for (const side of sides) expect(run > 1 && Math.abs(at - side) < 4, `${edge.from}->${edge.to} segment ${index} runs along ${group.id}`).toBe(false)
+      }
+    }
+  })
+  // mermaid-5313: a→l jogged 14px between the two cells' centre ports,
+  // although their facing faces overlap. Ends on faces that carry no other
+  // end move along them, within the middle half of each, to one straight run.
+  test.each([
+    ['mermaid-5313, offset across rows', 'block-beta\n  columns 2\n  block:group1:2\n    columns 3\n    a b c\n  end\n  l m\n  a --> l', 'a', 'l'],
+    ['offset across columns', 'block-beta\n  columns 2\n  block:g\n    columns 1\n    a\n    b["tall\\nlabel\\nhere"]\n  end\n  c["c with\\na tall\\ntall\\nlabel"]\n  b --> c', 'b', 'c'],
+  ])('%s: a connector between overlapping faces runs straight', (_name, source, from, to) => {
+    const layout = layoutMermaid(structured(source)), edge = layout.edges.find(edge => edge.from === from && edge.to === to)!
+    expect(edge.path).toHaveLength(2)
+    const [ax, ay] = edge.path[0]!, [bx, by] = edge.path[1]!
+    const vertical = ax === bx
+    expect(vertical || ay === by).toBe(true)
+    for (const [id, x, y] of [[from, ax, ay], [to, bx, by]] as const) {
+      const node = layout.nodes.find(node => node.id === id)!
+      const along = vertical ? x - node.x : y - node.y, face = vertical ? node.w : node.h
+      // Published coordinates are rounded.
+      expect(along, `${id}: end within the middle half of its face`).toBeGreaterThanOrEqual(face / 4 - 1)
+      expect(along).toBeLessThanOrEqual(face * 3 / 4 + 1)
+      expect(vertical ? [node.y, node.y + node.h] : [node.x, node.x + node.w], `${id}: end on its face`).toContain(vertical ? y : x)
+    }
   })
   test('nested composites retain actual Scene containment and independent semantic Style roles', () => {
     const source = 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',

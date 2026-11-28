@@ -1,0 +1,10 @@
+%% Real diagram from a user issue: https://github.com/Latias94/merman/issues/189
+flowchart TD
+    mask --> nothing{Anything removed?}
+    nothing -->|no| summary[Write a summary]
+    nothing -->|yes| estimate[Estimate the size]
+    estimate --> target{Over the target?}
+    target -->|yes| summary
+    target -->|no| keep[Keep the copy]
+    keep -->|micro| line([Log line])
+    summary -->|full| line

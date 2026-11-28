@@ -1,0 +1,205 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6337
+stateDiagram-v2
+    direction TB
+    
+    %% Client-Side State Management
+    state Client {
+        direction TB
+        
+        state ClientMobX {
+            direction LR
+            
+            %% MobX Stores
+            state WebSocketStore {
+                isConnected
+                connectionStatus
+                socket
+                sessionState
+                connect
+                disconnect
+                getSocket
+                setSessionState
+                getSessionState
+                connect_event
+                disconnect_event
+                error_event
+            }
+            
+            state ChatStore {
+                messages
+                prompt
+                isLoading
+                threadId
+                availableThreads
+                isThreadListOpen
+                agentId
+                availableAgents
+                isAgentListOpen
+                functionCalls
+                fileUploadState
+                speechToTextState
+                sendMessage
+                createThread
+                selectThread
+                createAgent
+                selectAgent
+                setFile
+                startRecording
+                stopRecording
+            }
+            
+            state GraphStore {
+                nodes
+                edges
+                selectedNodes
+                layoutSettings
+                addNode
+                updateNode
+                addEdge
+                updateEdge
+                setLayout
+                applyLayout
+            }
+        }
+        
+        state ClientUI {
+            direction TB
+            
+            state ChatComponent {
+                direction TB
+                ChatStreamMultimodalGraphMobX
+                
+                state Subcomponents {
+                    ChatMessages
+                    ThreadList
+                    AgentList
+                    FunctionCallStatus
+                    AudioRecorder
+                    FileUpload
+                }
+            }
+            
+            state GraphComponent {
+                direction TB
+                GraphVisualization
+                
+                state GraphSubcomponents {
+                    NodeRenderer
+                    EdgeRenderer
+                    ControlPanel
+                }
+            }
+        }
+        
+        WebSocketStore --> ChatStore: Provides events
+        WebSocketStore --> GraphStore: Updates data
+        ChatStore --> ClientUI: Updates Chat UI
+        GraphStore --> ClientUI: Updates Graph UI
+        ClientUI --> WebSocketStore: Triggers events
+    }
+    
+    %% Server-Side State Management
+    state Server {
+        direction TB
+        
+        state SocketServer {
+            handleConnection
+            setupEventHandlers
+            disconnectHandler
+        }
+        
+        state SessionManager {
+            direction LR
+            
+            state SessionState {
+                initState
+                clearState
+                updateState
+                getFullState
+            }
+            
+            state EventHandlers {
+                sessionInit
+                sessionClear
+                sessionUpdate
+                sessionGet
+            }
+            
+            state ResponseEvents {
+                sessionReady
+            }
+        }
+        
+        state FeatureHandlers {
+            direction LR
+            
+            state ChatHandler {
+                agentCreate
+                agentList
+                threadCreate
+                threadList
+                chatMessage
+            }
+            
+            state FileHandler {
+                fileUpload
+                fileProcess
+            }
+            
+            state AudioHandler {
+                audioRecord
+                audioTranscribe
+            }
+            
+            state GraphHandler {
+                graphUpdate
+                graphLayout
+                graphQuery
+            }
+        }
+    }
+    
+    %% WebSocket Communication
+    state WebSocketEvents {
+        direction TB
+        
+        state ClientToServer {
+            emitEvents
+            promiseHandling
+            eventTimeouts
+        }
+        
+        state ServerToClient {
+            responseEvents
+            errorEvents
+            streamEvents
+        }
+    }
+    
+    %% External Services
+    state ExternalServices {
+        LLM_API
+        FileProcessing
+        SpeechToText
+        GraphAnalytics
+    }
+    
+    %% Relationships between major components
+    Client --> WebSocketEvents
+    WebSocketEvents --> Server
+    Server --> ExternalServices: API Calls
+    ExternalServices --> Server: Responses
+    Server --> WebSocketEvents: Events
+    WebSocketEvents --> Client: Updates
+    
+    %% State Synchronization Flow
+    state StateSyncFlow {
+        direction LR
+        Init --> Update: sessionInit
+        Update --> Get: sessionUpdate
+        Get --> Clear: sessionGet
+        Clear --> Init: sessionClear
+    }
+    
+    Server --> StateSyncFlow: Manages
+    StateSyncFlow --> Client: Synchronizes

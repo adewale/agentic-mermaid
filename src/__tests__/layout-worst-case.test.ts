@@ -40,8 +40,9 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   { name: 'class relationships 30 x 30', source: edgewise('classDiagram', 30, (a, b) => `${a} --> ${b}`), limit: 'CLASS_LAYOUT_WORK_LIMIT' },
   { name: 'ER relationships 20 x 20', source: edgewise('erDiagram', 20, (a, b) => `${a.toUpperCase()} ||--o{ ${b.toUpperCase()} : r`), limit: 'ER_LABEL_WORK_LIMIT' },
   // Every relationship label collides with many others; seat search once
-  // re-proved fixed clearances per conflict and sweep (~40 s).
-  { name: 'C4 relationships between all pairs of 29 systems (406)', source: c4Systems(29) },
+  // re-proved fixed clearances per conflict and sweep (~40 s). C4 layout now
+  // refuses more than 150 relationships before any layout work.
+  { name: 'C4 relationships between all pairs of 29 systems (406)', source: c4Systems(29), limit: 'C4_ROUTE_WORK_LIMIT' },
   { name: 'edges past the host limit', source: ['flowchart TD', ...Array.from({ length: 5001 }, () => 'A --> B')].join('\n'), limit: 'DIAGRAM_WORK_LIMIT' },
   // Inside the edge budget, but its drawing needs more than the Scene's
   // 50,000 points: a size refusal, not a Scene validation failure.

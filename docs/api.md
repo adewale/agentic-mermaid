@@ -428,7 +428,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | `border` | `string` | derived | Node and group border color. |
 | `font` | `string` | `Inter` | CSS font family or stack. |
 | `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. |
-| `padding` | `number` | `40` | Canvas padding in SVG user units. Built-in families: flowchart, state, architecture, c4, requirement, block, packet, kanban, eventmodeling, usecase, wardley, cynefin, swimlane, agentflow. Not consumed by terminal output. |
+| `padding` | `number` | `40` | Canvas padding in SVG user units. Layout keeps at least the 8-unit paint margin, so smaller values draw as 8. Built-in families: flowchart, state, architecture, c4, requirement, block, packet, kanban, eventmodeling, usecase, wardley, cynefin, swimlane, agentflow. Not consumed by terminal output. |
 | `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. Built-in families: flowchart, state, class, er, architecture, c4, eventmodeling, swimlane. Not consumed by terminal output. |
 | `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. Built-in families: flowchart, state, class, er, architecture, c4, requirement, usecase, agentflow. Not consumed by terminal output. |
 | `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. Built-in families: flowchart. Not consumed by terminal output. |

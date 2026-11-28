@@ -3,7 +3,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
-import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
+import type { LayoutPass, MetricBudget, PassContextBase, PassEffect, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
@@ -76,7 +76,7 @@ N2 --->|a longer label goes here| N4`)
       const source = `flowchart ${direction}\nA[Start] --> B[Done]`
       const baseline = renderMermaidSVG(source, { embedFontImport: false })
       // The injected route fault must originate at a route-writing owner.
-      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOnSharedTrunks')!, run = pass.run
+      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'settleEdgeLabels')!, run = pass.run
       let injected = 0
       pass.run = context => {
         run(context)
@@ -100,20 +100,6 @@ N2 --->|a longer label goes here| N4`)
         expect(injected).toBeGreaterThanOrEqual(2)
       } finally { pass.run = run }
     })
-  })
-
-  test('a label-only pass cannot rewrite a route even with a fresh certificate', () => {
-    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOffOwnRoute')!, run = pass.run
-    pass.run = context => {
-      run(context)
-      const edge = context.edges[0]!, a = edge.points[0]!, b = edge.points.at(-1)!
-      edge.points = [a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b]
-      edge.routeCertificate = { ...edge.routeCertificate! }
-    }
-    try {
-      expect(() => withPerformanceExperiments(['text-spans'], () =>
-        renderMermaidSVG('flowchart LR\nA[Start] --> B[Done]', { embedFontImport: false }))).toThrow(/repairLabelsOffOwnRoute.*rewrote edge geometry/)
-    } finally { pass.run = run }
   })
 
   test.each([
@@ -285,7 +271,7 @@ S1["same word ok"] --> D`],
   })
 
   test('a late edge pass moving a frozen node is a production contract failure, not a fallback candidate', () => {
-    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'repairLabelsOffOwnRoute')!
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'settleEdgeLabels')!
     const run = pass.run
     let calls = 0, failure: unknown
     pass.run = context => { calls++; run(context); context.nodes[0]!.x += 9 }
@@ -297,7 +283,7 @@ S1["same word ok"] --> D`],
       pass.run = run
     }
     expect(failure).toBeInstanceOf(LayoutPassContractError)
-    expect(failure).toMatchObject({ pass: 'repairLabelsOffOwnRoute', contract: 'freeze' })
+    expect(failure).toMatchObject({ pass: 'settleEdgeLabels', contract: 'freeze' })
     expect(calls).toBe(1)
   })
 
@@ -660,6 +646,16 @@ describe('runPipeline invariant enforcement', () => {
     log: string[]
     edges?: Array<{ points: Array<{ x: number; y: number }>; labelPosition?: { x: number; y: number }; routeCertificate?: unknown }>
   }
+  // Routes are values between passes (frozen under test assertions): a fake
+  // pass publishes a new points array or label position, as real passes do.
+  const movePoint = (c: TestCtx, index: number, y: number): void => {
+    const edge = c.edges![0]!
+    edge.points = edge.points.map((point, at) => (at === index ? { ...point, y } : point))
+  }
+  const moveLabel = (c: TestCtx, y: number): void => {
+    const edge = c.edges![0]!
+    edge.labelPosition = { ...edge.labelPosition!, y }
+  }
   const mkPass = (over: Partial<LayoutPass<TestCtx>> & { id: string }): LayoutPass<TestCtx> => ({
     doc: '',
     after: [],
@@ -684,7 +680,7 @@ describe('runPipeline invariant enforcement', () => {
     })
     const requested: RubricMetric[][] = []
     const context: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
-    runPipeline(context, [mkPass({ id: 'live-budget', mayChangeMetrics: budgets, run: c => {
+    runPipeline(context, [mkPass({ id: 'live-budget', mutates: ['positions'], mayChangeMetrics: budgets, run: c => {
       c.nodes[0]!.x = 1
       budget.worsenBy = 1
       budget.whenImproves = 'crossings'
@@ -740,6 +736,18 @@ describe('runPipeline invariant enforcement', () => {
   test('a positions pass moving a frozen node always fails', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'move', mutates: ['positions'], run: moveFirstNode })])).toThrow(/freeze/)
+  })
+
+  test('before the freeze, under assertions, boxes change only as a pass declares', () => {
+    const run = (mutates: PassEffect[], change: (ctx: TestCtx) => void) => () =>
+      runPipeline({ frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }, [mkPass({ id: 'p', mutates, run: change })])
+    const move = (ctx: TestCtx) => { ctx.nodes[0]!.x = 3 }
+    const resize = (ctx: TestCtx) => { ctx.nodes[0]!.width = 3 }
+    expect(run(['edges'], move)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['positions'], resize)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['dimensions'], move)).toThrow(/LayoutPass effects: 'p'/)
+    expect(run(['positions'], move)).not.toThrow()
+    expect(run(['dimensions'], resize)).not.toThrow()
   })
 
   test('a whole-graph translate after the freeze is allowed', () => {
@@ -845,14 +853,25 @@ describe('runPipeline invariant enforcement', () => {
     expect(() => runPipeline(ctx, [mkPass({ id: 'complete-translate', mutates: ['translate'], run: c => {
       c.nodes[0]!.x += 9
       c.groups![0]!.x += 9
-      for (const point of c.edges![0]!.points) point.x += 9
-      c.edges![0]!.labelPosition!.x += 9
+      const edge = c.edges![0]!
+      edge.points = edge.points.map(point => ({ ...point, x: point.x + 9 }))
+      edge.labelPosition = { ...edge.labelPosition!, x: edge.labelPosition!.x + 9 }
     } })])).not.toThrow()
+  })
+
+  test('routes are values between passes and after them: an in-place edit throws', () => {
+    const edges = [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], labelPosition: { x: 5, y: 0 } }]
+    expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-point', run: c => { c.edges![0]!.points[1]!.x = 20 } })])).toThrow(TypeError)
+    expect(() => runPipeline({ frozen: false, nodes: [], log: [], edges: structuredClone(edges) }, [mkPass({ id: 'edits-label', run: c => { c.edges![0]!.labelPosition!.x = 6 } })])).toThrow(TypeError)
+    const ctx: TestCtx = { frozen: false, nodes: [], log: [], edges: structuredClone(edges) }
+    runPipeline(ctx, [mkPass({ id: 'publishes', run: c => movePoint(c, 1, 3) })])
+    expect(ctx.edges![0]!.points[1]).toEqual({ x: 10, y: 3 })
+    expect(() => { ctx.edges![0]!.points[1]!.x = 11 }).toThrow(TypeError)
   })
 
   test('an existing certificate is stale after a post-freeze route rewrite', () => {
     const ctx: TestCtx = { frozen: true, nodes: [], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], routeCertificate: { invariant: 'straight' } }] }
-    expect(() => runPipeline(ctx, [mkPass({ id: 'stale-certificate', run: c => { c.edges![0]!.points.splice(1, 0, { x: 5, y: 5 }) } })])).toThrow(/re-issuing routeCertificate/)
+    expect(() => runPipeline(ctx, [mkPass({ id: 'stale-certificate', run: c => { const edge = c.edges![0]!; edge.points = [edge.points[0]!, { x: 5, y: 5 }, ...edge.points.slice(1)] } })])).toThrow(/re-issuing routeCertificate/)
   })
 
   test('onAfterPass fires only for passes that actually ran', () => {
@@ -881,6 +900,46 @@ describe('runPipeline invariant enforcement', () => {
         { measureMetrics: c => ({ bends: c.nodes[0]!.x }) },
       ),
     ).toThrow(/reroute.*bends.*allowance 2/)
+  })
+
+  // The centering pass runs two steps. Here the fork/rejoin step centres
+  // N5's three-way fork row on the decision and improves symmetry; the peer
+  // step that follows worsens it. Rejecting the peer step must keep the
+  // fork/rejoin step (shrunk from a generated search; observed where the
+  // pass hands over, since later passes move this row again).
+  test('a rejected peer-centering step keeps the fork/rejoin step before it', () => {
+    const next = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = next.run
+    let offset: number | undefined
+    next.run = context => {
+      if (offset === undefined) {
+        const centre = (id: string) => { const node = context.nodes.find(candidate => candidate.id === id)!; return node.y + node.height / 2 }
+        const row = ['N6', 'N7', 'N8'].map(centre)
+        offset = Math.abs(centre('N5') - (Math.min(...row) + Math.max(...row)) / 2)
+      }
+      run(context)
+    }
+    try {
+      layoutGraphSync(parseMermaid(`flowchart LR
+  N2["Node 2"]
+  N5{"Node 5"}
+  N6["Node 6"]
+  N7["Node 7"]
+  N8["Node 8"]
+  N13{"Node 13"}
+  N2 --> N4
+  N3 -->|"yes"| N4
+  N5 -.-> N6
+  N6 ==> N9
+  N5 -->|"no"| N7
+  N7 -->|"no"| N9
+  N5 --o|"a<br/>b"| N8
+  N8 --> N9
+  N11 --> N10
+  N12 -->|"validate input"| N10
+  N3 -->|"validate input"| N11
+  N11 -.->|"retry later"| N9`))
+    } finally { next.run = run }
+    expect(offset).toBeLessThanOrEqual(0.5)
   })
 
   test('a losing cosmetic proposal restores its owned geometry before dependent passes', () => {
@@ -924,8 +983,8 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot introduce an undeclared hard regression', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.points[1]!.y = 1
-      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+      movePoint(c, 1, 1)
+      return () => { movePoint(c, 1, 0); c.nodes[0]!.x = 99 }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: c.nodes[0]!.x }) }))
       .toThrow(/invalid-restore.*hard.*99/)
@@ -934,9 +993,9 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot invalidate frozen geometry after repairing its score', () => {
     const ctx: TestCtx = { frozen: true, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], routeCertificate: {} }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.points[1]!.y = 1
+      movePoint(c, 1, 1)
       c.edges![0]!.routeCertificate = {}
-      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+      return () => { movePoint(c, 1, 0); c.nodes[0]!.x = 99 }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: 0 }) }))
       .toThrow(/invalid-restore.*frozen geometry/)
@@ -945,8 +1004,8 @@ describe('runPipeline invariant enforcement', () => {
   test('a cosmetic rollback cannot leave a stale frozen route certificate', () => {
     const ctx: TestCtx = { frozen: true, nodes: [], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], labelPosition: { x: 0.5, y: 0 }, routeCertificate: {} }] }
     const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
-      c.edges![0]!.labelPosition!.y = 1
-      return () => { c.edges![0]!.labelPosition!.y = 0; c.edges![0]!.points[1]!.y = 2 }
+      moveLabel(c, 1)
+      return () => { moveLabel(c, 0); movePoint(c, 1, 2) }
     } })
     expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.labelPosition!.y, hard: 0 }) }))
       .toThrow(/re-issuing routeCertificate/)
@@ -972,6 +1031,7 @@ describe('runPipeline invariant enforcement', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     const pass = mkPass({
       id: 'attach',
+      mutates: ['positions'],
       mayChangeMetrics: { portRate: 'improve-only' },
       run: c => {
         c.nodes[0]!.x = 1
@@ -987,6 +1047,7 @@ describe('runPipeline invariant enforcement', () => {
     const pass = (removeBends: boolean) =>
       mkPass({
         id: 'straighten',
+        mutates: ['positions'],
         mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'bends' } },
         run: c => {
           c.nodes[0]!.x = 0
@@ -1000,7 +1061,7 @@ describe('runPipeline invariant enforcement', () => {
   test('each extra crossing needs a separately repaired parallel overlap, rather than bend reduction', () => {
     const make = (): TestCtx => ({ frozen: false, nodes: [{ x: 0, y: 2, width: 5, height: 1 }], log: [] })
     const measureMetrics = (context: TestCtx) => ({ crossings: context.nodes[0]!.x, parallelOverlaps: context.nodes[0]!.y, bends: context.nodes[0]!.width })
-    const pass = (crossings: number, overlaps: number) => mkPass({ id: 'separate', mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true } }, run: c => { c.nodes[0]!.x = crossings; c.nodes[0]!.y = overlaps; c.nodes[0]!.width = 0 } })
+    const pass = (crossings: number, overlaps: number) => mkPass({ id: 'separate', mutates: ['positions', 'dimensions'], mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true } }, run: c => { c.nodes[0]!.x = crossings; c.nodes[0]!.y = overlaps; c.nodes[0]!.width = 0 } })
     expect(() => runPipeline(make(), [pass(2, 0)], { measureMetrics })).not.toThrow()
     expect(() => runPipeline(make(), [pass(2, 1)], { measureMetrics })).toThrow(/crossings.*allowance 1/)
     expect(() => runPipeline(make(), [pass(1, 2)], { measureMetrics })).toThrow(/crossings.*allowance 0/)
@@ -1033,4 +1094,46 @@ describe('requested production budget metrics', () => {
     positioned.edges.push({ ...graph.edges[0]!, points: [{ x: 10, y: 5 }, { x: 15, y: 0 }] })
     expect(measureRubricMetrics(graph, positioned, ['crossings'], resolveRenderStyle({}))).toEqual({ crossings: 1 })
   })
+})
+
+// A finished layout is a value: a consumer that needs other geometry builds
+// new objects, so object identity stands for content (positioned-values.ts).
+describe('the finished positioned graph', () => {
+  test('is immutable: an edit of a node, group, route or caption throws (assertions)', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\nsubgraph S\nA -- go --> B\nend'))
+    const node = positioned.nodes[0]!, group = positioned.groups[0]!, edge = positioned.edges[0]!
+    const edits: Array<() => void> = [
+      () => { node.x += 1 },
+      () => { group.width += 1 },
+      () => { group.children.push(group) },
+      () => { edge.points = [] },
+      () => { edge.points[0]!.y += 1 },
+      () => { edge.labelPosition!.x += 1 },
+      () => { positioned.edges.pop() },
+    ]
+    for (const edit of edits) expect(edit).toThrow(TypeError)
+  })
+})
+
+// Layer alignment snaps a staggered layer onto one line after routing. It
+// may not bring a foreign route within the route clearance of a moved box
+// (mermaid#4458: E->F ran 0.7px above Node I's top border and read as E->I),
+// nor leave a terminal shaft shorter than the clearance by moving only its
+// endpoint (zombie-mermaid#2110: Cluster->Y ended in a 0.8px shaft).
+describe('layer alignment keeps the route clearance', () => {
+  test.each(['mermaid-4458', 'zombie-mermaid-2110'])('%s: no border run or short terminal shaft', name => {
+    const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
+    const findings = rubric.routeClearanceFindings(positioned.edges, rubric.clearanceBoxes(positioned))
+    expect(findings.filter(finding => finding.kind !== 'cornerEnd').map(finding => finding.detail)).toEqual([])
+  })
+})
+
+// ELK can attach an edge to a group at a corner of its frame, so the route
+// continues the frame's other side (zombie-mermaid#2110: Cluster->X and
+// Cluster->Y; mermaid#2793: t->Rollback). Extraction slides such an end along
+// its side, clear of the corner.
+test.each(['zombie-mermaid-2110', 'mermaid-2793'])('%s: edges from a group leave its side, not a corner', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
+  const findings = rubric.routeClearanceFindings(positioned.edges, rubric.clearanceBoxes(positioned))
+  expect(findings.filter(finding => finding.kind === 'cornerEnd').map(finding => finding.detail)).toEqual([])
 })

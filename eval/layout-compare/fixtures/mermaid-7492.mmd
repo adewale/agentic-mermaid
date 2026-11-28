@@ -1,0 +1,37 @@
+%% A relation leaving a boundary must not circle the canvas when a short clear route exists (https://github.com/mermaid-js/mermaid/issues/7492).
+C4Container
+  title Container diagram for Internet Banking System
+
+  Person(customer, "Customer",
+    "A customer of the bank, with personal bank accounts")
+
+  System_Ext(mailSystem, "E-Mail System",
+    "The internal Microsoft Exchange system")
+  System_Ext(mainframe, "Mainframe Banking System",
+    "Stores all of the core banking information")
+
+  Container_Boundary(c1, "Internet Banking") {
+    Container(spa, "Single-Page App",
+      "JavaScript, Angular",
+      "Provides all the Internet banking functionality")
+    Container(webApp, "Web Application",
+      "Java, Spring MVC",
+      "Delivers the static content and the SPA")
+    ContainerDb(db, "Database",
+      "SQL Database",
+      "Stores user registration information")
+    Container_Ext(mobile, "Mobile App",
+      "C#, Xamarin",
+      "Provides a limited subset of functionality")
+  }
+
+  Rel(customer, spa, "Uses", "HTTPS")
+  Rel(customer, mainframe, "Uses")
+  Rel(spa, webApp, "Uses", "HTTPS")
+  Rel(webApp, db, "Reads from and writes to",
+    "sync, JSON/HTTPS")
+  Rel(webApp, mainframe, "Uses",
+    "sync/async, XML/HTTPS")
+  Rel(mailSystem, customer, "Sends e-mails to")
+  Rel(webApp, mailSystem, "Sends e-mails using",
+    "sync, SMTP")

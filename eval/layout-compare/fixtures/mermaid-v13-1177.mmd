@@ -1,0 +1,14 @@
+%% A relation between offset cards whose facing faces overlap runs straight instead of jogging (https://github.com/mermaid-js/mermaid-v13/issues/1177).
+C4Container
+System_Ext(mail, "E-Mail")
+Person(customer, "Customer")
+Container_Boundary(c1, "Internet Banking") {
+  Container(spa, "Single-Page App", "JavaScript, Angular", "Provides all the Internet banking functionality to customers via their web browser")
+  Container_Ext(mobile_app, "Mobile App", "C#, Xamarin", "Provides a limited subset of the Internet banking functionality to customers via their mobile device")
+  Container(web_app, "Web Application", "Java, Spring MVC", "Delivers the static content and the Internet banking SPA")
+  ContainerDb(database, "Database", "SQL Database", "Stores user registration information, hashed auth credentials, access logs, etc.")
+  ContainerDb_Ext(backend_api, "API Application", "Java, Docker Container", "Provides Internet banking functionality via API")
+}
+System_Ext(banking_system, "Mainframe Banking System", "Stores all of the core banking information about customers, accounts, transactions, etc.")
+Rel(mobile_app, backend_api, "Uses", "async, JSON/HTTPS")
+Rel(backend_api, banking_system, "Uses", "sync/async, XML/HTTPS")

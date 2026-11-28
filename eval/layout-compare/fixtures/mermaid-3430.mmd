@@ -1,0 +1,30 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/3430
+stateDiagram
+  direction TB
+    [*] --> A
+    A --> B
+    B --> S
+    S --> O
+    O --> S
+    O --> OS
+    O --> B
+    OS --> A
+    OS --> B
+    A --> PO
+    PO --> SB
+    PO --> SBI
+    T --> D
+    SB --> D
+    SBI --> D
+    D --> P
+    SBI --> T
+    SB --> T
+    P --> PP
+    PP --> CP
+    PP --> A
+    P --> CPE
+    PP --> CPE
+    PP --> PF
+    P --> PF
+    PF --> A
+    PF --> P

@@ -1,0 +1,25 @@
+%% An edge into a deeply nested group takes the shortest route that keeps out of every header band (https://github.com/mermaid-js/mermaid/issues/7301).
+architecture-beta
+group InternetGroup
+service Internet(cloud)[Internet] in InternetGroup
+
+group AWS(cloud)[AWS]
+group region(tabler:world) in AWS
+group VPC(logos:aws-vpc) in region
+group AZ_A(cloud)[Availability Zone A] in VPC
+group AZ_B(cloud)[Availability Zone B] in VPC
+
+junction junctionTop in VPC
+group SubPriv1(cloud)[Private Subnet 1 ] in AZ_B
+group SubPub1(cloud)[Public Subnet 1 ] in AZ_B
+
+service db(database)[Database] in SubPriv1
+service IGW(cloud)[Internet GW] in VPC
+service NAT(cloud)[NAT GW] in SubPub1
+service SrvPub1(logos:aws-ec2)[Public Server 1] in SubPriv1
+service SrvPriv1(logos:aws-ec2)[Private Server 1] in SubPriv1
+
+db:L -- R:SrvPub1
+IGW:B -- T:SrvPub1
+NAT:T -- B:IGW
+Internet:B -- T:IGW

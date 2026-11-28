@@ -12,6 +12,9 @@ import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { parseSwimlane } from '../swimlane/parser.ts'
 import { layoutSwimlane, swimlanePartitions } from '../swimlane/layout.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { graphGroupHeader } from '../graph-group-header.ts'
+import { labelBoxAt } from '../layout/passes/bundled-labels.ts'
+import { resolveRenderStyle } from '../styles.ts'
 
 const source = `swimlane-beta LR
 subgraph Customer[Customer 👩‍💻]
@@ -136,6 +139,17 @@ test('the bare upstream graph keyword keeps its established Flowchart identity',
   expect(native.ok && native.value.body.kind).toBe('swimlane')
 })
 
+/** Length two orthogonal polylines draw along the same line. */
+function sharedInk(a: readonly { x: number; y: number }[], b: readonly { x: number; y: number }[]): number {
+  let shared = 0
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const p = a[i - 1]!, q = a[i]!, r = b[j - 1]!, t = b[j]!
+    if (p.x === q.x && r.x === t.x && p.x === r.x) shared += Math.max(0, Math.min(Math.max(p.y, q.y), Math.max(r.y, t.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, t.y)))
+    else if (p.y === q.y && r.y === t.y && p.y === r.y) shared += Math.max(0, Math.min(Math.max(p.x, q.x), Math.max(r.x, t.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, t.x)))
+  }
+  return shared
+}
+
 test('independent lane hand-offs keep separate short routes instead of an unlabelled shared bus', () => {
   const input = ['swimlane-beta LR', ...Array.from({ length: 3 }, (_, lane) => [`subgraph L${lane}[Team ${lane}]`, ...Array.from({ length: 6 }, (_, item) => `n${lane}_${item}[Task ${lane}.${item}]`), 'end']), ...Array.from({ length: 6 }, (_, item) => [`n0_${item} --> n1_${item}`, `n1_${item} --> n2_${item}`])].flat().join('\n')
   const chart = layoutSwimlane(parseSwimlane(input)), firstLane = chart.nodes.filter(node => node.id.startsWith('n0_'))
@@ -154,6 +168,140 @@ test('independent lane hand-offs keep separate short routes instead of an unlabe
     const from = chart.nodes.find(node => node.id === edge.source)!, to = chart.nodes.find(node => node.id === edge.target)!
     expect(edge.points[0]?.y).toBe(from.y + from.height)
     expect(edge.points.at(-1)?.y).toBe(to.y)
+  }
+})
+
+// mermaid-7964: a route detouring around a task between its ends was drawn on
+// that task's border for 238px, so it read as attached to the task.
+test.each(['LR', 'TD'] as const)('a %s route detouring around a task keeps the route clearance from its border', direction => {
+  const chart = layoutSwimlane(parseSwimlane(`swimlane-beta ${direction}\nsubgraph Lane\nA\nB\nC\nend\nA --> B\nB --> C\nA --> C`))
+  const detour = chart.edges.find(edge => edge.source === 'A' && edge.target === 'C')!, b = chart.nodes.find(node => node.id === 'B')!
+  expect(detour.points.length).toBeGreaterThan(2)
+  let nearest = Infinity
+  for (let index = 1; index < detour.points.length; index++) {
+    const p = detour.points[index - 1]!, q = detour.points[index]!
+    const dx = Math.max(b.x - Math.max(p.x, q.x), Math.min(p.x, q.x) - b.x - b.width, 0)
+    const dy = Math.max(b.y - Math.max(p.y, q.y), Math.min(p.y, q.y) - b.y - b.height, 0)
+    nearest = Math.min(nearest, Math.hypot(dx, dy))
+  }
+  expect(nearest).toBeGreaterThanOrEqual(4)
+})
+
+// merman#242: request→triage and triage→investigate jogged 4–5px between
+// the centred ports of tasks of different widths, although their faces
+// overlap. A hand-off alone on two facing faces whose middle halves overlap
+// runs straight, with each end in the middle half of its face.
+// merman#242: "Needs code change" sat at its route's midpoint, across the
+// Engineering lane's top frame and on its title band, although the route
+// crosses the 48px gap between the lanes, where the caption fits clear of
+// both. A caption keeps off title bands and frame lines where its own route
+// has such a seat. (Top to bottom, the route crosses the gap sideways and
+// the caption is wider than it, so no such seat exists.)
+test.each(['LR', 'RL'] as const)('Swimlane %s captions keep off lane titles and frame lines', direction => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/merman-242.mmd', import.meta.url), 'utf8').replace('swimlane-beta LR', `swimlane-beta ${direction}`)
+  const chart = layoutSwimlane(parseSwimlane(input)), style = resolveRenderStyle({})
+  const groups: PositionedGroup[] = []
+  const collect = (group: PositionedGroup): void => { groups.push(group); group.children.forEach(collect) }
+  chart.groups.forEach(collect)
+  const captioned = chart.edges.filter(edge => edge.label)
+  expect(captioned.length).toBe(2)
+  for (const edge of captioned) {
+    const box = labelBoxAt(edge, edge.labelPosition!, style), name = `${edge.source}->${edge.target}`
+    for (const group of groups) {
+      const band = graphGroupHeader(group, style).band
+      expect(box.x < band.x + band.width && box.x + box.width > band.x && box.y < band.y + band.height && box.y + box.height > band.y, `${name} on ${group.id}'s title`).toBe(false)
+      const alongX = box.x < group.x + group.width && box.x + box.width > group.x, alongY = box.y < group.y + group.height && box.y + box.height > group.y
+      for (const at of [group.y, group.y + group.height]) expect(alongX && box.y < at && at < box.y + box.height, `${name} across ${group.id}'s frame`).toBe(false)
+      for (const at of [group.x, group.x + group.width]) expect(alongY && box.x < at && at < box.x + box.width, `${name} across ${group.id}'s frame`).toBe(false)
+    }
+  }
+})
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('Swimlane %s hand-offs between overlapping faces run straight', direction => {
+  const input = `swimlane-beta ${direction}\nsubgraph Customer\n  request[Request service]\n  receive[Receive update]\nend\nsubgraph Support\n  triage[Triage request]\n  answer[Send answer]\nend\nsubgraph Engineering\n  investigate[Investigate issue]\n  fix[Prepare fix]\nend\nrequest --> triage\ntriage -->|Known issue| answer\ntriage -->|Needs code change| investigate\ninvestigate --> fix --> answer\nanswer --> receive`
+  const chart = layoutSwimlane(parseSwimlane(input))
+  type P = { x: number; y: number }
+  const heading = (a: P, b: P) => Math.abs(a.x - b.x) < 1e-6 ? (b.y > a.y ? 'S' : 'N') : b.x > a.x ? 'E' : 'W'
+  const opposite = { E: 'W', W: 'E', N: 'S', S: 'N' } as const
+  const faces = chart.edges.flatMap(edge => [`${edge.source}:${heading(edge.points[0]!, edge.points[1]!)}`, `${edge.target}:${opposite[heading(edge.points.at(-2)!, edge.points.at(-1)!)]}`])
+  let straight = 0
+  for (const edge of chart.edges) {
+    const exit = heading(edge.points[0]!, edge.points[1]!), entry = heading(edge.points.at(-2)!, edge.points.at(-1)!)
+    if (exit !== entry || faces.filter(face => face === `${edge.source}:${exit}` || face === `${edge.target}:${opposite[entry]}`).length !== 2) continue
+    const vertical = exit === 'N' || exit === 'S'
+    const [from, to] = [edge.source, edge.target].map(id => chart.nodes.find(node => node.id === id)!)
+    const middle = (node: typeof from) => vertical ? [node!.x + node!.width / 4, node!.x + node!.width * 3 / 4] : [node!.y + node!.height / 4, node!.y + node!.height * 3 / 4]
+    const [[a0, a1], [b0, b1]] = [middle(from), middle(to)] as [number[], number[]]
+    if (Math.max(a0!, b0!) > Math.min(a1!, b1!)) continue
+    straight++
+    expect(edge.points, `${edge.source}->${edge.target}`).toHaveLength(2)
+    const along = vertical ? edge.points[0]!.x : edge.points[0]!.y
+    expect(along).toBeGreaterThanOrEqual(Math.max(a0!, b0!))
+    expect(along).toBeLessThanOrEqual(Math.min(a1!, b1!))
+  }
+  expect(straight).toBeGreaterThan(0)
+})
+
+// mermaid#8568: A2→E leaves A2 by the port A2→B already leaves by. It once
+// stepped out of the stub and jogged off beside A2→B (four turns) instead of
+// running on along A2→B's line, as one trunk, until it turned for E.
+test('Swimlane hand-offs leaving one port share its trunk instead of jogging beside it', () => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-8568.mmd', import.meta.url), 'utf8')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  const route = (from: string, to: string) => layout.edges.find(edge => edge.from === from && edge.to === to)!.path
+  const trunk = route('A2', 'B'), branch = route('A2', 'E')
+  expect(branch[0]).toEqual(trunk[0]!)
+  // The branch's first run is on the trunk's line; it turns once more, for
+  // E's face.
+  const vertical = trunk[0]![0] === trunk[1]![0]
+  expect(vertical ? branch[1]![0] : branch[1]![1]).toBe(vertical ? trunk[0]![0] : trunk[0]![1])
+  expect(branch.length - 2, 'A2->E bends').toBeLessThanOrEqual(2)
+})
+
+// mermaid-v13-843 (reduced): n192→n85 ran on lane L3's border for 85px, so it
+// read as the border. A route crosses lane and group frames, but never runs
+// along one within the route clearance where another route exists.
+test('Swimlane routes cross lane frames without running along them', () => {
+  const lanes = [['L1', 'n80', 'n82', 'n85'], ['L2', 'n101', 'n102'], ['L3', 'n179', 'n192'], ['L6', 'n318'], ['L7', 'n371', 'n392']]
+  const input = ['swimlane-beta TB', ...lanes.flatMap(([lane, ...nodes]) => [`subgraph ${lane}`, ...nodes.map(node => `  ${node}["${node}"]`), 'end']),
+    'n371 --> n102', 'n318 --> n101', 'n82 --> n179', 'n80 --> n392', 'n192 --> n85'].join('\n')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  expect(layout.groups.length).toBe(5)
+  for (const edge of layout.edges) for (const group of layout.groups) for (let index = 1; index < edge.path.length; index++) {
+    const [ax, ay] = edge.path[index - 1]!, [bx, by] = edge.path[index]!
+    const horizontal = ay === by, at = horizontal ? ay : ax
+    const from = horizontal ? group.x : group.y, to = from + (horizontal ? group.w : group.h)
+    const run = Math.min(Math.max(horizontal ? ax : ay, horizontal ? bx : by), to) - Math.max(Math.min(horizontal ? ax : ay, horizontal ? bx : by), from)
+    for (const side of horizontal ? [group.y, group.y + group.h] : [group.x, group.x + group.w]) {
+      expect(run > 1 && Math.abs(at - side) < 4, `${edge.from}->${edge.to} segment ${index} runs along ${group.id}`).toBe(false)
+    }
+  }
+})
+
+// mermaid-v13-843 (reduced): a route ran over the stub another hand-off must
+// leave or arrive by, and routes that found no line of their own shared one
+// with unrelated routes, so the drawing read as other hand-offs. Unrelated
+// routes (no shared task) neither share a line nor meet except by crossing.
+test('unrelated Swimlane hand-offs neither share a line nor meet except by crossing', () => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-v13-843-swimlane-reduced.mmd', import.meta.url), 'utf8')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value)
+  expect(layout.edges.length).toBe(18)
+  const segments = layout.edges.flatMap(edge => edge.path.slice(1).map(([x, y], index) => {
+    const [px, py] = edge.path[index]!
+    return { edge, horizontal: py === y, at: py === y ? y : x, lo: Math.min(py === y ? px : py, py === y ? x : y), hi: Math.max(py === y ? px : py, py === y ? x : y) }
+  }))
+  for (const a of segments) for (const b of segments) {
+    if (a.edge === b.edge || [a.edge.from, a.edge.to].some(id => id === b.edge.from || id === b.edge.to)) continue
+    const where = `${a.edge.from}->${a.edge.to} and ${b.edge.from}->${b.edge.to}`
+    if (a.horizontal === b.horizontal) expect(Math.abs(a.at - b.at) <= 1 && Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > 1, `${where} share a line`).toBe(false)
+    // Perpendicular segments that meet cross properly, through both interiors.
+    else if (b.at >= a.lo - 1 && b.at <= a.hi + 1 && a.at >= b.lo - 1 && a.at <= b.hi + 1) expect(b.at > a.lo + 1 && b.at < a.hi - 1 && a.at > b.lo + 1 && a.at < b.hi - 1, `${where} meet without crossing`).toBe(true)
   }
 })
 
@@ -177,6 +325,8 @@ B return@-->|reconsider| A`
     ['approve', 'A', 'B', 'approve'], ['reject', 'A', 'B', 'reject'], ['return', 'B', 'A', 'reconsider'],
   ])
   expect(new Set(chart.edges.map(edge => JSON.stringify(edge.points))).size).toBe(3)
+  // Separate occurrences never share a line, which would read as one route.
+  for (const [i, a] of chart.edges.entries()) for (const b of chart.edges.slice(i + 1)) expect(sharedInk(a.points, b.points)).toBe(0)
   for (const edge of chart.edges) for (const [id, point] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
     const node = chart.nodes.find(node => node.id === id)!
     expect(point.x).toBeGreaterThanOrEqual(node.x - 1e-6)
@@ -231,6 +381,40 @@ B return@-->|please reconsider the rejected submission| ${endpoint}`
     expect(layout.groups.find(group => group.id === 'Detail')).toMatchObject({ parentId: 'L', members: ['A'] })
     expect(renderMermaidSVG(input, { padding: 0, layoutSafety: 'strict' })).toContain('data-id="approval"')
   }
+})
+
+test('captions still find seats where hand-offs share a port with occurrence channels', () => {
+  // A labelled hand-off arrives at the port another one leaves from, beside
+  // self-loops: routes that keep off each other too strictly leave the
+  // caption no clear seat, so routing relaxes until every caption seats.
+  const input = `swimlane-beta BT
+subgraph L0[Lane 0]
+  n0_0((Event))
+  n0_1{Check 1?}
+end
+subgraph L1[Lane 1]
+  n1_0{Check 0?}
+  n1_1[Task n1_1]
+end
+subgraph L2[Lane 2]
+  n2_0[Task n2_0]
+  n2_1[Task n2_1]
+end
+subgraph L3[Lane 3]
+  n3_0{Check 0?}
+  n3_1{Check 1?}
+end
+n3_1 --> n2_1
+n3_0 -->|send it| n1_1
+n0_0 --> n0_0
+n1_1 -->|ok| n2_1
+n0_0 --> n2_0
+n0_0 -->|ok| n1_0
+n0_0 -->|retry| n3_0
+n3_1 --> n3_1`
+  const chart = layoutSwimlane(parseSwimlane(input))
+  for (const edge of chart.edges) if (edge.label) expect(edge.labelPosition, edge.label).toBeDefined()
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('send it')
 })
 
 test('unrelated Swimlane occurrence pairs cannot reuse the same outside caption channel', () => {
@@ -292,6 +476,14 @@ A retry@-->|retry| A${repeated ? '\nA revise@-->|revise| A' : ''}`
       ['retry', 'A', 'A', 'retry'], ['revise', 'A', 'A', 'revise'],
     ] : [['retry', 'A', 'A', 'retry']])
     expect(new Set(layout.edges.map(edge => JSON.stringify(edge.path))).size).toBe(repeated ? 2 : 1)
+    // Each loop goes once around: four turns, never doubling back on itself.
+    for (const edge of layout.edges) {
+      expect(edge.path.length - 2).toBe(4)
+      for (let i = 2; i < edge.path.length; i++) {
+        const [ax, ay] = edge.path[i - 2]!, [bx, by] = edge.path[i - 1]!, [cx, cy] = edge.path[i]!
+        expect((bx - ax) * (cx - bx) + (by - ay) * (cy - by)).toBeGreaterThanOrEqual(0)
+      }
+    }
     const node = layout.nodes.find(node => node.id === 'A')!
     expect(node.parentId).toBe('Team')
     const contacts = layout.edges.flatMap(edge => [edge.path[0]!, edge.path.at(-1)!])
@@ -341,6 +533,47 @@ A retry@-->|retry| A${count === 3 ? '\nA revise@-->|revise| A\nA reconsider@-->|
     const contrast = layoutMermaid(parsed.value, { debug: true, style: 'accessible-high-contrast' })
     expect(contrast.paintCertification?.status).toBe('passed')
     expect(renderMermaidSVG(input, { style: 'accessible-high-contrast', layoutSafety: 'strict' })).toContain('data-id="next"')
+})
+
+// mermaid-js/mermaid#8622: a self-loop on a task with routes on three faces
+// once ran outside every lane, across a hand-off, and re-entered on another
+// route's final segment, sharing its arrowhead. With a fourth route (B --> E)
+// every face is taken and only a corner loop stays clear.
+test.each((['TD', 'LR', 'BT', 'RL'] as const).flatMap(direction => [false, true].map(loaded => [direction, loaded] as const)))('Swimlane %s self-loop stays beside its own task, crossing nothing (every face taken: %p)', (direction, loaded) => {
+  const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/swimlane-self-loop-8622.mmd', import.meta.url), 'utf8')
+  const input = fixture.replace('swimlane-beta TD', `swimlane-beta ${direction}`).replace('  B\nend', loaded ? '  B\n  E\nend\nB --> E' : '  B\nend')
+  const parsed = parseRegisteredMermaid(input)
+  if (!parsed.ok) throw new Error('expected native Swimlane')
+  const layout = layoutMermaid(parsed.value, { debug: true })
+  const loop = layout.edges.find(edge => edge.from === 'B' && edge.to === 'B')!
+  const others = layout.edges.filter(edge => edge !== loop)
+  expect(loop.label?.text).toBe('retry')
+  const lane = layout.groups.find(group => group.id === 'L2')!, own = layout.nodes.find(node => node.id === 'B')!
+  const segments = (path: readonly (readonly [number, number])[]) => path.slice(1).map((point, index) => [path[index]!, point] as const)
+  const meets = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]], [[cx, cy], [dx, dy]]: readonly [readonly [number, number], readonly [number, number]]) =>
+    Math.max(ax, bx) >= Math.min(cx, dx) && Math.max(cx, dx) >= Math.min(ax, bx) && Math.max(ay, by) >= Math.min(cy, dy) && Math.max(cy, dy) >= Math.min(ay, by)
+  // Orthogonal, inside its own lane, and touching no other task.
+  for (const [[ax, ay], [bx, by]] of segments(loop.path)) expect(ax === bx || ay === by).toBe(true)
+  for (const [x, y] of loop.path) {
+    expect(x).toBeGreaterThan(lane.x); expect(x).toBeLessThan(lane.x + lane.w)
+    expect(y).toBeGreaterThan(lane.y + 40); expect(y).toBeLessThan(lane.y + lane.h)
+  }
+  const xs = loop.path.map(([x]) => x), ys = loop.path.map(([, y]) => y)
+  for (const node of layout.nodes) if (node !== own) {
+    expect(Math.max(...xs) < node.x || Math.min(...xs) > node.x + node.w || Math.max(...ys) < node.y || Math.min(...ys) > node.y + node.h).toBe(true)
+  }
+  // It meets no other route, so it arrives on its own terminal.
+  for (const other of others) for (const a of segments(loop.path)) for (const b of segments(other.path)) expect(meets(a, b), `${other.id} meets the loop`).toBe(false)
+  // Its caption sits on its own route and clear of every other route.
+  const caption = loop.label!.bounds!, centre = [caption.x + caption.w / 2, caption.y + caption.h / 2] as const
+  expect(segments(loop.path).some(([[ax, ay], [bx, by]]) => Math.abs((bx - ax) * (centre[1] - ay) - (by - ay) * (centre[0] - ax)) < 1e-6
+    && centre[0] >= Math.min(ax, bx) - 1e-6 && centre[0] <= Math.max(ax, bx) + 1e-6 && centre[1] >= Math.min(ay, by) - 1e-6 && centre[1] <= Math.max(ay, by) + 1e-6)).toBe(true)
+  const box = [[caption.x, caption.y], [caption.x + caption.w, caption.y + caption.h]] as const
+  for (const other of others) for (const [a, b] of segments(other.path)) {
+    expect(Math.max(a[0], b[0]) < box[0][0] || Math.min(a[0], b[0]) > box[1][0] || Math.max(a[1], b[1]) < box[0][1] || Math.min(a[1], b[1]) > box[1][1], `${other.id} touches the caption`).toBe(true)
+  }
+  expect(layout.paintCertification?.status).toBe('passed')
+  expect(renderMermaidSVG(input, { layoutSafety: 'strict' })).toContain('retry')
 })
 
 // Certification reserves each lane header's painted band: a route crosses it

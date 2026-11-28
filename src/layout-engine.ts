@@ -1,5 +1,7 @@
 import { estimateNodeSize, groupHeaderHeight, groupTitleWidth, retainGraphText } from './layout/graph-measurement.ts'
+import { seatLabelsOnOwnRoutes } from './layout/label-seat.ts'
 export { estimateNodeSize, retainGraphText } from './layout/graph-measurement.ts'
+import { translateRoute } from './layout/route-values.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { contractBipartiteBlocks, expandJunctionLayout, JUNCTION_SIZE } from './layout/junction-contraction.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
@@ -7,6 +9,7 @@ import { contractedLayoutCostReceipt, type LayoutCostReceipt, layoutCostReceipt 
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { createLayoutRouteEdges, withRouteMarkerCache } from './layout/route-marker-clearance.ts'
+import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { observeFallback } from './performance-observations.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
@@ -21,18 +24,19 @@ import { elkLayoutSync } from './elk-instance.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { DeferredDependencyError, directionToElk, runElkGraphBackend } from './layout/backend.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
-import { certifyCandidate, certifyLayoutPlacementCandidates, certifyLayoutWithRouteAlternative, type LayoutCertificationCandidate, LayoutCertificationError, positionedGeometryFindings, retainSelection, withinLayoutPreferenceBudget } from './layout/certification.ts'
+import { certifyCandidate, certifyLayoutPlacementCandidates, certifyLayoutCandidates, type LayoutCertificationCandidate, LayoutCertificationError, positionedGeometryFindings, retainSelection, withinLayoutPreferenceBudget } from './layout/certification.ts'
 import type { MarginInfo } from './layout/geometry.ts'
 import { calculatePathMidpoint, DEFAULTS, findSubgraph, flattenGroupBounds, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeCrossStart, nodeMainCenter, nodeMainSize, nodeMainStart, pointAtPathDistance, polylineLength, positionedNodeCenter, rectsOverlap } from './layout/geometry.ts'
 import type { LayoutPass, PassContextBase, PassMetrics, RubricMetric } from './layout/pass.ts'
 import { runPipeline } from './layout/pass.ts'
+import { finishPositionedGraph, ownedLabelContent } from './layout/positioned-values.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
 import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from './layout-rubric.ts'
 import { measureRenderStage } from './render-stages.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOnSharedTrunks, repairMarkerTerminals, settleGraphEdgeLabels, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { anticipateCrossingCounts } from './shared/edge-crossings.ts'
@@ -43,7 +47,6 @@ import { ARROW_HEAD, diagramTitleBand, FLOWCHART_DOTTED_DASH, positionDiagramTit
 import type { DiamondFacet, Direction, MermaidEdge, MermaidGraph, MermaidNode, MermaidSubgraph, NodeShape, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode, PositionedStateNote, RenderOptions, RouteClass } from './types.ts'
 import {
   alignForkRejoinPeerCenters,
-  alignLabeledSourcePort,
   alignLayerNodes,
   alignPortLanes,
   applyParallelDuplicateLanes,
@@ -54,10 +57,10 @@ import {
   collapseTinyBundledHitches,
   equalizePeerNodeDimensions,
   extractEdgesRecursively,
+  keepGroupEndsOffCorners,
   honorLinkRankDistance,
+  type LinkRankFallback,
   markCorankFanInBundles,
-  reanchorOffOutlineEndpoints,
-  reassignBundledSiblingLabels,
   repairInwardEndpointApproaches,
   repairResidualDiagonals,
   rerouteEdgesThroughNodes,
@@ -103,6 +106,10 @@ interface LayoutEngineOptions extends RenderOptions {
   compareRoutePreferences?: boolean
   /** @internal The bounded profile of a graph above a layout cost threshold. */
   layoutCost?: LayoutCostReceipt
+  /** @internal What a long link's rank move does when no reconnect route is
+   * proven: refuse the candidate (default), or leave the placement unmoved.
+   * Only the last bounded candidate leaves it unmoved. */
+  linkRankFallback?: LinkRankFallback
 }
 
 type MarkerPortDemand = { count: number; span: number }
@@ -596,6 +603,9 @@ function mermaidToElk(
       'elk.layered.highDegreeNodes.treatment': 'true',
       'elk.layered.highDegreeNodes.threshold': '8',
       'elk.layered.compaction.postCompaction.strategy': 'LEFT_RIGHT_CONSTRAINT_LOCKING',
+      // Compaction must not merge two edges' verticals that meet end to end:
+      // the shared corner reads as two edges that do not exist.
+      'agentic.layered.compaction.separateMeetingSegments': 'true',
       // Mermaid source order is author intent for small flowcharts with feedback
       // loops. ELK's default greedy cycle breaker can rank a decision before the
       // login step in A->B->C plus C->B graphs; model-order cycle breaking keeps
@@ -1302,7 +1312,6 @@ export interface LayoutPassContext extends PassContextBase {
   readonly margins: MarginInfo | undefined
   bundled: Set<PositionedEdge>
   /** Whether the generic trunk builder owned any edges, before symmetry passes. */
-  genericBundled: boolean
   readonly mergeEdges: boolean
   readonly style: ResolvedRenderStyle
   readonly layoutPadding: number
@@ -1310,6 +1319,10 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
   /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
   titleBandRepairs?: number
+  /** Which edge ends may share one terminal: the one decision every pass that
+   * places a terminal reads. */
+  readonly terminals: TerminalAssignment
+  readonly linkRankFallback?: LinkRankFallback
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1324,6 +1337,9 @@ function hasParallelPair(edges: readonly Pick<PositionedEdge, 'source' | 'target
   }
   return false
 }
+
+/** Bends the centering pass may add, across both of its steps. */
+const CENTERING_BENDS = 2
 
 /** A cosmetic centering proposal owns only coordinates, routes and label anchors.
  * Capture those channels on its first actual move; authored data, prepared text,
@@ -1346,11 +1362,13 @@ function checkpointCentering(context: LayoutPassContext): () => void {
 // lanes depend on symmetric parallel lanes, and fanout commutativity is unproved.
 export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
-    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
+    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy); seat captions on their own produced routes',
     after: [], mutates: ['extract'],
     run: c => {
       extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
+      keepGroupEndsOffCorners(c.edges, c.groups, c.nodes)
       retainGraphText(c, c.style)
+      seatLabelsOnOwnRoutes(c, c.style)
     },
   },
   {
@@ -1367,63 +1385,58 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
-    id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
-    after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
-    run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
-  },
-  {
     id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
-    after: ['alignForkRejoinPeerCenters'], mutates: ['positions', 'edges'],
+    after: ['equalizePeerNodeDimensions'], mutates: ['positions', 'edges'],
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
-    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
+    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style, c.terminals) },
   },
   {
-    id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    id: 'centerPeerBarycenters', proposal: true, doc: 'center fork/rejoin hubs and peer fan-in/fan-out trunks over their peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: CENTERING_BENDS } },
     run: c => {
-      let rollback: (() => void) | undefined
-      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
+      // Each step is a proposal of its own: a step that worsens symmetry, or
+      // leaves the pass more bends than its budget, restores the geometry
+      // before that step alone, so a rejected peer step keeps a good fork/
+      // rejoin step. The returned rollback restores the geometry before both.
+      let start: PassMetrics | undefined, rollback: (() => void) | undefined
+      const step = (move: (checkpoint: () => void) => void): void => {
+        let before: PassMetrics | undefined, undo: (() => void) | undefined
+        move(() => {
+          if (undo) return
+          before = measureLayoutPass(c, ['symErr', 'bends'])
+          start ??= before
+          undo = checkpointCentering(c)
+          rollback ??= undo
+        })
+        if (!undo) return
+        const after = measureLayoutPass(c, ['symErr', 'bends'])
+        if (after.symErr! > before!.symErr! + 1e-6 || after.bends! > start!.bends! + CENTERING_BENDS + 1e-6) undo()
+      }
+      step(checkpoint => alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint))
+      step(checkpoint => centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, checkpoint))
       return rollback
     },
   },
   {
-    id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
-    after: ['centerPeerBarycenters'], mutates: ['positions', 'edges'],
-    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
+    id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on, rebuild blocked reconnect routes through free channels (#81), and seat reconnected arrivals in their planned terminal slots',
+    after: ['centerPeerBarycenters'], mutates: ['positions', 'dimensions', 'edges'],
+    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph, c.terminals, c.style, c.linkRankFallback) },
   },
   {
-    // Runs after centering/rank-distance repair, before fanout may move peer
-    // targets again. Its lane predictor preserves the later straightener's
-    // intended source port.
-    id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the predicted straightener lane so the exit stays mid-port',
-    after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'],
-    mayChangeMetrics: { portRate: 'improve-only' },
-    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style) },
-  },
-  {
-    id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
-    after: ['alignLabeledSourcePort'], mutates: ['edges'],
-    enabled: c => c.mergeEdges,
+    // The co-ranked mixed-label fan-in spokes are re-routed as symmetric
+    // converging doglegs and marked bundle-owned whether or not the plain
+    // bundler ran: the fan-in converges via centering either way.
+    id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges); re-route + mark co-ranked mixed-label fan-in spokes bundle-owned',
+    after: ['honorLinkRankDistance'], mutates: ['edges'],
     run: c => {
-      c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
-      c.genericBundled = c.bundled.size > 0
+      if (c.mergeEdges) c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style, c.terminals)
+      markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style, c.terminals)
     },
   },
   {
-    // Re-route the co-ranked mixed-label fan-in spokes as symmetric converging
-    // doglegs and mark them bundle-owned, so applyRouteContracts certifies them
-    // 'bundle' — the justified-bend marker findRouteHitches and the layout-rubric
-    // both key off. Independent of mergeEdges: the fan-in converges via centering
-    // whether or not the plain bundler ran, so the marker must too.
-    id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
-    after: ['bundleEdgePaths'], mutates: ['edges'],
-    run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
-  },
-  {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
-    after: ['markCorankFanInBundles'], mutates: ['edges'],
+    after: ['bundleEdgePaths'], mutates: ['edges'],
     mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'endpointApproaches' }, endpointApproaches: 'improve-only' },
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
@@ -1469,13 +1482,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { collapseTinyBundledHitches(c.nodes, c.edges, c.bundled) },
   },
   {
-    id: 'reassignBundledSiblingLabels', doc: 're-home labels onto the correct bundled sibling segment',
-    after: ['collapseTinyBundledHitches'], mutates: ['labels'],
-    run: c => { reassignBundledSiblingLabels(c.nodes, c.edges, c.bundled, c.graph.direction, c.style, c.groups) },
-  },
-  {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
-    after: ['reassignBundledSiblingLabels'], mutates: ['edges'], freezesNodes: true,
+    after: ['collapseTinyBundledHitches'], mutates: ['edges'], freezesNodes: true,
     // An uncertified two-point route can still be diagonal or cross a node.
     // Hard/terminal repairs and fewer crossings may cost up to four bends
     // per removed defect. Mere preferred-port or symmetry changes may not.
@@ -1484,49 +1492,34 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, undefined) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups, terminals: c.terminals }, c.graph, c.bundled, c.style, undefined) },
   },
   {
-    id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
+    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle, restore protected marker leads, and square a residual diagonal, all before label placement (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'],
-    run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph, c.style) },
-  },
-  {
-    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
-    after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'],
     run: c => {
-      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
+      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.terminals, c.style)
       c.titleBandRepairs = rerouted.titleBandRepairs
-      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), false, c.style)
       repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
-      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true, c.style)
+      repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), c.style)
     },
   },
   {
-    id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',
+    id: 'settleEdgeLabels', doc: 'settle captions on their final routes by the one seat rule: a shared-trunk caption takes a seat of its own run or a proved private channel, then colliding pills part (freeze-safe)',
     after: ['rerouteEdgesThroughNodes'], mutates: ['edges'],
-    run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'repairLabelsOffOwnRoute', doc: 're-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)',
-    after: ['repairLabelsOnSharedTrunks'], mutates: ['labels'],
-    run: c => { repairLabelsOffOwnRoute({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'separateEdgeLabelPills', doc: 'seat colliding pills on their routes and give a masking foreign shaft a private channel only when the label has no clear seat',
-    after: ['repairLabelsOffOwnRoute'], mutates: ['edges'],
-    run: c => { settleGraphEdgeLabels({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => {
+      const positioned = { nodes: c.nodes, edges: c.edges, groups: c.groups }
+      repairLabelsOnSharedTrunks(positioned, c.graph, c.style)
+      settleGraphEdgeLabels(positioned, c.graph, c.style)
+    },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
-    after: ['separateEdgeLabelPills'], mutates: ['edges'],
+    after: ['settleEdgeLabels'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
-  },
-  {
-    id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
-    after: ['closeRouteContracts'], mutates: ['edges'],
-    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
@@ -1652,21 +1645,11 @@ function placeStateNotes(
     const moveGroup = (g: PositionedGroup): void => { g.x += dx; g.y += dy; g.children.forEach(moveGroup) }
     for (const n of nodes) { n.x += dx; n.y += dy }
     for (const g of groups) moveGroup(g)
-    for (const e of edges) {
-      for (const p of e.points) { p.x += dx; p.y += dy }
-      if (e.labelPosition) { e.labelPosition.x += dx; e.labelPosition.y += dy }
-    }
+    for (const e of edges) translateRoute(e, dx, dy)
     for (const p of placed) { p.x += dx; p.y += dy }
   }
   return placed
 }
-
-interface LayoutRouteProposal {
-  positioned: PositionedGraph
-  genericBundled: boolean
-}
-
-type RememberRouteAlternative = (positioned: PositionedGraph, produce: () => PositionedGraph) => void
 
 function elkToPositioned(
   elkResult: ElkNode,
@@ -1675,7 +1658,8 @@ function elkToPositioned(
   layoutPadding: number = DEFAULTS.padding,
   style: ResolvedRenderStyle = resolveRenderStyle({}),
   stateNoteMargin: number = 18,
-): LayoutRouteProposal {
+  linkRankFallback?: LinkRankFallback,
+): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges = createLayoutRouteEdges(style)
   const groups: PositionedGroup[] = []
@@ -1689,7 +1673,7 @@ function elkToPositioned(
   // Extract nodes and groups recursively
   extractNodesAndGroups(elkResult, graph, subgraphIds, nodes, groups, 0, 0)
 
-  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult)
+  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult, linkRankFallback)
 }
 
 /** Finish the ELK result through the shared text, route and geometry contracts. */
@@ -1701,7 +1685,8 @@ function finishGraphGeometry(
   style: ResolvedRenderStyle,
   stateNoteMargin: number,
   elkResult: ElkNode,
-): LayoutRouteProposal {
+  linkRankFallback?: LinkRankFallback,
+): PositionedGraph {
   const { nodes, edges, groups } = initial
 
   // Compute margin positions for cross-hierarchy edge routing.
@@ -1726,12 +1711,13 @@ function finishGraphGeometry(
     notes: [],
     margins,
     bundled: new Set<PositionedEdge>(),
-    genericBundled: false,
+    terminals: terminalAssignment(edges),
     mergeEdges,
     style,
     layoutPadding,
     stateNoteMargin,
     frozen: false,
+    linkRankFallback,
   }
   retainGraphText(ctx, style)
   runPipeline(ctx, LAYOUT_PIPELINE, { measureMetrics: measureLayoutPass })
@@ -1778,7 +1764,7 @@ function finishGraphGeometry(
     ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
   }
   if (ctx.titleBandRepairs) TITLE_BAND_DETOURS.add(positioned)
-  return { genericBundled: ctx.genericBundled, positioned }
+  return positioned
 }
 
 /** Placements whose routes needed a detour around a group's reserved title
@@ -1820,7 +1806,7 @@ function extractNodesAndGroups(
       groups.push({
         id: child.id,
         label: mermaidSg?.label ?? '',
-        ...(mermaidSg?.labelContent ? { labelContent: mermaidSg.labelContent } : {}),
+        ...(mermaidSg?.labelContent ? { labelContent: ownedLabelContent(mermaidSg.labelContent) } : {}),
         x,
         y,
         width,
@@ -1842,7 +1828,7 @@ function extractNodesAndGroups(
         nodes.push({
           id: child.id,
           label: mNode.label,
-          ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
+          ...(mNode.labelContent ? { labelContent: ownedLabelContent(mNode.labelContent) } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
           ...(mNode.borders !== undefined ? { borders: mNode.borders } : {}),
@@ -1910,7 +1896,7 @@ export function layoutGraphSync(
     edges: graph.edges.map((edge, index) => ({ ...edge, curve: edge.curve ?? graph.linkCurves!.get(index) ?? graph.linkCurves!.get('default') })),
   }
   const optimization = layoutOptimization(Boolean(options.graphLayout?.quality || options.graphLayout?.viewport))
-  return withRouteMarkerCache(() => optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options))
+  return finishPositionedGraph(withRouteMarkerCache(() => optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options)))
 }
 
 function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
@@ -1960,17 +1946,13 @@ export function translatePositionedGraph(positioned: PositionedGraph, dy: number
   }
   for (const node of positioned.nodes) node.y += dy
   for (const group of positioned.groups) moveGroup(group)
-  for (const edge of positioned.edges) {
-    for (const point of edge.points) point.y += dy
-    if (edge.labelPosition) edge.labelPosition.y += dy
-  }
+  for (const edge of positioned.edges) translateRoute(edge, 0, dy)
   for (const note of positioned.notes ?? []) note.y += dy
 }
 
 function layoutCandidate(
   graph: MermaidGraph,
   options: LayoutEngineOptions,
-  rememberAlternative?: RememberRouteAlternative,
 ): PositionedGraph {
   const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
@@ -1988,7 +1970,7 @@ function layoutCandidate(
       height: child.height! + 2 * opts.padding,
       children: [{ ...child, x: opts.padding, y: opts.padding }],
     }
-    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18).positioned
+    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18, options.linkRankFallback)
   }
   // ELK Layered can reject rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
@@ -2042,11 +2024,7 @@ function layoutCandidate(
   const elkResult = result
   const noteMargin = stateVisual?.noteMargin ?? 18
   const mergeEdges = DEFAULTS.mergeEdges && !options.layoutCost?.relaxed.includes('edge-bundling')
-  const bundled = elkToPositioned(elkResult, graph, mergeEdges, opts.padding, style, noteMargin)
-  if (bundled.genericBundled) {
-    rememberAlternative?.(bundled.positioned, () => elkToPositioned(elkResult, graph, false, opts.padding, style, noteMargin).positioned)
-  }
-  return bundled.positioned
+  return elkToPositioned(elkResult, graph, mergeEdges, opts.padding, style, noteMargin, options.linkRankFallback)
 }
 
 function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
@@ -2070,54 +2048,64 @@ function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions
     ...requestOptions, layoutCost,
     nodeSizes: new Map([...requestOptions.nodeSizes ?? [], ...contraction.blocks.map(block => [block.junction, JUNCTION_SIZE] as const)]),
   } : { ...requestOptions, layoutCost }
-  const produceCandidate = (candidateOptions: LayoutEngineOptions, remember?: RememberRouteAlternative): PositionedGraph => contraction
-    ? expandJunctionLayout(graph, contraction, layoutCandidate(contraction.graph, candidateOptions))
-    : layoutCandidate(graph, candidateOptions, remember)
+  let linkRankFallback: LinkRankFallback | undefined
+  const produceCandidate = (requested: LayoutEngineOptions): PositionedGraph => {
+    const candidateOptions = linkRankFallback ? { ...requested, linkRankFallback } : requested
+    return contraction
+      ? expandJunctionLayout(graph, contraction, layoutCandidate(contraction.graph, candidateOptions))
+      : layoutCandidate(graph, candidateOptions)
+  }
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   // A placement with a narrow title, or with final routes detoured around a
   // title band, defers to the next bounded candidate and is kept if that one
   // fails. Family placement discards these generic routes, so only titles count.
-  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
+  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
+  const detoured = (positioned: PositionedGraph) => purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned)
   const compareRoutes = options.compareRoutePreferences !== false
-  const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
-  // Only generic fan bundling is disabled in the alternative. Parallel and
-  // duplicate lane owners still run before the completed route is certified.
-  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && !contraction && withinLayoutPreferenceBudget(graph)
-    ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
-    : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
   const candidates: LayoutCertificationCandidate[] = [{
-    strategy: 'default', produce: () => produceCandidate(options, rememberAlternative),
-    preferNext: preferReadableTitles,
+    strategy: 'default', produce: () => produceCandidate(options),
+    preferNext: preferReadableTitles, detoured,
   }]
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => produceCandidate({ ...options, separateHierarchy: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => produceCandidate({ ...options, separateHierarchy: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'without-corank', produce: () => produceCandidate({ ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    // Some grouped graphs with a mixed-label fan-in certify only with both
+    // changes: each single change still leaves a link-rank reconnect with no
+    // contact-preserving route, or a route through a node or group header.
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => produceCandidate({ ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, detoured, qualityAlternative: compareRoutes && distinctHierarchy })
   }
-  // Search placement strategies first, then test one completed route proposal
-  // only for the selected placement, reusing its ELK result and certified score.
-  // At most four ELK placements and one route pipeline;
-  // the existing 16-ELK exceptional upper bound is unchanged.
+  // Each placement runs the route pipeline once; bundling itself declines a
+  // trunk that would cross more foreign shafts than the routes it replaces.
+  // At most four ELK placements; the exceptional upper bound is four
+  // placements times the four-rung ELK ladder.
   // Report layout safety still draws a graph no candidate certifies, from its
   // best drawable candidate, with an uncertified receipt; strict refuses.
   const allowUncertified = options.layoutSafety !== 'strict'
   if (layoutCost) candidates.length = Math.min(candidates.length, layoutCost.maxCandidates)
+  // A long link is a request for distance, not a reason to draw nothing: the
+  // last bounded candidate keeps its placement unmoved where no reconnect
+  // route after the rank move is proven (mermaid#5094 under a styled face).
+  const last = candidates.at(-1)!, produceLast = last.produce
+  last.produce = () => {
+    linkRankFallback = 'unmoved'
+    try { return produceLast() } finally { linkRankFallback = undefined }
+  }
   if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, undefined, allowUncertified)
-  const selected = withLayoutCost(certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
-    const makeRoute = routeAlternatives.get(placed)
-    if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
-    return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
-  }, undefined, allowUncertified), layoutCost)
-  const certification = selected.certification!, before = certification.preference.selectedScore
+  const selected = withLayoutCost(certifyLayoutCandidates(graph, style, candidates, undefined, allowUncertified), layoutCost)
+  // Report safety may return a drawable graph no candidate certified; it has no
+  // preference score for the optional balanced search to improve on.
+  const certification = selected.certification
+  if (!certification) return selected
+  const before = certification.preference.selectedScore
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
     && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
     const result = certifyCandidate(graph, style, { strategy: 'prefer-model-order',
-      produce: () => optimization.optionalLayout(() => produceCandidate({ ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
+      produce: () => optimization.optionalLayout(() => produceCandidate({ ...options, preferModelOrder: true })) ?? selected,
       preferNext: preferReadableTitles,
     })
     if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)) {

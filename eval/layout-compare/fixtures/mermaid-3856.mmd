@@ -1,0 +1,44 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/3856
+stateDiagram
+  direction LR
+  [*] --> INITIAL
+  state retINITIAL_default <<choice>>
+  retINITIAL_default --> INITIAL: return
+  INITIAL --> retINITIAL_default: update
+  INITIAL --> SAVED: post
+  INITIAL --> POSTED: post_and_approve
+  INITIAL --> POSTED: batch-approve
+  state retSAVED_default <<choice>>
+  retSAVED_default --> SAVED: return
+  SAVED --> retSAVED_default: save_info
+  SAVED --> retSAVED_default: edit_and_save
+  SAVED --> retSAVED_default: copy_to_new
+  SAVED --> retSAVED_default: new_screen
+  SAVED --> retSAVED_default: update
+  SAVED --> retSAVED_default: ship_to
+  SAVED --> retSAVED_default: schedule
+  SAVED --> POSTED: approve
+  SAVED --> POSTED: batch-approve
+  SAVED --> DELETED: del
+  SAVED --> DELETED: batch-delete
+  SAVED --> retSAVED_default: sales_order
+  SAVED --> retSAVED_default: purchase_order
+  state retPOSTED_default <<choice>>
+  retPOSTED_default --> POSTED: return
+  POSTED --> retPOSTED_default: save_info
+  POSTED --> retPOSTED_default: copy_to_new
+  POSTED --> VOIDED: void
+  POSTED --> ONHOLD: hold
+  POSTED --> retPOSTED_default: schedule
+  POSTED --> retPOSTED_default: print
+  POSTED --> retPOSTED_default: e_mail
+  POSTED --> retPOSTED_default: sales_order
+  POSTED --> retPOSTED_default: purchase_order
+  state retONHOLD_default <<choice>>
+  retONHOLD_default --> ONHOLD: return
+  ONHOLD --> retONHOLD_default: save_info
+  ONHOLD --> POSTED: release
+  state retVOIDED_default <<choice>>
+  retVOIDED_default --> VOIDED: return
+  VOIDED --> retVOIDED_default: save_info
+  VOIDED --> retVOIDED_default: copy_to_new

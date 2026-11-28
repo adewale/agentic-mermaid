@@ -4,10 +4,3 @@ export interface MeasuredRouteGraph {
   readonly maximumEdgeStrokeWidth?: number
   readonly maximumEdgeBendRadius?: number
 }
-
-/** Charged physical geometry work retained by shared visibility helpers. */
-export interface ChannelWork {
-  pairs: number
-  arcs: number
-  swaps: number
-}

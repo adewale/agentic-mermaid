@@ -2,7 +2,9 @@ import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode 
 import { DEFAULTS } from '../geometry.ts'
 import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
-import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
+import { HITCH_JOG, trimBoundaryEndpointRuns } from '../../route-contracts.ts'
+import { captionRidesRun } from '../route-values.ts'
+import { routePairContact } from '../route-lanes.ts'
 
 function outwardEndpoint(points: Point[], node: PositionedNode | undefined, start: boolean): boolean | undefined {
   if (!node) return undefined
@@ -28,6 +30,63 @@ function clippedEdge(edge: PositionedEdge, source?: PositionedNode, target?: Pos
   return projected
 }
 
+/** The route clearance a cosmetic snap may not take from foreign routes or
+ * from a terminal shaft. */
+const SNAP_CLEARANCE = 4
+
+/** Distance from a route segment's bounding box to a box (0 when they meet):
+ * exact for the orthogonal segments ELK routes, a lower bound otherwise. */
+function segmentBoxGap(a: Point, b: Point, x: number, y: number, width: number, height: number): number {
+  const dx = Math.max(x - Math.max(a.x, b.x), 0, Math.min(a.x, b.x) - (x + width))
+  const dy = Math.max(y - Math.max(a.y, b.y), 0, Math.min(a.y, b.y) - (y + height))
+  return Math.hypot(dx, dy)
+}
+
+/** Length of a route's first nonzero segment from its `start` (or end). */
+function terminalShaft(points: readonly Point[], start: boolean): number {
+  const ordered = start ? points : points.toReversed()
+  const end = ordered[0]
+  if (!end) return 0
+  const next = ordered.find(point => point.x !== end.x || point.y !== end.y)
+  return next ? Math.hypot(next.x - end.x, next.y - end.y) : 0
+}
+
+const routeEntersBox = (points: readonly Point[], box: PositionedNode): boolean => points.slice(1).some((b, i) => {
+  const a = points[i]!
+  return Math.max(a.x, b.x) > box.x + 0.5 && Math.min(a.x, b.x) < box.x + box.width - 0.5
+    && Math.max(a.y, b.y) > box.y + 0.5 && Math.min(a.y, b.y) < box.y + box.height - 0.5
+})
+
+/** Pairs of an axis-parallel segment of `points` and one of another visible
+ * route that run alongside within the clearance. */
+function runsAlongside(points: readonly Point[], self: PositionedEdge, edges: readonly PositionedEdge[]): number {
+  let count = 0
+  for (const other of edges) {
+    if (other === self || other.style === 'invisible') continue
+    for (let i = 1; i < points.length; i++) for (let j = 1; j < other.points.length; j++) {
+      const p = points[i - 1]!, q = points[i]!, r = other.points[j - 1]!, s = other.points[j]!
+      const axis = p.x === q.x && r.x === s.x ? 'y' : p.y === q.y && r.y === s.y ? 'x' : undefined
+      if (!axis) continue
+      const across = axis === 'y' ? 'x' : 'y'
+      const overlap = Math.min(Math.max(p[axis], q[axis]), Math.max(r[axis], s[axis])) - Math.max(Math.min(p[axis], q[axis]), Math.min(r[axis], s[axis]))
+      if (overlap > 0.5 && Math.abs(p[across] - r[across]) < SNAP_CLEARANCE) count++
+    }
+  }
+  return count
+}
+
+/** Perpendicular jogs shorter than a hitch between two parallel runs. */
+function hitchJogs(points: readonly Point[]): number {
+  const runs = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
+  let count = 0
+  for (let i = 2; i < runs.length - 1; i++) {
+    const a = runs[i - 2]!, b = runs[i - 1]!, c = runs[i]!, d = runs[i + 1]!
+    const horizontal = a.y === b.y && c.y === d.y && b.x === c.x, vertical = a.x === b.x && c.x === d.x && b.y === c.y
+    if ((horizontal || vertical) && Math.hypot(c.x - b.x, c.y - b.y) < HITCH_JOG) count++
+  }
+  return count
+}
+
 const boxesOverlap = (a: PositionedNode, b: PositionedNode): boolean =>
   Math.min(a.x + a.width, b.x + b.width) > Math.max(a.x, b.x) && Math.min(a.y + a.height, b.y + b.height) > Math.max(a.y, b.y)
 
@@ -43,15 +102,31 @@ function moveOverlapsNode(after: PositionedNode, before: PositionedNode, nodes: 
 
 /** Project the same endpoint adjustment for admission and commit. Retaining
  * zero-length points here matters: the next nonzero shaft may be a tangent. */
-function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta?: number, targetDelta?: number): Point[] {
+function shiftedEndpointPoints(edge: PositionedEdge, horizontal: boolean, sourceDelta?: number, targetDelta?: number): Point[] {
+  const points = edge.points
   if (points.length < 2 || sourceDelta === undefined && targetDelta === undefined) return points
   const projected = points.map(point => ({ ...point }))
   const main = horizontal ? 'x' : 'y'
-  for (const [delta, index, adjacent] of [[sourceDelta, 0, 1], [targetDelta, projected.length - 1, projected.length - 2]] as const) {
+  const cross = horizontal ? 'y' : 'x'
+  const carried = new Set<number>()
+  for (const [delta, index, adjacent, beyond] of [[sourceDelta, 0, 1, 2], [targetDelta, projected.length - 1, projected.length - 2, projected.length - 3]] as const) {
     if (delta === undefined) continue
     const point = projected[index]!, neighbor = projected[adjacent]!
+    const shaft = Math.abs(neighbor[main] - point[main])
     point[main] += delta
-    if (neighbor[main] === point[main] - delta) neighbor[main] += delta
+    if (neighbor[main] === point[main] - delta) { neighbor[main] += delta; continue }
+    // A terminal shaft along the flow would shrink by the snap. When that
+    // leaves it shorter than the clearance, the elbow and the run across the
+    // flow before it move with the node, so the shaft keeps its length; the
+    // run's far end is never a terminal. A run that carries the edge's
+    // caption stays put: moving it would leave the caption off its route.
+    const run = projected[beyond]
+    if (neighbor[cross] !== point[cross] || Math.abs(neighbor[main] - point[main]) >= Math.min(shaft, SNAP_CLEARANCE)) continue
+    if (!run || beyond === 0 || beyond === projected.length - 1 || run[main] !== neighbor[main] || carried.has(adjacent) || carried.has(beyond)) continue
+    if (captionRidesRun(edge, points, Math.min(adjacent, beyond), Math.max(adjacent, beyond), main)) continue
+    neighbor[main] += delta
+    run[main] += delta
+    carried.add(adjacent).add(beyond)
   }
   return projected
 }
@@ -71,7 +146,8 @@ function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta
  *
  * Edge endpoints connected to shifted nodes are adjusted proportionally.
  * Intermediate bend points are left unchanged — edge bundling or clipping
- * will recalculate them afterwards.
+ * will recalculate them afterwards — except an elbow whose terminal shaft
+ * would otherwise shrink below the route clearance, which moves with it.
  *
  * Group frames are not refitted here, so a layer whose snap would carry a
  * member outside a frame that holds it keeps ELK's stagger.
@@ -143,11 +219,14 @@ export function alignLayerNodes(
   // edge's path would occlude it (issue #25 rule 9 — no node movement after
   // routing without rerouting). Alignment is cosmetic; occlusion is a hard
   // defect, so a layer whose snap would cause one keeps ELK's stagger.
+  // Nor may it crowd one: a foreign route brought closer than the route
+  // clearance to the moved box, and closer than before, reads as running
+  // along its border or as attached to it.
   const snapOccludes = (node: PositionedNode, newPos: number): boolean => {
     const nx = isHorizontal ? newPos : node.x
     const ny = isHorizontal ? node.y : newPos
     for (const edge of edges) {
-      if (edge.source === node.id || edge.target === node.id) continue
+      if (edge.source === node.id || edge.target === node.id || edge.style === 'invisible') continue
       for (let i = 1; i < edge.points.length; i++) {
         const a = edge.points[i - 1]!, b = edge.points[i]!
         const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
@@ -156,6 +235,8 @@ export function alignLayerNodes(
           yHi > ny + 0.5 && yLo < ny + node.height - 0.5) {
           return true
         }
+        const gap = segmentBoxGap(a, b, nx, ny, node.width, node.height)
+        if (gap < SNAP_CLEARANCE && gap < segmentBoxGap(a, b, node.x, node.y, node.width, node.height) - 1e-6) return true
       }
     }
     return false
@@ -194,9 +275,19 @@ export function alignLayerNodes(
       for (const edge of incident.get(id) ?? []) {
         if (checked.has(edge) || edge.style === 'invisible') continue
         checked.add(edge)
-        const before = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
-        const after = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal,
+        const before = { ...edge, points: shiftedEndpointPoints(edge, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
+        const after = { ...edge, points: shiftedEndpointPoints(edge, isHorizontal,
           moves.get(edge.source) ?? deltas.get(edge.source), moves.get(edge.target) ?? deltas.get(edge.target)) }
+        // A carried elbow must not land in another box, nor run alongside
+        // another route where it did not.
+        if (nodes.some(other => other.id !== edge.source && other.id !== edge.target
+          && routeEntersBox(after.points, projectedNodes.get(other.id) ?? other) && !routeEntersBox(before.points, other))) breaksApproach = true
+        if (runsAlongside(after.points, edge, edges) > runsAlongside(before.points, edge, edges)) breaksApproach = true
+        // Nor may a carried elbow shorten a jog into a hitch.
+        if (hitchJogs(after.points) > hitchJogs(before.points)) breaksApproach = true
+        // Nor may it meet an unrelated route end to end or at a corner.
+        if (edges.some(other => other !== edge && other.style !== 'invisible'
+          && routePairContact(after.points, edge, other) > routePairContact(before.points, edge, other))) breaksApproach = true
         let clippedBefore: PositionedEdge | undefined, clippedAfter: PositionedEdge | undefined
         for (const start of [true, false]) {
           const endpoint = start ? edge.source : edge.target
@@ -210,6 +301,11 @@ export function alignLayerNodes(
             remainsOutward = outwardEndpoint(clippedAfter.points, projected, start)
           }
           if (wasOutward === true && remainsOutward !== true) breaksApproach = true
+          // A shaft whose elbow could not move with it (no run across the
+          // flow to carry) is left shorter by the snap: below the clearance
+          // it carries no arrowhead run.
+          const shaftAfter = terminalShaft(after.points, start)
+          if (shaftAfter < SNAP_CLEARANCE && shaftAfter < terminalShaft(before.points, start) - 1e-6) breaksApproach = true
         }
       }
     }
@@ -235,6 +331,6 @@ export function alignLayerNodes(
 
   // Adjust edge endpoints to match shifted node positions
   for (const edge of edges) {
-    edge.points = shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target))
+    edge.points = shiftedEndpointPoints(edge, isHorizontal, deltas.get(edge.source), deltas.get(edge.target))
   }
 }

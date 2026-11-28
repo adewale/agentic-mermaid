@@ -43,7 +43,8 @@ function edge(e: PositionedEdge, id: string, debug: boolean): RenderedLayoutEdge
     path: e.points.map(p => [toFinite(p.x), toFinite(p.y)] as [Finite, Finite]),
     ...(e.style === 'invisible' ? { visibility: 'hidden' as const } : {}),
     label: e.label && labelPosition ? { x: toFinite(labelPosition.x), y: toFinite(labelPosition.y), text: e.label, bounds: retainedLabelBounds(e.labelBlock, labelPosition.x, labelPosition.y) } : undefined,
-    ...(debug && e.routeCertificate ? { route: e.routeCertificate } : {}),
+    // The public view is the caller's to edit; the finished graph is shared.
+    ...(debug && e.routeCertificate ? { route: structuredClone(e.routeCertificate) } : {}),
   }
 }
 
@@ -111,6 +112,8 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
       members,
       label: g.label,
       ...(parentId ? { parentId } : {}),
+      ...(!g.concurrencyRegion && g.headerHeight !== undefined && g.headerHeight > 0 ? { headerHeight: toFinite(g.headerHeight) } : {}),
+      ...(g.concurrencyRegion ? { outline: 'none' as const } : {}),
     })
     for (const child of g.children) visit(child, g.id)
   }

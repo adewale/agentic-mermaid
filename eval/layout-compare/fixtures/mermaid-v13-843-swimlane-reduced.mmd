@@ -1,0 +1,70 @@
+%% Unrelated hand-offs keep separate lines and stay off lane borders; reduced from the 400-task diagram (https://github.com/mermaid-js/mermaid-v13/issues/843).
+swimlane-beta TB
+  subgraph L0["team 0"]
+    n43["node 43"]
+  end
+  subgraph L1["team 1"]
+    n63["node 63"]
+    n64["node 64"]
+    n65["node 65"]
+    n99["node 99"]
+  end
+  subgraph L2["team 2"]
+    n104["node 104"]
+    n106["node 106"]
+    n109["node 109"]
+    n112["node 112"]
+    n129["node 129"]
+  end
+  subgraph L3["team 3"]
+    n150["node 150"]
+    n152["node 152"]
+    n157["node 157"]
+    n159["node 159"]
+    n183["node 183"]
+  end
+  subgraph L4["team 4"]
+    n206["node 206"]
+    n209["node 209"]
+    n211["node 211"]
+    n216["node 216"]
+    n241["node 241"]
+    n247["node 247"]
+  end
+  subgraph L5["team 5"]
+    n264["node 264"]
+    n273["node 273"]
+  end
+  subgraph L6["team 6"]
+    n301["node 301"]
+    n302["node 302"]
+    n306["node 306"]
+    n312["node 312"]
+    n313["node 313"]
+    n317["node 317"]
+    n325["node 325"]
+    n328["node 328"]
+    n344["node 344"]
+  end
+  subgraph L7["team 7"]
+    n351["node 351"]
+    n380["node 380"]
+  end
+  n325 --> n157
+  n112 --> n64
+  n301 --> n183
+  n216 --> n104
+  n99 --> n216
+  n351 --> n106
+  n43 --> n302
+  n247 --> n241
+  n63 --> n351
+  n344 --> n150
+  n306 --> n273
+  n317 --> n159
+  n109 --> n328
+  n206 --> n152
+  n313 --> n264
+  n65 --> n209
+  n312 --> n380
+  n129 --> n211

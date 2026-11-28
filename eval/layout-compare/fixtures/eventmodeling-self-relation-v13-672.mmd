@@ -1,0 +1,11 @@
+%% A frame that names itself as a source draws its own loop (https://github.com/mermaid-js/mermaid-v13/issues/672).
+eventmodeling
+tf 01 cmd Start
+tf 02 evt Started ->> 01
+tf 03 evt Continued ->> 02
+tf 04 evt Finished ->> 03 ->> 02
+tf 05 rmo Status ->> 04 ->> 02
+tf 06 ui Screen ->> 05 ->> 06
+tf 07 cmd Retry ->> 06
+rf 08 evt Retried ->> 07
+tf 09 rmo Again

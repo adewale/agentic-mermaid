@@ -1,6 +1,7 @@
 import type { Geometry, MarkPaint } from './scene/ir.ts'
 import { STROKE_WIDTHS } from './styles.ts'
 import type { Point, PortSide, PositionedNode } from './types.ts'
+import { recordRevision, sameRevision, type RecordRevision } from './shared/record-revision.ts'
 
 /** Boundary consumed by routing. `envelope` is an explicit conservative
  * contract for open/decorated Bezier symbols; it is never presented as the
@@ -45,19 +46,13 @@ export interface ShapeRoutingProfile {
 }
 
 interface CachedShapeRoutingProfile {
-  x: number
-  y: number
-  width: number
-  height: number
-  shape: PositionedNode['shape']
-  semanticShape: PositionedNode['semanticShape']
-  borders: PositionedNode['borders']
+  revision: RecordRevision
   profile: ShapeRoutingProfile
 }
 
 /** Route proofs ask for the same node profile many times. Positioned nodes do
  * move during layout, so identity alone is not a safe cache key: retain a weak
- * per-node entry and validate every geometry input before reuse. */
+ * per-node entry and reuse it only while every field of the node is unchanged. */
 const ROUTING_PROFILE_CACHE = new WeakMap<PositionedNode, CachedShapeRoutingProfile>()
 
 interface Paint { fill: string; stroke: string; strokeWidth: string }
@@ -179,10 +174,7 @@ export function shapeOutline(
  */
 export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
   const cached = ROUTING_PROFILE_CACHE.get(node)
-  if (cached && cached.x === node.x && cached.y === node.y && cached.width === node.width &&
-    cached.height === node.height && cached.shape === node.shape && cached.semanticShape === node.semanticShape && cached.borders === node.borders) {
-    return cached.profile
-  }
+  if (cached && sameRevision(cached.revision, node)) return cached.profile
   const boundary = shapeOutline(node, { fill: '', stroke: '', strokeWidth: '' }).routing
   const fallback = boxCardinalPorts(node)
   const sides = {} as Record<PortSide, ShapeSideAttachment>
@@ -203,16 +195,7 @@ export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
       : { kind: 'port', point: preferred, preferred }
   }
   const profile = { boundary, sides }
-  ROUTING_PROFILE_CACHE.set(node, {
-    x: node.x,
-    y: node.y,
-    width: node.width,
-    height: node.height,
-    shape: node.shape,
-    semanticShape: node.semanticShape,
-    borders: node.borders,
-    profile,
-  })
+  ROUTING_PROFILE_CACHE.set(node, { revision: recordRevision(node), profile })
   return profile
 }
 

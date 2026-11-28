@@ -1,0 +1,12 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/5289
+C4Context
+title Test Boundary bug
+UpdateLayoutConfig($c4ShapeInRow="5", $c4BoundaryInRow="2") 
+Boundary(a_boundary, "a boundary"){
+    Person(a_person, "A Person")
+    Person(b_person, "B Person", "lorem ipsum dolor")
+		
+    System(system, "Inside Boundary System", "lorem ipsum dolor")
+}
+
+	Person_Ext(a_person_ext, "External Person")

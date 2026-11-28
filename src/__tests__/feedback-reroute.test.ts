@@ -10,7 +10,9 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, hardViolations } from '../layout-rubric.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { applyRouteContracts, closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
@@ -232,11 +234,14 @@ test('exact convergent glyph repaint retains all other peer checks and never adm
 })
 
 test('an unsafe required outline repair retains an honestly invalid contact instead of publishing a false success', () => {
-  const graph = parseMermaid('flowchart LR\nA --> B\nP --> B')
+  // The border stub would put A->B's arrowhead on P->B's at B's corner, and
+  // W blocks the slide of A->B's terminal run into B's face: no repair is safe.
+  const graph = parseMermaid('flowchart LR\nA --> B\nP --> B\nW')
   const nodes: PositionedNode[] = [
     { id: 'A', label: '', x: 0, y: 40, width: 20, height: 40, shape: 'rectangle' },
     { id: 'B', label: '', x: 60, y: 20, width: 30, height: 40, shape: 'rectangle' },
     { id: 'P', label: '', x: 40, y: 120, width: 50, height: 40, shape: 'rectangle' },
+    { id: 'W', label: '', x: 44, y: 40, width: 12, height: 14, shape: 'rectangle' },
   ]
   const edge = marked('A', 'B', [{ x: 20, y: 60 }, { x: 40, y: 60 }, { x: 40, y: 80 }, { x: 60, y: 80 }])
   const peer = marked('P', 'B', [{ x: 64.3, y: 120 }, { x: 64.3, y: 60 }])
@@ -339,4 +344,25 @@ test('spatial marker pruning agrees with the live guard across marker shapes, cu
       expect(routeCandidateMarkerBlocker(example.edge, example.points, example.peers, example.style)).toEqual(example.blocker)
     }
   })
+})
+
+// Feedback edges that ELK sent round the far side of the drawing, or down
+// against the flow and back up through it, while both ends faced a free side:
+// they return along that side, at most 1.5x their centre-to-centre distance,
+// and draw no more crossings than the listed bound.
+test.each([
+  ['mermaid-rs-renderer-63.mmd', ['sub1->link1'], 0],
+  ['mermaid-rs-renderer-162-through-target.mmd', ['Sleeping->Unlocked'], 0],
+  ['frankenmermaid-16.mmd', ['Releasing->Idle', 'Recording->Idle'], 1],
+] as const)('issue fixture %s returns feedback along the nearer free side', (name, feedback, crossings) => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures', name), 'utf8')))
+  const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+  for (const key of feedback) {
+    const edge = positioned.edges.find(candidate => `${candidate.source}->${candidate.target}` === key)!
+    const a = nodes.get(edge.source)!, b = nodes.get(edge.target)!
+    const length = edge.points.slice(1).reduce((sum, point, i) => sum + Math.abs(point.x - edge.points[i]!.x) + Math.abs(point.y - edge.points[i]!.y), 0)
+    const centres = Math.abs(a.x + a.width / 2 - b.x - b.width / 2) + Math.abs(a.y + a.height / 2 - b.y - b.height / 2)
+    expect(length, key).toBeLessThanOrEqual(1.5 * centres)
+  }
+  expect(countEdgeCrossings(positioned.edges)).toBeLessThanOrEqual(crossings)
 })

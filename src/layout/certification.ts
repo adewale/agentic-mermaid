@@ -1,4 +1,4 @@
-import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, measureRouteReadability, type RubricMetrics } from '../layout-rubric.ts'
 import { layoutOptimization } from './optimization-context.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -30,31 +30,37 @@ export interface LayoutPreferenceScore {
   area: number
 }
 
-type PreferenceCriterion = keyof LayoutPreferenceScore
-const PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
+export type PreferenceCriterion = keyof LayoutPreferenceScore
+/** The declared soft objective among hard-feasible graph layouts. Candidate
+ * selection and offline paired comparisons both read this one ordering. */
+export const LAYOUT_PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
   'unreadableTitles', 'edgeCrossings', 'labelConflicts', 'totalBends',
   'nonCanonicalEndpointRate', 'peerBarycenterDelta', 'area',
 ]
 
-export interface LayoutPreferenceEvidence {
-  /** Score of the returned geometry, including the optional final route choice. */
-  selectedScore: LayoutPreferenceScore
-  /** Placement-strategy decision, before the optional final route comparison. */
-  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
-  /** Certified placement scores before the optional final route comparison. */
-  compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
-  /** Final bundled/unbundled decision using the selected placement's ELK result.
-   * Its selected score describes the same final geometry as selectedScore above. */
-  routing?: {
-    strategy: 'bundled' | 'without-generic-bundling'
-    preference: Omit<LayoutPreferenceEvidence, 'routing'>
+/** Negative when `alternative` is preferred, positive when `first` is, zero on
+ * a complete tie. `criterion` names the first axis that decided. */
+export function compareLayoutPreference(first: Readonly<LayoutPreferenceScore>, alternative: Readonly<LayoutPreferenceScore>): { order: -1 | 0 | 1; criterion?: PreferenceCriterion } {
+  for (const criterion of LAYOUT_PREFERENCE_ORDER) {
+    if (alternative[criterion] < first[criterion]) return { order: -1, criterion }
+    if (alternative[criterion] > first[criterion]) return { order: 1, criterion }
   }
+  return { order: 0 }
+}
+
+export interface LayoutPreferenceEvidence {
+  /** Score of the returned geometry. */
+  selectedScore: LayoutPreferenceScore
+  /** Placement-strategy decision. */
+  reason: PreferenceCriterion | 'misleadingRoutes' | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
+  /** Certified placement scores. */
+  compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
 }
 
 export interface LayoutCertificationReceipt {
   status: 'passed'
   strategy: string
-  /** Placement-production attempts; an optional final routing comparison is separate. */
+  /** Placement-production attempts. */
   attempts: number
   hardViolations: 0
   preference: LayoutPreferenceEvidence
@@ -66,6 +72,10 @@ export interface LayoutCertificationCandidate {
   /** Try the next bounded candidate first, retaining this already certified
    * result if the preferred alternative fails. Runs inside this attempt. */
   preferNext?: (positioned: PositionedGraph) => boolean
+  /** A certified result whose routes needed a detour another placement may
+   * avoid. It is kept only if it also wins the objective against the next
+   * quality alternative: the detour is a routing cost, judged with the others. */
+  detoured?: (positioned: PositionedGraph) => boolean
   /** A fallback may be identical for this graph (for example hierarchy mode
    * without groups). It remains available after failure, but is not a quality
    * probe. At most one eligible alternative is produced after certification. */
@@ -206,7 +216,9 @@ function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGra
   collect(graph.subgraphs)
   const retain = (groups: PositionedGroup[]): void => {
     for (const group of groups) {
-      group.nodeIds = authored.get(group.id)!.nodeIds.filter(id => graph.nodes.has(id) && !authored.has(id))
+      // A finished (immutable) graph already carries its membership.
+      const nodeIds = authored.get(group.id)!.nodeIds.filter(id => graph.nodes.has(id) && !authored.has(id))
+      if (!group.nodeIds || group.nodeIds.length !== nodeIds.length || group.nodeIds.some((id, index) => id !== nodeIds[index])) group.nodeIds = nodeIds
       retain(group.children)
     }
   }
@@ -334,6 +346,7 @@ interface CertifiedCandidate {
   positioned: PositionedGraph
   strategy: string
   score: LayoutPreferenceScore
+  detoured?: boolean
 }
 
 interface CertifiedSelection {
@@ -361,7 +374,7 @@ interface UncertifiedSelection {
 /** Violation classes that can misstate structure rather than only look
  * imperfect: wrong containment, hidden nodes, an edge drawn through or away
  * from a node, a label away from its edge. */
-const MISLEADING_VIOLATIONS: ReadonlySet<string> = new Set(['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'edgeThroughNode', 'offOutlineEndpoints', 'labelOffRoute'])
+const MISLEADING_VIOLATIONS: ReadonlySet<string> = new Set(['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'edgeThroughNode', 'offOutlineEndpoints', 'labelOffRoute', 'indistinctOccurrences'])
 
 const rubricViolation = (violation: { metric: string; detail: string; targets?: readonly string[] }): LayoutCertificationViolation =>
   ({ kind: violation.metric, targets: violation.targets ?? [], detail: violation.detail })
@@ -392,7 +405,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
-        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) },
+        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext), ...(candidate.detoured?.(positioned) ? { detoured: true } : {}) },
       } : {}),
       ...(drawable ? {
         drawable: { positioned, strategy: candidate.strategy, violations: [...findings.map(finding => finding.drawable!), ...hard.map(rubricViolation)], complete: rubric !== undefined },
@@ -405,15 +418,28 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
   }
 }
 
-function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCandidate): {
+/** Final route ink that misstates the graph: contacts between unrelated
+ * routes. A shared corner or T-junction reads as a junction that does not
+ * exist, and a shared run hides which edge owns it; each hides at least the
+ * crossing it replaces. */
+function misleadingRouteInk(candidate: CertifiedCandidate): number {
+  return measureRouteReadability(candidate.positioned).routeContacts
+}
+
+/** Between two final placements with equally readable titles, the one whose
+ * routes meet unrelated routes less wins before the declared objective is
+ * read: a crossing is clutter, a false junction is a wrong drawing. Family
+ * placement discards these routes, so it compares the objective alone. */
+function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCandidate, purpose: 'final' | 'placement'): {
   selected: CertifiedCandidate
   reason: LayoutPreferenceEvidence['reason']
 } {
-  for (const criterion of PREFERENCE_ORDER) {
-    if (alternative.score[criterion] < first.score[criterion]) return { selected: alternative, reason: criterion }
-    if (alternative.score[criterion] > first.score[criterion]) return { selected: first, reason: criterion }
+  if (purpose === 'final' && first.score.unreadableTitles === alternative.score.unreadableTitles) {
+    const firstInk = misleadingRouteInk(first), alternativeInk = misleadingRouteInk(alternative)
+    if (firstInk !== alternativeInk) return { selected: alternativeInk < firstInk ? alternative : first, reason: 'misleadingRoutes' }
   }
-  return { selected: first, reason: 'candidate-order' }
+  const { order, criterion } = compareLayoutPreference(first.score, alternative.score)
+  return criterion === undefined ? { selected: first, reason: 'candidate-order' } : { selected: order < 0 ? alternative : first, reason: criterion }
 }
 
 /** Report-mode fallback when no candidate certifies. Deterministic: fewest
@@ -463,7 +489,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
     if (certified) {
       compared.push({ strategy: certified.strategy, score: certified.score })
       if (deferred) {
-        const choice = preferredCandidate(deferred, certified)
+        const choice = preferredCandidate(deferred, certified, purpose)
         return accept(choice.selected, choice.reason)
       }
       const alternatives = bounded.slice(index + 1)
@@ -472,7 +498,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
         probe = 'readability'
         continue
       }
-      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0) return accept(certified, 'first-certified')
+      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0 && !certified.detoured) return accept(certified, 'first-certified')
       if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
       if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
       deferred = certified
@@ -526,44 +552,4 @@ export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: Res
 export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, allowUncertified = false): PositionedGraph {
   const selection = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
   return 'uncertified' in selection ? retainUncertified(graph, selection) : retainSelection(graph, selection)
-}
-
-/** Select placement, then optionally certify one new route proposal. The baseline
- * and score stay private to this invocation; an attached public receipt is never
- * accepted as proof that caller-owned geometry was already checked. */
-export function certifyLayoutWithRouteAlternative(
-  graph: MermaidGraph,
-  style: ResolvedRenderStyle,
-  candidates: readonly LayoutCertificationCandidate[],
-  routeFor: (placed: PositionedGraph, score: Readonly<LayoutPreferenceScore>) =>
-    (LayoutCertificationCandidate & { strategy: 'without-generic-bundling' }) | undefined,
-  preliminary?: LayoutCertificationCandidate,
-  allowUncertified = false,
-): PositionedGraph {
-  const placement = selectCertifiedCandidates(graph, style, candidates, preliminary, 'final', allowUncertified)
-  // An uncertified placement has no certified score to compare a route against.
-  if ('uncertified' in placement) return retainUncertified(graph, placement)
-  const placed = retainSelection(graph, placement)
-  const alternative = routeFor(placed, placement.selected.score)
-  if (!alternative) return placed
-  const baseline = { ...placement.selected, strategy: 'bundled' }
-  const result = certifyCandidate(graph, style, alternative)
-  const compared = [{ strategy: baseline.strategy, score: baseline.score }]
-  if (result.certified) compared.push({ strategy: result.certified.strategy, score: result.certified.score })
-  const choice = result.certified ? preferredCandidate(baseline, result.certified)
-    : { selected: baseline, reason: 'alternative-invalid' as const }
-  const routed = choice.selected.positioned
-  retainAuthoredMembership(graph, routed)
-  routed.certification = {
-    ...placed.certification!,
-    preference: {
-      ...placed.certification!.preference,
-      selectedScore: choice.selected.score,
-      routing: {
-        strategy: choice.selected === baseline ? 'bundled' : alternative.strategy,
-        preference: { selectedScore: choice.selected.score, reason: choice.reason, compared },
-      },
-    },
-  }
-  return routed
 }

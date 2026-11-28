@@ -107,7 +107,7 @@
       "requests": 36,
       "raw": 878000,
       "gzip": 286000,
-      "brotli": 245000
+      "brotli": 258000
     },
     "packet": {
       "requests": 32,
@@ -143,13 +143,13 @@
       "requests": 34,
       "raw": 816000,
       "gzip": 266000,
-      "brotli": 227000
+      "brotli": 239000
     },
     "eventmodeling": {
       "requests": 30,
       "raw": 657000,
       "gzip": 212000,
-      "brotli": 180000
+      "brotli": 190000
     },
     "zenuml": {
       "requests": 34,

@@ -58,6 +58,24 @@ describe('C4 authored work admission', () => {
     }
   })
 
+  // Real C4 diagrams stay far below 150 relationships; past it pixel layout
+  // refuses from the count instead of spending its route work first.
+  test('pixel layout admits 150 relationships and refuses 151 before text preparation', () => {
+    const counted = (count: number) => {
+      const model = body()
+      model.relationships = Array.from({ length: count }, (_, index) => ({ ...model.relationships[0]!, id: `rel${index}` }))
+      return model
+    }
+    const pixel = spyOn(pixelText, 'preparePixelText').mockImplementation(() => { throw new Error('pixel sizing') })
+    try {
+      expect(() => layoutC4Diagram(counted(151))).toThrow(/^C4_ROUTE_WORK_LIMIT: 151 relationships exceed the 150 a C4 layout routes/)
+      expect(pixel).not.toHaveBeenCalled()
+      expect(() => layoutC4Diagram(counted(150))).toThrow('pixel sizing')
+    } finally {
+      pixel.mockRestore()
+    }
+  })
+
   test('cyclic ownership fails before either independent adapter sizes text', () => {
     const cyclic = body()
     cyclic.boundaries.push({ ...cyclic.boundaries[0]!, id: 'child', parentId: 'parent' })

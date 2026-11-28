@@ -1,0 +1,5 @@
+%% Real diagram from a user issue: https://github.com/lukilabs/beautiful-mermaid/issues/11
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running : start
+    Running --> Idle : stop

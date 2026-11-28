@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned, sharesPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // Canonical resolved-request -> positioned-artifact seam.
@@ -14,6 +14,7 @@ import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // silently reconstruct a smaller option object.
 
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './agent/families.ts'
+import type { FamilyLayoutContext } from './agent/family-registry.ts'
 import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
@@ -24,6 +25,7 @@ import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
 import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
+import { reservePaintMargin } from './scene/paint-margin.ts'
 
 // A certification and its consumers use one projection of the same final
 // artifact. Keep this internal evidence outside descriptor-owned return data.
@@ -79,13 +81,30 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+  return original && !sharesPositioned(layout) && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
-/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+/** Scene lowering can retain aliases; never hand it borrowed mutable cache
+ * geometry. A finished graph is immutable, so its aliases are harmless. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) && !sharesPositioned(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
+
+/** The request values a family layouter's inputs are derived from. */
+type LayoutInputRoot = 'source' | 'renderOptions' | 'appearance' | 'familyConfig' | 'paintBackend'
+/** Every field a layouter receives names the root it is derived from, and the
+ * position-cache key holds every root. A new FamilyLayoutContext field without
+ * an entry fails typechecking, so the key cannot silently forget a layout input.
+ * The paint backend reaches only layouts that declare layoutReadsPaintBackend. */
+const LAYOUT_INPUT_SOURCES: { readonly [K in keyof FamilyLayoutContext]-?: LayoutInputRoot } = {
+  source: 'source',
+  renderOptions: 'renderOptions',
+  styleFace: 'appearance',
+  familyAppearance: 'appearance',
+  familyConfig: 'familyConfig',
+  paintBackendId: 'paintBackend',
+}
+const LAYOUT_INPUT_ROOTS = [...new Set(Object.values(LAYOUT_INPUT_SOURCES))]
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
@@ -119,7 +138,15 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // model, 20-30x the authored text) from the source alone, which the key
   // already holds. Every other family config stays keyed.
   const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  const roots: Record<LayoutInputRoot, unknown> = {
+    source: cacheSource,
+    renderOptions: request.renderOptions,
+    appearance: request.appearance,
+    familyConfig: sourceDerivedConfig ? undefined : request.familyConfig,
+    // A family that reads no paint shares one entry across backends and outputs.
+    paintBackend: descriptor.layoutReadsPaintBackend ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  }
+  const cacheParts = cacheEnabled ? [...LAYOUT_INPUT_ROOTS.map(root => roots[root]), projectionOptions,
     layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
@@ -150,9 +177,10 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         retainRequestGraphLayoutDecision(request, decision, role)
       }, () => descriptor.layout!({
         source,
-        renderOptions: resolved.renderOptions,
+        // Every family's canvas padding keeps the paint backends' margin.
+        renderOptions: reservePaintMargin(resolved.renderOptions),
         ...(resolved.styleFace ? { styleFace: resolved.styleFace } : {}),
-        ...(resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
+        ...(descriptor.layoutReadsPaintBackend && resolved.paintBackendId ? { paintBackendId: resolved.paintBackendId } : {}),
         ...(resolved.familyConfig ? { familyConfig: resolved.familyConfig } : {}),
         ...(resolved.familyAppearance ? { familyAppearance: resolved.familyAppearance } : {}),
       })),

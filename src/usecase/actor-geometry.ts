@@ -1,4 +1,4 @@
-import { simplifyOrthogonal } from '../layout/compound-visibility.ts'
+import { simplifyOrthogonal } from '../layout/orthogonal-polyline.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
 import type { Geometry } from '../scene/ir.ts'
 import { pointOnRoutingBoundary, type ShapeRoutingBoundary } from '../shape-outline.ts'

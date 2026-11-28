@@ -1,0 +1,47 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6519
+architecture-beta
+
+    service incoming(cloud)[Incoming]
+
+    group pipeline[Pipeline]
+
+    group group1[Group 1] in pipeline
+
+    service serviceA(server)[ServiceA] in group1
+    service serviceD(server)[ServiceD] in group1
+    service serviceC(server)[Service C] in group1
+
+    service serviceF(server)[Proxy] in pipeline
+    service serviceG(server)[Proxy] in pipeline
+
+    junction junctionDb
+
+    group group2[Group 2] in pipeline
+
+    service serviceB(server)[Service B] in group2
+    service serviceH(server)[Service H] in group2
+    service serviceE(server)[Service E] in group2
+
+    serviceA:R --> L:serviceD
+
+    incoming:R --> L:serviceF
+    serviceF:R --> L:serviceA
+    serviceA:B <-- T:serviceC
+
+    serviceD:R --> L:serviceG
+    serviceG:R --> L:serviceB
+
+    serviceB:B <-- T:serviceH
+    serviceH:L <-- R:serviceE
+
+    service db(database)[Db]
+
+    db:T -- B:junctionDb
+    junctionDb:L --> R:serviceC
+    junctionDb:R --> L:serviceE
+
+    service auth(server)[Auth]
+    service api(internet)[Api]
+
+    api:R <--> L:db
+    api:B --> T:auth

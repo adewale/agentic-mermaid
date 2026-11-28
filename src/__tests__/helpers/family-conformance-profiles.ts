@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { issueUrl } from '../../../eval/quality/real-diagrams.ts'
 import { expect } from 'bun:test'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata, isBuiltinFamilyId } from '../../agent/families.ts'
 import { parseRegisteredMermaid } from '../../agent/parse.ts'
@@ -796,11 +797,17 @@ function sourceProxyComplexity(source: string): number {
 
 let corpusOutlierCache: Record<DiagramKind, { path: string; source: string }> | undefined
 
+/** The most complex authored fixture of each family, rendered under every
+ * look, palette and backend. Diagrams copied from user issues are excluded:
+ * the paired gate and audit:ugly judge them, and replicating a large real
+ * diagram across every style combination multiplies this portfolio's cost
+ * each time one is added without adding a style or backend distinction. */
 export function collectCorpusOutliers(): Record<DiagramKind, { path: string; source: string }> {
   if (corpusOutlierCache) return corpusOutlierCache
   const selected = new Map<DiagramKind, { path: string; source: string; score: number }>()
   for (const path of allMmdFiles(EVAL_ROOT).sort(compareCodePointStrings)) {
     const source = readFileSync(path, 'utf8')
+    if (issueUrl(source)) continue
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok || parsed.value.body.kind === 'opaque' || !isBuiltinFamilyId(parsed.value.kind)) continue
     const family = parsed.value.kind

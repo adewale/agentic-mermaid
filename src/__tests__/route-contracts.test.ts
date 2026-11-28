@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { bendCount } from '../layout/route-geometry.ts'
 import { createLayoutRouteEdges, routeCandidateMarkerBlocker, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, hasBundleRouteExemption, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { seatLabelsOnOwnRoutes } from '../layout/label-seat.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
@@ -24,14 +27,19 @@ import { createTextMeasurementExecution, withTextMeasurementExecution } from '..
 import { connector, shape } from '../scene/marks.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
-import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
+import { alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { labelSeatPaintContext, labelShafts } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { clonePositioned } from '../experimental/position-cache.ts'
 import { denseLabelSeats } from '../layout/label-seat-search.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { layoutC4Diagram } from '../c4/layout.ts'
+
+// A finished layout is immutable. Tests that corrupt one edit a private copy,
+// which keeps the original's bundle-route ownership.
+const editableLayout = (...args: Parameters<typeof layoutGraphSync>): PositionedGraph => clonePositioned(layoutGraphSync(...args))
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -431,7 +439,7 @@ describe('label candidate endpoint clearance', () => {
       groups: [{ id: 'Outer', label: '', x: -50, y: -50, width: 340, height: 300, headerHeight: 0, children: [header] }] }
     const graph = parseMermaid('flowchart TD\nA -->|handoff| B\nC --> D'), style = resolveRenderStyle()
     const before = structuredClone(edge)
-    if (operation === 'off-route') repairLabelsOffOwnRoute(positioned, graph, style)
+    if (operation === 'off-route') seatLabelsOnOwnRoutes(positioned, style)
     else if (operation === 'shared-trunk') repairLabelsOnSharedTrunks(positioned, graph, style)
     else separateEdgeLabelPills(positioned, graph, style, { preserveRouteClearance: true })
     expect(edge.labelPosition).not.toEqual(before.labelPosition)
@@ -461,38 +469,6 @@ describe('label candidate endpoint clearance', () => {
     // An impossible private slot may retain the original shared-trunk label;
     // preserving the arrows does not establish full private-label ownership.
     expect(rendered.receipt.layoutCertification?.status).not.toBe('failed')
-  })
-
-  it('keeps an off-route label when both nearest return slots overlap its own target', () => {
-    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
-      label: 'long terminal label', labelPosition: { x: 280, y: 0 }, points: [{ x: 200, y: 100 }, { x: 280, y: 100 }] }
-    const nodes: PositionedNode[] = [{ id: 'B', label: 'B', shape: 'rectangle', x: 280, y: 80, width: 80, height: 40 }]
-    const before = structuredClone(edge)
-    repairLabelsOffOwnRoute({ nodes, edges: [edge], groups: [] }, parseMermaid('flowchart LR\nA-->|long terminal label|B'), resolveRenderStyle())
-    expect(edge).toEqual(before)
-  })
-
-  it('keeps marker reservations live when later trusted label measurement replaces a peer route', () => {
-    const edge = (label: string, y: number): PositionedEdge => ({ source: `${label}-from`, target: `${label}-to`,
-      style: 'solid', hasArrowStart: false, hasArrowEnd: false, label, labelPosition: { x: 75, y: y - 100 },
-      points: [{ x: -25, y }, { x: 175, y }] })
-    const first = edge('first', 110), second = edge('second', 210)
-    const protectedEdge: PositionedEdge = { source: 'protected-from', target: 'protected-to', style: 'solid',
-      hasArrowStart: false, hasArrowEnd: true, points: [{ x: 500, y: 170 }, { x: 500, y: 210 }] }
-    const style = resolveRenderStyle()
-    let moved = false, pill!: NonNullable<ReturnType<typeof labelRect>>
-    const execution = createTextMeasurementExecution({ id: 'test:live-label-marker', version: '1.0.0', measure: ({ text }) => {
-      if (text.includes('second')) { moved = true; protectedEdge.points = [{ x: 75, y: 170 }, { x: 75, y: 210 }] }
-      return 24
-    } }, 'Inter')
-    withTextMeasurementExecution(execution, () => {
-      repairLabelsOffOwnRoute({ nodes: [], edges: [first, second, protectedEdge], groups: [] }, parseMermaid('flowchart LR\nA-->B'), style)
-      pill = labelRect(second, style)!
-    })
-    const marker = graphEdgeMarkerPaintRegions(protectedEdge, style)[0]!.bounds!
-    expect(moved).toBe(true)
-    expect(pill.x - 4 < marker.x1 && pill.x + pill.w + 4 > marker.x0 && pill.y - 4 < marker.y1 && pill.y + pill.h + 4 > marker.y0).toBe(false)
-    expect(second.labelPosition!.y).toBe(210)
   })
 
   it('preserves clear foreign shafts while moving a label away from a terminal marker', () => {
@@ -550,7 +526,7 @@ describe('label candidate endpoint clearance', () => {
       }
       const offRoute: PositionedEdge = { ...labeled[1]!, labelPosition: { x: 75, y: -100 },
         points: [{ x: -25, y: 110 }, { x: 175, y: 110 }] }
-      repairLabelsOffOwnRoute({ nodes: [], groups: [], edges: [offRoute, protectedEdge] }, parseMermaid('flowchart LR\nA-->B'), style)
+      seatLabelsOnOwnRoutes({ nodes: [], groups: [], edges: [offRoute, protectedEdge] }, style)
       const pill = labelRect(offRoute, style)!, halo = Math.max(4, style.lineWidth * 2)
       expect(pill.x - halo < protectedInk.x1 && pill.x + pill.w + halo > protectedInk.x0 && pill.y - halo < protectedInk.y1 && pill.y + pill.h + halo > protectedInk.y0).toBe(false)
       expect(offRoute.labelPosition!.y).toBe(110)
@@ -1007,7 +983,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 
   it('fires when geometry is mutated after certification (stale-pass detector)', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
@@ -1021,7 +997,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 
   it('validation never mutates the layout it inspects', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     findEdge(positioned.edges, 'B', 'C').points = [
@@ -1035,7 +1011,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 
 describe('bundle exemptions belong to constructed routes (#265)', () => {
   it('a caller-provided membership set cannot certify an unrelated dogleg as a bundle', () => {
-    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = editableLayout(graph), edge = positioned.edges[0]!
     const [a, b] = edge.points as [Point, Point]
     edge.points = [a, { x: a.x + 16, y: a.y }, { x: a.x + 16, y: a.y + 12 }, { x: b.x - 16, y: a.y + 12 }, { x: b.x - 16, y: b.y }, b]
     applyRouteContracts(positioned, graph, new Set([edge]), resolveRenderStyle())
@@ -1045,7 +1021,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
 
   it.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: an editable certificate cannot hide a lone four-bend hitch', direction => {
     const graph = parseMermaid(`flowchart ${direction}\nA[Start] --> B[Done]`)
-    const positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const positioned = editableLayout(graph), edge = positioned.edges[0]!
     const a = edge.points[0]!, b = edge.points.at(-1)!
     const horizontal = direction === 'LR' || direction === 'RL'
     const first = horizontal ? a.x + (b.x - a.x) / 3 : a.y + (b.y - a.y) / 3
@@ -1067,7 +1043,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
     ['shared fan-in', 'A --> C\nB --> C'],
     ['separated parallel lanes', 'A --> B\nA --> B'],
   ])('%s: whole-graph translation preserves justified bends', (_name, body) => {
-    const graph = parseMermaid(`flowchart LR\n${body}`), positioned = layoutGraphSync(graph)
+    const graph = parseMermaid(`flowchart LR\n${body}`), positioned = editableLayout(graph)
     expect(positioned.edges.some(edge => edge.routeCertificate?.invariant === 'bundle')).toBe(true)
     for (const node of positioned.nodes) { node.x += 13; node.y += 17 }
     for (const edge of positioned.edges) for (const point of edge.points) { point.x += 13; point.y += 17 }
@@ -1077,7 +1053,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
 
   it('a copied bundle certificate cannot grant ownership to a different route', () => {
     const bundle = layoutGraphSync(parseMermaid('flowchart LR\nA --> B\nA --> B'))
-    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = editableLayout(graph), edge = positioned.edges[0]!
     const [a, b] = edge.points as [Point, Point]
     edge.points = [a, { x: a.x + 16, y: a.y }, { x: a.x + 16, y: a.y + 12 }, { x: b.x - 16, y: a.y + 12 }, { x: b.x - 16, y: b.y }, b]
     const { straightened: _straightened, ...copied } = bundle.edges[0]!.routeCertificate!
@@ -1086,7 +1062,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
   })
 
   it('reissuing a certificate cannot inherit a bundle exemption after changing its lane', () => {
-    const graph = parseMermaid('flowchart LR\nA --> B\nA --> C'), positioned = layoutGraphSync(graph)
+    const graph = parseMermaid('flowchart LR\nA --> B\nA --> C'), positioned = editableLayout(graph)
     const edge = positioned.edges.find(edge => edge.points.length > 2)!, saved = edge.routeCertificate!
     expect(saved.invariant).toBe('bundle')
     for (let i = 1; i < edge.points.length - 1; i++) edge.points[i]!.x += 6
@@ -1133,7 +1109,9 @@ describe('route contracts — feedback channel lanes', () => {
   it.each(['TD', 'RL', 'BT', 'LR'].flatMap((direction, turns) =>
     ['clear', 'node', 'crossing'].map(blocker => ({ direction, turns, blocker })),
   ))('identifies the return channel before its farther target stub in $direction with $blocker clearance', ({ direction, turns, blocker }) => {
-    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${blocker === 'node' ? '\nN' : blocker === 'crossing' ? '\nD --- E' : ''}`)
+    // Wall stands where a shorter side lane would run, so only the return
+    // channel's own repair is in question.
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A\nWall${blocker === 'node' ? '\nN' : blocker === 'crossing' ? '\nD --- E' : ''}`)
     const rotate = (point: Point): Point => {
       let { x, y } = point
       for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
@@ -1143,7 +1121,7 @@ describe('route contracts — feedback channel lanes', () => {
       const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
       return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
     }
-    const nodes = [node('A', 300, 0), node('B', 300, 100), node('C', 100, 200)]
+    const nodes = [node('A', 300, 0), node('B', 300, 100), node('C', 100, 200), node('Wall', 360, -60, 10, 340)]
     if (blocker === 'node') nodes.push(node('N', 90, 210, 10, 20))
     if (blocker === 'crossing') nodes.push(node('D', 88, 206, 4, 4), node('E', 88, 230, 4, 4))
     const routes = [
@@ -1165,15 +1143,24 @@ describe('route contracts — feedback channel lanes', () => {
       // excursions disappear. The x=320 terminal stub is not that lane.
       expect(back.points).toEqual([[100, 220], [80, 220], [80, 20], [300, 20]].map(([x, y]) => rotate({ x: x!, y: y! })))
     } else if (blocker === 'node') {
-      // The shortcut may shorten the clear tail, but cannot cut through N.
-      expect(back.points[0]).toEqual(before[0])
-      expect(back.points[1]).toEqual(before[1])
+      // A shortcut may shorten the clear tail, but cannot cut through N.
+      const n = nodes.find(candidate => candidate.id === 'N')!
+      expect(back.points.slice(1).some((b, i) => {
+        const a = back.points[i]!
+        return Math.min(a.x, b.x) < n.x + n.width && Math.max(a.x, b.x) > n.x && Math.min(a.y, b.y) < n.y + n.height && Math.max(a.y, b.y) > n.y
+      })).toBe(false)
+      // Its caption rides whichever lane it keeps.
+      const label = back.labelPosition!
+      expect(back.points.slice(1).some((b, i) => {
+        const a = back.points[i]!
+        return Math.min(a.x, b.x) - 0.5 <= label.x && label.x <= Math.max(a.x, b.x) + 0.5 && Math.min(a.y, b.y) - 0.5 <= label.y && label.y <= Math.max(a.y, b.y) + 0.5
+      })).toBe(true)
     } else {
       // A perpendicular shaft is not a node obstacle: the independent
       // crossing check must reject the otherwise clear shortcut atomically.
       expect(back.points).toEqual(before)
     }
-    expect(back.labelPosition).toEqual(rotate({ x: 80, y: 100 }))
+    if (blocker !== 'node') expect(back.labelPosition).toEqual(rotate({ x: 80, y: 100 }))
     expect([back.source, back.target, back.label, back.hasArrowEnd]).toEqual(['C', 'A', 'return', true])
     expect(countEdgeCrossings(edges)).toBe(0)
     expect(assessLayout(graph, positioned).metrics.endpointApproaches).toBe(0)
@@ -1193,7 +1180,9 @@ describe('route contracts — feedback channel lanes', () => {
     ].map(row => ({ fromStyle: false, ...row, direction: 'TD', turns: 0, side: 'head' })),
   ])('keeps noncontact $side segments clear of the other endpoint in $direction (gap=$gap, node=$nodeWidth, shaft=$edgeWidth, style=$fromStyle)', ({ direction, turns, side, gap, nodeWidth, edgeWidth, changed, fromStyle }) => {
     const tail = side === 'tail'
-    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : ''}`)
+    // P and Q stand where shorter side lanes would run, so only the return
+    // channel's own repair is in question.
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : changed ? '' : '\nP\nQ'}`)
     const rotate = (point: Point): Point => {
       let { x, y } = point
       for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
@@ -1205,7 +1194,7 @@ describe('route contracts — feedback channel lanes', () => {
     }
     const nodes = tail
       ? [node('A', 300, 220), node('B', 800, 100), node('C', 170, 200, 40, 200), node('N', 110, 295, 10, 10), node('M', 110, 395, 10, 10)]
-      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap)]
+      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap), ...changed ? [] : [node('P', 125, 140, 10, 110), node('Q', 355, 140, 10, 110)]]
     if (!fromStyle) nodes[0]!.inlineStyle = { stroke: '#000', 'stroke-width': nodeWidth }
     const points = (tail
       ? [[190, 400], [190, 420], [700, 420], [700, 520], [80, 520], [80, 160], [320, 160], [320, 220]]
@@ -1510,7 +1499,7 @@ describe('straightenable shape whitelist', () => {
 describe('validation ignores non-staircase routes', () => {
   it('a diagonal post-certification mutation is not reported as a hitch', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
@@ -1828,7 +1817,7 @@ describe('findLabelSlot (unit)', () => {
   const pillW = m.width + 16
   const mkEdge = (over: object = {}): PositionedEdge =>
     ({ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [], edgeIndex: 0, ...over }) as PositionedEdge
-  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
+  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[]; groups: unknown[] }> = {}) =>
     ({ nodes: [], edges: [], axis, style, ...over }) as Parameters<typeof findLabelSlot>[3]
   const start = { x: 0, y: 50 }
   const end = { x: 400, y: 50 }
@@ -1867,6 +1856,22 @@ describe('findLabelSlot (unit)', () => {
       .toEqual({ x: 200, y: 50 })
     const bumped = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [pillAt(200 + pillW + 2 - 0.5)] }))
     expect(bumped!.x).toBeCloseTo(400 / 3, 6)
+  })
+
+  // mermaid#4790: a lane running just beside a subgraph's bottom frame line.
+  it('a seat keeps off group frame lines and title bands where its lane allows; frames never refuse a lane', () => {
+    const group = (x: number, y: number, width: number, height: number, headerHeight = 28) => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
+    const halfH = (m.height + 16) / 2
+    // The frame's left side crosses the midpoint seat.
+    const beside = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [group(200, 0, 300, 100)] }))!
+    expect(beside.y).toBe(50)
+    expect(Math.abs(beside.x - 200)).toBeGreaterThanOrEqual(pillW / 2)
+    // The bottom side runs along the lane through every seat's pill.
+    const along = group(-100, 50 - halfH - 40, 600, 50)
+    expect(along.y + along.height).toBeGreaterThan(50 - halfH)
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [along] }))).toEqual({ x: 200, y: 50 })
+    // A title band over the whole lane likewise ranks seats and refuses none.
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [group(-100, 30, 600, 200, 40)] }))).toEqual({ x: 200, y: 50 })
   })
 
   it('a node covering the whole lane leaves no slot', () => {
@@ -1948,7 +1953,7 @@ describe('primary-over-feedback priority (unit)', () => {
 describe('ROUTE_HITCH tripwire covers feedback lanes', () => {
   it('a dogleg injected into a straightened back-edge is reported', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const back = findEdge(positioned.edges, 'B', 'A')
@@ -2033,7 +2038,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it('skips certified edges with fewer than 2 points instead of throwing', () => {
     for (const points of [[], [{ x: 10, y: 20 }]] as const) {
       const graph = parseMermaid('flowchart LR\n  A --> B')
-      const positioned = layoutGraphSync(graph)
+      const positioned = editableLayout(graph)
       expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
       expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const e = findEdge(positioned.edges, 'A', 'B')
@@ -2044,7 +2049,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
 
   it('ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
@@ -2055,7 +2060,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
 
   it('ROUTE_STALE_AFTER_NODE_MOVE: a node moved without rerouting its edges', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const a = positioned.nodes.find(n => n.id === 'A')!
@@ -2066,7 +2071,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
 
   it('ROUTE_STALE_AFTER_NODE_MOVE: a non-incident node moved onto a certified route', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  C')
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'A', 'B')
@@ -2079,7 +2084,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
 
   it('ROUTE_SHAPE_MISANCHOR: an endpoint pulled inside a diamond', () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
@@ -2095,7 +2100,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
       subgraph Pipeline
         Fetch --> Parse
       end`)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'Start', 'Pipeline')
@@ -2106,7 +2111,7 @@ describe('route audit tripwires fire on post-certification corruption', () => {
 
   it("ROUTE_LABEL_ON_SHARED_TRUNK: a label pill parked on another edge's collinear segment", () => {
     const graph = parseMermaid(MFA_SOURCE)
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const yes = findEdge(positioned.edges, 'D', 'E', 'Yes')
@@ -2142,7 +2147,7 @@ describe('edge-targeted findings name the edge the edge operations resolve', () 
       const source = `flowchart TD\n${[...loops.map(text => `  A ${arrow(text)} A`), ...parallel.map(text => `  A ${arrow(text)} B`)].join('\n')}`
       const graph = parseMermaid(source)
       const ids = opsId(graph.edges)
-      const positioned = layoutGraphSync(graph)
+      const positioned = editableLayout(graph)
       // Corrupt every route after certification: loops lose their certificate
       // and every edge crosses itself, so each edge earns its own finding.
       for (const edge of positioned.edges) {
@@ -2166,10 +2171,49 @@ describe('edge-targeted findings name the edge the edge operations resolve', () 
   })
 })
 
+// A self-loop owns the region between its arc and its node's face. No other
+// route crosses the arc or runs inside it, at its start, its end or between.
+describe('routes through a foreign self-loop', () => {
+  const through = (findings: ReturnType<typeof auditRouteContracts>) => findings.flatMap(finding =>
+    finding.code === 'ROUTE_SELF_LOOP_OCCUPANCY' && finding.kind === 'route-route' && finding.conflictWith ? [`${finding.conflictWith} through ${finding.edge}`] : [])
+
+  // mermaid-js/mermaid#5060: B->A was tightened onto B's east port before
+  // B->B was allocated, and the loop then took the only side it fitted.
+  it('issue fixture mermaid-5060 leaves no route through a self-loop', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-5060.mmd'), 'utf8')
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    expect(through(auditRouteContracts(positioned, graph))).toEqual([])
+    // The same reading, measured directly: no other route crosses a loop's
+    // arc or enters the box between its arc and its face.
+    const nodes = new Set(positioned.nodes.map(node => node.id))
+    for (const loop of positioned.edges.filter(edge => edge.source === edge.target && nodes.has(edge.source))) {
+      const xs = loop.points.map(point => point.x), ys = loop.points.map(point => point.y)
+      const [x0, x1, y0, y1] = [Math.min(...xs) + 0.01, Math.max(...xs) - 0.01, Math.min(...ys) + 0.01, Math.max(...ys) - 0.01]
+      for (const other of positioned.edges.filter(edge => edge.source !== edge.target)) {
+        expect(countEdgeCrossings([loop, other]), `${other.source}->${other.target}`).toBe(0)
+        expect(other.points.some((b, i) => i > 0 && Math.max(other.points[i - 1]!.x, b.x) > x0 && Math.min(other.points[i - 1]!.x, b.x) < x1
+          && Math.max(other.points[i - 1]!.y, b.y) > y0 && Math.min(other.points[i - 1]!.y, b.y) < y1), `${other.source}->${other.target}`).toBe(false)
+      }
+    }
+  })
+
+  it('the audit names a route that crosses or runs inside a loop it does not own', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> A\n  B --> C')
+    const positioned = editableLayout(graph)
+    const loop = positioned.edges.find(edge => edge.source === edge.target)!
+    expect(through(auditRouteContracts(positioned, graph))).toEqual([])
+    const xs = loop.points.map(point => point.x), ys = loop.points.map(point => point.y)
+    const mid = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
+    const route = positioned.edges.find(edge => edge.source === 'B')!
+    route.points = [{ x: mid.x, y: mid.y }, { x: mid.x, y: mid.y - 500 }]
+    expect(through(auditRouteContracts(positioned, graph))).toEqual(['B->C#0 through A->A#0'])
+  })
+})
+
 describe('route audit — boundary harvest', () => {
   it('shared-trunk detection works for vertical trunks and respects the collinearity clearance', () => {
     const graph = parseMermaid('flowchart TD\n  A -- down --> B\n  C --> D')
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const labeled = findEdge(positioned.edges, 'A', 'B')
@@ -2191,7 +2235,7 @@ describe('route audit — boundary harvest', () => {
 
   it('stale vs shape-misanchor boundary: ±2px detachment separates the two codes', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B')
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'A', 'B')
@@ -2215,7 +2259,7 @@ describe('route audit — boundary harvest', () => {
 
   it('container perimeter tolerance: 0.5px off is fine, 1.5px off fires', () => {
     const graph = parseMermaid('flowchart TD\n  Start --> Pipeline\n  subgraph Pipeline\n    F --> P\n  end')
-    const positioned = layoutGraphSync(graph)
+    const positioned = editableLayout(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'Start', 'Pipeline')
@@ -3011,22 +3055,6 @@ describe('port-lane reserved-header admission', () => {
     else expect(nodes[1]!.y).toBe(100)
   })
 
-  for (const width of ['20', '16']) it(`${width === '20' ? 'refuses' : 'keeps'} the labelled-source slide beside a foreign painted shaft`, () => {
-    const graph = parseMermaid('flowchart LR\nS -->|go| T\nU --> V')
-    const nodes = [n('S', 0, 0, 40, 100), n('T', 120, 80), n('U', -70, 144, 20, 20), n('V', 80, 144, 20, 20)]
-    const edges = [{ ...e('S', 'T', [{ x: 40, y: 95 }, { x: 120, y: 95 }]), label: 'go', labelPosition: { x: 80, y: 95 } },
-      { ...e('U', 'V', [{ x: -50, y: 154 }, { x: 80, y: 154 }]), inlineStyle: { 'stroke-width': width } }]
-    const before = structuredClone({ nodes, edges })
-    // Recentring S on y95 puts its bottom at145. The y154 centreline
-    // clears the moved body, while the 20px shaft reaches y144.
-    alignLabeledSourcePort(nodes, edges, [], graph, 'LR', resolveRenderStyle())
-    if (width === '20') expect({ nodes, edges }).toEqual(before)
-    else {
-      expect(nodes[0]!.y).toBe(45)
-      expect(edges[0]!.labelPosition).toEqual({ x: 80, y: 95 })
-    }
-  })
-
   it('retains the clear compound detour from chained hubs 355 instead of sweeping its terminal run through G', () => {
     // Literal saved pre-alignPortLanes SEPARATE geometry, not a producer call.
     const nodes = [n('H2', 236.34675, 216.89999999999998, 85.66899999999998, 36.900000000000006), n('Z', 535.3045, 40, 64.17999999999999, 36.900000000000006)]
@@ -3515,6 +3543,62 @@ describe('settled orthogonal excursions', () => {
     })
   })
 
+  // pele-100's t16->t20 kept a 1.6px final jog after a longer staircase.
+  // frankenmermaid#14 drew such staircases across a TD flow (S->H), and on a
+  // dotted link whose run crosses another link (P->V2).
+  const sixPoints = [[0, 0], [40, 0], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], folded = [[0, 0], [40, 0], [40, 51.6], [160, 51.6]]
+  it.each([
+    ['six points', 'flowchart LR\nA --> B', sixPoints, folded],
+    ['a longer route', 'flowchart LR\nA --> B', [[0, 0], [20, 0], [20, -30], [40, -30], [40, 50], [120, 50], [120, 51.6], [160, 51.6]], [[0, 0], [20, 0], [20, -30], [40, -30], [40, 51.6], [160, 51.6]]],
+    ['a route across the flow', 'flowchart TD\nA --> B', sixPoints, folded],
+    ['a dotted route through a crossing it keeps', 'flowchart LR\nA -.-> B\nC --> D', sixPoints, folded],
+  ])('folds a staircase\'s final hitch into the run before it: %s', (_name, source, before, after) => {
+    const graph = parseMermaid(source), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, -10, 20, 20], B: [160, 40, 20, 24], C: [70, -60, 20, 20], D: [70, 100, 20, 20] }
+    const nodes: PositionedNode[] = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push({ ...graph.edges[0]!, edgeIndex: 0, points: before.map(([x, y]) => ({ x: x!, y: y! })),
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: before.length - 2 } })
+      // C->D runs straight down through the staircase's middle run.
+      if (graph.edges[1]) edges.push({ ...graph.edges[1], edgeIndex: 1, points: [{ x: 80, y: -40 }, { x: 80, y: 100 }],
+        routeCertificate: { edgeIndex: 1, routeClass: 'primary-forward', invariant: 'straight', bendCount: 0 } })
+      closeRouteContracts({ nodes, edges, groups: [] }, graph, style)
+      expect(edges[0]!.points).toEqual(after.map(([x, y]) => ({ x: x!, y: y! })))
+    })
+  })
+
+  // pele-100: an ELK hierarchy channel left t07->t20 a 1.6px jog inside the
+  // target's group although the entry lane was clear. Retained ink beside a
+  // fan-in peer is not new contact.
+  it('contracts a cross-hierarchy excursion that keeps its frame crossings, beside retained fan-in ink', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> B\nsubgraph G\nB\nend'), style = resolveRenderStyle()
+    const boxes: Record<string, [number, number, number, number]> = { A: [-20, 95, 20, 10], B: [180, 90, 20, 40], C: [10, 0, 20, 10] }
+    const nodes = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = boxes[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    const groups: PositionedGroup[] = [{ id: 'G', label: 'G', x: 100, y: 60, width: 120, height: 100, headerHeight: 10, children: [] }]
+    const paths = [
+      [[0, 100], [40, 100], [40, 120], [150, 120], [150, 115], [180, 115]],
+      [[20, 10], [20, 99.95], [160, 99.95], [160, 102], [180, 102]],
+    ]
+    withRouteMarkerCache(() => {
+      const edges = createLayoutRouteEdges(style)
+      edges.push(...graph.edges.map((edge, edgeIndex): PositionedEdge => ({ ...edge, edgeIndex,
+        points: paths[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })),
+        routeCertificate: { edgeIndex, routeClass: 'cross-hierarchy', invariant: 'explained-detour', bendCount: paths[edgeIndex]!.length - 2 },
+      })))
+      const peer = structuredClone(edges[1]!.points)
+      closeRouteContracts({ nodes, edges, groups }, graph, style)
+      expect(edges[0]!.points).toEqual([[0, 100], [40, 100], [40, 115], [180, 115]].map(([x, y]) => ({ x: x!, y: y! })))
+      expect(edges[1]!.points).toEqual(peer)
+    })
+  })
+
   it.each([0, 1, 2, 3])('contracts an excursion with its caption while preserving both contacts at rotation %s', turns => {
     const direction = (['RL', 'BT', 'LR', 'TD'] as const)[turns]!
     const graph = parseMermaid(`flowchart ${direction}\nA -->|caption| B`), style = resolveRenderStyle()
@@ -3658,7 +3742,7 @@ it.each([0, 1, 2, 3].flatMap(turns => ([['end', 'solid', false], ['start', 'soli
 
 it('route repair preserves authored identities when positioned edges are reordered', () => {
   const graph = parseMermaid('flowchart LR\n __proto__[Origin] -->|first| constructor[Merge]\n Other -->|second| constructor\n constructor --> End')
-  const positioned = layoutGraphSync(graph)
+  const positioned = editableLayout(graph)
   positioned.edges.reverse()
   const identities = positioned.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label])
   applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle())
@@ -3672,4 +3756,34 @@ it('an overflowing terminal displacement cannot bypass marker separation', () =>
   const candidate = [edge.points[0]!, { x: 0, y: 0 }, ...edge.points.slice(1)]
   const peer: PositionedEdge = { ...edge, source: 'C', target: 'D', points: [{ x: -9.5e307, y: 0 }, { x: -9e307, y: 0 }] }
   expect(routeCandidateMarkerBlocker(edge, candidate, [edge, peer], { ...resolveRenderStyle(), lineWidth: 1e306, edgeBendRadius: 0 })).toEqual(expect.objectContaining({ kind: 'port' }))
+})
+
+// lukilabs/beautiful-mermaid#25: peer equalization widened K after routing, so
+// H->K and K->L ended on K's top and bottom lines but past its corner. The
+// overflow repair drew a stub along the side's line, running on J's border
+// into K's corner. The terminal run slides into the face instead. In the
+// reduced -overflow fixture H->I ended 217px left of I, and the stub ran 193px
+// on K's border: the slide there costs a crossing, the lesser ink.
+it.each(['beautiful-mermaid-25', 'beautiful-mermaid-25-overflow'])('%s: an end left past its node corner slides into the face, off any border', name => {
+  const positioned = layoutGraphSync(parseMermaid(readFileSync(new URL(`../../eval/layout-compare/fixtures/${name}.mmd`, import.meta.url), 'utf8')))
+  const nodeById = new Map(positioned.nodes.map(node => [node.id, node]))
+  const cornered: string[] = [], alongBorder: string[] = []
+  for (const edge of positioned.edges) {
+    for (const [id, point] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
+      const node = nodeById.get(id)!
+      if (node.shape !== 'rectangle') continue
+      const corners = [[node.x, node.y], [node.x + node.width, node.y], [node.x, node.y + node.height], [node.x + node.width, node.y + node.height]] as const
+      if (corners.some(([x, y]) => Math.hypot(point.x - x, point.y - y) < 6)) cornered.push(`${edge.source}->${edge.target} at ${id}`)
+    }
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      for (const node of positioned.nodes) {
+        if (node.id === edge.source || node.id === edge.target || a.y !== b.y) continue
+        const overlap = Math.min(Math.max(a.x, b.x), node.x + node.width) - Math.max(Math.min(a.x, b.x), node.x)
+        if (overlap > 6 && [node.y, node.y + node.height].some(y => Math.abs(a.y - y) < 1)) alongBorder.push(`${edge.source}->${edge.target} on ${node.id}`)
+      }
+    }
+  }
+  expect(cornered).toEqual([])
+  expect(alongBorder).toEqual([])
 })

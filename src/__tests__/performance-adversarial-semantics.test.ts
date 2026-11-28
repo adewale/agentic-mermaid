@@ -119,7 +119,7 @@ test('combined reuse cannot retain custom metrics from a reentrant profile or an
   })
 })
 
-test('position reuse never shares mutable returned geometry or loses prepared Unicode text evidence', () => {
+test('position reuse shares only frozen returned geometry and keeps prepared Unicode text evidence', () => {
   const prior = process.env.AGENTIC_MERMAID_ELK_CACHE
   process.env.AGENTIC_MERMAID_ELK_CACHE = '1'
   try {
@@ -127,11 +127,13 @@ test('position reuse never shares mutable returned geometry or loses prepared Un
       const input = 'flowchart LR\nAuditA[Read 界 👩‍💻] --> AuditB[Untouched]'
       const request = resolveRenderRequestForExecution(input, {}, 'svg')
       const original = renderMermaidSVG(input)
+      // A finished graph is frozen and shared: what one caller holds, no caller
+      // can edit, so it cannot poison a later render.
       const first = positionResolvedFamily('flowchart', request).positioned as PositionedGraph
-      first.nodes[0]!.width = 98765
       const second = positionResolvedFamily('flowchart', request).positioned as PositionedGraph
-      expect(second.nodes[0]!.width).not.toBe(98765)
-      second.nodes[0]!.label = 'Poisoned cached clone'
+      expect(second).toBe(first)
+      expect(() => { first.nodes[0]!.width = 98765 }).toThrow(TypeError)
+      expect(() => { second.nodes[0]!.label = 'Poisoned cached clone' }).toThrow(TypeError)
       expect(renderMermaidSVG(input)).toBe(original)
       expect(renderMermaidSVG(input, { padding: 48 })).not.toBe(original)
     })

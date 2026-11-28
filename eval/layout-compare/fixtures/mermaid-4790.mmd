@@ -1,0 +1,50 @@
+%% A straightened caption keeps off a subgraph frame line its lane runs beside: https://github.com/mermaid-js/mermaid/issues/4790
+graph LR
+    subgraph SystemA["System A"]
+        subgraph Services
+            Service1
+            Service2
+            Service3
+        end
+        
+        subgraph databases["Databases"]
+            Database1
+            Database2
+            Database3
+            Database4
+        end
+
+        subgraph Other["Other Internal"]
+            Server1
+        end
+
+        Service1 -->|"Fetch data from"| Server1["Server 1"]
+    end
+
+    subgraph External
+        Server1 -->|Reads selective data from| ExternalSystem
+    end
+
+    subgraph Service1["Service 1"]
+        CacheData["Cache data from Server 1"]
+        
+    end
+
+    subgraph Service2["Service 2"]
+        ParseData["Parse data and create events"]
+    end
+
+    subgraph Service3["Service 3"]
+        ParseEvents["Parse Events and create:
+        - Operations
+        - Suboperations
+        - Components
+        - Data"]
+    end
+
+    Service2 -->|Fetch cached data from| Service1
+    Service2 -->|Store Events in| Database1["DB Events"]
+    Service3 -->|Get Events from| Database1
+    Service3 -->|Store Operations in| Database2["DB Operations"]
+    Service3 -->|Store Suboperations in| Database3["DB Suboperations"]
+    Service3 -->|Store Components in| Database4["DB Components"]

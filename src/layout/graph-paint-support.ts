@@ -10,16 +10,15 @@ import { ownsLayoutRouteInputs, routeMarkerPaintRegions } from './route-marker-c
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { labelRect, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect } from '../shared/edge-label-geometry.ts'
 import { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, type LabelMetricsStyle } from './route-geometry.ts'
+import { recordRevision, sameRevision, type RecordRevision } from '../shared/record-revision.ts'
 export type GraphPaintStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
-// Shape arithmetic precedes numeric emission in the renderer. Normalize the
-// resulting geometry, not the input node, before asking the shared ink owner.
-export function writtenGeometry(geometry: Geometry): Geometry {
-  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
-  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
-  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
-  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
-}
-
+// An optional move needs a sufficient separator, and boxesMeet's error term
+// already covers the renderer's decimal emission, so body and header ink is
+// measured on layout numbers. A route's points still need their written
+// values here: whether a segment is axis-aligned (and so has the
+// orthogonal-shaft ink model) is decided on the coordinates the renderer
+// emits, and two raw coordinates that differ only past twelve significant
+// digits are written as one.
 const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
 export const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
 export const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
@@ -64,16 +63,17 @@ export function orthogonalShaftInk(edge: PositionedEdge, style: GraphPaintStyle)
   return boxes
 }
 
-/** Within an owned pass the stroke style is fixed. A reroute publishes a
- * replacement points array; its new ink immediately replaces the old view. */
+/** Owned layout routes retain their ink while the route (a value: a reroute
+ * publishes a replacement points array) and every other field of the edge are
+ * unchanged. Caller-owned rosters are measured live at every query. */
 export function labelShafts(edges: readonly PositionedEdge[], style: GraphPaintStyle, pay?: (units: number) => boolean) {
-  const retained = ownsLayoutRouteInputs(edges, style) ? new Map<PositionedEdge, { points: Point[]; ink?: AxisAlignedBox[] }>() : undefined
+  const retained = ownsLayoutRouteInputs(edges, style) ? new Map<PositionedEdge, { points: Point[]; revision: RecordRevision; ink?: AxisAlignedBox[] }>() : undefined
   return (edge: PositionedEdge, points = edge.points): AxisAlignedBox[] | undefined => {
     const prior = retained?.get(edge)
-    if (prior?.points === points) return prior.ink
+    if (prior?.points === points && sameRevision(prior.revision, edge, 'points')) return prior.ink
     if (pay && !pay(16 + 16 * points.length + 4 * (edge.inlineStyle?.['stroke-width']?.length ?? 0))) return undefined
     const ink = orthogonalShaftInk(points === edge.points ? edge : { ...edge, points }, style)
-    retained?.set(edge, { points, ink })
+    retained?.set(edge, { points, revision: recordRevision(edge, 'points'), ink })
     return ink
   }
 }
@@ -148,12 +148,21 @@ export function labelPaintInputsStable(nodes: readonly PositionedNode[], edges: 
 
 /** A settled graph proposal owns this snapshot. Labels stay live; the route
  * owner refreshes its changed shaft and markers before publishing a channel. */
+/** Two straight shaft supports cross at right angles, each strictly through
+ *  the other's interior. A bend's miter square is never such a support. */
+function properCrossing(a: AxisAlignedBox, b: AxisAlignedBox): boolean {
+  const wide = (box: AxisAlignedBox): boolean => box.x1 - box.x0 > box.y1 - box.y0
+  const tall = (box: AxisAlignedBox): boolean => box.y1 - box.y0 > box.x1 - box.x0
+  const through = (h: AxisAlignedBox, v: AxisAlignedBox): boolean => wide(h) && tall(v) && v.x0 > h.x0 && v.x1 < h.x1 && h.y0 > v.y0 && h.y1 < v.y1
+  return through(a, b) || through(b, a)
+}
+
 export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean, measuredShafts?: ReturnType<typeof labelShafts>) {
   if (!pay(16) || !labelPaintInputsStable(nodes, edges, groups, style, pay)) return undefined
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
   const routes = new Map<PositionedEdge, NonNullable<ReturnType<typeof edgeInk>>>()
   const orthogonal = new Set<PositionedEdge>()
-  const labels = new Map<PositionedEdge, { x: number; y: number; box: AxisAlignedBox }>()
+  const labels = new Map<PositionedEdge, { x: number; y: number; revision: RecordRevision; box: AxisAlignedBox }>()
   const geometryWork = (g: Geometry): boolean => {
     if (!pay(32)) return false
     if (g.kind === 'compound') return pay(g.children.length + 1) && g.children.every(geometryWork)
@@ -171,7 +180,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     if (!pay(512 + width.length * 6 + node.id.length)) return undefined
     const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
     if (!geometryWork(piece.geometry)) return undefined
-    const box = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+    const box = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: piece.geometry, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
     if (!finiteBox(box)) return undefined
     bodies.push(box)
   }
@@ -182,7 +191,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
       const width = group.inlineStyle?.['stroke-width'] ?? String(style.groupLineWidth ?? STROKE_WIDTHS.innerBox)
       if (!pay(8 * 384 + width.length * 6 + 88) || !Number.isFinite(height) || height < 0 || style.groupCornerRadius !== undefined && !(Number.isFinite(style.groupCornerRadius) && style.groupCornerRadius >= 0)) return false
       if (height > 0) {
-        const geometry = writtenGeometry({ kind: 'rect', x: group.x, y: group.y, width: group.width, height })
+        const geometry: Geometry = { kind: 'rect', x: group.x, y: group.y, width: group.width, height }
         const paint: MarkPaint = { fill: 'black', stroke: group.inlineStyle?.stroke ?? 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }
         // A known sharp header has only right-angle joins, whose per-axis
         // reach is half the stroke width. Separately written rounded arcs can
@@ -224,15 +233,17 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   for (const edge of edges) if (!refreshRoute(edge)) return undefined
   const label = (edge: PositionedEdge, point: Point): AxisAlignedBox | undefined => {
     if (!pay(4)) return undefined
+    // A caption's box is reused at the same point while every other field of
+    // its edge (text, block, paint) is unchanged.
     const prior = labels.get(edge)
-    if (prior && prior.x === point.x && prior.y === point.y) return prior.box
+    if (prior && prior.x === point.x && prior.y === point.y && sameRevision(prior.revision, edge, 'labelPosition')) return prior.box
     if (!pay(64 + (edge.label?.length ?? 0) * 12)) return undefined
     const rect = labelRect({ ...edge, labelPosition: point }, style)
     if (!rect) return undefined
     const halo = labelHaloRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1))
     const box = { x0: halo.x, y0: halo.y, x1: halo.x + halo.w, y1: halo.y + halo.h }
     if (!finiteBox(box) || !pay(6)) return undefined
-    labels.set(edge, { x: point.x, y: point.y, box })
+    labels.set(edge, { x: point.x, y: point.y, revision: recordRevision(edge, 'labelPosition'), box })
     return box
   }
   const protectedHalos = (owner: PositionedEdge, blocker: PositionedEdge): { x: number; y: number; w: number; h: number }[] | undefined => {
@@ -284,11 +295,16 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
   // with its written right-angle miter supports. Only its own contact segment
   // may touch an endpoint body; stationary foreign captions and glyphs remain
   // obstacles even when the endpoint resources themselves did not move.
-  const clearRoute = (edge: PositionedEdge, points: readonly Point[]): boolean => {
+  // A shaft inside `retained` ink the route already painted is not new paint.
+  // With `crossings`, a shaft may cross a foreign shaft properly (each passes
+  // through the other's interior at right angles, away from any bend): the
+  // caller has proved the route adds no crossing.
+  const clearRoute = (edge: PositionedEdge, points: readonly Point[], retained: readonly AxisAlignedBox[] = [], crossings = false): boolean => {
     const ink = routes.get(edge)
     if (!ink || !orthogonal.has(edge) || ink.shafts.length !== 2 * points.length - 3) return false
     for (let index = 0; index < ink.shafts.length; index++) {
       const shaft = ink.shafts[index]!
+      if (retained.some(box => shaft.x0 >= box.x0 - 1e-9 && shaft.y0 >= box.y0 - 1e-9 && shaft.x1 <= box.x1 + 1e-9 && shaft.y1 <= box.y1 + 1e-9)) continue
       for (const marker of ink.markers) {
         if (marker.position === 'start' && index === 0 || marker.position === 'end' && index === ink.shafts.length - 1) continue
         if (!pay(1) || !finiteBox(marker.bounds) || boxesMeet(shaft, marker.bounds)) return false
@@ -306,7 +322,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
         // Aesthetic contraction requires complete separation. This also
         // protects thick parallel shafts, whose paint can overlap while
         // their distinct centerlines have no proper crossing.
-        for (const support of other.shafts) if (!pay(1) || boxesMeet(shaft, support)) return false
+        for (const support of other.shafts) if (!pay(1) || boxesMeet(shaft, support) && !(crossings && properCrossing(shaft, support))) return false
         if (peer.label) {
           const box = label(peer, peer.labelPosition!)
           if (!box || !pay(1) || labelHaloMeetsShaft({ x: box.x0, y: box.y0, w: box.x1 - box.x0, h: box.y1 - box.y0 }, shaft)) return false
@@ -315,5 +331,6 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return true
   }
-  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos }
+  const routeShafts = (edge: PositionedEdge): readonly AxisAlignedBox[] => routes.get(edge)?.shafts ?? []
+  return { clear, clearRoute, label, refreshRoute, markerContact, protectedHalos, routeShafts }
 }

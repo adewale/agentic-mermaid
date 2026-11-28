@@ -3,7 +3,7 @@ import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, 
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
+import { EPS, type LaneContext, setRoutePoints, opposite, routesCrossOrOverlap, MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES } from './route-geometry.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { measureLabelConflicts } from './label-conflicts.ts'
 import { ownsLayoutRouteInputs, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
@@ -13,6 +13,20 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
 import { labelPaintInputsStable, labelShafts } from './graph-paint-support.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+
+/** The route crosses the self-loop's arc or runs inside the region between
+ * the arc and its node's face, which the loop owns. */
+export function routeMeetsSelfLoop(loop: readonly Point[], route: readonly Point[]): boolean {
+  if (loop.length < 2 || route.length < 2) return false
+  if (countPointPairCrossings(loop, route) > 0) return true
+  const x0 = Math.min(...loop.map(point => point.x)) + EPS, x1 = Math.max(...loop.map(point => point.x)) - EPS
+  const y0 = Math.min(...loop.map(point => point.y)) + EPS, y1 = Math.max(...loop.map(point => point.y)) - EPS
+  return route.some((b, index) => {
+    const a = route[index - 1]
+    return !!a && Math.max(a.x, b.x) > x0 && Math.min(a.x, b.x) < x1 && Math.max(a.y, b.y) > y0 && Math.min(a.y, b.y) < y1
+  })
+}
+
 export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
@@ -218,8 +232,25 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     }
     // A side's raw capacity is only a proposal. Its complete marker seats
     // must also clear the live peer routes before occupancy can be committed.
-    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): { points: Point[]; labels: LabelUpdate[] } | null => {
-      const depth = Math.max(Math.min(g.desired, g.clear), 8)
+    // A caption sits beyond its arc, so a frame holding the node must hold
+    // arc and caption together: the arc may then run shallower, down to the
+    // depth a side needs to be offered at all.
+    const captionFitDepth = (side: PortSide): number => {
+      if (!pill) return Infinity
+      const vertical = side === 'N' || side === 'S', sign = side === 'W' || side === 'N' ? -1 : 1
+      const sideCoord = side === 'W' ? node.x : side === 'E' ? node.x + node.width : side === 'N' ? node.y : node.y + node.height
+      let fit = Infinity
+      for (const group of groupMap.values()) {
+        if (group === frame || group.concurrencyRegion || !(cx > group.x && cx < group.x + group.width && cy > group.y && cy < group.y + group.height)) continue
+        const inner = vertical ? (sign < 0 ? group.y + (group.headerHeight ?? 0) : group.y + group.height) : sign < 0 ? group.x : group.x + group.width
+        fit = Math.min(fit, (inner - sideCoord) * sign - pillMain(side) - 4)
+      }
+      return fit
+    }
+    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): { points: Point[]; labels: LabelUpdate[]; depth: number } | null => {
+      const fit = captionFitDepth(side)
+      let depth = Math.max(Math.min(g.desired, g.clear), 8)
+      if (fit < depth && fit >= Math.min(g.desired, 14)) depth = fit
       const d = g.d
       const points: Point[] = (() => {
         switch (side) {
@@ -257,15 +288,20 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       // the actual marker pose. Failed seats leave all live routes unchanged.
       const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
       if ([...reserved].some(other => other !== edge && routesCrossOrOverlap(clipped, other.points))) return null
-      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+      // A sibling loop on this node not yet rebuilt still holds ELK's stub;
+      // its stale marker cannot block the seat it is about to give up. When
+      // it is rebuilt, its own candidate must clear this one's marker.
+      const peers = ctx.edges.filter(other => other === edge || reserved.has(other) || other.source !== node.id || other.target !== node.id)
+      const blocker = routeCandidateMarkerBlocker(edge, clipped, peers, style)
       if (blocker) { markerBlockers?.push(blocker); return null }
       const labels = labelPlanFor(side, depth, clipped)
-      return labels ? { points: clipped, labels } : null
+      return labels ? { points: clipped, labels, depth } : null
     }
     let chosen: PortSide | null = null
     let geo: { d: number; desired: number; clear: number } | null = null
     let clipped: Point[] | null = null
     let labelUpdates: LabelUpdate[] = []
+    let depth = 0
     const allocatedOrder = sideOrder
       .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
       .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
@@ -348,6 +384,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
+      depth = candidate.depth
       bestCrossings = crossings
       bestConflicts = conflicts
       bestMasks = masked
@@ -366,6 +403,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
+      depth = candidate.depth
     }
     // A loop's outer segment also owns the space beside either end. A
     // tangent slide can clear a shaft alongside the caption without changing
@@ -377,7 +415,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const half = (vertical ? pill.width : pill.height) / 2 + LABEL_PILL_PADDING
       for (const distance of [geo.d, -geo.d, geo.d + half, -(geo.d + half)]) {
         const position = { ...update.position, [cross]: update.position[cross] + distance }
-        const plan = labelPlanFor(chosen, Math.max(Math.min(geo.desired, geo.clear), 8), clipped, position)
+        const plan = labelPlanFor(chosen, depth, clipped, position)
         if (!plan) continue
         const measured = masks(plan, clipped, bestMasks.owners)
         if (!measured) continue

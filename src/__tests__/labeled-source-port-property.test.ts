@@ -23,7 +23,7 @@
 // these fail under APL_NO_CORANK_FANIN=1, which restores the un-centred base).
 //
 // A labelled source feeding a SINGLE-input target is the unchanged case:
-// alignLabeledSourcePort still applies, so it stays STRAIGHT at the mid-port.
+// the route-contract straightener lands it STRAIGHT at the mid-port.
 // One such case is asserted at the end as the discriminating contrast.
 
 import { describe, test, expect } from 'bun:test'
@@ -122,7 +122,7 @@ describe('labelled source into a mixed-label fan-in: hub centred, spokes symmetr
 })
 
 // The unchanged contrast: a labelled source whose target is SINGLE-input (no
-// fan-in) is still straightened onto its mid-port by alignLabeledSourcePort.
+// fan-in) is still straightened onto its mid-port by the route contracts.
 type SingleInputCase = { name: string; src: string; horizontal: boolean; source: string }
 const SINGLE_INPUT_CASES: SingleInputCase[] = [
   { name: 'LR', horizontal: true, source: 'A', src: 'flowchart LR\n  A["warnings"] -->|warning| B["ok"]\n  B --> C["done"]' },

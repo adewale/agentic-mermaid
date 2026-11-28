@@ -1,0 +1,20 @@
+%% Two unrelated edges between groups never meet at one corner: https://github.com/mermaid-js/mermaid/issues/7964
+flowchart LR
+some_long_title_very_long_title-50 --> some_long_title_very_long_title-39
+some_long_title_very_long_title-37 --> some_long_title_very_long_title-48
+some_long_title_very_long_title-47 --> some_long_title_very_long_title-37
+some_long_title_very_long_title-92 --> some_long_title_very_long_title-33
+subgraph group_1
+some_long_title_very_long_title-100
+some_long_title_very_long_title-101
+some_long_title_very_long_title-95
+some_long_title_very_long_title-39
+some_long_title_very_long_title-37
+some_long_title_very_long_title-33
+end
+subgraph group_2
+some_long_title_very_long_title-50
+some_long_title_very_long_title-48
+some_long_title_very_long_title-92
+some_long_title_very_long_title-51
+end

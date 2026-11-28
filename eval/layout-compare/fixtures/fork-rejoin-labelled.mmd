@@ -1,0 +1,8 @@
+flowchart TD
+  A[Request] --> B{Route?}
+  B -->|alpha| C[Alpha]
+  B -->|beta| D[Beta]
+  B -->|gamma| E[Gamma]
+  C --> F[Done]
+  D --> F
+  E --> F

@@ -1,0 +1,34 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/6194
+architecture-beta
+    service opnSense(mdi:wall-fire)[OPNsense]
+    group tnet(vaadin:cluster)[Tnet]
+        group cnodes(server)[Compute Nodes] in tnet
+            service cnode1(server)[CNode 1] in cnodes
+            service cnode2(server)[CNode 2] in cnodes
+            service cnode3(server)[CNode 3] in cnodes
+            service cnode4(server)[CNode 4] in cnodes
+            service cnode5(server)[CNode 5] in cnodes
+            service cnode6(server)[CNode 6] in cnodes
+
+        group vms(file-icons:vmware)[Virtual Machines] in tnet
+            service vcenter_server(server)[vCenter Server] in vms
+                cnode1:L <--> R:vcenter_server
+                cnode2:L <--> R:vcenter_server
+                cnode3:L <--> R:vcenter_server
+                cnode4:L <--> R:vcenter_server
+                cnode5:L <--> R:vcenter_server
+                cnode6:L <--> R:vcenter_server
+
+            service dhcp(server)[DHCP Server] in vms
+            service dns(internet)[DNS Server] in vms
+            service veeam(mdi:backup-restore)[Veeam Backup VMs] in vms
+
+        group backup(disk)[Backup] in tnet
+            service scsiShelf(disk)[SCSI Shelf] in backup
+            service iscsiHead(cloud)[iSCSI Head] in backup
+                scsiShelf:L --> R:iscsiHead
+            service bkSrv01(disk)[Backup Server 1] in backup
+            service bkSrv02(disk)[Backup Server 2] in backup
+                bkSrv01:L --> R:veeam
+                bkSrv02:L --> R:veeam
+                iscsiHead:L --> R:veeam

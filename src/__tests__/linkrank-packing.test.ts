@@ -10,8 +10,9 @@
 // fix; each shows nodeOverlaps and/or edgeThroughNode without it.
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
+import { sharedTrunkConflict } from '../layout/route-lanes.ts'
+import { assessLayout, hardViolations, segmentThroughShape } from '../layout-rubric.ts'
 import { auditRouteContracts, invalidEndpointApproaches } from '../route-contracts.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,6 +20,7 @@ import { honorLinkRankDistance } from '../layout/passes/rank-distance.ts'
 import { LayoutCertificationError as RankReconnectCertificationError } from '../layout/certification-error.ts'
 import type { Point, PositionedNode, PositionedEdge, PositionedGroup, RenderOptions } from '../types.ts'
 import { segmentEntersMeasuredBox } from '../layout/measured-route-safety.ts'
+import { clipEdgeToShape } from '../shape-clipping.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 
@@ -305,6 +307,26 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
     clear(edges, groups, nodes)
   })
 
+  // mermaid#5094: ELK attaches a link to a round node's bounding box, not its
+  // outline, so no route through that contact passes the outline proof. The
+  // produced route survives the move (the clip pass trims its node end).
+  test('a link from a circle into a shoved frame keeps its produced route', () => {
+    const graph = parseMermaid('flowchart TD\nC(((Client))) ---> G\nsubgraph G\nS[Server]\nend')
+    const nodes: PositionedNode[] = [
+      {id: 'C', label: 'Client', shape: graph.nodes.get('C')!.shape, x: 0, y: 0, width: 104, height: 104},
+      {id: 'S', label: 'Server', shape: 'rectangle', x: 20, y: 200, width: 64, height: 32},
+    ]
+    const groups: PositionedGroup[] = [{id: 'G', label: 'G', x: 0, y: 152, width: 104, height: 100, children: [], headerHeight: 28}]
+    const edges: PositionedEdge[] = [{...graph.edges[0]!, edgeIndex: 0, points: [{x: 70, y: 104}, {x: 70, y: 152}]}]
+    honorLinkRankDistance(nodes, edges, groups, graph)
+    // A two-rank link: one 48px layer gap plus one 88px rank.
+    expect(groups[0]!.y - 104).toBe(136)
+    expect(edges[0]!.points).toEqual([{x: 70, y: 104}, {x: 70, y: 240}])
+    const clipped = clipEdgeToShape(edges[0]!.points, nodes[0]!, true)
+    expect(Math.hypot(clipped[0]!.x - 52, clipped[0]!.y - 52)).toBeCloseTo(52, 1)
+    expect(invalidEndpointApproaches({...edges[0]!, points: clipped}, nodes[0], undefined)).toBe(0)
+  })
+
   test.each(['-->', '---->'])('a %s link with no actual shove preserves the original route and object identities', operator => {
     const graph = parseMermaid(source('TD', operator))
     const nodes: PositionedNode[] = [
@@ -334,10 +356,14 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
       {...graph.edges[1]!, edgeIndex: 1, points: [{x: targetX - 214, y: 305}, {x: targetX - 204, y: 305}, {x: targetX - 204, y: 215}, {x: targetX, y: 215}]},
     ]
     if (targetX === 80) {
-      const original = edges[0]!.points
+      const original = edges[0]!.points, before = structuredClone({ nodes, groups, edges })
       expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).toThrow(RankReconnectCertificationError)
       expect(nodes[1]!.x).toBe(90)
       expect(edges[0]!.points).toBe(original)
+      // The last bounded candidate keeps the placement as it was instead.
+      const unmoved = structuredClone(before)
+      honorLinkRankDistance(unmoved.nodes, unmoved.edges, unmoved.groups, graph, undefined, undefined, 'unmoved')
+      expect(unmoved).toEqual(before)
       return
     }
     honorLinkRankDistance(nodes, edges, groups, graph)
@@ -380,4 +406,67 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
     clear(edges, groups, nodes)
   })
 
+})
+
+// Rebuilt feedback routes whose spans overlap leave the pass on lanes of
+// their own, the shorter span inside, so no two draw one trunk and no caption
+// the pass seats sits on a shared run. Before, every feedback U took the one
+// outer lane and only the late caption settler pulled them apart.
+describe('rebuilt feedback routes never share one lane', () => {
+  const sources = (dir: 'LR' | 'RL' | 'TD' | 'BT') => [
+    `flowchart ${dir}\n  A ---> B\n  B -->|retry| A\n  B -->|again| A`,
+    `flowchart ${dir}\n  A ---> B\n  B --> C\n  C -->|retry| A\n  B -->|again| A`,
+  ]
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s', dir => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
+    // A lane runs along the flow: a vertical run in TD/BT.
+    const along = dir === 'TD' || dir === 'BT' ? 'x' : 'y', main = along === 'x' ? 'y' : 'x'
+    const runs = (edge: PositionedEdge) => edge.points.slice(1).map((b, i) => [edge.points[i]!, b] as const).filter(([a, b]) => a[along] === b[along])
+    for (const source of sources(dir)) {
+      let observed: { lanes: string[][]; trunks: string[] } | undefined
+      pass.run = context => {
+        run(context)
+        const feedback = context.edges.filter(edge => edge.label)
+        const lanes: string[][] = []
+        for (let i = 0; i < feedback.length; i++) for (let j = i + 1; j < feedback.length; j++) {
+          for (const [a, b] of runs(feedback[i]!)) for (const [c, d] of runs(feedback[j]!)) {
+            const overlap = Math.min(Math.max(a[main], b[main]), Math.max(c[main], d[main])) - Math.max(Math.min(a[main], b[main]), Math.min(c[main], d[main]))
+            if (Math.abs(a[along] - c[along]) < 4 && overlap > 1) lanes.push([feedback[i]!.label!, feedback[j]!.label!])
+          }
+        }
+        observed = { lanes, trunks: feedback.filter(edge => sharedTrunkConflict(edge, context.edges, context.style)).map(edge => edge.label!) }
+      }
+      try { layoutGraphSync(parseMermaid(source)) } finally { pass.run = run }
+      expect(observed).toEqual({ lanes: [], trunks: [] })
+    }
+  })
+})
+
+// A rebuilt route touches its own endpoints only at its two contacts. Before,
+// a feedback rung could take a column inside its target (TD diamond, RL
+// circle) and a forward edge whose target ELK placed behind its source left
+// and entered by the flow sides through both bodies (TD, in a group): the
+// pass handed later passes, and the captions it seated, hidden runs.
+describe('rebuilt routes stay outside their own endpoint bodies', () => {
+  const sources = [
+    'flowchart TD\n  N0(("Node 0"))\n  N1{"Node 1"}\n  N2{"Node 2"}\n  N3["Node 3"]\n  N4(("Node 4"))\n  N5["Node 5"]\n  N2 --->|"x"| N5\n  N1 ---->|"yes"| N3\n  N3 -->|"two<br/>line label"| N1',
+    'flowchart RL\n  subgraph G1[group 1]\n    N5["Node 5"]\n  end\n  subgraph G2[group 2]\n    N7(["Node 7"])\n  end\n  N0(("Node 0"))\n  N1(("Node 1"))\n  N2["Node 2"]\n  N3["Node 3"]\n  N4(("Node 4"))\n  N6["Node 6"]\n  N8["Node 8"]\n  N4 --->|"one<br/>two<br/>three"| N1\n  N0 --->|"two<br/>line label"| N6\n  N6 --o N0',
+    'flowchart TD\n  subgraph G1[group 1]\n    N3["Node 3"]\n    N5["Node 5"]\n  end\n  subgraph G2[group 2]\n    N4(("Node 4"))\n  end\n  N0["Node 0"]\n  N1["Node 1"]\n  N2{"Node 2"}\n  N6["Node 6"]\n  N5 ---> N3\n  N0 --->|"no"| N1\n  N0 --->|"one<br/>two<br/>three"| N5\n  N6 ---> N0\n  N3 ==> N5\n  N6 -.->|"yes"| N0',
+  ]
+  test.each(sources)('%s', source => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'honorLinkRankDistance')!, run = pass.run
+    const crossings: string[] = []
+    pass.run = context => {
+      run(context)
+      const nodes = new Map(context.nodes.map(node => [node.id, node]))
+      for (const edge of context.edges) for (const id of new Set([edge.source, edge.target])) {
+        const node = nodes.get(id)!
+        // One pixel inside the frame: a contact on the outline is not a crossing.
+        const body = { ...node, x: node.x + 1, y: node.y + 1, width: node.width - 2, height: node.height - 2 }
+        if (edge.points.slice(1).some((b, i) => segmentThroughShape(edge.points[i]!, b, body))) crossings.push(`${edge.source}->${edge.target} through ${id}`)
+      }
+    }
+    try { layoutGraphSync(parseMermaid(source)) } finally { pass.run = run }
+    expect(crossings).toEqual([])
+  })
 })

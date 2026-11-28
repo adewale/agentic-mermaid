@@ -1,6 +1,7 @@
 import { layoutMindmap, withMindmapTitle } from './layout.ts'
 import type { MindmapDiagram, PositionedMindmapDiagram } from './types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
+import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 
 export interface MindmapPositionConfig {
   padding?: number
@@ -12,7 +13,7 @@ export function resolveMindmapPositionConfig(raw: unknown, authoredLayout: unkno
   const options: MindmapPositionConfig = { layout: authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial' }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return options
   const config = raw as Record<string, unknown>
-  if (typeof config.padding === 'number' && Number.isFinite(config.padding) && config.padding >= 0) options.padding = config.padding
+  if (typeof config.padding === 'number' && Number.isFinite(config.padding) && config.padding >= 0) options.padding = Math.max(PAINT_MARGIN, config.padding)
   if (typeof config.maxNodeWidth === 'number' && Number.isFinite(config.maxNodeWidth) && config.maxNodeWidth > 0) options.maxNodeWidth = config.maxNodeWidth
   return options
 }

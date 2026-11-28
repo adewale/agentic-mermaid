@@ -1,0 +1,19 @@
+%% A layer snap never lays a route along a box it does not connect: https://github.com/mermaid-js/mermaid/issues/4458
+%%{ init : { "flowchart" :  {"defaultRenderer": "elk" }}}%%
+flowchart TD
+    Start(Start) --> A
+    A{Node A?} --> |No| B
+    B{Node B?} -->|No| C
+    B -->|Yes| F
+    C{Node C?} -->|No| D
+    C -->|Yes| E
+    E{Node E?} -->|Yes| D
+    E --> |No| F(Node F)
+    D{Node D?} --> |No| G
+    D --> |Yes| H
+    H{Node H?} --> |Yes| I
+    H{Node H?} --> |No| M
+    I(Node I) --> M
+    M{Node M?} --> |Yes| K(Node K)
+    M{Node M?} --> |No| F
+    G{Node G?} --> |Yes| Z

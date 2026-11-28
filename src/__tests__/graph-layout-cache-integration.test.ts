@@ -72,17 +72,21 @@ for (const family of ['flowchart', 'state'] as const) test(`ELK ${family} snapsh
       // The producer result is output-neutral; role belongs to this request.
       assert.equal(graphLayoutDecisionsOf(companion.value)[0].role, undefined)
 
+      // A public hit shares the finished graph, which the cache froze: no
+      // render can edit it, so renders from one entry cannot affect each other.
       const publicRequest = request('svg')
       const exposed = observe(() => positionResolvedFamily(family, publicRequest))
       assert.deepEqual(exposed.stages, [])
-      assert.notStrictEqual(exposed.value.positioned, hit.value.positioned)
+      assert.strictEqual(exposed.value.positioned, hit.value.positioned)
       assert.equal(graphLayoutDecisionsOf(exposed.value).length, 1)
       decision(publicRequest, 'elk', 'primary')
       const reference = renderMermaidSVGWithReceipt(source, options)
-      exposed.value.positioned.nodes[0].label = 'poisoned public label'
-      exposed.value.positioned.nodes[0].x = NaN
-      exposed.value.positioned.edges[0].points[0].x = NaN
-      exposed.value.positioned.groups[0].width = NaN
+      for (const edit of [
+        () => { exposed.value.positioned.nodes[0].label = 'poisoned public label' },
+        () => { exposed.value.positioned.nodes[0].x = NaN },
+        () => { exposed.value.positioned.edges[0].points[0].x = NaN },
+        () => { exposed.value.positioned.groups[0].width = NaN },
+      ]) assert.throws(edit, TypeError)
       const projection = retainedFamilyProjection(exposed.value)
       projection.edges[0].path[0][0] = NaN
       projection.nodes.length = 0

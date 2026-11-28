@@ -10,6 +10,7 @@ import type { PositionedC4Diagram } from '../c4/layout.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 import { C4RouteWorkLimitError } from '../c4/routing.ts'
+import { collectSamples } from '../../eval/layout-compare/run.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 const overlaps = (a: Box, b: Box) => Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .01 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .01
@@ -52,11 +53,18 @@ const PARALLEL = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child
 const DENSE = `C4Container\nSystem_Boundary(app,"Application") {\n${Array.from({ length: 7 }, (_, i) => `Container(n${i},"Service ${i}","HTTP")`).join('\n')}\n}\n${Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, j) => `Rel(n${from},n${from + j + 1},"Interaction ${from} to ${from + j + 1}","HTTPS")`).join('\n')).join('\n')}`
 
 describe('C4 measured pixel layout quality', () => {
-  test('native and lazy rendering expose exhausted physical route work instead of retaining an unchecked route', async () => {
-    const source = ['C4Context', ...Array.from({ length: 201 }, (_, i) => `System(n${i},"Card ${i}")`), ...Array.from({ length: 1000 }, () => 'Rel(n0,n1,"Repeated")')].join('\n')
+  // Ten boundaries of four containers with 150 relationships, the most a C4
+  // layout admits, between containers of different boundaries: the routes
+  // themselves exhaust the shared route work. A thousand repeated
+  // relationships between one pair of 201 cards refuse from their count.
+  test.each([
+    ['150 relationships between boundaries exhaust the route work', ['C4Container', ...Array.from({ length: 10 }, (_, b) => `System_Boundary(b${b},"B${b}") {\n${Array.from({ length: 4 }, (_, i) => `Container(c${b}_${i},"C ${b} ${i}","T")`).join('\n')}\n}`), ...Array.from({ length: 150 }, (_, j) => `Rel(c${j % 10}_${j % 4},c${(j * 3 + 1) % 10}_${(j + 2) % 4},"R${j}")`)].join('\n'), /physical corridor checks exceed 400000/],
+    ['1000 repeated relationships refuse before layout', ['C4Context', ...Array.from({ length: 201 }, (_, i) => `System(n${i},"Card ${i}")`), ...Array.from({ length: 1000 }, () => 'Rel(n0,n1,"Repeated")')].join('\n'), /1000 relationships exceed the 150 a C4 layout routes/],
+  ])('native and lazy rendering refuse instead of retaining an unchecked route: %s', async (_name, source, message) => {
     expect(() => renderMermaidSVG(source)).toThrow(C4RouteWorkLimitError)
+    expect(() => renderMermaidSVG(source)).toThrow(message)
     const { default: browser } = await import('../browser-lazy/families/c4.ts')
-    await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'C4RouteWorkLimitError', code: 'C4_ROUTE_WORK_LIMIT' })
+    await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'C4RouteWorkLimitError', code: 'C4_ROUTE_WORK_LIMIT', message: expect.stringMatching(message) })
   })
 
   test.each([2, 4])('official C4 fence %s keeps final relationship shafts clear of unrelated cards', index => {
@@ -86,6 +94,72 @@ describe('C4 measured pixel layout quality', () => {
           expect(crossed, `${edge.id} crosses ${card.id}`).toBe(false)
         }
       }
+    }
+  })
+
+  // mermaid-v13#997: a relationship that crosses a boundary ran through the
+  // boundary's header text when only cards were route obstacles. Header bands
+  // are obstacles here already, so this guards the contract.
+  test.each(['fixture/mermaid-v13-997.mmd', 'fixture/mermaid-7492.mmd', ...[0, 1, 2, 3, 4].map(index => `c4:official-syntax/c4.md#${index}`)])('%s keeps every relationship out of every boundary header band', id => {
+    const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const bands = (layout.labels ?? []).filter(label => label.id.startsWith('boundary-label:')).map(label => ({ id: label.id, ...label.container! }))
+    expect(bands.length).toBeGreaterThan(0)
+    for (const edge of layout.edges) for (let i = 1; i < edge.path.length; i++) {
+      const [ax, ay] = edge.path[i - 1]!, [bx, by] = edge.path[i]!
+      const run = { x: Math.min(ax, bx), y: Math.min(ay, by), width: Math.abs(bx - ax), height: Math.abs(by - ay) }
+      for (const band of bands) {
+        const entered = run.x + run.width > band.x + .01 && run.x < band.x + band.w - .01 && run.y + run.height > band.y + .01 && run.y < band.y + band.h - .01
+        expect(entered, `${edge.id} enters ${band.id}`).toBe(false)
+      }
+    }
+  })
+
+  // mermaid#7492: Web Application -> E-Mail System left the boundary westward
+  // on the faces facing each other and circled the canvas (4.35x its ports'
+  // distance) although a route out past the header band's end is short.
+  // Official fences #1 and #3: relationships 2.1-2.6x their ports' distance
+  // never tried other faces, although free faces gave routes about half as
+  // long. Customer -> Mobile App in #1 must pass round the end of the header
+  // band above Mobile App, so the shortest route is that long. In #2 Single
+  // Page Application -> Accounts Summary Controller (2.46x) had no grid line
+  // outside the route already in the left gutter, so its face trial went
+  // round the right of the canvas; Mobile App ->
+  // Accounts Summary Controller must pass round an end of the API
+  // Application header band, so every route it has is at least 2.8x.
+  test.each([
+    ['fixture/mermaid-7492.mmd', []],
+    ['c4:official-syntax/c4.md#1', ['c4-rel-3']],
+    ['c4:official-syntax/c4.md#2', ['c4-rel-8']],
+    ['c4:official-syntax/c4.md#3', []],
+  ] as const)('%s: relationships take short clear routes instead of detouring', (id, forced: readonly string[]) => {
+    const source = id.startsWith('fixture/') ? collectSamples().find(sample => sample.id === id)!.source : extractOfficialCorpus().find(fence => fence.id === id)!.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const detours = layout.edges.filter(edge => !forced.includes(edge.id)).flatMap(edge => {
+      const length = edge.path.slice(1).reduce((sum, [x, y], i) => sum + Math.abs(x - edge.path[i]![0]) + Math.abs(y - edge.path[i]![1]), 0)
+      const [sx, sy] = edge.path[0]!, [ex, ey] = edge.path.at(-1)!
+      const ratio = length / (Math.abs(ex - sx) + Math.abs(ey - sy))
+      return ratio > 2 ? [`${edge.id} ${ratio.toFixed(2)}x`] : []
+    })
+    expect(detours).toEqual([])
+  })
+
+  test('the official deployment fence draws no two relationships along one line', () => {
+    const source = extractOfficialCorpus().find(fence => fence.id === 'c4:official-syntax/c4.md#4')!.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Expected structured official C4 source')
+    const layout = layoutMermaid(parsed.value)
+    const runs = layout.edges.flatMap(edge => edge.path.slice(1).map((end, i) => ({ id: edge.id, a: edge.path[i]!, b: end })))
+    for (const [i, p] of runs.entries()) for (const q of runs.slice(i + 1)) {
+      if (p.id === q.id) continue
+      const axis = p.a[0] === p.b[0] && q.a[0] === q.b[0] && p.a[0] === q.a[0] ? 1 : p.a[1] === p.b[1] && q.a[1] === q.b[1] && p.a[1] === q.a[1] ? 0 : undefined
+      if (axis === undefined) continue
+      const shared = Math.min(Math.max(p.a[axis]!, p.b[axis]!), Math.max(q.a[axis]!, q.b[axis]!)) - Math.max(Math.min(p.a[axis]!, p.b[axis]!), Math.min(q.a[axis]!, q.b[axis]!))
+      expect(shared, `${p.id} and ${q.id} share a line`).toBeLessThanOrEqual(0.01)
     }
   })
 
@@ -173,20 +247,101 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
-  test('relationships between facing cards of different heights run straight instead of stepping a few pixels', () => {
-    // A container and a shorter database face each other; their evenly spaced
-    // ports sit about 3px apart, which drew as a dogleg on each relationship.
-    const svg = renderMermaidSVG(`C4Container
+  // A container and a shorter database face each other; their evenly spaced
+  // ports sat about 3px apart, which drew as a dogleg on each relationship.
+  // mermaid-v13#1177: Mobile App and API Application, offset by 34px, drew a
+  // 34px dogleg between their centred ports although their faces overlap.
+  test.each([
+    ['facing cards of different heights', `C4Container
   title Orders
   Container(api, "Orders API", "TypeScript", "Accepts orders and serves order status to every client")
   ContainerDb(db, "Store", "Postgres")
   Rel(api, db, "Reads")
-  Rel(api, db, "Writes")`)
-    const routes = painted(svg).routes
-    expect(routes).toHaveLength(2)
+  Rel(api, db, "Writes")`, 2],
+    ['mermaid-v13#1177: offset cards stacked in a boundary', `C4Container
+System_Ext(mail, "E-Mail")
+Person(customer, "Customer")
+Container_Boundary(c1, "Internet Banking") {
+  Container(spa, "Single-Page App", "JavaScript, Angular", "Provides all the Internet banking functionality to customers via their web browser")
+  Container_Ext(mobile_app, "Mobile App", "C#, Xamarin", "Provides a limited subset of the Internet banking functionality to customers via their mobile device")
+  Container(web_app, "Web Application", "Java, Spring MVC", "Delivers the static content and the Internet banking SPA")
+  ContainerDb(database, "Database", "SQL Database", "Stores user registration information, hashed auth credentials, access logs, etc.")
+  ContainerDb_Ext(backend_api, "API Application", "Java, Docker Container", "Provides Internet banking functionality via API")
+}
+Rel(mobile_app, backend_api, "Uses", "async, JSON/HTTPS")`, 1],
+  ])('relationships between %s run straight instead of stepping', (_name, source, count) => {
+    const routes = painted(renderMermaidSVG(source)).routes
+    expect(routes).toHaveLength(count)
     for (const route of routes) {
-      expect({ id: route.id, levels: new Set(route.points.map(([, y]) => y)).size }).toEqual({ id: route.id, levels: 1 })
+      const lines = Math.min(new Set(route.points.map(([x]) => x)).size, new Set(route.points.map(([, y]) => y)).size)
+      expect({ id: route.id, lines }).toEqual({ id: route.id, lines: 1 })
     }
+  })
+
+  // Fifty repeated relationships between n0 and n1 once multiplied every gap
+  // of the diagram, so the 18 cards they never touch spread over a drawing
+  // 26,117px tall, against 1,064px for the same cards with one relationship.
+  // Side by side, the pair's runs are straight and widen no gap; stacked,
+  // their ports sit 13px apart and their runs step, so only the gap between
+  // the two rows widens.
+  test.each([
+    { target: 'n1', count: 50, widened: [] as readonly string[] },
+    { target: 'n3', count: 10, widened: ['row 0|1'] as readonly string[] },
+  ])('one busy pair n0-$target widens only the gaps its runs use, grows only its own cards and certifies', ({ target, count, widened }) => {
+    const cards = Array.from({ length: 20 }, (_, i) => `System(n${i},"Card ${i}")`)
+    const layoutOf = (repeats: number) => {
+      const parsed = parseRegisteredMermaid(['C4Context', ...cards, ...Array.from({ length: repeats }, () => `Rel(n0,${target},"Repeated")`)].join('\n'))
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      return layoutMermaid(parsed.value, { debug: true })
+    }
+    const single = layoutOf(1), busy = layoutOf(count)
+    // Gaps between horizontally adjacent cards of one row, and between rows,
+    // to a thousandth of a pixel.
+    const round = (value: number) => Math.round(value * 1000) / 1000
+    const spacing = (layout: ReturnType<typeof layoutOf>) => {
+      const rows = new Map<number, typeof layout.nodes>()
+      for (const node of layout.nodes) rows.set(node.y, [...rows.get(node.y) ?? [], node])
+      const ordered = [...rows.entries()].sort(([a], [b]) => a - b).map(([, row]) => row.sort((a, b) => a.x - b.x))
+      return [
+        ...ordered.flatMap(row => row.slice(1).map((node, i) => ({ between: `${row[i]!.id}|${node.id}`, gap: round(node.x - row[i]!.x - row[i]!.w) }))),
+        ...ordered.slice(1).map((row, i) => ({ between: `row ${i}|${i + 1}`, gap: round(row[0]!.y - Math.max(...ordered[i]!.map(node => node.y + node.h))) })),
+      ]
+    }
+    const before = spacing(single), after = spacing(busy)
+    expect(after.map(item => item.between)).toEqual(before.map(item => item.between))
+    for (const [index, item] of after.entries()) {
+      if (widened.includes(item.between)) expect(item.gap).toBeGreaterThan(before[index]!.gap)
+      else expect(item).toEqual(before[index]!)
+    }
+    for (const node of busy.nodes) {
+      const alone = single.nodes.find(other => other.id === node.id)!
+      if (node.id === 'n0' || node.id === target) expect(node.h).toBeGreaterThan(alone.h)
+      else expect([node.id, node.w, node.h]).toEqual([alone.id, alone.w, alone.h])
+    }
+    expect(busy.edges).toHaveLength(count)
+    expect(busy.paintCertification?.status).toBe('passed')
+    expect(busy.paintCertification?.issues ?? []).toEqual([])
+  })
+
+  // Routes that must detour, into a boundary or past cards between their two
+  // ends, run through gaps no pair corridor widens. These generated diagrams
+  // lost paint certification when only corridor gaps widened, so a diagram
+  // with any such route keeps the diagram-wide spacing.
+  const cardLines = (ids: number[]) => ids.map(i => `System(n${i},"Card ${i}","Tech ${i}")`)
+  test.each([
+    ['a busy pair split by a boundary', ['C4Component', 'System_Boundary(b0,"Boundary") {', ...cardLines([0, 1, 2, 3, 4]), '}', ...cardLines([5, 6, 7, 8, 9]),
+      'Rel(n6,n4,"Label 0 with a longer caption")', 'Rel_L(n2,n0,"Label 1 with a longer caption")', 'Rel(n6,n4,"Label 2 with a longer caption")', 'Rel_D(n8,n4,"Label 3 with a longer caption")',
+      'Rel_D(n6,n4,"Label 4 with a longer caption")', 'Rel_U(n2,n2,"Label 5 with a longer caption")', 'Rel_R(n6,n8,"Label 6 with a longer caption")', 'Rel(n4,n6,"Label 7 with a longer caption")',
+      'Rel(n6,n4,"Again 0")', 'Rel(n6,n4,"Again 1")']],
+    ['a busy pair with cards between it', ['C4Component', 'UpdateLayoutConfig($c4ShapeInRow="1", $c4BoundaryInRow="1")', 'System_Boundary(b0,"Boundary") {', ...cardLines([0, 1, 2, 3]), '}', ...cardLines([4, 5, 6, 7, 8]),
+      'Rel_D(n6,n8,"Label 0 with a longer caption")', 'Rel(n4,n4,"Label 1 with a longer caption")', 'Rel_R(n8,n5,"Label 2 with a longer caption")', 'Rel(n4,n6,"Label 3 with a longer caption")',
+      ...[0, 1, 2, 3, 4, 5].map(i => `Rel(n0,n3,"Again ${i}")`)]],
+  ])('%s keeps diagram-wide spacing and certifies its paint', (_name, lines) => {
+    const parsed = parseRegisteredMermaid(lines.join('\n'))
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    expect(layout.paintCertification?.issues ?? []).toEqual([])
+    expect(layout.paintCertification?.status).toBe('passed')
   })
 
   test('scaled SVG arrowheads, including their painted stroke, remain inside the final viewport', () => {
@@ -246,6 +401,11 @@ describe('C4 measured pixel layout quality', () => {
       }
     }
     expect(renderMermaidSVG(DENSE)).toBe(renderMermaidSVG(DENSE))
+    // Its routes leave every label a seat whose painted halo covers no other
+    // label's text.
+    const parsed = parseRegisteredMermaid(DENSE)
+    if (!parsed.ok) throw new Error('Expected structured C4 source')
+    expect(layoutMermaid(parsed.value, { debug: true }).paintCertification?.issues ?? []).toEqual([])
   })
 
   test('a pixel width budget reflows rows without scaling or rewriting the authored model', () => {

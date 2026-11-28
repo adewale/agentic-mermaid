@@ -7,12 +7,13 @@ import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4Config, type C4
 import { projectC4Graph, c4ElementText, c4BoundaryText, c4RelationshipText } from './projection.ts'
 import { placeC4Boxes, type C4Box } from './placement.ts'
 import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
-import { routeC4Pixels } from './routing.ts'
+import { routeC4Pixels, c4StraightPairs, C4_CIRCLING_DETOUR } from './routing.ts'
 import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
 import { c4LabelRect, c4MarkerRects, placeC4PixelLabels, c4PixelVisibilityDiagnostics } from './pixel-labels.ts'
 import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
+import { C4_RELATIONSHIP_LIMIT, C4RouteWorkLimitError } from './errors.ts'
 
 export interface PositionedC4Diagram extends PositionedGraph {
   body: C4Body; config: C4Config; diagnostics: C4Diagnostic[]
@@ -22,6 +23,7 @@ export interface PositionedC4Diagram extends PositionedGraph {
 }
 export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagramTitle?: string } = {}, styleFace?: InternalStyleFace, c4Config: C4ConfigInput = {}, themeVariables: C4ConfigInput = {}): PositionedC4Diagram {
   assertC4DiagramWork(body)
+  if (body.relationships.length > C4_RELATIONSHIP_LIMIT) throw new C4RouteWorkLimitError(body.relationships.length)
   const config = resolveC4Config({ ...(options.padding === undefined ? {} : { diagramMarginX: options.padding, diagramMarginY: options.padding }), ...(options.nodeSpacing === undefined ? {} : { c4ShapeMargin: options.nodeSpacing }), ...(options.layerSpacing === undefined ? {} : { nextLinePaddingX: options.layerSpacing }), ...c4Config }, themeVariables), style = resolveRenderStyle(options, undefined, styleFace)
   const graph = projectC4Graph(body, config), sizes = new Map<string, C4Box>()
   const parents = new Map([...body.elements, ...body.boundaries].map(item => [item.id, item.parentId]))
@@ -49,7 +51,8 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
     const group: PositionedGroup = { id: item.id, label, labelBlock, x: 0, y: 0, width: Math.max(config.minimumWidth, labelBlock.width + config.padding * 2), height: headerHeight + config.boundaryPadding * 2, headerHeight, children: [] }
     groups.set(item.id, group); sizes.set(item.id, { ...group, container: true })
   }
-  const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, points: [], labelBlock: preparePixelText(c4RelationshipText(body, body.relationships[index]!), { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: wrapWidth() }) }), inlineStyle: graph.linkStyles.get(index), edgeIndex: index }))
+  const freshEdges = (): PositionedEdge[] => graph.edges.map((edge, index) => ({ ...edge, points: [], labelBlock: preparePixelText(c4RelationshipText(body, body.relationships[index]!), { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: wrapWidth() }) }), inlineStyle: graph.linkStyles.get(index), edgeIndex: index }))
+  let edges = freshEdges()
   // A relationship to an ancestor needs a real interior lane between the
   // descendant's bottom face and the ancestor's frame. Ordinary box padding
   // can be shorter than the opaque label plus arrowhead and hide the entire
@@ -81,19 +84,51 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   // halo on either side. A single label band leaves no clear candidate even
   // when its route, cards and physical ports are individually feasible.
   const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) * 2 + 48)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) * 2 + 48))
-  const pairCounts = new Map<string, number>()
+  // Repeated interactions between one pair run in parallel corridors. The
+  // corridor widens only the gaps between that pair when every interaction
+  // of the diagram can run between its own two elements; one that must
+  // detour (into a boundary, around an element between them, onto itself
+  // or an ancestor) runs through other gaps, so then every gap takes the
+  // busiest pair's spacing.
+  const pairCounts = new Map<string, { between: [string, string]; count: number }>()
   for (const edge of edges) {
-    const key = JSON.stringify([edge.source, edge.target].sort())
-    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
+    const between = [edge.source, edge.target].sort() as [string, string], key = JSON.stringify(between)
+    const pair = pairCounts.get(key) ?? { between, count: 0 }
+    pair.count++; pairCounts.set(key, pair)
   }
-  const parallelCorridors = Math.max(1, ...pairCounts.values())
-  const corridorDemand = parallelCorridors > 1 ? parallelCorridors + 1 : 1
-  const placement = placeC4Boxes(body, sizes, { gapX: gapX * corridorDemand, gapY: gapY * corridorDemand, padding: config.boundaryPadding, marginX: config.marginX + 40, marginY: config.marginY + 40 + (title?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? config.shapesPerRow, boundariesPerRow: body.layout.boundariesPerRow ?? config.boundariesPerRow, direction: graph.direction === 'TD' ? 'TB' : graph.direction, maxWidth: config.maxWidth })
+  const busiest = Math.max(1, ...[...pairCounts.values()].map(pair => pair.count))
+  const placementOptions = { padding: config.boundaryPadding, marginX: config.marginX + 40, marginY: config.marginY + 40 + (title?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? config.shapesPerRow, boundariesPerRow: body.layout.boundariesPerRow ?? config.boundariesPerRow, direction: graph.direction === 'TD' ? 'TB' : graph.direction, maxWidth: config.maxWidth }
+  const corridors = busiest > 1 ? [...pairCounts.values()].map(pair => { const demand = pair.count > 1 ? pair.count + 1 : 1; return { between: pair.between, gapX: gapX * demand, gapY: gapY * demand } }) : undefined
+  let placement = placeC4Boxes(body, sizes, { ...placementOptions, gapX, gapY, corridors })
+  if (!placement.corridorsClear) placement = placeC4Boxes(body, sizes, { ...placementOptions, gapX: gapX * (busiest + 1), gapY: gapY * (busiest + 1) })
+  else if (corridors) {
+    // A pair whose runs are all straight needs only the base gap. Keep the
+    // narrower placement only if those runs stay straight and clear in it.
+    const straight = c4StraightPairs(placement.boxes, edges)
+    if (straight.size) {
+      const narrowed = placeC4Boxes(body, sizes, { ...placementOptions, gapX, gapY, corridors: corridors.map(corridor => straight.has(JSON.stringify(corridor.between)) ? { ...corridor, gapX, gapY } : corridor) })
+      const still = narrowed.corridorsClear ? c4StraightPairs(narrowed.boxes, edges) : new Set<string>()
+      if ([...straight].every(key => still.has(key))) placement = narrowed
+    }
+  }
   for (const node of nodes) Object.assign(node, placement.boxes.get(node.id))
   const roots: PositionedGroup[] = []
   for (const item of body.boundaries) { const group = groups.get(item.id)!; Object.assign(group, placement.boxes.get(item.id)); const parent = item.parentId && groups.get(item.parentId); if (parent) parent.children.push(group); else roots.push(group) }
   routeC4Pixels(placement.boxes, { nodes, groups: roots, edges }, graph, style, planC4Identity(body))
   placeC4PixelLabels({ nodes, groups: roots, edges }, style.lineWidth, body)
+  // Trying other faces for a modest detour shortens routes, but captions are
+  // seated only once every route is drawn: a shorter route can leave a
+  // caption or arrowhead nowhere clear (official fence #0). Keep those trials
+  // only where the drawing collides no more than with trials for routes
+  // that circle the canvas alone.
+  const collisions = (routed: PositionedEdge[]) => c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges: routed }, style.lineWidth).length
+  const tried = collisions(edges)
+  if (tried) {
+    const circling = freshEdges()
+    routeC4Pixels(placement.boxes, { nodes, groups: roots, edges: circling }, graph, style, planC4Identity(body), C4_CIRCLING_DETOUR)
+    placeC4PixelLabels({ nodes, groups: roots, edges: circling }, style.lineWidth, body)
+    if (collisions(circling) < tried) edges = circling
+  }
   const labelBoxes: PositionedNode[] = edges.flatMap(edge => { const box = c4LabelRect(edge); return box ? [{ ...box, id: edge.id!, label: '', shape: 'rectangle' }] : [] })
   const markerBoxes: PositionedNode[] = edges.flatMap(edge => c4MarkerRects(edge, style.lineWidth).map(box => ({ ...box, id: edge.id!, label: '', shape: 'rectangle' as const })))
   translateGeometryToNonNegativeOrigin([...nodes, ...labelBoxes, ...markerBoxes], edges, roots, Math.max(config.marginX, config.marginY) + (title?.height ?? 0))

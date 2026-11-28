@@ -1,0 +1,16 @@
+%% An arrowhead and a cross entering one node never share a point (agentflow source rewritten as a flowchart): https://github.com/mermaid-js/mermaid-v13/issues/674
+flowchart LR
+  llm["LLM API"]
+  i[/"Input"/]
+  t["Task"]
+  d{"Decide"}
+  r["Reference"]
+  a["Act"]
+  tl["Tool"]
+  box["Box"]
+  i --> t & d & r & a & tl & box
+  t & d & r & a & tl & box --> llm
+  d -->|yes| a
+  d --x r
+  r -.- tl
+  a --> t

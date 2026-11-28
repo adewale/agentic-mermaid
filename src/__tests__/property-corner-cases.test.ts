@@ -23,10 +23,10 @@
 //
 // Every generator now pins labelOffRoute at ZERO. (The one pre-existing near-miss
 // this gate first surfaced — a high-degree RL double-hub fan-in whose diamond→hub
-// spoke label sat ~25px above a congested shared-approach trunk — is now fixed by
-// the repairLabelsOffOwnRoute pass, which pulls such a label back within the
-// allowance. The pins stay as an explicit contract: any NEW off-route label fails
-// the gate.)
+// spoke label sat ~25px above a congested shared-approach trunk — is now fixed:
+// every caption seat is chosen on or within the allowance of its own route
+// (src/layout/label-seat.ts). The pins stay as an explicit contract: any NEW
+// off-route label fails the gate.)
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -91,7 +91,8 @@ function broad(i: number): string {
 // (4) fan-in peers with their own upstream CONES — reproduces the stale-endpoint
 // offOutlineEndpoints: equalizePeerNodeDimensions repositions a (differing-width,
 // so rectangle) fan-in peer S, and a cone edge U->S into it was left dangling off
-// S's new outline until reanchorOffOutlineEndpoints re-routed it. Cone depth (0-3)
+// S's new outline. A dedicated re-anchor pass once repaired it; the later
+// endpoint passes (clipEdgeToShape onwards) now leave no such endpoint. Cone depth (0-3)
 // comes from hash bits, so deep chains occur in every direction. Simple CHAINS,
 // not branches: a branching cone additionally exercises dense cone-vs-cone
 // routing (a separate pre-existing edgeThroughNode class, out of scope here) and
@@ -133,7 +134,7 @@ function skipLink(i: number): string {
 // feedback target reproduce the on-outline through-node; rerouteEdgesThroughNodes
 // slides the offending descent into the clear peer gap. (LR/RL and early feedback
 // targets instead hit a separate, pre-existing off-outline-feedback class the
-// re-router leaves alone — off-outline is reanchorOffOutlineEndpoints' remit — so
+// re-router leaves alone — off-outline endpoints are the endpoint passes' remit — so
 // this generator pins the clean vertical family that isolates the through-node.)
 function feedbackPeer(i: number): string {
   const d = ['TD', 'BT'][i % 2], k = 3 + (i % 3), j = k === 3 ? 1 : k - 1, L = [`flowchart ${d}`]

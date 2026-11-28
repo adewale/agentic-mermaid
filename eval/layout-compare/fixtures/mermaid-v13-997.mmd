@@ -1,0 +1,9 @@
+%% A relation crossing a boundary must not run through the boundary's header text (https://github.com/mermaid-js/mermaid-v13/issues/997).
+C4Container
+Person(u, "User")
+System_Boundary(sb, "Sys") {
+  Container(w, "Web", "js", "web")
+  ContainerDb(d, "DB", "sql", "db")
+  Container(x, "Ext", "js", "ext")
+}
+Rel(u, x, "far")

@@ -4,6 +4,7 @@ import { ARROW_HEAD, FLOWCHART_DOTTED_DASH } from '../../styles.ts'
 import { graphEdgeTextBlock } from '../../graph-text.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { calculatePathMidpoint, layoutFlow, polylineLength, rectsOverlap } from '../geometry.ts'
+import { seatCaption, type SeatGraph } from '../label-seat.ts'
 
 export function labelBoxAt(edge: PositionedEdge, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
   const metrics = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style)
@@ -225,10 +226,6 @@ export function bundledLabelCandidates(edge: PositionedEdge, points: Point[], no
   return raw.map((candidate, rank) => ({ ...candidate, rank }))
 }
 
-export function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): Point {
-  return bundledLabelCandidates(edge, points, nodes, direction, style)[0]?.point ?? calculatePathMidpoint(points)
-}
-
 export function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: Direction): number {
   const f = layoutFlow(direction)
   const mainValues = chosen.map(candidate => candidate.point[f.main])
@@ -356,9 +353,17 @@ function recenterBundledLabelOnMainAxis(
   edge.labelPosition = target
 }
 
+/**
+ * Seat the captions of a rebuilt fan-out or fan-in on their proposed routes.
+ * `seats` is the graph the captions are seated in: its nodes and groups, and
+ * its edges with each proposed edge carrying its proposed route. Where the
+ * bundled slots give no seat (none clears the nodes and markers, or no set of
+ * them parts the sibling pills), each caption is seated by the one seat rule
+ * (label-seat.ts) instead, nearest the slot the bundled ranking preferred.
+ */
 export function assignBundledFanoutLabels(
   proposed: Array<{ edge: PositionedEdge; points: Point[] }>,
-  nodes: PositionedNode[],
+  seats: SeatGraph & { nodes: PositionedNode[] },
   direction: Direction,
   style: LabelMetricsStyle,
   // Re-centre each placed label onto its route's main-axis midpoint afterward.
@@ -371,18 +376,27 @@ export function assignBundledFanoutLabels(
   recenter = false,
   admit?: (edge: PositionedEdge, point: Point) => boolean,
 ): boolean {
+  const nodes = seats.nodes
   const labeled = proposed.filter(({ edge }) => edge.label)
   if (labeled.length === 0) return true
+  // Start from each caption's preferred bundled slot (its route midpoint when
+  // it has none), so siblings are measured where they stand, then seat each
+  // by the one rule.
+  const seatByRule = (preferred: Array<Point | undefined>): void => {
+    labeled.forEach(({ edge, points }, i) => { edge.labelPosition = preferred[i] ?? calculatePathMidpoint(points) })
+    labeled.forEach(({ edge }, i) => seatCaption(edge, seats, style, preferred[i]))
+  }
   if (labeled.length === 1) {
     const only = labeled[0]!
     const candidates = bundledLabelCandidates(only.edge, only.points, nodes, direction, style, admit)
     if (admit && candidates.length === 0) return false
-    only.edge.labelPosition = candidates[0]?.point ?? calculatePathMidpoint(only.points)
+    if (candidates[0]) only.edge.labelPosition = candidates[0].point
+    else seatByRule([undefined])
   } else {
     const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style, admit))
     if (candidateSets.some(candidates => candidates.length === 0)) {
       if (admit) return false
-      for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+      seatByRule(candidateSets.map(candidates => candidates[0]?.point))
     } else {
       const gap = readableLabelGap(style)
       let best: BundledLabelCandidate[] | undefined
@@ -408,7 +422,7 @@ export function assignBundledFanoutLabels(
 
       if (!best) {
         if (admit) return false
-        for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+        seatByRule(candidateSets.map(candidates => candidates[0]!.point))
       } else {
         for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
       }

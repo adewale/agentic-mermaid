@@ -1,14 +1,29 @@
 import type { MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { shiftLabel } from '../route-values.ts'
 import { classifyRoutes, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { DEFAULTS, calculatePathMidpoint, findSubgraph, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeMainCenter, nodeMainSize } from '../geometry.ts'
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
 import { minimumLinkRankGap } from '../link-rank-gap.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
-import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../../shape-clipping.ts'
 import { LayoutCertificationError } from '../certification-error.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
+import { seatMeetingArrivals, seatMeetingDepartures } from './arrival-slots.ts'
+import { seatCaption } from '../label-seat.ts'
+import type { LabelMetricsStyle } from '../route-geometry.ts'
+import { resolveRenderStyle } from '../../styles.ts'
+import { CLEARANCE } from '../route-geometry.ts'
+import { graphEdgeTextBlock } from '../../graph-text.ts'
+import { resolveLabelContent } from '../../shared/display-text.ts'
+import { LABEL_PILL_PADDING } from '../../shared/edge-label-geometry.ts'
+import { indistinctOccurrencePairs } from '../route-marker-clearance.ts'
 
-export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
+/** What a rank move does when no reconnect route after it is proven: refuse
+ * the placement, or restore the placement as it was before the move. */
+export type LinkRankFallback = 'refuse' | 'unmoved'
+
+export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = resolveRenderStyle({}), fallback: LinkRankFallback = 'refuse'): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
   const f = layoutFlow(graph.direction)
@@ -16,6 +31,13 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   const groupMap = new Map<string, PositionedGroup>()
   const flattenGroups = (gs: PositionedGroup[]): void => { for (const g of gs) { groupMap.set(g.id, g); flattenGroups(g.children) } }
   flattenGroups(groups)
+  // The placement before any move, restored when the move cannot be reconnected.
+  const boxes = [...nodes, ...groupMap.values()].map(box => ({ box, x: box.x, y: box.y, width: box.width, height: box.height }))
+  const routes = edges.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
+  const unmove = (): void => {
+    for (const { box, x, y, width, height } of boxes) Object.assign(box, { x, y, width, height })
+    for (const { edge, points, labelPosition } of routes) { edge.points = points; edge.labelPosition = labelPosition }
+  }
 
   // A subgraph endpoint (`container` edge) expands to every node it encloses, so
   // shoving the unit moves the whole box. `cross-hierarchy` and `container` links
@@ -93,6 +115,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   }
 
   const mainDelta = new Map<string, number>() // net main-axis shift applied per node
+  // Pre-move main-axis starts, exact: subtracting a net shift back off a
+  // moved coordinate can land one roundoff away from where routes touched it.
+  const originalMain = new Map(nodes.map(node => [node.id, node[f.main]]))
   const changed = new Set<PositionedNode>()
   const moveSet = (starts: string[], delta: number): void => {
     if (Math.abs(delta) < 0.5) return
@@ -336,6 +361,28 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     }
     return true
   }
+  // A rebuilt route only touches its own endpoints at its two contacts: no
+  // run of it may cross either body. A contact's roundoff against the outline
+  // is not a crossing, so the bodies are read one pixel inside their frames.
+  const outsideOwnBodies = (points: readonly Point[], edge: PositionedEdge): boolean => {
+    for (const id of [edge.source, edge.target]) {
+      const node = nodeMap.get(id)
+      if (!node || node.width <= 2 || node.height <= 2) continue
+      const inner = { ...node, x: node.x + 1, y: node.y + 1, width: node.width - 2, height: node.height - 2 }
+      for (let index = 1; index < points.length; index++) if (segmentThroughShape(points[index - 1]!, points[index]!, inner)) return false
+    }
+    return true
+  }
+  // Canonical ports sit on the flow sides. When the route there would first
+  // run inside its own endpoint (a target placed behind its source, a rung
+  // column inside the target), it leaves or enters at the outline where it
+  // first clears the body instead, so no caption is seated on a hidden run.
+  const trimOwnBodies = (points: Point[], edge: PositionedEdge): Point[] => {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    let trimmed = source ? trimOccludedShapeEndpoint(points, source, true) : points
+    if (target) trimmed = trimOccludedShapeEndpoint(trimmed, target, false)
+    return trimmed
+  }
   const contactDelta = (id: string): number | undefined => {
     const node = nodeMap.get(id), group = groupMap.get(id), original = originalGroupSpans.get(id)
     return node ? mainDelta.get(id) ?? 0 : group && original ? group[f.main] - original.start : undefined
@@ -357,9 +404,12 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       }
       if (!node) return null
     }
-    return node ? { start: node[f.main] - delta, size: nodeMainSize(node, graph.direction), delta } : null
+    return node ? { start: originalMain.get(id) ?? node[f.main] - delta, size: nodeMainSize(node, graph.direction), delta } : null
   }
-  const stretchRetainedRoute = (edge: PositionedEdge): Point[] | null => {
+  // `contacts` proves the stretched ends on the painted outline; a route the
+  // later clip pass will trim to its outline only keeps its translated ends.
+  // 'frames' proves only frame ends: the clip pass trims node ends.
+  const stretchRetainedRoute = (edge: PositionedEdge, contacts: boolean | 'frames' = true): Point[] | null => {
     const source = stretchSpan(edge.source, edge.target), target = stretchSpan(edge.target, edge.source)
     if (!source || !target || edge.points.length < 2) return null
     const [left, right] = source.start <= target.start ? [source, target] : [target, source]
@@ -395,7 +445,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (sourceDelta === undefined || targetDelta === undefined
       || points[0]![f.main] !== edge.points[0]![f.main] + sourceDelta
       || points.at(-1)![f.main] !== edge.points.at(-1)![f.main] + targetDelta) return null
-    if (!contactsClear(points, edge)) return null
+    if (contacts && !contactsClear(points, edge, contacts === 'frames')) return null
     const ends = new Set([edge.source, edge.target])
     return routeClearOfNodes(points, nodes, ends) && headersClear(points) ? points : null
   }
@@ -406,9 +456,10 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (delta === undefined) return null
     return { ...old, [f.main]: old[f.main] + delta }
   }
-  const contactsClear = (points: Point[], edge: PositionedEdge): boolean => {
+  const contactsClear = (points: Point[], edge: PositionedEdge, framesOnly = false): boolean => {
     for (const [id, start] of [[edge.source, true], [edge.target, false]] as const) {
       const node = nodeMap.get(id), group = groupMap.get(id)
+      if (node && framesOnly) continue
       const owner = node ?? (group ? { id: group.id, label: group.label, shape: 'rectangle' as const, x: group.x, y: group.y, width: group.width, height: group.height } : undefined)
       if (!owner) return false
       const port = start ? points[0] : points.at(-1)
@@ -428,74 +479,125 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     return true
   }
 
+  // Feedback edges whose main spans overlap never share one outer lane: a
+  // shared lane draws two relationships as one trunk. They nest, the shorter
+  // span inside, each lane far enough from its neighbour that a caption
+  // centred on either clears the other (the private-channel spacing the late
+  // shared-trunk settler would otherwise have to find).
+  interface TakenLane { lane: number; lo: number; hi: number; half: number }
+  const takenLanes = { max: [] as TakenLane[], min: [] as TakenLane[] }
+  const laneHalf = (edge: PositionedEdge): number => {
+    if (!edge.label) return 0
+    const block = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
+    return (crossAxis === 'x' ? block.width : block.height) / 2 + LABEL_PILL_PADDING + 8
+  }
+  const freeLane = (base: number, dir: 1 | -1, taken: readonly TakenLane[], lo: number, hi: number, half: number): number => {
+    let lane = base
+    for (const other of [...taken].sort((a, b) => (a.lane - b.lane) * dir)) {
+      if (other.hi <= lo || other.lo >= hi) continue
+      const spacing = Math.max(FEEDBACK_LANE_GAP, half, other.half) + CLEARANCE
+      if (Math.abs(lane - other.lane) < spacing) lane = other.lane + dir * spacing
+    }
+    return lane
+  }
+  const feedbackRoutes = new Map<PositionedEdge, Point[]>()
+  const feedbackEdges = edges.filter(edge => edge.edgeIndex !== undefined && classes[edge.edgeIndex] === 'feedback')
+  const span = (edge: PositionedEdge): number => {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    return source && target ? Math.abs(nodeMainCenter(source, graph.direction) - nodeMainCenter(target, graph.direction)) : 0
+  }
+  feedbackEdges.sort((a, b) => span(a) - span(b) || edges.indexOf(a) - edges.indexOf(b))
+  for (const edge of feedbackEdges) {
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (!source || !target) continue
+    // Feedback U-detour: drop to the outer lane at the source, run back along
+    // it, and rise into the target — both anchored at the max-cross side. A
+    // riser can cross a bystander sitting between the node and the lane
+    // (issue #81's no-overlap residual). When — and only when — the max-side
+    // U is blocked, fall back deterministically: the min-side lane, then a
+    // rung variant per lane that leaves the lane at a free channel and
+    // approaches the blocked endpoint through a clear column (the center
+    // anchors stay on-outline for every shape, unlike sliding a riser
+    // off-center). If everything is blocked, keep the canonical max-side
+    // route for the post-freeze net to repair.
+    const mSrc = nodeMainCenter(source, graph.direction), mTgt = nodeMainCenter(target, graph.direction)
+    const uDetour = (lane: number, edgeCross: (n: PositionedNode) => number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
+    ]
+    const rungTarget = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, lane), point(mRung, lane), point(mRung, col), point(mTgt, col), point(mTgt, edgeCross(target)),
+    ]
+    const rungSource = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+      point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
+    ]
+    const ends = new Set([edge.source, edge.target])
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts) && outsideOwnBodies(pts, edge)
+    const lo = Math.min(mSrc, mTgt), hi = Math.max(mSrc, mTgt), half = laneHalf(edge)
+    const sides = [{ taken: takenLanes.max, dir: 1 }, { taken: takenLanes.min, dir: -1 }] as const
+    const laneFor = (side: typeof sides[number], base: number): number => freeLane(base, side.dir, side.taken, lo, hi, half)
+    const lanes: Array<[number, (n: PositionedNode) => number, typeof sides[number]]> = [[laneFor(sides[0], laneCross), crossMaxEdge, sides[0]], [laneFor(sides[1], laneCrossMin), crossMinEdge, sides[1]]]
+    let route: Point[] | undefined, used = lanes[0]!
+    for (const entry of lanes) {
+      const candidate = trimOwnBodies(uDetour(entry[0], entry[1]), edge)
+      if (clear(candidate)) { route = candidate; used = entry; break }
+    }
+    if (!route) {
+      const rungMains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y'), mTgt)
+      search: for (const entry of lanes) {
+        const [lane, edgeCross] = entry
+        const cols = byProximity(channelCenters(crossAxis), edgeCross(target))
+        for (const build of [rungTarget, rungSource]) {
+          for (const mRung of rungMains) {
+            for (const col of cols) {
+              const candidate = trimOwnBodies(simplifyPolyline(build(lane, edgeCross, mRung, col)), edge)
+              if (clear(candidate)) { route = candidate; used = entry; break search }
+            }
+          }
+        }
+      }
+    }
+    if (!route) route = trimOwnBodies(uDetour(lanes[0]![0], crossMaxEdge), edge)
+    used[2].taken.push({ lane: used[0], lo, hi, half })
+    feedbackRoutes.set(edge, route)
+  }
+
   // Reconnect every edge after the rank-distance move so no endpoint is left
   // pointing at a node's pre-move position (which would trip the route-staleness
   // certifier). Primary-forward / cross-hierarchy / container links get a forward
   // dogleg between their (node or box) ports; feedback (back) edges re-loop
   // through the outer lane; self-loops ride along with their moved node.
   // applyRouteContracts certifies the final geometry.
+  const reconnected: PositionedEdge[] = [], captioned: PositionedEdge[] = []
+  // Each rebuilt edge's own produced route, stretched with the move, while
+  // the pre-move routes are still in place: the reconnect's fallback below.
+  const stretched = new Map<PositionedEdge, Point[]>()
+  for (const edge of edges) {
+    const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
+    if (cls === 'self-loop' || groupMap.size > 0 && (cls === 'cross-hierarchy' || cls === 'container')) continue
+    const route = stretchRetainedRoute(edge, false)
+    if (route) stretched.set(edge, route)
+  }
   for (const edge of edges) {
     const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
     if (cls === 'self-loop') {
       const delta = mainDelta.get(edge.source) ?? 0
       if (delta !== 0) edge.points = edge.points.map(point => ({ ...point, [f.main]: point[f.main] + delta }))
-      if (delta !== 0 && edge.labelPosition) edge.labelPosition[f.main] += delta
+      if (delta !== 0) shiftLabel(edge, f.main, delta)
       continue
     }
     const preserveContacts = groupMap.size > 0 && (cls === 'cross-hierarchy' || cls === 'container')
     const retained = preserveContacts ? stretchRetainedRoute(edge) : null
     if (retained) {
       edge.points = retained
-      if (edge.label) edge.labelPosition = calculatePathMidpoint(retained)
+      if (edge.label) { edge.labelPosition = calculatePathMidpoint(retained); captioned.push(edge) }
       continue
     }
     if (cls === 'feedback') {
-      const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
-      if (!source || !target) continue
-      // Feedback U-detour: drop to the outer lane at the source, run back along
-      // it, and rise into the target — both anchored at the max-cross side. A
-      // riser can cross a bystander sitting between the node and the lane
-      // (issue #81's no-overlap residual). When — and only when — the max-side
-      // U is blocked, fall back deterministically: the min-side lane, then a
-      // rung variant per lane that leaves the lane at a free channel and
-      // approaches the blocked endpoint through a clear column (the center
-      // anchors stay on-outline for every shape, unlike sliding a riser
-      // off-center). If everything is blocked, keep the canonical max-side
-      // route for the post-freeze net to repair.
-      const mSrc = nodeMainCenter(source, graph.direction), mTgt = nodeMainCenter(target, graph.direction)
-      const uDetour = (lane: number, edgeCross: (n: PositionedNode) => number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
-      ]
-      const rungTarget = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mRung, lane), point(mRung, col), point(mTgt, col), point(mTgt, edgeCross(target)),
-      ]
-      const rungSource = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
-        point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
-      ]
-      const ends = new Set([edge.source, edge.target])
-      const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts)
-      const lanes: Array<[number, (n: PositionedNode) => number]> = [[laneCross, crossMaxEdge], [laneCrossMin, crossMinEdge]]
-      let route: Point[] | undefined
-      for (const [lane, edgeCross] of lanes) {
-        const candidate = uDetour(lane, edgeCross)
-        if (clear(candidate)) { route = candidate; break }
-      }
-      if (!route) {
-        const rungMains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y'), mTgt)
-        search: for (const [lane, edgeCross] of lanes) {
-          const cols = byProximity(channelCenters(crossAxis), edgeCross(target))
-          for (const build of [rungTarget, rungSource]) {
-            for (const mRung of rungMains) {
-              for (const col of cols) {
-                const candidate = build(lane, edgeCross, mRung, col)
-                if (clear(candidate)) { route = simplifyPolyline(candidate); break search }
-              }
-            }
-          }
-        }
-      }
-      edge.points = route ?? uDetour(laneCross, crossMaxEdge)
-      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+      const route = feedbackRoutes.get(edge)
+      if (!route) continue
+      edge.points = route
+      if (edge.label) { edge.labelPosition = calculatePathMidpoint(edge.points); captioned.push(edge) }
+      reconnected.push(edge)
       continue
     }
     const start = preserveContacts ? translatedContact(edge.source, edge.points[0]) : flowPort(edge.source, f.sourceSide)
@@ -510,15 +612,16 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     // entry port, threadable only through the channel beside it). If every
     // variant is blocked, keep the midpoint for the post-freeze net to repair.
     const ends = new Set([edge.source, edge.target])
-    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends) && headersClear(pts) && (!preserveContacts || contactsClear(pts, edge) && ownBodiesClear(pts, edge))
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends) && headersClear(pts) && outsideOwnBodies(pts, edge) && (!preserveContacts || contactsClear(pts, edge) && ownBodiesClear(pts, edge))
     const lo = Math.min(start[f.main], end[f.main]), hi = Math.max(start[f.main], end[f.main])
-    let route = doglegBetween(start, end, graph.direction, (lo + hi) / 2)
+    const outside = (points: Point[]): Point[] => preserveContacts ? points : trimOwnBodies(points, edge)
+    let route = outside(doglegBetween(start, end, graph.direction, (lo + hi) / 2))
     let proved = clear(route)
     if (!proved) {
       let found: Point[] | undefined
       const mains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y').filter(m => m > lo && m < hi), (lo + hi) / 2)
       for (const m of mains) {
-        const candidate = doglegBetween(start, end, graph.direction, m)
+        const candidate = outside(doglegBetween(start, end, graph.direction, m))
         if (clear(candidate)) { found = candidate; break }
       }
       if (!found) {
@@ -527,7 +630,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
         staircase: for (const col of cols) {
           for (const m1 of mains) {
             for (const m2 of byProximity(mains.filter(m => (m - m1) * f.sign > 0), end[f.main])) {
-              const candidate = simplifyPolyline([start, point(m1, cS), point(m1, col), point(m2, col), point(m2, cE), end])
+              const candidate = outside(simplifyPolyline([start, point(m1, cS), point(m1, col), point(m2, col), point(m2, cE), end]))
               if (clear(candidate)) { found = candidate; break staircase }
             }
           }
@@ -535,10 +638,52 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       }
       if (found) { route = found; proved = true }
     }
+    // ELK can attach a link to the bounding box of a round node rather than
+    // its outline (mermaid#5094: a circle into a moved subgraph), so no
+    // contact-preserving route proves that end. Keep the produced route,
+    // stretched with the move: its frame contacts are still proved, and each
+    // node end keeps its produced contact and approach, translated with the
+    // node, for the clip pass to trim as it trims every other edge.
+    if (preserveContacts && !proved) {
+      const kept = stretchRetainedRoute(edge, 'frames')
+      if (kept) { route = kept; proved = true }
+    }
+    if (preserveContacts && !proved && fallback === 'unmoved') { unmove(); return }
     if (preserveContacts && !proved) throw new LayoutCertificationError([{
       strategy: 'link-rank-reconnect', violations: [`edge ${edge.source}->${edge.target}: no proven contact-preserving route after rank move`],
     }])
     edge.points = route
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+    if (edge.label) { edge.labelPosition = calculatePathMidpoint(edge.points); captioned.push(edge) }
+    if (!preserveContacts) reconnected.push(edge)
   }
+
+  // Every reconnected route left one canonical point of its source and was
+  // aimed at one of its target; ends that may not share one take their
+  // planned slots.
+  seatMeetingDepartures(nodes, edges, reconnected, terminals)
+  seatMeetingArrivals(nodes, edges, reconnected, terminals)
+  // Canonical ports draw every forward edge between two nodes on one route.
+  // Where seating could not part occurrences the drawing must tell apart (a
+  // repeated edge on its twin, or arrivals that may not share an arrowhead),
+  // those edges keep their own produced routes, stretched with the move; the
+  // stretch keeps their ports and lanes and enters no node body. Kept only
+  // when it leaves fewer such pairs.
+  const indistinct = indistinctOccurrencePairs(edges)
+  if (indistinct.length) {
+    const involved = [...new Set(indistinct.flatMap(({ a, b }) => [a, b]))].filter(edge => stretched.has(edge))
+    const saved = edges.map(edge => ({ edge, points: edge.points, labelPosition: edge.labelPosition }))
+    for (const edge of involved) {
+      edge.points = stretched.get(edge)!
+      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+    }
+    // A kept route can still meet another at one point; those take slots.
+    seatMeetingDepartures(nodes, edges, involved, terminals)
+    seatMeetingArrivals(nodes, edges, involved, terminals)
+    if (involved.length && indistinctOccurrencePairs(edges).length >= indistinct.length) {
+      for (const entry of saved) { entry.edge.points = entry.points; entry.edge.labelPosition = entry.labelPosition }
+    }
+  }
+  // Seat each caption on the route written above, by the one rule, nearest
+  // its route midpoint.
+  for (const edge of captioned) seatCaption(edge, { nodes, edges, groups }, style, edge.labelPosition)
 }

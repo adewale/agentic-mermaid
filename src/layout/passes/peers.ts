@@ -10,8 +10,9 @@ import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, no
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
-import { edgeInk, finiteBox, writtenGeometry, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { edgeInk, finiteBox, type GraphPaintStyle } from '../graph-paint-support.ts'
 import { nodePaintBounds } from '../../scene/bounds.ts'
 import { formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { shapeOutline } from '../../shape-outline.ts'
@@ -63,7 +64,7 @@ function makeRoomForPeerCenter(
       const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
         stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
         strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
-      const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+      const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: piece.geometry, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
       if (!finiteBox(bounds)) return false
       components[componentOf.get(node.id)!]!.supports.push(bounds)
     }
@@ -488,9 +489,8 @@ export function centerPeerBarycenters(
  * the hub and the spokes converge as symmetric doglegs. Those bends are
  * JUSTIFIED — the convergence is structurally necessary and buys the symmetry —
  * so the spokes must be treated exactly like the fan-out bundle: skipped by the
- * hitch oracle and exempt from the bend penalty. This is the single predicate
- * both consumers (markCorankFanInBundles, alignLabeledSourcePort) share, so the
- * bend exemption, the hitch HARD-invariant, and the labeled-source-port pass all
+ * hitch oracle and exempt from the bend penalty. markCorankFanInBundles marks
+ * exactly these spokes, so the bend exemption and the hitch HARD-invariant
  * AGREE on which spokes are part of a symmetric convergence.
  *
  * The gate mirrors corankFanInBalancingLabels (mixed labeled/unlabeled, rect hub
@@ -596,6 +596,7 @@ export function markCorankFanInBundles(
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
+  terminals: TerminalAssignment = terminalAssignment(edges),
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
@@ -626,7 +627,12 @@ export function markCorankFanInBundles(
     const entryAt = (offset: number): Point => f.isHorizontal
       ? { x: entryMid.x, y: entryMid.y + offset }
       : { x: entryMid.x + offset, y: entryMid.y }
-    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) offsets = offsets.map(() => 0)
+    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) {
+      // One port means one arrowhead. Two captioned (or differently painted)
+      // spokes cannot share it; leave this hub to the ordinary route owners.
+      if (spokes.some((a, i) => spokes.some((b, j) => j > i && !terminals.shares(a, b, 'end')))) continue
+      offsets = offsets.map(() => 0)
+    }
 
     // Shared elbow on the main axis, midway between the rank of the (co-ranked)
     // sources' forward edge and the hub's entry edge — the converging junction.
@@ -658,7 +664,7 @@ export function markCorankFanInBundles(
     // helper bundleEdgePaths-fed labeled fan-outs use), THEN re-centre them onto
     // the route's main-axis midpoint: the co-rank dogleg otherwise leaves the
     // single labeled spoke hugging the source (the regression this fixes).
-    assignBundledFanoutLabels(proposed, nodes, graph.direction, style, /* recenter */ true)
+    assignBundledFanoutLabels(proposed, { nodes, edges, groups }, graph.direction, style, /* recenter */ true)
   }
 }
 
@@ -668,6 +674,7 @@ export function alignForkRejoinPeerCenters(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   style: LabelMetricsStyle,
+  beforeMove?: () => void,
 ): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -733,6 +740,7 @@ export function alignForkRejoinPeerCenters(
     if (Math.abs(delta) <= 0.5) continue
     if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) continue
     layoutDebug('[fork-rejoin] center', source.id, 'peer island by', delta.toFixed(1))
+    beforeMove?.()
     shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
   }
 }

@@ -1,0 +1,42 @@
+%% An edge from a group leaves its side, not the frame's corner: https://github.com/mermaid-js/mermaid/issues/2793
+flowchart
+    %% nodes %%
+    Start([Start])
+    AuthCheck{Is user\nauthenticated?}
+    Unauthorized([Return HTTP 401])
+    ParseRequest[Parse request]
+    ValidateRequest{Is request\nwell-formed?}
+    BadRequest([Return HTTP 400])
+    StartTransaction[Start DB transaction]
+    Rollback[Roll back DB transaction]
+    Commit[Commit DB transaction]
+    updateUserProfile[upsert user profile]
+    WhatError{What error?}
+    LogDBError[Log database-specific error]
+    LogError[Log error]
+    ServerError([Return HTTP 500])
+    End([Return HTTP 200])
+
+    %% connections %%
+    Start-->AuthCheck
+    AuthCheck-- No -->Unauthorized
+    AuthCheck-- Yes -->ParseRequest
+    ParseRequest-->ValidateRequest
+    ValidateRequest-- No -->BadRequest
+    ValidateRequest-- Yes -->StartTransaction
+    subgraph t
+    StartTransaction-->updateUserProfile
+    updateUserProfile-->Commit
+    DB[(PoT DB)]
+    end
+    t-- Error -->Rollback
+    Commit-->End
+    Rollback-->WhatError
+    WhatError-- Database Error --> LogDBError
+    LogDBError --> ServerError
+    WhatError-- Other --> LogError
+    LogError--> ServerError
+    updateUserProfile-.->DB
+    StartTransaction-.->DB
+    Commit-.->DB
+    Rollback-.->DB

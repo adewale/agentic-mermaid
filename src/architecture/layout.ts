@@ -1,4 +1,6 @@
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { routeOrthogonal, type RouterDirection } from '../layout/orthogonal-router.ts'
 import { architectureMarkerTerminal } from './markers.ts'
 import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
@@ -34,6 +36,10 @@ const EMPTY_GROUP_BODY = { width: 80, height: 24 }
 export const ARCHITECTURE_TITLE_FONT_SIZE = 18
 export const ARCHITECTURE_TITLE_FONT_WEIGHT = 600
 const TITLE_Y = 20
+/** Padding of the box the renderer paints behind an edge label. */
+export const EDGE_LABEL_PADDING = 7
+/** The least room between an edge label's box and the canvas edge. */
+const LABEL_CANVAS_MARGIN = 8
 const TITLE_SIDE_PADDING = 40
 
 interface LayoutGroup {
@@ -227,6 +233,7 @@ export function layoutArchitectureDiagram(
       junctionsById,
       serviceBounds,
       junctionBounds,
+      edgeText,
       reservedHeaderPadding,
     )
     if (sideConstraintsChanged) {
@@ -234,6 +241,7 @@ export function layoutArchitectureDiagram(
       // more before resolving `{group}` anchors and route obstacles.
       expandGroupBounds(groups, services, junctions, true, reservedHeaderPadding)
     }
+    const contactsSnapped = snapNearlyAlignedContacts(diagram, services, junctions, flatGroups, options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING, reservedHeaderPadding)
 
     if (diagram.alignments.length) {
       // Side ordering and container cleanup must preserve every fixed-axis
@@ -249,7 +257,7 @@ export function layoutArchitectureDiagram(
       if (alignmentFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-alignments', violations: alignmentFailures }])
     }
 
-    const routeEdges = () => diagram.edges.map((edge) =>
+    const routeOnce = (drawnFor: (index: number) => readonly Point[][], apartFor: (index: number, routed: readonly PositionedArchitectureEdge[]) => readonly Point[][] = () => []) => diagram.edges.reduce<PositionedArchitectureEdge[]>((routed, edge, index) => (routed.push(
       routeArchitectureEdge(
         edge,
         servicesById,
@@ -260,8 +268,25 @@ export function layoutArchitectureDiagram(
         junctionBounds,
         { start: edge.hasArrowStart ? architectureMarkerTerminal('architecture-arrow-start', typography.edgeLineWidth, 'start') : 0, end: edge.hasArrowEnd ? architectureMarkerTerminal('architecture-arrow-end', typography.edgeLineWidth, 'end') : 0 },
         typography.edgeBendRadius,
-      )
-    )
+        drawnFor(index),
+        apartFor(index, routed),
+      )), routed), [])
+    // A detour should not cross the other relations. Route once without them,
+    // then route again knowing every other relation's route: only detours
+    // read them, and direct routes come out the same. The second pass also
+    // keeps each route off the ink of the relations authored before it, as
+    // they are finally drawn: the later relation yields, so two relations
+    // never both move to one new line. Relations that share an authored
+    // contact share its lead.
+    const routeEdges = () => {
+      const first = routeOnce(() => [])
+      const others = first.map(edge => edge.points)
+      const contact = (end: ArchitectureEndpoint): string => `${end.boundary ?? 'item'}:${end.id}:${end.side}`
+      const sharesContact = (a: ArchitectureDiagram['edges'][number], b: ArchitectureDiagram['edges'][number]): boolean =>
+        [a.source, a.target].some(end => [b.source, b.target].some(other => contact(end) === contact(other)))
+      return routeOnce(index => others.filter((_, other) => other !== index), (index, routed) =>
+        routed.filter((_, other) => !sharesContact(diagram.edges[index]!, diagram.edges[other]!)).map(edge => edge.points))
+    }
     const edges = routeEdges()
     edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
     separateEdgeLabels(edges, services, metrics)
@@ -274,9 +299,25 @@ export function layoutArchitectureDiagram(
     const titleHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
     let width = positioned.width
     let height = positioned.height
-    if (diagram.alignments.length > 0 || sideConstraintsChanged) {
+    if (diagram.alignments.length > 0 || sideConstraintsChanged || contactsSnapped) {
       // Alignment may collapse several old ranks into one; derive the canvas
       // from post-constraint geometry instead of retaining ELK's stale extent.
+      // That holds for the top and left margins too: lining units up can move
+      // the unit that started the drawing away from its corner.
+      const items = [...services, ...junctions, ...groups]
+      const outX = Math.max(0, Math.min(...items.map(item => item.x)) - 40), outY = Math.max(0, Math.min(...items.map(item => item.y)) - 40)
+      if (outX > 0 || outY > 0) {
+        const shiftGroup = (group: PositionedArchitectureGroup): void => {
+          group.x -= outX; group.y -= outY
+          group.children.forEach(shiftGroup)
+        }
+        groups.forEach(shiftGroup)
+        for (const item of [...services, ...junctions]) { item.x -= outX; item.y -= outY }
+        for (const edge of edges) {
+          for (const point of edge.points) { point.x -= outX; point.y -= outY }
+          if (edge.labelPosition) { edge.labelPosition.x -= outX; edge.labelPosition.y -= outY }
+        }
+      }
       width = Math.max(
         80,
         ...services.map(service => service.x + service.width + 40),
@@ -309,6 +350,37 @@ export function layoutArchitectureDiagram(
         if (edge.labelPosition) edge.labelPosition.y += shiftY
       }
       height = Math.max(height + shiftY, titleTop + titleHeight + 20)
+    }
+    // Every edge label's painted box, card, junction, group frame and route
+    // lies on the canvas. Packing can leave a route near the canvas edge, a
+    // label seated on it then reaches past the left or top edge, and lining
+    // relations up can move a unit past it: move the whole drawing in by
+    // what it needs.
+    const labelBoxes = edges.flatMap(edge => edge.labelPosition && edge.labelBlock ? [{
+      x0: edge.labelPosition.x - edge.labelBlock.width / 2 - EDGE_LABEL_PADDING, y0: edge.labelPosition.y - edge.labelBlock.height / 2 - EDGE_LABEL_PADDING,
+      x1: edge.labelPosition.x + edge.labelBlock.width / 2 + EDGE_LABEL_PADDING, y1: edge.labelPosition.y + edge.labelBlock.height / 2 + EDGE_LABEL_PADDING,
+    }] : [])
+    const drawn = [...services, ...junctions, ...flatGroups.values(), ...edges.flatMap(edge => edge.points.map(point => ({ ...point, width: 0, height: 0 })))]
+    const inX = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.x0), ...drawn.map(box => box.x)))
+    const inY = Math.max(0, LABEL_CANVAS_MARGIN - Math.min(Infinity, ...labelBoxes.map(box => box.y0), ...drawn.map(box => box.y)))
+    if (inX > 0 || inY > 0) {
+      const shiftGroup = (group: PositionedArchitectureGroup): void => {
+        group.x += inX; group.y += inY
+        group.children.forEach(shiftGroup)
+      }
+      groups.forEach(shiftGroup)
+      for (const item of [...services, ...junctions]) { item.x += inX; item.y += inY }
+      for (const edge of edges) {
+        for (const point of edge.points) { point.x += inX; point.y += inY }
+        if (edge.labelPosition) { edge.labelPosition.x += inX; edge.labelPosition.y += inY }
+      }
+      for (const box of labelBoxes) { box.x0 += inX; box.x1 += inX; box.y0 += inY; box.y1 += inY }
+      width += inX
+      height += inY
+    }
+    for (const box of labelBoxes) {
+      width = Math.max(width, box.x1 + LABEL_CANVAS_MARGIN)
+      height = Math.max(height, box.y1 + LABEL_CANVAS_MARGIN)
     }
     for (const edge of edges) {
       for (const point of edge.points) {
@@ -358,9 +430,131 @@ export function layoutArchitectureDiagram(
       accessibilityDescription: diagram.accessibilityDescription,
     }
   }
-  return runElkGraphBackend(options,
-    () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true })),
-  )
+  return runElkGraphBackend(options, () => {
+    const positioned = layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true })
+    const placed = finish(positioned)
+    // Faces fix only the order along each relation, so packing a tree can
+    // still leave a child where its relation must cross another
+    // (corpus/architecture/4, mermaid-v13#1212). A tree has a drawing with
+    // no crossing; where the packed one crosses, draw the tree packed by its
+    // faces instead, when that crosses less.
+    const crossings = (diagram: PositionedArchitectureDiagram) => countPolylineCrossings(diagram.edges.map(edge => ({ points: edge.points })))
+    const before = crossings(placed)
+    if (before === 0) return placed
+    const packed = packArchitectureTree(diagram, positioned, options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING, options.padding ?? 40, edgeText)
+    if (!packed) return placed
+    const alternative = finish(packed)
+    return crossings(alternative) < before ? alternative : placed
+  })
+}
+
+/** Most units a tree is packed for; beyond it packing is not attempted. */
+const TREE_PACK_LIMIT = 200
+type TreeBox = { x0: number; y0: number; x1: number; y1: number }
+const SIDE_STEP: Record<ArchitectureEndpoint['side'], Point> = { L: { x: -1, y: 0 }, R: { x: 1, y: 0 }, T: { x: 0, y: -1 }, B: { x: 0, y: 1 } }
+
+/**
+ * Places a forest of services and junctions so every relation is one
+ * straight run between the faces it names and no two relations cross: each
+ * child's subtree is laid out first, then moved out along its relation's
+ * axis just far enough that its units keep the node spacing (the relation's
+ * label room between the two faces) from everything placed, its runs cross
+ * nothing, and it keeps clear of the lines the parent's other relations
+ * will take. Trees side by side follow declaration order. Undefined where
+ * the diagram is not such a forest: groups or alignments, a group endpoint
+ * or self-relation, faces that are not opposite, a face carrying two
+ * relations, a cycle, or more than TREE_PACK_LIMIT units.
+ */
+function packArchitectureTree(
+  diagram: ArchitectureDiagram,
+  positioned: ReturnType<typeof layoutElkGraphPlacementSync>,
+  spacing: number,
+  padding: number,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
+): ReturnType<typeof layoutElkGraphPlacementSync> | undefined {
+  if (diagram.groups.length || diagram.alignments.length || positioned.nodes.length > TREE_PACK_LIMIT) return undefined
+  const sizes = new Map(positioned.nodes.map(node => [node.id, node]))
+  const links = new Map<string, { side: ArchitectureEndpoint['side']; other: string; gap: number }[]>()
+  const faces = new Set<string>(), root = new Map<string, string>()
+  const find = (id: string): string => { while (root.get(id) !== id) id = root.get(id)!; return id }
+  for (const node of positioned.nodes) { root.set(node.id, node.id); links.set(node.id, []) }
+  for (const [index, edge] of diagram.edges.entries()) {
+    const { source, target } = edge
+    if (source.boundary === 'group' || target.boundary === 'group' || !sizes.has(source.id) || !sizes.has(target.id) || source.id === target.id || OPPOSITE_SIDE[source.side] !== target.side) return undefined
+    for (const face of [`${source.id}\0${source.side}`, `${target.id}\0${target.side}`]) { if (faces.has(face)) return undefined; faces.add(face) }
+    const a = find(source.id), b = find(target.id)
+    if (a === b) return undefined
+    root.set(a, b)
+    const label = edgeLabels[index], horizontal = source.side === 'L' || source.side === 'R'
+    const gap = label ? Math.max(spacing, (horizontal ? label.width : label.height) + 2 * (EDGE_LABEL_PADDING + ROUTE_CLEARANCE)) : spacing
+    links.get(source.id)!.push({ side: source.side, other: target.id, gap })
+    links.get(target.id)!.push({ side: target.side, other: source.id, gap })
+  }
+  const half = (id: string) => ({ x: sizes.get(id)!.width / 2, y: sizes.get(id)!.height / 2 })
+  const far = 1e7, inflate = spacing / 2
+  const overlaps = (a: TreeBox, b: TreeBox, grow: number) => a.x0 - grow < b.x1 && b.x0 < a.x1 + grow && a.y0 - grow < b.y1 && b.y0 < a.y1 + grow
+  const shift = (box: TreeBox, by: Point): TreeBox => ({ x0: box.x0 + by.x, y0: box.y0 + by.y, x1: box.x1 + by.x, y1: box.y1 + by.y })
+  // How much further along `side` a moving box must go to clear a fixed one.
+  const clearing = (moving: TreeBox, fixed: TreeBox, side: ArchitectureEndpoint['side'], grow: number) =>
+    side === 'R' ? fixed.x1 + grow - moving.x0 : side === 'L' ? moving.x1 + grow - fixed.x0 : side === 'B' ? fixed.y1 + grow - moving.y0 : moving.y1 + grow - fixed.y0
+  // A ray from a unit's face, the line a relation there takes.
+  const ray = (id: string, side: ArchitectureEndpoint['side']): TreeBox => {
+    const { x, y } = half(id)
+    return side === 'R' ? { x0: x, y0: 0, x1: far, y1: 0 } : side === 'L' ? { x0: -far, y0: 0, x1: -x, y1: 0 } : side === 'B' ? { x0: 0, y0: y, x1: 0, y1: far } : { x0: 0, y0: -far, x1: 0, y1: -y }
+  }
+  type Shape = { units: TreeBox[]; lines: TreeBox[]; centres: Map<string, Point> }
+  const layout = (id: string, parent: string | undefined): Shape => {
+    const { x, y } = half(id)
+    const shape: Shape = { units: [{ x0: -x, y0: -y, x1: x, y1: y }], lines: [], centres: new Map([[id, { x: 0, y: 0 }]]) }
+    const reserved = new Map(links.get(id)!.map(link => [link.side, ray(id, link.side)]))
+    for (const { side, other, gap } of links.get(id)!) {
+      if (other === parent) continue
+      const sub = layout(other, id), step = SIDE_STEP[side], size = half(other)
+      let t = (step.x ? x + size.x : y + size.y) + gap
+      for (;;) {
+        const at = { x: step.x * t, y: step.y * t }
+        let need = 0
+        const fixedLines = [...shape.lines, ...[...reserved].flatMap(([kind, line]) => kind === side ? [] : [line])]
+        for (const unit of sub.units) {
+          const moved = shift(unit, at)
+          for (const fixed of shape.units) if (overlaps(moved, fixed, inflate * 2)) need = Math.max(need, clearing(moved, fixed, side, inflate * 2))
+          for (const fixed of fixedLines) if (overlaps(moved, fixed, inflate)) need = Math.max(need, clearing(moved, fixed, side, inflate))
+        }
+        for (const line of sub.lines) {
+          const moved = shift(line, at)
+          for (const fixed of shape.units) if (overlaps(moved, fixed, inflate)) need = Math.max(need, clearing(moved, fixed, side, inflate))
+          for (const fixed of fixedLines) if (overlaps(moved, fixed, 1)) need = Math.max(need, clearing(moved, fixed, side, 1))
+        }
+        if (need <= ROUTE_EPSILON) break
+        t += need
+      }
+      const at = { x: step.x * t, y: step.y * t }
+      shape.units.push(...sub.units.map(unit => shift(unit, at)))
+      shape.lines.push(...sub.lines.map(line => shift(line, at)))
+      for (const [unit, centre] of sub.centres) shape.centres.set(unit, { x: centre.x + at.x, y: centre.y + at.y })
+      // The relation's run, from this unit's face to the child's.
+      const from = { x: step.x * x, y: step.y * y }, to = { x: at.x - step.x * size.x, y: at.y - step.y * size.y }
+      shape.lines.push({ x0: Math.min(from.x, to.x), y0: Math.min(from.y, to.y), x1: Math.max(from.x, to.x), y1: Math.max(from.y, to.y) })
+      reserved.delete(side)
+    }
+    return shape
+  }
+  const placed = new Map<string, Point>()
+  let cursor = padding
+  for (const node of positioned.nodes) {
+    if (placed.has(node.id) || [...placed.keys()].some(id => find(id) === find(node.id))) continue
+    const shape = layout(node.id, undefined)
+    const left = Math.min(...shape.units.map(unit => unit.x0)), top = Math.min(...shape.units.map(unit => unit.y0)), right = Math.max(...shape.units.map(unit => unit.x1))
+    for (const [id, centre] of shape.centres) placed.set(id, { x: cursor - left + centre.x, y: padding - top + centre.y })
+    cursor += right - left + spacing
+  }
+  const nodes = positioned.nodes.map(node => ({ ...node, x: placed.get(node.id)!.x - node.width / 2, y: placed.get(node.id)!.y - node.height / 2 }))
+  return {
+    ...positioned,
+    nodes,
+    width: Math.max(...nodes.map(node => node.x + node.width)) + padding,
+    height: Math.max(...nodes.map(node => node.y + node.height)) + padding,
+  }
 }
 
 type AlignableArchitectureItem = PositionedArchitectureService | PositionedArchitectureJunction
@@ -554,6 +748,9 @@ interface ArchitectureSideConstraint {
   before: string
   after: string
   depth: number
+  /** The least room between the two units: the node spacing, or what the
+   * relation's label needs to sit between them along this axis. */
+  gap: number
 }
 
 /**
@@ -576,6 +773,7 @@ function applyArchitectureSideConstraints(
   junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
   positionedServices: Map<string, Bounds>,
   positionedJunctions: Map<string, Bounds>,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
   reservedHeaderPadding?: number,
 ): boolean {
   let changed = false
@@ -606,10 +804,14 @@ function applyArchitectureSideConstraints(
   }
 
   const constraints: ArchitectureSideConstraint[] = []
-  for (const edge of diagram.edges) {
+  for (const [index, edge] of diagram.edges.entries()) {
     const sourcePath = itemPath(edge.source.id, edge.source.boundary)
     const targetPath = itemPath(edge.target.id, edge.target.boundary)
     if (!sourcePath || !targetPath) continue
+    // A label is seated on its own route between the two units, so their gap
+    // along an axis holds the label's extent on it, its painted padding and a
+    // route clearance either side.
+    const label = edgeLabels[index]
     let common = 0
     while (common < sourcePath.length && common < targetPath.length && sourcePath[common] === targetPath[common]) common++
     // One effective endpoint is the other's ancestor (for example a group
@@ -628,6 +830,7 @@ function applyArchitectureSideConstraints(
         before: currentBeforeOther ? current : other,
         after: currentBeforeOther ? other : current,
         depth: common,
+        gap: label ? Math.max(spacing, (axis === 'x' ? label.width : label.height) + 2 * (EDGE_LABEL_PADDING + ROUTE_CLEARANCE)) : spacing,
       })
     }
     addForSide(sourceUnit, targetUnit, edge.source.side)
@@ -727,6 +930,8 @@ function applyArchitectureSideConstraints(
       alignmentComponents(siblingKeys, parentId, axis === 'x' ? 'column' : 'row')
 
     const arcs = new Map<string, Set<string>>()
+    const gaps = new Map<string, number>()
+    const gapOf = (before: string, after: string): number => gaps.get(`${before}\0${after}`) ?? spacing
     let intrinsicConflict = false
     for (const entry of entries) {
       const before = find(entry.before)
@@ -735,6 +940,7 @@ function applyArchitectureSideConstraints(
       const targets = arcs.get(before) ?? new Set<string>()
       targets.add(after)
       arcs.set(before, targets)
+      gaps.set(`${before}\0${after}`, Math.max(gapOf(before, after), entry.gap))
     }
     if (intrinsicConflict) continue
 
@@ -742,8 +948,8 @@ function applyArchitectureSideConstraints(
     const constraintSatisfied = (before: string, after: string): boolean => {
       const a = componentBounds(before), b = componentBounds(after)
       return axis === 'x'
-        ? a.x + a.width + spacing <= b.x + ROUTE_EPSILON
-        : a.y + a.height + spacing <= b.y + ROUTE_EPSILON
+        ? a.x + a.width + gapOf(before, after) <= b.x + ROUTE_EPSILON
+        : a.y + a.height + gapOf(before, after) <= b.y + ROUTE_EPSILON
     }
     if ([...arcs].every(([before, afters]) => [...afters].every(after => constraintSatisfied(before, after)))) continue
 
@@ -766,15 +972,73 @@ function applyArchitectureSideConstraints(
     // still legal; leave placement intact and let the typed certificate say so.
     if (order.length !== components.length) continue
 
-    const initialBounds = components.map(componentBounds)
-    let cursor = Math.min(...initialBounds.map(bound => axis === 'x' ? bound.x : bound.y))
+    // Pack the constrained units by longest path: a unit starts one spacing
+    // past the last unit it must follow, and a unit that follows none starts
+    // where the first constrained unit did. A unit no face constrains on
+    // this axis keeps its place, so satisfying one relation never pushes an
+    // unrelated sibling off the line of another (pele#138); the overlap
+    // cleanup below separates any units this brings together.
+    const predecessors = new Map(components.map(component => [component, [] as string[]]))
+    for (const [before, afters] of arcs) for (const after of afters) predecessors.get(after)!.push(before)
+    const constrained = new Set([...arcs].flatMap(([before, afters]) => [before, ...afters]))
+    const startOf = (bounds: Bounds): number => axis === 'x' ? bounds.x : bounds.y
+    const origin = Math.min(...[...constrained].map(component => startOf(componentBounds(component))))
+    // An unlabelled relation between facing sides of two siblings wants its
+    // two contacts level across its own axis, which is this one. Packing each
+    // unit by its own predecessors alone put a bus of junctions on as many
+    // lines as they had depths, and each run between them bent across the
+    // others (mermaid#5952). Units joined by such relations form one level:
+    // centred on one line and packed as one unit as wide as its widest
+    // member, after every level any member must follow. Where the relations
+    // would put a unit level with one it must follow, or the levels' order
+    // is a cycle, each unit is packed alone as before.
+    const levelOrder = levelPacking(diagram, edgeLabels, axis, siblingKeys, itemPath, find, components, predecessors, member => startOf(componentBounds(member)))
+    if (levelOrder) {
+      const sizeOf = (bounds: Bounds): number => axis === 'x' ? bounds.width : bounds.height
+      const levelOf = new Map(levelOrder.flatMap(members => members.map(member => [member, members] as const)))
+      /** Where each placed level ends. */
+      const ends = new Map<readonly string[], number>()
+      // Levels start where the first constrained unit did, or where the first
+      // unit of a level that follows none did, so lining that unit up leaves
+      // no empty space before it.
+      const first = Math.min(origin, ...levelOrder.filter(members => members.length > 1 && members.every(member => predecessors.get(member)!.length === 0)).flat().map(member => startOf(componentBounds(member))))
+      for (const members of levelOrder) {
+        // A unit alone that no face constrains keeps its place.
+        if (members.length === 1 && !constrained.has(members[0]!)) continue
+        const half = Math.max(...members.map(member => sizeOf(componentBounds(member)))) / 2
+        const start = Math.max(first, ...members.flatMap(member => predecessors.get(member)!.map(before => ends.get(levelOf.get(before)!)! + gapOf(before, member))))
+        ends.set(members, start + 2 * half)
+        for (const member of members) {
+          const bounds = componentBounds(member)
+          const delta = start + half - startOf(bounds) - sizeOf(bounds) / 2
+          if (Math.abs(delta) <= ROUTE_EPSILON) continue
+          changed = true
+          for (const key of componentMembers.get(member)!) translateUnit(key, axis, delta)
+        }
+        // Contacts sit at side centres, and a route between two contacts
+        // that differ in the last bit draws a hairline jog: put every lone
+        // service or junction of the level exactly on its centre line.
+        for (const member of members) {
+          const keys = componentMembers.get(member)!
+          const item = keys.length === 1 ? positionedServices.get(splitUnitKey(keys[0]!).id) ?? positionedJunctions.get(splitUnitKey(keys[0]!).id) : undefined
+          if (!item || splitUnitKey(keys[0]!).kind === 'group') continue
+          for (let step = 0; step < 2 && startOf(item) + sizeOf(item) / 2 !== start + half; step++) item[axis] += start + half - startOf(item) - sizeOf(item) / 2
+        }
+      }
+      expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
+      continue
+    }
     for (const component of order) {
-      const bounds = componentBounds(component)
-      const start = axis === 'x' ? bounds.x : bounds.y
-      const delta = cursor - start
-      if (Math.abs(delta) > ROUTE_EPSILON) changed = true
+      if (!constrained.has(component)) continue
+      const start = startOf(componentBounds(component))
+      const required = Math.max(origin, ...predecessors.get(component)!.map(before => {
+        const placed = componentBounds(before)
+        return startOf(placed) + (axis === 'x' ? placed.width : placed.height) + gapOf(before, component)
+      }))
+      const delta = required - start
+      if (Math.abs(delta) <= ROUTE_EPSILON) continue
+      changed = true
       for (const key of componentMembers.get(component)!) translateUnit(key, axis, delta)
-      cursor += (axis === 'x' ? bounds.width : bounds.height) + spacing
     }
     // A nested reorder can enlarge its container; refresh before a parent-level
     // constraint uses that group as one sibling unit.
@@ -857,6 +1121,37 @@ function applyArchitectureSideConstraints(
       }
       if (!moved) break
     }
+    // Any two siblings side by side (their y spans overlap, their x spans do
+    // not) keep the node spacing between them. The right one moves right with
+    // its column, and so does a unit a face places after it, so no x order
+    // a face already has reverses (conflicting faces have none to keep).
+    const xFaces = constraints.filter(constraint => {
+      if (constraint.axis !== 'x' || constraint.parentId !== context.parentId) return false
+      const before = unitBounds(constraint.before), after = unitBounds(constraint.after)
+      return before !== undefined && after !== undefined && before.x + before.width <= after.x + ROUTE_EPSILON
+    })
+    for (let pass = 0; pass < siblingKeys.length; pass++) {
+      let moved = false
+      const order = [...siblingKeys].sort((a, b) => unitBounds(a)!.x - unitBounds(b)!.x || compareCodePointStrings(a, b))
+      for (const [index, key] of order.entries()) {
+        const bounds = unitBounds(key)!
+        let required = -Infinity
+        for (const other of order.slice(0, index)) {
+          const placed = unitBounds(other)!
+          if (column(other) === column(key) || placed.x + placed.width > bounds.x + ROUTE_EPSILON) continue
+          if (placed.y < bounds.y + bounds.height - ROUTE_EPSILON && bounds.y < placed.y + placed.height - ROUTE_EPSILON) required = Math.max(required, placed.x + placed.width + spacing)
+        }
+        for (const face of xFaces) {
+          const before = face.after === key ? unitBounds(face.before) : undefined
+          if (before) required = Math.max(required, before.x + before.width + face.gap)
+        }
+        if (bounds.x >= required - ROUTE_EPSILON) continue
+        const delta = required - bounds.x
+        for (const sibling of columns.get(column(key))!) translateUnit(sibling, 'x', delta)
+        moved = changed = true
+      }
+      if (!moved) break
+    }
     const order = [...members.keys()].sort((a, b) => {
       const aa = boundsFor(a), bb = boundsFor(b)
       return aa.y - bb.y || aa.x - bb.x || compareCodePointStrings(a, b)
@@ -865,9 +1160,14 @@ function applyArchitectureSideConstraints(
     for (const root of order) {
       for (let pass = 0; pass <= placed.length; pass++) {
         const bounds = boundsFor(root)
-        const blockers = placed.map(boundsFor).filter(other => overlaps(bounds, other))
+        // Every other pair keeps the node spacing too, measured between the
+        // nearest points of the two boxes: a unit below another moves down
+        // until it is that far away.
+        const gapX = (other: Bounds): number => Math.max(0, other.x - bounds.x - bounds.width, bounds.x - other.x - other.width)
+        const gapY = (other: Bounds): number => Math.max(0, other.y - bounds.y - bounds.height, bounds.y - other.y - other.height)
+        const blockers = placed.map(boundsFor).filter(other => overlaps(bounds, other) || Math.hypot(gapX(other), gapY(other)) < spacing - ROUTE_EPSILON)
         if (blockers.length === 0) break
-        const targetY = Math.max(...blockers.map(other => other.y + other.height + spacing))
+        const targetY = Math.max(...blockers.map(other => other.y + other.height + Math.sqrt(Math.max(0, spacing * spacing - gapX(other) ** 2))))
         const delta = targetY - bounds.y
         for (const key of members.get(root)!) translateUnit(key, 'y', delta)
         changed = true
@@ -876,9 +1176,216 @@ function applyArchitectureSideConstraints(
     }
     expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
+
+  // Faces fix the order along a relation's axis and leave the other axis to
+  // wherever placement put each unit, so a child could sit far to one side of
+  // the face it hangs from and its relation bend across others (mermaid#1212).
+  // Line up each relation between facing sides: move the target's unit (or
+  // else the source's) across the axis until the two contacts are level. A
+  // unit moves at most once per axis and keeps still once another lines up
+  // with it; a move must keep every sibling at the node spacing (or as far as
+  // it was), stay inside its group's padding, leave explicit alignments alone
+  // and keep every face order it satisfied. A labelled relation keeps its
+  // bend: its label and arrowheads need a longer run than a straight one
+  // between units a spacing apart would give them.
+  const pinned = { x: new Set<string>(), y: new Set<string>() }
+  // A move never takes a unit above or left of the drawing's top-left corner,
+  // which keeps the canvas margin placement gave it.
+  const corner = siblingKeysFor(undefined).map(key => unitBounds(key)!).reduce((min, box) => ({ x: Math.min(min.x, box.x), y: Math.min(min.y, box.y) }), { x: Infinity, y: Infinity })
+  const contact = (id: string, axis: SideConstraintAxis): number | undefined => {
+    const item = positionedServices.get(id) ?? positionedJunctions.get(id)
+    return item ? item[axis] + (axis === 'x' ? item.width : item.height) / 2 : undefined
+  }
+  // Lining up is only worth it when the straight run it makes is drawable:
+  // clear of every other card and junction, every header band and every
+  // group that contains neither end.
+  const straightRunClear = (edge: ArchitectureDiagram['edges'][number]): boolean => {
+    const source = positionedServices.get(edge.source.id) ?? positionedJunctions.get(edge.source.id)!
+    const target = positionedServices.get(edge.target.id) ?? positionedJunctions.get(edge.target.id)!
+    const a = rectAnchor(source, edge.source.side), b = rectAnchor(target, edge.target.side)
+    const run = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+    const enters = (box: Bounds): boolean => run.x < box.x + box.width - ROUTE_EPSILON && run.x + run.width > box.x + ROUTE_EPSILON
+      && run.y < box.y + box.height - ROUTE_EPSILON && run.y + run.height > box.y + ROUTE_EPSILON
+    const ends = new Set([...itemPath(edge.source.id) ?? [], ...itemPath(edge.target.id) ?? []])
+    for (const item of [...positionedServices.values(), ...positionedJunctions.values()]) if (item !== source && item !== target && enters(item)) return false
+    for (const group of groups.values()) {
+      const own = ends.has(unitKey('group', group.id))
+      if (enters(own ? { ...group, height: group.headerHeight ?? 0 } : group)) return false
+    }
+    return true
+  }
+  // How far out of line, in total, the facing contacts are of every relation
+  // between this unit and a unit outside it: a move must not raise it, so lining
+  // up one relation of a fan never pulls the hub off its middle (corpus fan-ins).
+  const misalignment = (unit: string, axis: SideConstraintAxis): number => {
+    let total = 0
+    for (const [index, edge] of diagram.edges.entries()) {
+      if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+      if ((edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x') !== axis) continue
+      const inSource = itemPath(edge.source.id)?.includes(unit) ?? false, inTarget = itemPath(edge.target.id)?.includes(unit) ?? false
+      if (inSource === inTarget) continue
+      const from = contact(edge.source.id, axis), to = contact(edge.target.id, axis)
+      if (from !== undefined && to !== undefined) total += Math.abs(from - to)
+    }
+    return total
+  }
+  const nearest = (a: Bounds, b: Bounds): number => Math.hypot(Math.max(0, a.x - b.x - b.width, b.x - a.x - a.width), Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height))
+  // Lining one relation up can move a unit that an earlier relation was
+  // already level with; a second pass lines that relation up again, still
+  // moving each unit at most once per axis.
+  for (let pass = 0; pass < 2; pass++) for (const [index, edge] of diagram.edges.entries()) {
+    if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+    const sourcePath = itemPath(edge.source.id), targetPath = itemPath(edge.target.id)
+    if (!sourcePath || !targetPath) continue
+    let common = 0
+    while (common < sourcePath.length && common < targetPath.length && sourcePath[common] === targetPath[common]) common++
+    if (common >= sourcePath.length || common >= targetPath.length) continue
+    const parentId = common === 0 ? undefined : splitUnitKey(sourcePath[common - 1]!).id
+    const axis: SideConstraintAxis = edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x'
+    const from = contact(edge.source.id, axis), to = contact(edge.target.id, axis)
+    if (from === undefined || to === undefined || Math.abs(from - to) <= ROUTE_EPSILON) continue
+    const siblings = siblingKeysFor(parentId)
+    const parent = parentId ? groups.get(parentId) : undefined
+    const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : (parent?.headerHeight ?? 0) + reservedHeaderPadding
+    const faces = constraints.filter(constraint => constraint.axis === axis && constraint.parentId === parentId)
+    const holds = (constraint: ArchitectureSideConstraint): boolean => {
+      const before = unitBounds(constraint.before), after = unitBounds(constraint.after)
+      return !!before && !!after && (axis === 'x' ? before.x + before.width : before.y + before.height) + constraint.gap <= (axis === 'x' ? after.x : after.y) + ROUTE_EPSILON
+    }
+    const aligned = (unit: string): boolean => diagram.alignments.some(alignment => alignment.axis === (axis === 'y' ? 'row' : 'column')
+      && alignment.members.some(member => itemPath(member)?.includes(unit)))
+    for (const [unit, anchor, delta] of [[targetPath[common]!, sourcePath[common]!, from - to], [sourcePath[common]!, targetPath[common]!, to - from]] as const) {
+      if (pinned[axis].has(unit) || aligned(unit)) continue
+      const bounds = unitBounds(unit)!
+      const moved = { ...bounds, [axis]: bounds[axis] + delta }
+      if (parent && (moved.x - GROUP_EDGE_PAD < parent.x - ROUTE_EPSILON || moved.y - topPadding < parent.y - ROUTE_EPSILON
+        || moved.x + moved.width + GROUP_EDGE_PAD > parent.x + parent.width + ROUTE_EPSILON || moved.y + moved.height + GROUP_EDGE_PAD > parent.y + parent.height + ROUTE_EPSILON)) continue
+      if (moved.x < corner.x - ROUTE_EPSILON || moved.y < corner.y - ROUTE_EPSILON) continue
+      if (siblings.some(other => other !== unit && nearest(moved, unitBounds(other)!) < Math.min(spacing, nearest(bounds, unitBounds(other)!)) - ROUTE_EPSILON)) continue
+      const kept = faces.filter(holds)
+      const offBefore = misalignment(unit, axis)
+      translateUnit(unit, axis, delta)
+      if (kept.some(constraint => !holds(constraint)) || !straightRunClear(edge) || misalignment(unit, axis) > offBefore + ROUTE_EPSILON) { translateUnit(unit, axis, -delta); continue }
+      pinned[axis].add(unit).add(anchor)
+      changed = true
+      break
+    }
+  }
+  expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   return changed
 }
 
+
+/**
+ * The levels sibling units pack in along `axis`, in packing order: units
+ * joined, directly or through others, by an unlabelled relation between
+ * facing sides of the two units themselves whose run lies across `axis`.
+ * Undefined when no two units share a level, when a level holds a unit and
+ * one it must follow on `axis`, or when the levels' order is a cycle.
+ */
+function levelPacking(
+  diagram: ArchitectureDiagram,
+  edgeLabels: readonly ({ width: number; height: number } | undefined)[],
+  axis: SideConstraintAxis,
+  siblingKeys: readonly string[],
+  itemPath: (id: string) => string[] | null,
+  component: (key: string) => string,
+  components: readonly string[],
+  predecessors: ReadonlyMap<string, readonly string[]>,
+  startOf: (component: string) => number,
+): (readonly string[])[] | undefined {
+  const root = new Map(components.map(member => [member, member]))
+  const find = (member: string): string => { while (root.get(member) !== member) member = root.get(member)!; return member }
+  const siblings = new Set(siblingKeys)
+  let joined = false
+  for (const [index, edge] of diagram.edges.entries()) {
+    if (edgeLabels[index] || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) continue
+    if ((edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x') !== axis) continue
+    const source = itemPath(edge.source.id)?.at(-1), target = itemPath(edge.target.id)?.at(-1)
+    if (!source || !target || !siblings.has(source) || !siblings.has(target)) continue
+    const a = find(component(source)), b = find(component(target))
+    if (a === b) continue
+    root.set(b, a)
+    joined = true
+  }
+  if (!joined) return undefined
+  const levels = new Map<string, string[]>()
+  for (const member of components) levels.set(find(member), [...levels.get(find(member)) ?? [], member])
+  const after = new Map([...levels].map(([key, members]) => [key, new Set(members.flatMap(member => predecessors.get(member)!.map(find)))]))
+  if ([...after].some(([key, befores]) => befores.has(key))) return undefined
+  const order: string[] = []
+  while (order.length < levels.size) {
+    const next = [...levels.keys()].filter(key => !order.includes(key) && [...after.get(key)!].every(before => order.includes(before)))
+      .sort((a, b) => Math.min(...levels.get(a)!.map(startOf)) - Math.min(...levels.get(b)!.map(startOf)) || compareCodePointStrings(a, b))[0]
+    if (next === undefined) return undefined
+    order.push(next)
+  }
+  return order.map(key => levels.get(key)!)
+}
+
+/** Facing contacts this close would join with a jog that reads as a glitch. */
+const CONTACT_SNAP = 2
+const OPPOSITE_SIDE: Record<ArchitectureEndpoint['side'], ArchitectureEndpoint['side']> = { L: 'R', R: 'L', T: 'B', B: 'T' }
+
+/**
+ * Line up the facing contacts of a relation whose units placement left at
+ * most CONTACT_SNAP out of line, so its route runs straight. Contacts stay at
+ * their side centres; one endpoint unit moves instead, and only when that
+ * keeps it inside its group's padding, keeps every distance it had or the
+ * node spacing, leaves its fixed alignment axis alone and puts none of its
+ * other relations out of line.
+ */
+function snapNearlyAlignedContacts(
+  diagram: ArchitectureDiagram,
+  services: PositionedArchitectureService[],
+  junctions: PositionedArchitectureJunction[],
+  groups: Map<string, PositionedArchitectureGroup>,
+  spacing: number,
+  reservedHeaderPadding?: number,
+): boolean {
+  const items = new Map<string, PositionedArchitectureService | PositionedArchitectureJunction>([...services, ...junctions].map(item => [item.id, item]))
+  const aligned = (id: string, axis: 'x' | 'y'): boolean => diagram.alignments.some(alignment => alignment.axis === (axis === 'y' ? 'row' : 'column') && alignment.members.includes(id))
+  const offAxis = (edge: ArchitectureDiagram['edges'][number]): { axis: 'x' | 'y'; offset: number } | undefined => {
+    const source = items.get(edge.source.id), target = items.get(edge.target.id)
+    if (!source || !target || edge.source.boundary === 'group' || edge.target.boundary === 'group' || OPPOSITE_SIDE[edge.source.side] !== edge.target.side) return undefined
+    const axis = edge.source.side === 'L' || edge.source.side === 'R' ? 'y' : 'x'
+    const size = axis === 'y' ? 'height' : 'width'
+    return { axis, offset: target[axis] + target[size] / 2 - source[axis] - source[size] / 2 }
+  }
+  const distance = (a: Bounds, b: Bounds): number => Math.hypot(Math.max(0, a.x - b.x - b.width, b.x - a.x - a.width), Math.max(0, a.y - b.y - b.height, b.y - a.y - a.height))
+  let snapped = false
+  for (const edge of diagram.edges) {
+    const misaligned = offAxis(edge)
+    if (!misaligned || Math.abs(misaligned.offset) <= ROUTE_EPSILON || Math.abs(misaligned.offset) > CONTACT_SNAP) continue
+    const { axis, offset } = misaligned
+    for (const [id, delta] of [[edge.target.id, -offset], [edge.source.id, offset]] as const) {
+      const item = items.get(id)!
+      if (aligned(id, axis)) continue
+      const moved = { x: item.x, y: item.y, width: item.width, height: item.height, [axis]: item[axis] + delta }
+      const group = item.parentId ? groups.get(item.parentId) : undefined
+      const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : (group?.headerHeight ?? 0) + reservedHeaderPadding
+      if (group && (moved.x - GROUP_EDGE_PAD < group.x - ROUTE_EPSILON || moved.y - topPadding < group.y - ROUTE_EPSILON
+        || moved.x + moved.width + GROUP_EDGE_PAD > group.x + group.width + ROUTE_EPSILON || moved.y + moved.height + GROUP_EDGE_PAD > group.y + group.height + ROUTE_EPSILON)) continue
+      const neighbours: Bounds[] = [...[...items.values()].filter(other => other !== item), ...[...groups.values()].filter(other => {
+        for (let parent = item.parentId; parent; parent = groups.get(parent)?.parentId) if (parent === other.id) return false
+        return true
+      })]
+      if (neighbours.some(other => distance(moved, other) < Math.min(spacing, distance(item, other)) - ROUTE_EPSILON)) continue
+      const incident = diagram.edges.filter(other => other !== edge && (other.source.id === id || other.target.id === id))
+      const before = incident.map(offAxis)
+      const original = item[axis]
+      item[axis] += delta
+      const breaks = incident.some((other, index) => {
+        const was = before[index], now = offAxis(other)
+        return was !== undefined && now !== undefined && was.axis === axis && Math.abs(was.offset) <= ROUTE_EPSILON && Math.abs(now.offset) > ROUTE_EPSILON
+      })
+      if (breaks) { item[axis] = original; continue }
+      snapped = true
+      break
+    }
+  }
+  return snapped
+}
 
 function mapGroup(
   group: LayoutGroup,
@@ -961,10 +1468,15 @@ function routeArchitectureEdge(
   junctionsById: Map<string, PositionedArchitectureJunction>,
   terminal: { start: number; end: number },
   radius: number,
+  drawn: readonly Point[][],
+  apart: readonly Point[][] = [],
 ): PositionedArchitectureEdge {
-  const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0)
-  const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  const groupFrames = ancestorFrameLines(edge, servicesById, groups, junctionsById)
+  const cardFrames = [edge.source.id, edge.target.id].flatMap(id => { const card = serviceBounds.get(id); return card ? boxLines(card) : [] })
+  // Other relations' ink this route must not run on or beside: drawn on top
+  // of each other, two relations cannot be told apart (mermaid-v13#1176).
+  const apartLines: FrameLine[] = apart.flatMap(points => points.slice(1).map((point, index) => [points[index]!, point] as const))
   // Only the anchor-to-exit lead may touch its incident card. The middle
   // route must remain outside both endpoints so it cannot reverse through
   // the target and hide an arrowhead under the card's paint.
@@ -973,39 +1485,111 @@ function routeArchitectureEdge(
     const bounds = group ?? serviceBounds.get(endpoint.id) ?? junctionBounds.get(endpoint.id)!
     obstacles.push({ ...bounds, id: group?.id ?? endpoint.id, kind: group ? 'group' : serviceBounds.has(endpoint.id) ? 'service' : 'junction' })
   }
-  // A fixed exit can land inside the clearance envelope of a neighboring
-  // card. Stop at that envelope so the visibility search has a reachable
-  // start/end, while retaining the authored attachment side.
-  for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
-    const horizontal = side === 'L' || side === 'R'
-    const forward = side === 'R' || side === 'B'
-    let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
-    for (const obstacle of obstacles) {
-      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
-      const lo = horizontal ? obstacle.y : obstacle.x
-      const size = horizontal ? obstacle.height : obstacle.width
-      if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
-      const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
-      const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
-      if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+  const routeFrom = (along: { source?: number; target?: number }) => {
+    const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups, terminal.start ? terminal.start + radius : 0, along.source)
+    const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups, terminal.end ? terminal.end + radius : 0, along.target)
+    // A fixed exit can land inside the clearance envelope of a neighboring
+    // card. Stop at that envelope so the visibility search has a reachable
+    // start/end, while retaining the authored attachment side.
+    for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
+      const horizontal = side === 'L' || side === 'R'
+      const forward = side === 'R' || side === 'B'
+      let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+      for (const obstacle of obstacles) {
+        const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+        const lo = horizontal ? obstacle.y : obstacle.x
+        const size = horizontal ? obstacle.height : obstacle.width
+        if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
+        const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
+        const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+        if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+      }
+      endpoint.exit = movePoint(endpoint.anchor, side, distance)
     }
-    endpoint.exit = movePoint(endpoint.anchor, side, distance)
+    // `frames` are outline lines to keep off; `separate` adds the other
+    // relations' ink. A route that cannot keep off them all is null.
+    const route = (frames: readonly FrameLine[] | undefined, separate: boolean): Point[] | null => {
+      // Leads stop a clearance short of a line they would end on head-on.
+      const exits = frames ? { start: leadShortOfFrames(source, edge.source.side, frames), end: leadShortOfFrames(target, edge.target.side, frames) } : { start: source.exit, end: target.exit }
+      const directMiddle = simplifyOrthogonalPoints([
+        exits.start,
+        ...routeBetween(exits.start, exits.end, edge.source.side, edge.target.side),
+        exits.end,
+      ])
+      const keepOff = separate ? [...frames ?? [], ...apartLines] : frames
+      const direct = routeClearsObstacles(directMiddle, obstacles)
+      const startHeading = headingOf(source.anchor, exits.start), endHeading = headingOf(exits.end, target.anchor)
+      const lanes = [...frames ? [...groupFrames, ...cardFrames] : [], ...separate ? apartLines : []]
+      const middle = keepOff
+        ? (direct && !runsAlongFrame(directMiddle, keepOff) ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn, keepOff, lanes))
+        : (direct ? directMiddle : routeOrthogonalAroundObstacles(exits.start, exits.end, obstacles, startHeading, endHeading, drawn) ?? directMiddle)
+      return middle && simplifyOrthogonalPoints([source.anchor, ...middle, target.anchor])
+    }
+    // A route on its own group's frame or header divider reads as part of
+    // the container outline: keep off those lines whenever a clear route
+    // exists, and off the other relations' ink where it can. Running beside
+    // an endpoint's own card side is milder: keep off it too, unless that
+    // costs a bend.
+    const separate = apartLines.length > 0
+    const routes = [[groupFrames, true], [groupFrames, false], [undefined, true], [undefined, false]] as const
+    let offGroups: Point[] | null = null, separated = false
+    for (const [frames, keepApart] of routes) {
+      if (offGroups || (keepApart && !separate)) continue
+      offGroups = route(frames, keepApart)
+      separated = keepApart
+    }
+    const offAll = runsAlongFrame(offGroups!, cardFrames) ? route([...groupFrames, ...cardFrames], separated) : null
+    let points = offAll && offAll.length <= offGroups!.length ? offAll : offGroups!
+    const extended = extendTerminalRuns(points, terminal)
+    if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
+    return { source, target, points }
   }
-  const directMiddle = simplifyOrthogonalPoints([
-    source.exit,
-    ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),
-    target.exit,
-  ])
-  const middle = routeClearsObstacles(directMiddle, obstacles)
-    ? directMiddle
-    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles) ?? directMiddle
-  let points = simplifyOrthogonalPoints([
-    source.anchor,
-    ...middle,
-    target.anchor,
-  ])
-  const extended = extendTerminalRuns(points, terminal)
-  if (extended && extended !== points && routeClearsObstacles(extended, obstacles)) points = extended
+  let { source, target, points } = routeFrom({})
+  // A `{group}` contact may sit anywhere along its group's side. When the
+  // default contact puts this route on another relation's line, slide each
+  // group contact to the clear place with the fewest crossings, then bends
+  // (the declared layout objective's order), then the least displacement.
+  if ((edge.source.boundary === 'group' || edge.target.boundary === 'group') && runsAlongFrame(points, apartLines)) {
+    const choices = (end: 'source' | 'target'): Array<number | undefined> => {
+      if (edge[end].boundary !== 'group') return [undefined]
+      const endpoint = edge[end]
+      const group = groups.get(servicesById.get(endpoint.id)!.parentId!)!
+      const vertical = endpoint.side === 'L' || endpoint.side === 'R'
+      const anchor = (end === 'source' ? source : target).anchor
+      const preferred = vertical ? anchor.y : anchor.x
+      const lo = vertical ? group.y + Math.max(GROUP_EDGE_PAD, (group.headerHeight ?? 0) + ROUTE_CLEARANCE) : group.x + GROUP_EDGE_PAD
+      const hi = vertical ? group.y + group.height - GROUP_EDGE_PAD : group.x + group.width - GROUP_EDGE_PAD
+      // Places just clear of another relation's parallel run, and the faces
+      // of the obstacles a straight run there would pass.
+      const near = [
+        ...apartLines.filter(([p, q]) => (Math.abs(p.y - q.y) <= ROUTE_EPSILON) === vertical).flatMap(([p]) => {
+          const at = vertical ? p.y : p.x
+          return [at - 2 * ROUTE_CLEARANCE, at - ROUTE_CLEARANCE, at + ROUTE_CLEARANCE, at + 2 * ROUTE_CLEARANCE]
+        }),
+        ...obstacles.flatMap(obstacle => vertical ? [obstacle.y, obstacle.y + obstacle.height] : [obstacle.x, obstacle.x + obstacle.width]),
+      ].filter(at => at >= lo - ROUTE_EPSILON && at <= hi + ROUTE_EPSILON && Math.abs(at - preferred) > ROUTE_EPSILON)
+      const unique = [...new Set(near)].sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || a - b)
+      return [undefined, ...unique.slice(0, 8)]
+    }
+    const displacement = (end: 'source' | 'target', at: number | undefined): number => {
+      if (at === undefined) return 0
+      const anchor = (end === 'source' ? source : target).anchor
+      return Math.abs(at - (edge[end].side === 'L' || edge[end].side === 'R' ? anchor.y : anchor.x))
+    }
+    const drawnRoutes = drawn.map(route => ({ points: route }))
+    let best: { cost: readonly number[]; result: ReturnType<typeof routeFrom> } | undefined
+    for (const sourceAt of choices('source')) {
+      for (const targetAt of choices('target')) {
+        if (sourceAt === undefined && targetAt === undefined) continue
+        const result = routeFrom({ source: sourceAt, target: targetAt })
+        if (runsAlongFrame(result.points, apartLines) || !routeClearsObstacles(result.points, obstacles)) continue
+        const cost = [countPolylineCrossings([{ points: result.points }, ...drawnRoutes], new Set([0])), result.points.length - 2, displacement('source', sourceAt) + displacement('target', targetAt)]
+        const index = best ? cost.findIndex((value, axis) => Math.abs(value - best!.cost[axis]!) > ROUTE_EPSILON) : 0
+        if (!best || (index >= 0 && cost[index]! < best.cost[index]!)) best = { cost, result }
+      }
+    }
+    if (best) ({ source, target, points } = best.result)
+  }
   const sourceFacesTarget = sideFacesPoint(source.anchor, edge.source.side, target.anchor)
   const targetFacesSource = sideFacesPoint(target.anchor, edge.target.side, source.anchor)
 
@@ -1030,6 +1614,8 @@ interface RouteObstacle extends Bounds {
 }
 
 const ROUTE_CLEARANCE = 6
+const ROUTE_BEND_COST = 1e4
+const ROUTE_MIN_RUN = 8
 const ROUTE_EPSILON = 0.001
 
 /** The family renderer uses this retained measured band verbatim. */
@@ -1055,18 +1641,7 @@ function architectureRouteObstacles(
   services: PositionedArchitectureService[],
   junctionsById: Map<string, PositionedArchitectureJunction>,
 ): RouteObstacle[] {
-  const excludedGroups = new Set<string>()
-  const addAncestors = (parentId: string | undefined): void => {
-    let current = parentId
-    while (current) {
-      if (excludedGroups.has(current)) break
-      excludedGroups.add(current)
-      current = groups.get(current)?.parentId
-    }
-  }
-  addAncestors(servicesById.get(edge.source.id)?.parentId ?? junctionsById.get(edge.source.id)?.parentId)
-  addAncestors(servicesById.get(edge.target.id)?.parentId ?? junctionsById.get(edge.target.id)?.parentId)
-
+  const excludedGroups = endpointAncestorGroups(edge, servicesById, groups, junctionsById)
   const inflate = (id: string, kind: RouteObstacle['kind'], bounds: Bounds): RouteObstacle => ({
     id,
     kind,
@@ -1091,6 +1666,89 @@ function architectureRouteObstacles(
     } else obstacles.push(inflate(group.id, 'group', group))
   }
   return obstacles
+}
+
+/**
+ * The lead's exit, stopped a clearance short of a frame line it would end on
+ * (or just short of) when meeting it head-on, so the route does not turn onto it.
+ */
+function leadShortOfFrames(endpoint: { anchor: Point; exit: Point }, side: ArchitectureEndpoint['side'], frames: readonly FrameLine[]): Point {
+  const horizontal = side === 'L' || side === 'R'
+  const forward = side === 'R' || side === 'B'
+  let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+  for (const [p, q] of frames) {
+    if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== horizontal) continue
+    const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+    if (cross < Math.min(horizontal ? p.y : p.x, horizontal ? q.y : q.x) - ROUTE_EPSILON || cross > Math.max(horizontal ? p.y : p.x, horizontal ? q.y : q.x) + ROUTE_EPSILON) continue
+    const face = ((horizontal ? p.x : p.y) - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+    if (face > ROUTE_CLEARANCE + ROUTE_EPSILON && Math.abs(distance - face) < ROUTE_CLEARANCE - ROUTE_EPSILON) distance = face - ROUTE_CLEARANCE
+  }
+  return movePoint(endpoint.anchor, side, distance)
+}
+
+/** Groups that contain either endpoint, innermost first per endpoint. */
+function endpointAncestorGroups(
+  edge: ArchitectureDiagram['edges'][number],
+  servicesById: Map<string, ArchitectureService>,
+  groups: Map<string, PositionedArchitectureGroup>,
+  junctionsById: Map<string, PositionedArchitectureJunction>,
+): Set<string> {
+  const ancestors = new Set<string>()
+  for (const endpoint of [edge.source, edge.target]) {
+    let current = servicesById.get(endpoint.id)?.parentId ?? junctionsById.get(endpoint.id)?.parentId
+    while (current && !ancestors.has(current)) {
+      ancestors.add(current)
+      current = groups.get(current)?.parentId
+    }
+  }
+  return ancestors
+}
+
+type FrameLine = readonly [Point, Point]
+
+/**
+ * The drawn frame sides and header divider of every group that contains an
+ * endpoint. A route may cross these lines but should not run along them.
+ * (Unrelated groups and cards are already obstacles inflated by the route
+ * clearance; the endpoints' own cards are added by the caller.)
+ */
+function ancestorFrameLines(
+  edge: ArchitectureDiagram['edges'][number],
+  servicesById: Map<string, ArchitectureService>,
+  groups: Map<string, PositionedArchitectureGroup>,
+  junctionsById: Map<string, PositionedArchitectureJunction>,
+): FrameLine[] {
+  const lines: FrameLine[] = []
+  for (const id of endpointAncestorGroups(edge, servicesById, groups, junctionsById)) {
+    const group = groups.get(id)
+    if (!group) continue
+    lines.push(...boxLines(group))
+    if (group.headerHeight) lines.push([{ x: group.x, y: group.y + group.headerHeight }, { x: group.x + group.width, y: group.y + group.headerHeight }])
+  }
+  return lines
+}
+
+/** The four sides of a drawn box. */
+function boxLines(box: Bounds): FrameLine[] {
+  const x0 = box.x, y0 = box.y, x1 = box.x + box.width, y1 = box.y + box.height
+  return [[{ x: x0, y: y0 }, { x: x1, y: y0 }], [{ x: x0, y: y1 }, { x: x1, y: y1 }], [{ x: x0, y: y0 }, { x: x0, y: y1 }], [{ x: x1, y: y0 }, { x: x1, y: y1 }]]
+}
+
+/** Whether a segment runs on, or within ROUTE_CLEARANCE beside, a frame line. */
+function runsAlongFrame(points: readonly Point[], frames: readonly FrameLine[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const vertical = Math.abs(a.x - b.x) <= ROUTE_EPSILON
+    if (!vertical && Math.abs(a.y - b.y) > ROUTE_EPSILON) continue
+    for (const [p, q] of frames) {
+      if ((Math.abs(p.x - q.x) <= ROUTE_EPSILON) !== vertical) continue
+      const offset = vertical ? Math.abs(p.x - a.x) : Math.abs(p.y - a.y)
+      const lo = Math.max(Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.min(vertical ? p.y : p.x, vertical ? q.y : q.x))
+      const hi = Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.max(vertical ? p.y : p.x, vertical ? q.y : q.x))
+      if (offset < ROUTE_CLEARANCE - ROUTE_EPSILON && hi - lo > ROUTE_EPSILON) return true
+    }
+  }
+  return false
 }
 
 function sideFacesPoint(anchor: Point, side: ArchitectureEndpoint['side'], other: Point): boolean {
@@ -1138,143 +1796,37 @@ function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObsta
   return true
 }
 
-interface RouteQueueEntry {
-  state: number
-  cost: number
-}
-
-/** Deterministic binary min-heap used by the continuous-grid router. */
-class RouteMinHeap {
-  private entries: RouteQueueEntry[] = []
-
-  push(entry: RouteQueueEntry): void {
-    this.entries.push(entry)
-    let index = this.entries.length - 1
-    while (index > 0) {
-      const parent = Math.floor((index - 1) / 2)
-      if (!this.before(entry, this.entries[parent]!)) break
-      this.entries[index] = this.entries[parent]!
-      index = parent
-    }
-    this.entries[index] = entry
-  }
-
-  pop(): RouteQueueEntry | undefined {
-    const first = this.entries[0]
-    const last = this.entries.pop()
-    if (!first || !last || this.entries.length === 0) return first
-    let index = 0
-    this.entries[0] = last
-    while (true) {
-      const left = index * 2 + 1
-      const right = left + 1
-      if (left >= this.entries.length) break
-      let child = left
-      if (right < this.entries.length && this.before(this.entries[right]!, this.entries[left]!)) child = right
-      if (!this.before(this.entries[child]!, this.entries[index]!)) break
-      const swap = this.entries[index]!
-      this.entries[index] = this.entries[child]!
-      this.entries[child] = swap
-      index = child
-    }
-    return first
-  }
-
-  private before(a: RouteQueueEntry, b: RouteQueueEntry): boolean {
-    return a.cost < b.cost || (a.cost === b.cost && a.state < b.state)
-  }
-}
-
 /**
- * Visibility-grid Manhattan router. Candidate coordinates are endpoint lanes
- * and inflated obstacle faces; Dijkstra minimizes length, then bends, with
- * stable numeric tie-breaking. No randomness or object iteration order enters
- * the route.
+ * The shared orthogonal router over the obstacle faces and endpoint lanes,
+ * never through an obstacle's interior. Turning off an anchor lead counts as
+ * a bend; crossing another relation costs half a bend, so a detour avoids it
+ * unless that needs another bend; no turn follows the last by less than
+ * ROUTE_MIN_RUN, so a detour never makes a visible tiny jog.
  */
-function routeOrthogonalAroundObstacles(
-  start: Point,
-  end: Point,
-  obstacles: RouteObstacle[],
-): Point[] | null {
-  const xs = [...new Set([start.x, end.x, ...obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width])])].sort((a, b) => a - b)
-  const ys = [...new Set([start.y, end.y, ...obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height])])].sort((a, b) => a - b)
-  const points: Point[] = []
-  const indexByCoordinate = new Map<string, number>()
-  const key = (x: number, y: number): string => `${x}\u0000${y}`
-  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle => {
-    const inset = obstacle.kind === 'group-header' ? 0 : ROUTE_EPSILON
-    return x > obstacle.x + inset && x < obstacle.x + obstacle.width - inset
-      && y > obstacle.y + inset && y < obstacle.y + obstacle.height - inset
+function routeOrthogonalAroundObstacles(start: Point, end: Point, obstacles: RouteObstacle[], startHeading: RouterDirection | undefined, endHeading: RouterDirection | undefined, drawn: readonly Point[][], frames?: readonly FrameLine[], lanes: readonly FrameLine[] = frames ?? []): Point[] | null {
+  // Lanes a clearance either side of each outline line (`lanes`, every frame
+  // and endpoint card side), so a route keeping off `frames` still has
+  // somewhere to run.
+  const frameX = lanes.filter(([p, q]) => p.x === q.x).flatMap(([p]) => [p.x - ROUTE_CLEARANCE, p.x + ROUTE_CLEARANCE])
+  const frameY = lanes.filter(([p, q]) => p.y === q.y).flatMap(([p]) => [p.y - ROUTE_CLEARANCE, p.y + ROUTE_CLEARANCE])
+  const route = routeOrthogonal({
+    start, end, exit: ANY_DIRECTION, entry: ANY_DIRECTION, startHeading, endHeading, clearance: 0, channelsOnly: true,
+    bendCost: ROUTE_BEND_COST, minRun: ROUTE_MIN_RUN,
+    crossings: { segments: drawn.flatMap(points => points.slice(1).map((point, index) => [points[index]!, point] as const)), cost: ROUTE_BEND_COST / 2 },
+    obstacles: obstacles.map(obstacle => ({ x0: obstacle.x, y0: obstacle.y, x1: obstacle.x + obstacle.width, y1: obstacle.y + obstacle.height })),
+    channels: { x: [...obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width]), ...frameX], y: [...obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height]), ...frameY] },
+    ...(frames ? { avoid: { segments: frames, separation: ROUTE_CLEARANCE, gap: 0 } } : {}),
   })
-
-  for (const y of ys) {
-    for (const x of xs) {
-      if (insideObstacle(x, y) && !(x === start.x && y === start.y) && !(x === end.x && y === end.y)) continue
-      indexByCoordinate.set(key(x, y), points.length)
-      points.push({ x, y })
-    }
-  }
-  const startIndex = indexByCoordinate.get(key(start.x, start.y))
-  const endIndex = indexByCoordinate.get(key(end.x, end.y))
-  if (startIndex === undefined || endIndex === undefined) return null
-
-  const adjacency: Array<Array<{ point: number; direction: 1 | 2; length: number }>> = points.map(() => [])
-  const connectVisible = (indices: number[], direction: 1 | 2): void => {
-    for (let i = 1; i < indices.length; i++) {
-      const aIndex = indices[i - 1]!
-      const bIndex = indices[i]!
-      const a = points[aIndex]!
-      const b = points[bIndex]!
-      if (obstacles.some(obstacle => segmentCrossesObstacleInterior(a, b, obstacle))) continue
-      const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-      adjacency[aIndex]!.push({ point: bIndex, direction, length })
-      adjacency[bIndex]!.push({ point: aIndex, direction, length })
-    }
-  }
-  for (const y of ys) {
-    const row = points.map((point, index) => ({ point, index })).filter(entry => entry.point.y === y).sort((a, b) => a.point.x - b.point.x).map(entry => entry.index)
-    connectVisible(row, 1)
-  }
-  for (const x of xs) {
-    const column = points.map((point, index) => ({ point, index })).filter(entry => entry.point.x === x).sort((a, b) => a.point.y - b.point.y).map(entry => entry.index)
-    connectVisible(column, 2)
-  }
-
-  // Direction states: 0 = none/start, 1 = horizontal, 2 = vertical.
-  const stateCount = points.length * 3
-  const distance = new Array<number>(stateCount).fill(Infinity)
-  const previous = new Array<number>(stateCount).fill(-1)
-  const startState = startIndex * 3
-  distance[startState] = 0
-  const queue = new RouteMinHeap()
-  queue.push({ state: startState, cost: 0 })
-  let finalState = -1
-  while (true) {
-    const current = queue.pop()
-    if (!current) break
-    if (current.cost !== distance[current.state]) continue
-    const pointIndex = Math.floor(current.state / 3)
-    const previousDirection = current.state % 3
-    if (pointIndex === endIndex) { finalState = current.state; break }
-    for (const neighbor of adjacency[pointIndex]!) {
-      const nextState = neighbor.point * 3 + neighbor.direction
-      const bendPenalty = previousDirection !== 0 && previousDirection !== neighbor.direction ? 8 : 0
-      const nextCost = current.cost + neighbor.length + bendPenalty
-      if (nextCost >= distance[nextState]!) continue
-      distance[nextState] = nextCost
-      previous[nextState] = current.state
-      queue.push({ state: nextState, cost: nextCost })
-    }
-  }
-  if (finalState < 0) return null
-
-  const reversed: Point[] = []
-  for (let state = finalState; state >= 0; state = previous[state]!) {
-    reversed.push(points[Math.floor(state / 3)]!)
-    if (state === startState) break
-  }
-  return simplifyOrthogonalPoints(reversed.reverse())
+  return route ? route.map(point => ({ x: point.x, y: point.y })) : null
 }
+const ANY_DIRECTION = ['E', 'S', 'W', 'N'] as const
+/** Direction of an axis-aligned lead from `from` to `to`, when it has length. */
+function headingOf(from: Point, to: Point): RouterDirection | undefined {
+  if (from.x === to.x && from.y === to.y) return undefined
+  if (from.y === to.y) return to.x > from.x ? 'E' : 'W'
+  return from.x === to.x ? (to.y > from.y ? 'S' : 'N') : undefined
+}
+
 
 /**
  * Edge labels default to their route midpoints; two edges running the same
@@ -1343,12 +1895,14 @@ function resolveEndpoint(
   junctionBounds: Map<string, Bounds>,
   groups: Map<string, PositionedArchitectureGroup>,
   lead = 0,
+  along?: number,
 ): ResolvedEndpoint {
   if (endpoint.boundary === 'group') {
     const service = servicesById.get(endpoint.id)!
     const serviceBoundsEntry = serviceBounds.get(endpoint.id)!
     const group = groups.get(service.parentId!)!
     const anchor = groupAnchor(group, serviceBoundsEntry, endpoint.side)
+    if (along !== undefined) anchor[endpoint.side === 'L' || endpoint.side === 'R' ? 'y' : 'x'] = along
     return { anchor, exit: movePoint(anchor, endpoint.side, Math.max(EDGE_EXIT_GAP, lead)) }
   }
 

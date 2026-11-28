@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { gen } from '../../eval/overlap-audit/generators.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
+import { ARCHITECTURE_DEFAULT_NODE_SPACING, ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { convertToElkFormat } from '../layout-engine.ts'
@@ -10,6 +11,7 @@ import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { measureQuality } from '../agent/quality.ts'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 
 function parse(source: string) {
@@ -71,6 +73,56 @@ function routeCrossesBoxInterior(
   box: { x: number; y: number; width: number; height: number },
 ): boolean {
   return points.slice(1).some((point, index) => segmentCrossesBoxInterior(points[index]!, point, box))
+}
+
+/**
+ * The group frame side or header divider a route runs along, if any: a
+ * segment parallel to one of them, nearer than a few px, over a shared span.
+ * Such a route reads as part of the container outline, not as a relationship.
+ */
+function groupLineRunAlong(
+  points: Array<{ x: number; y: number }>,
+  group: { x: number; y: number; width: number; height: number; headerHeight?: number },
+): string | undefined {
+  const NEAR = 3, SHARED = 1
+  const lines = [
+    { name: 'left border', vertical: true, at: group.x, lo: group.y, hi: group.y + group.height },
+    { name: 'right border', vertical: true, at: group.x + group.width, lo: group.y, hi: group.y + group.height },
+    { name: 'top border', vertical: false, at: group.y, lo: group.x, hi: group.x + group.width },
+    { name: 'bottom border', vertical: false, at: group.y + group.height, lo: group.x, hi: group.x + group.width },
+    ...(group.headerHeight ? [{ name: 'header divider', vertical: false, at: group.y + group.headerHeight, lo: group.x, hi: group.x + group.width }] : []),
+  ]
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const vertical = Math.abs(a.x - b.x) <= 0.001
+    if (!vertical && Math.abs(a.y - b.y) > 0.001) continue
+    for (const line of lines) {
+      if (line.vertical !== vertical) continue
+      const offset = Math.abs((vertical ? a.x : a.y) - line.at)
+      const lo = Math.max(line.lo, Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x))
+      const hi = Math.min(line.hi, Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x))
+      if (offset < NEAR && hi - lo > SHARED) return line.name
+    }
+  }
+  return undefined
+}
+
+/** Pairs of routes that run on one line over a shared span: drawn on top of
+ * each other, they cannot be told apart there. */
+function sharedInk(routes: Array<{ id: string; points: Array<{ x: number; y: number }> }>): string[] {
+  const runs = routes.flatMap(route => route.points.slice(1).flatMap((b, index) => {
+    const a = route.points[index]!
+    const vertical = Math.abs(a.x - b.x) <= 0.001
+    if (!vertical && Math.abs(a.y - b.y) > 0.001) return []
+    return [{ id: route.id, vertical, at: vertical ? a.x : a.y, lo: Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), hi: Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x) }]
+  }))
+  const pairs = new Set<string>()
+  runs.forEach((run, index) => {
+    for (const other of runs.slice(index + 1)) {
+      if (other.id !== run.id && other.vertical === run.vertical && Math.abs(other.at - run.at) <= 0.5 && Math.min(run.hi, other.hi) - Math.max(run.lo, other.lo) > 1) pairs.add([run.id, other.id].sort().join(' / '))
+    }
+  })
+  return [...pairs].sort()
 }
 
 function boxesOverlap(
@@ -261,6 +313,10 @@ describe('layoutArchitectureDiagram', () => {
           violations.push(`route through card: ${id} crosses ${service.id}`)
         }
       }
+      for (const group of result.groups) {
+        const line = groupLineRunAlong(edge.points, group)
+        if (line) violations.push(`route on group line: ${id} runs along ${group.id} ${line}`)
+      }
       for (const [endpoint, contact, adjacent] of [
         [edge.source, edge.points[0]!, edge.points[1]!],
         [edge.target, edge.points.at(-1)!, edge.points.at(-2)!],
@@ -295,7 +351,9 @@ describe('layoutArchitectureDiagram', () => {
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:L --> L:s0_0\n  s0_0:L --> L:s1_1\n  s1_2:B --> B:s1_0\n  s1_2:L --> L:s0_0\n  s1_2:L --> L:s1_1"],
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:T --> T:s0_1"],
           ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_2:B --> B:s0_1"],
-          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0']],
+          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0'],
+          // Column-aligned cross-group drops once ran along Storage's top border and Output's header divider.
+          ['architecture-beta\n  group sources(cloud)[Sources]\n  service src_a(server)[Source A] in sources\n  service src_b(server)[Source B] in sources\n  service src_c(server)[Source C] in sources\n  group storage(database)[Storage]\n  service db_one(database)[DB One] in storage\n  service db_two(database)[DB Two] in storage\n  service db_three(database)[DB Three] in storage\n  group output(disk)[Output]\n  service brief(disk)[Brief] in output\n  service analyst(server)[Analyst] in output\n  service delivery(cloud)[Delivery] in output\n  src_a:B --> T:db_one\n  src_b:B --> T:db_two\n  src_c:B --> T:db_three\n  db_two:B --> T:brief\n  brief:R --> L:analyst\n  analyst:R --> L:delivery\n  align row src_a src_b src_c\n  align row db_one db_two db_three\n  align row brief analyst delivery\n  align column src_a db_one\n  align column src_b db_two brief\n  align column src_c db_three']],
       }),
     )
   })
@@ -446,6 +504,134 @@ describe('layoutArchitectureDiagram', () => {
     expect(shortcut.placement).toBe('satisfied')
   })
 
+  // pele#138: satisfying page:B -- T:store stacked every root sibling below
+  // the group on y, so Claude API, which only page:R -- L:api constrains,
+  // was pushed below localStorage and the two relations crossed.
+  it('keeps relations clear of unconnected services and of each other where they can be', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/pele-138.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    for (const edge of projected.edges) {
+      const points = edge.path.map(([x, y]) => ({ x, y }))
+      const crossed = projected.nodes.filter(node => node.id !== edge.from && node.id !== edge.to && routeCrossesBoxInterior(points, { x: node.x, y: node.y, width: node.w, height: node.h }))
+      expect({ edge: edge.id, crossed: crossed.map(node => node.id) }).toEqual({ edge: edge.id, crossed: [] })
+    }
+    expect(measureQuality(projected).edgeCrossings).toBe(0)
+  })
+
+  // Packing only face-constrained units once left Storage 33 px beside
+  // Database and 1.5 px out of line with Server, a jog that read as a glitch.
+  it.each(['fixture/architecture-basic.mmd', 'fixture/pele-138.mmd', 'corpus/architecture/0', 'corpus/architecture/4', 'corpus/architecture/5'])('%s keeps the node spacing and draws no jog shorter than 4 px', id => {
+    const { layout: projected } = layoutMermaidWithReceipt(collectSamples().find(sample => sample.id === id)!.source)
+    // Public coordinates are rounded to whole pixels.
+    expect(measureQuality(projected).minimumNodeSpacing).toBeGreaterThanOrEqual(ARCHITECTURE_DEFAULT_NODE_SPACING - 1)
+    const jogs = projected.edges.flatMap(edge => edge.path.slice(1, -2).flatMap(([x, y], index) => {
+      const [nx, ny] = edge.path[index + 2]!
+      const run = Math.hypot(nx - x, ny - y)
+      return run > 0 && run < 4 ? [`${edge.id}: ${run}px`] : []
+    }))
+    expect(jogs).toEqual([])
+  })
+
+  // mermaid-v13#1212 and a random junction tree: faces fixed each child's
+  // order on the relation's axis but left it wherever placement put it on the
+  // other, so a child hung far to one side of its face and its relation bent
+  // across a sibling's.
+  it.each([
+    ['fixture/mermaid-v13-1212.mmd', ''],
+    ['junction tree', 'architecture-beta\n  junction s0\n  junction s1\n  junction s2\n  junction s3\n  junction s4\n  junction s5\n  junction s6\n  s0:L -- R:s1\n  s0:R -- L:s2\n  s1:T -- B:s3\n  s0:T -- B:s4'],
+  ])('%s draws its tree with no crossing and every relation straight', (id, inline) => {
+    const source = inline || collectSamples().find(sample => sample.id === id)!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    expect(measureQuality(projected).edgeCrossings).toBe(0)
+    expect(projected.edges.filter(edge => edge.path.length !== 2).map(edge => edge.id)).toEqual([])
+  })
+
+  // corpus/architecture/4 drew its two junctions 36px apart, so the cards
+  // above and below them could not both hang straight and two relations
+  // crossed; in the junction tree s3 could not sit under s1 beside s5. A
+  // tree whose relations join opposite faces, each face used once, always
+  // has a drawing with no crossing.
+  type Tree = { kinds: boolean[]; links: { parent: number; side: number }[] }
+  const faces = ['L', 'R', 'T', 'B'] as const, opposite = { L: 'R', R: 'L', T: 'B', B: 'T' } as const
+  const treeSource = ({ kinds, links }: Tree) => {
+    const used = kinds.map(() => new Set<string>()), lines = ['architecture-beta', ...kinds.map((junction, i) => junction ? `  junction s${i}` : `  service s${i}(server)[S${i}]`)]
+    links.forEach(({ parent, side }, index) => {
+      const child = index + 1, from = parent % child, free = faces.filter(face => !used[from]!.has(face))
+      if (!free.length) return
+      const face = free[side % free.length]!
+      used[from]!.add(face); used[child]!.add(opposite[face])
+      lines.push(`  s${from}:${face} -- ${opposite[face]}:s${child}`)
+    })
+    return lines.join('\n')
+  }
+  const tree: fc.Arbitrary<Tree> = fc.integer({ min: 3, max: 8 }).chain(size => fc.record({
+    kinds: fc.array(fc.boolean(), { minLength: size, maxLength: size }),
+    links: fc.array(fc.record({ parent: fc.nat({ max: 7 }), side: fc.nat({ max: 3 }) }), { minLength: size - 1, maxLength: size - 1 }),
+  }))
+  it('draws corpus/architecture/4 and random trees with no crossing', () => {
+    const corpus = collectSamples().find(sample => sample.id === 'corpus/architecture/4')!.source
+    expect(measureQuality(layoutMermaidWithReceipt(corpus).layout).edgeCrossings).toBe(0)
+    fc.assert(fc.property(tree, input => {
+      expect(measureQuality(layoutMermaidWithReceipt(treeSource(input)).layout).edgeCrossings).toBe(0)
+    }), fcParameters<[Tree]>({ numRuns: 200, examples: [
+      // s0 → s1 (L), s0 → s2 (B), s1 → s3 (B), s0 → s4 (R), s2 → s5 (L), s4 → s6 (T).
+      [{ kinds: [true, true, true, true, true, true, true], links: [{ parent: 0, side: 0 }, { parent: 0, side: 2 }, { parent: 1, side: 2 }, { parent: 0, side: 0 }, { parent: 2, side: 0 }, { parent: 4, side: 1 }] }],
+    ] }))
+  })
+
+  // mermaid#7301: Internet sits above three nested groups whose header bands
+  // span their whole width, so the only way into Internet GW's top runs round
+  // a band's end. The route must take the nearer end and nothing longer.
+  it('routes into a deeply nested group round the nearer end of its header bands', () => {
+    const positioned = layout(collectSamples().find(sample => sample.id === 'fixture/mermaid-7301.mmd')!.source)
+    const groups = new Map(positioned.groups.flatMap(function all(group): Array<[string, typeof group]> { return [[group.id, group], ...group.children.flatMap(all)] }))
+    for (const edge of positioned.edges) for (const group of groups.values()) {
+      expect(routeCrossesBoxInterior(edge.points, { ...group, height: group.headerHeight! }), `${edge.source.id}->${edge.target.id} enters ${group.id}'s header`).toBe(false)
+    }
+    const route = positioned.edges.find(edge => edge.source.id === 'Internet')!.points
+    const start = route[0]!, end = route.at(-1)!, aws = groups.get('AWS')!
+    const length = route.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - route[index]!.x) + Math.abs(point.y - route[index]!.y), 0)
+    const around = Math.min(...[aws.x - 6, aws.x + aws.width + 6].map(x => Math.abs(start.x - x) + Math.abs(x - end.x))) + Math.abs(end.y - start.y)
+    expect(length).toBeLessThanOrEqual(around + 0.5)
+  })
+
+  // Packing units a node spacing apart left no room for a relation's label
+  // between them: overlap-audit cases 41 and 21 painted the label over a card
+  // and over an arrowhead, so paint certification could not pass.
+  it.each([21, 41])('seats overlap-audit case %i\'s labels clear of cards and arrowheads', index => {
+    const { receipt } = renderMermaidSVGWithReceipt(gen.architecture!(index))
+    expect(receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  // mermaid-v13#1176: the {group} relation left Region A on the line of the
+  // j1 -> s1 relation and entered Region B on the line of j1 -> s4, so the
+  // three relations read as one line and hid the junction.
+  it('draws a {group} relation apart from the junction relations between the same pair', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/mermaid-v13-1176.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    const point = ([x, y]: readonly [number, number]) => ({ x, y })
+    expect(sharedInk(projected.edges.map(edge => ({ id: edge.id, points: edge.path.map(point) })))).toEqual([])
+    const regionA = projected.groups.find(group => group.id === 'a')!, regionB = projected.groups.find(group => group.id === 'b')!
+    const groupEdge = projected.edges.find(edge => edge.from === 's1' && edge.to === 's4')!.path
+    expect([groupEdge[0]![0], groupEdge.at(-1)![0]].map(Number)).toEqual([regionA.x + regionA.w, regionB.x])
+  })
+
+  // mermaid#5952: a bus of seven junctions feeding six databases. Packing
+  // each junction by its own predecessors alone put the junction under the
+  // server a line below the others, so the runs between them stepped across
+  // each other and the database leads (6 crossings, one shared run).
+  it('draws mermaid#5952\'s junction bus on one line with no crossing or shared run', () => {
+    const source = collectSamples().find(sample => sample.id === 'fixture/mermaid-5952-architecture.mmd')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source)
+    const quality = measureQuality(projected)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeContacts?.overlaps).toBe(0)
+    const bus = new Set(['3Leftofmid', '2Leftofmid', '1Leftofmid', 'mid', '1RightOfMid', '2RightOfMid', '3RightOfMid', 'server'])
+    const runs = projected.edges.filter(edge => bus.has(edge.from) && bus.has(edge.to))
+    expect(runs).toHaveLength(7)
+    expect(runs.filter(edge => edge.path.length !== 2).map(edge => `${edge.from}->${edge.to}`)).toEqual([])
+  })
+
   it('treats every satisfiable endpoint-side pair as placement constraints and classifies legal conflicts', () => {
     const sides = ['L', 'R', 'T', 'B'] as const
     const axis = (side: typeof sides[number]) => side === 'L' || side === 'R' ? 'x' : 'y'
@@ -536,7 +722,8 @@ it.each(['elk'] as const)('keeps %s item-side shafts outside their own ancestor 
       && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
     expect(entersLiteralBand).toBe(false)
   }
-  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
+  // The shaft turns a route clearance below the header divider (y 152), not on it.
+  expect(edge.points[1]).toEqual({ x: 116, y: 158 })
   expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
 })
 

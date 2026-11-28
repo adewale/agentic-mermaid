@@ -44,6 +44,7 @@ an installed npm package.
 | Understand the renderer | [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) |
 | Work on one diagram family | [Family implementation notes](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/README.md) |
 | Add a family | [Adding diagram types](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/adding-diagram-types.md) |
+| Judge or improve layout quality | [Diagram quality](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/diagram-quality.md) |
 | Change layout or rendering | [Route contracts](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/route-contracts.md) · [Visual review](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/visual-review-evidence.md) |
 | Select validation | [Testing strategy](https://github.com/adewale/agentic-mermaid/blob/main/docs/testing-strategy.md) |
 | Decode project terms | [Glossary](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/glossary.md) |

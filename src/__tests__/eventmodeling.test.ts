@@ -1,6 +1,7 @@
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { asEventModeling, buildMermaid, createMermaid, describeMermaidTree, layoutMermaidWithReceipt, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { eventRelations, parseEventModeling } from '../eventmodeling/parser.ts'
 import { layoutEventModeling } from '../eventmodeling/layout.ts'
@@ -484,4 +485,121 @@ test('long authored indentation retains frame offsets with bounded scanning work
   }, 2048)
   expect(result).toBe(1)
   expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
+})
+
+// Relations route through the shared orthogonal router in the gutters and
+// lane gaps. A clear lane needs no detour; no route enters a card, leaves its
+// card contacts, or shares a line with an unrelated relationship.
+test.each<{ name: string; source: string; straight: string[] }>([
+  { name: 'a same-lane relation skipping an empty column', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems ->> 02\ntf 05 ui CartUI', straight: ['02->04'] },
+  { name: 'return flows across lanes', source: 'eventmodeling\ntf 01 cmd Pay\ntf 02 evt Paid\ntf 03 rmo Ledger\ntf 04 ui Receipt ->> 02\ntf 05 cmd Refund ->> 03', straight: ['03->05'] },
+  { name: 'a relation skipping three columns', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems\ntf 05 ui CartUI ->> 02', straight: [] },
+])('$name routes through clear corridors', ({ source, straight }) => {
+  const body = parseEventModeling(source)
+  const layout = layoutEventModeling(body)
+  const cards = new Map(layout.nodes.map(node => [node.id, node]))
+  const key = (edge: { from: string; to: string }) => `${edge.from}->${edge.to}`
+  expect(layout.edges.map(key).sort()).toEqual(eventRelations(body).map(key).sort())
+  for (const edge of layout.edges) {
+    const from = cards.get(edge.from)!, to = cards.get(edge.to)!, points = edge.points
+    // Orthogonal, leaving the source's right side and entering the target's left.
+    for (let i = 1; i < points.length; i++) expect(points[i]!.x === points[i - 1]!.x || points[i]!.y === points[i - 1]!.y).toBe(true)
+    expect(points[0]!.x).toBeGreaterThanOrEqual(from.x + from.width)
+    expect(points.at(-1)!.x).toBeLessThanOrEqual(to.x)
+    // No segment passes through any card's interior.
+    for (const card of layout.nodes) for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const inside = Math.max(a.x, b.x) > card.x + 1 && Math.min(a.x, b.x) < card.x + card.width - 1 && Math.max(a.y, b.y) > card.y + 1 && Math.min(a.y, b.y) < card.y + card.height - 1
+      expect(inside, `${key(edge)} through ${card.id}`).toBe(false)
+    }
+    if (straight.includes(key(edge))) expect(points, key(edge)).toHaveLength(2)
+  }
+  // Unrelated relationships never run on one line where they overlap.
+  for (const a of layout.edges) for (const b of layout.edges) {
+    if (a === b || a.from === b.from || a.to === b.to || a.from === b.to || a.to === b.from) continue
+    for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
+      const [p, q] = [a.points[i - 1]!, a.points[i]!], [r, s] = [b.points[j - 1]!, b.points[j]!]
+      const vertical = p.x === q.x && r.x === s.x && p.x === r.x, horizontal = p.y === q.y && r.y === s.y && p.y === r.y
+      if (!vertical && !horizontal) continue
+      const [lo, hi, rlo, rhi] = vertical ? [Math.min(p.y, q.y), Math.max(p.y, q.y), Math.min(r.y, s.y), Math.max(r.y, s.y)] : [Math.min(p.x, q.x), Math.max(p.x, q.x), Math.min(r.x, s.x), Math.max(r.x, s.x)]
+      expect(Math.min(hi, rhi) - Math.max(lo, rlo), `${key(a)} along ${key(b)}`).toBeLessThanOrEqual(0)
+    }
+  }
+})
+
+// mermaid-js/mermaid-v13#1234: ItemAdded's relation to OtherUI took the upper
+// port by OtherUI's height, turned down at the first gutter and crossed the
+// relation to CartItems, which ran straight on below it to the last gutter.
+// Relations leaving or entering one card cross neither each other nor any
+// other relation.
+test('relations sharing a card take ports in the order their routes turn', () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-v13-1234.mmd', import.meta.url), 'utf8')
+  const layout = layoutEventModeling(parseEventModeling(source.slice(source.indexOf('\n') + 1)))
+  expect(layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(['01->02', '01->03'])
+  const runs = (points: readonly { x: number; y: number }[]) => points.slice(1).map((point, i) => [points[i]!, point] as const)
+  for (const a of layout.edges) for (const b of layout.edges) {
+    if (a === b) continue
+    for (const [p, q] of runs(a.points)) for (const [r, s] of runs(b.points)) {
+      if (p.y !== q.y || r.x !== s.x) continue
+      // A horizontal run of one passing through the interior of a vertical run of the other.
+      const crosses = r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)
+      expect(crosses, `${a.from}->${a.to} crosses ${b.from}->${b.to}`).toBe(false)
+    }
+  }
+})
+
+// mermaid-js/mermaid-v13#672: a frame naming itself as a source failed with
+// "Invalid source frame". Pinned Mermaid accepts it and keeps the relation, so
+// ours draws it: a loop beside its own card, in its own lane, meeting no other
+// route, while the other relations (an explicit reset input, a frame with no
+// sources) keep their own routes.
+test('a self-relation draws its own loop beside the card and leaves every other route intact', async () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/eventmodeling-self-relation-v13-672.mmd', import.meta.url), 'utf8')
+  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  expect(svg).toContain('data-id="relation:06:06"')
+  const { layout } = layoutMermaidWithReceipt(source, { embedFontImport: false })
+  expect(layout.edges.map(edge => `${edge.from}->${edge.to}`)).toEqual(['01->02', '02->03', '03->04', '02->04', '04->05', '02->05', '05->06', '06->06', '06->07', '07->08', '08->09'])
+  const cards = new Map(layout.nodes.map(node => [node.id, node]))
+  const segments = (path: readonly (readonly [number, number])[]) => path.slice(1).map((point, index) => [path[index]!, point] as const)
+  for (const edge of layout.edges) {
+    const from = cards.get(edge.from)!, to = cards.get(edge.to)!, [start, end] = [edge.path[0]!, edge.path.at(-1)!]
+    for (const [[ax, ay], [bx, by]] of segments(edge.path)) expect(ax === bx || ay === by, `${edge.id} is orthogonal`).toBe(true)
+    // Out of the source's right side, into the target's left side.
+    expect(Math.abs(start[0] - (from.x + from.w))).toBeLessThanOrEqual(1)
+    expect(start[1]).toBeGreaterThan(from.y); expect(start[1]).toBeLessThan(from.y + from.h)
+    expect(Math.abs(end[0] - to.x)).toBeLessThanOrEqual(1)
+    expect(end[1]).toBeGreaterThan(to.y); expect(end[1]).toBeLessThan(to.y + to.h)
+  }
+  const loop = layout.edges.find(edge => edge.from === '06' && edge.to === '06')!, card = cards.get('06')!
+  const lane = layout.groups.find(group => group.id === card.parentId)!
+  expect(lane.members).toEqual(['06'])
+  for (const [x, y] of loop.path) {
+    expect(y).toBeGreaterThan(lane.y); expect(y).toBeLessThan(lane.y + lane.h)
+    // Short of the neighbouring columns' gutters.
+    expect(x).toBeGreaterThan(cards.get('05')!.x + cards.get('05')!.w); expect(x).toBeLessThan(cards.get('07')!.x)
+  }
+  const meets = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]], [[cx, cy], [dx, dy]]: readonly [readonly [number, number], readonly [number, number]]) =>
+    Math.max(ax, bx) >= Math.min(cx, dx) && Math.max(cx, dx) >= Math.min(ax, bx) && Math.max(ay, by) >= Math.min(cy, dy) && Math.max(cy, dy) >= Math.min(ay, by)
+  // It meets no other route and shares none of their lines, so no trunk reads
+  // as continuing into it.
+  const line = ([[ax, ay], [bx, by]]: readonly [readonly [number, number], readonly [number, number]]) => ax === bx ? `x${ax}` : `y${ay}`
+  for (const other of layout.edges) if (other !== loop) for (const a of segments(loop.path)) for (const b of segments(other.path)) {
+    expect(meets(a, b), `${other.id} meets the loop`).toBe(false)
+    expect(line(a), `${other.id} shares a line with the loop`).not.toBe(line(b))
+  }
+  // Pinned Mermaid accepts the self-reference and our canonical writing of it;
+  // only its domain rule (a ui reads a read model) is reported.
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error('expected native Event Modeling')
+  const upstream = startUpstreamMermaid()
+  try {
+    expect((await upstream.parse(source)).ok).toBe(true)
+    expect((await upstream.parse(serializeMermaid(parsed.value))).ok).toBe(true)
+  } finally {
+    await upstream.close()
+  }
+  const warnings = verifyMermaid(source).warnings
+  expect(warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  expect(warnings.filter(warning => warning.code === 'EVENT_SOURCE_TYPE').filter(warning => warning.node === '06').map(warning => warning.source)).toEqual(['06'])
+  expect(renderMermaidASCII(source, { useAscii: true })).toContain('Screen')
 })

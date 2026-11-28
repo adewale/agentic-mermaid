@@ -10,6 +10,8 @@
 // still open (the beat).
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseMermaid as parseLegacy } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -243,16 +245,18 @@ C -->|wait| C`
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
-  test('eight labeled loops allocate unique bounded routes and label centers', () => {
-    const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 8 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
+  test('four labeled loops allocate unique bounded routes and label centers', () => {
+    // Four is the most loops one node carries in the real diagrams sampled
+    // (nullean/mermaider#49, a state with four labelled self-loops).
+    const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 4 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
     const graph = parseLegacy(source)
     const positioned = layoutGraphSync(graph)
     const loops = positioned.edges.filter(edge => edge.source === 'B' && edge.target === 'B')
     const node = positioned.nodes.find(candidate => candidate.id === 'B')!
-    expect(loops).toHaveLength(8)
+    expect(loops).toHaveLength(4)
     expectSeparatedMarkers(positioned.edges)
-    expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(8)
-    expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(8)
+    expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(4)
+    expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(4)
     const style = resolveRenderStyle({})
     for (const edge of loops) {
       expect(edge.routeCertificate?.invariant).toBe('self-loop')
@@ -273,8 +277,29 @@ C -->|wait| C`
         expect(overlapX > 0 && overlapY > 0, `${edge.label} must not cover ${other.id}`).toBe(false)
       }
     }
+    // The through route holds the north and south faces of the 60x37 card,
+    // and each of its 37px east and west faces seats two nested loops. Four
+    // loops therefore fit on those free faces, so none straddles a port and
+    // the audit has nothing to report.
+    expect(loops.map(edge => edge.routeCertificate?.loopSide).sort()).toEqual(['E', 'E', 'W', 'W'])
     expect(auditRouteContracts(positioned, graph)).toEqual([])
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
+  })
+
+  // mermaid#5876: the node's subgraph leaves room for the arc on its west
+  // side only, and a full-depth arc pushes the caption through the frame.
+  test('a loop inside a subgraph keeps its caption inside the frame', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-5876.mmd'), 'utf8')
+    const positioned = layoutGraphSync(parseLegacy(source))
+    const loop = positioned.edges.find(edge => edge.source === 'm' && edge.target === 'm')!
+    const frame = positioned.groups.find(group => group.id === 'ActorLogic')!
+    expect(loop.routeCertificate?.invariant).toBe('self-loop')
+    const pill = labelRect(loop, resolveRenderStyle({}))!
+    expect(pill.x).toBeGreaterThanOrEqual(frame.x)
+    expect(pill.x + pill.w).toBeLessThanOrEqual(frame.x + frame.width)
+    expect(pill.y).toBeGreaterThanOrEqual(frame.y + frame.headerHeight!)
+    expect(pill.y + pill.h).toBeLessThanOrEqual(frame.y + frame.height)
+    expect(auditRouteContracts(positioned, parseLegacy(source))).toEqual([])
   })
 
   test('all blocked existing loop sides preserve live routes and report marker owners', () => {

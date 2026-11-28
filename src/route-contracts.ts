@@ -3,6 +3,9 @@
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import type { LabelSeatSearch } from './layout/label-seat-search.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { clearanceBoxes, routeClearanceFindings } from './layout-rubric.ts'
+import { labelHaloPadding, labelPaintClearance, routeDistance, routeSeats, seatCaption, seatLabel, seatOnRoute, type LabelPaintRect } from './layout/label-seat.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { AxisAlignedBox } from './shared/transformed-bounds.ts'
@@ -15,7 +18,7 @@ import { labelPaintInputsStable, labelSeatPaintContext, labelShafts, orthogonalS
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
+import { LABEL_INTERIOR_TOLERANCE, LABEL_PILL_PADDING, labelEndpointClearance, labelHaloExtension, labelHaloMeetsShaft, labelHaloRect, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
   withinLayoutPreferenceBudget,
@@ -72,9 +75,10 @@ import {
   tryStraighten,
   sharedTrunkConflict,
 } from './layout/route-lanes.ts'
-import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
-import { createSelfLoopRouter } from './layout/route-self-loops.ts'
-import { edgesMayShareTerminal, ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { tightenOuterFeedback, feedbackDetourKind, shortenFeedbackRoute } from './layout/route-feedback.ts'
+import { createSelfLoopRouter, routeMeetsSelfLoop } from './layout/route-self-loops.ts'
+import { ownsLayoutRouteInputs, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { terminalAssignment, type TerminalAssignment } from './layout/terminal-assignment.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -113,7 +117,7 @@ function markStraightDraft(cert: DraftRouteCertificate, mutated = false): void {
  * Attaches the certificate to the edge and returns all certificates.
  */
 export function applyRouteContracts(
-  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[]; terminals?: TerminalAssignment },
   graph: MermaidGraph,
   bundled: ReadonlySet<PositionedEdge>,
   style: LabelMetricsStyle,
@@ -152,6 +156,8 @@ export function applyRouteContracts(
     ? positioned.nodes[sources[edge.edgeIndex]!] : nodeMap.get(edge.source)
   const targetOf = (edge: PositionedEdge) => edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge
     ? positioned.nodes[targets[edge.edgeIndex]!] : nodeMap.get(edge.target)
+  const terminals = positioned.terminals ?? terminalAssignment(positioned.edges)
+  ctx.terminals = terminals
   const someIncoming = (edge: PositionedEdge, test: (peer: PositionedEdge) => boolean): boolean => {
     const target = edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge ? targets[edge.edgeIndex]! : -1
     if (target < 0) return positioned.edges.some(test)
@@ -289,12 +295,12 @@ export function applyRouteContracts(
   /** Another terminal this route may not share already ends on `lane`. */
   const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
     peer !== edge && peer.target === edge.target && peer.points.length > 1
-    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
+    && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !terminals.shares(edge, peer, 'end'))
 
   /** A peer this route may not share a terminal with ends on the target's
    * port lane, or emits on it and so can enter it straight. */
   const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
-    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+    if (peer === edge || peer.target !== edge.target || peer.source === edge.target || terminals.shares(edge, peer, 'end')) return false
     const emitter = sourceOf(peer)
     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
   })
@@ -391,7 +397,7 @@ export function applyRouteContracts(
       // port goes to it and this route keeps its own entry first.
       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
       const peerOwnsPort = someIncoming(edge, peer => {
-        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
+        if (peer === edge || peer.target !== edge.target || peer.source === edge.target || terminals.shares(edge, peer, 'end')) return false
         const emitter = sourceOf(peer)
         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
       })
@@ -474,7 +480,7 @@ export function applyRouteContracts(
       for (let c1Index = 0; c1Index < c1s.length; c1Index++) {
         const c1 = c1s[c1Index]!
         if (c1 < s1.lo - EPS || c1 > s1.hi + EPS) continue
-        if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
+        if (Math.abs(c1 - c2) < HITCH_JOG) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
         if (srcMain === null) continue
         // The optional container tier proves its jog lies outside both endpoint
@@ -573,7 +579,7 @@ export function applyRouteContracts(
     }
     if (occlusionFallback) {
       setRoutePoints(ctx, edge, occlusionFallback.route)
-      if (edge.label) edge.labelPosition = occlusionFallback.labelMid
+      seatCaption(edge, ctx, ctx.style, occlusionFallback.labelMid)
       return true
     }
     return false
@@ -714,7 +720,7 @@ export function applyRouteContracts(
     }
     if (fallback) {
       setRoutePoints(ctx, edge, fallback.route)
-      if (edge.label) edge.labelPosition = fallback.labelMid
+      seatCaption(edge, ctx, ctx.style, fallback.labelMid)
       return true
     }
     return false
@@ -756,7 +762,7 @@ export function applyRouteContracts(
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
     const mergeAvailable = someIncoming(edge,
-      other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
+      other => other !== edge && other.points.length > 0 && terminals.shares(edge, other, 'end') && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
     )
     if (mergeAvailable) return false
     const portMain = shapePorts(target)[entrySide][axis.main]
@@ -786,7 +792,9 @@ export function applyRouteContracts(
   const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx, loopMarkerBlockers, reservedLoops)
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
+  const produced = new Map<PositionedEdge, Point[]>()
   for (const edge of positioned.edges) {
+    produced.set(edge, edge.points)
     const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     let normalized = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
     const source = sourceOf(edge), target = targetOf(edge)
@@ -890,6 +898,30 @@ export function applyRouteContracts(
     drafts.push({ edge, cert })
   }
 
+  // A self-loop owns the region between its arc and its node's face. Edges
+  // are proved in source order, so a route repaired before a later loop was
+  // allocated can now leave through it. Such a route is proved again from
+  // its produced route, which met no loop, now that the loop's crossing
+  // counts against every candidate.
+  for (const draft of drafts) {
+    const { edge } = draft
+    if (edge.source === edge.target || edge.style === 'invisible' || bundled.has(edge) || draft.cert.routeClass !== 'primary-forward' && draft.cert.routeClass !== 'feedback') continue
+    const loopsMet = (points: readonly Point[]) => [...reservedLoops].some(loop => routeMeetsSelfLoop(loop.points, points))
+    const original = produced.get(edge)!
+    if (!loopsMet(edge.points) || loopsMet(original)) continue
+    const current = edge.points, label = edge.labelPosition, cert = { ...draft.cert }
+    setRoutePoints(ctx, edge, original)
+    draft.cert.invariant = 'straight'
+    const r = attemptStraighten(edge, draft.cert)
+    if (loopsMet(edge.points)) {
+      setRoutePoints(ctx, edge, current)
+      edge.labelPosition = label
+      Object.assign(draft.cert, cert)
+      continue
+    }
+    if ((!r.applied || r.upgradeable) && !retry.some(item => item.edge === edge)) retry.push(draft)
+  }
+
   // Fixed point: each round re-proves edges that failed OR landed on a
   // non-preferred lane (upgradeable), and only keeps iterating while some
   // geometry actually moved — re-proving an unchanged lane is idempotent, so
@@ -906,6 +938,18 @@ export function applyRouteContracts(
     if (!changed) break
     retry.length = 0
     retry.push(...still)
+  }
+
+  // With every other route settled, a feedback loop round the far side, or
+  // back through the flow, takes the nearer free side when that is markedly
+  // shorter. Proving it earlier would count crossings against routes the
+  // fixed point has yet to straighten.
+  for (const { edge, cert } of drafts) {
+    if (cert.routeClass !== 'feedback' || cert.invariant !== 'outer-feedback' && cert.invariant !== 'feedback-detour') continue
+    const source = sourceOf(edge), target = targetOf(edge)
+    if (!source || !target || !shortenFeedbackRoute(edge, source, target, ctx)) continue
+    cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? cert.invariant
+    cert.bendCount = bendCount(edge.points)
   }
 
   for (const edge of positioned.edges) {
@@ -1223,55 +1267,6 @@ function* labelSegmentSamples(segments: ReturnType<typeof orderedLabelSegments>,
   }
 }
 
-export type LabelPaintRect = { x: number; y: number; w: number; h: number }
-
-/** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
-function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): number {
-  return labelHaloExtension(edge, style.lineWidth ?? 1)
-}
-
-/** Owned label-only passes leave routes fixed. Reentrant host measurement
- * can replace peer geometry, so only the owned path reuses marker footprints. */
-export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle, work?: () => void) {
-  work?.()
-  let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
-  const overlapsHeader = (pill: LabelPaintRect, groups: readonly PositionedGroup[]): boolean => groups.some(group => {
-    work?.()
-    // Production retains the measured strip. An unmeasured group cannot
-    // establish a clear interior slot; keep its full extent conservative.
-    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
-    return height > 0 && pill.x < group.x + group.width && pill.x + pill.w > group.x
-      && pill.y < group.y + height && pill.y + pill.h > group.y || overlapsHeader(pill, group.children)
-  })
-  const overlapsMarker = (pill: LabelPaintRect): boolean => {
-    const current = customTextMeasurementActive()
-      ? positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
-      : markers ??= positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
-    for (const marker of current) {
-      work?.()
-      const box = marker.bounds
-      if (box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0) return true
-    }
-    return false
-  }
-  const clearPaintRect = (inner: LabelPaintRect, halo: number, edge: PositionedEdge): LabelPaintRect | undefined => {
-    work?.()
-    const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
-    // Own endpoint cards are obstacles too: a repair must not exchange a
-    // route-label ambiguity for hidden authored text or terminal symbols.
-    // Beside them the halo also leaves that end's marker and some line.
-    const lineWidth = style.lineWidth ?? 1
-    const sourceGap = labelEndpointClearance(edge, lineWidth, 'start') - halo, targetGap = labelEndpointClearance(edge, lineWidth, 'end') - halo
-    if (positioned.nodes.some(node => {
-      work?.()
-      const gap = Math.max(0, node.id === edge.source ? sourceGap : 0, node.id === edge.target ? targetGap : 0)
-      return pill.x < node.x + node.width + gap && pill.x + pill.w + gap > node.x && pill.y < node.y + node.height + gap && pill.y + pill.h + gap > node.y
-    }) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
-    return pill
-  }
-  return { overlapsMarker, clearPaintRect }
-}
-
 /**
  * Post-freeze label repair for ROUTE_LABEL_ON_SHARED_TRUNK. A labeled edge whose
  * pill sits on a trunk shared with another edge is illegible — the reader cannot
@@ -1300,26 +1295,21 @@ export function repairLabelsOnSharedTrunks(
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
     const paint = clearance ??= labelPaintClearance(positioned, style)
     const halo = labelHaloPadding(edge, style)
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
+    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
-
     const segs = orderedLabelSegments(edge)
-
-    const saved = edge.labelPosition
-    let fixed = false
     // A narrow private segment beside a shared trunk can have no centered
-    // slot. Keep the shaft inside its pill while trying either side, within
-    // the existing on-route allowance; the route itself remains frozen.
+    // slot. Keep the shaft inside its pill while trying either side, then
+    // every dense seat of the run; the route itself remains frozen. The one
+    // seat rule ranks them, a seat on its own run first: beside it, the
+    // caption could name the trunk it is leaving.
     const shift = Math.min(pw, ph) / 2 - 1
-    for (const offset of [0, shift, -shift]) {
-      if (fixed) break
-      for (const point of labelSegmentSamples(segs, pw, ph, offset, false, true)) {
-        edge.labelPosition = point
-        if (paint.clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
-      }
+    const candidates = function* (): Generator<Point> {
+      for (const offset of [0, shift, -shift]) yield* labelSegmentSamples(segs, pw, ph, offset, false, true)
+      yield* routeSeats(edge.points)
     }
-
-    if (!fixed) { edge.labelPosition = saved; channels.push({ edge, width: m.width }) }
+    const admit = (point: Point): boolean => !!paint.clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style, point)
+    if (!seatLabel(edge, positioned, style, candidates(), admit, true)) channels.push({ edge, width: m.width })
   }
   // Seat short captions before wide ones reserve the outer channels. Label-
   // only repairs retain their original order and geometry-preserving priority.
@@ -1333,7 +1323,6 @@ export function repairLabelsOnSharedTrunks(
       }
     }
   }
-
 }
 
 const PRIVATE_CHANNEL_LANES = 128
@@ -1537,100 +1526,6 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
   return false
 }
 
-/**
- * Post-freeze label repair for labels left OFF their own route. ELK can place an
- * edge label with a perpendicular offset from the line; applyRouteContracts
- * re-slots labels only on edges it RE-ROUTES, so a label on an edge that came out
- * of ELK ALREADY straight (and is not a shared-trunk conflict, so the pass above
- * skips it too) keeps ELK's offset placement — which the rubric flags as
- * labelOffRoute once the offset exceeds half the pill height. Seen on a
- * high-degree mixed-label fan-in, where a straight diamond→hub spoke's label sat
- * a pill-height above its own line. Re-slot ONLY such labels onto their own
- * axis-aligned segments (longest first, center-out — the midpoint reads best),
- * taking the first slot that sits ON the route and clear of every node and
- * foreign trunk. If none exists, leave the label as placed (a rare off-route
- * label is a lesser evil than a pill drawn over a node).
- *
- * Self-loops are EXCLUDED: their label legitimately sits beside ELK's small loop
- * stub (a pill-width from it), which is correct, not off-route. Geometry-
- * preserving (labels only) so it is freeze-safe; deterministic (fixed segment
- * order + fixed center-out sample). A no-op on the HARD-clean corpus, whose
- * labels are already on their routes.
- */
-export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  const distToSeg = (p: Point, a: Point, b: Point): number => {
-    const dx = b.x - a.x,
-      dy = b.y - a.y,
-      l2 = dx * dx + dy * dy
-    if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y)
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
-    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
-  }
-  let clearance: ReturnType<typeof labelPaintClearance> | undefined
-  for (const edge of positioned.edges) {
-    if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
-    if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
-    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
-    const pw = m.width + 2 * LABEL_PILL_PADDING,
-      ph = m.height + 2 * LABEL_PILL_PADDING
-    const allow = ph / 2 + 4 // exactly the rubric's labelOffRoute allowance
-    const routeDist = (p: Point): number => {
-      let d = Infinity
-      for (let i = 1; i < edge.points.length; i++) d = Math.min(d, distToSeg(p, edge.points[i - 1]!, edge.points[i]!))
-      return d
-    }
-    if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
-    const paint = clearance ??= labelPaintClearance(positioned, style)
-    const halo = labelHaloPadding(edge, style)
-    const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
-      !!paint.clearPaintRect(pillRect(x, y, m), halo, edge) &&
-      !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
-
-    const segs = orderedLabelSegments(edge)
-
-    // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
-    // reads best) and take the first clear one.
-    let placed = false
-    for (const point of labelSegmentSamples(segs, pw, ph)) {
-      if (clearAt(point.x, point.y)) { edge.labelPosition = point; placed = true; break }
-    }
-    // (2) No on-route slot (the route's approach is a shared/congested trunk, so
-    // every on-route position collides). Pull the label PERPENDICULARLY toward
-    // the route — from wherever ELK parked it — to just inside the allowance
-    // (allow - 1), which still clears the trunk by ~half the remaining gap. Keep
-    // ELK's side first; fall back to the mirror side. This turns an off-route
-    // label into a within-tolerance one without forcing it onto a busy trunk.
-    if (!placed) {
-      let foot = edge.points[0]!,
-        fd = Infinity
-      for (const s of segs.length ? segs : []) {
-        const dx = s.b.x - s.a.x,
-          dy = s.b.y - s.a.y,
-          l2 = dx * dx + dy * dy || 1
-        const t = Math.max(0, Math.min(1, ((edge.labelPosition.x - s.a.x) * dx + (edge.labelPosition.y - s.a.y) * dy) / l2))
-        const fx = s.a.x + t * dx,
-          fy = s.a.y + t * dy,
-          d = Math.hypot(edge.labelPosition.x - fx, edge.labelPosition.y - fy)
-        if (d < fd) {
-          fd = d
-          foot = { x: fx, y: fy }
-        }
-      }
-      const ux = fd > EPS ? (edge.labelPosition.x - foot.x) / fd : 0
-      const uy = fd > EPS ? (edge.labelPosition.y - foot.y) / fd : -1 // default: lift above
-      const off = allow - 1
-      for (const side of [1, -1]) {
-        const cx = foot.x + ux * off * side,
-          cy = foot.y + uy * off * side
-        if (clearAt(cx, cy)) {
-          edge.labelPosition = { x: cx, y: cy }
-          break
-        }
-      }
-    }
-  }
-}
-
 function segmentHitsLoopLabel(a: Point, b: Point, rect: LabelPaintRect): boolean {
   if (Math.abs(a.x - b.x) <= EPS) {
     return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
@@ -1689,7 +1584,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
   // supply a search that remembers fixed clearances (label-seat-search.ts).
   const seats = options?.preserveRouteClearance ? undefined : options?.seats?.(positioned, style, labeled, clearPaintRect, rectOf, intersects)
 
-  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }, masking = true): Generator<Point> {
+  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }, masking = true, dense = false): Generator<Point> {
     if (rescue && !rescue.pay(16)) return
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
@@ -1723,7 +1618,7 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
     if (!segs) return
     // Offset ladder: on-route first, then perpendicular offsets up to the
     // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
-    // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
+    // the shared seat rule uses) — a labeled reciprocal pair whose
     // lanes sit closer than two pill widths has NO on-route solution, but
     // ±(allow-1) of lateral headroom per label is enough to part them while
     // labelOffRoute stays satisfied by construction.
@@ -1735,8 +1630,17 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
         if (clearAt(point.x, point.y, maskFree)) yield point
       }
     }
+    // The settled graph also offers every dense seat of its own route that
+    // is paint-safe and off shared trunks. The one seat rule ranks them after
+    // the ladder by the captions and shafts they actually cover.
+    if (dense) for (const point of routeSeats(edge.points)) {
+      if (clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style, point)) yield point
+    }
   }
   const slide = (edge: PositionedEdge, masking = true): boolean => {
+    // A settled graph caption takes the least-conflicted seat by the one seat
+    // rule; a clear first slot is kept as it is.
+    if (privateChannel) return !!seatLabel(edge, positioned, style, slots(edge, labeled.filter(other => other !== edge), false, undefined, masking, true), () => true)
     for (const point of slots(edge, labeled.filter(other => other !== edge), false, undefined, masking)) {
       edge.labelPosition = point
       return true
@@ -1937,14 +1841,22 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
       // The label-only search has found no clear seat. Move only a shaft that
       // actually touches this halo, and preserve each previously clear label.
       // A second blocker can need just a local slide after the first one moves.
+      let rerouted = false
       for (let hit: typeof contact | undefined = contact; hit && channelBudget.lanes; hit = contacts.next().value) {
         if (!pay(1)) return
         if (hit === true || hit.edge.label) continue
         const peer = hit.edge, protectedHalos = paint.protectedHalos(edge, peer)
         if (!protectedHalos) return
         if (!privateChannel(peer, positioned, graph, style, clearance, edge, { protectedHalos, budget: channelBudget, prepare: paint.refreshRoute })) continue
+        rerouted = true
         const next = foreignRouteContacts(edge, rect).next().value
         if (!next || typeof next === 'object' && slideBeside(edge, rect, next.box, paint)) break
+      }
+      // The channel moved a route; a caption still in conflict takes the
+      // rule's seat on the new routes, unless its own seat is no worse.
+      if (rerouted && measureLabelConflicts(positioned, style, new Set([positioned.edges.indexOf(edge)])).total) {
+        const incumbent = edge.labelPosition!
+        seatLabel(edge, positioned, style, (function* () { yield incumbent; yield* slots(edge, labeled.filter(other => other !== edge), false, undefined, true, true) })(), () => true)
       }
     }
   }
@@ -1977,6 +1889,47 @@ function settleEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: Posi
     }
     if (conflicts === 0) { rescuePaintSeats(); break }
     if (sweep === 2) rescuePaintSeats()
+  }
+  if (privateChannel) returnToOwnRuns()
+
+  // A caption the sweeps left clear of its own line returns onto one of its
+  // runs where a seat is now clear: the neighbour that pushed it aside may
+  // itself have moved later. Detached from its line, between two routes, a
+  // caption can read as either route's. One whose nearest route is a twin
+  // (the same two nodes) stays beside the pair: a seat on its run would mask
+  // the twin. The caption nearest another route, relative to its own, goes
+  // first; the seat nearest its current one wins and may add no conflict of
+  // any kind.
+  function returnToOwnRuns(): void {
+    const twin = (a: PositionedEdge, b: PositionedEdge): boolean => a.source === b.source && a.target === b.target || a.source === b.target && a.target === b.source
+    const aside: Array<{ edge: PositionedEdge; index: number; ambiguity: number }> = []
+    labeled.forEach((edge, index) => {
+      if (edge.source === edge.target) return
+      const rect = labelRect(edge, style)
+      if (!rect || edge.points.some((point, i) => i > 0 && segmentEntersLabelRect(edge.points[i - 1]!, point, rect))) return
+      let nearest: PositionedEdge | undefined, other = Infinity
+      for (const peer of positioned.edges) {
+        if (peer === edge || peer.style === 'invisible' || peer.points.length < 2) continue
+        const distance = routeDistance(edge.labelPosition!, peer.points)
+        if (distance < other) { other = distance; nearest = peer }
+      }
+      if (nearest && twin(edge, nearest)) return
+      aside.push({ edge, index, ambiguity: routeDistance(edge.labelPosition!, edge.points) / other })
+    })
+    aside.sort((a, b) => b.ambiguity - a.ambiguity || a.index - b.index)
+    for (const { edge } of aside) {
+      if (seatOnRoute(edge.labelPosition!, edge.points)) continue
+      const incumbent = edge.labelPosition!, involved = new Set([positioned.edges.indexOf(edge)])
+      const before = measureLabelConflicts(positioned, style, involved).total
+      const onRun: Point[] = []
+      for (const point of slots(edge, labeled.filter(other => other !== edge), false, undefined, false)) if (seatOnRoute(point, edge.points)) onRun.push(point)
+      onRun.sort((a, b) => Math.hypot(a.x - incumbent.x, a.y - incumbent.y) - Math.hypot(b.x - incumbent.x, b.y - incumbent.y))
+      edge.labelPosition = onRun.find(point => {
+        edge.labelPosition = point
+        const counts = measureLabelConflicts(positioned, style, involved)
+        return counts.total <= before && counts.labelEdge === 0
+      }) ?? incumbent
+    }
   }
 }
 
@@ -2034,13 +1987,47 @@ export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edg
   }
 }
 
+/** Each group frame the route crosses, with its crossing count. A shortcut
+ * may enter and leave the same containers, but not trade one frame for
+ * another or add a pass through a sibling. */
+function frameCrossingSignature(points: readonly Point[], groups: readonly PositionedGroup[]): string {
+  const counts: string[] = []
+  const visit = (group: PositionedGroup): void => {
+    const x0 = group.x, x1 = group.x + group.width, y0 = group.y, y1 = group.y + group.height
+    let crossings = 0
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      if (Math.abs(a.y - b.y) <= EPS) {
+        const lo = Math.min(a.x, b.x), hi = Math.max(a.x, b.x)
+        if (a.y > y0 && a.y < y1) crossings += (lo < x0 && hi > x0 ? 1 : 0) + (lo < x1 && hi > x1 ? 1 : 0)
+      } else {
+        const lo = Math.min(a.y, b.y), hi = Math.max(a.y, b.y)
+        if (a.x > x0 && a.x < x1) crossings += (lo < y0 && hi > y0 ? 1 : 0) + (lo < y1 && hi > y1 ? 1 : 0)
+      }
+    }
+    if (crossings) counts.push(`${group.id}:${crossings}`)
+    group.children.forEach(visit)
+  }
+  groups.forEach(visit)
+  return counts.join(',')
+}
+
+/** A perpendicular jog this short between two parallel runs reads as a hitch. */
+export const HITCH_JOG = 2 * CLEARANCE
+
 /** Remove a single orthogonal excursion after captions have settled. The
  * inner run can move to the nearest endpoint lane without moving either
- * contact or rotating its ray. No distance threshold makes a bend optional:
- * the replacement and its translated caption must clear the actual paint. */
+ * contact or rotating its ray. A route is read along its own final run, so
+ * one drawn across the graph's flow (a same-rank link, or a link inside a
+ * subgraph laid out in another direction) is shortened like any other. No
+ * distance threshold makes a bend optional:
+ * the replacement and its translated caption must clear the actual paint.
+ * Inside a grouped graph the replacement also keeps every frame crossing and
+ * adds no run along a frame or card border. */
 function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  if (!ownsLayoutRouteInputs(positioned.edges, style) || positioned.groups.length || graph.subgraphs.length || !withinLayoutPreferenceBudget(graph)) return
-  const { ctx, axis } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
+  if (!ownsLayoutRouteInputs(positioned.edges, style) || !withinLayoutPreferenceBudget(graph)) return
+  let boxes: ReturnType<typeof clearanceBoxes> | undefined
+  const { ctx } = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
   ctx.fixedLabels = true
   ctx.finalLabelClearance = true
   let nodes: Map<string, PositionedNode> | undefined
@@ -2048,40 +2035,67 @@ function shortenRouteExcursions(positioned: { nodes: PositionedNode[]; edges: Po
   const pay = (units: number): boolean => { remaining -= units; return remaining >= 0 }
   let paint: ReturnType<typeof labelSeatPaintContext>
   let positions: Map<PositionedEdge, Point> | undefined
+  // A dotted route paints butt-capped dashes of its solid line (miter joins),
+  // so the solid shaft model bounds its ink for every clearance proof here.
+  const envelope = (edge: PositionedEdge): PositionedEdge => edge.style === 'dotted' ? { ...edge, style: 'solid' } : edge
   for (const edge of positioned.edges) {
     const saved = edge.routeCertificate, points = edge.points
-    if (!saved || saved.routeClass !== 'primary-forward' || points.length !== 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
-    const [start, a, b, c, d, end] = points as [Point, Point, Point, Point, Point, Point]
+    if (!saved || saved.routeClass !== 'primary-forward' && saved.routeClass !== 'cross-hierarchy' || points.length < 6 || hasConstructedBundleRoute(edge) || edge.style === 'invisible') continue
+    // The last six points: an excursion, or a staircase whose final jog is
+    // a hitch. Before them the route is kept as drawn.
+    const head = points.slice(0, -6)
+    const [start, a, b, c, d, end] = points.slice(-6) as [Point, Point, Point, Point, Point, Point]
+    const axis: Axis = d.y === end.y ? { main: 'x', cross: 'y', sign: end.x >= d.x ? 1 : -1 } : { main: 'y', cross: 'x', sign: end.y >= d.y ? 1 : -1 }
     const main = axis.main, cross = axis.cross
-    const lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
+    let lane = Math.max(Math.min(start[cross], end[cross]), Math.min(Math.max(start[cross], end[cross]), b[cross]))
+    // A staircase's final jog shorter than a hitch folds into the run before.
+    if (lane === b[cross] && Math.abs(end[cross] - b[cross]) < HITCH_JOG) lane = end[cross]
     if (start[cross] !== a[cross] || a[main] !== b[main] || b[cross] !== c[cross]
-      || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross]
+      || c[main] !== d[main] || d[cross] !== end[cross] || lane === b[cross] || head.length > 0 && lane !== end[cross]
       || !simpleOrthogonal(points) || (a[main] - start[main]) * axis.sign <= 0
       || (c[main] - b[main]) * axis.sign <= 0 || (end[main] - d[main]) * axis.sign <= 0) continue
-    const oldInk = orthogonalShaftInk(edge, style)
+    const oldInk = orthogonalShaftInk(envelope(edge), style)
     if (!oldInk?.length) continue
     const jog = lane === end[cross] ? a[main] : d[main]
-    const route = [{ ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
+    const route = [...head.map(point => ({ ...point })), { ...start }, axisPoint(axis, jog, start[cross]), axisPoint(axis, jog, end[cross]), { ...end }]
     if (!simpleOrthogonal(route)) continue
     nodes ??= indexRouteNodes(positioned.nodes)
     const source = nodes.get(edge.source), target = nodes.get(edge.target)
     if (!source || !target || invalidEndpointApproaches({ ...edge, points: route }, source, target) || routeAddsCrossings(route, edge, ctx)) continue
+    if (positioned.groups.length) {
+      if (frameCrossingSignature(route, positioned.groups) !== frameCrossingSignature(points, positioned.groups)) continue
+      boxes ??= clearanceBoxes(positioned)
+      if (routeClearanceFindings([{ ...edge, points: route }], boxes).length > routeClearanceFindings([edge], boxes).length) continue
+    }
+    // Only new ink needs a lane proof: a run the route already draws keeps
+    // whatever neighbours it had.
+    const drawn = (p: Point, q: Point): boolean => points.slice(1).some((r, i) => {
+      const o = points[i]!
+      if (p.x === q.x) return o.x === p.x && r.x === p.x && Math.min(p.y, q.y) >= Math.min(o.y, r.y) && Math.max(p.y, q.y) <= Math.max(o.y, r.y)
+      return o.y === p.y && r.y === p.y && Math.min(p.x, q.x) >= Math.min(o.x, r.x) && Math.max(p.x, q.x) <= Math.max(o.x, r.x)
+    })
     if (route.slice(1).some((point, i) => {
       const before = route[i]!, segmentAxis = axisFor(before.x === point.x ? 'TB' : 'LR')
-      return hasDirectLaneBlocker(edge, before[segmentAxis.cross], Math.min(before[segmentAxis.main], point[segmentAxis.main]), Math.max(before[segmentAxis.main], point[segmentAxis.main]), ctx, segmentAxis, false)
+      return !drawn(before, point) && hasDirectLaneBlocker(edge, before[segmentAxis.cross], Math.min(before[segmentAxis.main], point[segmentAxis.main]), Math.max(before[segmentAxis.main], point[segmentAxis.main]), ctx, segmentAxis, false)
     }) || !routeCandidateMarkersClear(edge, route, positioned.edges, style)) continue
     let label = edge.labelPosition
     if (edge.label) {
+      // The caption stays on the run it moves with; a sub-pixel overhang of a
+      // corner enters no pill interior.
       const rect = labelRect(edge, style)
-      if (!label || !rect || rect[main] < Math.min(b[main], c[main])
-        || rect[main] + (main === 'x' ? rect.w : rect.h) > Math.max(b[main], c[main])
+      if (!label || !rect || rect[main] < Math.min(b[main], c[main]) - LABEL_INTERIOR_TOLERANCE
+        || rect[main] + (main === 'x' ? rect.w : rect.h) > Math.max(b[main], c[main]) + LABEL_INTERIOR_TOLERANCE
         || Math.abs(label[cross] - b[cross]) > (cross === 'x' ? rect.w : rect.h) / 2) continue
       label = { ...label, [cross]: label[cross] + lane - b[cross] }
     }
-    paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, labelShafts(positioned.edges, style, pay))
+    if (!paint) {
+      const shafts = labelShafts(positioned.edges, style, pay)
+      paint = labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay, (owner, routePoints = owner.points) => shafts(envelope(owner), routePoints))
+    }
     if (!paint) return
+    const retained = paint.routeShafts(edge)
     if (!paint.refreshRoute(edge, route)) return
-    const clear = paint.clearRoute(edge, route) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
+    const clear = paint.clearRoute(edge, route, retained, true) && (!label || !edge.label || paint.clear(edge, label, positions ??= new Map()))
     if (!clear) { if (!paint.refreshRoute(edge)) return; continue }
     const oldLabel = edge.labelPosition
     setRoutePoints(ctx, edge, route)
@@ -2236,6 +2250,13 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
       if (edgeLabel && otherLabel && edgeLabel.x < otherLabel.x + otherLabel.w && edgeLabel.x + edgeLabel.w > otherLabel.x && edgeLabel.y < otherLabel.y + otherLabel.h && edgeLabel.y + edgeLabel.h > otherLabel.y) {
         findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'label-label' })
       }
+    }
+    // No other route crosses the loop or runs inside it, at its start, at
+    // its end or along the way. (A composite's loop is drawn round its
+    // frame, which holds its own routes.)
+    if (node) for (const other of positioned.edges) {
+      if (other.source === other.target || other.style === 'invisible' || edge.style === 'invisible') continue
+      if (routeMeetsSelfLoop(edge.points, other.points)) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'route-route' })
     }
     const ownLabel = labelRect(edge, style)
     if (ownLabel) {

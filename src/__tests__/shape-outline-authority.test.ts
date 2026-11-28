@@ -254,7 +254,7 @@ describe('canonical shape outline authority', () => {
 
   test('the final route audit independently rejects a small-circle bounding-box endpoint', () => {
     const source = parseMermaid('flowchart LR\n  A[Source] --> B@{ shape: sm-circ, label: "" }')
-    const positioned = layoutGraphSync(source)
+    const positioned = structuredClone(layoutGraphSync(source))
     const target = positioned.nodes.find(candidate => candidate.id === 'B')!
     positioned.edges[0]!.points[positioned.edges[0]!.points.length - 1] = {
       x: target.x,
@@ -292,7 +292,7 @@ describe('canonical shape outline authority', () => {
 
     for (const direction of directions) for (const semanticShape of Object.keys(FLOWCHART_V11_SHAPES)) {
       const graph = parseMermaid(`flowchart ${direction}\n  A[Source] --> B@{ shape: ${semanticShape}, label: "X" }`)
-      const positioned = layoutGraphSync(graph)
+      const positioned = structuredClone(layoutGraphSync(graph))
       const edge = positioned.edges[0]!
       const source = positioned.nodes.find(candidate => candidate.id === 'A')!
       const target = positioned.nodes.find(candidate => candidate.id === 'B')!

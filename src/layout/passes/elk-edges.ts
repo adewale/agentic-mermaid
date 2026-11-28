@@ -7,11 +7,12 @@
  * internal segments into a single continuous edge path.
  */
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
-import type { MermaidGraph, Point, PositionedEdge } from '../../types.ts'
+import type { MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
-import { calculatePathMidpoint, type MarginInfo } from '../geometry.ts'
+import type { MarginInfo } from '../geometry.ts'
 import { orthogonalizeEdgePoints } from './orthogonalize.ts'
 import { alignElkRoundoff } from '../elk-roundoff.ts'
+import { ownedLabelContent } from '../positioned-values.ts'
 
 /** Private adapter metadata retained by ELK and its layout cache. */
 export interface ElkHierarchySegment extends ElkExtendedEdge {
@@ -69,13 +70,9 @@ export function extractEdgesRecursively(
       allPoints.push(...(shared || redundant ? points.slice(1) : points))
     }
 
-    // Label position: use ELK's inline label position (on-edge with collision avoidance)
-    // Fall back to midpoint for hierarchical edges or when ELK position unavailable
-    let labelPosition: Point | undefined
-    if (originalEdge.label && allPoints.length >= 2) {
-      const elkLabelPos = seg.find(part => part.labelPosition)?.labelPosition
-      labelPosition = elkLabelPos ?? calculatePathMidpoint(allPoints)
-    }
+    // The room ELK reserved for the caption. A route without one, or one
+    // rebuilt below, has its caption seated on it after extraction.
+    let labelPosition = originalEdge.label ? seg.find(part => part.labelPosition)?.labelPosition : undefined
 
     // Ensure all edge segments are orthogonal (horizontal or vertical only).
     // In SEPARATE hierarchy mode, ELK may produce diagonal segments for
@@ -88,14 +85,71 @@ export function extractEdgesRecursively(
       marginEdgeIndex++
     }
 
-    // Recalculate label position for margin-routed edges
-    if (originalEdge.label && orthogonalPoints !== allPoints && orthogonalPoints.length >= 2) {
-      labelPosition = calculatePathMidpoint(orthogonalPoints)
-    }
+    if (orthogonalPoints !== allPoints) labelPosition = undefined
 
     edges.push(positionedEdgeFromAuthored(graph, edgeIndex, orthogonalPoints, labelPosition))
   }
 }
+
+/** How far a group-side end stays from that side's corners. */
+const GROUP_CORNER_INSET = 12
+
+/**
+ * ELK can attach an edge to a group (a container endpoint) at a corner of its
+ * frame, so the terminal run continues the frame's other side: the route
+ * reads as leaving the frame line rather than the group. Slide such a
+ * terminal run along its side, keeping it perpendicular to the side and every
+ * bend, until it is GROUP_CORNER_INSET from the corner (or at the middle of a
+ * short side). A run that would enter a node box stays where it was.
+ */
+export function keepGroupEndsOffCorners(edges: PositionedEdge[], groups: readonly PositionedGroup[], nodes: readonly PositionedNode[]): void {
+  const byId = new Map<string, PositionedGroup>()
+  const visit = (list: readonly PositionedGroup[]): void => { for (const group of list) { byId.set(group.id, group); visit(group.children) } }
+  visit(groups)
+  if (byId.size === 0) return
+  for (const edge of edges) {
+    for (const start of [true, false]) {
+      const group = byId.get(start ? edge.source : edge.target)
+      const points = start ? edge.points : edge.points.toReversed()
+      if (!group || points.length < 2) continue
+      const [end, run] = points as [Point, Point]
+      const after = points[2]
+      // A run across a top or bottom side slides along x; one across a left
+      // or right side slides along y.
+      const along: 'x' | 'y' | undefined = end.x === run.x && run.y !== end.y ? 'x' : end.y === run.y && run.x !== end.x ? 'y' : undefined
+      if (!along) continue
+      const across = along === 'x' ? 'y' : 'x'
+      const sideAt = across === 'y' ? [group.y, group.y + group.height] : [group.x, group.x + group.width]
+      if (!sideAt.some(value => Math.abs(end[across] - value) < 0.5) || after && Math.abs(after[across] - run[across]) > 1e-9) continue
+      const lo = group[along], size = along === 'x' ? group.width : group.height
+      const inset = Math.min(size / 2, GROUP_CORNER_INSET)
+      const lane = Math.min(Math.max(end[along], lo + inset), lo + size - inset)
+      if (Math.abs(lane - end[along]) < 1e-9 || Math.min(end[along] - lo, lo + size - end[along]) >= ROUTE_CORNER_CLEARANCE) continue
+      // A straight route slides whole, so its far end must stay on its own
+      // box's face, clear of that face's corners too.
+      if (!after) {
+        const farId = start ? edge.target : edge.source
+        const far = nodes.find(node => node.id === farId) ?? byId.get(farId)
+        const farLo = far?.[along], farSize = far ? (along === 'x' ? far.width : far.height) : 0
+        if (farLo === undefined || lane < farLo + ROUTE_CORNER_CLEARANCE || lane > farLo + farSize - ROUTE_CORNER_CLEARANCE) continue
+      }
+      const moved = points.map((point, index) => index < 2 ? { ...point, [along]: lane } : point)
+      if (nodes.some(node => node.id !== edge.source && node.id !== edge.target && enters(moved.slice(0, 3), node))) continue
+      edge.points = start ? moved : moved.toReversed()
+      // A caption ELK reserved on the slid run moves with it.
+      const label = edge.labelPosition
+      if (label && Math.abs(label[along] - end[along]) < 1e-6) edge.labelPosition = { ...label, [along]: lane }
+    }
+  }
+}
+
+/** Ends closer than this to a side's corner read as leaving the corner. */
+const ROUTE_CORNER_CLEARANCE = 4
+
+const enters = (points: readonly Point[], box: PositionedNode): boolean => points.slice(1).some((b, i) => {
+  const a = points[i]!
+  return Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+})
 
 /** The authored identity, shaft, markers and presentation of `graph.edges[edgeIndex]`
  * on a produced route. Every producer of graph edges shares this projection. */
@@ -108,7 +162,7 @@ export function positionedEdgeFromAuthored(graph: MermaidGraph, edgeIndex: numbe
     // it as the edge's data-id (stable identity contract).
     ...(originalEdge.id !== undefined ? { id: originalEdge.id } : {}),
     label: originalEdge.label,
-    ...(originalEdge.labelContent ? { labelContent: originalEdge.labelContent } : {}),
+    ...(originalEdge.labelContent ? { labelContent: ownedLabelContent(originalEdge.labelContent) } : {}),
     style: originalEdge.style,
     hasArrowStart: originalEdge.hasArrowStart,
     hasArrowEnd: originalEdge.hasArrowEnd,

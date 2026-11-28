@@ -1,0 +1,17 @@
+%% Real diagram from a user issue: https://github.com/mermaid-js/mermaid/issues/2263
+stateDiagram-v2
+%%{init:{'state':{'nodeSpacing': 0, 'rankSpacing': 20}}}%%
+
+[*] --> conf
+conf --> tox_env
+
+state tox_env {
+    [*] --> create
+    create --> package
+    package --> [*]
+}
+tox_env --> tox_env :for each
+
+tox_env --> report
+report --> report :for each
+report --> [*]

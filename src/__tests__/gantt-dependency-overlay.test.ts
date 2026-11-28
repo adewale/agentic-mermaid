@@ -153,6 +153,20 @@ gantt
     Three :c, after a, 4d
 `
 
+// Compact mode packs a bar narrower than the exit stub right after the
+// predecessor's end, in its row: the end-on exit stub would cross it.
+const COMPACT_NARROW_NEIGHBOUR = `---
+displayMode: compact
+---
+gantt
+  dateFormat YYYY-MM-DD
+  section S
+    A :a, 2024-01-01, 2d
+    N :n, 2024-01-03, 1h
+    Later :z, 2024-03-30, 2d
+    C :c, after a, 4d
+`
+
 const MILESTONE = `gantt
   title Adding GANTT diagram functionality to mermaid
   dateFormat YYYY-MM-DD
@@ -176,6 +190,15 @@ describe('gantt dependency routing — layout invariants', () => {
     assertConnectorInvariants(layout)
   })
 
+  test('a successor on a later row is reached with one turn', () => {
+    // End of the predecessor, then down into the successor: no detour through
+    // a row gutter when the column is clear.
+    const { layout } = layoutOf(CRIT)
+    expect(layout.dependencies).toHaveLength(3)
+    for (const dep of layout.dependencies) expect(dep.points.length - 2).toBe(1)
+    assertConnectorInvariants(layout)
+  })
+
   test('a full-width blocking bar forces a jog, never a crossing', () => {
     const { layout } = layoutOf(BLOCKER)
     expect(layout.dependencies).toHaveLength(1)
@@ -193,6 +216,14 @@ describe('gantt dependency routing — layout invariants', () => {
   test('compact mode: same-row chains route through the gutter, not through bars', () => {
     const { layout } = layoutOf(COMPACT_SAME_ROW)
     expect(layout.compact).toBe(true)
+    expect(layout.dependencies).toHaveLength(1)
+    assertConnectorInvariants(layout)
+  })
+
+  test('compact mode: a bar narrower than the exit stub is not crossed by it', () => {
+    const { layout } = layoutOf(COMPACT_NARROW_NEIGHBOUR)
+    const narrow = layout.bars.find(bar => bar.taskIndex === 1)!
+    expect(narrow.w).toBeLessThan(GANTT_DEP_STUB)
     expect(layout.dependencies).toHaveLength(1)
     assertConnectorInvariants(layout)
   })
@@ -218,8 +249,12 @@ describe('gantt dependency routing — layout invariants', () => {
       afters: fc.array(fc.option(fc.nat(), { nil: undefined }), { minLength: n, maxLength: n }),
       milestones: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
       sectionBreaks: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
-    }).map(({ starts, durs, afters, milestones, sectionBreaks }) => {
-      const lines = ['gantt', '  dateFormat YYYY-MM-DD']
+      // Hour-long tasks draw bars narrower than a connector stub; compact
+      // mode packs them beside other bars in one row.
+      units: fc.array(fc.constantFrom('d', 'h'), { minLength: n, maxLength: n }),
+      compact: fc.boolean(),
+    }).map(({ starts, durs, afters, milestones, sectionBreaks, units, compact }) => {
+      const lines = [...(compact ? ['---', 'displayMode: compact', '---'] : []), 'gantt', '  dateFormat YYYY-MM-DD']
       const expectedDependencies: string[] = []
       for (let i = 0; i < starts.length; i++) {
         if (sectionBreaks[i] || i === 0) lines.push(`  section S${i}`)
@@ -228,7 +263,7 @@ describe('gantt dependency routing — layout invariants', () => {
           ? `after t${afters[i]! % i}`
           : `2024-01-${String(starts[i]).padStart(2, '0')}`
         if (i > 0 && afters[i] !== undefined) expectedDependencies.push(`${afters[i]! % i}->${i}:after`)
-        lines.push(`  Task ${i} :${tag}t${i}, ${start}, ${durs[i]}d`)
+        lines.push(`  Task ${i} :${tag}t${i}, ${start}, ${durs[i]}${units[i]}`)
       }
       return { source: lines.join('\n') + '\n', expectedDependencies }
     }))

@@ -177,10 +177,10 @@ as symmetric doglegs (`markCorankFanInBundles` re-routes them port-to-port and
 marks them bundle-owned). That *bends the labelled spoke*, which the older
 "labelled source exits straight at its mid-port" contract forbade — but under the
 symmetric-bend principle that is a **corrected contract, not a regression**: the
-spoke still exits at the source mid-port, it just bends to converge. The
-labelled-source-straightening pass (`alignLabeledSourcePort`) accordingly *yields*
-to a fan-in hub and still straightens only a labelled source into a single-input
-target.
+spoke still exits at the source mid-port, it just bends to converge. A labelled
+source into a single-input target stays straight at its mid-port through the
+route-contract straightener (a separate labelled-source slide once did this and
+was removed when it stopped changing any layout).
 
 ## The bigger architectural opportunity (larger scope, separate track)
 

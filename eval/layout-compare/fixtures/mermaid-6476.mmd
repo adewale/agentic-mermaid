@@ -1,0 +1,23 @@
+%% A fan member that can run straight keeps its straight route instead of joining the trunk: https://github.com/mermaid-js/mermaid/issues/6476
+flowchart TD
+
+a1[One]
+a2[Two]
+a3[Three]
+a4[Four]
+a5[Five]
+a6[Six]
+a7[Seven]
+a8[Eight]
+a9[Nine]
+a10[Ten]
+a11[Eleven]
+a12[Twelve]
+
+a1 --> a2 --> a4
+a3 --> a4
+a5 --> a4 & a6 & a9
+a9 & a6 --> a12
+a4 --> a7 & a9
+a12 --> a8 --> a4
+a9 --> a10 --> a11 --> a12

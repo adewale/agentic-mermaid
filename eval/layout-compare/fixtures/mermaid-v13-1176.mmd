@@ -1,0 +1,10 @@
+%% A {group} relation must not be drawn on the line of the junction relations between the same pair (https://github.com/mermaid-js/mermaid-v13/issues/1176).
+architecture-beta
+    group a(cloud)[Region A]
+    group b(cloud)[Region B]
+    service s1(server)[S1] in a
+    service s4(server)[S4] in b
+    junction j1
+    j1:L -- R:s1
+    j1:R -- L:s4
+    s1{group}:R -- L:s4{group}

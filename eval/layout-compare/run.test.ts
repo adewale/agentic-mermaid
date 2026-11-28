@@ -82,7 +82,7 @@ test('a crossing improvement cannot hide added bends, route length or area', () 
   const backend = compareSample({ ...before, metrics }, after, 'backend')
   expect(backend.verdict).toBe('improvement')
   expect(backend.notes).toEqual(comparison.notes)
-  const conflicting = { ...after, metrics: { ...after.metrics, labelConflicts: { total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0 } } }
+  const conflicting = { ...after, metrics: { ...after.metrics, labelConflicts: { total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0, labelGroup: 0 } } }
   expect(compareSample({ ...before, metrics }, conflicting, 'backend').verdict).toBe('regression')
   expect(compareSample(after, { ...after, metrics: { ...after.metrics, edgeCount: 0 } }, 'backend').verdict).toBe('regression')
   expect(compareSample(after, { ...after, metrics: { ...after.metrics, routeGeometry: undefined } }, 'backend').verdict).toBe('regression')

@@ -410,6 +410,15 @@ must agree." This sidesteps the oracle problem without a human:
   class, for every family at once). `property-invariance-source.test.ts`:
   inserting `%%` comments and blank lines leaves SVG byte-identical, and a
   chained flowchart edge equals its split form in facts, layout, and bytes.
+- **Cache relation** — `property-position-cache-soundness.test.ts`: a
+  sequence of cached renders of every registered family's example, varying
+  paint style, spacing, wrapping, font, quality and frontmatter theme/look/
+  family config, equals the same requests rendered with the position cache
+  off. A key that forgets any input that changes output fails here.
+- **Occurrence distinctness** — `property-edge-distinctness.test.ts`: in
+  random multigraphs with duplicates, mixed strokes and captions, a duplicate
+  occurrence never shares its twin's whole route or arrowhead, and one
+  arrowhead never stands for different strokes or two captions.
 - **Model-based editing** — `property-er-model.test.ts` drives the typed ER
   edit operations with `fc.commands` against a simple model, including invalid
   commands whose error code the model predicts.
@@ -575,6 +584,19 @@ This is where we approximate aesthetics deterministically:
   geometry that differs across machines; run
   `bun run eval/heuristic-tracker/run.ts` to see soft deltas when tuning
   routing.
+- **paired layout gate** (`bun run layout:gate --base <rev>`,
+  `eval/layout-compare/gate.ts`) — the per-PR soft-metric comparison the
+  tracker cannot make portably. Base and head lay out the same corpus (docs
+  corpus, fixtures, stress and generated graphs, default and balanced) on one
+  runner with one Bun, caches off, interleaved over rounds. Head's
+  `measureQuality` and rubric score both layouts and the engine's declared
+  objective (`compareLayoutPreference` in `src/layout/certification.ts`, the
+  comparator candidate selection uses) ranks them in its own order, port rate
+  and peer symmetry included. Lost support, nodes, edges, paint
+  certification or label measurement, and head nondeterminism, always fail.
+  An objective regression or a geometric-mean slowdown above 1.25× fails
+  unless the `layout-tradeoff-approved` label approves that head. Secondary
+  metric moves are listed, not decided.
 - **route-contract tripwires** — `ROUTE_*` codes that must stay 0; any hit
   means the layout pipeline regressed, not the diagram.
 - **chart-honesty pixel oracle** (`chart-honesty-text-*.test.ts`,
@@ -585,7 +607,13 @@ This is where we approximate aesthetics deterministically:
   ([`design/system/chart-honesty.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/system/chart-honesty.md)).
 
 **Runs:** `measureQuality`, ugly-detector, the layout rubric, the
-heuristic-tracker ratchet, and the chart-honesty oracle all gate per PR.
+heuristic-tracker ratchet, and the chart-honesty oracle all gate per PR. The
+paired layout gate runs on PRs that touch layout.
+**Does not decide:** qualities the declared objective does not contain. It
+ranks crossings, padded label conflicts, bends and canvas area; title
+readability, canonical ports and peer balance are not visible in the
+projection, and per-occurrence distinctness is protected separately by
+`property-edge-distinctness.test.ts`.
 **Bound provenance (Move 6):** each `QualityBounds` band now carries an
 explicit basis — `edgeCrossings` is `evidence` (the one aesthetic with strong
 human-subject support: Purchase 1997/2002), `labelLegibility` is `derived`
@@ -993,9 +1021,11 @@ gates rather than adding new machinery:
    weak oracles locally. The diff-scoped mutation proposal #355 was closed
    `not_planned`; it is not an active implementation commitment. Line coverage
    remains a finder, not an adequacy score.
-3. Performance comparisons are local campaigns and do not run in CI or gate
-   publication. Their recorded results require an explicit update. Product
-   browser/screenshot e2e and the heuristic-tracker ratchet remain on the PR gate.
+3. Detailed performance comparisons (cold start, edits, memory) are local
+   campaigns and do not gate publication. The paired layout gate gates only the
+   aggregate warm layout-time ratio, so a slowdown confined to a few large
+   inputs can pass. Product browser/screenshot e2e and the heuristic-tracker
+   ratchet remain on the PR gate.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture
    byte equality is not asserted.
 5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`

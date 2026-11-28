@@ -28,10 +28,13 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
-import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode, ScenePoint, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { composeGroup, pageRectFor } from './backend.ts'
+import { PAINT_MARGIN } from './paint-margin.ts'
+import { expandSceneBounds, geometryBounds, unionSceneBounds, visitTypedPathSegments } from './bounds.ts'
+import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { StyleSpec } from './style-registry.ts'
@@ -268,11 +271,69 @@ function sketchGeometryVia(
   strokeProjection?: SketchStrokeProjection,
   opacity?: SketchOpacity,
 ): string {
+  const canonical = geometryBounds(geom)
+  // Canonical paint is the geometry widened by half its own stroke.
+  const allowed = canonical && expandSceneBounds(canonical, width / 2 + PAINT_MARGIN)
+  const fits = (sketched: string): boolean => !allowed || sketchInkWithin(sketched, allowed)
   if (walk.sketcher) {
     const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection, opacity })
-    if (out !== null) return out
+    if (out !== null && fits(out)) return out
   }
-  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash, strokeProjection, opacity)
+  // Bowing and jitter grow with a mark's size. A sketch that would ink past
+  // the paint margin is redrawn tamer; if none fits, the caller draws it crisp.
+  for (const tame of [1, 0.5, 0.25]) {
+    const p = tame === 1 ? walk.p : { ...walk.p, roughness: walk.p.roughness * tame, bowing: walk.p.bowing * tame }
+    const out = sketchGeometry(geom, seed, stroke, width, fill, p, dash, strokeProjection, opacity)
+    if (!out || fits(out)) return out
+  }
+  return ''
+}
+
+/** A cubic's exact extent: its ends plus the interior extrema where the
+ * derivative vanishes. Sketch control points overshoot the drawn curve, so the
+ * control hull would reject sketches whose ink fits. */
+function cubicInkBounds([p0, p1, p2, p3]: readonly [ScenePoint, ScenePoint, ScenePoint, ScenePoint]): AxisAlignedBox {
+  const at = (t: number, a: number, b: number, c: number, d: number): number => {
+    const u = 1 - t
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d
+  }
+  const range = (a: number, b: number, c: number, d: number): [number, number] => {
+    let low = Math.min(a, d), high = Math.max(a, d)
+    // B'(t)/3 = qa t² + qb t + qc
+    const qa = -a + 3 * b - 3 * c + d, qb = 2 * (a - 2 * b + c), qc = b - a
+    const roots: number[] = []
+    if (Math.abs(qa) < 1e-12) { if (Math.abs(qb) > 1e-12) roots.push(-qc / qb) }
+    else {
+      const disc = qb * qb - 4 * qa * qc
+      if (disc >= 0) { const r = Math.sqrt(disc); roots.push((-qb + r) / (2 * qa), (-qb - r) / (2 * qa)) }
+    }
+    for (const t of roots) if (t > 0 && t < 1) { const v = at(t, a, b, c, d); low = Math.min(low, v); high = Math.max(high, v) }
+    return [low, high]
+  }
+  const [x0, x1] = range(p0.x, p1.x, p2.x, p3.x), [y0, y1] = range(p0.y, p1.y, p2.y, p3.y)
+  return { x0, y0, x1, y1 }
+}
+
+/** A `<path>` start tag; quoted values may hold `>`. */
+const PATH_TAG = /<path\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g
+/** One attribute of a start tag, in either quote. */
+const TAG_ATTRIBUTE = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
+
+/** Whether every path a sketcher emitted, widened by half its stroke, stays
+ * inside `allowed`. Its attributes are read in any order; a path whose data
+ * is missing or cannot be read does not fit. */
+function sketchInkWithin(sketched: string, allowed: AxisAlignedBox): boolean {
+  for (const [, body] of sketched.matchAll(PATH_TAG)) {
+    const attrs = new Map<string, string>()
+    for (const [, name, double, single] of body!.matchAll(TAG_ATTRIBUTE)) attrs.set(name!, double ?? single!)
+    const d = attrs.get('d')
+    let ink: AxisAlignedBox | undefined
+    if (d === undefined || !visitTypedPathSegments(d, segment => { ink = unionSceneBounds(ink, segment.cubic ? cubicInkBounds(segment.cubic) : segment.bounds); return true }) || !ink) return false
+    const half = attrs.get('stroke') === 'none' ? 0 : strokeWidthRatio(attrs.get('stroke-width')) / 2
+    const box = expandSceneBounds(ink, half)
+    if (box.x0 < allowed.x0 || box.y0 < allowed.y0 || box.x1 > allowed.x1 || box.y1 > allowed.y1) return false
+  }
+  return true
 }
 
 /** Inject attributes right after the opening tag of an owned-format element.

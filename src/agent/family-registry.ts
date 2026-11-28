@@ -395,6 +395,11 @@ export interface FamilyOperations {
   /** Optional: family-specific source-to-positioned layout for graphical output.
    * Public layout JSON additionally requires projectPositioned. */
   layout?: (ctx: FamilyLayoutContext) => FamilyLayoutResult | PositionedDiagram
+  /** Optional: this family's geometry depends on the frozen paint backend
+   * (paint that leaves canonical bounds changes clearances). Only a declaring
+   * family's layout receives `paintBackendId`, and only for it does the backend
+   * enter the position-cache key; every other layout is paint-independent. */
+  layoutReadsPaintBackend?: true
   /**
    * Optional typed projection of that same positioned artifact for layout
    * JSON, verification, route certificates, and quality metrics. This is a
@@ -1510,7 +1515,7 @@ gitGraph LR:
 
 export type BuiltinFamilyId = (typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS)[number]['id']
 
-function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed, hooks: FamilyOperations & Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>): FamilyDescriptor {
+function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed, hooks: FamilyOperations & Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'layoutReadsPaintBackend' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>): FamilyDescriptor {
   const { sceneRoles, narrower: _narrower, editorDiagramType: _editorDiagramType, editorLabel: _editorLabel, editorDescription: _editorDescription, editorExampleId: _editorExampleId, editorGlyph: _editorGlyph, editorExample: _editorExample, ...descriptor } = seed
   const semanticRoles = sceneRoles.map(row => row.role)
   return freezeDescriptor({
@@ -1610,6 +1615,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'mutateSource',
   'verify',
   'layout',
+  'layoutReadsPaintBackend',
   'projectPositioned',
   'renderSvg',
   'lowerScene',

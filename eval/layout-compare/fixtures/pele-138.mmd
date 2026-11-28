@@ -1,0 +1,9 @@
+%% No relation may pass through a service it does not connect, nor cross another avoidably (https://github.com/obsidianmd/pele/issues/138).
+architecture-beta
+  group app(cloud)[Playground]
+  service page(server)[Web page] in app
+  service Item1(server)[New item] in app
+  service store(disk)[localStorage]
+  service api(internet)[Claude API]
+  page:R -- L:api
+  page:B -- T:store

@@ -1,5 +1,8 @@
 # What "good looking" means in Agentic Mermaid
 
+Contributors changing layout: the [diagram quality guide](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/diagram-quality.md)
+explains which diagrams decide quality and the tools that detect regressions.
+
 A diagram is considered **good looking** when it satisfies, in order:
 
 1. **All Tier 1 structural checks pass.** None of
@@ -26,7 +29,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    | `labelLegibility` | fraction of measured visible labels whose retained text bounds fit their actual containing region | ≥ 85% |
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
-   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
+   | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, another visible route, or a group's title band or painted outline; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
    | `routeOverlaps` | Flowchart/State edge pairs sharing opposing-direction ink or same-endpoint parallel ink (parallel excludes self-loops) | reported separately from crossings; no default quality bound |
    | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; authored coincident Quadrant points and XY/Radar data overlays are excluded | ≥ 8 px |
    | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
@@ -122,28 +125,23 @@ conflicts may try one additional distinct strategy. Feasible candidates compare
 readable group titles, crossings, label-conflict pairs, avoidable bends,
 canonical endpoints, symmetry and area in that order.
 
-The engine first chooses a certified bundled placement using those existing
-strategies. Only the selected placement may then compare one completed generic
-unbundled route proposal, using the same ELK result and the same preference
-order. The decision to try this proposal reuses the selected placement's existing
-certification score, including the final comparison: unchanged selected geometry
-is not certified a second time. It does not explore an unbundled version of
-every placement strategy.
+The engine chooses a certified placement using those existing strategies, and
+each placement runs the route pipeline once. Generic fan bundling declines a
+trunk whose rebuilt routes would cross more foreign shafts than the separate
+routes they replace; there is no second, unbundled pipeline. This local rule
+costs some drawings bends that a full unbundled comparison used to recover, in
+exchange for one pipeline per placement.
 Symmetric fan-in/fan-out routing remains enabled.
-Graphs containing parallel edges keep their specialized route owners in both
-proposals; only generic fan bundling is disabled. A smaller proper-crossing
-count alone does not prove that duplicate endpoint lanes remain visibly distinct.
+Graphs containing parallel edges keep their specialized route owners. A smaller
+proper-crossing count alone does not prove that duplicate endpoint lanes remain
+visibly distinct.
 
-The receipt's `preference.compared` entries retain the certified bundled
-placement scores. `preference.selectedScore` describes the actual final routes,
-and `preference.routing` records the selected placement's bundled/unbundled
-comparison, scores and deciding criterion.
-The receipt's `attempts` counts placement productions; the optional final route
-comparison is recorded separately.
-Clean graphs, equivalent strategies and larger inputs skip these comparisons;
-the upper bound is four placement pipelines plus one unbundled route pipeline,
-with the existing maximum of 16 ELK attempts. The unbundled proposal reuses the
-selected placement's ELK result. Search decisions use graph
+The receipt's `preference.compared` entries retain the certified placement
+scores, and `preference.selectedScore` describes the actual final routes.
+The receipt's `attempts` counts placement productions.
+Clean graphs, equivalent strategies and larger inputs skip the placement
+comparisons; the upper bound is four placement pipelines with at most 16 ELK
+attempts. Search decisions use graph
 work counts, never elapsed time, so machine speed cannot change the drawing.
 These route comparisons apply to Flowchart and State, which retain the scored
 routes. Architecture uses the graph engine for placement and keeps its existing

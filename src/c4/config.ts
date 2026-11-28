@@ -2,6 +2,7 @@ import type { C4Boundary, C4Element, C4Shape } from './types.ts'
 import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
 import { AuthoredStyleColorError } from '../shared/style-props.ts'
 import { boolean, range, rule, type ConfigValueRule } from '../shared/config-value-rules.ts'
+import { PAINT_MARGIN } from '../scene/paint-margin.ts'
 
 const SHAPE_OVERRIDES: ReadonlyMap<string, C4Shape> = new Map([
   ['person', 'person'], ['box', 'rectangle'], ['rectangle', 'rectangle'], ['cylinder', 'database'],
@@ -36,7 +37,7 @@ export function resolveC4Config(input: C4ConfigInput = {}, themeVariables: C4Con
   input = Object.fromEntries(Object.entries(input).filter(([key, value]) => C4_CONFIG_VALUE_RULES[key]?.valid(value) ?? true))
   const compact = input.compact === true
   return { compact, typeLegend: input.typeLegend !== false,
-    ...(input.maxWidth === undefined ? {} : { maxWidth: number(input.maxWidth, 10000, 1) }), marginX: number(input.diagramMarginX, compact ? 16 : 24), marginY: number(input.diagramMarginY, compact ? 16 : 24),
+    ...(input.maxWidth === undefined ? {} : { maxWidth: number(input.maxWidth, 10000, 1) }), marginX: Math.max(PAINT_MARGIN, number(input.diagramMarginX, compact ? 16 : 24)), marginY: Math.max(PAINT_MARGIN, number(input.diagramMarginY, compact ? 16 : 24)),
     gap: number(input.c4ShapeMargin, compact ? 32 : 56), padding: number(input.c4ShapePadding, compact ? 10 : 16, 4),
     minimumWidth: number(input.width, compact ? 120 : 150, 24), minimumHeight: number(input.height, compact ? 60 : 76, 24),
     boundaryPadding: number(input.boxMargin, compact ? 16 : 24, 12), rowGap: number(input.nextLinePaddingX, compact ? 36 : 56),

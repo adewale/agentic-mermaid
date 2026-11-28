@@ -2,11 +2,16 @@ import type { MermaidGraph, Point, PositionedEdge, PositionedNode, PositionedGro
 import { onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
-import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
+import { layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
+import { seatCaption, type SeatGraph } from '../label-seat.ts'
+import { resolveRenderStyle } from '../../styles.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
 import { invalidEndpointApproaches, terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
 import { shapeRoutingProfile } from '../../shape-outline.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { MIN_ARRIVAL_SLOT_PITCH, terminalAssignment, type TerminalAssignment } from '../terminal-assignment.ts'
+
+const DEFAULT_STYLE: LabelMetricsStyle = resolveRenderStyle({})
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -24,9 +29,10 @@ import { isOutwardShapeApproach } from '../../shape-clipping.ts'
  * never has — so it is a strict no-op there and byte-exact equivalence holds. A
  * rebuilt route is adopted only when it clears every other node (an on-outline
  * endpoint is not worth trading for an edgeThroughNode); self-loops are skipped
- * (their stub is the renderer's). Deterministic; label re-centred on the new route.
+ * (their stub is the renderer's). Deterministic; the caption is seated on the new
+ * route by the one seat rule.
  */
-export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, style: Pick<LabelMetricsStyle, 'lineWidth' | 'edgeBendRadius'> = {}): void {
+export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, style: LabelMetricsStyle = DEFAULT_STYLE, seatGraph: SeatGraph = { nodes, edges }): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   for (const edge of edges) {
@@ -44,7 +50,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
     const savedCert = edge.routeCertificate
     edge.points = route
     recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    seatCaption(edge, seatGraph, style)
   }
 }
 
@@ -82,7 +88,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * how many routes it rebuilt and how many of those entered a title band: the
  * caller ranks such placements against alternatives that needed no repair.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): { titleBandRepairs: number; repaired: number } {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = [], terminals: TerminalAssignment = terminalAssignment(edges), style: LabelMetricsStyle = DEFAULT_STYLE): { titleBandRepairs: number; repaired: number } {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -330,7 +336,17 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       return adjacent && isOutwardShapeApproach(start ? source : target, pts[start ? 0 : pts.length - 1]!, adjacent)
     }
     const wasOutward = [outward(edge.points, true), outward(edge.points, false)]
-    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true)
+    // A detour that moves the arrival may not land it on a terminal the
+    // assignment does not let it share, nor redraw a repeated occurrence.
+    const oldEnd = edge.points.at(-1)!
+    const sharesLanding = (trial: Point[]): boolean => {
+      const end = trial.at(-1)!
+      if (Math.abs(end.x - oldEnd.x) < 0.5 && Math.abs(end.y - oldEnd.y) < 0.5) return true
+      return !edges.some(other => other !== edge && other.target === edge.target && other.style !== 'invisible' && other.points.length >= 2
+        && Math.abs(other.points.at(-1)!.x - end.x) < 0.5 && Math.abs(other.points.at(-1)!.y - end.y) < 0.5
+        && (edge.hasArrowEnd && other.hasArrowEnd ? !terminals.shares(edge, other, 'end') : other.source === edge.source))
+    }
+    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true) && sharesLanding(trial)
     let route = shiftInteriorSegment(edge.points, skip, keepsApproach) ?? bracketOverBand(edge.points, skip, keepsApproach)
       ?? detourTerminalSegment(edge.points, skip, keepsApproach)
     if (!route) {
@@ -344,7 +360,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const savedCert = edge.routeCertificate
     edge.points = route
     recertifyReroutedEdge(edge, savedCert, nodeMap.get(edge.source), nodeMap.get(edge.target))
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    seatCaption(edge, { nodes, edges, groups }, style)
     if (entersBand) titleBandRepairs++
     repaired++
   }
@@ -353,6 +369,16 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
 
 export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  // Straightening slides the arrival by the hitch's height along the face. An
+  // arrival leaving a shared terminal, or landing beside another end of its
+  // target, would draw two arrowheads closer than a slot apart: keep the hitch.
+  // Landing exactly on an arrival it may share is joining that terminal.
+  const terminals = terminalAssignment(edges)
+  const gap = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
+  const besideAnotherEnd = (edge: PositionedEdge, end: Point): boolean => gap(end, edge.points.at(-1)!) > 1e-6 && edges.some(other => other !== edge
+    && other.style !== 'invisible' && other.points.length >= 2
+    && (other.target === edge.target && gap(other.points.at(-1)!, end) < MIN_ARRIVAL_SLOT_PITCH && !(gap(other.points.at(-1)!, end) <= 1e-6 && terminals.shares(edge, other, 'end'))
+      || other.source === edge.target && gap(other.points[0]!, end) < MIN_ARRIVAL_SLOT_PITCH))
   for (const edge of edges) {
     if (!bundled.has(edge) || edge.label || edge.points.length !== 4) continue
     const bundle = bundleRouteBeforeRewrite(edge)
@@ -364,7 +390,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
     if (Math.abs(a.y - b.y) < 0.01 && Math.abs(b.x - c.x) < 0.01 && Math.abs(c.y - d.y) < 0.01 && Math.abs(b.y - c.y) <= 6) {
       const end = { x: d.x, y: a.y }
       const onTargetSide = Math.abs(d.x - target.x) < 0.01 || Math.abs(d.x - (target.x + target.width)) < 0.01
-      if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+      if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude) && !besideAnotherEnd(edge, end)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
         retainBundleRouteAfterRewrite(edge, bundle)
@@ -374,7 +400,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
     if (Math.abs(a.x - b.x) < 0.01 && Math.abs(b.y - c.y) < 0.01 && Math.abs(c.x - d.x) < 0.01 && Math.abs(b.x - c.x) <= 6) {
       const end = { x: a.x, y: d.y }
       const onTargetSide = Math.abs(d.y - target.y) < 0.01 || Math.abs(d.y - (target.y + target.height)) < 0.01
-      if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+      if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude) && !besideAnotherEnd(edge, end)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
         retainBundleRouteAfterRewrite(edge, bundle)
@@ -418,7 +444,7 @@ const TERMINAL_STUB = 12
  * after marker terminals are repaired, also tries a halfway jog that keeps
  * the clear point's own arrival axis (the point may be the far endpoint).
  */
-export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false, residual = false): number {
+export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false, residual = false, style: LabelMetricsStyle = DEFAULT_STYLE): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   const normals = { N: { x: 0, y: -1 }, S: { x: 0, y: 1 }, E: { x: 1, y: 0 }, W: { x: -1, y: 0 } } as const
   const outsideBox = (point: Point, node: PositionedNode): boolean =>
@@ -482,7 +508,7 @@ export function repairInwardEndpointApproaches(nodes: PositionedNode[], edges: P
     const savedCert = edge.routeCertificate
     edge.points = points
     recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
+    seatCaption(edge, { nodes, edges, groups }, style)
     repairs++
   }
   return repairs
@@ -509,7 +535,7 @@ function onShapeOutlineOrSame(point: Point, original: Point, owner: PositionedNo
  * the changed segments), clears every title band, and has no more invalid
  * endpoint approaches. Fires only on a diagonal, which no certified layout has.
  */
-export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false): number {
+export function repairResidualDiagonals(nodes: PositionedNode[], edges: PositionedEdge[], groups: readonly PositionedGroup[], skipEdge: (edge: PositionedEdge) => boolean = () => false, style: LabelMetricsStyle = DEFAULT_STYLE): number {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   // The rubric's diagonal: both offsets beyond 0.01px (sub-hundredth slopes are roundoff).
   const diagonalAt = (pts: readonly Point[]): number => pts.findIndex((point, index) => index > 0 && Math.abs(point.x - pts[index - 1]!.x) > 0.01 && Math.abs(point.y - pts[index - 1]!.y) > 0.01)
@@ -572,7 +598,7 @@ export function repairResidualDiagonals(nodes: PositionedNode[], edges: Position
     const savedCert = edge.routeCertificate
     edge.points = points
     recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(points)
+    seatCaption(edge, { nodes, edges, groups }, style)
     repairs++
   }
   return repairs

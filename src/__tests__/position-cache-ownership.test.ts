@@ -90,6 +90,35 @@ test('private cache copies preserve text custody without trusting mutable measur
   expect(child.status).toBe(0)
 })
 
+// The cache freezes a finished graph to share it. Freezing must stop at the
+// graph's own objects: the authored MermaidGraph, and the caller holding it,
+// keep their rich-text label readings mutable after a cached layout.
+test('caching a finished graph freezes nothing the authored graph owns', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { parseMermaid } from './src/parser.ts'
+    import { layoutGraphSync } from './src/layout-engine.ts'
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const graph = parseMermaid(['flowchart TD', '  subgraph S["#lt;b#gt;group#lt;/b#gt; title"]',
+      '    A["#lt;b#gt;bold#lt;/b#gt; node"] -->|"#lt;i#gt;caption#lt;/i#gt;"| B', '  end'].join(String.fromCharCode(10)))
+    const authored = [graph.nodes.get('A').labelContent, graph.edges[0].labelContent, graph.subgraphs[0].labelContent]
+    assert.ok(authored.every(Boolean))
+    const result = { positioned: layoutGraphSync(graph) }
+    const family = {}
+    retainPositioned(family, 'authored-text', result, undefined, true)
+    // The finished graph itself is shared, so the cache freezes it.
+    assert.ok(Object.isFrozen(result.positioned.nodes[0]))
+    // Each authored reading stays the caller's to edit, and the cached graph
+    // does not see the edit.
+    for (const content of authored) content.authored = 'edited'
+    const hit = cachedPositioned(family, 'authored-text').positioned
+    const node = hit.nodes.find(value => value.id === 'A'), edge = hit.edges[0], group = hit.groups[0]
+    for (const content of [node.labelContent, edge.labelContent, group.labelContent]) assert.notEqual(content.authored, 'edited')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('private text reuse preserves every frozen descendant alias independent of traversal order', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
@@ -658,11 +687,16 @@ for (const family of ['flowchart', 'state'] as const) {
       assert.deepEqual(first, reference)
       assert.equal(first.receipt.layoutDecisions[0].selected, ${JSON.stringify(backend === 'long-link' ? 'elk' : backend)})
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      // A finished graph is frozen and shared by every render that reuses it,
+      // so no request can edit it and poison another. The projection view is
+      // the caller's own.
       const poison = result => {
-        result.positioned.width = NaN
-        result.positioned.nodes[0].label = 'poisoned public node'
-        result.positioned.edges[0].points[0].x = NaN
-        result.positioned.groups[0].children.length = 0
+        for (const edit of [
+          () => { result.positioned.width = NaN },
+          () => { result.positioned.nodes[0].label = 'poisoned public node' },
+          () => { result.positioned.edges[0].points[0].x = NaN },
+          () => { result.positioned.groups[0].children.length = 0 },
+        ]) assert.throws(edit, TypeError)
         const projection = retainedFamilyProjection(result)
         projection.edges[0].path[0][0] = NaN
         projection.groups[0].members.push('poisoned')
@@ -703,8 +737,8 @@ for (const family of ['flowchart', 'state'] as const) {
       })
       try {
         assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
-        callerOwned.positioned.nodes[0].label = 'poisoned replacement node'
-        callerOwned.positioned.edges[0].points[0].x = NaN
+        assert.throws(() => { callerOwned.positioned.nodes[0].label = 'poisoned replacement node' }, TypeError)
+        assert.throws(() => { callerOwned.positioned.edges[0].points[0].x = NaN }, TypeError)
         assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
         assert.equal(projections, 2)
         invalid = true

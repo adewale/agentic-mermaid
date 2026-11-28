@@ -4,6 +4,8 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
+import { recordRevision, sameRevision, type RecordRevision } from '../shared/record-revision.ts'
+import { terminalAssignment } from './terminal-assignment.ts'
 
 type MarkerRegion = ReturnType<typeof graphEdgeMarkerPaintRegions>[number]
 
@@ -111,26 +113,38 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
   return Number.isFinite(error) && (x.x1 + error < y.x0 || y.x1 + error < x.x0 || x.y1 + error < y.y0 || y.y1 + error < x.y0)
 }
 
-/** One shared terminal paints a single final shaft and glyph for every edge
- * merged into it. That ink stands for each member only when the members paint
- * identically and at most one of them is named: a different dash, width or
- * colour would be painted over, and two labels cannot both own one arrowhead. */
-export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
-  if (a.label && b.label) return false
-  if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
-  const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
-  for (const key in styleA) if (!(key in styleB) || styleB[key] !== styleA[key]) return false
-  for (const key in styleB) if (!(key in styleA)) return false
-  const classesA = a.classNames ?? [], classesB = b.classNames ?? []
-  if (classesA.length !== classesB.length) return false
-  for (let index = 0; index < classesA.length; index++) if (classesA[index] !== classesB[index]) return false
-  return true
+/** Visible occurrence pairs the final drawing cannot tell apart: a repeated
+ * occurrence drawn exactly on its twin, or one arrowhead standing for arrivals
+ * the terminal assignment does not let share it. */
+export function indistinctOccurrencePairs(edges: readonly PositionedEdge[]): Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> {
+  const byTarget = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.style === 'invisible' || edge.source === edge.target || edge.points.length < 2) continue
+    const group = byTarget.get(edge.target)
+    if (group) group.push(edge)
+    else byTarget.set(edge.target, [edge])
+  }
+  const near = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5
+  const pairs: Array<{ a: PositionedEdge; b: PositionedEdge; reason: 'twin' | 'arrowhead' }> = []
+  const terminals = terminalAssignment(edges)
+  for (const group of byTarget.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+    const a = group[i]!, b = group[j]!
+    if (a.source === b.source && a.points.length === b.points.length && a.points.every((point, k) => near(point, b.points[k]!))) pairs.push({ a, b, reason: 'twin' })
+    else if (a.hasArrowEnd && b.hasArrowEnd && near(a.points.at(-1)!, b.points.at(-1)!) && !terminals.shares(a, b, 'end')) pairs.push({ a, b, reason: 'arrowhead' })
+  }
+  return pairs
+}
+
+/** Count of `indistinctOccurrencePairs`; passes that move terminals may not
+ * increase it. */
+export function misleadingSharedArrivals(edges: readonly PositionedEdge[]): number {
+  return indistinctOccurrencePairs(edges).length
 }
 
 type MarkerView = ReturnType<typeof markerView>
 interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
-interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
-interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[]; layoutStyle?: LabelMetricsStyle }
+interface RetainedPeer extends PeerView { revision: RecordRevision }
+interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[]; layoutStyle?: LabelMetricsStyle; style?: RecordRevision }
 let markerExecutions: WeakMap<readonly PositionedEdge[], MarkerPeers> | undefined
 
 /** Geometry reuse belongs to one synchronous layout, never to caller identity.
@@ -168,26 +182,21 @@ function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetric
   if (!markerExecutions) return undefined
   let retained = markerExecutions.get(peers)
   if (!retained) { retained = { entries: [], uncertain: [] }; markerExecutions.set(peers, retained) }
-  let changed = retained.entries.length !== peers.length
+  // A peer's marker view is reused while the peer and the style are unchanged
+  // in every field. Endpoint identity, label and terminal-sharing policy
+  // remain live at the exact check below.
+  const sameStyle = retained.style !== undefined && sameRevision(retained.style, style)
+  if (!sameStyle) retained.style = recordRevision(style)
+  let changed = !sameStyle || retained.entries.length !== peers.length
   for (let order = 0; order < peers.length; order++) {
     const peer = peers[order]!
     const prior = retained.entries[order]
-    // These are all the inputs to mappingKnown/markerView. Endpoint identity,
-    // label and terminal-sharing policy remain live at the exact check below.
-    const values = [peer.style, peer.curve, peer.hasArrowStart, peer.hasArrowEnd, peer.startMarker, peer.endMarker,
-      peer.inlineStyle?.stroke, peer.inlineStyle?.['stroke-width'], style.lineWidth, style.edgeStrokeColor, style.edgeBendRadius]
-    let same = prior?.peer === peer && values.every((value, index) => Object.is(value, prior.values[index]))
-      && prior.coordinates.length === peer.points.length * 2
-    if (same) for (let i = 0; i < peer.points.length; i++) {
-      const point = peer.points[i]!
-      if (!Object.is(point.x, prior!.coordinates[2 * i]) || !Object.is(point.y, prior!.coordinates[2 * i + 1])) { same = false; break }
-    }
-    if (same) continue
+    if (sameStyle && prior?.peer === peer && sameRevision(prior.revision, peer)) continue
     changed = true
     const visible = peer.style !== 'invisible' && !!(peer.hasArrowStart || peer.hasArrowEnd)
     const known = !visible || mappingKnown(peer, style)
     const view = visible && known ? markerView(peer, style, false) : { regions: [], points: [], directional: false }
-    retained.entries[order] = { peer, order, values, known, view, coordinates: peer.points.flatMap(point => [point.x, point.y]) }
+    retained.entries[order] = { peer, order, revision: recordRevision(peer), known, view }
   }
   retained.entries.length = peers.length
   if (changed || !retained.query) {
@@ -256,7 +265,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
         if (newView.directional && peerView.directional && measured(occurrence) && marker.position === occurrence.position
           && ownNode === peerNode && marker.resource === occurrence.resource && marker.repaint === occurrence.repaint
           && marker.anchor.x === occurrence.anchor.x && marker.anchor.y === occurrence.anchor.y
-          && sameEndpointRay(newView.points, peerView.points, marker.position) && edgesMayShareTerminal(edge, peer)) continue
+          && sameEndpointRay(newView.points, peerView.points, marker.position) && marker.position !== 'mid' && terminalAssignment(peers).shares(edge, peer, marker.position)) continue
         if (!separated(marker, occurrence)) return blocker(peer, occurrence.position, 'peer-marker')
       }
     }
