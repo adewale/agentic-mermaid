@@ -271,7 +271,11 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       // the actual marker pose. Failed seats leave all live routes unchanged.
       const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
       if ([...reserved].some(other => other !== edge && routesCrossOrOverlap(clipped, other.points))) return null
-      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+      // A sibling loop on this node not yet rebuilt still holds ELK's stub;
+      // its stale marker cannot block the seat it is about to give up. When
+      // it is rebuilt, its own candidate must clear this one's marker.
+      const peers = ctx.edges.filter(other => other === edge || reserved.has(other) || other.source !== node.id || other.target !== node.id)
+      const blocker = routeCandidateMarkerBlocker(edge, clipped, peers, style)
       if (blocker) { markerBlockers?.push(blocker); return null }
       const labels = labelPlanFor(side, depth, clipped)
       return labels ? { points: clipped, labels } : null

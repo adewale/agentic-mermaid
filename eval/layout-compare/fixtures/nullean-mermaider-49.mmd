@@ -1,0 +1,24 @@
+%% Four labelled self-loops on one state take two nested arcs on each free side, every one certified: https://github.com/nullean/mermaider/issues/49
+stateDiagram-v2
+    [*] --> WaitingForIP: Actor created
+
+    WaitingForIP --> WaitingForInit: InspectedData(ip)
+    WaitingForInit --> Ready: ContainerInitialised
+
+    Ready --> Ready: ClusterEndpoints\n(update endpointRules)
+    Ready --> Ready: AclData\n(update customUserRules)
+    Ready --> Ready: TreeCacheEvent\n(config store change)
+    Ready --> Ready: InspectedData\n(IP change)
+
+    Ready --> Stopped: RemoveRules
+
+    note right of Ready
+        On every state update:
+        publishes ContainerRules
+        to FirewallService
+    end note
+
+    note right of Stopped
+        Sends DeleteInstance
+        to FirewallService
+    end note

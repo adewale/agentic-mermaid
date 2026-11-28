@@ -243,16 +243,18 @@ C -->|wait| C`
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
-  test('eight labeled loops allocate unique bounded routes and label centers', () => {
-    const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 8 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
+  test('four labeled loops allocate unique bounded routes and label centers', () => {
+    // Four is the most loops one node carries in the real diagrams sampled
+    // (nullean/mermaider#49, a state with four labelled self-loops).
+    const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 4 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
     const graph = parseLegacy(source)
     const positioned = layoutGraphSync(graph)
     const loops = positioned.edges.filter(edge => edge.source === 'B' && edge.target === 'B')
     const node = positioned.nodes.find(candidate => candidate.id === 'B')!
-    expect(loops).toHaveLength(8)
+    expect(loops).toHaveLength(4)
     expectSeparatedMarkers(positioned.edges)
-    expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(8)
-    expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(8)
+    expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(4)
+    expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(4)
     const style = resolveRenderStyle({})
     for (const edge of loops) {
       expect(edge.routeCertificate?.invariant).toBe('self-loop')
@@ -273,16 +275,12 @@ C -->|wait| C`
         expect(overlapX > 0 && overlapY > 0, `${edge.label} must not cover ${other.id}`).toBe(false)
       }
     }
-    // Two loops nest on each side of the 60x37 card, so the north and south
-    // pairs straddle the through route's port. The audit reports each such
-    // pair, and nothing else.
-    const vertical = loops.filter(edge => Math.abs(edge.points[0]!.y - edge.points.at(-1)!.y) < 0.5 && (Math.abs(edge.points[0]!.y - node.y) < 0.5 || Math.abs(edge.points[0]!.y - node.y - node.height) < 0.5))
-    const expected = vertical.map(edge => {
-      const id = `B->B#${loops.indexOf(edge)}`
-      return { code: 'ROUTE_SELF_LOOP_OCCUPANCY' as const, edge: id, conflictWith: edge.points[0]!.y < node.y + node.height / 2 ? 'A->B#0' : 'B->C#0', kind: 'route-route' as const }
-    })
-    expect(vertical).toHaveLength(4)
-    expect(auditRouteContracts(positioned, graph)).toEqual(expected)
+    // The through route holds the north and south faces of the 60x37 card,
+    // and each of its 37px east and west faces seats two nested loops. Four
+    // loops therefore fit on those free faces, so none straddles a port and
+    // the audit has nothing to report.
+    expect(loops.map(edge => edge.routeCertificate?.loopSide).sort()).toEqual(['E', 'E', 'W', 'W'])
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
   })
 
