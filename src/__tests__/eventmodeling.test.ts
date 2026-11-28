@@ -527,6 +527,27 @@ test.each<{ name: string; source: string; straight: string[] }>([
   }
 })
 
+// mermaid-js/mermaid-v13#1234: ItemAdded's relation to OtherUI took the upper
+// port by OtherUI's height, turned down at the first gutter and crossed the
+// relation to CartItems, which ran straight on below it to the last gutter.
+// Relations leaving or entering one card cross neither each other nor any
+// other relation.
+test('relations sharing a card take ports in the order their routes turn', () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-v13-1234.mmd', import.meta.url), 'utf8')
+  const layout = layoutEventModeling(parseEventModeling(source.slice(source.indexOf('\n') + 1)))
+  expect(layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(['01->02', '01->03'])
+  const runs = (points: readonly { x: number; y: number }[]) => points.slice(1).map((point, i) => [points[i]!, point] as const)
+  for (const a of layout.edges) for (const b of layout.edges) {
+    if (a === b) continue
+    for (const [p, q] of runs(a.points)) for (const [r, s] of runs(b.points)) {
+      if (p.y !== q.y || r.x !== s.x) continue
+      // A horizontal run of one passing through the interior of a vertical run of the other.
+      const crosses = r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)
+      expect(crosses, `${a.from}->${a.to} crosses ${b.from}->${b.to}`).toBe(false)
+    }
+  }
+})
+
 // mermaid-js/mermaid-v13#672: a frame naming itself as a source failed with
 // "Invalid source frame". Pinned Mermaid accepts it and keeps the relation, so
 // ours draws it: a loop beside its own card, in its own lane, meeting no other
