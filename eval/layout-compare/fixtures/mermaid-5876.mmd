@@ -1,0 +1,13 @@
+%% A self-loop caption stays inside the subgraph that holds its node: https://github.com/mermaid-js/mermaid/issues/5876
+graph TD
+  MachineConf -->|createMachine| m([Machine])
+  m -->|.provide| m
+  subgraph ActorLogic
+    m
+  end
+  ActorLogic -->|createActor| Actor
+  ActorLogic -->|useActor| Actor
+  ActorLogic -->|useMachine| Actor
+  ActorLogic -->|invoke| Actor
+  AsyncFunc -->|fromPromise| ActorLogic
+  callbackFunc -->|fromCallback| ActorLogic

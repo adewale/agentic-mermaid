@@ -64,6 +64,12 @@ export function measureLabelConflicts(
   )
 }
 
+/** The pill covers a group's title band or a painted side of its frame runs
+ *  through it: the measure's labelGroup conflict, for one candidate pill. */
+export function pillMeetsGroupFrame(pill: Rect, groups: readonly PositionedGroup[]): boolean {
+  return positionedFrames(groups).some(frame => meetsFrame(pill, frame))
+}
+
 /** Concurrency regions draw no box of their own and reserve no title band. */
 function positionedFrames(groups: readonly PositionedGroup[]): Frame[] {
   const frames: Frame[] = []

@@ -10,6 +10,8 @@
 // still open (the beat).
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseMermaid as parseLegacy } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -282,6 +284,22 @@ C -->|wait| C`
     expect(loops.map(edge => edge.routeCertificate?.loopSide).sort()).toEqual(['E', 'E', 'W', 'W'])
     expect(auditRouteContracts(positioned, graph)).toEqual([])
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
+  })
+
+  // mermaid#5876: the node's subgraph leaves room for the arc on its west
+  // side only, and a full-depth arc pushes the caption through the frame.
+  test('a loop inside a subgraph keeps its caption inside the frame', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-5876.mmd'), 'utf8')
+    const positioned = layoutGraphSync(parseLegacy(source))
+    const loop = positioned.edges.find(edge => edge.source === 'm' && edge.target === 'm')!
+    const frame = positioned.groups.find(group => group.id === 'ActorLogic')!
+    expect(loop.routeCertificate?.invariant).toBe('self-loop')
+    const pill = labelRect(loop, resolveRenderStyle({}))!
+    expect(pill.x).toBeGreaterThanOrEqual(frame.x)
+    expect(pill.x + pill.w).toBeLessThanOrEqual(frame.x + frame.width)
+    expect(pill.y).toBeGreaterThanOrEqual(frame.y + frame.headerHeight!)
+    expect(pill.y + pill.h).toBeLessThanOrEqual(frame.y + frame.height)
+    expect(auditRouteContracts(positioned, parseLegacy(source))).toEqual([])
   })
 
   test('all blocked existing loop sides preserve live routes and report marker owners', () => {

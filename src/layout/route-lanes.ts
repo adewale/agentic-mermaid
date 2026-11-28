@@ -12,6 +12,7 @@ import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route
 import { terminalAssignment } from './terminal-assignment.ts'
 import { captionRidesRun, shiftLabel } from './route-values.ts'
 import { LABEL_PILL_PADDING, labelEndpointClearance, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
+import { pillMeetsGroupFrame } from './label-conflicts.ts'
 import {
   EPS,
   CLEARANCE,
@@ -424,34 +425,56 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
     return !obstacles().some(o => rectsOverlap(pill.x, pill.y, pill.w, pill.h, o.x, o.y, o.w, o.h, o.gap))
   }
 
-  // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
-  // sets), center-out: the midpoint reads best, the outer slots rescue lanes
-  // whose middle band is occupied by a neighboring node or pill.
-  for (const t of [0.5, 1 / 3, 2 / 3, 0.25, 0.75, 1 / 6, 5 / 6]) {
-    const cx = start.x + (end.x - start.x) * t
-    const cy = start.y + (end.y - start.y) * t
-    if (slotClear(cx, cy)) return { x: cx, y: cy }
+  // A caption keeps off group title bands and frame lines where a seat on
+  // its lane allows it; only a lane with no such seat takes the first clear
+  // one. Frames never refuse a lane: they rank its seats.
+  const frames = ctx.groups ?? []
+  const frameClear = (cx: number, cy: number): boolean => !pillMeetsGroupFrame(pillRect(cx, cy, m), frames)
+  // Seats just beside each frame line and title band, for the lane search.
+  const frameObstacles: Obstacle[] = []
+  const walk = (groups: readonly PositionedGroup[]): void => {
+    for (const group of groups) {
+      const x1 = group.x + group.width, y1 = group.y + group.height, header = group.concurrencyRegion ? 0 : group.headerHeight ?? 0
+      if (!group.concurrencyRegion) for (const line of [
+        { x: group.x, y: group.y, w: 0, h: group.height }, { x: x1, y: group.y, w: 0, h: group.height },
+        { x: group.x, y: group.y, w: group.width, h: 0 }, { x: group.x, y: y1, w: group.width, h: 0 },
+      ]) frameObstacles.push({ ...line, x1: line.x + line.w, y1: line.y + line.h, gap: 0 })
+      if (header > 0) frameObstacles.push({ x: group.x, y: group.y, w: group.width, h: header, x1, y1: group.y + header, gap: 0 })
+      walk(group.children)
+    }
   }
-  // A crowded or only just long enough lane can miss every sample while a
-  // clear seat remains between its obstacles. Try the seats just beside each
-  // obstacle crossing the pill's band, nearest the midpoint first.
-  if (!axisAligned) return null
-  const lo = Math.min(start[main], end[main]), hi = Math.max(start[main], end[main]), mid = (lo + hi) / 2
-  if (hi - lo < 2 * half - 2 * EPS) return null
-  const seats = [mid]
-  for (const o of obstacles()) {
-    if (o[crossEnd] + o.gap <= start[cross] - crossHalf || o[cross] - o.gap >= start[cross] + crossHalf) continue
-    seats.push(o[main] - o.gap - half - EPS, o[mainEnd] + o.gap + half + EPS)
+  if (axisAligned) walk(frames)
+  const search = (admit: (cx: number, cy: number) => boolean, extra: readonly Obstacle[]): Point | null => {
+    // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
+    // sets), center-out: the midpoint reads best, the outer slots rescue lanes
+    // whose middle band is occupied by a neighboring node or pill.
+    for (const t of [0.5, 1 / 3, 2 / 3, 0.25, 0.75, 1 / 6, 5 / 6]) {
+      const cx = start.x + (end.x - start.x) * t
+      const cy = start.y + (end.y - start.y) * t
+      if (admit(cx, cy)) return { x: cx, y: cy }
+    }
+    // A crowded or only just long enough lane can miss every sample while a
+    // clear seat remains between its obstacles. Try the seats just beside each
+    // obstacle crossing the pill's band, nearest the midpoint first.
+    if (!axisAligned) return null
+    const lo = Math.min(start[main], end[main]), hi = Math.max(start[main], end[main]), mid = (lo + hi) / 2
+    if (hi - lo < 2 * half - 2 * EPS) return null
+    const seats = [mid]
+    for (const o of [...obstacles(), ...extra]) {
+      if (o[crossEnd] + o.gap <= start[cross] - crossHalf || o[cross] - o.gap >= start[cross] + crossHalf) continue
+      seats.push(o[main] - o.gap - half - EPS, o[mainEnd] + o.gap + half + EPS)
+    }
+    // The whole pill stays on its own lane: a lane ending at a bend has no
+    // node there to push a seat back, and a pill over the corner reads as
+    // belonging to neither run.
+    const ranked = seats.filter(seat => seat >= lo + half - EPS && seat <= hi - half + EPS).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b)
+    for (const seat of ranked.slice(0, 16)) {
+      const point = main === 'x' ? { x: seat, y: start.y } : { x: start.x, y: seat }
+      if (admit(point.x, point.y)) return point
+    }
+    return null
   }
-  // The whole pill stays on its own lane: a lane ending at a bend has no
-  // node there to push a seat back, and a pill over the corner reads as
-  // belonging to neither run.
-  const ranked = seats.filter(seat => seat >= lo + half - EPS && seat <= hi - half + EPS).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b)
-  for (const seat of ranked.slice(0, 16)) {
-    const point = main === 'x' ? { x: seat, y: start.y } : { x: start.x, y: seat }
-    if (slotClear(point.x, point.y)) return point
-  }
-  return null
+  return (frames.length ? search((cx, cy) => slotClear(cx, cy) && frameClear(cx, cy), frameObstacles) : null) ?? search(slotClear, [])
 }
 
 /** Allocation-free broad phase for `measureRouteContacts`: every touch or

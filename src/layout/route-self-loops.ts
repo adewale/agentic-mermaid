@@ -232,8 +232,25 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     }
     // A side's raw capacity is only a proposal. Its complete marker seats
     // must also clear the live peer routes before occupancy can be committed.
-    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): { points: Point[]; labels: LabelUpdate[] } | null => {
-      const depth = Math.max(Math.min(g.desired, g.clear), 8)
+    // A caption sits beyond its arc, so a frame holding the node must hold
+    // arc and caption together: the arc may then run shallower, down to the
+    // depth a side needs to be offered at all.
+    const captionFitDepth = (side: PortSide): number => {
+      if (!pill) return Infinity
+      const vertical = side === 'N' || side === 'S', sign = side === 'W' || side === 'N' ? -1 : 1
+      const sideCoord = side === 'W' ? node.x : side === 'E' ? node.x + node.width : side === 'N' ? node.y : node.y + node.height
+      let fit = Infinity
+      for (const group of groupMap.values()) {
+        if (group === frame || group.concurrencyRegion || !(cx > group.x && cx < group.x + group.width && cy > group.y && cy < group.y + group.height)) continue
+        const inner = vertical ? (sign < 0 ? group.y + (group.headerHeight ?? 0) : group.y + group.height) : sign < 0 ? group.x : group.x + group.width
+        fit = Math.min(fit, (inner - sideCoord) * sign - pillMain(side) - 4)
+      }
+      return fit
+    }
+    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): { points: Point[]; labels: LabelUpdate[]; depth: number } | null => {
+      const fit = captionFitDepth(side)
+      let depth = Math.max(Math.min(g.desired, g.clear), 8)
+      if (fit < depth && fit >= Math.min(g.desired, 14)) depth = fit
       const d = g.d
       const points: Point[] = (() => {
         switch (side) {
@@ -278,12 +295,13 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const blocker = routeCandidateMarkerBlocker(edge, clipped, peers, style)
       if (blocker) { markerBlockers?.push(blocker); return null }
       const labels = labelPlanFor(side, depth, clipped)
-      return labels ? { points: clipped, labels } : null
+      return labels ? { points: clipped, labels, depth } : null
     }
     let chosen: PortSide | null = null
     let geo: { d: number; desired: number; clear: number } | null = null
     let clipped: Point[] | null = null
     let labelUpdates: LabelUpdate[] = []
+    let depth = 0
     const allocatedOrder = sideOrder
       .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
       .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
@@ -366,6 +384,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
+      depth = candidate.depth
       bestCrossings = crossings
       bestConflicts = conflicts
       bestMasks = masked
@@ -384,6 +403,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       geo = g
       clipped = candidate.points
       labelUpdates = candidate.labels
+      depth = candidate.depth
     }
     // A loop's outer segment also owns the space beside either end. A
     // tangent slide can clear a shaft alongside the caption without changing
@@ -395,7 +415,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const half = (vertical ? pill.width : pill.height) / 2 + LABEL_PILL_PADDING
       for (const distance of [geo.d, -geo.d, geo.d + half, -(geo.d + half)]) {
         const position = { ...update.position, [cross]: update.position[cross] + distance }
-        const plan = labelPlanFor(chosen, Math.max(Math.min(geo.desired, geo.clear), 8), clipped, position)
+        const plan = labelPlanFor(chosen, depth, clipped, position)
         if (!plan) continue
         const measured = masks(plan, clipped, bestMasks.owners)
         if (!measured) continue

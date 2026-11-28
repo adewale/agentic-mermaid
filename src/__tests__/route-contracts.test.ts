@@ -1817,7 +1817,7 @@ describe('findLabelSlot (unit)', () => {
   const pillW = m.width + 16
   const mkEdge = (over: object = {}): PositionedEdge =>
     ({ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [], edgeIndex: 0, ...over }) as PositionedEdge
-  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
+  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[]; groups: unknown[] }> = {}) =>
     ({ nodes: [], edges: [], axis, style, ...over }) as Parameters<typeof findLabelSlot>[3]
   const start = { x: 0, y: 50 }
   const end = { x: 400, y: 50 }
@@ -1856,6 +1856,22 @@ describe('findLabelSlot (unit)', () => {
       .toEqual({ x: 200, y: 50 })
     const bumped = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [pillAt(200 + pillW + 2 - 0.5)] }))
     expect(bumped!.x).toBeCloseTo(400 / 3, 6)
+  })
+
+  // mermaid#4790: a lane running just beside a subgraph's bottom frame line.
+  it('a seat keeps off group frame lines and title bands where its lane allows; frames never refuse a lane', () => {
+    const group = (x: number, y: number, width: number, height: number, headerHeight = 28) => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
+    const halfH = (m.height + 16) / 2
+    // The frame's left side crosses the midpoint seat.
+    const beside = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [group(200, 0, 300, 100)] }))!
+    expect(beside.y).toBe(50)
+    expect(Math.abs(beside.x - 200)).toBeGreaterThanOrEqual(pillW / 2)
+    // The bottom side runs along the lane through every seat's pill.
+    const along = group(-100, 50 - halfH - 40, 600, 50)
+    expect(along.y + along.height).toBeGreaterThan(50 - halfH)
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [along] }))).toEqual({ x: 200, y: 50 })
+    // A title band over the whole lane likewise ranks seats and refuses none.
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ groups: [group(-100, 30, 600, 200, 40)] }))).toEqual({ x: 200, y: 50 })
   })
 
   it('a node covering the whole lane leaves no slot', () => {
