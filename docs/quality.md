@@ -1,5 +1,8 @@
 # What "good looking" means in Agentic Mermaid
 
+Contributors changing layout: the [diagram quality guide](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/diagram-quality.md)
+explains which diagrams decide quality and the tools that detect regressions.
+
 A diagram is considered **good looking** when it satisfies, in order:
 
 1. **All Tier 1 structural checks pass.** None of

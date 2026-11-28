@@ -28,6 +28,9 @@ are defined in `docs/contributing/glossary.md`.
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.
 - `bun run check:pre-push` — CI's quality gates plus the website payload budgets;
   run it before pushing a PR update so the push is not the gates' first run.
+- `bun run quality:report` / `quality:impact --base <rev>` / `quality:add-real` — judge layout
+  quality on real diagrams (docs corpus + user-issue fixtures). Read
+  `docs/contributing/diagram-quality.md` before building or keeping a layout rule.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run reference:mermaid` — clone the pinned Mermaid source to `../mermaid` and install
   the matching reference in `../mermaid-reference` (idempotent); `bun run test:mermaid-modern`
