@@ -149,7 +149,7 @@
       "requests": 30,
       "raw": 657000,
       "gzip": 212000,
-      "brotli": 180000
+      "brotli": 190000
     },
     "zenuml": {
       "requests": 34,
