@@ -97,12 +97,6 @@ const DIRECTION: Record<Side, RouterDirection> = { T: 'N', R: 'E', B: 'S', L: 'W
 const REVERSE: Record<RouterDirection, RouterDirection> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 /** Checked grid steps over all of one diagram's routes. */
 const ROUTE_WORK = 400_000
-/** Grid steps the router's early checks that a route can arrive at all may
- * read over one diagram, apart from the route work. A relationship tries
- * several obstacle sets before the one it draws with; the checks let an
- * attempt that cannot arrive stop after a few states instead of charging
- * every step it can reach. Once they are spent, attempts search in full. */
-const PROBE_WORK = 400_000
 /** Running off the preferred corridors costs this share of the run's length:
  * enough to settle equal routes on a corridor, never worth a bend. */
 const OFF_CORRIDOR = 0.05
@@ -130,14 +124,13 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   const { edges } = positioned
   const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: allocateGeneratedId(identities.generated, `c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
-  let work = 0, probeWork = 0, detourWork = 0, detouring = false
+  let work = 0, detourWork = 0, detouring = false
   // Trying other faces for a detour spends its own budget: running out ends
   // the trying, never the diagram.
   const charge = () => {
     if (detouring) { if (++detourWork > DETOUR_WORK) throw DETOUR_SPENT; return }
     if (++work > ROUTE_WORK) throw new C4RouteWorkLimitError()
   }
-  const probe = () => ++probeWork <= PROBE_WORK
   // A lead leaves its owner's face, so only obstacles spanning that face
   // across the lead's axis can stop it. Index them once per owner and axis
   // instead of scanning every card for every lead.
@@ -245,7 +238,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
       const leave = startSign > 0 ? DIRECTION[startSide] : REVERSE[DIRECTION[startSide]]
       const arrive = REVERSE[endSign > 0 ? DIRECTION[endSide] : REVERSE[DIRECTION[endSide]]]
       const request = { start, end, exit: leave, entry: arrive, stub: [Math.abs(startExit.x - start.x) + Math.abs(startExit.y - start.y), Math.abs(endExit.x - end.x) + Math.abs(endExit.y - end.y)] as const,
-        clearance: 0, channels, offChannelCost: OFF_CORRIDOR, crossings, charge, probe }
+        clearance: 0, channels, offChannelCost: OFF_CORRIDOR, crossings, charge }
       let route: Point[] | undefined
       search: for (const avoid of drawn.length ? [keepOff([...frames, ...drawn]), keepOff(frames)] : [keepOff(frames)]) for (const obstacles of [padded, physical]) {
         route = routeOrthogonal({ ...request, obstacles, avoid })
