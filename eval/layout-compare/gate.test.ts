@@ -51,6 +51,19 @@ test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdic
   expect(result.criterion).toBe(criterion as never)
 })
 
+// Generated and stress graphs are not diagrams users draw: they guard against
+// hard losses but do not decide improvement or regression.
+test.each<{ name: string; base: CapturedSample[]; head: CapturedSample[]; verdict: GateVerdict; move?: 'better' | 'worse' }>([
+  { name: 'a robustness input that loses support still breaks', base: [sample('a', metrics())], head: [sample('b', undefined)], verdict: 'broken' },
+  { name: 'a robustness input that loses paint certification still breaks', base: [sample('a', metrics())], head: [sample('b', metrics({ paint: 'unverified' }))], verdict: 'broken' },
+  { name: 'a robustness input with one more crossing is reported, not regressed', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 3 }))], verdict: 'unchanged', move: 'worse' },
+  { name: 'a robustness input with fewer crossings is reported, not improved', base: [sample('a', metrics())], head: [sample('b', metrics({ crossings: 1 }))], verdict: 'unchanged', move: 'better' },
+])('$name', ({ base, head, verdict, move }) => {
+  const result = classify({ ...input, role: 'robustness' }, base, head, layout => layout as QualityMetrics, () => undefined)
+  expect(result.verdict).toBe(verdict)
+  expect(result.robustnessMove).toBe(move as never)
+})
+
 test('secondary metrics are reported without deciding a tied objective', () => {
   const result = run([sample('a', metrics())], [sample('b', metrics({ opposing: 2, borderRuns: 1 }))])
   expect(result.verdict).toBe('unchanged')

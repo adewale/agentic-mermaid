@@ -19,6 +19,12 @@
 //   improved   the declared objective prefers head (or head fixed a break).
 //   unchanged  objective tie; secondary metric moves are listed as tradeoffs.
 //
+// Robustness inputs (random generated graphs, constructed stress cases and the
+// synthetic cyclic fixtures) are not real diagrams: users do not draw them.
+// They still break on any hard loss above, but their objective is not judged;
+// its movement is listed for information only. Real diagrams (the corpus and
+// fixtures drawn from user issues) decide improvement and regression.
+//
 // Exit 1 on any broken sample; on any regressed sample unless
 // --accept-objective-regressions (CI passes it when the PR carries a
 // head-scoped `layout-tradeoff-approved` label); and when --max-slowdown is
@@ -46,7 +52,9 @@ import { generatedFlowchartSamples, graphStressSamples } from './generated.ts'
 const HEAD_ROOT = resolve(import.meta.dir, '..', '..')
 const GRAPH_FAMILIES = new Set(['flowchart', 'state', 'class', 'er', 'requirement', 'architecture'])
 
-export interface GateInput { key: string; family: string; source: string; options: Record<string, unknown> }
+export interface GateInput { key: string; family: string; source: string; options: Record<string, unknown>
+  /** 'robustness' inputs break on hard losses but do not decide improvement or regression. */
+  role?: 'robustness' }
 export interface CapturedSample { key: string; ok: boolean; error?: string; layout?: unknown; digest?: string; ms: number[]
   /** Graph geometry certification from the receipt; absent when certified or not reported. */
   geometry?: { status: string; kinds: string[] } }
@@ -61,6 +69,8 @@ export interface GateResult {
   notes: string[]
   /** Secondary metrics that moved against head without deciding the verdict. */
   tradeoffs: string[]
+  /** A robustness input's objective moved; reported, not judged. */
+  robustnessMove?: 'better' | 'worse'
   baseMs?: number
   headMs?: number
 }
@@ -218,12 +228,17 @@ export function classify(input: GateInput, base: readonly CapturedSample[], head
   if (broken.length) return { ...result, verdict: 'broken', notes: broken.map(loss => `${loss.axis} ${loss.from} → ${loss.to}`) }
   const fixed = losses(headMetrics, baseMetrics)
   result.tradeoffs = tradeoffNotes(baseMetrics, headMetrics)
-  if (fixed.length) return { ...result, verdict: 'improved', notes: fixed.map(gain => `${gain.axis} ${gain.to} → ${gain.from}`) }
+  if (fixed.length) {
+    const notes = fixed.map(gain => `${gain.axis} ${gain.to} → ${gain.from}`)
+    return input.role === 'robustness' ? { ...result, robustnessMove: 'better', notes } : { ...result, verdict: 'improved', notes }
+  }
   const [baseScore, headScore] = [projectedPreferenceScore(baseMetrics, baseObjective), projectedPreferenceScore(headMetrics, headObjective)]
   if (baseScore.area > 0 && headScore.area > 0 && Math.abs(Math.log(headScore.area / baseScore.area)) < Math.log(1.01)) headScore.area = baseScore.area
   const decision = compareLayoutPreference(baseScore, headScore)
   if (decision.criterion === undefined) return { ...result, notes: ['geometry changed; objective tied'] }
   const pair = `${decision.criterion} ${fmt(baseScore[decision.criterion])} → ${fmt(headScore[decision.criterion])}`
+  const notes = [decision.criterion === 'area' ? 'canvas area changed by ≥1%' : pair]
+  if (input.role === 'robustness') return { ...result, robustnessMove: decision.order < 0 ? 'better' : 'worse', notes }
   return { ...result, verdict: decision.order < 0 ? 'improved' : 'regressed', criterion: decision.criterion, notes: [decision.criterion === 'area' ? 'canvas area changed by ≥1%' : pair] }
 }
 
@@ -263,7 +278,10 @@ export function markdown(summary: GateSummary, base: string, head: string): stri
   table('Broken', summary.results.filter(r => r.verdict === 'broken'))
   table('Objective regressions', summary.results.filter(r => r.verdict === 'regressed'), true)
   table('Improvements', summary.results.filter(r => r.verdict === 'improved'), true)
-  table('Unchanged objective with secondary tradeoffs', summary.results.filter(r => r.verdict === 'unchanged' && r.tradeoffs.length), true)
+  table('Unchanged objective with secondary tradeoffs', summary.results.filter(r => r.verdict === 'unchanged' && !r.robustnessMove && r.tradeoffs.length), true)
+  const moved = summary.results.filter(r => r.robustnessMove)
+  if (moved.length) lines.push(`Robustness inputs (generated and stress graphs) are judged only for hard losses: ${moved.filter(r => r.robustnessMove === 'better').length} moved better and ${moved.filter(r => r.robustnessMove === 'worse').length} worse on the objective, not counted above.`, '')
+  table('Robustness inputs whose objective moved worse (informational)', moved.filter(r => r.robustnessMove === 'worse'), true)
   const slow = summary.results.filter(r => r.baseMs && r.headMs && r.baseMs >= 5).sort((a, b) => b.headMs! / b.baseMs! - a.headMs! / a.baseMs!).slice(0, 8)
   if (slow.length) {
     lines.push('### Largest layout-time ratios (samples ≥5 ms on base)', '', 'Single-sample ratios are noisy at CI repetition counts; only the geometric mean above is gated.', '', '| sample | base ms | head ms | ratio |', '|---|---:|---:|---:|')
@@ -275,13 +293,20 @@ export function markdown(summary: GateSummary, base: string, head: string): stri
 
 // ---- Corpus and CLI ---------------------------------------------------------
 
+/** Random generated graphs, constructed stress cases and the synthetic cyclic
+ * fixtures: inputs no user draws. */
+export const isRobustnessInput = (id: string): boolean =>
+  id.startsWith('generated-') || id.includes('stress/') || /^fixture\/cyclic-labelled-/.test(id)
+
 export function gateInputs(options: { families?: readonly string[]; generatedCount: number; balanced: boolean }): GateInput[] {
   const samples = [...collectSamples({ includeStress: false }), ...graphStressSamples(),
     ...(options.generatedCount > 0 ? generatedFlowchartSamples({ start: 0, count: options.generatedCount }) : [])]
     .filter(sample => !options.families || options.families.includes(sample.family))
-  const inputs: GateInput[] = samples.map(sample => ({ key: sample.id, family: sample.family, source: sample.source, options: {} }))
+  const stress = new Set(graphStressSamples().map(sample => sample.id))
+  const role = (id: string): GateInput['role'] => isRobustnessInput(id) || stress.has(id) ? 'robustness' : undefined
+  const inputs: GateInput[] = samples.map(sample => ({ key: sample.id, family: sample.family, source: sample.source, options: {}, ...(role(sample.id) ? { role: role(sample.id) } : {}) }))
   if (options.balanced) for (const sample of samples) if (GRAPH_FAMILIES.has(sample.family)) {
-    inputs.push({ key: `${sample.id}#balanced`, family: sample.family, source: sample.source, options: { graphLayout: { quality: 'balanced' } } })
+    inputs.push({ key: `${sample.id}#balanced`, family: sample.family, source: sample.source, options: { graphLayout: { quality: 'balanced' } }, ...(role(sample.id) ? { role: role(sample.id) } : {}) })
   }
   return inputs
 }
