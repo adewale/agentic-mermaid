@@ -206,18 +206,15 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const swimlaneFrames: SwimlaneFrames = { bands, boxes: frameBoxes }
   const frameClearance = Math.max(CLEARANCE, clearance), frameRules = [{ boxes: frameBoxes, clearance: frameClearance }, undefined]
   const separation = Math.max(6, clearance)
-  // Lines across each gap between lanes, a separation apart (and half one
-  // apart), for routes that find no line of their own on the ordinary grid.
-  const gapLines = (pitch: number) => {
-    const lines: number[] = []
-    for (let k = 1; k < groups.length; k++) {
-      const previous = groups[k - 1]!, next = groups[k]!
-      const from = (horizontal ? previous.y + previous.height : previous.x + previous.width) + frameClearance, to = (horizontal ? next.y : next.x) - frameClearance
-      for (let at = from; at <= to + 1e-6; at += pitch) lines.push(at)
-    }
-    return horizontal ? { y: lines } : { x: lines }
+  // Lines across each gap between lanes, a separation apart, for routes that
+  // find no line of their own on the ordinary grid.
+  const gapLines: number[] = []
+  for (let k = 1; k < groups.length; k++) {
+    const previous = groups[k - 1]!, next = groups[k]!
+    const from = (horizontal ? previous.y + previous.height : previous.x + previous.width) + frameClearance, to = (horizontal ? next.y : next.x) - frameClearance
+    for (let at = from; at <= to + 1e-6; at += separation) gapLines.push(at)
   }
-  const gapChannels = gapLines(separation), narrowGapChannels = gapLines(separation / 2)
+  const gapChannels = horizontal ? { y: gapLines } : { x: gapLines }
   // Each route's terminals, and the stubs they fix before any route is drawn.
   const stubOf = (end: Terminal): readonly [Point, Point] => [end.port, { x: end.port.x + STEP[end.side].x * end.stub, y: end.port.y + STEP[end.side].y * end.stub }]
   const terminals = edges.map(edge => {
@@ -285,16 +282,10 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       // already meet one: first only the parts they meet, then those routes
       // whole.
       const sharesPort = ([a, b]: readonly [Point, Point]) => [a, b].some(point => [source.port, target.port].some(port => Math.abs(point.x - port.x) < 1e-6 && Math.abs(point.y - port.y) < 1e-6))
-      const keepOff = (segments: readonly (readonly [Point, Point])[], lines?: typeof gapChannels, scale = 1) => ({ avoid: { segments, separation: separation * scale, gap: stubGap * scale }, ...(lines ? { channels: lines } : {}) })
+      const keepOff = (segments: readonly (readonly [Point, Point])[], lines?: typeof gapChannels) => ({ avoid: { segments, separation, gap: stubGap }, ...(lines ? { channels: lines } : {}) })
       const own = terminals[order]!.stubs, every = keepOff([...drawn, ...later]), apartFromUnrelated = keepOff([...unrelated, ...later])
-      const offOwnStubs = own.reduce((kept, stub) => kept.flatMap(segment => outside(segment, stub, stubGap)), unrelated)
-      // A route that finds no line a full separation from every unrelated
-      // route still keeps off their lines, half a separation beside them,
-      // before it keeps off no line at all (mermaid-v13#843: long hand-offs
-      // across crowded lane gaps drew dozens of shared runs).
-      const rescues = [keepOff(offOwnStubs, gapChannels),
-        keepOff(unrelated.filter(segment => own.every(stub => outside(segment, stub, stubGap)[0] === segment)), gapChannels),
-        keepOff([...offOwnStubs, ...later], narrowGapChannels, 1 / 2)]
+      const rescues = [keepOff(own.reduce((kept, stub) => kept.flatMap(segment => outside(segment, stub, stubGap)), unrelated), gapChannels),
+        keepOff(unrelated.filter(segment => own.every(stub => outside(segment, stub, stubGap)[0] === segment)), gapChannels)]
       const avoids = !drawn.length && !later.length ? [{}] : policy === 0 ? [every, keepOff([...drawn.filter(segment => !sharesPort(segment)), ...later]), apartFromUnrelated, ...rescues, {}] : policy === 1 ? [every, apartFromUnrelated, ...rescues, {}] : [{}]
       const stub = [source.stub, target.stub] as const
       const stubs = source.lead || target.lead ? [[source.lead ?? source.stub, target.lead ?? target.stub] as const, stub] : [stub]
@@ -314,9 +305,6 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
             // not worth another search.
             if (candidate && candidate.length - 2 <= 4) break
           }
-          // Dropping the routes its stubs meet lets a route run along one
-          // of them; such a route waits for the half-separation rescue.
-          if (route && keeping === rescues[1] && sharesLine(route, unrelated)) { route = undefined; chosen = undefined; best = Infinity; continue }
           if (route) break search
         }
         if (route) break framing
@@ -437,22 +425,6 @@ const STEP: Record<RouterDirection, Point> = { E: { x: 1, y: 0 }, W: { x: -1, y:
 function terminal(box: MeasuredBox, port: Point, side: RouterDirection, gap: number): Terminal {
   const inset = side === 'E' ? box.x + box.width - port.x : side === 'W' ? port.x - box.x : side === 'S' ? box.y + box.height - port.y : port.y - box.y
   return { port, side, stub: Math.max(0, inset) + gap }
-}
-
-/** Whether a route runs along one of the segments, on its line within a
- * pixel, for more than a pixel. */
-function sharesLine(route: readonly Point[], segments: readonly (readonly [Point, Point])[]): boolean {
-  for (let k = 1; k < route.length; k++) {
-    const a = route[k - 1]!, b = route[k]!, vertical = Math.abs(a.x - b.x) < 1e-6
-    for (const [p, q] of segments) {
-      if ((Math.abs(p.x - q.x) < 1e-6) !== vertical) continue
-      if (Math.abs(vertical ? p.x - a.x : p.y - a.y) > 1) continue
-      const lo = Math.max(Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.min(vertical ? p.y : p.x, vertical ? q.y : q.x))
-      const hi = Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), Math.max(vertical ? p.y : p.x, vertical ? q.y : q.x))
-      if (hi - lo > 1) return true
-    }
-  }
-  return false
 }
 
 /** Bends dominate length, as in the router's own search. */

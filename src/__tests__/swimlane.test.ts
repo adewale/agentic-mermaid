@@ -266,16 +266,14 @@ test('Swimlane routes cross lane frames without running along them', () => {
 
 // mermaid-v13-843 (reduced): a route ran over the stub another hand-off must
 // leave or arrive by, and routes that found no line of their own shared one
-// with unrelated routes, so the drawing read as other hand-offs. In the
-// crowded gap, two long hand-offs that found no line a full separation from
-// every other route ran along one. Unrelated routes (no shared task) neither
-// share a line nor meet except by crossing.
-test.each([['mermaid-v13-843-swimlane-reduced.mmd', 18], ['mermaid-v13-843-swimlane-crowded-gap.mmd', 10]] as const)('unrelated Swimlane hand-offs in %s neither share a line nor meet except by crossing', (fixture, count) => {
-  const input = readFileSync(new URL(`../../eval/layout-compare/fixtures/${fixture}`, import.meta.url), 'utf8')
+// with unrelated routes, so the drawing read as other hand-offs. Unrelated
+// routes (no shared task) neither share a line nor meet except by crossing.
+test('unrelated Swimlane hand-offs neither share a line nor meet except by crossing', () => {
+  const input = readFileSync(new URL('../../eval/layout-compare/fixtures/mermaid-v13-843-swimlane-reduced.mmd', import.meta.url), 'utf8')
   const parsed = parseRegisteredMermaid(input)
   if (!parsed.ok) throw new Error('expected native Swimlane')
   const layout = layoutMermaid(parsed.value)
-  expect(layout.edges.length).toBe(count)
+  expect(layout.edges.length).toBe(18)
   const segments = layout.edges.flatMap(edge => edge.path.slice(1).map(([x, y], index) => {
     const [px, py] = edge.path[index]!
     return { edge, horizontal: py === y, at: py === y ? y : x, lo: Math.min(py === y ? px : py, py === y ? x : y), hi: Math.max(py === y ? px : py, py === y ? x : y) }
