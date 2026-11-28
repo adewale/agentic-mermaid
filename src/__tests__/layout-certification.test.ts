@@ -2,6 +2,8 @@ import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { verifyMermaid } from '../agent/verify.ts'
+import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { measureQuality } from '../agent/quality.ts'
 import { describe, expect, test } from 'bun:test'
 import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, certifyLayoutCandidates, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
@@ -494,6 +496,17 @@ describe('bounded final layout certification', () => {
     const selected = layoutGraphSync(graph), separate = layoutGraphSync(graph, { separateHierarchy: true })
     expect(selected.certification?.preference.compared.every(candidate => candidate.score.unreadableTitles === 0)).toBe(true)
     expect(countEdgeCrossings(selected.edges)).toBeLessThan(countEdgeCrossings(separate.edges))
+  })
+
+  // mermaid#7822 (a bare swimlane keyword lays out as a flowchart): the
+  // default placement detours around title bands with 44 crossings, but its
+  // routes share 11 runs with unrelated routes; the separate-hierarchy
+  // placement draws 76 crossings and none. A shared run hides which edge owns
+  // it, so the published drawing has none.
+  test('a placement whose routes share runs loses to one whose routes do not', () => {
+    const source = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/mermaid-7822.mmd'), 'utf8')
+    const quality = measureQuality(layoutMermaidWithReceipt(source, {}).layout)
+    expect(quality.routeContacts).toEqual({ touches: 0, overlaps: 0 })
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {

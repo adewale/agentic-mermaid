@@ -1,4 +1,4 @@
-import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, measureRouteReadability, type RubricMetrics } from '../layout-rubric.ts'
 import { layoutOptimization } from './optimization-context.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -52,7 +52,7 @@ export interface LayoutPreferenceEvidence {
   /** Score of the returned geometry. */
   selectedScore: LayoutPreferenceScore
   /** Placement-strategy decision. */
-  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
+  reason: PreferenceCriterion | 'misleadingRoutes' | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid' | 'non-regressing'
   /** Certified placement scores. */
   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
 }
@@ -418,10 +418,26 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
   }
 }
 
-function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCandidate): {
+/** Final route ink that misstates the graph: contacts between unrelated
+ * routes. A shared corner or T-junction reads as a junction that does not
+ * exist, and a shared run hides which edge owns it; each hides at least the
+ * crossing it replaces. */
+function misleadingRouteInk(candidate: CertifiedCandidate): number {
+  return measureRouteReadability(candidate.positioned).routeContacts
+}
+
+/** Between two final placements with equally readable titles, the one whose
+ * routes meet unrelated routes less wins before the declared objective is
+ * read: a crossing is clutter, a false junction is a wrong drawing. Family
+ * placement discards these routes, so it compares the objective alone. */
+function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCandidate, purpose: 'final' | 'placement'): {
   selected: CertifiedCandidate
   reason: LayoutPreferenceEvidence['reason']
 } {
+  if (purpose === 'final' && first.score.unreadableTitles === alternative.score.unreadableTitles) {
+    const firstInk = misleadingRouteInk(first), alternativeInk = misleadingRouteInk(alternative)
+    if (firstInk !== alternativeInk) return { selected: alternativeInk < firstInk ? alternative : first, reason: 'misleadingRoutes' }
+  }
   const { order, criterion } = compareLayoutPreference(first.score, alternative.score)
   return criterion === undefined ? { selected: first, reason: 'candidate-order' } : { selected: order < 0 ? alternative : first, reason: criterion }
 }
@@ -473,7 +489,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
     if (certified) {
       compared.push({ strategy: certified.strategy, score: certified.score })
       if (deferred) {
-        const choice = preferredCandidate(deferred, certified)
+        const choice = preferredCandidate(deferred, certified, purpose)
         return accept(choice.selected, choice.reason)
       }
       const alternatives = bounded.slice(index + 1)
